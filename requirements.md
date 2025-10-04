@@ -48,11 +48,69 @@ McRhythm is a music player that selects passages to play based on user preferenc
     - Lyric editing includes a "Submit" button, whenever a new lyric text is submitted it is recorded - overwriting previously submitted lyric texts.
     
 ## Three Versions
-- Full version includes player, Program Director (passage selector) and all database building / maintenance and preference editing functions
-- Lite version includes player, Program Director (passage selector) and preference editing functions, uses a static database built by the full version
-- Minimal version includes only the player and Program Director (passage selector), using database and preferences built by a Full or lite version
 
-When not otherwise specified, requirements are assumed to apply to all versions
+### Full Version
+**Target Platforms:** Linux desktop, Windows, macOS
+
+**Features:**
+- Player and Program Director (passage selector)
+- All database building and maintenance
+- File scanning and library management
+- Essentia local analysis for musical flavor
+- MusicBrainz/AcousticBrainz/ListenBrainz integration
+- Preference editing (timeslots, probabilities)
+
+**Resource Profile:**
+- CPU: Higher (Essentia analysis during import)
+- Disk I/O: Higher (file scanning)
+- Memory: ~512MB typical
+- Network: Required for initial setup, optional for ongoing use
+
+### Lite Version
+**Target Platforms:** Raspberry Pi Zero2W, Linux desktop, Windows, macOS
+
+**Features:**
+- Player and Program Director (passage selector)
+- Preference editing (timeslots, probabilities, base probabilities)
+- Uses pre-built static database from Full version
+- Read-only external data (MusicBrainz/AcousticBrainz cached)
+- ListenBrainz integration for feedback sync
+- No file scanning, no Essentia
+
+**Resource Profile:**
+- CPU: Moderate (playback + selection only)
+- Disk I/O: Low (no scanning, read-only database)
+- Memory: ~256MB typical
+- Network: Optional (for ListenBrainz sync)
+
+### Minimal Version
+**Target Platforms:** Raspberry Pi Zero2W, embedded systems, resource-constrained devices
+
+**Features:**
+- Player and Program Director only
+- Read-only database and preferences
+- No editing capabilities
+- Pre-configured timeslots and probabilities
+- Smallest memory footprint
+- No network access
+
+**Resource Profile:**
+- CPU: Minimal (playback + basic selection)
+- Disk I/O: Minimal (read-only database)
+- Memory: <256MB typical
+- Network: None required
+
+### Build Strategy
+
+See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for Rust feature flags and conditional compilation approach.
+
+**Database Deployment:**
+- Full version exports complete database snapshot
+- Lite/Minimal versions import read-only database
+- Migration tools for version upgrades and cross-platform deployment
+
+**Default Behavior:**
+When not otherwise specified, requirements apply to all versions
 
 ## Technical Requirements
 - Target platforms:

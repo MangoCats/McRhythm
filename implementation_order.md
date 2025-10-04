@@ -251,21 +251,35 @@
 - Output device switching without playback interruption
 
 ### 27. Version builds (Full/Lite/Minimal)
-- Feature flags and conditional compilation in Rust
-- **Full version**:
-  - All features enabled
-  - File scanning and import
-  - Essentia local analysis
-  - Database building
-- **Lite version**:
-  - Player + selector + preference editing
-  - Static database (read-only external data)
-  - No file scanning, no Essentia
-- **Minimal version**:
-  - Player + selector only
-  - Read-only database and preferences
-  - Minimal memory footprint
-- Database export/import utilities for Lite/Minimal deployment
+
+See [Requirements - Three Versions](requirements.md#three-versions) for complete feature comparison and resource profiles.
+
+**Rust Feature Flags:**
+```toml
+[features]
+default = ["minimal"]
+minimal = []
+lite = ["minimal", "preference-editing"]
+full = ["lite", "library-management", "essentia-analysis"]
+```
+
+**Conditional Compilation:**
+```rust
+#[cfg(feature = "full")]
+mod library_scanner;
+
+#[cfg(feature = "lite")]
+mod preference_editor;
+
+#[cfg(not(feature = "minimal"))]
+fn allow_editing() { /* ... */ }
+```
+
+**Database Export/Import:**
+- Full version exports complete database snapshot
+- Lite/Minimal versions import read-only database
+- Migration tools for version upgrades
+- Platform-specific packaging per version
 
 ## Phase 8: Polish & Optimization (Weeks 22-24)
 

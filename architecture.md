@@ -295,6 +295,16 @@ If lead-out(A) > lead-in(B):
 - AcoustID: 3 requests/second
 - Network failures: 5s delay, 20 max retries
 
+## Component Implementation Details
+
+For detailed specifications of component behavior, see:
+- **Musical Flavor System**: [Requirements - Musical Flavor](requirements.md#musical-flavor)
+- **Crossfade Timing**: [Requirements - Crossfade Handling](requirements.md#crossfade-handling)
+- **Selection Algorithm**: [Requirements - Automatic Passage Selection](requirements.md#automatic-passage-selection)
+- **Time-of-Day Scheduling**: [Requirements - Musical Flavor Target by Time of Day](requirements.md#musical-flavor-target-by-time-of-day)
+- **API Endpoints**: [Requirements - Web UI](requirements.md#web-ui)
+- **Cooldown Rules**: [Requirements - Automatic Passage Selection](requirements.md#automatic-passage-selection)
+
 ## Concurrency Model
 
 ### Threading Architecture
@@ -356,150 +366,33 @@ API Thread Pool (tokio async):
 
 ## Data Model
 
-### Core Entities
+McRhythm uses SQLite with UUID-based primary keys for all entities. The complete schema includes:
 
-**Files:**
-- `guid`, `path`, `hash`, `modification_time`, `created_at`, `updated_at`
+**Core Entities:** files, passages, songs, artists, works, albums
+**Relationships:** passage_songs, passage_albums, song_works
+**Playback:** play_history, likes_dislikes, queue
+**Configuration:** timeslots, timeslot_passages, settings
+**Caching:** acoustid_cache, musicbrainz_cache, acousticbrainz_cache
 
-**Passages:**
-- `guid`, `file_id`, `start_time`, `fade_in_time`, `lead_in_time`, `lead_out_time`, `fade_out_time`, `end_time`
-- `fade_profile` (exponential/cosine/linear)
-- `musical_flavor_vector` (JSON blob or normalized columns)
-- `title`, `artist`, `album` (from file tags)
+See [Database Schema](database_schema.md) for complete table definitions, constraints, indexes, and triggers.
 
-**Songs:**
-- `guid`, `recording_mbid`, `primary_artist_mbid`
-- `base_probability` (default 1.0, range 0.0-1000.0)
-- `min_cooldown`, `ramping_cooldown`
-- `last_played_at`
+### Key Design Decisions
 
-**Artists:**
-- `guid`, `artist_mbid`, `name`
-- `base_probability`
-- `min_cooldown`, `ramping_cooldown`
-- `last_played_at`
-
-**Works:**
-- `guid`, `work_mbid`, `title`
-- `min_cooldown`, `ramping_cooldown` (TBD)
-- `last_played_at`
-
-**PassageSongs (junction):**
-- `passage_id`, `song_id`
-
-**PlayHistory:**
-- `guid`, `passage_id`, `timestamp`, `duration_played`, `completed`
-
-**Queue:**
-- `position`, `passage_id`, `created_at`
-
-**Timeslots:**
-- `guid`, `start_hour`, `start_minute`, `name`
-
-**TimeslotPassages (junction):**
-- `timeslot_id`, `passage_id`
-
-**Settings:**
-- `key`, `value` (JSON)
-- Global settings, preferences, temporary overrides
-
-**Albums:**
-- `guid`, `album_mbid`, `title`, `release_date`
-- `front_art_path`, `back_art_path` (file paths to image files)
-
-### Indexes
-
-- `passages.file_id`
-- `songs.last_played_at`
-- `artists.last_played_at`
-- `works.last_played_at`
-- `play_history.timestamp`
-- `play_history.passage_id`
+- **UUID primary keys**: Enable database merging across Full/Lite/Minimal versions
+- **Musical flavor vectors**: Stored as JSON in `passages.musical_flavor_vector` for flexibility and SQLite JSON1 integration
+- **Automatic triggers**: Update `last_played_at` timestamps on playback for cooldown calculations
+- **Foreign key cascades**: Simplify cleanup when files/passages deleted
+- **No binary blobs**: Album art stored as files, database stores paths only
 
 ## Version Differentiation
 
-### Full Version
-**Features:**
-- All components enabled
-- File scanning and library management
-- Essentia local analysis for musical flavor
-- Database building and maintenance
-- Preference editing
-- MusicBrainz/AcousticBrainz/ListenBrainz integration
+McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature flags for conditional compilation. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
 
-**Target Platforms:**
-- Linux desktop
-- Windows
-- macOS
-
-**Resource Profile:**
-- Higher CPU (Essentia analysis)
-- Higher disk I/O (file scanning)
-- Network access required for initial setup
-
-### Lite Version
-**Features:**
-- Player + selector + preference editing
-- Uses pre-built static database from Full version
-- Read-only external data (MusicBrainz/AcousticBrainz cached)
-- Timeslot and probability editing allowed
-- No file scanning, no Essentia
-
-**Target Platforms:**
-- Raspberry Pi Zero2W
-- Linux desktop
-- Windows, macOS
-
-**Resource Profile:**
-- Moderate CPU (playback + selection only)
-- Low disk I/O (no scanning)
-- Optional network (for ListenBrainz sync)
-
-### Minimal Version
-**Features:**
-- Player + selector only
-- Read-only database and preferences
-- No editing capabilities
-- Pre-configured timeslots and probabilities
-- Smallest memory footprint
-
-**Target Platforms:**
-- Raspberry Pi Zero2W
-- Embedded systems
-- Resource-constrained devices
-
-**Resource Profile:**
-- Minimal CPU (playback + basic selection)
-- Minimal disk I/O (read-only database)
-- No network access required
-
-### Version Build Strategy
-
-**Rust Feature Flags:**
-```toml
-[features]
-default = ["minimal"]
-minimal = []
-lite = ["minimal", "preference-editing"]
-full = ["lite", "library-management", "essentia-analysis"]
-```
-
-**Conditional Compilation:**
-```rust
-#[cfg(feature = "full")]
-mod library_scanner;
-
-#[cfg(feature = "lite")]
-mod preference_editor;
-
-#[cfg(not(feature = "minimal"))]
-fn allow_editing() { /* ... */ }
-```
-
-**Database Export/Import:**
-- Full version exports complete database snapshot
-- Lite/Minimal versions import read-only database
-- Migration tools for version upgrades
+**Implementation approach:**
+- Rust feature flags: `full`, `lite`, `minimal`
+- Conditional compilation with `#[cfg(feature = "...")]`
+- Database export/import utilities for Lite/Minimal deployment
+- See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for build details
 
 ## Platform Abstraction
 
