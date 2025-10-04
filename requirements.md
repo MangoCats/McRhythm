@@ -139,7 +139,7 @@ See [Implementation Order - Version Builds](implementation_order.md#27-version-b
 - Recording: the unique distinct piece of audio underlying a track. Has a MBID.
 - Work: one or more recordings can exist of each work. Has a MBID.
 - Performing Artist: the artist(s) credited with creating a recording. Has a MBID.
-- Song: A combination of a recording and performing artist(s).
+- Song: A combination of a recording and one or more performing artist(s).
   - each song may appear in one or more passages.
 - Passage: A span of audio.
   - In McRhythm a passage is a defined part of an audio file with start, fade-in, lead-in, 
@@ -387,9 +387,10 @@ When passages are being considered for enqueuing:
 #### Base probabilities
 - each song starts with a base probability of selection = 1.0
 - each artist starts with a base probability of selection = 1.0
-- users may edit song / artist probabilities
+- each work starts with a base probability of selection = 1.0
+- users may edit song / artist / work probabilities
   - valid range from 0.0 to 1000.0, presented as logarithmic scale slider with option for numeric input
-- passage base probability is the product of the passage's song base probability multiplied by the passage's primary performing artist base probability
+- passage base probability is the product of the passage's lowest song base probability multiplied by the passage's lowest primary performing artist base probability multiplied by the passage's lowest work base probability 
 
 ### User Queue additions
 - User may select any passage for enqueueing, including those with no songs contained
