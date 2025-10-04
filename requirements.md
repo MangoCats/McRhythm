@@ -13,8 +13,7 @@ McRhythm is a music player that selects passages to play based on user preferenc
   - identification of the song(s) contained in the passage (see Definitions for definition of song in this context)
   - identification of other relationships that may influence selection of passages for enqueueing
 - Cross references passages to the AcousticBrainz database when possible, identifying musical character of each passage
-  - In absence of AcousticBrainz data will use AcousticBrainz algorithms (Essentia) locally to generate musical character values for the passage (Full version only)
-- Interface to ListenBrainz to inform future listening choices based on past likes and dislikes
+  - In absence of AcousticBrainz data will use AcousticBrainz algorithms (Essentia) locally to generate musical flavor values for the passage (Full version only)
 - Local copies of all relevant subsets of database information enabling offline operation
 - Web-based UI
   - Primary mode of operation is automatic, without user intervention
@@ -46,8 +45,17 @@ McRhythm is a music player that selects passages to play based on user preferenc
       - whenever an add passage command is received, that passage is added to the end of the queue
       - if two or more remove passage commands are received for one passage, the later commands are ignored
     - Lyric editing includes a "Submit" button, whenever a new lyric text is submitted it is recorded - overwriting previously submitted lyric texts.
+- Passages play continuously (when not paused by user)
     
+## Additional Features
+Planned for later development:
+- Interface to ListenBrainz to inform future listening choices based on past likes and dislikes
+- Mobile (Android, iOS) versions
+
 ## Three Versions
+
+**Default Behavior:**
+When not otherwise specified, requirements apply to all versions
 
 ### Full Version
 **Target Platforms:** Linux desktop, Windows, macOS
@@ -90,6 +98,8 @@ McRhythm is a music player that selects passages to play based on user preferenc
 - Player and Program Director only
 - Read-only database and preferences
 - No editing capabilities
+  - No like/dislike
+  - No changing of flavor profiles
 - Pre-configured timeslots and probabilities
 - Smallest memory footprint
 - No network access
@@ -109,9 +119,6 @@ See [Implementation Order - Version Builds](implementation_order.md#27-version-b
 - Lite/Minimal versions import read-only database
 - Migration tools for version upgrades and cross-platform deployment
 
-**Default Behavior:**
-When not otherwise specified, requirements apply to all versions
-
 ## Technical Requirements
 - Target platforms:
   - Primary target: Raspberry Pi Zero2W (Lite and Minimal versions)
@@ -127,15 +134,12 @@ When not otherwise specified, requirements apply to all versions
   - SQLite
   - Tauri
   
-## Architecture
-See architecture.md
-
 ## Definitions
 - Track: a specific recording on a particular release.  Has a MBID (MusicBrainz unique identifier).
 - Recording: the unique distinct piece of audio underlying a track. Has a MBID.
 - Work: one or more recordings can exist of each work. Has a MBID.
 - Performing Artist: the artist(s) credited with creating a recording. Has a MBID.
-- Song: A combination of a recording and primary performing artist.
+- Song: A combination of a recording and performing artist(s).
   - each song may appear in one or more passages.
 - Passage: A span of audio.
   - In McRhythm a passage is a defined part of an audio file with start, fade-in, lead-in, 
@@ -259,9 +263,8 @@ When passages are being considered for enqueuing:
     flavor target.
    
 ## Non-functional Requirements
-- Passages should play continuously (when not paused by user)
 - Errors logged to developer interface, otherwise gracefully ignored and continue playing as best as able
-
+  - developer interface is stdout/stderr
 
 ## Passage Identification & Library Management
 
@@ -283,6 +286,7 @@ When passages are being considered for enqueuing:
 - Fallback to filename parsing if tags missing
 - Store all metadata in SQLite with timestamps
 - Default assumes each file contains one passage, unless otherwise identified by user
+  - Files must have at least one passage defined to be included for selection to enqueue
 
 ### Audio Fingerprinting
 - Generate AcoustID fingerprint for each passage using Chromaprint
@@ -302,14 +306,14 @@ When passages are being considered for enqueuing:
   - each passage is associated with zero or more MusicBrainz tracks, recordings, artists, and works
 
 ### MusicBrainz Integration
-- Store MusicBrainz IDs: Recording ID, Release ID, Artist ID
+- Store MusicBrainz IDs: Recording ID, Release ID, Artist ID, Work ID
 - Fetch and cache basic metadata:
   - Canonical artist name
   - Release title and date
   - Primary genre/tags (limit to the top 10 when more than 10 are defined)
 - Offline mode: when local data is available, do not perform network lookups
 
-#### Lyrics input / storage
+#### Lyrics input / storage (Full Version only)
 - WebUI provides page to input / edit lyrics associated with a passage
   - split window allows web search for lyrics to facilitate easy copy-paste
 - Lyrics are stored in passage database table as plain UTF-8 text
@@ -335,7 +339,7 @@ When passages are being considered for enqueuing:
   - As default lead-out points are set to the end time.
 - When fade-in time is greater than 0, the recorded audio level in the file is faded in, starting at 0 at the passage start time and ending at the full current volume level at the fade-in point
 - When fade-out time is greater than 0, the recorded audio level in the file is faded out, starting at the full current volume level at the fade-out point and ending 0 at the end of passage time
-- fade-in / fade-out profiles are set per-passage to be one of:
+- fade-in and fade-out profiles are each set separately per-passage to be one of:
   - Exponential fade in / Logarithmic fade out
   - Cosine (S-Curve) fade in and fade out
   - Linear fade in and fade out
@@ -369,8 +373,16 @@ When passages are being considered for enqueuing:
     - minimum primary performing artist cooldown time defaults to 2 hours
   - ramping cooldown time during which the any passage by the primary performing artist is less likely to be selected for playing again - starting at the end of the minimum primary performing artist cooldown time when passages by the artist probability to be selected is 0, ramping up linearly throughout the ramping cooldown time until passages by the artist are restored to 100% (1.0) of their base probability to be selected.
     - ramping primary performing artist cooldown time defaults to 4 hours
-    - passage and primary performing artist ramping cooldown times "stack" meaning: the net probability for a passage in ramping cooldown time which is associated with an artist also in ramping cooldown time is the product of the two ramping values (on a 0.0 - 1.0 scale)
-    - when a passage is associated with a primary performing artist and one or more featured artists, the artist with the lowest cooldown probability is used for computation of the passage's net probability to be enqueued.
+    
+- Zero or more works are associated with each passage
+- Each work has an individual frequency profile
+  - minimum cooldown time required to pass between last play of a work before a passage containing the work  is eligible to be enqueued for playing again.  During this time the work's probability of being enqueued for play is 0.
+    - minimum work cooldown time defaults to 3 days
+  - ramping cooldown time during which any passage associated with the work is less likely to be selected for playing again - starting at the end of the minimum cooldown time when the work's probability to be selected is 0, ramping up linearly throughout the ramping cooldown time until the work is restored to 100% (1.0) of its base probability to be selected.
+    - ramping work cooldown time defaults to 7 days
+    
+- song, work and primary performing artist ramping cooldown times "stack" meaning: the net probability for a passage in ramping cooldown time which is associated with an artist also in ramping cooldown time is the product of the three ramping values (on a 0.0 - 1.0 scale)
+  - when a passage is associated with a primary performing artist and one or more featured artists, the artist with the lowest cooldown probability is used for computation of the passage's net probability to be enqueued.
 
 #### Base probabilities
 - each song starts with a base probability of selection = 1.0
@@ -392,9 +404,6 @@ When passages are being considered for enqueuing:
   - Timestamp (start time)
   - Duration played (for skip detection)
   - Completion status (played fully vs skipped)
-
-### Database Schema
-See: database_schema.md
 
 #### Album art
 - Passages are usually associated with an album
