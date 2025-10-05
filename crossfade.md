@@ -74,11 +74,11 @@ Passage A: |---------------------------|******|
                          Lead-Out Point↑   End↑
 
 Passage B:                             |*********|-------------------|
-                                       ↑Start   ↑Lead-In Point
+                                       ↑Start    ↑Lead-In Point
 
 Timeline:  |---------------------------|------|------------------------|
-           A playing alone              Both playing
-                                               B playing alone
+           A playing alone             Both playing
+                                              B playing alone
 ```
 
 **Timing**: Passage B starts at its Start Time when Passage A reaches its Lead-Out Point.
@@ -94,13 +94,13 @@ When `Lead-Out Time of Passage A > Lead-In Time of Passage B`:
 
 ```
 Passage A: |---------------------------|*************|
-                               Lead-Out↑          End↑
+                         Lead-Out Point↑          End↑
 
 Passage B:                                   |*******|-----------------|
-                                             ↑Start ↑Lead-In
+                                             ↑Start  ↑Lead-In Point
 
 Timeline:  |---------------------------------|-------|-----------------|
-           A playing alone                    Both playing
+           A playing alone                   Both playing
                                                      B playing alone
 ```
 
@@ -120,7 +120,7 @@ Passage A: |---------------------------|
                                        ↑End
 
 Passage B:                             |-----------------|
-                                                          ↑Start
+                                       ↑Start
 
 Timeline:  |---------------------------|------------------|
            A playing                   B playing
