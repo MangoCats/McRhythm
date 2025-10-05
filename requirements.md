@@ -22,10 +22,12 @@ McRhythm is a music player that selects passages to play based on user preferenc
       - Task scheduler launched service on Windows
       - launchd on OS-X
     - Auto-selection of passages to play
-      - Automatically select passages until at least 2 passages beyond the currently playing passage and 
-        at least 15 minutes of total passage playing time is enqueued
-      - Enter "Pause" mode when no passages are available to enqueue, either because the library is empty
-        or because all passages in the library are currently in 0 probability cooldown.
+      - Automatically select passages until at least three passages are either currently playing, paused
+        or waiting in the queue and  at least 15 minutes of total passage playing time is remaining 
+        in the queue.
+      - Enter "Pause" mode (same behavior as if the user clicked on the Pause control) when no passages
+        with associated songs are available to enqueue, because the library lacks passages with songs
+        which are not currently in 0 probability cooldown.
   - Shows passage currently playing
     - Shows associated album art or other still image(s) associated with the passage when available
     - Shows passage lyrics when available
@@ -65,8 +67,10 @@ When not otherwise specified, requirements apply to all versions
 - All database building and maintenance
 - File scanning and library management
 - Essentia local analysis for musical flavor
-- MusicBrainz/AcousticBrainz/ListenBrainz integration
-- Preference editing (timeslots, probabilities)
+- Preference editing (timeslots, base probabilities)
+- MusicBrainz/AcousticBrainz integration
+- For future development:
+  - ListenBrainz integration
 
 **Resource Profile:**
 - CPU: Higher (Essentia analysis during import)
@@ -79,11 +83,12 @@ When not otherwise specified, requirements apply to all versions
 
 **Features:**
 - Player and Program Director (passage selector)
-- Preference editing (timeslots, probabilities, base probabilities)
+- Preference editing (timeslots, base probabilities)
 - Uses pre-built static database from Full version
 - Read-only external data (MusicBrainz/AcousticBrainz cached)
-- ListenBrainz integration for feedback sync
 - No file scanning, no Essentia
+- For future development:
+  - ListenBrainz integration for feedback sync
 
 **Resource Profile:**
 - CPU: Moderate (playback + selection only)
@@ -321,33 +326,10 @@ When passages are being considered for enqueuing:
 ## Playback behaviors
 
 ### Crossfade Handling
-- Passages have a fade-in point identified at some time at or after the passage start time, at or before the fade-out point.
-  - The fade-in time is the difference between the start time and fade-in point.
-  - The fade-in point may be identical to the start time - resulting in a fade-in time of 0.
-  - As default fade-in points are set to the start time.
-- Passages have a lead-in point identified at some time at or after the start time, at or before the lead-out point.
-  - The lead-in time is the difference between the start time and lead-in point.
-  - The lead-in point may be identical to the start time - resulting in a lead-in time of 0.
-  - As default lead-in points are set to the start time.
-- Passages have a fade-out point identified at some time at or before the passage end time, at or after the fade-in point.
-  - The fade-out time is the difference between the fade-out point and the end time.
-  - The fade-out point may be identical to the end time - resulting in a fade-out time of 0.
-  - As default fade-out points are set to the end time.
-- Passages have a lead-out point identified at some time at or before the passage end time, at or after the lead-in point.
-  - The lead-out time is the difference between the lead-out point and the end time.
-  - The lead-out point may be identical to the end time - resulting in a lead-out time of 0.
-  - As default lead-out points are set to the end time.
-- When fade-in time is greater than 0, the recorded audio level in the file is faded in, starting at 0 at the passage start time and ending at the full current volume level at the fade-in point
-- When fade-out time is greater than 0, the recorded audio level in the file is faded out, starting at the full current volume level at the fade-out point and ending 0 at the end of passage time
-- fade-in and fade-out profiles are each set separately per-passage to be one of:
-  - Exponential fade in / Logarithmic fade out
-  - Cosine (S-Curve) fade in and fade out
-  - Linear fade in and fade out
-- When a playing passage with a lead-out time greater than 0 is followed by a passage with a longer lead-in time, the following passage begins playing at its start time simultaneously with the playing passage when the playing passage reaches its lead-out point.
-- When a playing passage with a lead-out time greater than 0 is followed by a passage with a shorter lead-in time, the following passage begins playing simultaneously at its start time when the playing passage has the same time remaining before its end time as the lead-in time of the following passage.
-- fade-in / fade-out behavior is unchanged by simultaneous playing of crossfading passages
-- default lead-in, lead-out, fade-in, fade-out times are 0, they may be edited by the user
-- lead-in, lead-out, fade-in, fade-out times are stored in the passage's database table
+
+> **See [Crossfade Design](crossfade.md) for complete crossfade design details, timing diagrams, and examples.**
+
+Each passage has six configurable timing points (start, fade-in, lead-in, lead-out, fade-out, end) that control volume fades and crossfade overlap with adjacent passages. Crossfade behavior depends on the relationship between the current passage's lead-out time and the following passage's lead-in time. All timing values default to 0 and are user-editable. Three fade curve profiles are available: exponential/logarithmic, cosine (S-curve), and linear.
 
 ### Fade-in when resuming from Pause
 - When resuming play after Pause, the audio level ramps up exponentially across a time of 0.5 seconds
@@ -390,7 +372,10 @@ When passages are being considered for enqueuing:
 - each work starts with a base probability of selection = 1.0
 - users may edit song / artist / work probabilities
   - valid range from 0.0 to 1000.0, presented as logarithmic scale slider with option for numeric input
-- passage base probability is the product of the passage's lowest song base probability multiplied by the passage's lowest primary performing artist base probability multiplied by the passage's lowest work base probability 
+- passage base probability is the product of the following:
+  - the passage's lowest song base probability 
+  - the passage's lowest primary performing artist base probability, or 1.0 if no primary performing artist is associated
+  - the passage's lowest work base probability, or 1.0 if no work is associated
 
 ### User Queue additions
 - User may select any passage for enqueueing, including those with no songs contained
@@ -423,8 +408,8 @@ When passages are being considered for enqueuing:
 - **Skip**: Move to next passage in queue
 - **Volume**: Set 0-100% volume level
 - **Seek**: Jump to specific position in current passage
-- **Like**: Record a like associated with the passage at the time like was indicated by the user
-- **Dislike**: Record a dislike associated with the passage at the time dislike was indicated by the user
+- **Like**: Record a like associated with the passage at the time like was indicated by the user  (Full and Lite versions only)
+- **Dislike**: Record a dislike associated with the passage at the time dislike was indicated by the user (Full and Lite versions only)
 - **Remove**: Remove a passage from the queue
 - **Select**: Select a passage to enqueue
 - **Import**: Rescan designated music folders for new / changed music files, add them to the local database (Full version only)
@@ -456,15 +441,15 @@ When passages are being considered for enqueuing:
 - `POST /api/skip` - Skip to next
 - `POST /api/volume` - Set volume (body: `{level: 0-100}`)
 - `GET /api/queue` - Get upcoming passages
-- `POST /api/like` - like the passage
-- `POST /api/dislike` - dislike the passage
+- `POST /api/like` - like the passage (Full and Lite versions only)
+- `POST /api/dislike` - dislike the passage (Full and Lite versions only)
 - `POST /api/remove` - remove passage from queue
 - `POST /api/enqueue` - enqueue passage
 - `POST /api/seek` - skip to playback point in passage
 - `POST /api/import` - import new audio files
 - `POST /api/output` - audio output device selection
-- `GET /api/lyrics/:passage_id`
-- `PUT /api/lyrics/:passage_id`
+- `GET /api/lyrics/:passage_id` 
+- `PUT /api/lyrics/:passage_id` (Full version only)
 - `GET /api/events` (SSE endpoint for real-time updates)
 
 ### State Persistence
