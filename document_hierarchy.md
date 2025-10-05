@@ -453,20 +453,20 @@ Cascade: Update implementation_order.md with optimization task
 
 ## Common Pitfalls to Avoid
 
-❌ **Don't:** Update requirements.md because implementation is easier a different way
-✅ **Do:** Update design/implementation to satisfy requirements as written, or formally propose requirement change
+- ❌ **Don't:** Update requirements.md because implementation is easier a different way
+- ✅ **Do:** Update design/implementation to satisfy requirements as written, or formally propose requirement change
 
-❌ **Don't:** Let implementation_order.md define new requirements
-✅ **Do:** Use implementation_order.md to discover requirement gaps, then update requirements.md
+- ❌ **Don't:** Let implementation_order.md define new requirements
+- ✅ **Do:** Use implementation_order.md to discover requirement gaps, then update requirements.md
 
-❌ **Don't:** Update architecture.md to match what was accidentally implemented
-✅ **Do:** Fix implementation to match architecture, or formally update architecture with review
+- ❌ **Don't:** Update architecture.md to match what was accidentally implemented
+- ✅ **Do:** Fix implementation to match architecture, or formally update architecture with review
 
-❌ **Don't:** Create circular references between documents
-✅ **Do:** Follow strict hierarchy: higher tiers inform lower tiers, never reverse
+- ❌ **Don't:** Create circular references between documents
+- ✅ **Do:** Follow strict hierarchy: higher tiers inform lower tiers, never reverse
 
-❌ **Don't:** Skip change control for "small" requirement changes
-✅ **Do:** All requirement changes go through review, no matter how small
+- ❌ **Don't:** Skip change control for "small" requirement changes
+- ✅ **Do:** All requirement changes go through review, no matter how small
 
 ## Document Update Summary
 
