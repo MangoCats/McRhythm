@@ -71,10 +71,10 @@ When `Lead-Out Time of Passage A ≤ Lead-In Time of Passage B`:
 
 ```
 Passage A: |---------------------------|******|
-                         Lead-Out Point↑  End↑
+                         Lead-Out Point↑   End↑
 
 Passage B:                             |*********|-------------------|
-                                                          ↑Start   ↑Lead-In Point
+                                       ↑Start   ↑Lead-In Point
 
 Timeline:  |---------------------------|------|------------------------|
            A playing alone              Both playing
@@ -94,10 +94,10 @@ When `Lead-Out Time of Passage A > Lead-In Time of Passage B`:
 
 ```
 Passage A: |---------------------------|*************|
-                              Lead-Out↑          End↑
+                               Lead-Out↑          End↑
 
 Passage B:                                   |*******|-----------------|
-                                                                   ↑Start ↑Lead-In
+                                             ↑Start ↑Lead-In
 
 Timeline:  |---------------------------------|-------|-----------------|
            A playing alone                    Both playing
@@ -117,12 +117,12 @@ When both Lead-In Time and Lead-Out Time are 0:
 
 ```
 Passage A: |---------------------------|
-                                                          ↑End
+                                       ↑End
 
 Passage B:                             |-----------------|
                                                           ↑Start
 
-Timeline:  |---------------------------||-----------------|
+Timeline:  |---------------------------|------------------|
            A playing                   B playing
 ```
 
