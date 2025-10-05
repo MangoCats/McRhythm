@@ -16,9 +16,25 @@ Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
   |---------|---------|--------------------|---------|---------|
   |         |         |                    |         |         |
   0%        |         |                    |         |        100%
-       Fade-In   Lead-In Time         Lead-Out  Fade-Out
-        Time                            Time      Time
+       Fade-In   Lead-In Point        Lead-Out  Fade-Out
+        Point                           Point     Point
 ```
+Fade-In may be equal to or after Lead-In,
+Fade-Out may be equal to or after Lead-Out:
+```
+Start    Lead-In   Fade-In            Fade-Out   Lead-Out    End
+  |         |         |                    |         |         |
+  |---------|---------|--------------------|---------|---------|
+  |         |         |                    |         |         |
+  0%        |         |                    |         |        100%
+       Lead-In   Fade-In Point        Fade-Out  Lead-Out
+        Point                           Point     Point
+```
+Fade-In / Fade-Out soften the passage start / end volume profiles, for example when taking a passage
+from the middle of a continuous piece of music.
+
+Lead-In / Lead-Out define portions of the passage where it is permissible / non-intrusive for a crossfade
+operation to take place.
 
 ### Point Definitions
 
@@ -26,17 +42,19 @@ Start time, end time, and all points each define a time in the audio file:
 
 1. **Start Time**: Beginning of the passage audio
 2. **Fade-In Point**: When audio reaches full volume after fading in
-3. **Lead-In Point**: When crossfade must be complete, previous passage must have stopped
+3. **Lead-In Point**: The time point by which the previous passage must have ended. The
+                      system enforces this by calculating crossfade start timing based on Lead-In and
+                      Lead-Out Durations (see Crossfade Behavior cases).
 4. **Lead-Out Point**: When the next passage may start playing for crossfade
 5. **Fade-Out Point**: When audio begins fading out
 6. **End Time**: End of the passage audio
 
-### Time Intervals
+### Durations
 
-- **Fade-In Time** = Fade-In Point - Start Time (default: 0)
-- **Lead-In Time** = Lead-In Point - Start Time (default: 0)
-- **Lead-Out Time** = End Time - Lead-Out Point (default: 0)
-- **Fade-Out Time** = End Time - Fade-Out Point (default: 0)
+- **Fade-In Duration** = Fade-In Point - Start Time (default: 0)
+- **Lead-In Duration** = Lead-In Point - Start Time (default: 0)
+- **Lead-Out Duration** = End Time - Lead-Out Point (default: 0)
+- **Fade-Out Duration** = End Time - Fade-Out Point (default: 0)
 
 ### Constraints
 
@@ -65,9 +83,9 @@ Each passage can independently configure its fade-in and fade-out curves:
 
 ## Crossfade Behavior
 
-### Case 1: Following Passage Has Longer Lead-In Time
+### Case 1: Following Passage Has Longer Lead-In Duration
 
-When `Lead-Out Time of Passage A ≤ Lead-In Time of Passage B`:
+When `Lead-Out Duration of Passage A ≤ Lead-In Duration of Passage B`:
 
 ```
 Passage A: |---------------------------|******|
@@ -84,13 +102,13 @@ Timeline:  |---------------------------|------|------------------------|
 **Timing**: Passage B starts at its Start Time when Passage A reaches its Lead-Out Point.
 
 **Example**:
-- Passage A: Lead-Out Time = 3 seconds
-- Passage B: Lead-In Time = 5 seconds
+- Passage A: Lead-Out Duration = 3 seconds
+- Passage B: Lead-In Duration = 5 seconds
 - Result: Passage B starts 3 seconds before Passage A ends (they overlap for 3 seconds)
 
-### Case 2: Following Passage Has Shorter Lead-In Time
+### Case 2: Following Passage Has Shorter Lead-In Duration
 
-When `Lead-Out Time of Passage A > Lead-In Time of Passage B`:
+When `Lead-Out Duration of Passage A > Lead-In Duration of Passage B`:
 
 ```
 Passage A: |---------------------------|*************|
@@ -104,16 +122,16 @@ Timeline:  |---------------------------------|-------|-----------------|
                                                      B playing alone
 ```
 
-**Timing**: Passage B starts at its Start Time when Passage A has `Lead-In Time of B` remaining before its End Time.
+**Timing**: Passage B starts at its Start Time when Passage A has `Lead-In Duration of B` remaining before its End Time.
 
 **Example**:
-- Passage A: Lead-Out Time = 5 seconds, currently at time point where 2 seconds remain
-- Passage B: Lead-In Time = 2 seconds
+- Passage A: Lead-Out Duration = 5 seconds, currently at time point where 2 seconds remain
+- Passage B: Lead-In Duration = 2 seconds
 - Result: Passage B starts now (they overlap for 2 seconds)
 
-### Case 3: No Overlap (Zero Lead Times)
+### Case 3: No Overlap (Zero Lead Durations)
 
-When both Lead-In Time and Lead-Out Time are 0:
+When both Lead-In Duration and Lead-Out Duration are 0:
 
 ```
 Passage A: |---------------------------|
@@ -156,10 +174,10 @@ When resuming from Pause:
 
 New passages are created with:
 - Start Time: Beginning of file (or user-defined offset)
-- Fade-In Point: = Start Time (Fade-In Time = 0)
-- Lead-In Point: = Start Time (Lead-In Time = 0)
-- Lead-Out Point: = End Time (Lead-Out Time = 0)
-- Fade-Out Point: = End Time (Fade-Out Time = 0)
+- Fade-In Point: = Start Time (Fade-In Duration = 0)
+- Lead-In Point: = Start Time (Lead-In Duration = 0)
+- Lead-Out Point: = End Time (Lead-Out Duration = 0)
+- Fade-Out Point: = End Time (Fade-Out Duration = 0)
 - End Time: End of file (or user-defined offset)
 - Fade-In Curve: Exponential
 - Fade-Out Curve: Logarithmic
@@ -186,7 +204,7 @@ Should display:
 
 ### Validation
 - Enforce temporal constraints when user moves markers
-- Warn if Lead-Out Time > remaining passage duration
+- Warn if any duration > 50% of passage duration
 - Suggest sensible defaults based on passage characteristics
 
 ## Edge Cases
@@ -194,7 +212,7 @@ Should display:
 ### First Passage in Queue
 - No previous passage to crossfade from
 - Fade-in and Lead-in apply if defined
-- If Lead-In > 0, passage may start partially silent/faded
+- If Fade-In Duration > 0, passage starts at zero volume and fades in
 
 ### Last Passage in Queue
 - No next passage to crossfade to
@@ -203,7 +221,7 @@ Should display:
 
 ### User Skip During Crossfade
 - Both passages stop immediately
-- Next passage begins according to its own timing rules
+- Next passage from the queue begins according to its own timing rules
 
 ### Pause During Crossfade
 - Both passages pause at current position
