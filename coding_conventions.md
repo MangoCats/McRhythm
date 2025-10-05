@@ -20,7 +20,7 @@ These conventions ensure maintainability, testability, and consistency across th
 **CO-020: Function Complexity**
 
 - **CO-021:** Individual functions should not exceed 100 lines of code
-- **CO-022:** Functions with cyclomatic complexity greater than 10 should be refactored into smaller functions
+- **CO-022:** Functions with [cyclomatic complexity](https://en.wikipedia.org/wiki/Cyclomatic_complexity) greater than 10 should be refactored into smaller functions
 
 ### Separation of Concerns
 
