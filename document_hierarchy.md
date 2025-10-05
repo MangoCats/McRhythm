@@ -35,16 +35,15 @@ flowchart TD
         EVT["event_system.md<br/><br/>Defines event-driven<br/>communication architecture"]
     end
 
-    subgraph ROW3[" "]
-        direction LR
-        subgraph T3["TIER 3: IMPLEMENTATION SPECS"]
-            DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
-            CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
-        end
+    T2_SPACER[" "]:::invisible
 
-        subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
-            ENUM["requirements_enumeration.md<br/><br/>Defines requirement ID scheme<br/>(REQ-xxx, XFD-xxx, etc.)<br/>Applied across ALL documents<br/>for traceability"]
-        end
+    subgraph T3["TIER 3: IMPLEMENTATION SPECS"]
+        DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
+        CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
+    end
+
+    subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
+        ENUM["requirements_enumeration.md<br/><br/>Defines requirement ID scheme<br/>(REQ-xxx, XFD-xxx, etc.)<br/>Applied across ALL documents<br/>for traceability"]
     end
 
     subgraph T4["TIER 4: EXECUTION PLAN"]
@@ -53,6 +52,8 @@ flowchart TD
 
     DH -->|governs| REQ
     REQ -->|informs| ARCH & XFD & FLV & EVT
+    T2_SPACER ~~~ T3
+    T2_SPACER ~~~ CC
     ARCH & XFD & FLV & EVT -->|informs| DB & CODE
     DB & CODE -->|informs| IMPL
 
@@ -64,7 +65,6 @@ flowchart TD
     style T3 fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
     style CC fill:#fff9c4,stroke:#f57f17,stroke-width:3px
     style T4 fill:#fce4ec,stroke:#880e4f,stroke-width:3px
-    style ROW3 fill:none,stroke:none
 
     style DH fill:#b3e5fc,stroke:#01579b,stroke-width:2px
     style REQ fill:#ffe0b2,stroke:#e65100,stroke-width:2px
@@ -76,6 +76,8 @@ flowchart TD
     style DB fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style CODE fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style IMPL fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
+
+    classDef invisible fill:none,stroke:none
 ```
 
 ## Document Purposes and Update Policies
