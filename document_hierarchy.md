@@ -35,6 +35,10 @@ flowchart TD
         EVT["event_system.md<br/><br/>Defines event-driven<br/>communication architecture"]
     end
 
+    subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
+        ENUM["requirements_enumeration.md<br/><br/>Defines requirement ID scheme<br/>(REQ-xxx, XFD-xxx, etc.)<br/>Applied across ALL documents<br/>for traceability"]
+    end
+
     subgraph T3["TIER 3: IMPLEMENTATION SPECS"]
         DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
         CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
@@ -44,23 +48,18 @@ flowchart TD
         IMPL["implementation_order.md<br/><br/>Defines WHEN features are built<br/>Aggregates and organizes all specs<br/>DOWNSTREAM - does not influence<br/>other documents"]
     end
 
-    subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
-        ENUM["requirements_enumeration.md<br/><br/>Defines requirement ID scheme<br/>(REQ-xxx, XFD-xxx, etc.)<br/>Applied across ALL documents<br/>for traceability"]
-    end
-
     DH -->|governs| REQ
     REQ -->|informs| ARCH & XFD & FLV & EVT
-    ARCH & XFD & FLV & EVT -->|informs| DB & CODE
+    ARCH & XFD & FLV & EVT --- ENUM
+    ENUM --- DB & CODE
     DB & CODE -->|informs| IMPL
-
-    ENUM -.->|"applied to"| T1 & T2 & T3 & T4
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
     style T2 fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
+    style CC fill:#fff9c4,stroke:#f57f17,stroke-width:3px
     style T3 fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
     style T4 fill:#fce4ec,stroke:#880e4f,stroke-width:3px
-    style CC fill:#fff9c4,stroke:#f57f17,stroke-width:2px,stroke-dasharray: 5 5
 
     style DH fill:#b3e5fc,stroke:#01579b,stroke-width:2px
     style REQ fill:#ffe0b2,stroke:#e65100,stroke-width:2px
@@ -68,10 +67,10 @@ flowchart TD
     style XFD fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style FLV fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style EVT fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style ENUM fill:#fff59d,stroke:#f57f17,stroke-width:2px
     style DB fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style CODE fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style IMPL fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
-    style ENUM fill:#fff59d,stroke:#f57f17,stroke-width:2px
 ```
 
 ## Document Purposes and Update Policies
