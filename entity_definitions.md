@@ -21,7 +21,7 @@ Defines core entity terminology used throughout McRhythm documentation. Part of 
   - Audio files are stored in user-designated music library directories.
 - **[ENT-MCR-030]** Passage: A span of audio.
   - In McRhythm a passage is a defined part of an audio file with start, fade-in, lead-in,
-    lead-out, fade-out, end points in time defined, as described in Crossfade Handling.
+    lead-out, fade-out, end points in time defined, as described in [Crossfade Design](crossfade.md#overview).
   - Multiple passages defined within an audio file may, or may not, overlap each other in time.
   - A passage may contain zero or more songs.
 
