@@ -1,6 +1,14 @@
 # Crossfade Design
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md)
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Document Hierarchy](document_hierarchy.md)
+
+---
+
+**🎵 TIER 2 - DESIGN SPECIFICATION**
+
+Defines crossfade timing and behavior. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+
+---
 
 ## Overview
 

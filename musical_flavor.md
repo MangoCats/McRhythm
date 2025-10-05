@@ -1,6 +1,16 @@
 # Musical Flavor
 
-Musical flavor is a quantitative definition of a passage's characteristics in many dimensions.  It is derived from the AcousticBrainz high level characterization of tracks (identified by MBID) which provides values of:
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Document Hierarchy](document_hierarchy.md)
+
+---
+
+**🎼 TIER 2 - DESIGN SPECIFICATION**
+
+Defines musical flavor system and distance calculations. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+
+---
+
+Musical flavor is a quantitative definition of a passage's characteristics in many dimensions. It is derived from the AcousticBrainz high level characterization of tracks (identified by MBID) which provides values of:
 
 - danceability, danceable: 0-1
 - gender, female: 0-1

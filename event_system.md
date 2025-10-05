@@ -1,6 +1,14 @@
 # McRhythm Event System
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Coding Conventions](coding_conventions.md)
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Coding Conventions](coding_conventions.md) | [Document Hierarchy](document_hierarchy.md)
+
+---
+
+**📡 TIER 2 - DESIGN SPECIFICATION**
+
+Defines event-driven communication architecture. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+
+---
 
 ## Overview
 
