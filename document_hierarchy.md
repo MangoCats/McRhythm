@@ -37,11 +37,11 @@ McRhythm project documentation is organized into a strict hierarchy that governs
 │  │                  requirements.md                        │   │
 │  │  Defines WHAT the system must do                        │   │
 │  │  Source of truth for all functional requirements        │   │
-│  └───────────────────────┬─────────────────────────────────┘   │
-│                          │                                     │
-└──────────────────────────┼─────────────────────────────────────┘
-                            │ informs
-                            ↓
+│  └──────────────────────────┬──────────────────────────────┘   │
+│                             │                                  │
+└─────────────────────────────┼──────────────────────────────────┘
+                              │ informs
+                              ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                     TIER 2: DESIGN                              │
 │                                                                 │
@@ -58,11 +58,11 @@ McRhythm project documentation is organized into a strict hierarchy that governs
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │              event_system.md                            │   │
 │  │  Defines event-driven communication architecture        │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                          │                                     │
-└──────────────────────────┼─────────────────────────────────────┘
-                            │ informs
-                            ↓
+│  └──────────────────────────┬──────────────────────────────┘   │
+│                             │                                  │
+└─────────────────────────────┼──────────────────────────────────┘
+                              │ informs
+                              ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                TIER 3: IMPLEMENTATION SPECS                     │
 │                                                                 │
@@ -72,10 +72,10 @@ McRhythm project documentation is organized into a strict hierarchy that governs
 │  │  Defines data        │    │  Defines code organization│     │
 │  │  structures & schema │    │  standards & patterns     │     │
 │  └──────────────────────┘    └───────────────────────────┘     │
-│                          │                                     │
-└──────────────────────────┼─────────────────────────────────────┘
-                            │ informs
-                            ↓
+│                             │                                  │
+└─────────────────────────────┼──────────────────────────────────┘
+                              │ informs
+                              ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                  TIER 4: EXECUTION PLAN                         │
 │                                                                 │
