@@ -10,7 +10,7 @@ Defines musical flavor system and distance calculations. Derived from [requireme
 
 ## Quantitative Definition
 
-Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording) contained in a passage.  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
+Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording) contained in a [passage](entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
 
 These characteristic values break down into two categories: 
 - binary characteristics with two dimensions whose values add up to 1.0 such as: 
