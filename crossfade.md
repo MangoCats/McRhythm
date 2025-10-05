@@ -22,12 +22,14 @@ Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
 
 ### Point Definitions
 
-1. **Start Time**: Beginning of the passage audio (offset in file)
+Start time, end time, and all points each define a time in the audio file:
+
+1. **Start Time**: Beginning of the passage audio
 2. **Fade-In Point**: When audio reaches full volume after fading in
-3. **Lead-In Point**: When the passage is considered "fully playing" for crossfade purposes
-4. **Lead-Out Point**: When the passage begins its crossfade overlap with the next passage
+3. **Lead-In Point**: When crossfade must be complete, previous passage must have stopped
+4. **Lead-Out Point**: When the next passage may start playing for crossfade
 5. **Fade-Out Point**: When audio begins fading out
-6. **End Time**: End of the passage audio (offset in file)
+6. **End Time**: End of the passage audio
 
 ### Time Intervals
 
@@ -38,10 +40,11 @@ Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
 
 ### Constraints
 
-- Start ≤ Fade-In ≤ Lead-In ≤ Lead-Out ≤ Fade-Out ≤ End
-- Fade-In Point ≤ Fade-Out Point
-- Lead-In Point ≤ Lead-Out Point
+- Start ≤ Fade-In ≤ Fade-Out ≤ End
+- Start ≤ Lead-In ≤ Lead-Out ≤ End
 - All times may be equal (resulting in 0-duration intervals)
+- Fade-In and Fade-Out points do not restrict Lead-In and Lead-Out points
+- Lead-In and Lead-Out points do not restrict Fade-In and Fade-Out points
 
 ## Fade Curves
 
@@ -67,14 +70,15 @@ Each passage can independently configure its fade-in and fade-out curves:
 When `Lead-Out Time of Passage A ≤ Lead-In Time of Passage B`:
 
 ```
-Passage A: |---------------------------|********|
-                                       Lead-Out↑
+Passage A: |---------------------------|******|
+                         Lead-Out Point↑  End↑
 
-Passage B:          |********|-------------------|
-                    ↑Start   ↑Lead-In
+Passage B:                             |*********|-------------------|
+                                                          ↑Start   ↑Lead-In Point
 
-Timeline:  |-----------------------------|----|
-           A playing alone               Both playing
+Timeline:  |---------------------------|------|------------------------|
+           A playing alone              Both playing
+                                               B playing alone
 ```
 
 **Timing**: Passage B starts at its Start Time when Passage A reaches its Lead-Out Point.
@@ -89,14 +93,15 @@ Timeline:  |-----------------------------|----|
 When `Lead-Out Time of Passage A > Lead-In Time of Passage B`:
 
 ```
-Passage A: |---------------------------|********|
-                                           Lead-Out↑
+Passage A: |---------------------------|*************|
+                              Lead-Out↑          End↑
 
-Passage B:                      |**|-----------------|
-                                ↑Start ↑Lead-In
+Passage B:                                   |*******|-----------------|
+                                                                   ↑Start ↑Lead-In
 
-Timeline:  |--------------------------|-----|
-           A playing alone            Both playing
+Timeline:  |---------------------------------|-------|-----------------|
+           A playing alone                    Both playing
+                                                     B playing alone
 ```
 
 **Timing**: Passage B starts at its Start Time when Passage A has `Lead-In Time of B` remaining before its End Time.
@@ -112,10 +117,10 @@ When both Lead-In Time and Lead-Out Time are 0:
 
 ```
 Passage A: |---------------------------|
-                                       ↑End
+                                                          ↑End
 
 Passage B:                             |-----------------|
-                                       ↑Start
+                                                          ↑Start
 
 Timeline:  |---------------------------||-----------------|
            A playing                   B playing
@@ -125,37 +130,7 @@ Timeline:  |---------------------------||-----------------|
 
 ## Fade Behavior During Crossfade
 
-Fades operate independently of crossfade overlap:
-
-### Example: Crossfade with Fades
-
-```
-Passage A has:
-- Lead-Out Time: 4s
-- Fade-Out Time: 2s (starts 2s before end)
-
-Passage B has:
-- Lead-In Time: 3s
-- Fade-In Time: 1s (ends 1s after start)
-
-Timeline:
-Passage A: |---------------|FF|
-                           ↑Fade-Out starts (2s before end)
-                              ↑End
-
-Passage B:          |F|---------|
-                    ↑Start
-                     ↑Fade-In ends (1s after start)
-
-Combined:   |---------------|FF|
-                        |F|---------|
-                        ↑B starts (4s before A ends)
-```
-
-- Passage B starts 4 seconds before Passage A ends (when A reaches Lead-Out)
-- Passage A fades out during its final 2 seconds
-- Passage B fades in during its first 1 second
-- Both fades occur independently, mixing the two audio streams
+Fades operate independently of crossfade overlap
 
 ## Volume Calculations
 
@@ -238,3 +213,4 @@ Should display:
 ### Queue Modification During Crossfade
 - If next passage removed: current passage plays to completion
 - If current passage removed: next passage treated as "first passage in queue"
+
