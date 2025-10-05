@@ -35,13 +35,13 @@ flowchart TD
         EVT["event_system.md<br/><br/>Defines event-driven<br/>communication architecture"]
     end
 
-    subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
-        ENUM["requirements_enumeration.md<br/><br/>Defines requirement ID scheme<br/>(REQ-xxx, XFD-xxx, etc.)<br/>Applied across ALL documents<br/>for traceability"]
-    end
-
     subgraph T3["TIER 3: IMPLEMENTATION SPECS"]
         DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
         CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
+    end
+
+    subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
+        ENUM["requirements_enumeration.md<br/><br/>Defines requirement ID scheme<br/>(REQ-xxx, XFD-xxx, etc.)<br/>Applied across ALL documents<br/>for traceability"]
     end
 
     subgraph T4["TIER 4: EXECUTION PLAN"]
@@ -50,15 +50,16 @@ flowchart TD
 
     DH -->|governs| REQ
     REQ -->|informs| ARCH & XFD & FLV & EVT
-    ARCH & XFD & FLV & EVT --- ENUM
-    ENUM --- DB & CODE
+    ARCH & XFD & FLV & EVT -->|informs| DB & CODE
     DB & CODE -->|informs| IMPL
+
+    ENUM --- T1 & T2 & T3 & T4
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
     style T2 fill:#f3e5f5,stroke:#4a148c,stroke-width:3px
-    style CC fill:#fff9c4,stroke:#f57f17,stroke-width:3px
     style T3 fill:#e8f5e9,stroke:#1b5e20,stroke-width:3px
+    style CC fill:#fff9c4,stroke:#f57f17,stroke-width:3px
     style T4 fill:#fce4ec,stroke:#880e4f,stroke-width:3px
 
     style DH fill:#b3e5fc,stroke:#01579b,stroke-width:2px
