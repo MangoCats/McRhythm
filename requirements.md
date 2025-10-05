@@ -13,7 +13,7 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 ---
 
 ## Overview
-McRhythm is a music player that selects passages to play based on user preferences for musical flavor at various times of day.
+McRhythm is a music player that selects passages to play based on user preferences for [musical flavor](musical_flavor.md#quantitative-definition) at various times of day.
 
 ## Core Features
 - Plays passages from local files (.mp3 and similar)
