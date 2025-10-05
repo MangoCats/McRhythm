@@ -139,4 +139,7 @@ When passages are being considered for enqueuing:
 5. a random number between zero and the sum of all considered passages' computed probabilities is selected
 6. the list of candidates is iterated and each candidate's computed probability is subtracted from the random number
    the first candidate to reduce the random number to zero or below is the chosen passage for enqueuing.
+   
+----
+End of document - Musical Flavor
 

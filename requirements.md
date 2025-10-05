@@ -150,16 +150,8 @@ See [Implementation Order - Version Builds](implementation_order.md#27-version-b
   - Tauri
   
 ## Definitions
-- Track: a specific recording on a particular release.  Has a MBID (MusicBrainz unique identifier).
-- Recording: the unique distinct piece of audio underlying a track. Has a MBID.
-- Work: one or more recordings can exist of each work. Has a MBID.
-- Performing Artist: the artist(s) credited with creating a recording. Has a MBID.
-- Song: A combination of a recording and one or more performing artist(s).
-  - each song may appear in one or more passages.
-- Passage: A span of audio.
-  - In McRhythm a passage is a defined part of an audio file with start, fade-in, lead-in, 
-    lead-out, fade-out, end points in time defined, as described in Crossfade Handling.
-  - A passage may contain zero or more songs.
+
+The terms track, recording, work, artist, song and passage have specific definitions found in [Entity Definitions](entity_definitions.md).
   
 ### Musical Flavor
 
@@ -390,3 +382,5 @@ Each passage has six configurable timing points (start, fade-in, lead-in, lead-o
   - Retry up to a maximum of 20 consecutive failures.
   - Notify user on UI of network problems
 
+----
+End of document - McRhythm Requirements

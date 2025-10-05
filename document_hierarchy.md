@@ -26,6 +26,7 @@ flowchart TD
 
     subgraph T1["TIER 1: AUTHORITATIVE"]
         REQ["requirements.md<br/><br/>Defines WHAT the system must do<br/>Source of truth for all<br/>functional requirements"]
+        ENT["entity_definitions.md<br/><br/>Defines core entities<br/>(Track, Recording, Work,<br/>Artist, Song, Passage)"]
     end
 
     subgraph T2["TIER 2: DESIGN"]
@@ -50,14 +51,14 @@ flowchart TD
         IMPL["implementation_order.md<br/><br/>Defines WHEN features are built<br/>Aggregates and organizes all specs<br/>DOWNSTREAM - does not influence<br/>other documents"]
     end
 
-    DH -->|governs| REQ
-    REQ -->|informs| ARCH & XFD & FLV & EVT
+    DH -->|governs| REQ & ENT
+    REQ & ENT -->|informs| ARCH & XFD & FLV & EVT
     T2_SPACER ~~~ T3
     T2_SPACER ~~~ CC
     ARCH & XFD & FLV & EVT -->|informs| DB & CODE
     DB & CODE -->|informs| IMPL
 
-    ENUM --- REQ & ARCH & XFD & FLV & EVT & DB & CODE & IMPL
+    ENUM --- REQ & ENT & ARCH & XFD & FLV & EVT & DB & CODE & IMPL
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
@@ -68,6 +69,7 @@ flowchart TD
 
     style DH fill:#b3e5fc,stroke:#01579b,stroke-width:2px
     style REQ fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    style ENT fill:#ffe0b2,stroke:#e65100,stroke-width:2px
     style ARCH fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style XFD fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style FLV fill:#e1bee7,stroke:#4a148c,stroke-width:2px
@@ -132,6 +134,34 @@ flowchart TD
 - If design/implementation reveals requirement gaps, explicitly review and decide whether to update requirements
 
 **Maintained By:** Product owner, stakeholders, with technical input
+
+#### entity_definitions.md
+**Purpose:** Defines core entity terminology used across all McRhythm documentation
+
+**Contains:**
+- Track, Recording, Work, Artist definitions (MusicBrainz entities)
+- Song definition (McRhythm-specific: Recording + Artist(s))
+- Passage definition (McRhythm-specific: span of audio with timing points)
+- Entity relationships and cardinality rules
+- McRhythm-specific entity constraints
+
+**Update Policy:**
+- ✅ Update when product terminology evolves
+- ✅ Update when new entity types are added
+- ❌ DO NOT update based on implementation details
+- ❌ Definitions are authoritative; implementation adapts to them
+
+**Change Control:**
+- Terminology changes must be intentional (affects entire codebase)
+- Driven by product clarity needs, not implementation convenience
+- New entity types require explicit review of impact on all documents
+
+**Maintained By:** Product owner, technical lead
+
+**Related to:**
+- requirements.md references these definitions
+- database_schema.md implements these entities as tables
+- All documents use this terminology consistently
 
 ---
 
@@ -311,8 +341,8 @@ All other documents (Tiers 1-4, Cross-cutting)
 
 ### Downward Flow (Normal)
 ```
-requirements.md (Tier 1)
-    ↓ Design satisfies requirements
+requirements.md + entity_definitions.md (Tier 1)
+    ↓ Design satisfies requirements and uses terminology
 architecture.md, crossfade.md, musical_flavor.md, event_system.md (Tier 2)
     ↓ Implementation specs support design
 database_schema.md, coding_conventions.md (Tier 3)
@@ -329,8 +359,8 @@ implementation_order.md (Tier 4)
 database_schema.md, coding_conventions.md (Tier 3)
     ↑ May reveal design issue
 architecture.md, crossfade.md, musical_flavor.md, event_system.md (Tier 2)
-    ↑ May reveal requirement gap (via change control)
-requirements.md (Tier 1)
+    ↑ May reveal requirement or terminology gap (via change control)
+requirements.md + entity_definitions.md (Tier 1)
     ↑ Does NOT affect (governance is separate)
 document_hierarchy.md (Tier 0)
 ```
@@ -454,6 +484,7 @@ Cascade: Update implementation_order.md with optimization task
 |----------|------|--------------|------------|------------|
 | document_hierarchy.md | 0 (Meta) | Documentation structure changes | Governs all documents | Tech lead, doc lead |
 | requirements.md | 1 | Product needs change | All content documents | Product owner |
+| entity_definitions.md | 1 | Entity terminology changes | Tier 2, 3, 4 | Product owner, tech lead |
 | architecture.md | 2 | Design decisions change | Tier 3, 4 | Tech lead |
 | crossfade.md | 2 | Audio design changes | Tier 3, 4 | Audio engineer |
 | musical_flavor.md | 2 | Flavor algorithm changes | Tier 3, 4 | Algorithm designer |
@@ -496,3 +527,6 @@ Cascade: Update implementation_order.md with optimization task
 **Maintained By:** Technical Lead
 
 For questions about document hierarchy or update procedures, consult the technical lead or refer to this specification.
+
+----
+End of document - McRhythm Document Hierarchy

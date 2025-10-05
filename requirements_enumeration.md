@@ -57,6 +57,7 @@ For simple lists where hierarchy is clear from context:
 | Code | Document | Purpose |
 |------|----------|---------|
 | REQ | requirements.md | Functional and non-functional requirements |
+| ENT | entity_definitions.md | Core entity terminology and relationships |
 | ARCH | architecture.md | System architecture and component design |
 | XFD | crossfade.md | Crossfade timing and behavior specifications |
 | FLV | musical_flavor.md | Musical flavor characterization definitions |
@@ -102,6 +103,16 @@ For simple lists where hierarchy is clear from context:
 | PERS | State Persistence | State saving and loading |
 | ERR | Error Handling | Error handling strategy |
 | NET | Network Errors | Network-specific error handling |
+
+### ENT (entity_definitions.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| MB | MusicBrainz | MusicBrainz entities (Track, Recording, Work, Artist) |
+| MCR | McRhythm | McRhythm-specific entities (Song, Passage) |
+| REL | Relationships | Entity relationships and cardinality |
+| CARD | Cardinality | Cardinality rules |
+| CONST | Constraints | McRhythm-specific entity constraints |
 
 ### ARCH (architecture.md)
 

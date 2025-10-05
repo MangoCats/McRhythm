@@ -8,6 +8,7 @@ Auto DJ for playing your music library
 ### Core Documentation
 
 - **[Requirements](requirements.md)** - Complete feature specifications and requirements (Tier 1 - Authoritative)
+- **[Entity Definitions](entity_definitions.md)** - Core entity terminology (Track, Recording, Song, Passage) (Tier 1 - Authoritative)
 - **[Architecture](architecture.md)** - High-level system architecture and component design (Tier 2 - Design)
 - **[Event System](event_system.md)** - Event-driven architecture and communication patterns (Tier 2 - Design)
 - **[Crossfade Design](crossfade.md)** - Crossfade timing and behavior specifications (Tier 2 - Design)
