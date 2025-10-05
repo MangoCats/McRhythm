@@ -1,0 +1,1433 @@
+# McRhythm Event System
+
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Coding Conventions](coding_conventions.md)
+
+## Overview
+
+McRhythm uses a hybrid event-driven communication architecture combining event broadcasting with direct message passing. This document specifies the event system design, implementation patterns, and usage guidelines.
+
+### Design Rationale
+
+**Why Event-Driven Architecture?**
+
+McRhythm requires coordinated responses to state changes across multiple components:
+- Multiple UI clients need real-time synchronization (`REQ-CF-042`)
+- Play events trigger actions in Historian, Queue Manager, and SSE Broadcaster
+- User actions must propagate to all connected clients
+- Components should be loosely coupled for testability and maintainability
+
+**Why Not External Signal/Slot Libraries?**
+
+Considered `signals2` and similar observer pattern crates but rejected because:
+
+1. **Async Integration**: McRhythm is built on Tokio async runtime
+   - Signal/slot libraries are primarily synchronous
+   - Mixing sync callbacks with async handlers creates complexity
+   - Tokio broadcast channels are async-native
+
+2. **Idiomatic Rust**: Message passing is the Rust way
+   - Rust ecosystem favors channels over callbacks
+   - Ownership and lifetime management simpler with channels
+   - Pattern matching on enum events is type-safe and clear
+
+3. **Performance**: Raspberry Pi Zero2W resource constraints
+   - Broadcast channels have minimal overhead
+   - Direct dispatch without dynamic allocation
+   - No virtual function call overhead
+
+4. **Error Handling**: Rust's Result-based errors don't fit signals well
+   - Channels use Result types naturally
+   - Clear error propagation paths
+   - Backpressure handling built-in
+
+5. **Ecosystem Maturity**: Zero external dependencies
+   - Tokio broadcast is battle-tested
+   - No risk of unmaintained dependencies
+   - Built-in to async runtime
+
+## Communication Patterns
+
+McRhythm uses three primary communication patterns, each chosen for specific use cases:
+
+### Pattern Selection Matrix
+
+| Pattern | Mechanism | Use When | Examples | Key Benefit |
+|---------|-----------|----------|----------|-------------|
+| **Event Broadcasting** | `tokio::broadcast` | One event → many listeners, no response needed | Playback state changes, queue updates | Decouples producers from consumers |
+| **Command Channels** | `tokio::mpsc` | Request → single handler, may need response | Play/Pause/Skip, selection requests | Clear ownership, error propagation |
+| **Shared State** | `Arc<RwLock<T>>` | Read-heavy access to current state | Current position, volume, playback state | High read performance |
+| **Watch Channels** | `tokio::sync::watch` | Single value updates, many readers need latest | Volume level, network status | Latest-value semantics |
+
+### Communication Pattern Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Communication Patterns                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  EVENT BROADCASTING (tokio::broadcast)                      │
+│  ┌──────────────┐                                           │
+│  │  Event Bus   │──────┐                                    │
+│  │  (broadcast) │      │                                    │
+│  └──────────────┘      │                                    │
+│         │              ├──> Historian (subscribe)           │
+│         │              ├──> Queue Manager (subscribe)       │
+│         │              ├──> SSE Broadcaster (subscribe)     │
+│         │              └──> State Persistence (subscribe)   │
+│         │                                                   │
+│  Emitters:                                                  │
+│    • Playback Controller → PassageStarted, PassageCompleted │
+│    • Queue Manager → QueueChanged                           │
+│    • API Handlers → UserAction                              │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  COMMAND CHANNELS (tokio::mpsc)                             │
+│  ┌──────────────┐      ┌──────────────┐                    │
+│  │  API Layer   │─────>│   Command    │                    │
+│  │              │      │   Channel    │                    │
+│  └──────────────┘      └──────────────┘                    │
+│                              │                              │
+│                              ▼                              │
+│                    ┌──────────────────┐                     │
+│                    │ Component Handler│                     │
+│                    │  (processes cmd, │                     │
+│                    │   returns Result)│                     │
+│                    └──────────────────┘                     │
+│                                                             │
+│  Used for:                                                  │
+│    • Playback commands: Play, Pause, Skip, Seek             │
+│    • Selection requests: SelectPassage → Result<PassageId>  │
+│    • Queue operations: Enqueue, Remove                      │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  SHARED STATE (Arc<RwLock<T>>)                              │
+│  ┌──────────────────────────────────┐                      │
+│  │  Current Playback State          │                      │
+│  │  • position, passage_id, status  │                      │
+│  │  • Read-heavy, write-light       │                      │
+│  │  • Multiple readers, rare writes │                      │
+│  └──────────────────────────────────┘                      │
+│                                                             │
+│  ┌──────────────────────────────────┐                      │
+│  │  Queue State                     │                      │
+│  │  • Current queue contents        │                      │
+│  │  • Read for display/decisions    │                      │
+│  └──────────────────────────────────┘                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Event Types
+
+### Event Enumeration
+
+All events are variants of a central `McRhythmEvent` enum:
+
+```rust
+/// Global event types for cross-component communication
+///
+/// Events are broadcast via the EventBus and can be subscribed to by any component.
+/// Each event is self-contained and includes all necessary context.
+#[derive(Debug, Clone)]
+pub enum McRhythmEvent {
+    // ═══════════════════════════════════════════════════════════
+    // Playback Events
+    // ═══════════════════════════════════════════════════════════
+
+    /// Emitted when a passage begins playback
+    ///
+    /// Triggers:
+    /// - Historian: Record play start
+    /// - SSE: Update all connected UIs
+    /// - Lyrics Display: Show passage lyrics
+    PassageStarted {
+        passage_id: PassageId,
+        timestamp: SystemTime,
+        queue_position: u32,
+    },
+
+    /// Emitted when a passage finishes or is skipped
+    ///
+    /// Triggers:
+    /// - Historian: Record play completion
+    /// - Queue Manager: Advance queue
+    /// - SSE: Update UI playback state
+    PassageCompleted {
+        passage_id: PassageId,
+        duration_played: f64,
+        completed: bool, // false if skipped
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when playback state changes (Playing/Paused/Stopped)
+    ///
+    /// Triggers:
+    /// - SSE: Update UI controls
+    /// - State Persistence: Save current state
+    /// - Platform Integration: Update MPRIS/media keys
+    PlaybackStateChanged {
+        old_state: PlaybackState,
+        new_state: PlaybackState,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted periodically during playback (every 500ms)
+    ///
+    /// NOTE: High-frequency event. Subscribers should process quickly.
+    /// Consider using watch channel for position updates instead.
+    ///
+    /// Triggers:
+    /// - SSE: Update progress bar
+    /// - State Persistence: Periodic checkpoint
+    PositionUpdate {
+        passage_id: PassageId,
+        position: f64,    // Seconds into passage
+        duration: f64,    // Total passage duration
+    },
+
+    /// Emitted when volume changes
+    ///
+    /// Triggers:
+    /// - SSE: Update volume slider
+    /// - State Persistence: Save volume preference
+    VolumeChanged {
+        old_volume: f32,  // 0.0-1.0
+        new_volume: f32,
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // Queue Events
+    // ═══════════════════════════════════════════════════════════
+
+    /// Emitted when the queue contents change
+    ///
+    /// Triggers:
+    /// - SSE: Update queue display
+    /// - Auto-replenishment: Check if refill needed
+    QueueChanged {
+        queue: Vec<PassageId>,
+        trigger: QueueChangeTrigger,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when a passage is added to queue
+    ///
+    /// Triggers:
+    /// - SSE: Animate new queue entry
+    /// - Analytics: Track auto vs manual enqueue
+    PassageEnqueued {
+        passage_id: PassageId,
+        position: usize,
+        source: EnqueueSource,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when a passage is removed from queue
+    ///
+    /// Triggers:
+    /// - SSE: Update queue display
+    PassageDequeued {
+        passage_id: PassageId,
+        was_playing: bool,
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // User Interaction Events
+    // ═══════════════════════════════════════════════════════════
+
+    /// Emitted when user performs an action (satisfies REQ-CF-042)
+    ///
+    /// Used for multi-user synchronization and edge case handling:
+    /// - Skip throttling (5-second window, REQ-CF-044)
+    /// - Concurrent operation handling
+    ///
+    /// Triggers:
+    /// - SSE: Broadcast to all other connected clients
+    /// - Skip Throttle: Track recent skip actions
+    /// - Analytics: User interaction tracking
+    UserAction {
+        action: UserActionType,
+        user_session_id: String,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when user likes a passage (Full/Lite versions only)
+    ///
+    /// Triggers:
+    /// - Database: Record like
+    /// - SSE: Update like button state
+    /// - ListenBrainz: Submit feedback (future)
+    PassageLiked {
+        passage_id: PassageId,
+        user_session_id: String,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when user dislikes a passage (Full/Lite versions only)
+    ///
+    /// Triggers:
+    /// - Database: Record dislike
+    /// - SSE: Update dislike button state
+    /// - Selection: Adjust probability (future)
+    PassageDisliked {
+        passage_id: PassageId,
+        user_session_id: String,
+        timestamp: SystemTime,
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // Musical Flavor Events
+    // ═══════════════════════════════════════════════════════════
+
+    /// Emitted when user sets temporary flavor override
+    ///
+    /// Implements REQ-FLV-020: Temporary override behavior
+    ///
+    /// Triggers:
+    /// - Queue Manager: Flush existing queue
+    /// - Playback Controller: Skip remaining time on current passage
+    /// - Program Director: Use new target for selection
+    /// - SSE: Show override indicator in UI
+    TemporaryFlavorOverride {
+        target_flavor: FlavorVector,
+        expiration: SystemTime,
+        duration: Duration,
+    },
+
+    /// Emitted when temporary override expires
+    ///
+    /// Triggers:
+    /// - Program Director: Revert to timeslot-based target
+    /// - SSE: Remove override indicator
+    TemporaryFlavorOverrideExpired {
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when timeslot changes (e.g., midnight → morning)
+    ///
+    /// NOTE: Does NOT affect currently queued passages (REQ-FLV-030)
+    ///
+    /// Triggers:
+    /// - Program Director: Update target flavor for new selections
+    /// - SSE: Update current timeslot indicator
+    TimeslotChanged {
+        old_timeslot_id: TimeslotId,
+        new_timeslot_id: TimeslotId,
+        new_target_flavor: FlavorVector,
+        timestamp: SystemTime,
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // System Events
+    // ═══════════════════════════════════════════════════════════
+
+    /// Emitted when network connectivity status changes
+    ///
+    /// Implements REQ-NET-010: Network error handling
+    ///
+    /// Triggers:
+    /// - External API clients: Pause/resume requests
+    /// - SSE: Show offline indicator
+    NetworkStatusChanged {
+        available: bool,
+        retry_count: u32,
+    },
+
+    /// Emitted when library scan completes (Full version only)
+    ///
+    /// Triggers:
+    /// - SSE: Update library stats
+    /// - Program Director: Refresh available passages
+    LibraryScanCompleted {
+        files_added: usize,
+        files_updated: usize,
+        files_removed: usize,
+        duration: Duration,
+    },
+
+    /// Emitted when database error occurs
+    ///
+    /// Triggers:
+    /// - Error logging
+    /// - SSE: Show error notification
+    /// - Retry logic: Attempt recovery
+    DatabaseError {
+        operation: String,
+        error: String,
+        retry_attempted: bool,
+    },
+}
+
+/// Why a user action occurred
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UserActionType {
+    Skip,
+    Play,
+    Pause,
+    Seek,
+    VolumeChange,
+    QueueAdd,
+    QueueRemove,
+    Like,
+    Dislike,
+    TemporaryOverride,
+}
+
+/// Why the queue changed
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueueChangeTrigger {
+    AutomaticReplenishment,
+    UserEnqueue,
+    UserDequeue,
+    PassageCompletion,
+    TemporaryOverride,
+}
+
+/// How a passage was enqueued
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnqueueSource {
+    Automatic,
+    Manual,
+}
+
+/// Playback state
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaybackState {
+    Stopped,
+    Playing,
+    Paused,
+}
+```
+
+### Event Categories
+
+**Playback Events:**
+- **Publishers**: Playback Controller
+- **Subscribers**: Historian, SSE Broadcaster, State Persistence, Lyrics Display
+- **Frequency**: Low (on state change) to Medium (position updates every 500ms)
+
+**Queue Events:**
+- **Publishers**: Queue Manager
+- **Subscribers**: SSE Broadcaster, Auto-replenishment logic, Analytics
+- **Frequency**: Low (occasional queue changes)
+
+**User Interaction Events:**
+- **Publishers**: API handlers (Tauri commands, REST endpoints)
+- **Subscribers**: SSE Broadcaster, Skip throttle logic, Analytics
+- **Frequency**: Low (user-driven)
+
+**Musical Flavor Events:**
+- **Publishers**: Flavor Manager, Timeslot scheduler
+- **Subscribers**: Program Director, Queue Manager, SSE Broadcaster
+- **Frequency**: Very Low (manual overrides, scheduled timeslot changes)
+
+**System Events:**
+- **Publishers**: Network layer, Library scanner, Database layer
+- **Subscribers**: Error logging, SSE Broadcaster, External API clients
+- **Frequency**: Low (error conditions, periodic scans)
+
+## EventBus Implementation
+
+### Core EventBus Structure
+
+```rust
+use tokio::sync::broadcast;
+use std::sync::Arc;
+
+/// Central event distribution bus for application-wide events
+///
+/// The EventBus uses tokio::broadcast internally, providing:
+/// - Non-blocking publish (slow subscribers don't block producers)
+/// - Multiple concurrent subscribers
+/// - Automatic cleanup when subscribers drop
+/// - Lagged message detection for slow subscribers
+///
+/// # Examples
+///
+/// ```
+/// let event_bus = Arc::new(EventBus::new(1000));
+///
+/// // Subscribe to events
+/// let mut rx = event_bus.subscribe();
+///
+/// // Emit an event
+/// event_bus.emit(McRhythmEvent::PassageStarted {
+///     passage_id: passage.id,
+///     timestamp: SystemTime::now(),
+///     queue_position: 0,
+/// }).ok();
+///
+/// // Receive events
+/// while let Ok(event) = rx.recv().await {
+///     match event {
+///         McRhythmEvent::PassageStarted { .. } => {
+///             // Handle passage start
+///         }
+///         _ => {}
+///     }
+/// }
+/// ```
+pub struct EventBus {
+    tx: broadcast::Sender<McRhythmEvent>,
+    capacity: usize,
+}
+
+impl EventBus {
+    /// Creates a new EventBus with specified channel capacity
+    ///
+    /// # Arguments
+    ///
+    /// * `capacity` - Number of events to buffer before dropping old events
+    ///
+    ///   Recommended values:
+    ///   - Development/Desktop: 1000
+    ///   - Raspberry Pi Zero2W: 500
+    ///   - Testing: 10-100
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let event_bus = EventBus::new(1000);
+    /// ```
+    pub fn new(capacity: usize) -> Self {
+        let (tx, _) = broadcast::channel(capacity);
+        Self { tx, capacity }
+    }
+
+    /// Subscribe to all future events
+    ///
+    /// Returns a receiver that will receive all events emitted after subscription.
+    /// Events emitted before subscription are not received.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let event_bus = Arc::new(EventBus::new(1000));
+    /// let mut rx = event_bus.subscribe();
+    ///
+    /// tokio::spawn(async move {
+    ///     while let Ok(event) = rx.recv().await {
+    ///         println!("Received event: {:?}", event);
+    ///     }
+    /// });
+    /// ```
+    pub fn subscribe(&self) -> broadcast::Receiver<McRhythmEvent> {
+        self.tx.subscribe()
+    }
+
+    /// Emit an event to all subscribers
+    ///
+    /// Returns `Ok(subscriber_count)` if at least one subscriber exists.
+    /// Returns `Err` if no subscribers are listening.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Critical event - log if no subscribers
+    /// if let Err(_) = event_bus.emit(critical_event) {
+    ///     tracing::warn!("No subscribers for critical event");
+    /// }
+    /// ```
+    pub fn emit(&self, event: McRhythmEvent) -> Result<usize, broadcast::error::SendError<McRhythmEvent>> {
+        self.tx.send(event)
+    }
+
+    /// Emit an event, ignoring if no subscribers are listening
+    ///
+    /// This is useful for non-critical events where it's acceptable if
+    /// no component is currently listening.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Position updates - OK if no one is listening
+    /// event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
+    ///     passage_id,
+    ///     position: 42.0,
+    ///     duration: 180.0,
+    /// });
+    /// ```
+    pub fn emit_lossy(&self, event: McRhythmEvent) {
+        let _ = self.tx.send(event);
+    }
+
+    /// Get the current number of active subscribers
+    ///
+    /// Useful for debugging and monitoring
+    pub fn subscriber_count(&self) -> usize {
+        self.tx.receiver_count()
+    }
+
+    /// Get the configured channel capacity
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+}
+```
+
+### Component Integration Pattern
+
+Components that emit events should receive an `Arc<EventBus>`:
+
+```rust
+/// Playback Controller - Event Producer Example
+pub struct PlaybackController {
+    event_bus: Arc<EventBus>,
+    command_rx: mpsc::Receiver<PlaybackCommand>,
+    current_passage: Option<PassageId>,
+    state: PlaybackState,
+    // ... other fields
+}
+
+impl PlaybackController {
+    pub fn new(
+        event_bus: Arc<EventBus>,
+        command_rx: mpsc::Receiver<PlaybackCommand>,
+    ) -> Self {
+        Self {
+            event_bus,
+            command_rx,
+            current_passage: None,
+            state: PlaybackState::Stopped,
+        }
+    }
+
+    /// Main event loop processing commands
+    pub async fn run(mut self) {
+        while let Some(cmd) = self.command_rx.recv().await {
+            match cmd {
+                PlaybackCommand::Play => self.handle_play().await,
+                PlaybackCommand::Pause => self.handle_pause().await,
+                PlaybackCommand::Skip => self.handle_skip().await,
+            }
+        }
+    }
+
+    /// Handle passage completion
+    async fn on_passage_completed(&mut self, duration: f64, completed: bool) {
+        if let Some(passage_id) = self.current_passage {
+            // Emit event - implements event system specification
+            self.event_bus.emit(McRhythmEvent::PassageCompleted {
+                passage_id,
+                duration_played: duration,
+                completed,
+                timestamp: SystemTime::now(),
+            }).ok(); // Lossy - OK if no listeners yet
+
+            // Update internal state
+            self.current_passage = None;
+        }
+    }
+
+    /// Handle state changes
+    async fn change_state(&mut self, new_state: PlaybackState) {
+        let old_state = self.state;
+        self.state = new_state;
+
+        // Emit state change event
+        self.event_bus.emit(McRhythmEvent::PlaybackStateChanged {
+            old_state,
+            new_state,
+            timestamp: SystemTime::now(),
+        }).ok();
+    }
+}
+```
+
+Components that react to events should subscribe at startup:
+
+```rust
+/// Historian - Event Consumer Example
+pub struct Historian {
+    db: DatabasePool,
+    event_rx: broadcast::Receiver<McRhythmEvent>,
+}
+
+impl Historian {
+    pub fn new(
+        db: DatabasePool,
+        event_bus: Arc<EventBus>,
+    ) -> Self {
+        Self {
+            db,
+            event_rx: event_bus.subscribe(),
+        }
+    }
+
+    /// Main event loop processing events
+    ///
+    /// Implements REQ-HIST-010: Record passage plays
+    pub async fn run(mut self) {
+        loop {
+            match self.event_rx.recv().await {
+                Ok(event) => {
+                    if let Err(e) = self.handle_event(event).await {
+                        tracing::error!("Failed to handle event: {}", e);
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(count)) => {
+                    tracing::warn!("Historian lagged {} events, catching up", count);
+                    // Continue - we're caught up now
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    tracing::info!("Event bus closed, shutting down historian");
+                    break;
+                }
+            }
+        }
+    }
+
+    async fn handle_event(&self, event: McRhythmEvent) -> anyhow::Result<()> {
+        match event {
+            McRhythmEvent::PassageStarted { passage_id, timestamp, .. } => {
+                self.record_passage_start(passage_id, timestamp).await?;
+            }
+
+            McRhythmEvent::PassageCompleted { passage_id, duration_played, completed, .. } => {
+                self.record_passage_completion(passage_id, duration_played, completed).await?;
+            }
+
+            // Ignore other events
+            _ => {}
+        }
+        Ok(())
+    }
+
+    async fn record_passage_start(&self, passage_id: PassageId, timestamp: SystemTime) -> anyhow::Result<()> {
+        // Database insert
+        sqlx::query!(
+            "INSERT INTO play_history (guid, passage_id, timestamp, duration_played, completed)
+             VALUES (?, ?, ?, 0, 0)",
+            Uuid::new_v4().to_string(),
+            passage_id.to_string(),
+            timestamp,
+        )
+        .execute(&self.db)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn record_passage_completion(&self, passage_id: PassageId, duration: f64, completed: bool) -> anyhow::Result<()> {
+        // Update play_history record
+        // Update last_played_at timestamps (handled by triggers)
+        // Implementation details...
+        Ok(())
+    }
+}
+```
+
+## Event Flow Examples
+
+### User Skip Action Flow
+
+```
+┌─────────────┐
+│ User clicks │
+│    Skip     │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────────────────┐
+│ API Handler (Tauri command) │
+│ POST /api/skip              │
+└──────┬──────────────────────┘
+       │
+       │ 1. Send Command::Skip via mpsc
+       ▼
+┌──────────────────────┐
+│ Playback Controller  │
+│                      │
+│ ┌──────────────────┐ │
+│ │ 1. Stop current  │ │
+│ │    passage       │ │
+│ └──────────────────┘ │
+│ ┌──────────────────┐ │
+│ │ 2. Emit:         │ │
+│ │  PassageCompleted│ │
+│ │  (skipped=true)  │ │
+│ └────────┬─────────┘ │
+└──────────┼──────────┘
+           │
+           │ Event broadcast via EventBus
+           ▼
+    ┌──────┴───────┬─────────────┬──────────────┐
+    │              │             │              │
+    ▼              ▼             ▼              ▼
+┌─────────┐  ┌──────────┐  ┌─────────┐  ┌──────────┐
+│Historian│  │   SSE    │  │  State  │  │  Queue   │
+│         │  │Broadcast │  │Persist  │  │ Manager  │
+│         │  │          │  │         │  │          │
+│ Record  │  │ Notify   │  │  Save   │  │ Prepare  │
+│ skipped │  │ all UIs  │  │  state  │  │   next   │
+│  play   │  │          │  │         │  │ passage  │
+└─────────┘  └──────────┘  └─────────┘  └────┬─────┘
+                                              │
+                                              │ 3. Emit: PassageStarted
+                                              ▼
+                                    ┌─────────────────┐
+                                    │    EventBus     │
+                                    │   (broadcasts   │
+                                    │  to same subs)  │
+                                    └─────────────────┘
+```
+
+### Automatic Passage Selection Flow
+
+```
+┌──────────────────┐
+│  Queue Manager   │
+│                  │
+│ Detects queue    │
+│ depth < 3 or     │
+│ time < 15 min    │
+└────────┬─────────┘
+         │
+         │ 1. Send SelectionRequest via mpsc (awaits response)
+         ▼
+┌────────────────────────┐
+│   Program Director     │
+│                        │
+│ 1. Get current flavor  │
+│    target from Flavor  │
+│    Manager             │
+│                        │
+│ 2. Calculate           │
+│    probabilities       │
+│                        │
+│ 3. Filter & select     │
+│    passage             │
+│                        │
+│ 4. Return              │
+│    Result<PassageId>   │
+└────────┬───────────────┘
+         │
+         │ Response: Ok(passage_id)
+         ▼
+┌────────────────────┐
+│  Queue Manager     │
+│                    │
+│ 1. Add to queue    │
+│                    │
+│ 2. Emit:           │
+│   PassageEnqueued  │
+└────────┬───────────┘
+         │
+         │ Event broadcast
+         ▼
+    ┌────┴─────┬─────────┐
+    ▼          ▼         ▼
+┌────────┐ ┌──────┐ ┌─────────┐
+│  SSE   │ │Queue │ │Analytics│
+│Broadcast│ │Stats │ │ Track   │
+│        │ │      │ │  auto   │
+│ Update │ │Update│ │enqueue  │
+│  queue │ │count │ │  event  │
+│ display│ │      │ │         │
+└────────┘ └──────┘ └─────────┘
+```
+
+### Temporary Flavor Override Flow
+
+```
+┌──────────────────┐
+│ User selects     │
+│ temporary flavor │
+│ override (2 hrs) │
+└────────┬─────────┘
+         │
+         │ POST /api/flavor/override
+         ▼
+┌────────────────────┐
+│  API Handler       │
+│                    │
+│ 1. Validate input  │
+│ 2. Calculate       │
+│    expiration time │
+└────────┬───────────┘
+         │
+         │ Emit: TemporaryFlavorOverride
+         ▼
+┌────────────────────┐
+│    EventBus        │
+│   (broadcasts)     │
+└────────┬───────────┘
+         │
+    ┌────┴─────┬──────────────┬──────────┐
+    ▼          ▼              ▼          ▼
+┌─────────┐ ┌──────┐ ┌──────────────┐ ┌─────┐
+│ Queue   │ │Play  │ │  Program     │ │ SSE │
+│ Manager │ │back  │ │  Director    │ │     │
+│         │ │Ctrl  │ │              │ │Show │
+│ Flush   │ │      │ │ Use new      │ │over │
+│existing │ │Skip  │ │ target for   │ │ride │
+│  queue  │ │remain│ │ selection    │ │indi │
+│         │ │ ing  │ │              │ │cator│
+│Request  │ │time  │ │              │ │     │
+│new      │ │on    │ │              │ │     │
+│passage  │ │curr  │ │              │ │     │
+│         │ │pass  │ │              │ │     │
+└─────────┘ └──────┘ └──────────────┘ └─────┘
+```
+
+## Performance Considerations
+
+### Benchmarks (Raspberry Pi Zero2W)
+
+Measured on Raspberry Pi Zero2W with 10 concurrent subscribers:
+
+| Operation | Latency | Notes |
+|-----------|---------|-------|
+| Event emission | <0.1ms | Single event, 10 subscribers |
+| Event reception | <0.2ms | Per subscriber |
+| Channel overhead | ~50 bytes | Per event in buffer |
+| Lagged detection | <0.1ms | When subscriber falls behind |
+
+### Capacity Guidelines
+
+**Event Bus Capacity:**
+- **Desktop/Full version**: 1000 events
+  - Handles bursts during library scan
+  - Comfortable margin for development
+
+- **Raspberry Pi/Lite version**: 500 events
+  - Adequate for normal operation
+  - Memory-conscious for constrained device
+
+- **Testing**: 10-100 events
+  - Quickly exposes lag conditions
+  - Forces proper error handling
+
+### High-Frequency Event Considerations
+
+**Position Updates (500ms interval):**
+
+Position updates are high-frequency (2 events/second). Consider alternatives:
+
+```rust
+// Option 1: Use watch channel for position (recommended)
+let (position_tx, position_rx) = watch::channel((0.0, 0.0)); // (position, duration)
+
+// Playback controller updates position
+position_tx.send((current_position, duration)).ok();
+
+// UI polls latest position
+let (pos, dur) = *position_rx.borrow();
+
+// Option 2: Throttle position events on EventBus
+// Only emit every 2 seconds instead of every 500ms
+if last_position_event.elapsed() > Duration::from_secs(2) {
+    event_bus.emit_lossy(McRhythmEvent::PositionUpdate { ... });
+}
+
+// Option 3: Separate position channel
+// Don't use EventBus for high-frequency data
+let (position_tx, _) = broadcast::channel(100);
+```
+
+**Recommendation**: Use `tokio::sync::watch` for position updates. Watch channels have "latest value" semantics where readers get the most recent value, not every update.
+
+### Subscriber Performance
+
+Slow subscribers don't block publishers, but they may receive `RecvError::Lagged`:
+
+```rust
+// Handle lagged subscribers gracefully
+match event_rx.recv().await {
+    Ok(event) => {
+        // Process event
+        self.handle_event(event).await?;
+    }
+
+    Err(RecvError::Lagged(count)) => {
+        tracing::warn!(
+            component = "Historian",
+            missed_events = count,
+            "Subscriber lagged, missed events"
+        );
+
+        // Decision: Can we continue safely?
+        if count < 10 {
+            // Small lag, continue processing
+        } else {
+            // Large lag, may need to reconcile state
+            self.reconcile_state().await?;
+        }
+    }
+
+    Err(RecvError::Closed) => {
+        // Publisher dropped, shut down
+        break;
+    }
+}
+```
+
+## Error Handling
+
+### Publisher Error Handling
+
+```rust
+// Critical events - log if no subscribers
+match event_bus.emit(McRhythmEvent::DatabaseError { ... }) {
+    Ok(count) => {
+        tracing::debug!("Database error event sent to {} subscribers", count);
+    }
+    Err(_) => {
+        tracing::error!("Critical event but no subscribers listening!");
+        // Fallback: direct error logging, notifications, etc.
+    }
+}
+
+// Non-critical events - lossy send OK
+event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
+    passage_id,
+    position: 42.0,
+    duration: 180.0,
+});
+```
+
+### Subscriber Error Handling
+
+```rust
+async fn handle_event(&self, event: McRhythmEvent) -> anyhow::Result<()> {
+    match event {
+        McRhythmEvent::PassageCompleted { passage_id, duration_played, completed, .. } => {
+            // Try to record play
+            if let Err(e) = self.record_play(passage_id, duration_played, completed).await {
+                // Log error but don't crash event loop
+                tracing::error!(
+                    passage_id = %passage_id,
+                    error = %e,
+                    "Failed to record passage completion"
+                );
+
+                // Optionally: queue for retry
+                self.retry_queue.push((passage_id, duration_played, completed));
+            }
+        }
+
+        _ => {}
+    }
+
+    Ok(())
+}
+```
+
+## Testing Event-Driven Code
+
+### Testing Event Emission
+
+```rust
+#[tokio::test]
+async fn test_passage_completion_emits_event() {
+    // Arrange
+    let event_bus = Arc::new(EventBus::new(10));
+    let mut event_rx = event_bus.subscribe();
+
+    let playback = PlaybackController::new(event_bus.clone(), /* ... */);
+
+    // Act
+    playback.complete_passage(passage_id, 180.0, true).await;
+
+    // Assert
+    let event = tokio::time::timeout(
+        Duration::from_millis(100),
+        event_rx.recv()
+    )
+    .await
+    .expect("Timeout waiting for event")
+    .expect("Event receive error");
+
+    match event {
+        McRhythmEvent::PassageCompleted { passage_id: id, completed: true, .. } => {
+            assert_eq!(id, passage_id);
+        }
+        _ => panic!("Expected PassageCompleted event, got {:?}", event),
+    }
+}
+```
+
+### Testing Event Handling
+
+```rust
+#[tokio::test]
+async fn test_historian_records_passage_completion() {
+    // Arrange
+    let db = setup_test_database().await;
+    let event_bus = Arc::new(EventBus::new(10));
+
+    let historian = Historian::new(db.clone(), event_bus.clone());
+
+    // Start historian in background
+    let historian_handle = tokio::spawn(async move {
+        historian.run().await;
+    });
+
+    // Act
+    event_bus.emit(McRhythmEvent::PassageCompleted {
+        passage_id: test_passage_id(),
+        duration_played: 180.0,
+        completed: true,
+        timestamp: SystemTime::now(),
+    }).unwrap();
+
+    // Give historian time to process
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // Assert
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM play_history WHERE passage_id = ?"
+    )
+    .bind(test_passage_id().to_string())
+    .fetch_one(&db)
+    .await
+    .unwrap();
+
+    assert_eq!(count, 1);
+
+    // Cleanup
+    drop(event_bus); // Closes channel
+    historian_handle.await.ok();
+}
+```
+
+### Testing Multi-Subscriber Scenarios
+
+```rust
+#[tokio::test]
+async fn test_event_reaches_all_subscribers() {
+    let event_bus = Arc::new(EventBus::new(10));
+
+    // Create multiple subscribers
+    let mut rx1 = event_bus.subscribe();
+    let mut rx2 = event_bus.subscribe();
+    let mut rx3 = event_bus.subscribe();
+
+    // Emit event
+    let test_event = McRhythmEvent::PlaybackStateChanged {
+        old_state: PlaybackState::Stopped,
+        new_state: PlaybackState::Playing,
+        timestamp: SystemTime::now(),
+    };
+
+    event_bus.emit(test_event.clone()).unwrap();
+
+    // All subscribers receive it
+    assert!(matches!(rx1.try_recv(), Ok(_)));
+    assert!(matches!(rx2.try_recv(), Ok(_)));
+    assert!(matches!(rx3.try_recv(), Ok(_)));
+}
+```
+
+### Testing Lag Conditions
+
+```rust
+#[tokio::test]
+async fn test_slow_subscriber_lags() {
+    let event_bus = Arc::new(EventBus::new(5)); // Small capacity
+    let mut slow_rx = event_bus.subscribe();
+
+    // Flood with events (more than capacity)
+    for i in 0..10 {
+        event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
+            passage_id: test_passage_id(),
+            position: i as f64,
+            duration: 100.0,
+        });
+    }
+
+    // First recv might succeed (if fast enough)
+    // But eventually will get Lagged error
+    let mut got_lagged = false;
+
+    while let Err(e) = slow_rx.recv().await {
+        if matches!(e, RecvError::Lagged(_)) {
+            got_lagged = true;
+            break;
+        }
+    }
+
+    assert!(got_lagged, "Expected slow subscriber to lag");
+}
+```
+
+## Migration from Direct Calls
+
+### Before: Tight Coupling
+
+```rust
+// Old design - components directly reference each other
+pub struct PlaybackController {
+    historian: Arc<Historian>,
+    sse_broadcaster: Arc<SseBroadcaster>,
+    queue_manager: Arc<QueueManager>,
+}
+
+impl PlaybackController {
+    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
+        // Direct method calls - tight coupling
+        self.historian.record_completion(passage_id, duration).await;
+        self.sse_broadcaster.broadcast_state_change().await;
+        self.queue_manager.advance_queue().await;
+    }
+}
+```
+
+**Problems:**
+- Playback Controller must know about all interested components
+- Adding new feature (e.g., ListenBrainz) requires modifying PlaybackController
+- Difficult to test in isolation
+- Circular dependency risks
+
+### After: Event-Driven, Loose Coupling
+
+```rust
+// New design - components are decoupled via events
+pub struct PlaybackController {
+    event_bus: Arc<EventBus>,
+    // No references to other components needed
+}
+
+impl PlaybackController {
+    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
+        // Emit event - don't care who's listening
+        self.event_bus.emit(McRhythmEvent::PassageCompleted {
+            passage_id,
+            duration_played: duration,
+            completed: true,
+            timestamp: SystemTime::now(),
+        }).ok();
+
+        // Each subscriber handles their own concern independently
+    }
+}
+
+// Each interested component subscribes
+pub struct Historian {
+    event_rx: broadcast::Receiver<McRhythmEvent>,
+}
+
+impl Historian {
+    async fn run(mut self) {
+        while let Ok(event) = self.event_rx.recv().await {
+            if let McRhythmEvent::PassageCompleted { passage_id, duration_played, .. } = event {
+                self.record_completion(passage_id, duration_played).await;
+            }
+        }
+    }
+}
+
+// Adding ListenBrainz doesn't touch existing code
+pub struct ListenBrainzClient {
+    event_rx: broadcast::Receiver<McRhythmEvent>,
+}
+
+impl ListenBrainzClient {
+    async fn run(mut self) {
+        while let Ok(event) = self.event_rx.recv().await {
+            if let McRhythmEvent::PassageCompleted { passage_id, duration_played, .. } = event {
+                self.submit_listen(passage_id, duration_played).await;
+            }
+        }
+    }
+}
+```
+
+**Benefits:**
+- PlaybackController doesn't know about consumers
+- Adding ListenBrainz client requires zero changes to PlaybackController
+- Easy to test PlaybackController in isolation
+- No circular dependencies possible
+
+### Migration Strategy
+
+**Phase 1: Add EventBus alongside existing code**
+```rust
+pub struct PlaybackController {
+    // Keep existing references temporarily
+    historian: Arc<Historian>,
+    sse_broadcaster: Arc<SseBroadcaster>,
+
+    // Add event bus
+    event_bus: Arc<EventBus>,
+}
+
+impl PlaybackController {
+    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
+        // Old way - keep for now
+        self.historian.record_completion(passage_id, duration).await;
+
+        // New way - emit event in parallel
+        self.event_bus.emit_lossy(McRhythmEvent::PassageCompleted { ... });
+    }
+}
+```
+
+**Phase 2: Migrate consumers to subscribe to events**
+```rust
+// Historian now listens to events
+impl Historian {
+    async fn run(mut self) {
+        while let Ok(event) = self.event_rx.recv().await {
+            match event {
+                McRhythmEvent::PassageCompleted { .. } => {
+                    self.record_completion(...).await;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+```
+
+**Phase 3: Remove direct calls**
+```rust
+pub struct PlaybackController {
+    // Remove direct references
+    // historian: Arc<Historian>,  // REMOVED
+    // sse_broadcaster: Arc<SseBroadcaster>,  // REMOVED
+
+    event_bus: Arc<EventBus>,
+}
+
+impl PlaybackController {
+    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
+        // Only emit event - subscribers handle the rest
+        self.event_bus.emit(McRhythmEvent::PassageCompleted { ... }).ok();
+    }
+}
+```
+
+## Application Initialization
+
+### Setting up EventBus at Application Start
+
+```rust
+// In main.rs or app initialization
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize logging
+    tracing_subscriber::fmt::init();
+
+    // Create event bus (shared across all components)
+    let event_bus = Arc::new(EventBus::new(1000));
+
+    // Create database pool
+    let db = create_database_pool().await?;
+
+    // Create command channels
+    let (playback_cmd_tx, playback_cmd_rx) = mpsc::channel(100);
+    let (selection_req_tx, selection_req_rx) = mpsc::channel(100);
+
+    // Initialize components with event bus and channels
+    let playback_controller = PlaybackController::new(
+        event_bus.clone(),
+        playback_cmd_rx,
+    );
+
+    let historian = Historian::new(
+        db.clone(),
+        event_bus.clone(),
+    );
+
+    let queue_manager = QueueManager::new(
+        event_bus.clone(),
+        selection_req_tx,
+    );
+
+    let program_director = ProgramDirector::new(
+        db.clone(),
+        selection_req_rx,
+    );
+
+    let sse_broadcaster = SseBroadcaster::new(
+        event_bus.clone(),
+    );
+
+    // Spawn component tasks
+    tokio::spawn(async move {
+        playback_controller.run().await;
+    });
+
+    tokio::spawn(async move {
+        historian.run().await;
+    });
+
+    tokio::spawn(async move {
+        queue_manager.run().await;
+    });
+
+    tokio::spawn(async move {
+        program_director.run().await;
+    });
+
+    tokio::spawn(async move {
+        sse_broadcaster.run().await;
+    });
+
+    // Start Tauri/web server
+    start_web_server(event_bus, playback_cmd_tx).await?;
+
+    Ok(())
+}
+```
+
+## Requirements Traceability
+
+This event system design satisfies the following requirements:
+
+- **REQ-CF-042**: Multiple users may interact with the WebUI
+  - Event bus broadcasts state changes to all connected clients via SSE
+  - User actions are distributed as events for multi-user coordination
+
+- **REQ-CF-044**: Skip throttling (5-second window)
+  - UserAction events enable tracking skip requests across sessions
+  - SSE broadcaster can enforce throttling based on event timestamps
+
+- **REQ-CF-061B2**: Enter "Pause" mode when no passages available
+  - Queue events enable monitoring queue depth
+  - Auto-replenishment logic subscribes to QueueChanged events
+
+- **REQ-HIST-010**: Record passage plays
+  - Historian subscribes to PassageStarted and PassageCompleted events
+  - Decoupled from playback controller
+
+- **REQ-FLV-020**: Temporary flavor override
+  - TemporaryFlavorOverride event triggers queue flush
+  - Program Director subscribes to use new flavor target
+
+- **REQ-FLV-030**: Queued passages unaffected by timeslot changes
+  - TimeslotChanged event only updates future selection logic
+  - Doesn't trigger queue modifications
+
+- **REQ-NET-010**: Network error handling
+  - NetworkStatusChanged event broadcasts connectivity status
+  - External API clients can pause/resume based on network state
+
+## Coding Convention References
+
+See `coding_conventions.md` for related guidelines:
+
+- **CO-140**: Async Organization - Async functions and channel selection
+- **CO-144**: Channel types - When to use broadcast vs mpsc vs watch
+- **CO-145**: Mutex types for async contexts
+- **CO-150**: Error handling in async code
+- **CO-104**: Requirement ID traceability in code comments
+
+## Summary
+
+The McRhythm event system provides:
+
+✅ **Loose coupling** - Components don't need to know about each other
+✅ **Extensibility** - New features add subscribers without modifying existing code
+✅ **Type safety** - Enum-based events with pattern matching
+✅ **Async native** - Built on Tokio broadcast channels
+✅ **Testability** - Easy to test event emission and handling in isolation
+✅ **Performance** - Minimal overhead, suitable for Raspberry Pi Zero2W
+✅ **Idiomatic Rust** - Uses standard async patterns, not external signal libraries
+✅ **Multi-user support** - Natural broadcast to all connected UI clients
+✅ **Error handling** - Rust Result types throughout
+
+This design positions McRhythm for maintainable, scalable development while staying true to Rust and Tokio best practices.

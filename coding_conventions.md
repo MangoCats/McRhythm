@@ -135,7 +135,7 @@ Each major component shall be organized into separate modules by functional area
   - Include `# Examples` for non-obvious usage
 
 - **CO-103:** Complex algorithms shall include inline comments explaining the approach
-- **CO-104:** Non-obvious requirement mappings shall reference requirement IDs
+- **CO-104:** Requirement mappings shall reference requirement IDs
   - Example: `// Implements REQ-SEL-031A: 7-day minimum song cooldown`
   - Example: `// Satisfies XFD-BEH-C1: Longer lead-in crossfade case`
 

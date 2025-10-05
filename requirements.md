@@ -176,6 +176,7 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
     flavor target.
    
 ## Non-functional Requirements
+- Follow defined [coding conventions](coding_conventions.md).
 - Errors logged to developer interface, otherwise gracefully ignored and continue playing as best as able
   - developer interface is stdout/stderr
 

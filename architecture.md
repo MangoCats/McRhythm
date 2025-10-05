@@ -1,6 +1,6 @@
 # McRhythm Architecture
 
-> **Related Documentation:** [Requirements](requirements.md) | [Database Schema](database_schema.md) | [Implementation Order](implementation_order.md)
+> **Related Documentation:** [Requirements](requirements.md) | [Database Schema](database_schema.md) | [Implementation Order](implementation_order.md) | [Event System](event_system.md) | [Coding Conventions](coding_conventions.md)
 
 ## Overview
 
@@ -342,27 +342,41 @@ API Thread Pool (tokio async):
 
 ### Inter-component Communication
 
-**Async Channels (tokio mpsc):**
+> **See [Event System](event_system.md) for complete event-driven architecture specification, event types, and communication patterns.**
+
+McRhythm uses a hybrid communication model combining event broadcasting with direct message passing:
+
+**Event Broadcasting (tokio::broadcast):**
+- One-to-many notification pattern
+- Playback events: PassageStarted, PassageCompleted, PlaybackStateChanged
+- Queue events: QueueChanged, PassageEnqueued
+- User interaction events: UserAction, PassageLiked, PassageDisliked
+- System events: NetworkStatusChanged, LibraryScanCompleted
+- Enables loose coupling between components
+- Supports multi-user UI synchronization (REQ-CF-042)
+
+**Command Channels (tokio::mpsc):**
+- Request-response pattern with single handler
 - Playback commands: API → Playback Controller
 - Selection requests: Queue Manager → Program Director
-- State updates: Any → SSE Broadcaster
-- Play events: Playback Controller → Historian
+- Clear ownership and error propagation
 
 **Shared State (Arc<RwLock<T>>):**
+- Read-heavy access to current state
 - Current playback state (position, passage, status)
 - Queue contents (read-heavy, write-light)
 - Timeslot configuration (read-heavy)
 - User settings (volume, preferences)
 
+**Watch Channels (tokio::sync::watch):**
+- Latest-value semantics for single-value updates
+- Volume level changes
+- Position updates (alternative to high-frequency events)
+
 **GStreamer Bus:**
 - Pipeline events (EOS, error, state change)
 - Position queries (every 500ms)
 - Crossfade triggers
-
-**SSE Broadcaster:**
-- Maintains connected client list
-- Broadcasts state changes to all clients
-- Non-blocking message delivery
 
 ## Data Model
 
@@ -383,6 +397,8 @@ See [Database Schema](database_schema.md) for complete table definitions, constr
 - **Automatic triggers**: Update `last_played_at` timestamps on playback for cooldown calculations
 - **Foreign key cascades**: Simplify cleanup when files/passages deleted
 - **No binary blobs**: Album art stored as files, database stores paths only
+- **Event-driven architecture**: Uses `tokio::broadcast` for one-to-many event distribution, avoiding tight coupling between components while staying idiomatic to Rust async ecosystem. See [Event System](event_system.md) for details.
+- **Hybrid communication**: Events for notifications, channels for commands, shared state for reads—each pattern chosen for specific use cases
 
 ## Version Differentiation
 
