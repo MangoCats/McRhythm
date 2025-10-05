@@ -1,9 +1,5 @@
 # McRhythm Requirements
 
-> **Related Documentation:** [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Implementation Order](implementation_order.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Event System](event_system.md) | [Coding Conventions](coding_conventions.md) | [Requirements Enumeration](requirements_enumeration.md)
-
----
-
 **📜 TIER 1 - AUTHORITATIVE SOURCE DOCUMENT**
 
 This document is the **top-level specification** defining WHAT McRhythm must do. Other documents are designed to satisfy these requirements.
@@ -11,6 +7,8 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 **Update Policy:** ✅ Product decisions only | ❌ NOT derived from design/implementation
 
 > See [Document Hierarchy](document_hierarchy.md) for complete update policies and change control process.
+
+> **Related Documentation:** [Architecture](architecture.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Event System](event_system.md) | [Requirements Enumeration](requirements_enumeration.md)
 
 ---
 

@@ -1,12 +1,10 @@
 # McRhythm Database Schema
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Implementation Order](implementation_order.md) | [Document Hierarchy](document_hierarchy.md)
-
----
-
 **🗄️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
 Defines data structures and schema. Derived from Tier 2 design documents. See [Document Hierarchy](document_hierarchy.md).
+
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md)
 
 ---
 

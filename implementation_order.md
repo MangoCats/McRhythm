@@ -1,9 +1,5 @@
 # Implementation Order
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Event System](event_system.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Coding Conventions](coding_conventions.md) | [Requirements Enumeration](requirements_enumeration.md)
-
----
-
 **📋 TIER 4 - DOWNSTREAM EXECUTION PLAN**
 
 This document **aggregates** all specifications to define WHEN features are built. It does NOT define requirements or design.
@@ -11,6 +7,8 @@ This document **aggregates** all specifications to define WHEN features are buil
 **Update Policy:** ✅ Always update when upstream docs change | ❌ NEVER update upstream docs from this
 
 > See [Document Hierarchy](document_hierarchy.md) for complete document relationships and update policies.
+
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Event System](event_system.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Coding Conventions](coding_conventions.md) | [Requirements Enumeration](requirements_enumeration.md)
 
 ---
 

@@ -1,12 +1,10 @@
 # McRhythm Coding Conventions
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Requirements Enumeration](requirements_enumeration.md) | [Document Hierarchy](document_hierarchy.md)
-
----
-
 **📝 TIER 3 - IMPLEMENTATION SPECIFICATION**
 
 Defines code organization and quality standards. Supports Tier 2 design documents. See [Document Hierarchy](document_hierarchy.md).
+
+> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Requirements Enumeration](requirements_enumeration.md)
 
 ---
 

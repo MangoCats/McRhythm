@@ -1,65 +1,14 @@
 # Musical Flavor
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Document Hierarchy](document_hierarchy.md)
-
----
-
 **🎼 TIER 2 - DESIGN SPECIFICATION**
 
 Defines musical flavor system and distance calculations. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
 
+> **Related Documentation:** [Architecture](architecture.md)
+
 ---
 
-Musical flavor is a quantitative definition of a passage's characteristics in many dimensions. It is derived from the AcousticBrainz high level characterization of tracks (identified by MBID) which provides values of:
-
-- danceability, danceable: 0-1
-- gender, female: 0-1
-- genre_dortmund, alternative: 0-1
-- genre_dortmund, blues: 0-1
-- genre_dortmund, electronic: 0-1
-- genre_dortmund, folkcountry: 0-1
-- genre_dortmund, funksoulrnb: 0-1
-- genre_dortmund, jazz: 0-1
-- genre_dortmund, pop: 0-1
-- genre_dortmund, raphiphop: 0-1
-- genre_dortmund, rock: 0-1
-- genre_electronic, ambient: 0-1
-- genre_electronic, dnb: 0-1
-- genre_electronic, house: 0-1
-- genre_electronic, techno: 0-1
-- genre_electronic, trance: 0-1
-- genre_rosamerica, cla: 0-1
-- genre_rosamerica, dan: 0-1
-- genre_rosamerica, hip: 0-1
-- genre_rosamerica, jaz: 0-1
-- genre_rosamerica, pop: 0-1
-- genre_rosamerica, rhy: 0-1
-- genre_rosamerica, roc: 0-1
-- genre_rosamerica, spe: 0-1
-- genre_tzanetakis, blu: 0-1
-- genre_tzanetakis, cla: 0-1
-- genre_tzanetakis, cou: 0-1
-- genre_tzanetakis, dis: 0-1
-- genre_tzanetakis, hip: 0-1
-- genre_tzanetakis, jaz: 0-1
-- genre_tzanetakis, met: 0-1
-- genre_tzanetakis, pop: 0-1
-- genre_tzanetakis, reg: 0-1
-- genre_tzanetakis, roc: 0-1
-- ismir04_rhythm, ChaChaCha: 0-1
-- ismir04_rhythm, Jive: 0-1
-- ismir04_rhythm, Quickstep: 0-1
-- ismir04_rhythm, Rumba-American: 0-1
-- ismir04_rhythm, Rumba-International: 0-1
-- ismir04_rhythm, Rumba-Misc: 0-1
-- ismir04_rhythm, Samba: 0-1
-- ismir04_rhythm, Tango: 0-1
-- ismir04_rhythm, VienneseWalts: 0-1
-- ismir04_rhythm, Waltz: 0-1
-- mood_acoustic, acoustic: 0-1
-- mood_aggressive, aggressive: 0-1
-- mood_electronic, electronic: 0-1 
-- and many more...
+Musical flavor is a quantitative definition of a passage's characteristics in many dimensions. It is derived from the [AcousticBrainz high level characterization](https://acousticbrainz.org/data#highlevel-data) of [recording(s)](https://musicbrainz.org/doc/Recording) contained in a passage.
 
 These values break down into two categories: binary classifications with two dimensions that add up to 1.0, 
 and higher dimensional characterizations with more than two dimensions which all add up to 1.0.

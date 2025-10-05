@@ -1,12 +1,10 @@
 # McRhythm Architecture
 
-> **Related Documentation:** [Requirements](requirements.md) | [Database Schema](database_schema.md) | [Implementation Order](implementation_order.md) | [Event System](event_system.md) | [Coding Conventions](coding_conventions.md) | [Document Hierarchy](document_hierarchy.md)
-
----
-
 **🏗️ TIER 2 - DESIGN SPECIFICATION**
 
 Defines HOW the system is structured. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+
+> **Related Documentation:** [Database Schema](database_schema.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md)| [Event System](event_system.md)
 
 ---
 
