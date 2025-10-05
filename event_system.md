@@ -25,22 +25,12 @@ Considered `signals2` and similar observer pattern crates but rejected because:
    - Mixing sync callbacks with async handlers creates complexity
    - Tokio broadcast channels are async-native
 
-2. **Idiomatic Rust**: Message passing is the Rust way
-   - Rust ecosystem favors channels over callbacks
-   - Ownership and lifetime management simpler with channels
-   - Pattern matching on enum events is type-safe and clear
-
-3. **Performance**: Raspberry Pi Zero2W resource constraints
+2. **Performance**: Raspberry Pi Zero2W resource constraints
    - Broadcast channels have minimal overhead
    - Direct dispatch without dynamic allocation
    - No virtual function call overhead
 
-4. **Error Handling**: Rust's Result-based errors don't fit signals well
-   - Channels use Result types naturally
-   - Clear error propagation paths
-   - Backpressure handling built-in
-
-5. **Ecosystem Maturity**: Zero external dependencies
+3. **Ecosystem Maturity**: Zero external dependencies
    - Tokio broadcast is battle-tested
    - No risk of unmaintained dependencies
    - Built-in to async runtime
@@ -83,10 +73,10 @@ McRhythm uses three primary communication patterns, each chosen for specific use
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  COMMAND CHANNELS (tokio::mpsc)                             │
-│  ┌──────────────┐      ┌──────────────┐                    │
-│  │  API Layer   │─────>│   Command    │                    │
-│  │              │      │   Channel    │                    │
-│  └──────────────┘      └──────────────┘                    │
+│  ┌──────────────┐      ┌──────────────┐                     │
+│  │  API Layer   │─────>│   Command    │                     │
+│  │              │      │   Channel    │                     │
+│  └──────────────┘      └──────────────┘                     │
 │                              │                              │
 │                              ▼                              │
 │                    ┌──────────────────┐                     │
@@ -103,18 +93,18 @@ McRhythm uses three primary communication patterns, each chosen for specific use
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  SHARED STATE (Arc<RwLock<T>>)                              │
-│  ┌──────────────────────────────────┐                      │
-│  │  Current Playback State          │                      │
-│  │  • position, passage_id, status  │                      │
-│  │  • Read-heavy, write-light       │                      │
-│  │  • Multiple readers, rare writes │                      │
-│  └──────────────────────────────────┘                      │
+│  ┌──────────────────────────────────┐                       │
+│  │  Current Playback State          │                       │
+│  │  • position, passage_id, status  │                       │
+│  │  • Read-heavy, write-light       │                       │
+│  │  • Multiple readers, rare writes │                       │
+│  └──────────────────────────────────┘                       │
 │                                                             │
-│  ┌──────────────────────────────────┐                      │
-│  │  Queue State                     │                      │
-│  │  • Current queue contents        │                      │
-│  │  • Read for display/decisions    │                      │
-│  └──────────────────────────────────┘                      │
+│  ┌──────────────────────────────────┐                       │
+│  │  Queue State                     │                       │
+│  │  • Current queue contents        │                       │
+│  │  • Read for display/decisions    │                       │
+│  └──────────────────────────────────┘                       │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -749,7 +739,7 @@ impl Historian {
 │ │  PassageCompleted│ │
 │ │  (skipped=true)  │ │
 │ └────────┬─────────┘ │
-└──────────┼──────────┘
+└──────────┼───────────┘
            │
            │ Event broadcast via EventBus
            ▼
@@ -763,7 +753,7 @@ impl Historian {
 │ Record  │  │ Notify   │  │  Save   │  │ Prepare  │
 │ skipped │  │ all UIs  │  │  state  │  │   next   │
 │  play   │  │          │  │         │  │ passage  │
-└─────────┘  └──────────┘  └─────────┘  └────┬─────┘
+└─────────┘  └──────────┘  └─────────┘  └─────┬────┘
                                               │
                                               │ 3. Emit: PassageStarted
                                               ▼
@@ -819,14 +809,14 @@ impl Historian {
          ▼
     ┌────┴─────┬─────────┐
     ▼          ▼         ▼
-┌────────┐ ┌──────┐ ┌─────────┐
-│  SSE   │ │Queue │ │Analytics│
+┌─────────┐ ┌──────┐ ┌─────────┐
+│  SSE    │ │Queue │ │Analytics│
 │Broadcast│ │Stats │ │ Track   │
-│        │ │      │ │  auto   │
-│ Update │ │Update│ │enqueue  │
-│  queue │ │count │ │  event  │
-│ display│ │      │ │         │
-└────────┘ └──────┘ └─────────┘
+│         │ │      │ │  auto   │
+│ Update  │ │Update│ │enqueue  │
+│  queue  │ │count │ │  event  │
+│ display │ │      │ │         │
+└─────────┘ └──────┘ └─────────┘
 ```
 
 ### Temporary Flavor Override Flow
@@ -1153,153 +1143,6 @@ async fn test_slow_subscriber_lags() {
 }
 ```
 
-## Migration from Direct Calls
-
-### Before: Tight Coupling
-
-```rust
-// Old design - components directly reference each other
-pub struct PlaybackController {
-    historian: Arc<Historian>,
-    sse_broadcaster: Arc<SseBroadcaster>,
-    queue_manager: Arc<QueueManager>,
-}
-
-impl PlaybackController {
-    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
-        // Direct method calls - tight coupling
-        self.historian.record_completion(passage_id, duration).await;
-        self.sse_broadcaster.broadcast_state_change().await;
-        self.queue_manager.advance_queue().await;
-    }
-}
-```
-
-**Problems:**
-- Playback Controller must know about all interested components
-- Adding new feature (e.g., ListenBrainz) requires modifying PlaybackController
-- Difficult to test in isolation
-- Circular dependency risks
-
-### After: Event-Driven, Loose Coupling
-
-```rust
-// New design - components are decoupled via events
-pub struct PlaybackController {
-    event_bus: Arc<EventBus>,
-    // No references to other components needed
-}
-
-impl PlaybackController {
-    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
-        // Emit event - don't care who's listening
-        self.event_bus.emit(McRhythmEvent::PassageCompleted {
-            passage_id,
-            duration_played: duration,
-            completed: true,
-            timestamp: SystemTime::now(),
-        }).ok();
-
-        // Each subscriber handles their own concern independently
-    }
-}
-
-// Each interested component subscribes
-pub struct Historian {
-    event_rx: broadcast::Receiver<McRhythmEvent>,
-}
-
-impl Historian {
-    async fn run(mut self) {
-        while let Ok(event) = self.event_rx.recv().await {
-            if let McRhythmEvent::PassageCompleted { passage_id, duration_played, .. } = event {
-                self.record_completion(passage_id, duration_played).await;
-            }
-        }
-    }
-}
-
-// Adding ListenBrainz doesn't touch existing code
-pub struct ListenBrainzClient {
-    event_rx: broadcast::Receiver<McRhythmEvent>,
-}
-
-impl ListenBrainzClient {
-    async fn run(mut self) {
-        while let Ok(event) = self.event_rx.recv().await {
-            if let McRhythmEvent::PassageCompleted { passage_id, duration_played, .. } = event {
-                self.submit_listen(passage_id, duration_played).await;
-            }
-        }
-    }
-}
-```
-
-**Benefits:**
-- PlaybackController doesn't know about consumers
-- Adding ListenBrainz client requires zero changes to PlaybackController
-- Easy to test PlaybackController in isolation
-- No circular dependencies possible
-
-### Migration Strategy
-
-**Phase 1: Add EventBus alongside existing code**
-```rust
-pub struct PlaybackController {
-    // Keep existing references temporarily
-    historian: Arc<Historian>,
-    sse_broadcaster: Arc<SseBroadcaster>,
-
-    // Add event bus
-    event_bus: Arc<EventBus>,
-}
-
-impl PlaybackController {
-    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
-        // Old way - keep for now
-        self.historian.record_completion(passage_id, duration).await;
-
-        // New way - emit event in parallel
-        self.event_bus.emit_lossy(McRhythmEvent::PassageCompleted { ... });
-    }
-}
-```
-
-**Phase 2: Migrate consumers to subscribe to events**
-```rust
-// Historian now listens to events
-impl Historian {
-    async fn run(mut self) {
-        while let Ok(event) = self.event_rx.recv().await {
-            match event {
-                McRhythmEvent::PassageCompleted { .. } => {
-                    self.record_completion(...).await;
-                }
-                _ => {}
-            }
-        }
-    }
-}
-```
-
-**Phase 3: Remove direct calls**
-```rust
-pub struct PlaybackController {
-    // Remove direct references
-    // historian: Arc<Historian>,  // REMOVED
-    // sse_broadcaster: Arc<SseBroadcaster>,  // REMOVED
-
-    event_bus: Arc<EventBus>,
-}
-
-impl PlaybackController {
-    async fn on_passage_complete(&self, passage_id: PassageId, duration: f64) {
-        // Only emit event - subscribers handle the rest
-        self.event_bus.emit(McRhythmEvent::PassageCompleted { ... }).ok();
-    }
-}
-```
-
 ## Application Initialization
 
 ### Setting up EventBus at Application Start
@@ -1374,60 +1217,22 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-## Requirements Traceability
-
-This event system design satisfies the following requirements:
-
-- **REQ-CF-042**: Multiple users may interact with the WebUI
-  - Event bus broadcasts state changes to all connected clients via SSE
-  - User actions are distributed as events for multi-user coordination
-
-- **REQ-CF-044**: Skip throttling (5-second window)
-  - UserAction events enable tracking skip requests across sessions
-  - SSE broadcaster can enforce throttling based on event timestamps
-
-- **REQ-CF-061B2**: Enter "Pause" mode when no passages available
-  - Queue events enable monitoring queue depth
-  - Auto-replenishment logic subscribes to QueueChanged events
-
-- **REQ-HIST-010**: Record passage plays
-  - Historian subscribes to PassageStarted and PassageCompleted events
-  - Decoupled from playback controller
-
-- **REQ-FLV-020**: Temporary flavor override
-  - TemporaryFlavorOverride event triggers queue flush
-  - Program Director subscribes to use new flavor target
-
-- **REQ-FLV-030**: Queued passages unaffected by timeslot changes
-  - TimeslotChanged event only updates future selection logic
-  - Doesn't trigger queue modifications
-
-- **REQ-NET-010**: Network error handling
-  - NetworkStatusChanged event broadcasts connectivity status
-  - External API clients can pause/resume based on network state
-
-## Coding Convention References
-
-See `coding_conventions.md` for related guidelines:
-
-- **CO-140**: Async Organization - Async functions and channel selection
-- **CO-144**: Channel types - When to use broadcast vs mpsc vs watch
-- **CO-145**: Mutex types for async contexts
-- **CO-150**: Error handling in async code
-- **CO-104**: Requirement ID traceability in code comments
-
 ## Summary
 
 The McRhythm event system provides:
 
 ✅ **Loose coupling** - Components don't need to know about each other
-✅ **Extensibility** - New features add subscribers without modifying existing code
-✅ **Type safety** - Enum-based events with pattern matching
-✅ **Async native** - Built on Tokio broadcast channels
-✅ **Testability** - Easy to test event emission and handling in isolation
-✅ **Performance** - Minimal overhead, suitable for Raspberry Pi Zero2W
-✅ **Idiomatic Rust** - Uses standard async patterns, not external signal libraries
-✅ **Multi-user support** - Natural broadcast to all connected UI clients
-✅ **Error handling** - Rust Result types throughout
 
-This design positions McRhythm for maintainable, scalable development while staying true to Rust and Tokio best practices.
+✅ **Extensibility** - New features add subscribers without modifying existing code
+
+✅ **Type safety** - Enum-based events with pattern matching
+
+✅ **Async native** - Built on Tokio broadcast channels
+
+✅ **Testability** - Easy to test event emission and handling in isolation
+
+✅ **Performance** - Minimal overhead, suitable for Raspberry Pi Zero2W
+
+✅ **Multi-user support** - Natural broadcast to all connected UI clients
+
+This design positions McRhythm for maintainable, scalable development.
