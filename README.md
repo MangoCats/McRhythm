@@ -3,7 +3,7 @@ Auto DJ for playing your music library
 
 ## Documentation
 
-**📋 Start Here:** [Document Hierarchy](document_hierarchy.md) - Understanding document relationships and update policies
+**📋 Start Here:** [Document Hierarchy](document_hierarchy.md) - Documentation framework and governance (Tier 0)
 
 ### Core Documentation
 
@@ -16,10 +16,10 @@ Auto DJ for playing your music library
 - **[Coding Conventions](coding_conventions.md)** - Code organization and style guidelines (Tier 3 - Implementation)
 - **[Implementation Order](implementation_order.md)** - Phased development plan (Tier 4 - Execution)
 
-### Supporting Documentation
+### Process & Standards
 
+- **[Document Hierarchy](document_hierarchy.md)** - Documentation framework, relationships, and change control (Tier 0 - Governance)
 - **[Requirements Enumeration](requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
-- **[Document Hierarchy](document_hierarchy.md)** - Document relationships, update policies, and change control
 
 ## Overview
 

@@ -2,6 +2,16 @@
 
 > **All project documents reference this hierarchy specification**
 
+---
+
+**⚖️ TIER 0 - GOVERNANCE (META)**
+
+This document defines the documentation framework itself. It sits outside the content hierarchy, establishing the rules for how all other documents relate and are maintained.
+
+**Self-Reference Note:** This document is meta-documentation - it defines the hierarchy and includes itself in that definition at Tier 0 (Governance). It is not part of the requirements/design/implementation content flow; rather, it governs that flow.
+
+---
+
 ## Document Classification
 
 McRhythm project documentation is organized into a strict hierarchy that governs how information flows between documents and when each document should be updated.
@@ -9,6 +19,17 @@ McRhythm project documentation is organized into a strict hierarchy that governs
 ### Document Hierarchy Diagram
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                  TIER 0: GOVERNANCE (META)                      │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │         document_hierarchy.md (this document)           │   │
+│  │  Defines the documentation framework and relationships  │   │
+│  │  Governs how all other documents are maintained        │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+                            │ governs ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │                    TIER 1: AUTHORITATIVE                        │
 │                                                                 │
@@ -80,6 +101,33 @@ McRhythm project documentation is organized into a strict hierarchy that governs
 ```
 
 ## Document Purposes and Update Policies
+
+### Tier 0: Governance (Meta)
+
+#### document_hierarchy.md
+**Purpose:** Defines the documentation framework and governance rules
+
+**Contains:**
+- Document tier classifications
+- Update policies for each document
+- Information flow rules (upward/downward)
+- Change control processes
+- Document maintenance procedures
+
+**Update Policy:**
+- ✅ Update when document structure changes (new docs added, tiers reorganized)
+- ✅ Update when governance processes evolve
+- ✅ Update when document relationships need clarification
+- ⚠️ This document governs others; changes here affect the entire documentation system
+
+**Change Control:**
+- Changes require review by technical lead and documentation lead
+- Major changes (new tiers, flow rules) require team consensus
+- Document is self-referential but must remain logically consistent
+
+**Maintained By:** Technical lead, documentation lead
+
+---
 
 ### Tier 1: Authoritative Requirements
 
@@ -272,31 +320,42 @@ These documents translate design into concrete implementation details.
 
 ## Information Flow Rules
 
+### Governance Flow (Meta-level)
+```
+document_hierarchy.md (Tier 0)
+    ↓ governs structure and policies for ↓
+All other documents (Tiers 1-4, Cross-cutting)
+```
+
+**Rule:** document_hierarchy.md governs all other documents but is not influenced by their content. It defines the framework; they provide the substance.
+
 ### Downward Flow (Normal)
 ```
-requirements.md
+requirements.md (Tier 1)
     ↓ Design satisfies requirements
-architecture.md, crossfade.md, musical_flavor.md, event_system.md
+architecture.md, crossfade.md, musical_flavor.md, event_system.md (Tier 2)
     ↓ Implementation specs support design
-database_schema.md, coding_conventions.md
+database_schema.md, coding_conventions.md (Tier 3)
     ↓ Execution plan aggregates all specs
-implementation_order.md
+implementation_order.md (Tier 4)
 ```
 
 **Rule:** Lower-tier documents are updated when higher-tier documents change.
 
 ### Upward Flow (Controlled)
 ```
-implementation_order.md
+implementation_order.md (Tier 4)
     ↑ Discovers gap/issue
-database_schema.md, coding_conventions.md
+database_schema.md, coding_conventions.md (Tier 3)
     ↑ May reveal design issue
-architecture.md, crossfade.md, musical_flavor.md, event_system.md
+architecture.md, crossfade.md, musical_flavor.md, event_system.md (Tier 2)
     ↑ May reveal requirement gap (via change control)
-requirements.md
+requirements.md (Tier 1)
+    ↑ Does NOT affect (governance is separate)
+document_hierarchy.md (Tier 0)
 ```
 
-**Rule:** Upward flow requires explicit review and approval. Implementation discoveries don't automatically change requirements.
+**Rule:** Upward flow requires explicit review and approval. Implementation discoveries don't automatically change requirements or governance.
 
 ### Cross-Tier References
 
@@ -413,7 +472,8 @@ Cascade: Update implementation_order.md with optimization task
 
 | Document | Tier | Updates When | Influences | Updated By |
 |----------|------|--------------|------------|------------|
-| requirements.md | 1 | Product needs change | All documents | Product owner |
+| document_hierarchy.md | 0 (Meta) | Documentation structure changes | Governs all documents | Tech lead, doc lead |
+| requirements.md | 1 | Product needs change | All content documents | Product owner |
 | architecture.md | 2 | Design decisions change | Tier 3, 4 | Tech lead |
 | crossfade.md | 2 | Audio design changes | Tier 3, 4 | Audio engineer |
 | musical_flavor.md | 2 | Flavor algorithm changes | Tier 3, 4 | Algorithm designer |
@@ -424,6 +484,11 @@ Cascade: Update implementation_order.md with optimization task
 | requirements_enumeration.md | Cross-cutting | ID scheme changes | ID format in all docs | Doc lead |
 
 ## Quick Reference: "Should I Update This Document?"
+
+### I found a gap/issue in document_hierarchy.md
+→ Does this affect documentation structure/governance? → Review with tech lead and doc lead
+→ Major changes (new tiers, flow rules) → Requires team consensus
+→ This affects the entire documentation system, proceed carefully
 
 ### I found a gap/issue in implementation_order.md
 → Update implementation_order.md directly (it's downstream)
