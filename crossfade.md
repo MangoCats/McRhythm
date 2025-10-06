@@ -17,6 +17,8 @@ McRhythm supports sophisticated crossfading between passages, allowing smooth tr
 Each passage has six timing points defined relative to the audio file:
 
 ```
+**Figure 1:** Fade inside Lead
+
 Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
   |         |         |                    |         |         |
   |---------|---------|--------------------|---------|---------|
@@ -28,6 +30,9 @@ Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
 Fade-In may be equal to or after Lead-In,
 Fade-Out may be equal to or after Lead-Out:
 ```
+**Figure 2:** Lead inside Fade
+
+
 Start    Lead-In   Fade-In            Fade-Out   Lead-Out    End
   |         |         |                    |         |         |
   |---------|---------|--------------------|---------|---------|
@@ -56,10 +61,10 @@ operation to take place.
 
 ### Durations
 
-- **Fade-In Duration** = Fade-In Point - Start Time (default: 0)
-- **Lead-In Duration** = Lead-In Point - Start Time (default: 0)
-- **Lead-Out Duration** = End Time - Lead-Out Point (default: 0)
-- **Fade-Out Duration** = End Time - Fade-Out Point (default: 0)
+- **Fade-In Duration** = Fade-In Point - Start Time
+- **Lead-In Duration** = Lead-In Point - Start Time
+- **Lead-Out Duration** = End Time - Lead-Out Point
+- **Fade-Out Duration** = End Time - Fade-Out Point
 
 ### Constraints
 
@@ -77,15 +82,17 @@ Timing points must satisfy two independent constraint chains:
   - All timing points may be equal to each other (resulting in 0-duration intervals)
 
   **Valid Examples:**
-  1. Standard ordering (Fade inside Lead, no simultaneous play with adjacent passages):
+  1. Fade inside Lead, no simultaneous play with adjacent passages:
   Start(0s) = Lead-In(0s) < Fade-In(2s) < Fade-Out(58s) < Lead-Out(60s) = End(60s)
-  2. Inverted ordering (Lead inside Fade, no fade of this passage's level in or out):
+  2. Fade inside Lead, simultaneously play with adjacent passages possible:
+  Start(0s) < Lead-In(5s) < Fade-In(7s) < Fade-Out(53s) < Lead-Out(55s) < End(60s)
+  3. Lead inside Fade, no fade of this passage's level in or out:
   Start(0s) = Fade-In(0s) < Lead-In(2s) < Lead-Out(58s) < Fade-Out(60s) = End(60s)
-  3. Interleaved ordering:
-  Start(0s) < Fade-In(1s) < Lead-In(2s) < Lead-Out(58s) < Fade-Out(59s) < End(60s)
-  4. All points equal (passage plays at constant volume, no simultaneous play with adjacent passages):
+  4. Interleaved ordering:
+  Start(0s) < Fade-In(1s) < Lead-In(2s) <  Fade-Out(58s) < Lead-Out(59s) < End(60s)
+  5. Zero-duration lead and fade windows, passage plays at constant volume, no simultaneous play with adjacent passages:
   Start(0s) = Fade-In(0s) = Lead-In(0s) = Lead-Out(60s) = Fade-Out(60s) = End(60s)
-  5. Partial equality:
+  6. Partial equality:
   Start(0s) = Fade-In(0s) = Lead-In(0s) < Lead-Out(58s) = Fade-Out(58s) < End(60s)
 
   **Validation Rules:**
@@ -201,41 +208,122 @@ Where volume at any time `t` is determined by:
 - Resume-from-pause fade (0.5s exponential ramp, if applicable)
 - User-controlled master volume
 
+### Clipping Prevention
+There is no clipping prevention at runtime. If the crossfade configuration results in net volume > 100% clipping will occur.
+
+During user editing of fade-in, fade-out, lead-in, lead-out points, the user interface displays the passage audio amplitude over time graphically (see [Visual Editor](#visual-editor)
+section), and warns the user if the peak audio amplitude exceeds 50% during any portion of the lead-in or lead-out time windows that is not also covered by
+corresponding fade-in or fade-out time windows. This warning indicates potential for clipping if this passage overlaps with another passage also at high volume.
+
+**Amplitude Measurement:**
+  - Peak amplitude is measured from the audio file's waveform data
+  - Measured as the maximum absolute sample value in the relevant time window
+  - Does not include fade curve or master volume adjustments
+  - Checks the raw audio amplitude to detect potential clipping before fades are applied
+    - Warning is shown if > 50% amplitude is detected in relevant time window and no fade-in/fade-out curve is applied at that point in the passage playback 
+
 ### Resume from Pause
 
 When resuming from Pause:
 - 0.5 second exponential volume ramp from 0% to 100%
 - Applied AFTER any crossfade calculations
+  - all crossfade calculations complete, then multiply the result by the resume from pause ramp value
+  - ((A_audio × A_fade) + (B_audio × B_fade)) × resume_ramp × master
 - Affects all playing passages simultaneously
-
+- Rationale:
+  - 0.5 second duration prevents audible "pop" when resuming
+  - Exponential curve provides natural-sounding volume restoration
+  - Applied to all playing passages ensures synchronized behavior during overlap
+  
 ## Default Configuration
 
 New passages are created with:
-- Start Time: Beginning of file (or user-defined offset)
+- Start Time: NULL (uses start of file)
 - Fade-In Point: NULL (uses global Crossfade Time)
 - Lead-In Point: NULL (uses global Crossfade Time)
 - Lead-Out Point: NULL (uses global Crossfade Time)
 - Fade-Out Point: NULL (uses global Crossfade Time)
-- End Time: End of file (or user-defined offset)
+- End Time: NULL (uses end of file)
 - Fade-In Curve: NULL (uses global Fade Curve selection's fade-in component)
 - Fade-Out Curve: NULL (uses global Fade Curve selection's fade-out component)
 
 ### Global Crossfade Time
-A single global value "Crossfade Time" is used whan Fade-In Point, Fade-Out Point, Lead-In Point, Lead-Out Point are undefined.
-- When Fade-In Point is undefined, the effective Fade-In point is: Start Time + Crossfade Time
-- When Lead-In Point is undefined, the effective Lead-In point is: Start Time + Crossfade Time
-- When Fade-Out Point is undefined, the effective Fade-Out point is: End Time - Crossfade Time
-- When Lead-Out Point is undefined, the effective Lead-Out point is: End Time - Crossfade Time
+A single global value "Crossfade Time" is used when Fade-In Point, Fade-Out Point, Lead-In Point, Lead-Out Point are undefined.
+- When Fade-In Point is undefined, the effective Fade-In point is: Start Time + Crossfade Time (Clamped when needed)
+- When Lead-In Point is undefined, the effective Lead-In point is: Start Time + Crossfade Time (Clamped when needed)
+- When Fade-Out Point is undefined, the effective Fade-Out point is: End Time - Crossfade Time (Clamped when needed)
+- When Lead-Out Point is undefined, the effective Lead-Out point is: End Time - Crossfade Time (Clamped when needed)
+
+**NULL Point Computation Timing:**
+  - NULL timing points are NOT pre-computed or stored as effective values in the database
+  - Instead, NULL values remain NULL in storage and are resolved dynamically when a passage is currently playing and a following passage is waiting in the queue to play next
+  - When both passage identities are first known, the system:
+    1. Determines the effective Crossfade Time (applying 50% clamping if needed per Crossfade Time Clamping below)
+    2. Computes effective timing points for any NULL values using the clamped Crossfade Time
+    3. Applies Crossfade Behavior Cases 1/2/3 using the computed effective durations
+  - User-defined (non-NULL) timing points are never modified by clamping
+  - This ensures the 50% constraint is satisfied for all applications of undefined lead-in and lead-out times.
+  - Fade-In and Fade-Out NULL points are also computed using the clamped Crossfade Time, ensuring consistent behavior across all timing points.
 
 - Crossfade Time is user editable
   - Minimum Crossfade Time is: 0.0 seconds
   - Maximum Crossfade Time is: 30.0 seconds
-  
-- When one passage is playing and another is following it in the queue, if the global user selected Crossfade Time is > 50% of either passage duration, 
-  effective Crossfade Time is 50% of the shorter passage duration.
-
 - Default (before user editing) Crossfade Time is 2.0 seconds
 - User edited Crossfade Time is persisted across power-off sessions
+
+### Crossfade Time Clamping
+- User defined fade-in, fade-out, lead-in, lead-out durations are constrained during editing and setting as described above.
+- The global Crossfade Time is clamped during playback as follows:
+  - When one passage is playing and the queue contains another passage to play next, the global user selected Crossfade Time is compared with
+    the End Time - Start Time durations of either or both passages.  If the global user selected Crossfade Time is > 50% of either passage duration, 
+    effective Crossfade Time is 50% of the shorter passage duration.
+- If a playing passage has a defined (non NULL) lead-out duration, that is unaffected by Crossfade clamping
+- If a passage next for play in the queue has a defined (non NULL) lead-in duration, that is unaffected by Crossfade clamping
+
+Example:
+- Typical scenario, lead-out of passage A and lead-in of passage B are both NULL:
+  - Crossfade Time set to 5 seconds
+  - Passage A is 180 seconds duration, lead-out duration undefined
+  - Passage B is 240 seconds duration, lead-in duration undefined
+  - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage times and found to be < 50% of both, so it is used as is.
+  
+- Scenario A where Crossfade Time Clamping comes into effect, lead-out of passage A and lead-in of passage B are both NULL:
+  - Crossfade Time set to 30 seconds
+  - Passage A is 40 seconds duration, lead-out duration undefined
+  - Passage B is 240 seconds duration, lead-in duration undefined
+  - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage times and found to be > 50% of passage A's duration, so the 
+    effective Crossfade Time used to play passage A and B overlapping is 20 seconds, 50% of passage A's duration.  When passage A reaches 20 seconds from its end, simultaneous
+    play of passage B begins.
+  
+- Scenario B where Crossfade Time Clamping comes into effect, lead-out of passage A and lead-in of passage B are both NULL:
+  - Crossfade Time set to 30 seconds
+  - Passage A is 180 seconds duration, lead-out duration undefined
+  - Passage B is 30 seconds duration, lead-in duration undefined
+  - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage times and found to be > 50% of passage B's duration, so the
+    effective Crossfade Time used to play passage A and B overlapping is 15 seconds, 50% of passage B's duration.  When passage A reaches 15 seconds from its end, simultaneous
+    play of passage B begins.
+  
+- Scenario C where Crossfade Time Clamping comes into effect, lead-out of passage A and lead-in of passage B are both NULL:
+  - Crossfade Time set to 25 seconds
+  - Passage A is 30 seconds duration, lead-out duration undefined
+  - Passage B is 40 seconds duration, lead-in duration undefined
+  - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage times and found to be > 50% of both passage A and B's duration,
+    so the effective Crossfade Time used to play passage A and B overlapping is 15 seconds, 50% of the shorter passage A's duration.  When passage A reaches 15 seconds from its end,
+    simultaneous play of passage B begins.
+
+- Scenario D where Crossfade Time Clamping comes into effect, lead-out of passage A is set to 20 seconds lead-in of passage B is NULL:
+  - Crossfade Time set to 30 seconds
+  - Passage A is 30 seconds duration, lead-out duration set to 20 seconds
+  - Passage B is 50 seconds, lead-in duration undefined
+  - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage B's duration and found to be > 50%, so the effective Crossfade Time
+    used for passage B's lead-in duration is 15 seconds, 50% of the shorter passage A's duration.  When passage A reaches 15 seconds from its end, simultaneous play of passage B begins.
+
+- Scenario E where Crossfade Time Clamping comes into effect, lead-out of passage A is NULL, lead-in of passage B is set to 20 seconds:
+  - Crossfade Time set to 25 seconds
+  - Passage A is 32 seconds duration, lead-out duration undefined
+  - Passage B is 50 seconds, lead-in duration is set to 20 seconds
+  - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage A's duration and found to be > 50%, so the effective Crossfade Time
+    used for passage A's lead-out duration is 16 seconds, 50% of the shorter passage A's duration.  When passage A reaches 16 seconds from its end, simultaneous play of passage B begins.
 
 ### Global Fade Curve Selection
 
@@ -286,6 +374,12 @@ Passage table stores:
 - `fade_out_curve` (nullable enum: 'logarithmic', 'cosine', 'linear'; NULL = use global default)
 
 **Note:** NULL values for timing points use global Crossfade Time as described in Default Configuration. NULL values for curves use global Fade Curve selection.
+
+### Settings Table
+
+Global settings are persisted in a key-value settings table.
+
+TODO: add reference to database_schema.md when the settings table is defined in there.
 
 ## User Interface Considerations
 
