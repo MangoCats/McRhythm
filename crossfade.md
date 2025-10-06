@@ -17,8 +17,6 @@ McRhythm supports sophisticated crossfading between passages, allowing smooth tr
 Each passage has six timing points defined relative to the audio file:
 
 ```
-**Figure 1:** Fade inside Lead
-
 Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
   |         |         |                    |         |         |
   |---------|---------|--------------------|---------|---------|
@@ -27,12 +25,12 @@ Start    Fade-In   Lead-In            Lead-Out   Fade-Out    End
        Fade-In   Lead-In Point        Lead-Out  Fade-Out
         Point                           Point     Point
 ```
+**Figure 1:** Fade inside Lead
+
 Fade-In may be equal to or after Lead-In,
 Fade-Out may be equal to or after Lead-Out:
+
 ```
-**Figure 2:** Lead inside Fade
-
-
 Start    Lead-In   Fade-In            Fade-Out   Lead-Out    End
   |         |         |                    |         |         |
   |---------|---------|--------------------|---------|---------|
@@ -41,6 +39,8 @@ Start    Lead-In   Fade-In            Fade-Out   Lead-Out    End
        Lead-In   Fade-In Point        Fade-Out  Lead-Out
         Point                           Point     Point
 ```
+**Figure 2:** Lead inside Fade
+
 Fade-In / Fade-Out soften the passage start / end volume profiles, for example when taking a passage
 from the middle of a continuous piece of music.
 
