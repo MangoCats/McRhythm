@@ -230,10 +230,8 @@ corresponding fade-in or fade-out time windows. This warning indicates potential
   - all crossfade calculations complete, then multiply the result by the resume from pause ramp value
   - ((A_audio × A_fade) + (B_audio × B_fade)) × resume_ramp × master
 - **[XFD-PAUS-013]** Affects all playing passages simultaneously
-- **[XFD-PAUS-020]** Rationale:
-  - 0.5 second duration prevents audible "pop" when resuming
-  - Exponential curve provides natural-sounding volume restoration
-  - Applied to all playing passages ensures synchronized behavior during overlap
+
+> Implements requirement: [Crossfade Handling](requirements.md#crossfade-handling)
   
 ## Default Configuration
 

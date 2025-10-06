@@ -303,13 +303,37 @@ If lead-out(A) > lead-in(B):
 
 ## Component Implementation Details
 
-For detailed specifications of component behavior, see:
-- **Musical Flavor System**: [Requirements - Musical Flavor](requirements.md#musical-flavor)
-- **Crossfade Timing**: [Requirements - Crossfade Handling](requirements.md#crossfade-handling)
-- **Selection Algorithm**: [Requirements - Automatic Passage Selection](requirements.md#automatic-passage-selection)
-- **Time-of-Day Scheduling**: [Requirements - Musical Flavor Target by Time of Day](requirements.md#musical-flavor-target-by-time-of-day)
-- **API Endpoints**: [Requirements - Web UI](requirements.md#web-ui)
-- **Cooldown Rules**: [Requirements - Automatic Passage Selection](requirements.md#automatic-passage-selection)
+This architecture implements the requirements specified in [requirements.md](requirements.md).
+
+Detailed design specifications for each subsystem:
+- **Crossfade System**: See [Crossfade Design](crossfade.md)
+- **Musical Flavor System**: See [Musical Flavor](musical_flavor.md)
+- **Event-Driven Communication**: See [Event System](event_system.md)
+- **Data Model**: See [Database Schema](database_schema.md)
+- **Code Organization**: See [Coding Conventions](coding_conventions.md)
+
+### Design Parameters
+
+Configuration values that can be tuned during implementation:
+
+| Component | Parameter | Default Value | Rationale |
+|-----------|-----------|---------------|-----------|
+| **Program Director** | Song cooldown (minimum) | 7 days | Prevent repetition fatigue |
+| **Program Director** | Song cooldown (ramping) | 14 days | Gradual probability restoration |
+| **Program Director** | Artist cooldown (minimum) | 2 hours | Same-artist variety within session |
+| **Program Director** | Artist cooldown (ramping) | 4 hours | Short-term freshness |
+| **Program Director** | Work cooldown (minimum) | 3 days | Different interpretation variety |
+| **Program Director** | Work cooldown (ramping) | 7 days | Work-level diversity |
+| **Program Director** | Base probability default | 1.0 | Neutral starting point for all entities |
+| **Program Director** | Candidate pool size | 100 passages | Balance performance vs diversity |
+| **Queue Manager** | Minimum passages in queue | 3 passages | Preload buffer for crossfade |
+| **Queue Manager** | Minimum playtime in queue | 15 minutes | User experience smoothness |
+| **Playback Controller** | Resume fade duration | 0.5 seconds | Prevent audio "pop" |
+| **Playback Controller** | Position update interval | 500ms | UI responsiveness vs event frequency |
+| **EventBus** | Desktop capacity | 1000 events | Development/debug margin |
+| **EventBus** | Raspberry Pi capacity | 500 events | Memory-constrained optimization |
+
+> **Note:** These default values satisfy requirements in [requirements.md](requirements.md) but may be adjusted during testing and tuning phases.
 
 ## Concurrency Model
 

@@ -124,21 +124,24 @@ are modified, then that passage's net characteristics are re-computed.  In the c
 performed after the bulk update of recordings' characteristics is complete.
 
 ## Usage of Musical Flavor
-When a user defines a preferred musical flavor, they select one or more passages which contain one or more songs.
 
-The defined musical flavor is the average position of all passages defined by the user.
+**Target Flavor Definition:** User selects one or more reference passages; target flavor = average of their flavor vectors.
 
-When passages are being considered for enqueuing:
-1. zero probability passages (in song, or artist, or work, or other cooldown criteria) are ignored
-2. all passages with non-zero probability of selection have their flavor distance from the
-   target musical flavor computed
-3. candidate passages are sorted by distance from the target, with closest passages considered first.
-4. the 100 closest (or all, when less than 100 non-zero probability candidates are available) are then considered
-   based on their current computed probability, the product of their base probability and any applicable cooldown
-   modifiers and other probability modifiers
-5. a random number between zero and the sum of all considered passages' computed probabilities is selected
-6. the list of candidates is iterated and each candidate's computed probability is subtracted from the random number
-   the first candidate to reduce the random number to zero or below is the chosen passage for enqueuing.
+**Selection Algorithm:**
+
+1. **Filter:** Exclude zero-probability passages (cooldown criteria, no songs, etc.)
+2. **Distance Calculation:** Compute flavor distance from target for all non-zero probability passages
+3. **Ranking:** Sort by distance (closest first)
+4. **Candidate Pool:** Select top 100 closest passages (or all if <100 available)
+5. **Probability Weighting:** Each candidate's effective probability = base probability × cooldown multipliers
+6. **Weighted Random Selection:**
+   - Generate random number R ∈ [0, Σ(probabilities))
+   - Iterate candidates, subtracting each probability from R
+   - Select first candidate where R ≤ 0
+
+> **Note:** "Top 100 closest" is a design parameter (balances performance vs diversity). See [Architecture - Design Parameters](architecture.md#design-parameters).
+
+> Implements requirement: [Automatic Passage Selection](requirements.md#automatic-passage-selection)
    
 ----
 End of document - Musical Flavor

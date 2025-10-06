@@ -211,15 +211,22 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Cache API responses locally (store indefinitely, delete oldest when necessary for storage space constraints)
 - Handle rate limiting (max 3 requests/second)
 
-### Multi-passage file handling
-- Each file may contain one or more passages
-  - on initial import, user is asked if a file is expected to contain one or multiple passages
-    - one passage files default to: start, fade-in, lead-in times at the start of the file and
-                                  lead-out, fade-out, end times at the end of the file.
-  - when a file is identified as multi-passage, an initial segmentation of the file is attempted based on automatic silence detection
-  - users may manually edit start, fade-in, lead-in, lead-out, fade-out and end times for all passages in a file
-  - users may add or delete passage definitions associated with a file
-  - each passage is associated with zero or more MusicBrainz tracks, recordings, artists, and works
+### Multi-passage File Handling
+
+**Requirement:** Each audio file may contain one or more passages.
+
+**Requirement:** Users must be able to:
+- Define multiple passages within a single audio file
+- Manually edit passage boundaries and timing points
+- Add or delete passage definitions
+- Associate each passage with MusicBrainz entities (tracks, recordings, artists, works)
+
+**Requirement:** On initial import, the system must assist users by:
+- Asking whether a file contains one or multiple passages
+- Automatically detecting passage boundaries using silence detection (multi-passage files)
+- Providing sensible defaults for single-passage files
+
+> **See [Crossfade Design](crossfade.md#default-configuration) for default timing point values.**
 
 ### MusicBrainz Integration
 - Store MusicBrainz IDs: Recording ID, Release ID, Artist ID, Work ID
@@ -238,55 +245,37 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 
 ### Crossfade Handling
 
-Each passage has six configurable timing points (start, fade-in, lead-in, lead-out, fade-out, end) that control volume fades and crossfade overlap with adjacent passages. Crossfade behavior depends on the relationship between the current passage's lead-out time and the following passage's lead-in time.
+**Requirement:** Passages must crossfade smoothly into each other without gaps or abrupt volume changes. Users must be able to configure crossfade timing for each passage individually or use global defaults.
 
-> **See [Crossfade Design](crossfade.md) for complete crossfade design details, timing diagrams, and examples.**
+**Requirement:** When resuming from Pause, audio must fade in smoothly to prevent audible "pops" or jarring transitions.
 
-### Fade-in when resuming from Pause
-- When resuming play after Pause, the audio level ramps up exponentially across a time of 0.5 seconds
-- This level ramping up is applied after any crossfade behavior that may be happening simultaneously
+> **See [Crossfade Design](crossfade.md) for complete crossfade timing system, fade curves, and implementation details.**
 
-### Automatic passage Selection
-- passages are selected to be played based on multiple criteria:
-  - When the song(s) associated with the passage were last played
-  - When the artist(s) associated with the passage were last played
-  - When the work(s) associated with the passage were last played
-  - A user configured preference for the flavor of passages to be played at different times of day
-  - A passage must contain one or more songs to be considered for automatic selection
+### Automatic Passage Selection
 
-- One or more passages are associated with each song
-- Each song has an individual frequency profile
-  - minimum cooldown time required to pass between last play of the song before it is eligible to be enqueued for playing again.  During this time the song's probability of being enqueued for play is 0.
-    - minimum song cooldown time defaults to 7 days
-  - ramping cooldown time during which any passage associated with the song is less likely to be selected for playing again - starting at the end of the minimum cooldown time when the song's probability to be selected is 0, ramping up linearly throughout the ramping cooldown time until the song is restored to 100% (1.0) of its base probability to be selected.
-    - ramping song cooldown time defaults to 14 days
-    
-- Each primary performing artist has an individual frequency profile
-  - minimum cooldown time required to pass between last play of any passage by the primary performing artist, before any passage with the same primary performing artist is eligible to be enqueued for playing again.
-    - minimum primary performing artist cooldown time defaults to 2 hours
-  - ramping cooldown time during which the any passage by the primary performing artist is less likely to be selected for playing again - starting at the end of the minimum primary performing artist cooldown time when passages by the artist probability to be selected is 0, ramping up linearly throughout the ramping cooldown time until passages by the artist are restored to 100% (1.0) of their base probability to be selected.
-    - ramping primary performing artist cooldown time defaults to 4 hours
-    
-- Zero or more works are associated with each passage
-- Each work has an individual frequency profile
-  - minimum cooldown time required to pass between last play of a work before a passage containing the work  is eligible to be enqueued for playing again.  During this time the work's probability of being enqueued for play is 0.
-    - minimum work cooldown time defaults to 3 days
-  - ramping cooldown time during which any passage associated with the work is less likely to be selected for playing again - starting at the end of the minimum cooldown time when the work's probability to be selected is 0, ramping up linearly throughout the ramping cooldown time until the work is restored to 100% (1.0) of its base probability to be selected.
-    - ramping work cooldown time defaults to 7 days
-    
-- song, work and primary performing artist ramping cooldown times "stack" meaning: the net probability for a passage in ramping cooldown time which is associated with an artist also in ramping cooldown time is the product of the three ramping values (on a 0.0 - 1.0 scale)
-  - when a passage is associated with a primary performing artist and one or more featured artists, the artist with the lowest cooldown probability is used for computation of the passage's net probability to be enqueued.
+**Requirement:** Passages are automatically selected based on:
+- Musical flavor distance from current time-of-day target
+- Cooldown periods preventing too-frequent replay of songs, artists, and works
+- User-configured base probabilities for songs, artists, and works
+- A passage must contain one or more songs to be considered for automatic selection
 
-#### Base probabilities
-- each song starts with a base probability of selection = 1.0
-- each artist starts with a base probability of selection = 1.0
-- each work starts with a base probability of selection = 1.0
-- users may edit song / artist / work probabilities
-  - valid range from 0.0 to 1000.0, presented as logarithmic scale slider with option for numeric input
-- passage base probability is the product of the following:
-  - the passage's lowest song base probability 
-  - the passage's lowest primary performing artist base probability, or 1.0 if no primary performing artist is associated
-  - the passage's lowest work base probability, or 1.0 if no work is associated
+**Requirement:** Cooldown System
+- Each song, artist, and work has configurable minimum and ramping cooldown periods
+- During minimum cooldown, probability is zero (passage cannot be selected)
+- During ramping cooldown, probability increases linearly from zero to base probability
+- Cooldown probabilities multiply together (song × artist × work)
+- When multiple artists are associated, use the lowest cooldown probability
+
+**Requirement:** Base Probability Editing
+- Users may adjust base probabilities for individual songs, artists, and works
+- Passage base probability = song probability × artist probability × work probability
+
+> **See [Musical Flavor](musical_flavor.md#usage-of-musical-flavor) for selection algorithm details.**
+> **See [Architecture](architecture.md#2-program-director) for default cooldown values and probability calculation.**
+
+**Requirement:** Base Probability User Interface
+- Valid range: 0.0 to 1000.0, presented as logarithmic scale slider with option for numeric input
+- Default values: All songs, artists, and works start at 1.0
 
 ### User Queue additions
 - User may select any passage for enqueueing, including those with no songs contained

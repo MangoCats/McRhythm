@@ -43,16 +43,20 @@ Considered `signals2` and similar observer pattern crates but rejected because:
 
 ## Communication Patterns
 
-McRhythm uses three primary communication patterns, each chosen for specific use cases:
+McRhythm uses a hybrid communication architecture. See [Architecture - Inter-component Communication](architecture.md#inter-component-communication) for overview.
+
+This document specifies the **event broadcasting** pattern in detail.
 
 ### Pattern Selection Matrix
 
-| Pattern | Mechanism | Use When | Examples | Key Benefit |
-|---------|-----------|----------|----------|-------------|
-| **Event Broadcasting** | `tokio::broadcast` | One event → many listeners, no response needed | Playback state changes, queue updates | Decouples producers from consumers |
-| **Command Channels** | `tokio::mpsc` | Request → single handler, may need response | Play/Pause/Skip, selection requests | Clear ownership, error propagation |
-| **Shared State** | `Arc<RwLock<T>>` | Read-heavy access to current state | Current position, volume, playback state | High read performance |
-| **Watch Channels** | `tokio::sync::watch` | Single value updates, many readers need latest | Volume level, network status | Latest-value semantics |
+| Pattern | Use When | Examples |
+|---------|----------|----------|
+| **Event Broadcasting** (this doc) | One event → many listeners | Playback state changes, queue updates |
+| **Command Channels** | Request → single handler | Play/Pause/Skip commands |
+| **Shared State** | Read-heavy access | Current position, volume |
+| **Watch Channels** | Single value, many readers | Volume level, network status |
+
+> For command channels, shared state, and watch patterns, see [Architecture - Inter-component Communication](architecture.md#inter-component-communication).
 
 ### Communication Pattern Diagram
 
