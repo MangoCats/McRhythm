@@ -40,9 +40,13 @@ Audio files discovered by the library scanner.
 | guid | TEXT | PRIMARY KEY | Unique file identifier (UUID) |
 | path | TEXT | NOT NULL UNIQUE | Absolute file path |
 | hash | TEXT | NOT NULL | SHA-256 hash of file contents |
+| duration | REAL | | File duration in seconds (NULL = not yet scanned) |
 | modification_time | TIMESTAMP | NOT NULL | File last modified timestamp |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Constraints:**
+- CHECK: `duration IS NULL OR duration > 0`
 
 **Indexes:**
 - `idx_files_path` on `path`
@@ -56,32 +60,45 @@ Audio passages (playable segments) extracted from files.
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique passage identifier (UUID) |
 | file_id | TEXT | NOT NULL REFERENCES files(guid) ON DELETE CASCADE | Parent audio file |
-| start_time | REAL | NOT NULL | Passage start time in seconds |
-| fade_in_time | REAL | NOT NULL DEFAULT 0 | Duration of fade-in in seconds |
-| lead_in_time | REAL | NOT NULL DEFAULT 0 | Duration of lead-in in seconds |
-| lead_out_time | REAL | NOT NULL DEFAULT 0 | Duration of lead-out in seconds |
-| fade_out_time | REAL | NOT NULL DEFAULT 0 | Duration of fade-out in seconds |
-| end_time | REAL | NOT NULL | Passage end time in seconds |
-| fade_profile | TEXT | NOT NULL DEFAULT 'linear' | Fade profile: 'linear', 'exponential', 'cosine' |
+| start_time | REAL | | Passage start time in seconds (NULL = file start) |
+| fade_in_point | REAL | | Fade-in point in seconds (NULL = use global Crossfade Time) |
+| lead_in_point | REAL | | Lead-in point in seconds (NULL = use global Crossfade Time) |
+| lead_out_point | REAL | | Lead-out point in seconds (NULL = use global Crossfade Time) |
+| fade_out_point | REAL | | Fade-out point in seconds (NULL = use global Crossfade Time) |
+| end_time | REAL | | Passage end time in seconds (NULL = file end) |
+| fade_in_curve | TEXT | | Fade-in curve: 'exponential', 'cosine', 'linear' (NULL = use global default) |
+| fade_out_curve | TEXT | | Fade-out curve: 'logarithmic', 'cosine', 'linear' (NULL = use global default) |
 | title | TEXT | | Title from file tags |
+| user_title | TEXT | | User-defined passage title (overrides tag title) |
 | artist | TEXT | | Artist from file tags |
 | album | TEXT | | Album from file tags |
-| musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values |
+| lyrics | TEXT | | Passage lyrics (plain UTF-8 text) |
+| musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values (see Musical Flavor Vector Storage) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
 **Constraints:**
-- CHECK: `start_time >= 0`
-- CHECK: `end_time > start_time`
-- CHECK: `fade_in_time >= 0`
-- CHECK: `lead_in_time >= 0`
-- CHECK: `lead_out_time >= 0`
-- CHECK: `fade_out_time >= 0`
-- CHECK: `fade_profile IN ('linear', 'exponential', 'cosine')`
+- CHECK: `start_time IS NULL OR start_time >= 0`
+- CHECK: `end_time IS NULL OR (start_time IS NULL OR end_time > start_time)`
+- CHECK: `fade_in_point IS NULL OR ((start_time IS NULL OR fade_in_point >= start_time) AND (end_time IS NULL OR fade_in_point <= end_time))`
+- CHECK: `lead_in_point IS NULL OR ((start_time IS NULL OR lead_in_point >= start_time) AND (end_time IS NULL OR lead_in_point <= end_time))`
+- CHECK: `lead_out_point IS NULL OR ((start_time IS NULL OR lead_out_point >= start_time) AND (end_time IS NULL OR lead_out_point <= end_time))`
+- CHECK: `fade_out_point IS NULL OR ((start_time IS NULL OR fade_out_point >= start_time) AND (end_time IS NULL OR fade_out_point <= end_time))`
+- CHECK: `fade_in_point IS NULL OR fade_out_point IS NULL OR fade_in_point <= fade_out_point`
+- CHECK: `lead_in_point IS NULL OR lead_out_point IS NULL OR lead_in_point <= lead_out_point`
+- CHECK: `fade_in_curve IS NULL OR fade_in_curve IN ('exponential', 'cosine', 'linear')`
+- CHECK: `fade_out_curve IS NULL OR fade_out_curve IN ('logarithmic', 'cosine', 'linear')`
 
 **Indexes:**
 - `idx_passages_file_id` on `file_id`
 - `idx_passages_title` on `title`
+
+**Notes on denormalized fields:**
+- `title`, `artist`, `album` fields are denormalized caches from file tags
+- Used for display before MusicBrainz lookup completes or when lookup fails
+- Source of truth is `passage_songs` and `passage_albums` relationships
+- These fields may become stale if MusicBrainz data is updated
+- `user_title` always takes precedence over `title` when set
 
 ### `songs`
 
@@ -144,11 +161,17 @@ Musical works from MusicBrainz (compositions that can have multiple recordings).
 | guid | TEXT | PRIMARY KEY | Unique work identifier (UUID) |
 | work_mbid | TEXT | NOT NULL UNIQUE | MusicBrainz Work ID (UUID) |
 | title | TEXT | NOT NULL | Work title |
-| min_cooldown | INTEGER | | Minimum cooldown seconds (TBD - specification needed) |
-| ramping_cooldown | INTEGER | | Ramping cooldown seconds (TBD - specification needed) |
+| base_probability | REAL | NOT NULL DEFAULT 1.0 | Base selection probability (0.0-1000.0) |
+| min_cooldown | INTEGER | NOT NULL DEFAULT 259200 | Minimum cooldown seconds (default 3 days) |
+| ramping_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Ramping cooldown seconds (default 7 days) |
 | last_played_at | TIMESTAMP | | Last time any passage of this work was played |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Constraints:**
+- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
+- CHECK: `min_cooldown >= 0`
+- CHECK: `ramping_cooldown >= 0`
 
 **Indexes:**
 - `idx_works_mbid` on `work_mbid`
@@ -164,13 +187,52 @@ Albums/releases from MusicBrainz.
 | album_mbid | TEXT | NOT NULL UNIQUE | MusicBrainz Release ID (UUID) |
 | title | TEXT | NOT NULL | Album title |
 | release_date | TEXT | | Release date (ISO 8601 format) |
-| front_art_path | TEXT | | File path to front cover art image |
-| back_art_path | TEXT | | File path to back cover art image |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
 **Indexes:**
 - `idx_albums_mbid` on `album_mbid`
+
+**Note:** Album art is stored in the `images` table with `image_type` IN ('album_front', 'album_back', 'album_liner') and `entity_id` = album guid.
+
+### `images`
+
+Images associated with various entities (songs, passages, albums, artists, works).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| guid | TEXT | PRIMARY KEY | Unique image identifier (UUID) |
+| file_path | TEXT | NOT NULL | Absolute path to image file |
+| image_type | TEXT | NOT NULL | Type of image (see below) |
+| entity_id | TEXT | NOT NULL | UUID of associated entity |
+| priority | INTEGER | NOT NULL DEFAULT 100 | Display priority (lower = higher priority) |
+| width | INTEGER | | Image width in pixels |
+| height | INTEGER | | Image height in pixels |
+| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
+| updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Constraints:**
+- CHECK: `image_type IN ('album_front', 'album_back', 'album_liner', 'song', 'passage', 'artist', 'work', 'logo')`
+- CHECK: `priority >= 0`
+
+**Indexes:**
+- `idx_images_entity` on `(entity_id, image_type, priority)`
+- `idx_images_type` on `image_type`
+
+**Image Types:**
+- `album_front`: Album front cover art (entity_id = album guid)
+- `album_back`: Album back cover art (entity_id = album guid)
+- `album_liner`: Album liner notes images (entity_id = album guid)
+- `song`: Song-specific image (entity_id = song guid)
+- `passage`: Passage-specific image (entity_id = passage guid)
+- `artist`: Artist photo/image (entity_id = artist guid)
+- `work`: Work-related image (entity_id = work guid)
+- `logo`: McRhythm logo (entity_id = 'mcrhythm')
+
+**Notes:**
+- All entity_id values reference internal guid primary keys for consistency
+- Priority allows multiple images of same type; UI displays highest priority (lowest number) first
+- Logo image is bundled with application; one row with entity_id='mcrhythm' for consistency
 
 ## Relationship Tables (Many-to-Many)
 
@@ -208,6 +270,13 @@ Associates passages with albums.
 - `idx_passage_albums_passage` on `passage_id`
 - `idx_passage_albums_album` on `album_id`
 
+**Notes:**
+- While passage→album relationship can be derived through passage→song→recording→release,
+  this table provides a direct link for performance and handles edge cases:
+  - Multiple songs in a passage may come from different albums
+  - Passage metadata needs album association before song identification completes
+  - Compilation albums where passage spans tracks from different source albums
+
 ### `song_works`
 
 Associates songs with the works they are recordings of.
@@ -242,10 +311,65 @@ Records of passage playback events.
 **Indexes:**
 - `idx_play_history_passage` on `passage_id`
 - `idx_play_history_timestamp` on `timestamp`
+- `idx_play_history_passage_time` on `(passage_id, timestamp)` (optimizes cooldown time-range queries)
+
+**Notes:**
+- `ON DELETE CASCADE` policy: When a passage is deleted from the database, its play history is also deleted
+- This maintains database integrity but loses historical statistics for deleted content
+- Acceptable trade-off for library management (deleted files should not leave orphaned data)
+
+### `song_play_counts` (View)
+
+Optimized view for efficient play count queries by time period.
+
+**View Definition:**
+```sql
+CREATE VIEW song_play_counts AS
+SELECT
+    s.guid as song_id,
+    s.recording_mbid,
+    s.primary_artist_mbid,
+    COUNT(ph.guid) FILTER (
+        WHERE ph.timestamp > datetime('now', '-7 days')
+        AND ph.completed = 1
+    ) as plays_week,
+    COUNT(ph.guid) FILTER (
+        WHERE ph.timestamp > datetime('now', '-30 days')
+        AND ph.completed = 1
+    ) as plays_month,
+    COUNT(ph.guid) FILTER (
+        WHERE ph.timestamp > datetime('now', '-365 days')
+        AND ph.completed = 1
+    ) as plays_year,
+    COUNT(ph.guid) FILTER (WHERE ph.completed = 1) as plays_all_time,
+    MAX(ph.timestamp) as last_played_at
+FROM songs s
+LEFT JOIN passage_songs ps ON s.guid = ps.song_id
+LEFT JOIN play_history ph ON ps.passage_id = ph.passage_id
+GROUP BY s.guid;
+```
+
+**Columns:**
+- `song_id`: Song GUID
+- `recording_mbid`: MusicBrainz Recording ID
+- `primary_artist_mbid`: MusicBrainz Artist ID
+- `plays_week`: Number of completed plays in past 7 days
+- `plays_month`: Number of completed plays in past 30 days
+- `plays_year`: Number of completed plays in past 365 days
+- `plays_all_time`: Total number of completed plays
+- `last_played_at`: Timestamp of most recent play
+
+**Usage:**
+- Implements UI requirement for play history display (week/month/year/all-time counts)
+- Only counts completed plays (skipped plays excluded)
+- Updates automatically as play_history changes
+- Efficient for status display queries
 
 ### `likes_dislikes`
 
-User feedback on passages (TBD: specification needed for how this affects selection).
+**⚠️ PHASE 2 FEATURE** - Table structure defined but feature implementation deferred.
+
+User feedback on passages.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -261,18 +385,33 @@ User feedback on passages (TBD: specification needed for how this affects select
 - `idx_likes_dislikes_passage` on `passage_id`
 - `idx_likes_dislikes_timestamp` on `timestamp`
 
+**Notes:**
+- Table structure included for schema completeness
+- How likes/dislikes affect passage selection is **not yet specified**
+- API endpoints exist (requirements.md) but backend logic TBD
+- Implementation deferred to Phase 2 (post-MVP)
+
 ### `queue`
 
 Current playback queue.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| position | INTEGER | PRIMARY KEY | Queue position (0 = currently playing) |
+| guid | TEXT | PRIMARY KEY | Unique queue entry identifier (UUID) |
 | passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage in queue |
+| play_order | INTEGER | NOT NULL | Playback order (gaps allowed for easier reordering) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When added to queue |
 
 **Indexes:**
-- `idx_queue_position` on `position`
+- `idx_queue_order` on `play_order`
+- `idx_queue_passage` on `passage_id`
+
+**Notes:**
+- `play_order` determines playback sequence; lowest value plays first
+- Gaps in play_order values are allowed and expected (e.g., 10, 20, 30...)
+- This design avoids expensive renumbering when inserting/removing entries
+- To get next passage: `SELECT * FROM queue ORDER BY play_order LIMIT 1`
+- Position 0 is not special; currently playing passage may be tracked in settings table
 
 ## Time-based Flavor System
 
@@ -333,6 +472,9 @@ Application settings and user preferences (key-value store).
 - `audio_sink`: Selected audio output sink
 - `temporary_flavor_override`: JSON with target flavor and expiration
 - `music_directories`: JSON array of directories to scan
+- `global_crossfade_time`: Global crossfade time in seconds (default: 3.0)
+- `global_fade_curve`: Global fade curve pair (default: 'exponential_logarithmic', options: 'linear_linear', 'cosine_cosine')
+- `currently_playing_passage_id`: ID of passage currently playing (alternative to queue position 0)
 
 ## External API Caching
 
@@ -435,6 +577,12 @@ AFTER UPDATE ON settings
 BEGIN
     UPDATE settings SET updated_at = CURRENT_TIMESTAMP WHERE key = NEW.key;
 END;
+
+CREATE TRIGGER update_images_timestamp
+AFTER UPDATE ON images
+BEGIN
+    UPDATE images SET updated_at = CURRENT_TIMESTAMP WHERE guid = NEW.guid;
+END;
 ```
 
 ### Cooldown Updates
@@ -460,13 +608,10 @@ BEGIN
     UPDATE artists
     SET last_played_at = NEW.timestamp
     WHERE artist_mbid IN (
-        SELECT primary_artist_mbid
-        FROM songs
-        WHERE guid IN (
-            SELECT song_id
-            FROM passage_songs
-            WHERE passage_id = NEW.passage_id
-        )
+        SELECT s.primary_artist_mbid
+        FROM passage_songs ps
+        JOIN songs s ON ps.song_id = s.guid
+        WHERE ps.passage_id = NEW.passage_id
     );
 END;
 
@@ -476,13 +621,10 @@ BEGIN
     UPDATE works
     SET last_played_at = NEW.timestamp
     WHERE guid IN (
-        SELECT work_id
-        FROM song_works
-        WHERE song_id IN (
-            SELECT song_id
-            FROM passage_songs
-            WHERE passage_id = NEW.passage_id
-        )
+        SELECT sw.work_id
+        FROM passage_songs ps
+        JOIN song_works sw ON ps.song_id = sw.song_id
+        WHERE ps.passage_id = NEW.passage_id
     );
 END;
 ```
@@ -493,8 +635,12 @@ END;
 
 - **TEXT**: UTF-8 text strings, used for UUIDs and general text
 - **INTEGER**: SQLite's native integer type, used for counts and positions
-- **REAL**: Floating point numbers for time values and probabilities
+- **REAL**: Floating point numbers for time values and probabilities (IEEE 754 double precision, ~15-17 decimal digits)
 - **TIMESTAMP**: Stored as TEXT in ISO 8601 format (`YYYY-MM-DD HH:MM:SS`)
+  - All timestamps stored in **UTC timezone**
+  - Application converts to local time for display
+  - SQLite datetime functions (`datetime('now')`, `CURRENT_TIMESTAMP`, etc.) produce UTC by default
+  - No timezone suffix stored (implicit UTC)
 - **BOOLEAN**: Stored as INTEGER (0 = false, 1 = true)
 
 ### UUID Primary Keys
@@ -556,8 +702,13 @@ Some tables are only populated/used in specific versions:
 
 Potential schema additions (not yet specified):
 
-- `featured_artists` table for featured artist handling
+- `featured_artists` table for explicit featured artist handling beyond primary artist
 - `genres` table for normalized genre taxonomy
 - `playlists` and `playlist_passages` for manual playlists
 - `user_preferences_history` for tracking preference changes over time
-- `listenbrain_submissions` queue for pending uploads
+- `listenbrainz_submissions` queue for pending uploads
+
+**Recently Added:**
+- ✅ `images` table for multi-type image storage (songs, passages, albums, artists, works)
+- ✅ `song_play_counts` view for efficient time-range play count queries
+- ✅ `passages.user_title` column for user-defined passage titles

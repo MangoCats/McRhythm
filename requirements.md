@@ -291,14 +291,25 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
   - Duration played (for skip detection)
   - Completion status (played fully vs skipped)
 
-#### Album art
+#### Album art and Image Management
 - Passages are usually associated with an album
-- Albums usually have two images stored as album art "front" and "back"
+- Albums may have multiple images: "front", "back", and optionally "liner" notes
 - Album art is stored as image files in the same directory as the audio files
 - When extracted from embedded tags, saved as `{filename}.cover.{ext}` (e.g., `song.mp3.cover.jpg`)
-- When fetched from external sources (MusicBrainz/Cover Art Archive), saved as `{album_mbid}.front.{ext}` and `{album_mbid}.back.{ext}` in the audio file directory
+- When fetched from external sources (MusicBrainz/Cover Art Archive), saved as:
+  - `{album_mbid}.front.{ext}` - Album front cover
+  - `{album_mbid}.back.{ext}` - Album back cover
+  - `{album_mbid}.liner.{ext}` - Album liner notes (optional)
 - Images are resized to maximum 1024x1024 pixels (preserving aspect ratio) when larger than this size
 - Database stores file path references to album art images, not the image data itself
+
+**Additional Image Types:**
+- **Song-specific images**: User-uploaded only (Full version only) - for special performances, live versions, remixes
+- **Passage-specific images**: User-uploaded only (Full version only) - for compilation tracks, medleys, custom edits
+- **Artist images**: Fetched from MusicBrainz (artist photos) or user-uploaded (Full version only)
+- **Work images**: User-uploaded only (Full version only) - for sheet music covers, opera/ballet production stills
+
+> **See [Database Schema - images](database_schema.md#images) for unified image storage.**
 
 ## Player Functionality
 
@@ -319,20 +330,54 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - WebUI provided on HTTP port 5720 with no authentication
 
 **Status Display:**
-- Current passage: Title, Artist, Album
-- Playback state: Playing/Paused/Stopped
+- Passage Title (only when different from current song title and album title)
+  - When passage contains one song: Display that song's information
+  - When passage contains multiple songs: Display the song currently playing based on playback position within the passage
+  - When passage contains zero songs: Display passage information only
+- Current song:
+  - Title
+  - Artist(s)
+  - Album
+  - Play History 
+    - Time since last play (of this song, in any passage)
+      - Displays human-readable format: "2 hours ago", "3 days ago", "2 weeks ago"
+    - Number of plays in the past: (Full and Lite versions only)
+      - week
+      - month
+      - year
+      - all time
+  - Lyrics (when available) (Full and Lite versions only)
+
+> **See [Database Schema - song_play_counts](database_schema.md#song_play_counts-view) for play count data storage.**
+
+- Playback state: Playing/Paused
 - Progress bar: Current position / Total duration
-- Album art placeholder (static image if none available)
+- Artwork: 2 images when available
+  - Available image priority list:
+    - Song specific image(s)
+    - Passage specific image(s)
+    - Album Front image
+    - Album Rear image
+    - Album liner image(s)
+    - Artist specific image(s)
+    - Work specific image(s)
+    - McRhythm Logo image (always available, only displayed when no other artwork is available)
+  - Highest priority available image displays to the left
+  - Lower priority image(s) appear to the right
+    - When more than one lower priority image (not including McRhythm logo) is available, right side displayed image rotates every 15 seconds
+  - When only Logo or one image is available for display, that single image is displayed centered with blank space to the left and right.
+
+> **See [Database Schema - images](database_schema.md#images) for image association storage.**
 
 **Control Panel:**
 - Play/Pause toggle button
 - Skip button
 - Volume slider
-- Current volume percentage display
+  - Current master volume percentage display
 
 **Next Up Queue:**
-- List next 5 passages in queue
-- Show: Title - Artist
+- List next passages in queue
+- Show: Passage Title - Primary Artist
 
 **API Endpoints (REST):**
 - `GET /api/status` - Current playback state

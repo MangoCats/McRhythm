@@ -13,17 +13,25 @@ Defines core entity terminology used throughout McRhythm documentation. Part of 
 - **[ENT-MB-010]** Track: a specific recording on a particular release.  Has a MBID (MusicBrainz unique identifier), definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Track).
 - **[ENT-MB-020]** Recording: the unique distinct piece of audio underlying a track. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Recording).
 - **[ENT-MB-030]** Work: one or more recordings can exist of each work. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Work) definition of discrete works.
-- **[ENT-MB-040]** Performing Artist: the artist(s) credited with creating a recording. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Recording#Artist) definition of "The artist(s) that the recording is primarily credited to."
+- **[ENT-MB-040]** Performing Artist: the artist(s) credited with creating a recording. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Recording#Artist)
+                   definition of "The artist(s) that the recording is primarily credited to."
+- **[ENT-MB-050]** Primary Performing Artist: The artist(s) credited as primary performers
+                   (as opposed to featured artists) for a recording. Used for display and cooldown calculations.
+- **[ENT-MB-060]** Featured Artist: Artist(s) appearing on a recording but not credited as
+                   primary performers. Used for additional artist information but not primary display.
 - **[ENT-MCR-010]** Song: A combination of a recording and one or more performing artist(s).
   - each song may appear in one or more passages.
 - **[ENT-MCR-020]** Audio File: A file on disk containing audio data in formats such as MP3, FLAC, OGG, M4A, or WAV.
   - Each audio file may contain one or more passages.
   - Audio files are stored in user-designated music library directories.
-- **[ENT-MCR-030]** Passage: A span of audio.
+- **[ENT-MCR-030]** Passage: A defined span of audio, plus optional metadata
   - In McRhythm a passage is a defined part of an audio file with start, fade-in, lead-in,
     lead-out, fade-out, end points in time defined, as described in [Crossfade Design](crossfade.md#overview).
   - Multiple passages defined within an audio file may, or may not, overlap each other in time.
   - A passage may contain zero or more songs.
+  - Passage metadata may optionally include:
+    - A title for the passage
+    - References to one or more images associated with the passage
 
 ## Entity Relationships
 
