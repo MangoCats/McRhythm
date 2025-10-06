@@ -44,16 +44,15 @@ operation to take place.
 
 ### Point Definitions
 
-Start time, end time, and all points each define a time in the audio file:
+  1. **Start Time**: Beginning of passage audio
+  2. **Fade-In Point**: When volume reaches 100%
+  3. **Lead-In Point**: Latest time the previous passage may still be playing
+  4. **Lead-Out Point**: Earliest time the next passage may start playing
+  5. **Fade-Out Point**: When volume begins decreasing
+  6. **End Time**: End of passage audio
 
-1. **Start Time**: Beginning of the passage audio
-2. **Fade-In Point**: When audio reaches full volume after fading in
-3. **Lead-In Point**: The time point by which the previous passage must have ended. The
-                      system enforces this by calculating crossfade start timing based on Lead-In and
-                      Lead-Out Durations (see Crossfade Behavior cases).
-4. **Lead-Out Point**: When the next passage may start playing for crossfade
-5. **Fade-Out Point**: When audio begins fading out
-6. **End Time**: End of the passage audio
+  - **Lead-In/Lead-Out**: Define when this passage plays simultaneously with adjacent passages
+  - **Fade-In/Fade-Out**: Define volume envelope (independent of simultaneous playback)
 
 ### Durations
 
@@ -64,28 +63,61 @@ Start time, end time, and all points each define a time in the audio file:
 
 ### Constraints
 
-- Start ≤ Fade-In ≤ Fade-Out ≤ End
-- Start ≤ Lead-In ≤ Lead-Out ≤ End
-- All times may be equal (resulting in 0-duration intervals)
-- Fade-In and Fade-Out points do not restrict Lead-In and Lead-Out points
-- Lead-In and Lead-Out points do not restrict Fade-In and Fade-Out points
+Timing points must satisfy two independent constraint chains:
+
+  **Fade Point Constraints:**
+  - Start ≤ Fade-In ≤ Fade-Out ≤ End
+
+  **Lead Point Constraints:**
+  - Start ≤ Lead-In ≤ Lead-Out ≤ End
+
+  **Cross-Chain Independence:**
+  - Fade-In and Lead-In points are independent (either may come first, or may be equal)
+  - Fade-Out and Lead-Out points are independent (either may come first, or may be equal)
+  - All timing points may be equal to each other (resulting in 0-duration intervals)
+
+  **Valid Examples:**
+  1. Standard ordering (Fade inside Lead, no simultaneous play with adjacent passages):
+  Start(0s) = Lead-In(0s) < Fade-In(2s) < Fade-Out(58s) < Lead-Out(60s) = End(60s)
+  2. Inverted ordering (Lead inside Fade, no fade of this passage's level in or out):
+  Start(0s) = Fade-In(0s) < Lead-In(2s) < Lead-Out(58s) < Fade-Out(60s) = End(60s)
+  3. Interleaved ordering:
+  Start(0s) < Fade-In(1s) < Lead-In(2s) < Lead-Out(58s) < Fade-Out(59s) < End(60s)
+  4. All points equal (passage plays at constant volume, no simultaneous play with adjacent passages):
+  Start(0s) = Fade-In(0s) = Lead-In(0s) = Lead-Out(60s) = Fade-Out(60s) = End(60s)
+  5. Partial equality:
+  Start(0s) = Fade-In(0s) = Lead-In(0s) < Lead-Out(58s) = Fade-Out(58s) < End(60s)
+
+  **Validation Rules:**
+  - Both constraint chains must be satisfied independently
+  - No additional ordering restrictions exist between Fade and Lead points
+
+  **Semantic Guidance:**
+
+  While any ordering satisfying the constraints is valid, typical usage patterns include:
+
+  - **Fade-In after Lead-In** (Fade-In ≥ Lead-In): Use when passage starts with quiet intro that needs gentle fade-in even after crossfade completes
+  - **Lead-In after Fade-In** (Lead-In ≥ Fade-In): Use when passage has abrupt start that benefits from fade-in, but crossfade should end before full volume
+  - **Fade-Out before Lead-Out** (Fade-Out ≤ Lead-Out): Use when passage should start fading out before next passage begins crossfading in
+  - **Lead-Out before Fade-Out** (Lead-Out ≤ Fade-Out): Use when next passage should start while current passage is still at full volume
 
 ## Fade Curves
 
+### Per-Passage Curve Selection
+
 Each passage can independently configure its fade-in and fade-out curves:
 
-### Exponential In / Logarithmic Out
-- **Fade-In**: Volume increases exponentially (slow start, fast finish)
-- **Fade-Out**: Volume decreases logarithmically (fast start, slow finish)
-- Best for: Natural-sounding transitions
+**Fade-In Curve Options:**
+- **Exponential**: Volume increases exponentially (slow start, fast finish) - natural-sounding
+- **Cosine (S-Curve)**: Smooth acceleration and deceleration - gentle, musical
+- **Linear**: Constant rate of change - precise, predictable
 
-### Cosine (S-Curve)
-- Smooth acceleration and deceleration
-- Best for: Gentle, musical transitions
+**Fade-Out Curve Options:**
+- **Logarithmic**: Volume decreases logarithmically (fast start, slow finish) - natural-sounding
+- **Cosine (S-Curve)**: Smooth acceleration and deceleration - gentle, musical
+- **Linear**: Constant rate of change - precise, predictable
 
-### Linear
-- Constant rate of change
-- Best for: Precise, predictable crossfades
+**Independence:** Fade-in and fade-out curves are selected independently. A passage may use any combination (e.g., exponential fade-in with linear fade-out).
 
 ## Crossfade Behavior
 
@@ -180,25 +212,80 @@ When resuming from Pause:
 
 New passages are created with:
 - Start Time: Beginning of file (or user-defined offset)
-- Fade-In Point: = Start Time (Fade-In Duration = 0)
-- Lead-In Point: = Start Time (Lead-In Duration = 0)
-- Lead-Out Point: = End Time (Lead-Out Duration = 0)
-- Fade-Out Point: = End Time (Fade-Out Duration = 0)
+- Fade-In Point: NULL (uses global Crossfade Time)
+- Lead-In Point: NULL (uses global Crossfade Time)
+- Lead-Out Point: NULL (uses global Crossfade Time)
+- Fade-Out Point: NULL (uses global Crossfade Time)
 - End Time: End of file (or user-defined offset)
-- Fade-In Curve: Exponential
-- Fade-Out Curve: Logarithmic
+- Fade-In Curve: NULL (uses global Fade Curve selection's fade-in component)
+- Fade-Out Curve: NULL (uses global Fade Curve selection's fade-out component)
+
+### Global Crossfade Time
+A single global value "Crossfade Time" is used whan Fade-In Point, Fade-Out Point, Lead-In Point, Lead-Out Point are undefined.
+- When Fade-In Point is undefined, the effective Fade-In point is: Start Time + Crossfade Time
+- When Lead-In Point is undefined, the effective Lead-In point is: Start Time + Crossfade Time
+- When Fade-Out Point is undefined, the effective Fade-Out point is: End Time - Crossfade Time
+- When Lead-Out Point is undefined, the effective Lead-Out point is: End Time - Crossfade Time
+
+- Crossfade Time is user editable
+  - Minimum Crossfade Time is: 0.0 seconds
+  - Maximum Crossfade Time is: 30.0 seconds
+  
+- When one passage is playing and another is following it in the queue, if the global user selected Crossfade Time is > 50% of either passage duration, 
+  effective Crossfade Time is 50% of the shorter passage duration.
+
+- Default (before user editing) Crossfade Time is 2.0 seconds
+- User edited Crossfade Time is persisted across power-off sessions
+
+### Global Fade Curve Selection
+
+The Global Fade Curve setting selects a **paired** fade-in/fade-out curve combination used as the default for passages where `fade_in_curve` and/or `fade_out_curve` are undefined (NULL).
+
+**Global Fade Curve Options:**
+
+1. **Exponential In / Logarithmic Out** (default)
+   - Fade-In: Exponential
+   - Fade-Out: Logarithmic
+
+2. **Linear In / Linear Out**
+   - Fade-In: Linear
+   - Fade-Out: Linear
+
+3. **Cosine In / Cosine Out (S-Curve)**
+   - Fade-In: Cosine
+   - Fade-Out: Cosine
+
+**Application:**
+- When passage `fade_in_curve` is NULL: Use fade-in component of global setting
+- When passage `fade_out_curve` is NULL: Use fade-out component of global setting
+- When both are NULL: Use complete paired curve from global setting
+- When one is defined and one is NULL: Mix passage-specific curve with global default
+
+**Example:** Global setting is "Exponential In / Logarithmic Out"
+- Passage A (both NULL): Uses exponential fade-in, logarithmic fade-out
+- Passage B (fade-in = linear, fade-out = NULL): Uses linear fade-in, logarithmic fade-out
+- Passage C (fade-in = NULL, fade-out = cosine): Uses exponential fade-in, cosine fade-out
+- Passage D (both defined): Ignores global setting entirely
+
+**Persistence:** User-selected global Fade Curve setting is persisted across power-off sessions.
+
+### Commentary
+
+The Global Crossfade Time and Fade Curve Selection should be good for most passages, but in cases where it is not the ability to individually tailor Fade-In, Fade-Out, Lead-In, Lead-Out points and Fade-In, Fade-Out curves gives the users the ability to address specific cases that don't work well with a simpler global selection.
 
 ## Database Storage
 
 Passage table stores:
-- `start_time` (seconds)
-- `fade_in_point` (seconds)
-- `lead_in_point` (seconds)
-- `lead_out_point` (seconds)
-- `fade_out_point` (seconds)
-- `end_time` (seconds)
-- `fade_in_curve` (enum: exponential, cosine, linear)
-- `fade_out_curve` (enum: logarithmic, cosine, linear)
+- `start_time` (seconds, nullable)
+- `fade_in_point` (seconds, nullable)
+- `lead_in_point` (seconds, nullable)
+- `lead_out_point` (seconds, nullable)
+- `fade_out_point` (seconds, nullable)
+- `end_time` (seconds, nullable)
+- `fade_in_curve` (nullable enum: 'exponential', 'cosine', 'linear'; NULL = use global default)
+- `fade_out_curve` (nullable enum: 'logarithmic', 'cosine', 'linear'; NULL = use global default)
+
+**Note:** NULL values for timing points use global Crossfade Time as described in Default Configuration. NULL values for curves use global Fade Curve selection.
 
 ## User Interface Considerations
 
@@ -217,7 +304,7 @@ Should display:
 
 ### First Passage in Queue
 - No previous passage to crossfade from
-- Fade-in and Lead-in apply if defined
+- Fade-in applies
 - If Fade-In Duration > 0, passage starts at zero volume and fades in
 
 ### Last Passage in Queue
@@ -227,7 +314,7 @@ Should display:
 
 ### User Skip During Crossfade
 - Both passages stop immediately
-- Next passage from the queue begins according to its own timing rules
+- Next passage from the queue, after the one that was starting during crossfade, begins according to its own timing rules
 
 ### Pause During Crossfade
 - Both passages pause at current position
@@ -238,3 +325,5 @@ Should display:
 - If next passage removed: current passage plays to completion
 - If current passage removed: next passage treated as "first passage in queue"
 
+----
+End of document - Crossfade Design

@@ -238,9 +238,9 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 
 ### Crossfade Handling
 
-> **See [Crossfade Design](crossfade.md) for complete crossfade design details, timing diagrams, and examples.**
+Each passage has six configurable timing points (start, fade-in, lead-in, lead-out, fade-out, end) that control volume fades and crossfade overlap with adjacent passages. Crossfade behavior depends on the relationship between the current passage's lead-out time and the following passage's lead-in time.
 
-Each passage has six configurable timing points (start, fade-in, lead-in, lead-out, fade-out, end) that control volume fades and crossfade overlap with adjacent passages. Crossfade behavior depends on the relationship between the current passage's lead-out time and the following passage's lead-in time. All timing values default to 0 and are user-editable. Three fade curve profiles are available: exponential/logarithmic, cosine (S-curve), and linear.
+> **See [Crossfade Design](crossfade.md) for complete crossfade design details, timing diagrams, and examples.**
 
 ### Fade-in when resuming from Pause
 - When resuming play after Pause, the audio level ramps up exponentially across a time of 0.5 seconds
