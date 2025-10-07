@@ -279,6 +279,17 @@ corresponding fade-in or fade-out time windows. This warning indicates potential
   - If a playing passage has a defined (non NULL) lead-out duration, that is unaffected by Crossfade clamping
   - If a passage next for play in the queue has a defined (non NULL) lead-in duration, that is unaffected by Crossfade clamping
 
+**[XFD-DEF-061] Rationale for Asymmetric Clamping:**
+
+This intentional asymmetry between user-defined and NULL timing points serves specific purposes:
+  - **NULL points (clamped):** When users haven't customized timing, the 50% rule prevents the global setting from creating excessive overlap on short passages
+  - **User-defined points (not clamped):** When users explicitly set timing points, they have made a deliberate choice for that specific passage. The system respects this choice even if it exceeds 50% of passage duration
+  - **Design philosophy:** Global defaults should be conservative and safe, while per-passage customization grants full control to users who understand their content
+
+**Use case example:** A 10-second intro passage might have a user-defined 8-second lead-out (80% of duration) to ensure it crossfades smoothly into the main track. This is intentional and should not be overridden by automatic clamping.
+
+**Warning:** The UI should warn users when setting timing points that exceed 50% of passage duration, indicating potential for excessive overlap, but allow the setting.
+
 Example:
 - Typical scenario, lead-out of passage A and lead-in of passage B are both NULL:
   - Crossfade Time set to 5 seconds
@@ -378,7 +389,7 @@ The Global Crossfade Time and Fade Curve Selection should be good for most passa
 
 **[XFD-DB-030]** Global settings are persisted in a key-value settings table.
 
-TODO: add reference to database_schema.md when the settings table is defined in there.
+See [database_schema.md#settings](database_schema.md#settings) for the definition of the settings table.
 
 ## User Interface Considerations
 

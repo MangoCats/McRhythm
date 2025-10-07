@@ -31,9 +31,12 @@ flowchart TD
 
     subgraph T2["TIER 2: DESIGN"]
         ARCH["architecture.md<br/><br/>Defines HOW system<br/>is structured"]
+        API["api_design.md<br/><br/>Defines REST API<br/>and SSE interface"]
+        LIB["library_management.md<br/><br/>Defines file scanning<br/>and metadata workflows"]
         XFD["crossfade.md<br/><br/>Defines crossfade<br/>timing & behavior"]
         FLV["musical_flavor.md<br/><br/>Defines musical flavor<br/>system and distance<br/>calculations"]
         EVT["event_system.md<br/><br/>Defines event-driven<br/>communication architecture"]
+        MUC["multi_user_coordination.md<br/><br/>Defines multi-user<br/>coordination mechanisms"]
     end
 
     T2_SPACER[" "]:::invisible
@@ -52,13 +55,13 @@ flowchart TD
     end
 
     DH -->|governs| REQ & ENT
-    REQ & ENT -->|informs| ARCH & XFD & FLV & EVT
+    REQ & ENT -->|informs| ARCH & API & LIB & XFD & FLV & EVT & MUC
     T2_SPACER ~~~ T3
     T2_SPACER ~~~ CC
-    ARCH & XFD & FLV & EVT -->|informs| DB & CODE
+    ARCH & API & LIB & XFD & FLV & EVT & MUC -->|informs| DB & CODE
     DB & CODE -->|informs| IMPL
 
-    ENUM --- REQ & ENT & ARCH & XFD & FLV & EVT & DB & CODE & IMPL
+    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & EVT & MUC & DB & CODE & IMPL
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
@@ -71,9 +74,12 @@ flowchart TD
     style REQ fill:#ffe0b2,stroke:#e65100,stroke-width:2px
     style ENT fill:#ffe0b2,stroke:#e65100,stroke-width:2px
     style ARCH fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style API fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style LIB fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style XFD fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style FLV fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style EVT fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style MUC fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style ENUM fill:#fff59d,stroke:#f57f17,stroke-width:2px
     style DB fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style CODE fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
@@ -187,6 +193,43 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Technical lead, architects
 
+#### api_design.md
+**Purpose:** Defines REST API structure and Server-Sent Events interface
+
+**Contains:**
+- REST API endpoint specifications
+- Request/response formats
+- SSE event streaming design
+- Error response formats
+- API versioning strategy
+
+**Update Policy:**
+- ✅ Update to satisfy requirements.md API requirements
+- ✅ Update when API structure changes
+- ✅ May propose requirement changes if API design needs adjustment
+- ❌ Must support requirements.md features, not drive them
+
+**Maintained By:** API designer, technical lead
+
+#### library_management.md
+**Purpose:** Defines file scanning, metadata extraction, and MusicBrainz integration workflows
+
+**Contains:**
+- File discovery and scanning algorithms
+- Metadata extraction processes
+- Audio fingerprinting workflow
+- MusicBrainz/AcousticBrainz integration
+- Multi-passage file handling
+- Lyrics input/storage design
+
+**Update Policy:**
+- ✅ Update to satisfy requirements.md library requirements
+- ✅ Update when metadata workflows change
+- ✅ May propose requirement changes if workflow needs adjustment
+- ❌ Must support requirements.md features, not drive them
+
+**Maintained By:** Library subsystem lead, technical lead
+
 #### crossfade.md
 **Purpose:** Defines crossfade timing system and behavior
 
@@ -236,6 +279,21 @@ These documents define HOW requirements are satisfied through design decisions.
 - ✅ Update when new event types are needed
 - ✅ Update when communication patterns evolve
 - ❌ Must support requirements.md features, not drive them
+
+**Maintained By:** Software architect, technical lead
+
+#### multi_user_coordination.md
+**Purpose:** Defines the mechanism for coordinating actions from multiple users
+
+**Contains:**
+- Detailed specification for handling concurrent user actions
+- The role and payload of the `UserAction` event
+- Sequence diagrams for each edge case (skip-throttling, concurrent queue operations, lyric editing)
+
+**Update Policy:**
+- ✅ Update to satisfy multi-user requirements from requirements.md
+- ✅ Update when new multi-user edge cases are identified
+- ❌ Must remain consistent with requirements.md and api_design.md
 
 **Maintained By:** Software architect, technical lead
 
@@ -395,11 +453,11 @@ document_hierarchy.md (Tier 0)
 
 **Example:**
 ```
-Issue: Multi-song passage probability calculation is undefined
-Review: Is this a requirement gap or implementation detail?
-Decision: Requirement gap - must define product behavior
-Update: Add REQ-PROB-050 to requirements.md specifying calculation
-Cascade: Update implementation_order.md to remove blocker
+Issue: Cooldown period for 'Works' is not defined (REQ-SEL-060)
+Review: Is this a requirement gap or can we proceed with a default?
+Decision: Requirement gap - product needs to define this behavior.
+Update: Add cooldown times to requirements.md under 'Cooldown System'.
+Cascade: Update implementation_order.md to remove the 'specification needed' blocker.
 ```
 
 ### Design Changes (Tier 2)
@@ -486,6 +544,8 @@ Cascade: Update implementation_order.md with optimization task
 | requirements.md | 1 | Product needs change | All content documents | Product owner |
 | entity_definitions.md | 1 | Entity terminology changes | Tier 2, 3, 4 | Product owner, tech lead |
 | architecture.md | 2 | Design decisions change | Tier 3, 4 | Tech lead |
+| api_design.md | 2 | API structure changes | Tier 3, 4 | API designer |
+| library_management.md | 2 | Library workflow changes | Tier 3, 4 | Library subsystem lead |
 | crossfade.md | 2 | Audio design changes | Tier 3, 4 | Audio engineer |
 | musical_flavor.md | 2 | Flavor algorithm changes | Tier 3, 4 | Algorithm designer |
 | event_system.md | 2 | Communication design changes | Tier 3, 4 | Architect |
@@ -508,7 +568,7 @@ Cascade: Update implementation_order.md with optimization task
 → Can I fix it without changing design? Yes → Update directly
 → Does it affect design? → Review with tech lead, may need Tier 2 update
 
-### I found a gap/issue in architecture.md, crossfade.md, musical_flavor.md, or event_system.md
+### I found a gap/issue in architecture.md, api_design.md, library_management.md, crossfade.md, musical_flavor.md, or event_system.md
 → Can I fix it without changing requirements? Yes → Update with review
 → Does it affect requirements? → Must go through requirements change control
 

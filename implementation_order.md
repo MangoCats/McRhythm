@@ -103,10 +103,7 @@ This document **aggregates** all specifications to define WHEN features are buil
 - Event stream endpoint implementation
 - Subscribe to all McRhythmEvent types for UI broadcasting
 - Broadcast state changes to all connected clients
-- Multi-user edge case handling:
-  - Skip throttling (5-second window) via UserAction events
-  - Concurrent queue operations
-  - Lyric edit submission
+- Multi-user edge case handling: See [Multi-User Coordination](multi_user_coordination.md) for the detailed specification.
 - **Architecture**: Implements REQ-CF-042 (multiple users, real-time sync)
 - **Event integration**: SSE Broadcaster is primary event consumer for UI updates
 
@@ -194,7 +191,7 @@ This document **aggregates** all specifications to define WHEN features are buil
 
 ### 16. Musical flavor position calculation
 - For single-song passages: use song's AcousticBrainz position directly (FLV-MAP-ONE)
-- For multi-song passages: arithmetically average all dimensional values (FLV-MAP-MANY)
+- For multi-song passages: calculate a weighted average of all dimensional values, based on the duration of each song within the passage (FLV-MAP-MANY).
 - Store computed flavor position in passage database table
 - Handle zero-song passages (no flavor, excluded from auto-selection - FLV-MAP-ZERO)
 - **Specification**: Implements [Musical Flavor - Mapping](musical_flavor.md#mapping)
@@ -234,10 +231,10 @@ This document **aggregates** all specifications to define WHEN features are buil
 ### 19. Base probability system
 - Song/artist/work base probability storage (default 1.0, range 0.0-1000.0 - REQ-PROB-010/020/030)
 - UI with logarithmic slider + numeric input for editing (REQ-PROB-041)
-- **Passage probability calculation** (TBD: clarify multi-song/multi-artist handling - REQ-PROB-050):
+- **Passage probability calculation** (REQ-PROB-050):
   - Single song/artist: straightforward product
-  - Multiple songs: *needs specification* (multiply all? average? min? max?)
-  - Multiple artists: *needs specification*
+  - Multiple songs: weighted average based on duration (see requirements.md)
+  - Multiple artists: weighted sum of artist probabilities (see requirements.md)
 - **Module organization**: Probability calculations in `selection/probability.rs` (CO-032)
 
 ### 20. Cooldown system
@@ -245,16 +242,16 @@ This document **aggregates** all specifications to define WHEN features are buil
   - Minimum: 7 days (default, user-editable - REQ-SEL-031A)
   - Ramping: 14 days (default, user-editable - REQ-SEL-032A)
   - Linear ramp from 0.0 to 1.0 probability multiplier
-- **Primary performing artist cooldowns** (REQ-SEL-040):
+- **Artist cooldowns** (REQ-SEL-040):
   - Minimum: 2 hours (default, user-editable - REQ-SEL-041A)
   - Ramping: 4 hours (default, user-editable - REQ-SEL-042A)
-- **Work cooldowns** (*specification needed* - REQ-SEL-060):
-  - Define minimum/ramping times or remove from requirements
+- **Work cooldowns** (REQ-SEL-060):
+  - Minimum: 3 days (default, user-editable)
+  - Ramping: 7 days (default, user-editable)
 - **Cooldown stacking** (REQ-SEL-070):
   - Net probability = base × song_multiplier × artist_multiplier × (work_multiplier if applicable)
-- **Featured artist handling** (*specification needed* - REQ-SEL-071):
-  - Define featured vs primary artist distinction
-  - Use lowest cooldown probability among all associated artists
+- **Multi-artist cooldown handling**:
+  - For songs with multiple artists, the artist cooldown multiplier is a weighted average of each artist's individual cooldown multiplier.
 - **Module organization**: Cooldown calculations in `selection/cooldown.rs` (CO-032)
 - **Testing**: Unit tests for cooldown edge cases (CO-093)
 
@@ -480,9 +477,6 @@ fn allow_editing() { /* ... */ }
 - 🔲 Set up project structure with module organization (CO-030, CO-120)
 
 **Blockers for Phase 5 (Selection System)**:
-- Must clarify multi-song/multi-artist passage probability calculation (REQ-PROB-050)
-- Must define or remove Work cooldowns (REQ-SEL-060)
-- Must define featured vs primary artist distinction (REQ-SEL-071)
 
 **Blockers for Phase 6 (User Feedback)**:
 - Must specify Like/Dislike effect on selection

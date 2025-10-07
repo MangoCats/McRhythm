@@ -89,11 +89,9 @@ In the case where a recording has no characteristics defined, it is handled the 
 reported flavor distance will be 1.0 when compared with any other recording / passage.
 
 #### Passages with zero recordings
-Although a passage is required to include a song, and a song is required to map to a recording, in the case where one or both passages violate this and contain zero recordings
-a warning is logged to the developers' stderr channel and the flavor distance is reported as 1.0.
+When one or both passages contain zero recordings the flavor distance between the passages is reported as 1.0.
 
 ### More than one Recording per Passage Calculation Example
-
 In a case where a passage contains more than one recording, the characteristics of each recording are combined in a weighted average to calculate the passage's 
 net characteristics for flavor distance calculation.  The weight of each recording is its runtime in the passage.
 
@@ -139,7 +137,7 @@ performed after the bulk update of recordings' characteristics is complete.
    - Iterate candidates, subtracting each probability from R
    - Select first candidate where R ≤ 0
 
-> **Note:** "Top 100 closest" is a design parameter (balances performance vs diversity). See [Architecture - Design Parameters](architecture.md#design-parameters).
+> **Note:** The candidate pool size (default: 100) is a design parameter that balances performance vs. diversity.
 
 > Implements requirement: [Automatic Passage Selection](requirements.md#automatic-passage-selection)
    

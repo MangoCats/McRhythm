@@ -8,7 +8,7 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 
 > See [Document Hierarchy](document_hierarchy.md) for complete update policies and change control process.
 
-> **Related Documentation:** [Architecture](architecture.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Event System](event_system.md) | [Requirements Enumeration](requirements_enumeration.md)
+> **Related Documentation:** [Architecture](architecture.md) | [API Design](api_design.md) | [Library Management](library_management.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Event System](event_system.md) | [Requirements Enumeration](requirements_enumeration.md)
 
 ---
 
@@ -30,7 +30,7 @@ McRhythm is a music player that selects passages to play based on user preferenc
     - Auto-start on boot (of Linux / Windows / OS-X systems)
       - systemd service on Linux
       - Task scheduler launched service on Windows
-      - launchd on OS-X
+      - launchd on OS-X (Phase 2)
     - Auto-selection of passages to play
       - Automatically select passages until at least three passages are either currently playing, paused
         or waiting in the queue and  at least 15 minutes of total passage playing time is remaining 
@@ -51,16 +51,11 @@ McRhythm is a music player that selects passages to play based on user preferenc
 - Multiple users may interact with the WebUI
   - Real-time ui updates via Server Sent Events keep all users views in sync
   - Single passage queue for all users
-  - Edge case definitions:
-    - When one skip click is received, any other skip clicks received within the next 5 seconds are ignored
-    - Queue operations are limited to: add and remove passage
-      - whenever an add passage command is received, that passage is added to the end of the queue
-      - if two or more remove passage commands are received for one passage, the later commands are ignored
-    - Lyric editing includes a "Submit" button, whenever a new lyric text is submitted it is recorded - overwriting previously submitted lyric texts.
+  - Edge case definitions: See [Multi-User Coordination](multi_user_coordination.md) for details on handling concurrent user actions.
 - Passages play continuously (when not paused by user)
     
 ## Additional Features
-Planned for later development:
+Planned for later development:  (Phase 2)
 - Interface to ListenBrainz to inform future listening choices based on past likes and dislikes
 - Mobile (Android, iOS) versions
 
@@ -106,7 +101,7 @@ When not otherwise specified, requirements apply to all versions
 - Memory: ~256MB typical
 - Network: Optional (for ListenBrainz sync)
 
-### Minimal Version
+### Minimal Version (Phase 2)
 **Target Platforms:** Raspberry Pi Zero2W, embedded systems, resource-constrained devices
 
 **Features:**
@@ -139,10 +134,10 @@ See [Implementation Order - Version Builds](implementation_order.md#27-version-b
   - Primary target: Raspberry Pi Zero2W (Lite and Minimal versions)
   - Generic Linux
   - Windows
-  - MacOS
+  - MacOS (Phase 2)
   - Later targets (will use different technical stack, e.g. Flutter instead of Tauri)
-    - Android
-    - iOS
+    - Android (Lite and Minimal versions) (Phase 2)
+    - iOS (Lite and Minimal versions) (Phase 2)
 - Technical Stack:
   - Rust
   - GStreamer
@@ -184,36 +179,13 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 
 ## Passage Identification & Library Management
 
-### Initial File Discovery
-- Full version only, lite and minimal versions use existing database and file collections
-- Recursively scan specified directory paths for audio files
-- Support formats: MP3, FLAC, OGG, M4A, WAV
-- Store file paths, modification times, and file hashes (SHA-256) in SQLite
-- Skip hidden files and system directories
-- Detect file changes (modified/deleted/added) on subsequent scans
+**Requirement:** Full version scans local audio files, extracts metadata, and associates passages with MusicBrainz entities. Lite and minimal versions use pre-built databases.
 
-### Metadata Extraction
-- Extract from file tags (ID3v2, Vorbis Comments, MP4 tags):
-  - Title, Artist, Album, Album Artist
-  - Track number, Disc number
-  - Year/Date, Genre
-  - Duration
-  - Embedded cover art (extract and save to file in same directory as audio file)
-- Fallback to filename parsing if tags missing
-- Store all metadata in SQLite with timestamps
-- Default assumes each file contains one passage, unless otherwise identified by user
-  - Files must have at least one passage defined to be included for selection to enqueue
+**Requirement:** Support audio formats: MP3, FLAC, OGG, M4A, WAV
 
-### Audio Fingerprinting
-- Generate AcoustID fingerprint for each passage using Chromaprint
-- Store fingerprints in database for MusicBrainz lookup
-- Query AcoustID API for MusicBrainz Recording IDs
-- Cache API responses locally (store indefinitely, delete oldest when necessary for storage space constraints)
-- Handle rate limiting (max 3 requests/second)
+**Requirement:** Extract metadata from file tags and generate audio fingerprints for MusicBrainz lookup
 
-### Multi-passage File Handling
-
-**Requirement:** Each audio file may contain one or more passages.
+**Requirement:** Each audio file may contain one or more passages
 
 **Requirement:** Users must be able to:
 - Define multiple passages within a single audio file
@@ -221,25 +193,14 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Add or delete passage definitions
 - Associate each passage with MusicBrainz entities (tracks, recordings, artists, works)
 
-**Requirement:** On initial import, the system must assist users by:
-- Asking whether a file contains one or multiple passages
-- Automatically detecting passage boundaries using silence detection (multi-passage files)
-- Providing sensible defaults for single-passage files
+**Requirement:** On initial import, the system must assist users by offering automatic passage boundary detection
 
-> **See [Crossfade Design](crossfade.md#default-configuration) for default timing point values.**
+**Requirement:** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 
-### MusicBrainz Integration
-- Store MusicBrainz IDs: Recording ID, Release ID, Artist ID, Work ID
-- Fetch and cache basic metadata:
-  - Canonical artist name
-  - Release title and date
-  - Primary genre/tags (limit to the top 10 when more than 10 are defined)
-- Offline mode: when local data is available, do not perform network lookups
+**Requirement:** WebUI provides interface to input/edit lyrics associated with a passage (Full version only)
 
-#### Lyrics input / storage (Full Version only)
-- WebUI provides page to input / edit lyrics associated with a passage
-  - split window allows web search for lyrics to facilitate easy copy-paste
-- Lyrics are stored in passage database table as plain UTF-8 text
+> **See [Library Management](library_management.md) for file scanning workflows, metadata extraction details, and MusicBrainz integration process.**
+> **See [Crossfade Design](crossfade.md#default-configuration) for default passage timing point values.**
 
 ## Playback behaviors
 
@@ -260,15 +221,21 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - A passage must contain one or more songs to be considered for automatic selection
 
 **Requirement:** Cooldown System
-- Each song, artist, and work has configurable minimum and ramping cooldown periods
+- Each song, artist, and work has configurable minimum and ramping cooldown periods. Default values are:
+  - **Song:** 7 days minimum, 14 days ramping.
+  - **Artist:** 2 hours minimum, 4 hours ramping.
+  - **Work:** 3 days minimum, 7 days ramping.
 - During minimum cooldown, probability is zero (passage cannot be selected)
 - During ramping cooldown, probability increases linearly from zero to base probability
 - Cooldown probabilities multiply together (song × artist × work)
-- When multiple artists are associated, use the lowest cooldown probability
+- For songs with multiple weighted artists, the artist cooldown probability is a weighted average of each individual artist's cooldown probability.
 
 **Requirement:** Base Probability Editing
 - Users may adjust base probabilities for individual songs, artists, and works
-- Passage base probability = song probability × artist probability × work probability
+- Passage base probability is calculated as: `song probability × artist probability × work probability`
+  - For passages with a single song, the song probability is used directly.
+  - For passages with multiple songs, the song probability is a weighted average of the individual song probabilities, based on the duration of each song within the passage. This is consistent with the musical flavor calculation described in [ENT-CONST-020](entity_definitions.md#ent-const-020-passage-with-multiple-songs).
+  - When a song has multiple artists, each artist is assigned a weight, with the sum of all artist weights for that song equaling 1.0. The `artist probability` for the song is the sum of each associated artist's base probability multiplied by their respective weight.
 
 > **See [Musical Flavor](musical_flavor.md#usage-of-musical-flavor) for selection algorithm details.**
 > **See [Architecture](architecture.md#2-program-director) for default cooldown values and probability calculation.**
@@ -295,11 +262,6 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Passages are usually associated with an album
 - Albums may have multiple images: "front", "back", and optionally "liner" notes
 - Album art is stored as image files in the same directory as the audio files
-- When extracted from embedded tags, saved as `{filename}.cover.{ext}` (e.g., `song.mp3.cover.jpg`)
-- When fetched from external sources (MusicBrainz/Cover Art Archive), saved as:
-  - `{album_mbid}.front.{ext}` - Album front cover
-  - `{album_mbid}.back.{ext}` - Album back cover
-  - `{album_mbid}.liner.{ext}` - Album liner notes (optional)
 - Images are resized to maximum 1024x1024 pixels (preserving aspect ratio) when larger than this size
 - Database stores file path references to album art images, not the image data itself
 
@@ -309,7 +271,8 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - **Artist images**: Fetched from MusicBrainz (artist photos) or user-uploaded (Full version only)
 - **Work images**: User-uploaded only (Full version only) - for sheet music covers, opera/ballet production stills
 
-> **See [Database Schema - images](database_schema.md#images) for unified image storage.**
+> **See [Database Schema - images](database_schema.md#images) for image storage details.**
+> **See [Library Management - Cover Art](library_management.md#cover-art-extraction) for image file naming and extraction workflow.**
 
 ## Player Functionality
 
@@ -379,23 +342,11 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - List next passages in queue
 - Show: Passage Title - Primary Artist
 
-**API Endpoints (REST):**
-- `GET /api/status` - Current playback state
-- `POST /api/play` - Start playback
-- `POST /api/pause` - Pause playback
-- `POST /api/skip` - Skip to next
-- `POST /api/volume` - Set volume (body: `{level: 0-100}`)
-- `GET /api/queue` - Get upcoming passages
-- `POST /api/like` - like the passage (Full and Lite versions only)
-- `POST /api/dislike` - dislike the passage (Full and Lite versions only)
-- `POST /api/remove` - remove passage from queue
-- `POST /api/enqueue` - enqueue passage
-- `POST /api/seek` - skip to playback point in passage
-- `POST /api/import` - import new audio files
-- `POST /api/output` - audio output device selection
-- `GET /api/lyrics/:passage_id` 
-- `PUT /api/lyrics/:passage_id` (Full version only)
-- `GET /api/events` (SSE endpoint for real-time updates)
+**API Endpoints:**
+- REST API provides endpoints for all manual controls and status queries
+- Server-Sent Events (SSE) endpoint for real-time UI updates across all connected clients
+
+> **See [API Design](api_design.md) for complete endpoint specifications, request/response formats, and error handling.**
 
 ### State Persistence
 - Save on exit/load on startup:
@@ -406,7 +357,7 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 
 ### Error Handling
 - Log errors to stdout/stderr with timestamps (this is one aspect of the developer interface)
-  - Use tracing crate for log output, configure to identify filename and line number of each log message 
+  - Log messages must include filename and line number for developer troubleshooting
 - On playback error: Skip to next passage automatically
 - On missing file: Remove from queue, continue
 - On database error: Attempt retry once, then log and continue

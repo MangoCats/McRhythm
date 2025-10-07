@@ -102,13 +102,12 @@ Audio passages (playable segments) extracted from files.
 
 ### `songs`
 
-Songs are unique combinations of a recording and primary performing artist (MusicBrainz concept).
+Songs are unique combinations of a recording and a weighted set of artists.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique song identifier (UUID) |
 | recording_mbid | TEXT | NOT NULL | MusicBrainz Recording ID (UUID) |
-| primary_artist_mbid | TEXT | NOT NULL | MusicBrainz Artist ID (UUID) |
 | base_probability | REAL | NOT NULL DEFAULT 1.0 | Base selection probability (0.0-1000.0) |
 | min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown seconds (default 7 days) |
 | ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown seconds (default 14 days) |
@@ -117,14 +116,12 @@ Songs are unique combinations of a recording and primary performing artist (Musi
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
 **Constraints:**
-- UNIQUE: `(recording_mbid, primary_artist_mbid)`
 - CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
 - CHECK: `min_cooldown >= 0`
 - CHECK: `ramping_cooldown >= 0`
 
 **Indexes:**
 - `idx_songs_recording_mbid` on `recording_mbid`
-- `idx_songs_artist_mbid` on `primary_artist_mbid`
 - `idx_songs_last_played` on `last_played_at`
 
 ### `artists`
@@ -253,6 +250,25 @@ Associates passages with the songs they contain.
 - `idx_passage_songs_passage` on `passage_id`
 - `idx_passage_songs_song` on `song_id`
 
+### `song_artists`
+
+Associates songs with the artists who performed them, and their respective weights.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `song_id` | TEXT | NOT NULL REFERENCES songs(guid) ON DELETE CASCADE | Song identifier |
+| `artist_id` | TEXT | NOT NULL REFERENCES artists(guid) ON DELETE CASCADE | Artist identifier |
+| `weight` | REAL | NOT NULL | The weight of the artist's contribution (0.0-1.0) |
+| `created_at` | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
+
+**Constraints:**
+- PRIMARY KEY: `(song_id, artist_id)`
+- CHECK: `weight > 0.0 AND weight <= 1.0`
+
+**Indexes:**
+- `idx_song_artists_song` on `song_id`
+- `idx_song_artists_artist` on `artist_id`
+
 ### `passage_albums`
 
 Associates passages with albums.
@@ -328,7 +344,6 @@ CREATE VIEW song_play_counts AS
 SELECT
     s.guid as song_id,
     s.recording_mbid,
-    s.primary_artist_mbid,
     COUNT(ph.guid) FILTER (
         WHERE ph.timestamp > datetime('now', '-7 days')
         AND ph.completed = 1
@@ -352,7 +367,6 @@ GROUP BY s.guid;
 **Columns:**
 - `song_id`: Song GUID
 - `recording_mbid`: MusicBrainz Recording ID
-- `primary_artist_mbid`: MusicBrainz Artist ID
 - `plays_week`: Number of completed plays in past 7 days
 - `plays_month`: Number of completed plays in past 30 days
 - `plays_year`: Number of completed plays in past 365 days
@@ -472,7 +486,7 @@ Application settings and user preferences (key-value store).
 - `audio_sink`: Selected audio output sink
 - `temporary_flavor_override`: JSON with target flavor and expiration
 - `music_directories`: JSON array of directories to scan
-- `global_crossfade_time`: Global crossfade time in seconds (default: 3.0)
+- `global_crossfade_time`: Global crossfade time in seconds
 - `global_fade_curve`: Global fade curve pair (default: 'exponential_logarithmic', options: 'linear_linear', 'cosine_cosine')
 - `currently_playing_passage_id`: ID of passage currently playing (alternative to queue position 0)
 
@@ -607,10 +621,10 @@ AFTER INSERT ON play_history
 BEGIN
     UPDATE artists
     SET last_played_at = NEW.timestamp
-    WHERE artist_mbid IN (
-        SELECT s.primary_artist_mbid
+    WHERE guid IN (
+        SELECT sa.artist_id
         FROM passage_songs ps
-        JOIN songs s ON ps.song_id = s.guid
+        JOIN song_artists sa ON ps.song_id = sa.song_id
         WHERE ps.passage_id = NEW.passage_id
     );
 END;
@@ -702,7 +716,6 @@ Some tables are only populated/used in specific versions:
 
 Potential schema additions (not yet specified):
 
-- `featured_artists` table for explicit featured artist handling beyond primary artist
 - `genres` table for normalized genre taxonomy
 - `playlists` and `playlist_passages` for manual playlists
 - `user_preferences_history` for tracking preference changes over time

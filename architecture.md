@@ -314,26 +314,7 @@ Detailed design specifications for each subsystem:
 
 ### Design Parameters
 
-Configuration values that can be tuned during implementation:
-
-| Component | Parameter | Default Value | Rationale |
-|-----------|-----------|---------------|-----------|
-| **Program Director** | Song cooldown (minimum) | 7 days | Prevent repetition fatigue |
-| **Program Director** | Song cooldown (ramping) | 14 days | Gradual probability restoration |
-| **Program Director** | Artist cooldown (minimum) | 2 hours | Same-artist variety within session |
-| **Program Director** | Artist cooldown (ramping) | 4 hours | Short-term freshness |
-| **Program Director** | Work cooldown (minimum) | 3 days | Different interpretation variety |
-| **Program Director** | Work cooldown (ramping) | 7 days | Work-level diversity |
-| **Program Director** | Base probability default | 1.0 | Neutral starting point for all entities |
-| **Program Director** | Candidate pool size | 100 passages | Balance performance vs diversity |
-| **Queue Manager** | Minimum passages in queue | 3 passages | Preload buffer for crossfade |
-| **Queue Manager** | Minimum playtime in queue | 15 minutes | User experience smoothness |
-| **Playback Controller** | Resume fade duration | 0.5 seconds | Prevent audio "pop" |
-| **Playback Controller** | Position update interval | 500ms | UI responsiveness vs event frequency |
-| **EventBus** | Desktop capacity | 1000 events | Development/debug margin |
-| **EventBus** | Raspberry Pi capacity | 500 events | Memory-constrained optimization |
-
-> **Note:** These default values satisfy requirements in [requirements.md](requirements.md) but may be adjusted during testing and tuning phases.
+Default values for various system parameters, such as cooldown periods and queue size, are defined in [requirements.md](requirements.md). These values can be tuned during implementation and testing.
 
 ## Concurrency Model
 

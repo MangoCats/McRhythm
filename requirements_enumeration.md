@@ -59,10 +59,15 @@ For simple lists where hierarchy is clear from context:
 | REQ | requirements.md | Functional and non-functional requirements |
 | ENT | entity_definitions.md | Core entity terminology and relationships |
 | ARCH | architecture.md | System architecture and component design |
+| API | api_design.md | REST API and SSE interface specifications |
+| LIB | library_management.md | File scanning and metadata workflows |
 | XFD | crossfade.md | Crossfade timing and behavior specifications |
 | FLV | musical_flavor.md | Musical flavor characterization definitions |
+| EVT | event_system.md | Event-driven communication architecture |
 | DB | database_schema.md | Database schema specifications |
+| CODE | coding_conventions.md | Code organization and quality standards |
 | IMPL | implementation_order.md | Implementation phases and dependencies |
+| MUC | multi_user_coordination.md | Multi-user coordination mechanisms |
 
 ## Category Codes by Document
 
@@ -149,6 +154,52 @@ For simple lists where hierarchy is clear from context:
 | CONF | Configuration | Configuration management |
 | DIST | Distribution | Distribution and packaging |
 | FUT | Future Considerations | Future architecture plans |
+
+### API (api_design.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| OV | Overview | API overview |
+| REST | REST Endpoints | REST API endpoint definitions |
+| PB | Playback Control | Playback control endpoints |
+| QUE | Queue Management | Queue operation endpoints |
+| FB | User Feedback | Like/dislike endpoints |
+| LYR | Lyrics | Lyrics endpoints |
+| LIB | Library Management | Import/scan endpoints |
+| OUT | Audio Output | Audio sink selection endpoints |
+| SSE | Server-Sent Events | SSE endpoint and event streaming |
+| ERR | Error Responses | Error response formats |
+| CORS | CORS Policy | Cross-origin resource sharing |
+| VER | API Versioning | Versioning strategy |
+| IMPL | Implementation Notes | API implementation details |
+
+### LIB (library_management.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| OV | Overview | Library management overview |
+| DISC | File Discovery | File scanning and traversal |
+| INIT | Initial Scan | First-time library scan |
+| INCR | Incremental Scan | Subsequent scans and change detection |
+| META | Metadata Extraction | Tag parsing and extraction |
+| TAG | Tag Parsing | Format-specific tag reading |
+| ART | Cover Art | Cover art extraction and storage |
+| FP | Fingerprinting | Audio fingerprinting workflow |
+| CHROMA | Chromaprint | Chromaprint integration |
+| ACID | AcoustID | AcoustID API integration |
+| MB | MusicBrainz | MusicBrainz API integration |
+| REC | Recording Lookup | Recording metadata lookup |
+| WORK | Work Lookup | Work metadata lookup |
+| COV | Cover Art Fetch | External cover art fetching |
+| MPF | Multi-Passage Files | Multi-passage file handling |
+| UI | User Workflow | Multi-passage editor UI |
+| SIL | Silence Detection | Automatic boundary detection |
+| ASSOC | MusicBrainz Association | Passage-to-MusicBrainz mapping |
+| AB | AcousticBrainz | AcousticBrainz integration |
+| ESS | Essentia | Local Essentia analysis |
+| LYR | Lyrics Input | Lyrics editor interface |
+| PROG | Progress Reporting | Import progress and events |
+| TEST | Testing | Test considerations |
 
 ### XFD (crossfade.md)
 
@@ -298,6 +349,18 @@ For simple lists where hierarchy is clear from context:
 | OPT-34 | Mobile | Mobile platforms |
 | CRIT | Critical Path | Critical path dependencies |
 
+### MUC (multi_user_coordination.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| OV | Overview | High-level overview |
+| EVT | UserAction Event | The `UserAction` event definition |
+| SPEC | Edge Case Specifications | General specification for edge cases |
+| SKIP | Skip Throttling | Skip throttling mechanism |
+| QUE | Concurrent Queue Removal | Concurrent queue removal mechanism |
+| LYR | Concurrent Lyric Editing | Concurrent lyric editing mechanism |
+
+
 ## Numbering Guidelines
 
 ### Increment by 10 Rule
@@ -366,7 +429,7 @@ For simple lists where hierarchy is clear from context:
 ### Specification Gaps (TBD)
 
 ```markdown
-**REQ-PROB-050:** Passage base probability calculation (TBD: clarify multi-song handling, see IMPL-P5-18 for blocker)
+**REQ-PROB-050:** Passage base probability calculation
 
 **DB-WORK-020:** Work cooldown defaults (TBD: specification needed, see REQ-SEL-060)
 ```
