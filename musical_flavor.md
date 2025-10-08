@@ -2,7 +2,7 @@
 
 **🎼 TIER 2 - DESIGN SPECIFICATION**
 
-Defines musical flavor system and distance calculations. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+**MFL-DEF-010:** Defines musical flavor system and distance calculations. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
 
 > **Related Documentation:** [Architecture](architecture.md)
 
@@ -10,29 +10,50 @@ Defines musical flavor system and distance calculations. Derived from [requireme
 
 ## Quantitative Definition
 
-Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording) contained in a [passage](entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
+**MFL-DEF-020:** Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from
+the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording) 
+contained in a [passage](entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
 
-These characteristic values break down into two categories: 
-- binary characteristics with two dimensions whose values add up to 1.0 such as: 
+**MFL-DEF-030:** These characteristic values break down into two categories: 
+- **MFL-DEF-031:** binary characteristics with two dimensions whose values add up to 1.0 such as: 
   - highlevel.danceability.all.danceable, not_danceable 
   - highlevel.gender.all.female, male
   - highlevel.mood_relaxed.not_relaxed, relaxed
-- complex characteristics with 3 or more dimensions whose values add up to 1.0 such as:
+- **MFL-DEF-032:** complex characteristics with 3 or more dimensions whose values add up to 1.0 such as:
   - highlevel.genre_electronic.all.ambient, dnb, house, techno, trance
   - highlevel.ismir04_rhythm.all.ChaChaCha, Jive, Quickstep, Rumba-American, Rumba-International, Rumba-Misc, Samba, Tango, VienneseWaltz, Waltz
   
-When characteristics do not add up to a value in the range: (0.9999,1.0001) this is flagged as a warning in the developers' stderr channel.  Experience has shown this to be rare.
+**MFL-DEF-040:** When characteristics do not add up to a value in the range: (0.9999,1.0001) this is flagged as a warning in the developers' stderr channel.  Experience has shown this to be rare.
+
+### Additional characteristics 
+**MFL-UDEF-010:** Additional characteristics may be configured by the user.  For example: the user may add binary characteristics:
+
+- user.christmas.all.christmasy, not_christmasy
+- user.childrens_music.all.forChildren, not_forChildren
+
+or complex characteristics:
+
+- user.seasonal_affinity.all.winter, spring, summer, fall
+- user.religious.all.atheist, buddhist, christian, folk, hindu, jewish, muslim, taoist, sikh, spirit
+
+**MFL-UDEF-020:** User defined characteristics are computed alongside AcousticBrainz characteristics, identically.  When a user defined characteristic or element of a 
+characteristic is not available for some Recordings it is handled as described below.  User defined characteristics are constrained: the sum of all 
+category values must be 1.0.
 
 ## Flavor Distance
-Musical flavor is primarily used to determine the "flavor distance" between two passages.  The shorter the flavor distance, the more musically similar the passages are deemed to be.
 
-There are no strict limits on flavor distance, being a distance quantity its minimum value is 0.0.  Maximum flavor distance is generally 1.0, but if higher values are encountered
-they should be handled gracefully.
+> **MFL-DIST-010:** **Design Note on Calculation Method:** The method of using only shared (intersecting) characteristics is intentional. For calculating the distance between two specific flavors, this approach avoids making assumptions about missing data (e.g., treating it as zero), which could inaccurately skew the result. It compares items based only on the attributes they are both known to possess. This differs from the 'Taste' calculation, which computes a centroid from a large collection and is designed to build a broad profile from all available data.
 
-### Single Recording per Passage Calculation Example
-For the case where the two passages to be evaluated each contain a single song, and therefore a single recording per passage:
+**MFL-DIST-020:** Musical flavor is primarily used to determine the "flavor distance" between two passages.
+**MFL-DIST-021:** The shorter the flavor distance, the more musically similar the passages are deemed to be.
 
-- Step 1: create a list of all binary characteristics which are available for both passages, for example:
+**MFL-DIST-030:** There are no strict limits on flavor distance, being a distance quantity its minimum value is 0.0.
+**MFL-DIST-031:** Maximum flavor distance is generally 1.0, but if higher values are encountered they should be handled gracefully.
+
+### Single Recording per Passage Calculation
+**MFL-CALC-010:** For the case where the two passages to be evaluated each contain a single song, and therefore a single recording per passage:
+
+- **MFL-CALC-011:** Step 1: create a list of all binary characteristics which are available for both passages, for example:
   - Passage A:
     - highlevel.danceability.all.danceable: 0.17, not_danceable 0.83 
     - highlevel.gender.all.female: 0.90, male: 0.10
@@ -44,16 +65,16 @@ For the case where the two passages to be evaluated each contain a single song, 
     - highlevel.mood_relaxed.not_relaxed: 0.78, relaxed: 0.22
   - list of binary characteristics available in both passages
     - danceability, gender, mood_relaxed
-- Note: Since binary characteristics sum to 1.0, only the first value is needed (the second is redundant).
-- Step 2: create vectors of FP64 (aka double) values of the first value in each characteristic in the list, for example:
+- **MFL-CALC-012:** Note: Since binary characteristics sum to 1.0, only the first value is needed (the second is redundant).
+- **MFL-CALC-013:** Step 2: create vectors of FP64 (aka double) values of the first value in each characteristic in the list, for example:
   - Passage A: 0.17, 0.90, 0.74
   - Passage B: 0.93, 0.33, 0.78
-- Step 3: calculate the squared error between the two vectors:
+- **MFL-CALC-014:** Step 3: calculate the squared error between the two vectors:
   (0.17 - 0.93) * (0.17 - 0.93) + (0.90 - 0.33) * (0.90 - 0.33) + (0.74 - 0.78) * (0.74 - 0.78) = 0.9041
-- Step 4: normalize by dividing by the number of characteristics in a vector: this is the binary characteristic distance
+- **MFL-CALC-015:** Step 4: normalize by dividing by the number of characteristics in a vector: this is the binary characteristic distance
   0.9041 / 3 = 0.30136667
-- Note: complex characteristic names must match exactly, variations in AcousticBrainz schema are handled by ignoring keys which are not exact matches.
-- Step 5: repeat steps 1 through 4 for each complex characteristic that is available for both passages, comparing all mutually available characteristics instead of just the first, for example:
+- **MFL-CALC-016:** Note: complex characteristic names must match exactly, variations in AcousticBrainz schema are handled by ignoring keys which are not exact matches.
+- **MFL-CALC-017:** Step 5: repeat steps 1 through 4 for each complex characteristic that is available for both passages, comparing all mutually available characteristics instead of just the first, for example:
   - Passage A: 
     - highlevel.genre_electronic.all.ambient: 0.11, dnb: 0.03, house: 0.47, techno: 0.02, trance: 0.37
     - highlevel.ismir04_rhythm.all.ChaChaCha: 0.02, Jive: 0.04, Quickstep: 0.08, Rumba-American: 0.16, Rumba-International: 0.32, Rumba-Misc: 0.09, Samba: 0.07, Tango: 0.05, VienneseWaltz: 0.03, Waltz: 0.14
@@ -61,7 +82,7 @@ For the case where the two passages to be evaluated each contain a single song, 
     - highlevel.animal_affinity.all.bird: 0.94, cat: 0.01, dog: 0.05
     - highlevel.genre_electronic.all.ambient: 0.11, dnb: 0.03, house: 0.01, techno: 0.82, trance: 0.03
     - highlevel.ismir04_rhythm.all.ChaChaCha: 0.02, Jive: 0.13, Quickstep: 0.36, Rumba: 0.23, Samba: 0.07, Tango: 0.05, Waltz: 0.14
-- animal_affinity isn't available in both passages, so only genre_electronic and ismir04_rhythm characteristic distances will be calculated
+- **MFL-CALC-018:** animal_affinity isn't available in both passages, so only genre_electronic and ismir04_rhythm characteristic distances will be calculated
   - genre_electronic shared characteristic list: ambient, dnb, house, techno, trance.  Create vectors:
     - Passage A: 0.11, 0.03, 0.47, 0.02, 0.37
     - Passage B: 0.11, 0.03, 0.01, 0.82, 0.03
@@ -72,75 +93,75 @@ For the case where the two passages to be evaluated each contain a single song, 
     - Passage B: 0.02, 0.13, 0.36, 0.07, 0.05, 0.14
   - calculation: (0.02-0.02)*(0.02-0.02)+(0.04-0.13)*(0.04-0.13)+(0.08-0.36)*(0.08-0.36)+(0.07-0.07)*(0.07-0.07)+(0.05-0.05)*(0.05-0.05)+(0.14-0.14)*(0.14-0.14) = 0.0865
   - normalize: 0.0865 / 6 = 0.01441667 is the ismir04_rhythm characteristic distance
-- Step 6: average all complex characteristic distances:
+- **MFL-CALC-019:** Step 6: average all complex characteristic distances:
   - (0.19344 + 0.0144167) / 2 = 0.103928333 is the complex characteristic distance
-- Step 7: The average of the binary and complex characteristic distances: (0.30136667 + 0.10392833) / 2 = 0.2026475 is the flavor distance between passage A and passage B.
+- **MFL-CALC-020:** Step 7: The average of the binary and complex characteristic distances: (0.30136667 + 0.10392833) / 2 = 0.2026475 is the flavor distance between passage A and passage B.
 
 ### Edge Cases
-#### No common characteristics
-In the case where two passages have no binary characteristics in common to compare, the binary characteristic distance is set to 1.0.
+**MFL-EDGE-010:** #### No common characteristics
+**MFL-EDGE-011:** In the case where two passages have no binary characteristics in common to compare, the binary characteristic distance is set to 1.0.
 
-In the case where two passages share a complex characteristic, but have no elements in common, that complex characteristic is omitted from the calculation.
+**MFL-EDGE-012:** In the case where two passages share a complex characteristic, but have no elements in common, that complex characteristic is omitted from the calculation.
 
-In the case where two passages have no complex characteristics in common, or all complex characteristics have been omitted, the complex characteristic distance is set to 1.0.
+**MFL-EDGE-013:** In the case where two passages have no complex characteristics in common, or all complex characteristics have been omitted, the complex characteristic distance is set to 1.0.
 
-#### Recordings with no characteristics
-In the case where a recording has no characteristics defined, it is handled the same as if it has no characteristics in common with other recordings / passages, the
+**MFL-EDGE-020:** #### Recordings with no characteristics
+**MFL-EDGE-021:** In the case where a recording has no characteristics defined, it is handled the same as if it has no characteristics in common with other recordings / passages, the
 reported flavor distance will be 1.0 when compared with any other recording / passage.
 
-#### Passages with zero recordings
-When one or both passages contain zero recordings the flavor distance between the passages is reported as 1.0.
+**MFL-EDGE-030:** #### Passages with zero recordings
+**MFL-EDGE-031:** When one or both passages contain zero recordings the flavor distance between the passages is reported as 1.0.
 
-### More than one Recording per Passage Calculation Example
-In a case where a passage contains more than one recording, the characteristics of each recording are combined in a weighted average to calculate the passage's 
-net characteristics for flavor distance calculation.  The weight of each recording is its runtime in the passage.
+### More than one Recording per Passage Calculation
+**MFL-MULT-010:** When a passage contains more than one recording, its net flavor is calculated as a weighted centroid of the flavors of its constituent recordings. This process is identical to the "Weighted Taste" calculation described in `musical_taste.md`, ensuring that flavor combination is handled consistently throughout the system.
 
-Example: A passage with a run-time of 1320 seconds contains 3 recordings, plus other uncharacterized audio / silence:
-- Silence: run-time 5 seconds
-- Recording A: run-time 287 seconds
-- Silence: run-time 2 seconds
-- Recording B: run-time 372 seconds
-- Unrecognized audio: run-time 350 seconds
-- Recording C: run-time 304 seconds
+**MFL-MULT-020:** The weight of each recording is its runtime within the passage.
 
-The total run-time of characterized audio in this passage is: 287 + 372 + 304 = 963 seconds.
+**MFL-MULT-030:** **Example:** A passage with a total runtime of 1320 seconds contains 3 recordings:
+- Silence: 5 seconds
+- Recording A: runtime 287 seconds
+- Silence: 2 seconds
+- Recording B: runtime 372 seconds
+- Unrecognized audio: 350 seconds
+- Recording C: runtime 304 seconds
 
-The weights given to the recordings' characteristics would be:
-- Recording A: 287/963 = 0.298027
-- Recording B: 372/963 = 0.386293
-- Recording C: 304/963 = 0.315680
+**MFL-MULT-031:** The total runtime of characterized audio is 287 + 372 + 304 = 963 seconds. The weights for the weighted average are:
+- Recording A: 287 / 963 = 0.298
+- Recording B: 372 / 963 = 0.386
+- Recording C: 304 / 963 = 0.316
 
-Any characteristics not appearing in all three recordings will not be populated in the passage's net characteristics.  This is an intentionally conservative approach.
-Experience has shown that AcousticBrainz high level schema is sufficiently stable (especially now that the project is abandoned) to assume that most characteristics will
-be present for most recordings.
+**MFL-MULT-040:** The passage's net flavor is then computed by taking the union of all characteristics present in any of the recordings. For each characteristic, the values are combined using a weighted average. For example, if only Recordings A and C have a "danceability" score, the passage's "danceability" would be calculated as:
+`((danceability_A * 0.298) + (danceability_C * 0.316)) / (0.298 + 0.316)`
 
-Once both passages' net characteristics have been determined, musical flavor distance is calculated the same as in the single recording per passage example,
-just using the passages' net characteristics to do the computation.
+**MFL-MULT-050:** This ensures that all available data is used. After calculation, complex characteristics are re-normalized to ensure their components sum to 1.0.
 
-Implementation note: Passages' net characteristics are computed when they are initially defined, then stored in the database.  If any of a passages' recordings' characteristics
-are modified, then that passage's net characteristics are re-computed.  In the case of a bulk update of many recordings' characteristics, passages' net characteristics update is
-performed after the bulk update of recordings' characteristics is complete.
+**MFL-MULT-060:** Once a passage's net flavor has been determined, it is treated as a single flavor vector for all subsequent calculations.
+
+**MFL-MULT-070:** **Implementation Note:** A passage's net flavor is computed when it is initially defined and is then stored in the database. If a passage's structure or any of its constituent recordings' flavors change, the net flavor must be re-computed.
 
 ## Usage of Musical Flavor
 
-**Target Flavor Definition:** User selects one or more reference passages; target flavor = average of their flavor vectors.
+**MFL-USE-010:** **Taste as Selection Target:** The target for the passage selection algorithm is a flavor vector representing the user's current musical **Taste**. This target Taste is calculated as described in the [musical_taste.md](musical_taste.md) document.
 
-**Selection Algorithm:**
+**MFL-TARG-010:** A Taste can be generated in multiple ways:
+-   **MFL-TARG-011:** **From Reference Passages:** A user can select one or more "seed" passages to define an immediate listening target. The target Taste is the centroid of these passages' flavor vectors.
+-   **MFL-TARG-012:** **From Likes/Dislikes:** A more complex, long-term Taste can be computed from the user's history of Liked and Disliked recordings, potentially weighted by time of day, week, or season.
 
-1. **Filter:** Exclude zero-probability passages (cooldown criteria, no songs, etc.)
-2. **Distance Calculation:** Compute flavor distance from target for all non-zero probability passages
-3. **Ranking:** Sort by distance (closest first)
-4. **Candidate Pool:** Select top 100 closest passages (or all if <100 available)
-5. **Probability Weighting:** Each candidate's effective probability = base probability × cooldown multipliers
-6. **Weighted Random Selection:**
-   - Generate random number R ∈ [0, Σ(probabilities))
-   - Iterate candidates, subtracting each probability from R
-   - Select first candidate where R ≤ 0
+**MFL-ALGO-010:** **Selection Algorithm:**
 
-> **Note:** The candidate pool size (default: 100) is a design parameter that balances performance vs. diversity.
+1.  **MFL-ALGO-011:** **Filter:** Exclude zero-probability passages (due to cooldown criteria, empty passages, etc.).
+2.  **MFL-ALGO-012:** **Distance Calculation:** Compute the flavor distance from the target **Taste** to every non-zero probability passage.
+3.  **MFL-ALGO-013:** **Ranking:** Sort the passages by distance (closest first).
+4.  **MFL-ALGO-014:** **Candidate Pool:** Select the top 100 closest passages (or all available if fewer than 100).
+5.  **MFL-ALGO-015:** **Probability Weighting:** Each candidate's effective probability = base probability × cooldown multipliers.
+6.  **MFL-ALGO-016:** **Weighted Random Selection:**
+    -   Generate a random number R within the range [0, Σ(all candidate probabilities)).
+    -   Iterate through the candidates, subtracting each one's probability from R.
+    -   Select the first candidate that causes R to be ≤ 0.
 
-> Implements requirement: [Automatic Passage Selection](requirements.md#automatic-passage-selection)
+> **MFL-ALGO-020:** **Note:** The candidate pool size (default: 100) is a design parameter that balances performance vs. diversity.
+
+> **MFL-USE-020:** Implements requirement: [Automatic Passage Selection](requirements.md#automatic-passage-selection)
    
 ----
 End of document - Musical Flavor
-

@@ -62,7 +62,8 @@ For simple lists where hierarchy is clear from context:
 | API | api_design.md | REST API and SSE interface specifications |
 | LIB | library_management.md | File scanning and metadata workflows |
 | XFD | crossfade.md | Crossfade timing and behavior specifications |
-| FLV | musical_flavor.md | Musical flavor characterization definitions |
+| MFL | musical_flavor.md | Musical flavor characterization definitions |
+| MTA | musical_taste.md | Musical taste and preference definitions |
 | EVT | event_system.md | Event-driven communication architecture |
 | DB | database_schema.md | Database schema specifications |
 | CODE | coding_conventions.md | Code organization and quality standards |
@@ -233,30 +234,34 @@ For simple lists where hierarchy is clear from context:
 | PAUSE | Pause | Pause during crossfade |
 | QMOD | Queue Modification | Queue changes during crossfade |
 
-### FLV (musical_flavor.md)
+### MFL (musical_flavor.md)
 
-| Code | Section | Scope |
-|------|---------|-------|
-| OV | Overview | Musical flavor overview |
-| DEF | Definition | Musical flavor definition |
-| AB | AcousticBrainz | AcousticBrainz data structure |
-| CAT | Categories | Binary vs multi-dimensional categories |
-| DIST | Distance Calculation | Distance formula specification |
-| BIN | Binary Distance | Binary classification distance |
-| MULTI | Multi-dimensional Distance | Multi-dimensional distance |
-| TOT | Total Distance | Combined distance calculation |
-| MAP | Mapping | Song/passage flavor mapping |
-| ZERO | Zero Songs | Passages with no songs |
-| ONE | Single Song | Single-song passage handling |
-| MANY | Multiple Songs | Multi-song passage averaging |
-| USE | Usage | Musical flavor usage in selection |
-| PREF | Preference Definition | User flavor preference definition |
-| ALGO | Selection Algorithm | Flavor-based selection algorithm |
-| FILT | Filtering | Zero-probability filtering |
-| COMP | Computation | Distance computation step |
-| SORT | Sorting | Candidate sorting |
-| TOP | Top Candidates | Top 100 selection |
-| RAND | Random Selection | Weighted random selection |
+| Code | Section |
+|------|---------|
+| DEF | Quantitative Definition |
+| UDEF | Additional characteristics |
+| DIST | Flavor Distance |
+| CALC | Single Recording Calculation |
+| EDGE | Edge Cases |
+| MULT | More than one Recording per Passage |
+| USE | Usage of Musical Flavor |
+| TARG | Taste as Selection Target |
+| ALGO | Selection Algorithm |
+
+### MTA (musical_taste.md)
+
+| Code | Section |
+|------|---------|
+| DESC | Description |
+| LIKE | Likes and Dislikes |
+| APPL | Applying Likes and Dislikes to Passages |
+| SMPL | Simple Taste |
+| WGHT | Weighted Taste |
+| TIME | Time |
+| TOD | Time of Day |
+| DOW | Day of Week |
+| DOY | Day of Year |
+| LUN | Phase of the Moon |
 
 ### DB (database_schema.md)
 
