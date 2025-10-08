@@ -4,7 +4,7 @@
 
 **MFL-DEF-010:** Defines musical flavor system and distance calculations. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
 
-> **Related Documentation:** [Architecture](architecture.md)
+> **Related Documentation:** [Architecture](architecture.md), [Musical Taste](musical_taste.md)
 
 ---
 
