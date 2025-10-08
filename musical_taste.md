@@ -13,7 +13,7 @@
 **MTA-DESC-020:** Musical Taste is a quantifiable measure of what [Musical Flavor](musical_flavor.md) is preferred.  The Program Director uses Musical Taste
 (or more simply: Taste) as one input to decide which passages to enqueue for play.
 
-**MTA-DESC-030:** Taste is determined by Likes and Dislikes.  At least one Like or Dislike must be registered with at least one Recording in order for Taste
+**MTA-DESC-030:** Taste is determined by Likes and Dislikes.  At least one Like or Dislike must be registered with at least one Song in order for Taste
 to be computed.  The time at which a Like or Dislike is registered also has impact on Taste, because Taste can vary over time: time of day, 
 day of the week, time of the year.
 
@@ -23,42 +23,7 @@ day of the week, time of the year.
 
 ### Likes and Dislikes
 
-**MTA-LIKE-010:** Likes and Dislikes are used to compute two distinct Taste vectors: a "Like-Taste" from the centroid of all Liked Recordings, and a "Dislike-Taste" from the centroid of all Disliked Recordings. These Tastes are then used to generate two corresponding ranked lists of all available Passages.
-
--   **MTA-LIKE-011:** **The "Most Liked" List:** This list orders passages by their similarity (i.e., shortest flavor distance) to the "Like-Taste." Passages at the top of this list are considered the most preferred and are strong candidates for selection.
-
--   **MTA-LIKE-012:** **The "Most Disliked" List:** This list orders passages by their similarity to the "Dislike-Taste." A passage at the top of this list is very similar to what the user is known to dislike. Therefore, to find preferred passages, this list should be read from the bottom up.
-
-**MTA-LIKE-020:** **Usage in Selection:**
-
-**MTA-LIKE-021:** These two lists can be used together to refine passage selection. For example, one possible algorithm is to use the "Most Disliked" list as an exclusion filter. Passages appearing at the top of the "Most Disliked" list can be removed from the "Most Liked" list to create a final candidate pool. This process helps ensure the selection of a well-liked, yet potentially unexpected, passage.
-
-**MTA-LIKE-030:** When a single Passage with a single associated Recording is Liked, the resulting Like-Taste is equal to the Flavor of that Recording.
-
-**MTA-LIKE-040:** When a single Passage with a single associated Recording is Disliked, the resulting Dislike-Taste is equal to the Flavor of that Recording.
-
-**MTA-LIKE-050:** When additional Passages are Liked or Disliked, Taste is computed as a weighted centroid of the Flavor of each Liked or Disliked Recording.
-
-**MTA-LIKE-060:** For brevity, descriptions below may only mention Likes, but Dislikes are identically handled just with a distinct output.
-
-### Applying Likes and Dislikes to Passages
-
-**MTA-APPL-010:** When a user Likes or Dislikes a passage, the action's weight is applied to the individual Recordings within that passage. The distribution of this weight depends on the passage's structure.
-
--   **MTA-APPL-011:** **Single-Recording Passages:** If a passage contains only one Recording, that Recording receives the full weight (1.0) of the Like or Dislike.
-
--   **MTA-APPL-012:** **Multi-Recording Passages:** If a passage contains multiple Recordings, the Like or Dislike is assumed to apply to everything the user has heard in the passage up to that point. The weight of the action is distributed among all Recordings that have played so far, with the currently playing Recording receiving a larger share.
-
-    **MTA-APPL-020:** The algorithm is as follows: If `n` is the number of recordings that have finished or are currently playing in the passage at the moment of the action:
-    -   **MTA-APPL-021:** The **currently playing** Recording receives a weight of `2 / (n + 1)`.
-    -   **MTA-APPL-022:** Each of the `n-1` **previously played** Recordings in the passage receives a weight of `1 / (n + 1)`.
-
-    **MTA-APPL-030:** **Example:** A passage consists of three recordings (R1, R2, R3). A user clicks "Like" during the playback of R3. At this point, `n=3`.
-    -   The weight applied to R3 (current) is `2 / (3 + 1) = 0.5`.
-    -   The weight applied to R1 (previous) is `1 / (3 + 1) = 0.25`.
-    -   The weight applied to R2 (previous) is `1 / (3 + 1) = 0.25`.
-
-    **MTA-APPL-040:** The total weight distributed is `0.5 + 0.25 + 0.25 = 1.0`. This method also implicitly handles uncharacterized gaps between recordings, as the weight is only distributed among the characterized Recordings. The resulting list of weighted Recordings and their Flavors is then used as the input for the Weighted Taste calculation.
+**MTA-LIKE-010:** See [Likes and Dislikes](like_dislike.md) for a complete specification of this functionality.
 
 
 ## Simple Taste
@@ -122,7 +87,7 @@ weighted case it is multiplied by its associated weight value and the net result
 
 **MTA-TOD-020:** When a Taste is being computed from Likes (or Dislikes) including time of day as a factor, the following parameters are used:
 - The list of Likes, including:
-  - Flavor the Like was applied to (either a simple copy of a Recording's Flavor, or a computed Flavor based on other criteria)
+  - Flavor of the Liked Song (which is the Flavor of its constituent Recording)
   - The time the Like was applied
 - a window time (1.0 to 43200.0 seconds)
 - easing in and out curves (similar to Crossfade fade-in and fade-out curves)

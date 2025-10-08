@@ -14,9 +14,80 @@ McRhythm exposes a REST API for playback control and status queries, plus a Serv
 
 **API Base:** `http://localhost:5720/api`
 
-**Authentication:** None (local-only access)
+**Authentication:** The system uses a token-based authentication system detailed in [User Identity and Authentication](user_identity.md). Some endpoints are public, while others require an authenticated user UUID.
 
 **Content-Type:** `application/json` for all request/response bodies
+
+## User Management Endpoints
+
+### `POST /api/login`
+
+Authenticate a user and retrieve their UUID.
+
+**Request:**
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "ok",
+  "user_id": "uuid"
+}
+```
+
+**Response (Failure):**
+```json
+{
+  "error": "invalid_credentials",
+  "message": "Invalid username or password"
+}
+```
+
+### `POST /api/register`
+
+Create a new user account.
+
+**Request:**
+```json
+{
+  "username": "string",
+  "password": "string"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "status": "ok",
+  "user_id": "uuid"
+}
+```
+
+**Response (Failure):**
+```json
+{
+  "error": "username_exists",
+  "message": "Username is already taken"
+}
+```
+
+### `POST /api/logout`
+
+Log out the current user. This would invalidate the client-side token/UUID.
+
+**Request:** Empty body
+
+**Response:**
+```json
+{
+  "status": "ok"
+}
+```
 
 ## REST API Endpoints
 

@@ -145,7 +145,7 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 
 **MFL-TARG-010:** A Taste can be generated in multiple ways:
 -   **MFL-TARG-011:** **From Reference Passages:** A user can select one or more "seed" passages to define an immediate listening target. The target Taste is the centroid of these passages' flavor vectors.
--   **MFL-TARG-012:** **From Likes/Dislikes:** A more complex, long-term Taste can be computed from the user's history of Liked and Disliked recordings, potentially weighted by time of day, week, or season.
+-   **MFL-TARG-012:** **From Likes/Dislikes:** A more complex, long-term Taste can be computed from the user's history of Liked and Disliked Songs, potentially weighted by time of day, week, or season. See [Likes and Dislikes](like_dislike.md).
 
 **MFL-ALGO-010:** **Selection Algorithm:**
 

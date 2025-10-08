@@ -69,6 +69,9 @@ For simple lists where hierarchy is clear from context:
 | CODE | coding_conventions.md | Code organization and quality standards |
 | IMPL | implementation_order.md | Implementation phases and dependencies |
 | MUC | multi_user_coordination.md | Multi-user coordination mechanisms |
+| LD | like_dislike.md | Like and Dislike functionality |
+| UID | user_identity.md | User identity and authentication |
+| AFS | audio_file_segmentation.md | Audio file segmentation workflow |
 
 ## Category Codes by Document
 
@@ -248,13 +251,20 @@ For simple lists where hierarchy is clear from context:
 | TARG | Taste as Selection Target |
 | ALGO | Selection Algorithm |
 
-### MTA (musical_taste.md)
+### LD (like_dislike.md)
 
 | Code | Section |
 |------|---------|
 | DESC | Description |
 | LIKE | Likes and Dislikes |
 | APPL | Applying Likes and Dislikes to Passages |
+
+
+### MTA (musical_taste.md)
+
+| Code | Section |
+|------|---------|
+| DESC | Description |
 | SMPL | Simple Taste |
 | WGHT | Weighted Taste |
 | TIME | Time |

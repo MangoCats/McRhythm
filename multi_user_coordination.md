@@ -22,7 +22,7 @@ Defines the mechanism for coordinating actions from multiple users to ensure a c
 /// Emitted when user performs an action
 UserAction {
     action: UserActionType,
-    user_session_id: String,
+    user_id: String, // User's persistent UUID
     timestamp: SystemTime,
 }
 
@@ -42,7 +42,7 @@ pub enum UserActionType {
 }
 ```
 
-**[MUC-EVT-020]** - `user_session_id`: A unique identifier for each connected client. This allows components to know if an action originated from the same client or a different one.
+**[MUC-EVT-020]** - `user_id`: The persistent, unique identifier (UUID) for each user, as defined in [User Identity and Authentication](user_identity.md). This allows components to reliably identify which user performed an action.
 
 ## Edge Case Specifications
 
@@ -66,14 +66,14 @@ pub enum UserActionType {
     participant Playback
 
     UserA->>API: POST /api/skip
-    API->>Coordinator: UserAction(Skip, sessionA)
+    API->>Coordinator: UserAction(Skip, userA_id)
     Coordinator->>Playback: Skip()
     Playback-->>Coordinator: Skipped
     Coordinator->>API: OK
     API-->>UserA: OK
 
     UserB->>API: POST /api/skip (within 5s)
-    API->>Coordinator: UserAction(Skip, sessionB)
+    API->>Coordinator: UserAction(Skip, userB_id)
     Coordinator-->>API: Ignored (throttled)
     API-->>UserB: OK (idempotent)
   ```

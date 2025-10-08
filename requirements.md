@@ -193,7 +193,7 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Add or delete passage definitions
 - Associate each passage with MusicBrainz entities (tracks, recordings, artists, works)
 
-**Requirement:** On initial import, the system must assist users by offering automatic passage boundary detection
+**Requirement:** On initial import, the system must assist users by offering automatic passage boundary detection. The detailed workflow for this is specified in [Audio File Segmentation](audio_file_segmentation.md).
 
 **Requirement:** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 

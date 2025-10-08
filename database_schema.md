@@ -25,9 +25,25 @@ McRhythm uses SQLite as its database engine. The schema is designed to support:
 Tracks database schema version for migration management.
 
 | Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
+|---|---|---|---|
 | version | INTEGER | PRIMARY KEY | Current schema version number |
 | applied_at | TIMESTAMP | NOT NULL | When this version was applied |
+
+### `users`
+
+Stores user account information.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| guid | TEXT | PRIMARY KEY | Unique user identifier (UUID) |
+| username | TEXT | NOT NULL UNIQUE | User's chosen username |
+| password_hash | TEXT | NOT NULL | Salted hash of the user's password for authentication |
+| password_salt | TEXT | NOT NULL | The random salt used for hashing the password |
+| created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
+| updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Notes:**
+- See [User Identity and Authentication](user_identity.md) for details on password hashing and account management.
 
 ## Core Entities
 
@@ -108,6 +124,7 @@ Songs are unique combinations of a recording and a weighted set of artists.
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique song identifier (UUID) |
 | recording_mbid | TEXT | NOT NULL | MusicBrainz Recording ID (UUID) |
+| work_id | TEXT | | Foreign key to the works table (UUID) |
 | base_probability | REAL | NOT NULL DEFAULT 1.0 | Base selection probability (0.0-1000.0) |
 | min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown seconds (default 7 days) |
 | ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown seconds (default 14 days) |
@@ -383,27 +400,29 @@ GROUP BY s.guid;
 
 **⚠️ PHASE 2 FEATURE** - Table structure defined but feature implementation deferred.
 
-User feedback on passages.
+User feedback on recordings.
 
 | Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
+|---|---|---|---|
 | guid | TEXT | PRIMARY KEY | Unique feedback identifier (UUID) |
-| passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage being rated |
+| user_id | TEXT | NOT NULL | Identifier for the user providing the feedback |
+| song_id | TEXT | NOT NULL REFERENCES songs(guid) ON DELETE CASCADE | Song being rated |
 | type | TEXT | NOT NULL | 'like' or 'dislike' |
+| weight | REAL | NOT NULL DEFAULT 1.0 | The weight of the Like/Dislike action |
 | timestamp | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When feedback was given |
 
 **Constraints:**
 - CHECK: `type IN ('like', 'dislike')`
+- CHECK: `weight > 0.0`
 
 **Indexes:**
-- `idx_likes_dislikes_passage` on `passage_id`
+- `idx_likes_dislikes_user_recording` on `user_id`, `recording_id`
 - `idx_likes_dislikes_timestamp` on `timestamp`
 
 **Notes:**
-- Table structure included for schema completeness
-- How likes/dislikes affect passage selection is **not yet specified**
-- API endpoints exist (requirements.md) but backend logic TBD
-- Implementation deferred to Phase 2 (post-MVP)
+- This table stores the outcome of the logic described in `like_dislike.md`. A single user action on a passage may result in multiple rows in this table, one for each affected recording.
+- The `user_id` is essential for building a persistent taste profile, as described in [User Identity and Authentication](user_identity.md).
+- The exact mechanism for how this data will be used by the Program Director to influence passage selection is TBD.
 
 ### `queue`
 

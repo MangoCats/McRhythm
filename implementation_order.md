@@ -1,507 +1,180 @@
-# Implementation Order
+# McRhythm Implementation Order & Timeline
 
 **📋 TIER 4 - DOWNSTREAM EXECUTION PLAN**
 
-This document **aggregates** all specifications to define WHEN features are built. It does NOT define requirements or design.
+This document aggregates all specifications to define WHEN features are built. It provides a realistic timeline based on an estimate of a single experienced developer working 20 hours per week.
 
 **Update Policy:** ✅ Always update when upstream docs change | ❌ NEVER update upstream docs from this
 
-> See [Document Hierarchy](document_hierarchy.md) for complete document relationships and update policies.
-
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Event System](event_system.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Coding Conventions](coding_conventions.md) | [Requirements Enumeration](requirements_enumeration.md)
+> **Timeline Estimate:** 1 Week = 20 developer-hours.
 
 ---
 
-## Phase 0: Documentation & Project Setup (Week 0)
+## Phase 1: Foundation (4.5 Weeks)
 
-### 0. Project documentation foundation
-- ✅ Requirements specification complete
-- ✅ Architecture design complete
-- ✅ Database schema defined
-- ✅ Crossfade timing specification complete
-- ✅ Musical flavor system defined
-- ✅ Event system architecture documented
-- ✅ Coding conventions established
-- ✅ Requirements enumeration scheme defined
-- **Next steps:**
-  - Apply requirement IDs to all requirements documents (see [Requirements Enumeration](requirements_enumeration.md))
-  - Set up project repository structure following coding conventions
-  - Configure Rust project with feature flags (full/lite/minimal)
-  - Set up CI/CD pipeline with linting (clippy, rustfmt)
+*Goal: A minimal application that can play a single audio file with basic manual controls.* 
 
-## Phase 1: Foundation (Weeks 1-3)
+- **1.1. Database & Migrations (1 Week):**
+  - Implement all tables from `database_schema.md`.
+  - Set up `sqlx-cli` or a similar tool for migration management.
 
-### 1. Database schema + migrations
-- Core tables: files, passages, songs, artists, works, albums (see [Database Schema](database_schema.md))
-- Musical flavor storage (AcousticBrainz high-level characterization vectors)
-- Play history, queue state, settings
-- Timeslot definitions for flavor targets
-- Version migration system
-- **Coding standards**: Follow [CO-170](coding_conventions.md#database-code) for database access patterns
-- **Traceability**: Add requirement IDs to schema creation code (CO-271)
+- **1.2. Event System & Core Types (0.5 Weeks):**
+  - Implement the `EventBus` using `tokio::broadcast`.
+  - Define the core `McRhythmEvent` enum as specified in `event_system.md`.
 
-### 2. Basic file scanner + metadata extraction
-- Recursive directory scanning with change detection (Full version only)
-- ID3v2/Vorbis/MP4 tag parsing
-- File hash computation (SHA-256)
-- Single-passage-per-file assumption initially
-- Store extracted metadata in SQLite
-- **Module organization**: Follow [CO-030](coding_conventions.md#separation-of-concerns) for library scanner modules
-- **Coding standards**: Module size limits (CO-010), function complexity (CO-020)
+- **1.3. Basic Playback Engine (1.5 Weeks):**
+  - Implement a single GStreamer pipeline for playback (`filesrc` → `decodebin` → `autoaudiosink`).
+  - Implement API commands and backend logic for Play, Pause, and Seek.
+  - Emit basic playback events: `PassageStarted`, `PassageCompleted`, `PlaybackStateChanged`.
 
-### 3. Event system foundation
-- Implement EventBus using `tokio::broadcast` (see [Event System](event_system.md))
-- Define `McRhythmEvent` enum with initial event types:
-  - PlaybackEvents: PassageStarted, PassageCompleted, PlaybackStateChanged
-  - Basic infrastructure for event emission and subscription
-- Set up event bus in application initialization
-- **Coding standards**: Follow [CO-140](coding_conventions.md#asyncawait-and-concurrency) for async organization
-- **Architecture**: Implements event-driven design from [Architecture - Inter-component Communication](architecture.md#inter-component-communication)
+- **1.4. Basic API & UI (1.5 Weeks):**
+  - Set up Tauri and Axum web server.
+  - Create a minimal web UI with HTML/JS for basic playback control (play/pause buttons, seek bar).
+  - Implement a `/api/status` endpoint.
+  - Implement a basic SSE endpoint (`/api/events`) that connects but doesn't yet broadcast all states.
 
-### 4. Simple playback engine (single passage, no crossfade)
-- GStreamer pipeline: file source → decodebin → audioconvert → audioresample → volume → audio sink
-- Play/Pause/Stop/Seek/Volume controls
-- Position reporting (500ms intervals)
-- Basic error handling (skip on error)
-- Audio sink auto-detection (ALSA/PulseAudio/CoreAudio/WASAPI)
-- **Emit events**: PassageStarted, PassageCompleted, PlaybackStateChanged
-- **Module organization**: Follow [CO-130](coding_conventions.md#gstreamer-integration) for GStreamer code
-- **Error handling**: Follow [CO-160](coding_conventions.md#error-handling) for error types
+## Phase 2: Library & Queue Management (4 Weeks)
 
-### 5. Minimal REST API + basic Web UI
-- Status endpoint + playback control endpoints
-- Simple HTML/CSS/JS frontend with play controls
-- Volume slider and seek bar
-- Current passage display (from file tags)
-- SSE endpoint skeleton (for future real-time updates)
-- **Command channels**: Use tokio::mpsc for API → Playback Controller commands
-- **Tauri integration**: Follow [CO-210](coding_conventions.md#tauri-command-handlers) for command handlers
+*Goal: A functional music player that can scan a library, manage a queue, and play multiple songs in sequence.* 
 
-## Phase 2: Core Player Features (Weeks 4-6)
+- **2.1. File Scanner & Metadata (1 Week):**
+  - Implement recursive directory scanning for audio files.
+  - Parse basic metadata (ID3, etc.) and store `files` and `passages` in the database (assuming one passage per file for now).
 
-### 6. Queue management
-- In-memory queue with SQLite persistence
-- Add/remove operations with edge case handling
-- Auto-advance on completion
-- State persistence (queue + volume + position)
-- Manual user queue additions (including zero-song passages)
-- **Emit events**: QueueChanged, PassageEnqueued, PassageDequeued
-- **Subscribe to events**: PassageCompleted (to trigger auto-advance)
-- **Module organization**: Follow [CO-120](coding_conventions.md#logical-grouping) for queue module structure
+- **2.2. Queue Management (1 Week):**
+  - Implement the `QueueManager` component.
+  - Persist queue state to the database.
+  - Handle manual user additions/removals via API endpoints.
+  - Implement auto-advancing to the next passage upon `PassageCompleted` event.
 
-### 7. Historian component
-- Subscribe to PlaybackEvents (PassageStarted, PassageCompleted)
-- Record passage plays with timestamps
-- Update last-play times for songs, artists, works via database triggers
-- Track completion vs skip status
-- Duration played for skip detection
-- **Event-driven design**: Implements subscriber pattern from [Event System](event_system.md)
-- **Decoupling**: Historian has no direct dependencies on Playback Controller
-- **Testing**: Follow event-driven testing patterns from event_system.md
+- **2.3. Historian & SSE Integration (1 Week):**
+  - Implement the `Historian` component to record play history.
+  - Fully integrate the SSE broadcaster to push all playback and queue events to the UI.
+  - UI now updates in real-time based on server events.
 
-### 8. SSE real-time updates
-- Event stream endpoint implementation
-- Subscribe to all McRhythmEvent types for UI broadcasting
-- Broadcast state changes to all connected clients
-- Multi-user edge case handling: See [Multi-User Coordination](multi_user_coordination.md) for the detailed specification.
-- **Architecture**: Implements REQ-CF-042 (multiple users, real-time sync)
-- **Event integration**: SSE Broadcaster is primary event consumer for UI updates
+- **2.4. Album Art Handling (1 Week):**
+  - Extract embedded cover art from files.
+  - Implement API endpoint to serve album art images.
+  - Display artwork in the UI.
 
-### 9. Album art handling
-- Extract embedded cover art from file tags
-- Save as image files in same directory as audio files
-  - Naming: `{filename}.cover.{ext}` (e.g., `song.mp3.cover.jpg`)
-- Fetch album art from external sources (Cover Art Archive via MusicBrainz)
-  - Naming: `{album_mbid}.front.{ext}` and `{album_mbid}.back.{ext}`
-  - Store in audio file directory
-- Resize to max 1024x1024 (preserve aspect ratio) when saving
-- Store file path references in database
-- Serve via REST API (read from filesystem)
-- Display in UI with fallback placeholder
+## Phase 3: Advanced Playback & Segmentation (5.5 Weeks)
 
-## Phase 3: Crossfade & Advanced Playback (Weeks 7-9)
+*Goal: Implement the signature crossfading feature and the complete multi-passage file workflow.* 
 
-### 10. Passage boundary editor UI
-- Manual editing of start/fade-in/lead-in/lead-out/fade-out/end times
-- Time input fields with validation (see [Crossfade Design - Constraints](crossfade.md#constraints))
-- Per-passage fade profile selection (exponential/cosine/linear)
-- Waveform visualization (optional: can defer to later phases)
-- **Crossfade spec**: Implements XFD-TP-010 through XFD-CONS-010
-- **UI patterns**: Follow [CO-080](coding_conventions.md#frontend-javascript-organization) for frontend organization
+- **3.1. Dual-Pipeline Crossfade Engine (2 Weeks):**
+  - This is a complex task.
+  - Implement the dual GStreamer pipeline architecture.
+  - Add logic for pre-loading the next track, calculating overlap based on lead-in/lead-out times, and managing the `audiomixer`.
+  - Implement volume automation for fade curves.
 
-### 11. Dual-pipeline crossfade engine
-- Secondary GStreamer pipeline for next passage
-- audiomixer element for blending overlapping passages
-- Volume automation using GStreamer controller API or custom audio filter
-- Implement three fade profiles (see [Crossfade Design - Fade Curves](crossfade.md#fade-curves)):
-  - Exponential fade in / Logarithmic fade out (XFD-CURV-010)
-  - Cosine (S-curve) fade in/out (XFD-CURV-020)
-  - Linear fade in/out (XFD-CURV-030)
-- Lead-in/lead-out timing logic:
-  - Case 1: Longer lead-in duration (XFD-BEH-C1)
-  - Case 2: Shorter lead-in duration (XFD-BEH-C2)
-  - Case 3: No overlap (XFD-BEH-C3)
-- Pause/resume with 0.5s exponential fade-in (REQ-PB-050)
-- **Architecture**: Dual pipeline design from [Architecture - Audio Engine](architecture.md#audio-engine)
-- **Traceability**: Reference XFD requirement IDs in crossfade timing code (CO-273)
+- **3.2. Audio File Segmentation Workflow (2 Weeks):**
+  - Implement the full workflow from `audio_file_segmentation.md`.
+  - Create the multi-step UI for source selection, silence detection, and MusicBrainz release matching.
+  - Integrate ChromaPrint/AcoustID for fingerprinting.
 
-### 12. Multi-passage file handling
-- User prompt: single or multi-passage file on import
-- Automatic silence detection for initial segmentation (algorithm TBD: threshold, min duration)
-- UI for editing passage boundaries within a file
-- Add/delete passage definitions per file
-- Per-passage MusicBrainz association editing
+- **3.3. Passage Boundary Editor (1.5 Weeks):**
+  - Create the UI for manually adjusting passage boundaries on a waveform display.
+  - Implement logic to save these user-defined passages to the database.
 
-## Phase 4: External Integration (Weeks 10-12)
+## Phase 4: External Integration & Flavor Analysis (5.5 Weeks)
 
-### 13. Audio fingerprinting + AcoustID
-- Chromaprint integration (library inclusion)
-- Generate fingerprints for each passage
-- Query AcoustID API with rate limiting (3 req/sec)
-- Cache responses locally (indefinite storage, prune oldest when needed)
-- Retrieve MusicBrainz Recording IDs
-- **Module organization**: External API client in `external/acoustid.rs` (CO-042)
-- **Error handling**: Network retry logic (REQ-NET-010, CO-166)
+*Goal: Enrich the local library with data from external services and enable local flavor analysis.* 
 
-### 14. MusicBrainz integration
-- Lookup Recording/Release/Artist/Work IDs from AcoustID results
-- Fetch and cache metadata:
-  - Canonical artist names
-  - Release titles and dates
-  - Genre/tags (top 10)
-- Local caching with offline fallback
-- Associate passages with tracks/recordings/artists/works
-- Multi-song passage handling
-- **Module organization**: External API client in `external/musicbrainz.rs` (CO-042)
-- **Event emission**: NetworkStatusChanged when connectivity issues occur
+- **4.1. MusicBrainz Integration (1 Week):**
+  - Build the API client to fetch and cache data for Recordings, Releases, Artists, and Works.
+  - Create the logic to associate local passages with these MusicBrainz entities.
 
-### 15. AcousticBrainz integration
-- Fetch high-level characterization data (musical flavor vectors - see [Musical Flavor](musical_flavor.md))
-- Parse and store all dimensional values:
-  - Binary classifications (danceability, gender, moods - FLV-CAT-010)
-  - Multi-dimensional characterizations (genre systems, rhythms - FLV-CAT-020)
-- Cache results in database
-- **Essentia local analysis (Full version only)**:
-  - Integrate Essentia library for local computation when AcousticBrainz data unavailable
-  - Background processing during import or on-demand
-  - Progress indication in UI
-  - Emit LibraryScanCompleted event when analysis finishes
-  - Optimize for Raspberry Pi Zero2W resource constraints
-- **Module organization**: External API client in `external/acousticbrainz.rs` (CO-042)
+- **4.2. AcousticBrainz Integration (0.5 Weeks):**
+  - Build the API client to fetch and cache high-level musical flavor data for recordings.
 
-### 16. Musical flavor position calculation
-- For single-song passages: use song's AcousticBrainz position directly (FLV-MAP-ONE)
-- For multi-song passages: calculate a weighted average of all dimensional values, based on the duration of each song within the passage (FLV-MAP-MANY).
-- Store computed flavor position in passage database table
-- Handle zero-song passages (no flavor, excluded from auto-selection - FLV-MAP-ZERO)
-- **Specification**: Implements [Musical Flavor - Mapping](musical_flavor.md#mapping)
+- **4.3. Essentia Integration (3 Weeks):**
+  - This is a very significant task.
+  - Set up Rust bindings for the Essentia C++ library.
+  - Implement the local analysis pipeline to generate musical flavor data for recordings missing from AcousticBrainz.
+  - This task is exclusive to the `full` version build.
 
-## Phase 5: Musical Flavor Selection System (Weeks 13-16)
+- **4.4. Passage Flavor Calculation (1 Week):**
+  - Implement the logic to calculate the net flavor for a passage based on the weighted average of its constituent recordings, as specified in `musical_flavor.md`.
+  - Store the calculated `musical_flavor_vector` in the `passages` table.
 
-### 17. Distance calculation implementation
-- Implement squared Euclidean distance formula (see [Musical Flavor - Distance Calculation](musical_flavor.md#distance-calculation)):
-  - Binary classifications: Σ(diff²) for all binary pairs (FLV-DIST-BIN)
-  - Multi-dimensional groups: Σ(diff²)/N for each group, then average all groups (FLV-DIST-MULTI)
-  - Total distance: binary_distance + average_multidim_distance (FLV-DIST-TOT)
-- Unit tests with known distance calculations
-- Performance optimization for 100-candidate filtering (CO-253)
-- **Module organization**: Distance calculations in `selection/flavor_distance.rs` (CO-032)
+## Phase 5: Musical Flavor Selection System (6 Weeks)
 
-### 18. Time-of-day flavor target system
-- **Timeslot management UI**:
-  - Add/remove/edit timeslots (must cover all 24 hours, no gaps/overlaps)
-  - Select passages to define each timeslot's flavor (FLV-USE-PREF)
-  - Validate timeslot passages contain one or more songs
-- **Timeslot flavor calculation**:
-  - Average position of all selected passages
-- **Schedule-based target switching**:
-  - Determine current timeslot flavor target based on current time
-  - Passages in queue unaffected by timeslot transitions (REQ-FLV-030)
-  - Emit TimeslotChanged event when timeslot boundary crossed
-- **Temporary flavor override**:
-  - UI to select passages for temporary flavor target
-  - Duration selection (e.g., 1-2 hours)
-  - Emit TemporaryFlavorOverride event
-  - Override triggers immediate queue flush and reselection (REQ-FLV-020)
-  - Skip remaining time on currently playing passage
-  - Refill queue based on new target
-  - Emit TemporaryFlavorOverrideExpired when duration elapses
-- **Event flows**: See [Event System - Temporary Flavor Override Flow](event_system.md#temporary-flavor-override-flow)
+*Goal: Implement the full, flavor-driven automatic selection algorithm.* 
 
-### 19. Base probability system
-- Song/artist/work base probability storage (default 1.0, range 0.0-1000.0 - REQ-PROB-010/020/030)
-- UI with logarithmic slider + numeric input for editing (REQ-PROB-041)
-- **Passage probability calculation** (REQ-PROB-050):
-  - Single song/artist: straightforward product
-  - Multiple songs: weighted average based on duration (see requirements.md)
-  - Multiple artists: weighted sum of artist probabilities (see requirements.md)
-- **Module organization**: Probability calculations in `selection/probability.rs` (CO-032)
+- **5.1. Distance & Cooldown Calculation (1.5 Weeks):**
+  - Implement the squared Euclidean distance formula for flavor comparison.
+  - Implement the cooldown logic (min/ramping) for songs, artists, and works.
 
-### 20. Cooldown system
-- **Song cooldowns** (REQ-SEL-030):
-  - Minimum: 7 days (default, user-editable - REQ-SEL-031A)
-  - Ramping: 14 days (default, user-editable - REQ-SEL-032A)
-  - Linear ramp from 0.0 to 1.0 probability multiplier
-- **Artist cooldowns** (REQ-SEL-040):
-  - Minimum: 2 hours (default, user-editable - REQ-SEL-041A)
-  - Ramping: 4 hours (default, user-editable - REQ-SEL-042A)
-- **Work cooldowns** (REQ-SEL-060):
-  - Minimum: 3 days (default, user-editable)
-  - Ramping: 7 days (default, user-editable)
-- **Cooldown stacking** (REQ-SEL-070):
-  - Net probability = base × song_multiplier × artist_multiplier × (work_multiplier if applicable)
-- **Multi-artist cooldown handling**:
-  - For songs with multiple artists, the artist cooldown multiplier is a weighted average of each artist's individual cooldown multiplier.
-- **Module organization**: Cooldown calculations in `selection/cooldown.rs` (CO-032)
-- **Testing**: Unit tests for cooldown edge cases (CO-093)
+- **5.2. Base Probability System (1 Week):**
+  - Implement the UI for editing base probabilities on songs, artists, and works.
+  - Implement the logic for calculating a passage's final base probability.
 
-### 21. Flavor-based passage selection algorithm
-- Filter passages to non-zero probability candidates (FLV-USE-FILT)
-- Calculate squared distance from target flavor for all candidates (FLV-USE-COMP)
-- Sort by distance (closest first - FLV-USE-SORT)
-- Take top 100 (or all if fewer - FLV-USE-TOP)
-- Compute final probabilities (base × cooldown multipliers)
-- Weighted random selection (FLV-USE-RAND):
-  - Random number in [0, Σ(probabilities)]
-  - Iterate candidates, subtract probability until reaching zero/below
-  - Select first candidate that zeros the random value
-- Handle edge case: no candidates available (enter Pause mode - REQ-CF-061B2)
-- **Specification**: Implements [Musical Flavor - Selection Algorithm](musical_flavor.md#usage)
-- **Module organization**: Selection logic in `selection/director.rs` (CO-032)
-- **Testing**: Unit tests with known probability distributions (CO-093)
+- **5.3. Time-of-Day Flavor Target System (2 Weeks):**
+  - Implement the UI for managing the 24-hour timeslot schedule.
+  - Implement the logic for calculating the target flavor for each timeslot.
+  - Implement the temporary flavor override mechanism, including the queue flush.
 
-### 22. Automatic queue replenishment
-- Monitor queue: maintain 3+ passages and 15+ minutes play time (REQ-CF-061B1)
-- Subscribe to QueueChanged events to detect low queue depth
-- Trigger selection when threshold not met
-- Use current timeslot flavor target (or temporary override)
-- Account for anticipated play start time when selecting
-- Send SelectionRequest via mpsc channel to Program Director
-- Emit PassageEnqueued event when passage added
-- Background task for async selection
-- **Event flow**: See [Event System - Automatic Passage Selection Flow](event_system.md#automatic-passage-selection-flow)
+- **5.4. Program Director & Selection Algorithm (1.5 Weeks):**
+  - Create the `Program Director` component.
+  - Implement the full weighted random selection algorithm, bringing together flavor distance, cooldowns, and base probabilities.
+  - Implement automatic queue replenishment logic.
 
-## Phase 6: User Feedback & Refinement (Weeks 17-18)
+## Phase 6: User Identity & Authentication (1.5 Weeks)
 
-### 23. Like/Dislike functionality
-- Record likes/dislikes with timestamps in database
-- Emit PassageLiked and PassageDisliked events
-- **Effect on selection** (*specification needed*):
-  - How likes affect base probability
-  - How dislikes affect base probability or cooldowns
-  - Passage-level vs song-level vs artist-level
-  - Cumulative vs idempotent behavior
-- UI buttons (already in design)
-- REST API endpoints (already defined)
-- **Event emission**: Subscribe in UI to show feedback button state updates
+*Goal: Add multi-user support with persistent taste profiles.* 
 
-### 24. ListenBrainz integration
-- **Specification needed for**:
-  - Outbound data (plays, likes/dislikes, skips, duration)
-  - Inbound data (recommendations, taste profile)
-  - Effect on selection algorithm
-  - Sync timing and authentication
-- Subscribe to PassageCompleted events for play submission
-- Implement based on finalized specification
-- Network retry logic (5s delay, 20 max retries - REQ-NET-010)
-- Emit NetworkStatusChanged on connectivity issues
-- Offline mode handling
-- **Module organization**: External API client in `external/listenbrainz.rs` (CO-042)
-- **Event-driven**: ListenBrainz client is event subscriber (no coupling to playback)
+- **6.1. User Identity System (1.5 Weeks):**
+  - Implement the full specification from `user_identity.md`.
+  - Create the `users` table and `mcrhythm-account-maintenance` tool.
+  - Implement registration, login, and logout APIs.
+  - Implement client-side UUID/token handling.
 
-### 25. Lyrics functionality
-- Storage in passage table (UTF-8 text)
-- Display in UI with playback
-- Split-window editor:
-  - Left pane: text input
-  - Right pane: web search panel for copy-paste
-- PUT endpoint for updates (already defined)
-- Concurrent edit handling (last write wins per requirements)
+## Phase 7: User Feedback & Features (2 Weeks + TBD)
 
-## Phase 7: Platform Support & Versions (Weeks 19-21)
+*Goal: Add core user feedback mechanisms and other features.* 
 
-### 26. Platform-specific startup
-- **Linux**: systemd service unit file (REQ-CF-061A1)
-- **Windows**: Task Scheduler XML config (REQ-CF-061A2)
-- **macOS**: launchd plist file (REQ-CF-061A3)
-- Auto-start configuration UI in settings
-- Service installation/uninstallation helpers
-- **Platform abstraction**: Follow [Architecture - Platform Abstraction](architecture.md#platform-abstraction)
+- **7.1. Like/Dislike Functionality (1 Week):**
+  - Implement the UI controls and API endpoints.
+  - Record likes and dislikes to the database, associated with a `user_id`.
+  - **Note:** The effect on the selection algorithm is TBD and not included in this estimate.
 
-### 27. Audio sink selection & output
-- GStreamer sink auto-detection and enumeration
-- Manual override UI
-- Platform-specific defaults (see [Architecture - Audio Output](architecture.md#audio-output)):
-  - Linux: PulseAudio (fallback to ALSA)
-  - Windows: WASAPI
-  - macOS: CoreAudio
-- Bluetooth/HDMI output support testing
-- Output device switching without playback interruption
-- **Module organization**: Platform detection in `platform/audio.rs` (CO-120)
+- **7.2. Lyrics (1 Week):**
+  - Implement the UI for displaying and editing lyrics.
+  - Implement the API endpoint for saving lyric changes.
 
-### 28. Version builds (Full/Lite/Minimal)
+- **7.3. ListenBrainz Integration (TBD):**
+  - This feature is not yet specified and cannot be estimated.
 
-See [Requirements - Three Versions](requirements.md#three-versions) for complete feature comparison and resource profiles.
+## Phase 8: Platform & Versioning (2 Weeks)
 
-**Rust Feature Flags:**
-```toml
-[features]
-default = ["minimal"]
-minimal = []
-lite = ["minimal", "preference-editing"]
-full = ["lite", "library-management", "essentia-analysis"]
-```
+*Goal: Ensure the application runs correctly on target platforms and that version builds are functional.* 
 
-**Conditional Compilation:**
-```rust
-#[cfg(feature = "full")]
-mod library_scanner;
+- **8.1. Platform Startup & Audio Output (1 Week):**
+  - Create `systemd` and other platform-specific service files.
+  - Implement the UI for audio sink selection.
 
-#[cfg(feature = "lite")]
-mod preference_editor;
+- **8.2. Version Builds (1 Week):**
+  - Implement and test the Rust feature flags (`full`, `lite`, `minimal`).
+  - Create build scripts for each version.
+  - Implement the database export/import process for Lite/Minimal versions.
 
-#[cfg(not(feature = "minimal"))]
-fn allow_editing() { /* ... */ }
-```
+## Phase 9: Polish & Optimization (6 Weeks)
 
-**Database Export/Import:**
-- Full version exports complete database snapshot
-- Lite/Minimal versions import read-only database
-- Migration tools for version upgrades
-- Platform-specific packaging per version
+*Goal: Harden the application, improve performance, and refine the user experience.* 
 
-**Feature Flag Guidelines:**
-- Follow [CO-190](coding_conventions.md#version-specific-code) for version-specific code patterns
-- Use `#[cfg(feature = "...")]` annotations consistently
-- Document version applicability in module comments
+- **9.1. Raspberry Pi Zero2W Optimization (2 Weeks):**
+  - Profile memory and CPU usage on the target device.
+  - Optimize GStreamer pipelines, database queries, and other bottlenecks.
 
-## Phase 8: Polish & Optimization (Weeks 22-24)
+- **9.2. Error Handling & UI/UX Refinements (2 Weeks):**
+  - Conduct a full review of error handling paths.
+  - Refine UI responsiveness, add loading states, and improve visual polish.
+  - Test and harden multi-user edge cases (skip throttling, etc.).
 
-### 29. Raspberry Pi Zero2W optimization
-- Memory usage profiling and reduction
-- GStreamer pipeline optimization:
-  - Buffer sizes tuned for latency vs reliability
-  - Dual-pipeline decode optimization (especially FLAC crossfades)
-- Startup time reduction
-- Thermal testing during extended playback
-- SD card I/O optimization
-- Event bus capacity tuning (500 events for Pi - see [Event System - Performance](event_system.md#performance-considerations))
-- **Performance guidelines**: Follow [CO-250](coding_conventions.md#performance-considerations) and [CO-260](coding_conventions.md#raspberry-pi-optimization)
+- **9.3. Comprehensive Testing (2 Weeks):**
+  - Increase unit and integration test coverage.
+  - Create end-to-end tests for all major user workflows.
 
-### 30. Error handling improvements
-- Network retry logic verification (5s delay, 20 max - REQ-NET-010)
-- Emit NetworkStatusChanged events on connectivity changes
-- UI notifications for network issues via SSE
-- Graceful degradation testing:
-  - Offline operation with missing external data
-  - Missing files (remove from queue, continue)
-  - Database errors (retry once, log, continue)
-- Developer logging with tracing crate (REQ-ERR-010):
-  - File and line number identification
-  - Configurable log levels
-  - Rotation and size limits
-- **Logging standards**: Follow [CO-220](coding_conventions.md#logging-and-tracing) for structured logging
-- **Error handling**: Follow [CO-160](coding_conventions.md#error-handling) for error types
+---
 
-### 31. UI/UX refinements
-- Queue display showing next 5 passages
-- Progress bar smoothness (update every 500ms without jank)
-- Responsive design for phone browsers
-- Touch-friendly controls for mobile
-- Keyboard shortcuts for desktop
-- Loading states and spinners
-- Error message display to users
-- Edge case testing (REQ-CF-042):
-  - Concurrent users (multiple browser sessions)
-  - Rapid skip clicks via UserAction event throttling
-  - Queue operations during playback transitions
-- **Event-driven UI**: All updates via SSE from event bus
-- **Multi-user sync**: Skip throttling (5-second window) via UserAction events
-
-### 32. Comprehensive testing
-- **Unit tests** (CO-090):
-  - Cooldown calculation edge cases (CO-093)
-  - Probability multiplication (including multi-song/artist when specified)
-  - Distance formula with known inputs/outputs (FLV-DIST-TOT)
-  - Timeslot boundary handling
-  - Event emission and handling (see [Event System - Testing](event_system.md#testing-event-driven-code))
-- **Integration tests** (CO-232):
-  - GStreamer pipeline lifecycle
-  - Database migrations
-  - SSE broadcasting with event bus
-  - Event propagation across components
-- **End-to-end tests**:
-  - REST API full workflows
-  - User scenarios (startup → play → queue → shutdown)
-  - Multi-user concurrent sessions
-- **Performance tests**:
-  - Selection algorithm with large libraries (10k+ passages)
-  - Concurrent client connections
-  - Memory leaks during extended operation
-  - Event bus throughput on Raspberry Pi
-- **Platform tests**:
-  - Raspberry Pi Zero2W (Lite/Minimal)
-  - Linux desktop (Full)
-  - Windows, macOS (Full)
-- **Testing patterns**: Follow [CO-230](coding_conventions.md#test-organization) and [CO-240](coding_conventions.md#test-naming-and-structure)
-
-## Optional/Future Enhancements
-
-### 33. Advanced visualizations
-- Waveform display in passage editor
-- Musical flavor visualization (radar chart, scatter plot)
-- Play history graphs and statistics
-- Real-time event flow visualization (debug mode)
-
-### 34. Advanced features
-- Import/export preferences and probability settings
-- Playlist support (manual track sequences, temporary playlists)
-- Smart shuffle modes
-- Social features (share flavors, import others' timeslot configs)
-- Plugin system using event subscription pattern
-
-### 35. Mobile platforms
-- Android/iOS versions using Flutter or Tauri mobile
-- Native mobile UI
-- Offline-first architecture
-- Background playback support
-- Event synchronization across devices
-
-## Critical Path Dependencies
-
-**Phase 0 Prerequisites**:
-- ✅ Event system architecture defined ([Event System](event_system.md))
-- ✅ Coding conventions established ([Coding Conventions](coding_conventions.md))
-- ✅ Requirement enumeration scheme created ([Requirements Enumeration](requirements_enumeration.md))
-- 🔲 Apply requirement IDs to all specification documents
-- 🔲 Set up project structure with module organization (CO-030, CO-120)
-
-**Blockers for Phase 5 (Selection System)**:
-
-**Blockers for Phase 6 (User Feedback)**:
-- Must specify Like/Dislike effect on selection
-- Must specify ListenBrainz integration details
-
-**Event System Integration** (addresses throughout phases):
-- Phase 1: EventBus foundation established
-- Phase 2: Core components become event-driven (Historian, SSE, Queue Manager)
-- Phase 3+: All new features use event patterns for notifications
-- Benefits: Loose coupling enables easier testing, feature additions, and multi-user support
-
-**Recommended Implementation Approach**:
-1. Complete Phase 0: Apply requirement IDs and set up project structure
-2. Implement phases sequentially to validate each layer
-3. Deploy to Raspberry Pi Zero2W for testing at end of each phase
-4. Create feature flags to disable incomplete features in early releases
-5. Document missing specifications as encountered, seek clarification before proceeding
-6. Follow event-driven patterns from Phase 1 onwards for consistency
-7. Reference coding conventions (CO-xxx) and requirement IDs (REQ-xxx, XFD-xxx, FLV-xxx) in all code
-
-## Documentation Maintenance
-
-As implementation progresses:
-- Update this document with actual completion dates
-- Mark blockers as resolved when specifications are finalized
-- Add links to implementation PRs/commits for traceability
-- Document deviations from original plan with rationale
-- Keep event flow diagrams updated in event_system.md as features are added
+### Total Estimated Timeline: 36.5 Weeks

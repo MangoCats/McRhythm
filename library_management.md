@@ -370,75 +370,9 @@ User-Agent: McRhythm/1.0.0 ( contact@example.com )
 - Must include application name and contact info
 - Example: `McRhythm/1.0.0 ( https://github.com/user/mcrhythm )`
 
-## Multi-Passage File Handling
+## Multi-Passage Files
 
-### User Workflow
-
-**Import Dialog:**
-
-When user adds a new file to library:
-
-1. **Prompt:** "Does this file contain one passage or multiple passages?"
-   - **One passage**: Create single passage spanning entire file (default)
-   - **Multiple passages**: Enter multi-passage editor
-
-2. **Multi-Passage Editor:**
-   - Display waveform visualization
-   - Show automatically detected passage boundaries (via silence detection)
-   - User can:
-     - Add passage boundary (click on waveform)
-     - Delete passage boundary
-     - Adjust boundary timing (drag markers)
-     - Associate each passage with MusicBrainz entities
-
-### Automatic Silence Detection
-
-**Purpose:** Suggest initial passage boundaries for multi-passage files (e.g., concert recordings, DJ mixes, audiobooks)
-
-**Algorithm:**
-
-1. **Decode audio to PCM** (same as fingerprinting)
-
-2. **Compute RMS amplitude** per time window
-   - Window size: 100ms
-   - Compute RMS for each window
-   - Normalize to 0.0-1.0 range
-
-3. **Detect silence regions**
-   - Threshold: RMS < 0.05 (configurable)
-   - Minimum silence duration: 2 seconds (configurable)
-   - Ignore very short silences (< 1 second)
-
-4. **Propose passage boundaries**
-   - Boundary = midpoint of silence region
-   - Present to user for confirmation
-
-**Alternative Approach:** Use onset detection (beat detection) for music with clear track separations
-
-**UI Presentation:**
-- Show proposed boundaries as dashed lines
-- User confirms or adjusts
-- Save confirmed passages to database
-
-### Passage Association with MusicBrainz
-
-**Manual Workflow:**
-
-For each passage in multi-passage file:
-
-1. **User plays passage** to identify it
-2. **User searches MusicBrainz** (by title/artist)
-3. **User selects Recording** from search results
-4. **System creates passage-song relationship**
-
-**Semi-Automatic:**
-- Run Chromaprint on each passage
-- Query AcoustID for each
-- Present matches for user confirmation
-
-**Challenges:**
-- Live recordings/DJ mixes may not have MusicBrainz entries
-- User may need to manually enter song information (or skip MusicBrainz association)
+**[LIB-MPF-010]** McRhythm supports the segmentation of a single audio file (e.g., a full album rip) into multiple, distinct Passages. The detailed workflow for this process, including automatic silence detection, MusicBrainz release matching, and manual user review, is specified in the [Audio File Segmentation](audio_file_segmentation.md) document.
 
 ## AcousticBrainz Integration
 
