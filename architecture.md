@@ -172,6 +172,9 @@ McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that auto
 - Temporary override queue flush
 
 **Empty Queue Handling:**
+
+> **Requirement**: See [Requirements - Queue Empty Behavior](requirements.md#queue-empty-behavior) for authoritative specification.
+
 - Queue becoming empty does NOT trigger automatic Play/Pause state change
 - System continues in user-selected Play/Pause mode
 - When queue is empty and system is in Play mode:

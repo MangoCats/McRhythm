@@ -125,6 +125,8 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 - The queue may become empty if all passages finish playing and no new passages are manually enqueued
 
 ### More than one Recording per Passage Calculation
+<a name="more-than-one-recording-per-passage-calculation"></a>
+
 **MFL-MULT-010:** When a passage contains more than one recording, its net flavor is calculated as a weighted centroid of the flavors of its constituent recordings. This process is identical to the "Weighted Taste" calculation described in `musical_taste.md`, ensuring that flavor combination is handled consistently throughout the system.
 
 **MFL-MULT-020:** The weight of each recording is its runtime within the passage.

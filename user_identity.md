@@ -39,6 +39,9 @@ User identity is required for:
 
 ## 2. Initial Connection Flow
 
+## Authentication Modes
+<a name="authentication-modes"></a>
+
 **[UID-FLOW-010]** When a user connects to the server without a stored UUID (first visit or after one-year expiration), the user interface shall present them with three choices:
 1.  **Proceed Anonymously** - Use shared Anonymous account, no password required
 2.  **Create a new account** - Register unique username/password, get personal UUID

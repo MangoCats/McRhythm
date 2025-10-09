@@ -75,6 +75,8 @@ like E: E1=0.43, E2=0.245, E3=0.374 ; pre-normalization E1+E2+E3 = 1.049 ; norma
 **MTA-SMPL-040:** Any characteristics which are missing from all Flavors in the Taste are also missing from the Taste.
 
 ## Weighted Taste
+<a name="weighted-taste"></a>
+
 **MTA-WGHT-010:** A weighted Taste is computed from a list of Flavors each with an associated weight value. As above, each characteristic is summed when present and in the
 weighted case it is multiplied by its associated weight value and the net result is divided by the sum of all weight values of included characteristics.
 

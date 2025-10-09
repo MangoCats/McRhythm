@@ -268,14 +268,16 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 > **See [Program Director](program_director.md) for complete selection algorithm specification.**
 
 **Requirement:** Cooldown System
-- Each song, artist, and work has configurable minimum and ramping cooldown periods. Default values are:
-  - **Song:** 7 days minimum, 14 days ramping.
-  - **Artist:** 2 hours minimum, 4 hours ramping.
-  - **Work:** 3 days minimum, 7 days ramping.
+- Each song, artist, and work has configurable minimum and ramping cooldown periods
 - During minimum cooldown, probability is zero (passage cannot be selected)
 - During ramping cooldown, probability increases linearly from zero to base probability
-- Cooldown probabilities multiply together (song × artist × work)
-- For songs with multiple weighted artists, the artist cooldown probability is a weighted average of each individual artist's cooldown probability.
+
+> **Technical Specification**: See [Program Director - Cooldown System](program_director.md#cooldown-system) for complete algorithm details, multiplier calculations, and multi-entity handling.
+
+**Default Cooldown Periods:**
+- **Song:** 7 days minimum, 14 days ramping
+- **Artist:** 2 hours minimum, 4 hours ramping
+- **Work:** 3 days minimum, 7 days ramping
 
 **Requirement:** Base Probability Editing
 - Users may adjust base probabilities for individual songs, artists, and works
@@ -298,6 +300,7 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Automatically advance to next passage on completion
 
 ### Queue Empty Behavior
+<a name="queue-empty-behavior"></a>
 
 **Requirement:** When the queue becomes empty (no passages waiting to play):
 - Audio playback stops naturally (no audio output)
@@ -388,6 +391,8 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 
 ### Playback State
 
+> **Technical Specification**: See [Event System - PlaybackState Enum](event_system.md#playbackstate-enum) for complete technical definition and event handling details.
+
 **Requirement:** System has exactly two playback states:
 - **Playing**: Audio plays when passages are available in queue
   - If queue has passages: Plays audio
@@ -411,6 +416,9 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Queue contents and position ARE persisted (see State Persistence section)
 
 ### Authentication and User Identity
+<a name="user-authentication"></a>
+
+> **Technical Specification**: See [User Identity and Authentication](user_identity.md#authentication-modes) for complete design details, session management, and security considerations.
 
 **Requirement:** System supports multiple concurrent users with persistent identities
 

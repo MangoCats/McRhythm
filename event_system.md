@@ -430,6 +430,7 @@ pub enum EnqueueSource {
 }
 
 /// Playback state
+/// <a name="playbackstate-enum"></a>
 ///
 /// McRhythm has only two playback states controlled by the user.
 /// There is no "stopped" state - the system is always either playing or paused.

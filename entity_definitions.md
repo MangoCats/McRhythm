@@ -71,7 +71,7 @@ erDiagram
 ## McRhythm-Specific Constraints
 
 - **[ENT-CONST-010]** Passage with zero songs: Allowed, but excluded from automatic selection (can only be manually queued)
-- **[ENT-CONST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted centroid of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage.
+- **[ENT-CONST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted centroid of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage. See [Musical Flavor - Weighted Centroid Calculation](musical_flavor.md#more-than-one-recording-per-passage-calculation) and [Musical Taste - Weighted Taste](musical_taste.md#weighted-taste) for algorithm details.
 - **[ENT-CONST-030]** Song identity: Defined by unique (Recording, Work, weighted Artist set) combination
   - Same recording of the same work performed by different artists (or the same artists with different weights) = different songs
   - Different recordings of same work by same artist = different songs

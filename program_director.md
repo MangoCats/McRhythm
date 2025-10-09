@@ -234,6 +234,7 @@ Rare edge case where multiple passages are identical to target:
 > **See:** [Musical Flavor - Edge Cases](musical_flavor.md#edge-cases) for additional scenarios
 
 ## Cooldown System
+<a name="cooldown-system"></a>
 
 **[PD-COOL-010]** The cooldown system prevents too-frequent replay of songs, artists, and works.
 
