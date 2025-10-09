@@ -10,7 +10,7 @@ Defines the workflow for segmenting a single audio file into multiple Passages. 
 
 ## 1. Overview
 
-**[AFS-OV-010]** This document specifies the process for segmenting a single, large audio file (e.g., a full CD rip, a vinyl album side) into multiple distinct Passages, each corresponding to a single Recording. The workflow is designed to be as automated as possible while providing the user with full control to review and manually adjust the results.
+**[AFS-OV-010]** This document specifies the process for segmenting a single, large audio file (e.g., single continuous recording of a full CD, a vinyl album side) into multiple distinct Passages, each corresponding to a single Recording. The workflow is designed to be as automated as possible while providing the user with full control to review and manually adjust the results.
 
 ## 2. Segmentation Workflow
 
@@ -76,3 +76,6 @@ The process is a guided, step-by-step workflow within the McRhythm UI (Full vers
 3.  **Album Passage:** A single overarching Passage, encompassing the entire audio file, is also created. This allows the user to play the entire album side as a single unit if desired.
 4.  **AcousticBrainz Lookup:** The system then queries the AcousticBrainz database for each new Recording ID to fetch the high-level characterization data (Musical Flavor).
 5.  **Local Analysis:** If no AcousticBrainz data is available for a Recording, a local analysis job using Essentia is queued to compute the Musical Flavor locally.
+
+----
+End of document - Audio File Segmentation

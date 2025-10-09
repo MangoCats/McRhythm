@@ -565,3 +565,6 @@ McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature fla
 - Real-time collaborative listening
 - Plugin system for custom selectors
 - External player control protocols (MPD, etc.)
+
+----
+End of document - McRhythm Architecture

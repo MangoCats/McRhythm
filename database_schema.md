@@ -744,3 +744,6 @@ Potential schema additions (not yet specified):
 - ✅ `images` table for multi-type image storage (songs, passages, albums, artists, works)
 - ✅ `song_play_counts` view for efficient time-range play count queries
 - ✅ `passages.user_title` column for user-defined passage titles
+
+----
+End of document - McRhythm Database Schema

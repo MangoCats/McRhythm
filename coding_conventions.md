@@ -407,6 +407,11 @@ Each major component shall be organized into separate modules by functional area
 - **CO-293:** FIXME comments shall include issue tracking reference when applicable
 - **CO-294:** Avoid commented-out code in production branches
 
+- **CO-299:** "McRhythm" is a code name for the project during design. "McRhythm" and other 
+              references to the project name shall not appear anywhere in the source code.
+              The public facing name of the project while coding shall be: "WKMP" in long
+              form: "Wonderfully Kinetic Music Player".
+
 ## Review and Approval
 
 **Document Status:** Draft
@@ -416,3 +421,6 @@ Each major component shall be organized into separate modules by functional area
 
 **Change History:**
 - 2025-10-05: Initial version adapted from coding conventions specification
+
+----
+End of document - McRhythm Coding Conventions

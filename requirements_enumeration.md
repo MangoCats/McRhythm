@@ -620,3 +620,6 @@ The crossfade timing (see `XFD-BEH-C1`) depends on lead-in duration (`XFD-DUR-03
 3. Validate usefulness and adjust scheme if needed
 4. Roll out to remaining documents
 5. Establish maintenance process
+
+----
+End of document - McRhythm Requirements Enumeration Scheme
