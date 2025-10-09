@@ -416,7 +416,10 @@ Accept: application/json
 
 1. **Cache full response**
    - Store in `acousticbrainz_cache.high_level_data` (JSON text column)
-   - Never expires (AcousticBrainz project is discontinued, data is static)
+   - Never expires (AcousticBrainz project is discontinued but API remains available, data is static - no new submissions accepted)
+   - The AcousticBrainz website and API continue to operate in read-only mode
+   - Any recordings added to MusicBrainz after the AcousticBrainz shutdown will not have AcousticBrainz data available
+   - For such recordings, McRhythm Full version will generate musical flavor locally using Essentia
 
 2. **Extract flavor vector**
    - Parse all `highlevel.*` dimensions

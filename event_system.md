@@ -197,6 +197,22 @@ pub enum McRhythmEvent {
         new_volume: f32,
     },
 
+    /// Emitted when current song within passage changes
+    ///
+    /// NOTE: This is distinct from PassageStarted (which is for passage transitions)
+    /// This event fires when crossing song boundaries within a single passage
+    ///
+    /// Triggers:
+    /// - UI: Update album art display to reflect new song
+    /// - UI: Reset album rotation timer if song has multiple albums
+    /// - UI: Update now playing song information
+    CurrentSongChanged {
+        passage_id: PassageId,
+        song_id: Option<SongId>,  // None if in a gap between songs
+        song_albums: Vec<AlbumId>,  // All albums associated with this song
+        position: f64,  // Current position in passage (seconds)
+    },
+
     // ═══════════════════════════════════════════════════════════
     // Queue Events
     // ═══════════════════════════════════════════════════════════
@@ -233,6 +249,19 @@ pub enum McRhythmEvent {
         was_playing: bool,
     },
 
+    /// Emitted when queue becomes empty
+    ///
+    /// NOTE: This does NOT change Play/Pause state automatically
+    ///
+    /// Triggers:
+    /// - SSE: Update UI to show empty queue state
+    /// - UI: May show "Queue Empty" message
+    /// - Automatic selector: Already stopped (no valid candidates)
+    QueueEmpty {
+        timestamp: SystemTime,
+        playback_state: PlaybackState,  // Current Play/Pause state (unchanged)
+    },
+
     // ═══════════════════════════════════════════════════════════
     // User Interaction Events
     // ═══════════════════════════════════════════════════════════
@@ -256,24 +285,26 @@ pub enum McRhythmEvent {
     /// Emitted when user likes a passage (Full/Lite versions only)
     ///
     /// Triggers:
-    /// - Database: Record like
-    /// - SSE: Update like button state
-    /// - ListenBrainz: Submit feedback (future)
+    /// - Database: Record like associated with user UUID
+    /// - Taste Manager: Update user's taste profile
+    /// - SSE: Update like button state for all connected clients
+    /// - ListenBrainz: Submit feedback (Phase 2)
     PassageLiked {
         passage_id: PassageId,
-        user_session_id: String,
+        user_id: UserId,  // UUID of user who liked (may be Anonymous UUID)
         timestamp: SystemTime,
     },
 
     /// Emitted when user dislikes a passage (Full/Lite versions only)
     ///
     /// Triggers:
-    /// - Database: Record dislike
-    /// - SSE: Update dislike button state
-    /// - Selection: Adjust probability (future)
+    /// - Database: Record dislike associated with user UUID
+    /// - Taste Manager: Update user's taste profile
+    /// - SSE: Update dislike button state for all connected clients
+    /// - Program Director: Adjust selection probability (Phase 2)
     PassageDisliked {
         passage_id: PassageId,
-        user_session_id: String,
+        user_id: UserId,  // UUID of user who disliked (may be Anonymous UUID)
         timestamp: SystemTime,
     },
 
@@ -385,6 +416,12 @@ pub enum QueueChangeTrigger {
     TemporaryOverride,
 }
 
+**Note on Queue Empty Behavior:**
+- When `PassageCompletion` or `UserDequeue` triggers `QueueChanged` and results in `queue.len() == 0`, the system also emits `QueueEmpty`
+- `QueueEmpty` does not change playback state
+- User-controlled Play/Pause state persists regardless of queue state
+- Automatic selection stops when no valid candidates exist, but manual enqueueing always works
+
 /// How a passage was enqueued
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnqueueSource {
@@ -393,12 +430,24 @@ pub enum EnqueueSource {
 }
 
 /// Playback state
+///
+/// McRhythm has only two playback states controlled by the user.
+/// There is no "stopped" state - the system is always either playing or paused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaybackState {
-    Stopped,
-    Playing,
-    Paused,
+    Playing,   // Audio plays when passages are available in queue
+    Paused,    // Audio paused by user, regardless of queue state
 }
+
+**Note on Playback State:**
+- System always starts in `Playing` state on app launch
+- Only two states exist: `Playing` and `Paused`
+- No "stopped" state (traditional media player concept doesn't apply)
+- User controls state via Play/Pause commands
+- State persists independently of queue contents
+- When queue is empty:
+  - `Playing` state: Silent, ready to play immediately when passage enqueued
+  - `Paused` state: Silent, new passages wait until user selects Play
 ```
 
 ### Event Categories

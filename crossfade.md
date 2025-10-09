@@ -335,6 +335,32 @@ Example:
   - When Passage A is playing and Passage B is in the queue to play next, Crossfade Time is compared to the passage A's duration and found to be > 50%, so the effective Crossfade Time
     used for passage A's lead-out duration is 16 seconds, 50% of the shorter passage A's duration.  When passage A reaches 16 seconds from its end, simultaneous play of passage B begins.
 
+- Scenario F: Both passages have user-defined lead times that are extreme values (no clamping needed):
+  - Crossfade Time set to 30 seconds (not used in this scenario)
+  - Passage A is 20 seconds duration
+    - User-defined lead-in: 2.0 seconds
+    - User-defined lead-out: 18.0 seconds (90% through the passage)
+  - Passage B is 15 seconds duration
+    - User-defined lead-in: 14.0 seconds (93% through the passage)
+    - User-defined lead-out: 14.5 seconds
+  - **Analysis:**
+    - Passage A remaining time after lead-out: 20.0 - 18.0 = 2.0 seconds
+    - Passage B lead-in time: 14.0 seconds
+    - Crossfade duration: min(2.0, 14.0) = **2.0 seconds**
+  - **Result:**
+    - No clamping needed
+    - No warning needed
+    - Crossfade begins at 18.0s in Passage A
+    - Crossfade ends at 14.0s in Passage B (when B reaches its lead-in point)
+    - The `min()` function naturally constrains crossfade to valid range
+    - Passage A plays from 18.0s → 20.0s (2 seconds) while B plays from 0.0s → 2.0s
+    - At 2.0s into crossfade, A completes and B continues solo from 2.0s → 14.0s
+    - Even extreme user-defined values cannot cause >100% overlap or invalid states
+  - **Key Insight:** The crossfade system is self-constraining. User-defined lead times that seem "extreme" (e.g., lead-out at 90% of passage) are perfectly valid because:
+    1. Lead-in must be < lead-out within each passage (enforced at input time)
+    2. Crossfade duration = min(remaining_A, lead_in_B)
+    3. This guarantees crossfade never exceeds either passage's valid range
+
 ### Global Fade Curve Selection
 
 **[XFD-DEF-070]** The Global Fade Curve setting selects a **paired** fade-in/fade-out curve combination used as the default for passages where `fade_in_curve` and/or `fade_out_curve` are undefined (NULL).

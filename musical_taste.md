@@ -10,8 +10,7 @@
 
 ## Description
 
-**MTA-DESC-020:** Musical Taste is a quantifiable measure of what [Musical Flavor](musical_flavor.md) is preferred.  The Program Director uses Musical Taste
-(or more simply: Taste) as one input to decide which passages to enqueue for play.
+**MTA-DESC-020:** Musical Taste is a quantifiable measure of what [Musical Flavor](musical_flavor.md) is preferred. The [Program Director](program_director.md) uses Musical Taste (or more simply: Taste) as one input to decide which passages to enqueue for play.
 
 **MTA-DESC-030:** Taste is determined by Likes and Dislikes.  At least one Like or Dislike must be registered with at least one Song in order for Taste
 to be computed.  The time at which a Like or Dislike is registered also has impact on Taste, because Taste can vary over time: time of day, 

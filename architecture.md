@@ -121,30 +121,34 @@ McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that auto
 - Currently playing passage (position, duration, state)
 - Next passage (pre-loaded, ready for crossfade)
 - User volume level (0-100)
-- Playback state (Playing/Paused/Stopped)
+- Playback state (Playing/Paused only - no "stopped" state)
+- Initial state on app launch: Playing
 
 ### 2. Program Director
 
 **Responsibilities:**
-- Calculate passage selection probabilities based on:
-  - Base probability (song × artist)
-  - Cooldown multipliers (song × artist × work)
-  - Musical flavor distance from current target
+- Calculate passage selection probabilities based on multiple factors
 - Implement weighted random selection algorithm
 - Maintain time-of-day flavor targets
+- Handle timeslot transitions
+- Respond to temporary flavor overrides
 
 **Key Operations:**
-- Filter to non-zero probability passages
+- Determine target time for selection (end time of last queued passage)
+- Filter to non-zero probability passages (passages with one or more songs only)
 - Calculate squared Euclidean distance from target flavor
-- Sort by distance, take top 100
+- Sort by distance, take top 100 candidates
 - Weighted random selection from candidates
-- Handle edge cases (no candidates → Pause mode)
+- Handle edge cases (no candidates → stop automatic enqueueing, manual enqueueing still available)
 
 **Data Sources:**
 - Current timeslot flavor target (or temporary override)
 - Passage musical flavor vectors
 - Song/artist/work last-play times
 - User-configured base probabilities
+- Queue contents and passage end times
+
+> **See [Program Director](program_director.md) for complete specification of selection algorithm, cooldown system, probability calculations, and timeslot handling.**
 
 ### 3. Queue Manager
 
@@ -166,6 +170,18 @@ McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that auto
 - Skip throttling (5-second window)
 - Concurrent remove operations (ignore duplicates)
 - Temporary override queue flush
+
+**Empty Queue Handling:**
+- Queue becoming empty does NOT trigger automatic Play/Pause state change
+- System continues in user-selected Play/Pause mode
+- When queue is empty and system is in Play mode:
+  - No audio output (silent)
+  - State remains "Playing"
+  - Ready to immediately play when passage is enqueued
+- When queue is empty and system is in Pause mode:
+  - No audio output (silent)
+  - State remains "Paused"
+  - Enqueued passages wait until user selects Play
 
 ### 4. Historian
 
@@ -439,9 +455,9 @@ McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature fla
 ```
 
 **Auto-detection Priority:**
-- Linux: PulseAudio → ALSA
-- macOS: CoreAudio
-- Windows: WASAPI
+- Linux: PulseAudio → ALSA (Phase 1)
+- Windows: WASAPI (Phase 1)
+- macOS: CoreAudio (Phase 2)
 
 **Manual Override:**
 - User can select specific sink
@@ -451,9 +467,9 @@ McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature fla
 ### System Integration
 
 **Auto-start:**
-- Linux: systemd service unit
-- Windows: Task Scheduler XML
-- macOS: launchd plist
+- Linux: systemd service unit (Phase 1)
+- Windows: Task Scheduler XML (Phase 1)
+- macOS: launchd plist (Phase 2)
 
 **File Paths:**
 - Database: Platform-specific app data directory
@@ -463,17 +479,62 @@ McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature fla
 ## Security Considerations
 
 ### Web UI
-- HTTP only (no authentication) on `localhost:5720`
+
+**Local Network Access:**
+- HTTP only on `localhost:5720`
+- Binds to localhost on startup (critical failure if port unavailable)
+- Accessible via:
+  - Localhost: `http://localhost:5720` (no network required)
+  - Local network: `http://<machine-ip>:5720` (requires local network)
+  - Remote: User must configure port forwarding (not recommended)
+
+**Authentication:**
+- User authentication system with three modes:
+  - Anonymous access (shared UUID, no password)
+  - Account creation (unique UUID, username/password)
+  - Account login (existing credentials)
+- Session persistence via browser localStorage (one-year rolling expiration)
+
+**Security:**
 - CORS restricted to localhost
-- No external network exposure
-- User responsible for network security
+- No external network exposure by default
+- User responsible for network security if exposing to local network
+- No internet access required for WebUI operation (local network only)
 
 ### Database
 - SQLite with file permissions (user-only read/write)
-- No sensitive data stored
+- Passwords stored as salted hashes (never plaintext)
+- Salt incorporates user UUID for additional security
 - File paths only (no file contents stored in database)
+- User taste data (likes/dislikes) considered non-sensitive
+- Anonymous user data is shared across all anonymous sessions
 
-### External APIs
+### Internet Access (External APIs)
+
+**Purpose:**
+- MusicBrainz metadata lookup
+- AcousticBrainz flavor data retrieval
+- Cover art fetching
+- Future ListenBrainz integration (Phase 2)
+
+**Connectivity:**
+- Required only during library import/update (Full version)
+- Not required for playback or local database operations
+- Retry logic: 20 attempts with 5-second delays
+- User-triggered reconnection after retry exhaustion
+
+**Error Handling:**
+- Network failures do not impact playback
+- Cached data used when internet unavailable
+- User notified of degraded functionality
+- Local Essentia analysis used when AcousticBrainz unavailable (Full version)
+
+**Version Differences:**
+- **Full version**: Internet required for initial setup, optional thereafter
+- **Lite version**: Internet optional (ListenBrainz sync only, Phase 2)
+- **Minimal version**: No internet access at all
+
+**Security:**
 - HTTPS for all external requests
 - API keys in environment variables (if required)
 - Rate limiting to respect service terms

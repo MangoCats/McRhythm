@@ -6,6 +6,8 @@
 
 > **Note:** This feature is available in the **Full** and **Lite** versions of McRhythm only.
 
+> **Authentication Context:** Likes and Dislikes are recorded per user UUID. Anonymous users share a common UUID and therefore a shared taste profile. Registered users have individual UUIDs and separate taste profiles. See [User Identity and Authentication](user_identity.md) for authentication details.
+
 > **Related Documentation:** [Musical Taste](musical_taste.md), [Musical Flavor](musical_flavor.md)
 
 ---
@@ -18,7 +20,7 @@
 
 The user interface for registering Likes and Dislikes provides both simple, immediate controls and a more detailed view for fine-tuning.
 
-**LD-DESC-030:** The primary controls are simple "Like" and "Dislike" buttons. A single click on either button applies a default weight (1.0) to the currently playing passage, which is then distributed algorithmically among its constituent songs (see "Applying Likes and Dislikes to Passages").
+**LD-DESC-030:** The primary controls are simple "Like" and "Dislike" buttons displayed in the WebUI. A single click on either button applies a default weight (1.0) to the currently playing passage, which is then distributed algorithmically among its constituent songs and recorded against the authenticated user's UUID (see "Applying Likes and Dislikes to Passages").
 
 **LD-DESC-040:** To allow for more nuanced control using only these two buttons, their behavior is modified by time and context:
 
@@ -40,7 +42,7 @@ The user interface for registering Likes and Dislikes provides both simple, imme
 
 **LD-LIKE-021:** These two lists can be used together to refine passage selection. For example, one possible algorithm is to use the "Most Disliked" list as an exclusion filter. Passages appearing at the top of the "Most Disliked" list can be removed from the "Most Liked" list to create a final candidate pool. This process helps ensure the selection of a well-liked, yet potentially unexpected, passage.
 
-**Note:** The final algorithm for how the "Like-Taste" and "Dislike-Taste" vectors influence the Program Director's passage selection is yet to be defined. This will be specified in the design document for the Program Director component.
+**Note:** The final algorithm for how the "Like-Taste" and "Dislike-Taste" vectors influence the Program Director's passage selection is yet to be defined. This will be specified in a future update to the [Program Director](program_director.md) specification.
 
 **LD-LIKE-030:** When a single Passage with a single associated Song is Liked, the resulting Like-Taste is equal to the Flavor of that Song.
 

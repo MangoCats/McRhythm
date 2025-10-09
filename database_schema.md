@@ -31,19 +31,28 @@ Tracks database schema version for migration management.
 
 ### `users`
 
-Stores user account information.
+Stores user account information for both Anonymous and registered users.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | guid | TEXT | PRIMARY KEY | Unique user identifier (UUID) |
 | username | TEXT | NOT NULL UNIQUE | User's chosen username |
-| password_hash | TEXT | NOT NULL | Salted hash of the user's password for authentication |
-| password_salt | TEXT | NOT NULL | The random salt used for hashing the password |
+| password_hash | TEXT | NOT NULL | Salted hash of the user's password for authentication (empty string for Anonymous) |
+| password_salt | TEXT | NOT NULL | The random salt used for hashing the password (empty string for Anonymous) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
+**Pre-populated Records:**
+- The database includes one pre-created record for the Anonymous user:
+  - `guid`: `00000000-0000-0000-0000-000000000001` (or another fixed UUID)
+  - `username`: `Anonymous`
+  - `password_hash`: `''` (empty string - no password)
+  - `password_salt`: `''` (empty string - no salt needed)
+
 **Notes:**
-- See [User Identity and Authentication](user_identity.md) for details on password hashing and account management.
+- All users (anonymous and registered) must have a record in this table
+- See [User Identity and Authentication](user_identity.md) for password hashing and account management
+- The Anonymous user record is created during database initialization and cannot be deleted
 
 ## Core Entities
 
@@ -114,7 +123,8 @@ Audio passages (playable segments) extracted from files.
 - Used for display before MusicBrainz lookup completes or when lookup fails
 - Source of truth is `passage_songs` and `passage_albums` relationships
 - These fields may become stale if MusicBrainz data is updated
-- `user_title` always takes precedence over `title` when set
+- `user_title` always takes precedence over `title` when set for display purposes
+- Both `user_title` and `title` are subject to the "only when different" display logic (see [UI Specification](ui_specification.md#passage-title-display))
 
 ### `songs`
 
@@ -309,10 +319,15 @@ Associates passages with albums.
   - Multiple songs in a passage may come from different albums
   - Passage metadata needs album association before song identification completes
   - Compilation albums where passage spans tracks from different source albums
+- **Album art selection for multi-album passages**:
+  - UI displays artwork based on the currently playing song within the passage
+  - When playback position is between songs (in a gap), nearest song determines artwork
+  - If a song is associated with multiple albums, all albums' art rotates every 15 seconds
+  - See [UI Specification - Album Artwork Display](ui_specification.md#album-artwork-display) for complete display logic
 
 ### `song_works`
 
-Associates songs with the works they are recordings of.
+Associates songs with the works they are recordings of. Many-to-many relationship.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -326,6 +341,18 @@ Associates songs with the works they are recordings of.
 **Indexes:**
 - `idx_song_works_song` on `song_id`
 - `idx_song_works_work` on `work_id`
+
+**Notes:**
+- **Cardinality**: Song → Work is many-to-many (see [ENT-CARD-045](entity_definitions.md#ent-card-045))
+- **Common cases**:
+  - **One work per song**: Standard case for original compositions
+  - **Zero works**: Song has no entries in this table (improvisations, sound effects, non-musical passages)
+  - **Multiple works per song**: Mashups, medleys, or songs combining multiple source works
+- **Mashup example**: Artist creates new song combining two existing works
+  - Song associates with new mashup work (if created as a distinct work)
+  - Song also associates with both source works that were combined
+  - Total: 3 rows in `song_works` for this one song
+- **Work probability calculation**: When a song has multiple works, the work cooldown multiplier is the product of all associated works' cooldown multipliers (all must be out of cooldown for song to be selectable)
 
 ## Playback & History
 
@@ -398,9 +425,9 @@ GROUP BY s.guid;
 
 ### `likes_dislikes`
 
-**⚠️ PHASE 2 FEATURE** - Table structure defined but feature implementation deferred.
+**Phase 1 Feature** (Full and Lite versions only)
 
-User feedback on recordings.
+User feedback on songs, tracked per user identity.
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
@@ -420,9 +447,12 @@ User feedback on recordings.
 - `idx_likes_dislikes_timestamp` on `timestamp`
 
 **Notes:**
-- This table stores the outcome of the logic described in `like_dislike.md`. A single user action on a passage may result in multiple rows in this table, one for each affected recording.
-- The `user_id` is essential for building a persistent taste profile, as described in [User Identity and Authentication](user_identity.md).
-- The exact mechanism for how this data will be used by the Program Director to influence passage selection is TBD.
+- This table stores the outcome of the logic described in `like_dislike.md`. A single user action on a passage may result in multiple rows in this table, one for each affected song.
+- The `user_id` references the `users.guid` column, enabling per-user taste profiles
+- Anonymous users share the same `user_id`, resulting in a shared taste profile for all anonymous sessions
+- Registered users have individual taste profiles based on their unique `user_id`
+- See [Likes and Dislikes](like_dislike.md) for weight distribution algorithm
+- See [Musical Taste](musical_taste.md) for how likes/dislikes build taste profiles
 
 ### `queue`
 

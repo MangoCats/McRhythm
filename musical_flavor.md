@@ -112,6 +112,18 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 **MFL-EDGE-030:** #### Passages with zero recordings
 **MFL-EDGE-031:** When one or both passages contain zero recordings the flavor distance between the passages is reported as 1.0.
 
+**MFL-EDGE-032:** Passages with zero songs (zero recordings) cannot be used by the automatic selection algorithm:
+- Such passages have no flavor vector to compare against the target taste
+- They cannot be ranked by flavor distance
+- They are excluded from automatic selection entirely
+- Users may still manually enqueue zero-song passages at any time
+
+**MFL-EDGE-033:** If a library contains only passages with zero songs:
+- Automatic selection cannot operate (no valid candidates)
+- The [Program Director](program_director.md) will not be able to automatically enqueue any passages
+- Users must manually enqueue passages to populate the queue
+- The queue may become empty if all passages finish playing and no new passages are manually enqueued
+
 ### More than one Recording per Passage Calculation
 **MFL-MULT-010:** When a passage contains more than one recording, its net flavor is calculated as a weighted centroid of the flavors of its constituent recordings. This process is identical to the "Weighted Taste" calculation described in `musical_taste.md`, ensuring that flavor combination is handled consistently throughout the system.
 
@@ -125,7 +137,7 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 - Unrecognized audio: 350 seconds
 - Recording C: runtime 304 seconds
 
-**MFL-MULT-031:** The total runtime of characterized audio is 287 + 372 + 304 = 963 seconds. The weights for the weighted average are:
+**MFL-MULT-031:** The total runtime of characterized audio is 287 + 372 + 304 = 963 seconds. The weights for the weighted centroid are:
 - Recording A: 287 / 963 = 0.298
 - Recording B: 372 / 963 = 0.386
 - Recording C: 304 / 963 = 0.316

@@ -60,7 +60,10 @@ erDiagram
 - **[ENT-CARD-020]** Recording → Work: Many-to-zero-or-one (a recording may or may not represent a work; multiple recordings can represent the same work)
 - **[ENT-CARD-030]** Recording → Artist: Many-to-many (recordings can have multiple artists; artists perform multiple recordings)
 - **[ENT-CARD-040]** Song → Recording: One-to-one (each song contains exactly one recording)
-- **[ENT-CARD-045]** Song → Work: Many-to-zero-or-one (a song may or may not represent a work; multiple songs can represent the same work)
+- **[ENT-CARD-045]** Song → Work: Many-to-many (a song may represent zero, one, or multiple works; multiple songs can represent the same work)
+  - **Common case**: One work per song (original composition)
+  - **Zero works**: Improvisations, sound effects, non-musical passages
+  - **Multiple works**: Mashups, medleys, or songs that combine multiple source works into a new work
 - **[ENT-CARD-050]** Song → Artist: One-to-many (each song has one or more artists, each with a weight)
 - **[ENT-CARD-060]** Passage → Song: Many-to-many (passages can contain multiple songs; songs appear in multiple passages)
 - **[ENT-CARD-070]** Passage → Audio File: Many-to-one (multiple passages can be defined within one audio file)
@@ -68,7 +71,7 @@ erDiagram
 ## McRhythm-Specific Constraints
 
 - **[ENT-CONST-010]** Passage with zero songs: Allowed, but excluded from automatic selection (can only be manually queued)
-- **[ENT-CONST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted average of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage.
+- **[ENT-CONST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted centroid of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage.
 - **[ENT-CONST-030]** Song identity: Defined by unique (Recording, Work, weighted Artist set) combination
   - Same recording of the same work performed by different artists (or the same artists with different weights) = different songs
   - Different recordings of same work by same artist = different songs

@@ -94,7 +94,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - This task is exclusive to the `full` version build.
 
 - **4.4. Passage Flavor Calculation (1 Week):**
-  - Implement the logic to calculate the net flavor for a passage based on the weighted average of its constituent recordings, as specified in `musical_flavor.md`.
+  - Implement the logic to calculate the net flavor for a passage based on the weighted centroid of its constituent recordings, as specified in `musical_flavor.md`.
   - Store the calculated `musical_flavor_vector` in the `passages` table.
 
 ## Phase 5: Musical Flavor Selection System (6 Weeks)

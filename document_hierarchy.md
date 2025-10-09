@@ -35,6 +35,11 @@ flowchart TD
         LIB["library_management.md<br/><br/>Defines file scanning<br/>and metadata workflows"]
         XFD["crossfade.md<br/><br/>Defines crossfade<br/>timing & behavior"]
         FLV["musical_flavor.md<br/><br/>Defines musical flavor<br/>system and distance<br/>calculations"]
+        TASTE["musical_taste.md<br/><br/>Defines taste calculation<br/>from likes/dislikes"]
+        PD["program_director.md<br/><br/>Defines automatic passage<br/>selection algorithm"]
+        LD["like_dislike.md<br/><br/>Defines like/dislike<br/>functionality"]
+        UI["ui_specification.md<br/><br/>Defines Web UI design,<br/>layout, and behavior"]
+        AUTH["user_identity.md<br/><br/>Defines user identity<br/>and authentication"]
         EVT["event_system.md<br/><br/>Defines event-driven<br/>communication architecture"]
         MUC["multi_user_coordination.md<br/><br/>Defines multi-user<br/>coordination mechanisms"]
     end
@@ -44,6 +49,7 @@ flowchart TD
     subgraph T3["TIER 3: IMPLEMENTATION SPECS"]
         DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
         CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
+        SEG["audio_file_segmentation.md<br/><br/>Defines audio file<br/>segmentation workflow"]
     end
 
     subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
@@ -55,13 +61,13 @@ flowchart TD
     end
 
     DH -->|governs| REQ & ENT
-    REQ & ENT -->|informs| ARCH & API & LIB & XFD & FLV & EVT & MUC
+    REQ & ENT -->|informs| ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC
     T2_SPACER ~~~ T3
     T2_SPACER ~~~ CC
-    ARCH & API & LIB & XFD & FLV & EVT & MUC -->|informs| DB & CODE
-    DB & CODE -->|informs| IMPL
+    ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC -->|informs| DB & CODE & SEG
+    DB & CODE & SEG -->|informs| IMPL
 
-    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & EVT & MUC & DB & CODE & IMPL
+    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC & DB & CODE & SEG & IMPL
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
@@ -78,11 +84,17 @@ flowchart TD
     style LIB fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style XFD fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style FLV fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style TASTE fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style PD fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style LD fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style UI fill:#e1bee7,stroke:#4a148c,stroke-width:2px
+    style AUTH fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style EVT fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style MUC fill:#e1bee7,stroke:#4a148c,stroke-width:2px
     style ENUM fill:#fff59d,stroke:#f57f17,stroke-width:2px
     style DB fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style CODE fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    style SEG fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style IMPL fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
 
     classDef invisible fill:none,stroke:none
@@ -264,6 +276,97 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Algorithm designer, technical lead
 
+#### musical_taste.md
+**Purpose:** Defines musical taste calculation from likes and dislikes
+
+**Contains:**
+- Simple taste calculation (centroid of flavors)
+- Weighted taste calculation
+- Time-based taste weighting (time of day, day of week, day of year, lunar phase)
+- Taste as selection target
+
+**Update Policy:**
+- ✅ Update to satisfy taste-based selection requirements from requirements.md
+- ✅ Update when taste algorithms are refined
+- ✅ May propose requirement changes if taste behavior needs adjustment
+- ❌ Must remain consistent with requirements.md and musical_flavor.md
+
+**Maintained By:** Algorithm designer, technical lead
+
+#### program_director.md
+**Purpose:** Defines automatic passage selection algorithm (the "Program Director")
+
+**Contains:**
+- Selection request processing and target time calculation
+- Musical flavor target determination (timeslot-based and temporary overrides)
+- Five-stage selection algorithm (filtering, distance calculation, ranking, candidate selection, weighted random)
+- Cooldown system (minimum and ramping periods for songs, artists, works)
+- Base probability calculations
+- User-configurable parameters
+- Integration with musical taste (future)
+
+**Update Policy:**
+- ✅ Update to satisfy automatic selection requirements from requirements.md
+- ✅ Update when selection algorithm is refined
+- ✅ May propose requirement changes if selection behavior needs adjustment
+- ❌ Must remain consistent with requirements.md, musical_flavor.md, and musical_taste.md
+
+**Maintained By:** Algorithm designer, technical lead
+
+#### like_dislike.md
+**Purpose:** Defines like and dislike functionality and data collection
+
+**Contains:**
+- Like/Dislike user interactions (Full Like/Dislike, Lite Like/Dislike)
+- Data storage per user UUID
+- Integration with musical taste calculation
+- UI controls and behaviors
+
+**Update Policy:**
+- ✅ Update to satisfy user feedback requirements from requirements.md
+- ✅ Update when like/dislike mechanisms evolve
+- ✅ May propose requirement changes if user interaction needs adjustment
+- ❌ Must remain consistent with requirements.md and musical_taste.md
+
+**Maintained By:** UX designer, technical lead
+
+#### ui_specification.md
+**Purpose:** Defines Web UI design, layout, and behavior
+
+**Contains:**
+- Authentication flow UI
+- Playback controls and queue management
+- Now Playing information display (passage title, song info, album artwork)
+- Network status indicators
+- Responsive design and accessibility
+- Multi-user coordination UI considerations
+
+**Update Policy:**
+- ✅ Update to satisfy UI/UX requirements from requirements.md
+- ✅ Update when UI design evolves
+- ✅ May propose requirement changes if user experience needs adjustment
+- ❌ Must remain consistent with requirements.md and api_design.md
+
+**Maintained By:** UX designer, frontend lead, technical lead
+
+#### user_identity.md
+**Purpose:** Defines user identity, authentication, and account management
+
+**Contains:**
+- Three authentication modes (Anonymous, Create Account, Login)
+- Browser-based UUID persistence (one-year rolling expiration)
+- User account creation and login workflows
+- Anonymous user handling
+- Multi-user session coordination
+
+**Update Policy:**
+- ✅ Update to satisfy authentication requirements from requirements.md
+- ✅ Update when authentication mechanisms evolve
+- ✅ May propose requirement changes if security/UX needs adjustment
+- ❌ Must remain consistent with requirements.md and api_design.md
+
+**Maintained By:** Security lead, backend lead, technical lead
+
 #### event_system.md
 **Purpose:** Defines event-driven communication architecture
 
@@ -339,6 +442,24 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Technical lead, development team
 
+#### audio_file_segmentation.md
+**Purpose:** Defines workflow for segmenting a single audio file into multiple passages
+
+**Contains:**
+- Passage boundary detection and definition
+- User interface for defining passage start/end points
+- Timing point configuration per passage
+- Multi-passage file handling workflow
+- Validation and constraints
+
+**Update Policy:**
+- ✅ Update to support library_management.md and requirements.md
+- ✅ Update when segmentation workflow needs refinement
+- ✅ May inform design document updates if workflow reveals design issues
+- ❌ Workflow is derived FROM requirements/design, not vice versa
+
+**Maintained By:** Library subsystem lead, UX designer, technical lead
+
 ---
 
 ### Tier 4: Execution Plan
@@ -401,9 +522,11 @@ All other documents (Tiers 1-4, Cross-cutting)
 ```
 requirements.md + entity_definitions.md (Tier 1)
     ↓ Design satisfies requirements and uses terminology
-architecture.md, crossfade.md, musical_flavor.md, event_system.md (Tier 2)
+architecture.md, api_design.md, library_management.md, crossfade.md,
+musical_flavor.md, musical_taste.md, program_director.md, like_dislike.md,
+ui_specification.md, user_identity.md, event_system.md, multi_user_coordination.md (Tier 2)
     ↓ Implementation specs support design
-database_schema.md, coding_conventions.md (Tier 3)
+database_schema.md, coding_conventions.md, audio_file_segmentation.md (Tier 3)
     ↓ Execution plan aggregates all specs
 implementation_order.md (Tier 4)
 ```
@@ -414,9 +537,11 @@ implementation_order.md (Tier 4)
 ```
 implementation_order.md (Tier 4)
     ↑ Discovers gap/issue
-database_schema.md, coding_conventions.md (Tier 3)
+database_schema.md, coding_conventions.md, audio_file_segmentation.md (Tier 3)
     ↑ May reveal design issue
-architecture.md, crossfade.md, musical_flavor.md, event_system.md (Tier 2)
+architecture.md, api_design.md, library_management.md, crossfade.md,
+musical_flavor.md, musical_taste.md, program_director.md, like_dislike.md,
+ui_specification.md, user_identity.md, event_system.md, multi_user_coordination.md (Tier 2)
     ↑ May reveal requirement or terminology gap (via change control)
 requirements.md + entity_definitions.md (Tier 1)
     ↑ Does NOT affect (governance is separate)
@@ -548,9 +673,16 @@ Cascade: Update implementation_order.md with optimization task
 | library_management.md | 2 | Library workflow changes | Tier 3, 4 | Library subsystem lead |
 | crossfade.md | 2 | Audio design changes | Tier 3, 4 | Audio engineer |
 | musical_flavor.md | 2 | Flavor algorithm changes | Tier 3, 4 | Algorithm designer |
+| musical_taste.md | 2 | Taste algorithm changes | Tier 3, 4 | Algorithm designer |
+| program_director.md | 2 | Selection algorithm changes | Tier 3, 4 | Algorithm designer |
+| like_dislike.md | 2 | Like/Dislike UX changes | Tier 3, 4 | UX designer |
+| ui_specification.md | 2 | UI design changes | Tier 3, 4 | UX designer, frontend lead |
+| user_identity.md | 2 | Authentication design changes | Tier 3, 4 | Security lead, backend lead |
 | event_system.md | 2 | Communication design changes | Tier 3, 4 | Architect |
+| multi_user_coordination.md | 2 | Multi-user edge case changes | Tier 3, 4 | Architect |
 | database_schema.md | 3 | Data model changes | Tier 4 | DB engineer |
 | coding_conventions.md | 3 | Standards evolve | Tier 4 | Tech lead |
+| audio_file_segmentation.md | 3 | Segmentation workflow changes | Tier 4 | Library subsystem lead, UX designer |
 | implementation_order.md | 4 | Any upstream change | None (downstream only) | Project manager |
 | requirements_enumeration.md | Cross-cutting | ID scheme changes | ID format in all docs | Doc lead |
 
@@ -564,11 +696,12 @@ Cascade: Update implementation_order.md with optimization task
 ### I found a gap/issue in implementation_order.md
 → Update implementation_order.md directly (it's downstream)
 
-### I found a gap/issue in database_schema.md or coding_conventions.md
+### I found a gap/issue in database_schema.md, coding_conventions.md, or audio_file_segmentation.md
 → Can I fix it without changing design? Yes → Update directly
 → Does it affect design? → Review with tech lead, may need Tier 2 update
 
-### I found a gap/issue in architecture.md, api_design.md, library_management.md, crossfade.md, musical_flavor.md, or event_system.md
+### I found a gap/issue in any Tier 2 design document
+(architecture.md, api_design.md, library_management.md, crossfade.md, musical_flavor.md, musical_taste.md, program_director.md, like_dislike.md, ui_specification.md, user_identity.md, event_system.md, multi_user_coordination.md)
 → Can I fix it without changing requirements? Yes → Update with review
 → Does it affect requirements? → Must go through requirements change control
 
@@ -582,9 +715,13 @@ Cascade: Update implementation_order.md with optimization task
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-05
+**Document Version:** 1.1
+**Last Updated:** 2025-10-08
 **Maintained By:** Technical Lead
+
+**Change Log:**
+- v1.1 (2025-10-08): Added missing documents: musical_taste.md, program_director.md, like_dislike.md, ui_specification.md, user_identity.md, audio_file_segmentation.md
+- v1.0 (2025-10-05): Initial version
 
 For questions about document hierarchy or update procedures, consult the technical lead or refer to this specification.
 

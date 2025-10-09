@@ -8,7 +8,7 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 
 > See [Document Hierarchy](document_hierarchy.md) for complete update policies and change control process.
 
-> **Related Documentation:** [Architecture](architecture.md) | [API Design](api_design.md) | [Library Management](library_management.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Event System](event_system.md) | [Requirements Enumeration](requirements_enumeration.md)
+> **Related Documentation:** [Architecture](architecture.md) | [API Design](api_design.md) | [UI Specification](ui_specification.md) | [Library Management](library_management.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Program Director](program_director.md) | [Event System](event_system.md) | [Requirements Enumeration](requirements_enumeration.md)
 
 ---
 
@@ -23,21 +23,32 @@ McRhythm is a music player that selects passages to play based on user preferenc
   - identification of the song(s) contained in the passage (see Definitions for definition of song in this context)
   - identification of other relationships that may influence selection of passages for enqueueing
 - Cross references passages to the AcousticBrainz database when possible, identifying musical character of each passage
-  - In absence of AcousticBrainz data will use AcousticBrainz algorithms (Essentia) locally to generate musical flavor values for the passage (Full version only)
+  - **Note:** AcousticBrainz project is discontinued but the website and API remain available with static data
+  - Cached AcousticBrainz data never expires (no new data being added to AcousticBrainz)
+  - In absence of AcousticBrainz data, uses AcousticBrainz algorithms (Essentia) locally to generate musical flavor values for the passage (Full version only)
+
+**AcousticBrainz Status (as of 2024):**
+- The AcousticBrainz project ceased accepting new submissions in 2022
+- The existing database and API remain online in read-only mode
+- Contains musical analysis data for millions of recordings submitted before discontinuation
+- McRhythm uses AcousticBrainz data when available, falls back to local Essentia analysis when not
+
+> **See [Library Management - AcousticBrainz Integration](library_management.md#acousticbrainz-integration) for cache expiration policy and fallback behavior.**
 - Local copies of all relevant subsets of database information enabling offline operation
 - Web-based UI
   - Primary mode of operation is automatic, without user intervention
-    - Auto-start on boot (of Linux / Windows / OS-X systems)
-      - systemd service on Linux
-      - Task scheduler launched service on Windows
-      - launchd on OS-X (Phase 2)
+    - Auto-start on boot
+      - systemd service on Linux (Phase 1)
+      - Task scheduler launched service on Windows (Phase 1)
+      - launchd on macOS (Phase 2)
     - Auto-selection of passages to play
       - Automatically select passages until at least three passages are either currently playing, paused
         or waiting in the queue and  at least 15 minutes of total passage playing time is remaining 
         in the queue.
-      - Enter "Pause" mode (same behavior as if the user clicked on the Pause control) when no passages
-        with associated songs are available to enqueue, because the library lacks passages with songs
-        which are not currently in 0 probability cooldown.
+      - Stop automatic enqueueing when no passages with associated songs are available to enqueue,
+        because the library lacks passages with songs which are not currently in 0 probability cooldown.
+      - When automatic enqueueing is unable to add passages to the queue, the queue may eventually
+        become empty as passages finish playing.
   - Shows passage currently playing
     - Shows associated album art or other still image(s) associated with the passage when available
     - Shows passage lyrics when available
@@ -49,9 +60,13 @@ McRhythm is a music player that selects passages to play based on user preferenc
   - HDMI
   - Bluetooth
 - Multiple users may interact with the WebUI
-  - Real-time ui updates via Server Sent Events keep all users views in sync
-  - Single passage queue for all users
-  - Edge case definitions: See [Multi-User Coordination](multi_user_coordination.md) for details on handling concurrent user actions.
+  - Each user has a persistent identity (UUID) established through authentication or anonymous access
+  - Real-time UI updates via Server Sent Events keep all users' views in sync
+  - Single shared passage queue for all users
+  - User-specific data (likes, dislikes, taste profiles) tracked per user UUID
+  - Concurrent user actions handled via specific strategies: skip throttling, idempotent queue removal, "last write wins" for lyrics
+
+> **See [Multi-User Coordination](multi_user_coordination.md) for complete specifications on handling concurrent user actions.**
 - Passages play continuously (when not paused by user)
     
 ## Additional Features
@@ -65,7 +80,7 @@ Planned for later development:  (Phase 2)
 When not otherwise specified, requirements apply to all versions
 
 ### Full Version
-**Target Platforms:** Linux desktop, Windows, macOS
+**Target Platforms:** Linux desktop, Windows, macOS (Phase 2)
 
 **Features:**
 - Player and Program Director (passage selector)
@@ -81,10 +96,12 @@ When not otherwise specified, requirements apply to all versions
 - CPU: Higher (Essentia analysis during import)
 - Disk I/O: Higher (file scanning)
 - Memory: ~512MB typical
-- Network: Required for initial setup, optional for ongoing use
+- Network: Two distinct network access types:
+  - **Internet access**: Required for initial library setup (MusicBrainz, AcousticBrainz, etc.), optional for ongoing playback
+  - **Local network access**: Required for remote WebUI access, not required for localhost or automatic playback
 
 ### Lite Version
-**Target Platforms:** Raspberry Pi Zero2W, Linux desktop, Windows, macOS
+**Target Platforms:** Raspberry Pi Zero2W, Linux desktop, Windows, macOS (Phase 2)
 
 **Features:**
 - Player and Program Director (passage selector)
@@ -99,7 +116,9 @@ When not otherwise specified, requirements apply to all versions
 - CPU: Moderate (playback + selection only)
 - Disk I/O: Low (no scanning, read-only database)
 - Memory: ~256MB typical
-- Network: Optional (for ListenBrainz sync)
+- Network:
+  - Internet: Optional (Phase 2: ListenBrainz sync only)
+  - Local network: Required for remote WebUI access, not required for localhost
 
 ### Minimal Version (Phase 2)
 **Target Platforms:** Raspberry Pi Zero2W, embedded systems, resource-constrained devices
@@ -118,7 +137,9 @@ When not otherwise specified, requirements apply to all versions
 - CPU: Minimal (playback + basic selection)
 - Disk I/O: Minimal (read-only database)
 - Memory: <256MB typical
-- Network: None required
+- Network:
+  - Internet: None required
+  - Local network: Required for remote WebUI access, not required for localhost or automatic playback
 
 ### Build Strategy
 
@@ -132,9 +153,9 @@ See [Implementation Order - Version Builds](implementation_order.md#27-version-b
 ## Technical Requirements
 - Target platforms:
   - Primary target: Raspberry Pi Zero2W (Lite and Minimal versions)
-  - Generic Linux
-  - Windows
-  - MacOS (Phase 2)
+  - Generic Linux (Phase 1)
+  - Windows (Phase 1)
+  - macOS (Phase 2)
   - Later targets (will use different technical stack, e.g. Flutter instead of Tauri)
     - Android (Lite and Minimal versions) (Phase 2)
     - iOS (Lite and Minimal versions) (Phase 2)
@@ -198,9 +219,31 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 **Requirement:** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 
 **Requirement:** WebUI provides interface to input/edit lyrics associated with a passage (Full version only)
+- Concurrent lyric editing uses "last write wins" strategy (no conflict resolution)
+- Multiple users may edit lyrics simultaneously; last submitted text persists
+
+> **See [Multi-User Coordination - Concurrent Lyric Editing](multi_user_coordination.md#3-concurrent-lyric-editing) for concurrent editing behavior.**
 
 > **See [Library Management](library_management.md) for file scanning workflows, metadata extraction details, and MusicBrainz integration process.**
 > **See [Crossfade Design](crossfade.md#default-configuration) for default passage timing point values.**
+
+### Library Edge Cases
+
+**Requirement:** Zero-song passage library handling
+- When library contains only passages with zero songs:
+  - Automatic passage selection cannot operate (no valid candidates)
+  - Users may still manually enqueue passages
+  - Queue may become empty when all manually enqueued passages finish
+  - System remains in user-selected Play/Pause state when queue is empty
+  - No automatic state changes occur
+
+**Requirement:** Empty library handling
+- When library contains no passages at all:
+  - Automatic passage selection cannot operate
+  - Manual enqueueing is not possible (no passages to select)
+  - Queue is empty
+  - System remains in user-selected Play/Pause state
+  - UI should indicate library is empty and prompt user to import music (Full version) or load database (Lite/Minimal versions)
 
 ## Playback behaviors
 
@@ -219,6 +262,10 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Cooldown periods preventing too-frequent replay of songs, artists, and works
 - User-configured base probabilities for songs, artists, and works
 - A passage must contain one or more songs to be considered for automatic selection
+- Passages with zero songs can only be manually enqueued by users
+- If library contains only zero-song passages, automatic selection cannot operate (manual enqueueing still works)
+
+> **See [Program Director](program_director.md) for complete selection algorithm specification.**
 
 **Requirement:** Cooldown System
 - Each song, artist, and work has configurable minimum and ramping cooldown periods. Default values are:
@@ -237,8 +284,7 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
   - For passages with multiple songs, the song probability is a weighted average of the individual song probabilities, based on the duration of each song within the passage. This is consistent with the musical flavor calculation described in [ENT-CONST-020](entity_definitions.md#ent-const-020-passage-with-multiple-songs).
   - When a song has multiple artists, each artist is assigned a weight, with the sum of all artist weights for that song equaling 1.0. The `artist probability` for the song is the sum of each associated artist's base probability multiplied by their respective weight.
 
-> **See [Musical Flavor](musical_flavor.md#usage-of-musical-flavor) for selection algorithm details.**
-> **See [Architecture](architecture.md#2-program-director) for default cooldown values and probability calculation.**
+> **See [Program Director](program_director.md) for selection algorithm, cooldown system, and probability calculation details.**
 
 **Requirement:** Base Probability User Interface
 - Valid range: 0.0 to 1000.0, presented as logarithmic scale slider with option for numeric input
@@ -250,6 +296,24 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 ### Simple Queue Management
 - Add passages to queue (append)
 - Automatically advance to next passage on completion
+
+### Queue Empty Behavior
+
+**Requirement:** When the queue becomes empty (no passages waiting to play):
+- Audio playback stops naturally (no audio output)
+- Play/Pause mode does NOT change automatically
+- System remains in whatever Play/Pause state the user last set
+- User maintains full control of Play/Pause mode via API regardless of queue state
+
+**Requirement:** When a passage is enqueued while queue is empty:
+- If system is in Play mode: Begin playing the newly enqueued passage immediately
+- If system is in Pause mode: Passage enters queue but does not play until user selects Play mode
+
+**Requirement:** Automatic selection only enqueues passages containing one or more songs
+- Passages with zero songs cannot be automatically selected
+- If library contains only passages with zero songs, automatic selection cannot operate
+- Users may manually enqueue any passage (including zero-song passages) at any time
+- Manual enqueueing works regardless of whether automatic selection can operate
 
 ### Play History
 - Record in SQLite for each play:
@@ -282,18 +346,115 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - **Skip**: Move to next passage in queue
 - **Volume**: Set 0-100% volume level
 - **Seek**: Jump to specific position in current passage
-- **Like**: Record a like associated with the passage at the time like was indicated by the user  (Full and Lite versions only)
+- **Like**: Record a like associated with the passage at the time like was indicated by the user (Full and Lite versions only)
+  - Like is recorded against the user's UUID
+  - Used to build user-specific taste profile
 - **Dislike**: Record a dislike associated with the passage at the time dislike was indicated by the user (Full and Lite versions only)
+  - Dislike is recorded against the user's UUID
+  - Used to refine user-specific taste profile
 - **Remove**: Remove a passage from the queue
 - **Select**: Select a passage to enqueue
 - **Import**: Rescan designated music folders for new / changed music files, add them to the local database (Full version only)
 - **Output**: Select audio sink.  Default choice is PulseAudio (or the most common sink for the OS/environment), user may override and select other sinks and either let the OS control or manually specify output device.
 
+### Network Status Indicators
+
+**Requirement:** Internet connection status visibility (Full version only)
+- Display internet connection status in library management / import UI
+- Status states:
+  - **Connected**: Internet accessible, all features available
+  - **Retrying (N/20)**: Connection attempt N of 20 in progress
+  - **Connection Failed**: 20 retries exhausted, user action required
+- Status indicator should be small but clearly visible
+- Does not obstruct primary UI elements
+
+**Requirement:** Connection retry controls
+- "Retry Connection" button visible when status is "Connection Failed"
+- Clicking retry button resets counter and attempts 20 new connection attempts
+- Any UI control requiring internet automatically triggers reconnection attempt
+
+**Requirement:** Feature availability feedback
+- When user attempts internet-dependent action while disconnected:
+  - Display clear notification explaining internet requirement
+  - Offer "Retry Connection" option
+  - List which features are unavailable without internet:
+    - Import new music files
+    - Fetch MusicBrainz metadata
+    - Retrieve AcousticBrainz flavor data
+    - Download cover art
+    - (Phase 2) ListenBrainz synchronization
+
+**Note:** Lite and Minimal versions do not require internet access and do not display internet status indicators.
+
+### Playback State
+
+**Requirement:** System has exactly two playback states:
+- **Playing**: Audio plays when passages are available in queue
+  - If queue has passages: Plays audio
+  - If queue is empty: Silent, but plays immediately when passage enqueued
+- **Paused**: User has paused playback
+  - Audio paused at current position (if passage is playing)
+  - Newly enqueued passages wait until user selects Play
+
+**Requirement:** No "stopped" state
+- Traditional media player "stopped" state does not exist
+- System is always either Playing or Paused
+
+**Requirement:** Initial state on app launch
+- System always starts in Playing state
+- If queue has passages, playback begins immediately
+- If queue is empty, system waits in Playing state (ready to play when passage enqueued)
+
+**Requirement:** State persistence
+- Playback state is NOT persisted across app restarts
+- Always resumes to Playing state on launch
+- Queue contents and position ARE persisted (see State Persistence section)
+
+### Authentication and User Identity
+
+**Requirement:** System supports multiple concurrent users with persistent identities
+
+**Requirement:** Three authentication modes:
+- **Anonymous Mode**: Users access shared "Anonymous" account (username: "Anonymous", no password)
+  - Suitable for casual use or public installations
+  - All anonymous users share the same UUID
+  - Anonymous user data (likes/dislikes) is shared across all anonymous sessions
+
+- **Account Creation**: Users create personal account with unique username and password
+  - Username must be unique, 1-63 UTF-8 characters, no invisible characters
+  - Password must be 1-63 UTF-8 characters, no invisible characters
+  - System generates unique UUID for the user
+  - Password stored as salted hash (salt + UUID + password)
+
+- **Account Login**: Users authenticate with existing username and password
+  - Successful login provides user UUID to client
+
+**Requirement:** Client-side session persistence
+- Browser stores user UUID in localStorage
+- Session expires after one year of inactivity
+- Expiration resets to one year on each successful connection
+- User automatically recognized on subsequent visits without re-authentication
+
+**Requirement:** Concurrent sessions allowed
+- Single user UUID may be authenticated from multiple browsers/devices simultaneously
+- All sessions for all users receive same real-time event stream
+
+> **See [User Identity and Authentication](user_identity.md) for complete authentication flow, password hashing, and account management specifications.**
+
 ### Web UI
-- WebUI provided on HTTP port 5720 with no authentication
+- WebUI provided on HTTP port 5720
+- Authentication system allows users to:
+  - Proceed as the shared "Anonymous" user (no password required)
+  - Create a personal account with username and password
+  - Login to an existing account
+- Authenticated browser sessions persist user UUID for up to one year
+- Session automatically renews on each connection
 
 **Status Display:**
 - Passage Title (only when different from current song title and album title)
+  - User-defined passage title (user_title) takes precedence over tag-based title when set
+  - The "only when different" logic applies to whichever title is being used (user_title or tag title)
+  - Passage title is shown in addition to song title and album title, not as a replacement
   - When passage contains one song: Display that song's information
   - When passage contains multiple songs: Display the song currently playing based on playback position within the passage
   - When passage contains zero songs: Display passage information only
@@ -316,19 +477,18 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - Playback state: Playing/Paused
 - Progress bar: Current position / Total duration
 - Artwork: 2 images when available
-  - Available image priority list:
-    - Song specific image(s)
-    - Passage specific image(s)
-    - Album Front image
-    - Album Rear image
-    - Album liner image(s)
-    - Artist specific image(s)
-    - Work specific image(s)
-    - McRhythm Logo image (always available, only displayed when no other artwork is available)
-  - Highest priority available image displays to the left
-  - Lower priority image(s) appear to the right
-    - When more than one lower priority image (not including McRhythm logo) is available, right side displayed image rotates every 15 seconds
-  - When only Logo or one image is available for display, that single image is displayed centered with blank space to the left and right.
+  - **Current song determination**: Artwork based on currently playing song within passage
+    - When playback position is within a song: Use that song's images
+    - When playback position is in a gap: Use nearest song (before or after) to determine images
+  - **Image priority** (for currently playing song):
+    - Song specific → Passage specific → Album Front → Album Rear → Album Liner → Artist → Work → Logo
+  - **Display layout**:
+    - Highest priority image on left
+    - Lower priority images on right, rotating every 15 seconds when multiple available
+  - **Multi-album songs**: Display all associated albums' art in rotation (15-second intervals)
+  - **Single image**: Centered with blank space left/right when only one image available
+
+> **See [UI Specification - Album Artwork Display](ui_specification.md#album-artwork-display) for complete artwork selection logic, rotation behavior, and gap handling.**
 
 > **See [Database Schema - images](database_schema.md#images) for image association storage.**
 
@@ -354,6 +514,7 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
   - Volume level
   - Queue contents
 - Store in SQLite settings table
+- Playback state always resumes to "Playing" on app launch (not persisted)
 
 ### Error Handling
 - Log errors to stdout/stderr with timestamps (this is one aspect of the developer interface)
@@ -363,9 +524,89 @@ Each passage is characterized to quantify its musical flavor.  Details of how mu
 - On database error: Attempt retry once, then log and continue
 
 ### Network Error Handling
-- When any network access fails, wait 5 seconds and retry.
-  - Retry up to a maximum of 20 consecutive failures.
-  - Notify user on UI of network problems
+
+McRhythm requires two distinct types of network access with different error handling:
+
+#### Internet Access (External APIs)
+
+**Used for:**
+- MusicBrainz metadata lookup during library import
+- AcousticBrainz musical flavor data retrieval
+- Cover art fetching
+- Future ListenBrainz integration (Phase 2)
+
+**Error Handling:**
+- When any internet access fails, wait 5 seconds and retry
+- Retry up to a maximum of 20 consecutive failures
+- After 20 failures, stop attempting until user triggers reconnection
+- Reconnection triggers:
+  - User clicks any UI control that requires internet (Import, metadata refresh, etc.)
+  - User explicitly clicks "Retry Connection" button
+  - Counter resets to 20 attempts on each user-triggered reconnection
+
+**User Interface Requirements:**
+- **Status indicator**: Small, clear indicator showing internet connection status
+  - States: "Connected", "Retrying (N/20)", "Connection Failed - Retry"
+  - Visible in library management / import UI (Full version only)
+- **Control feedback**: When user attempts internet-dependent action while disconnected:
+  - Show notification: "This feature requires internet connection. Please check your connection and retry."
+  - Provide "Retry Connection" button to restart connection attempts
+- **Degraded functionality**: System continues operating with cached/local data when internet unavailable
+
+**Playback Impact:**
+- **No impact on playback**: Music continues playing during internet outages
+- Playback uses only local database and audio files (no internet required)
+
+#### Local Network Access (WebUI Server)
+
+**Used for:**
+- Serving WebUI on `http://localhost:5720`
+- Server-Sent Events (SSE) for real-time UI updates
+- REST API endpoints for playback control
+
+**Error Handling:**
+- HTTP server binds to localhost:5720 on startup
+- If port binding fails: Log error and exit (critical failure)
+- Once running, server continues indefinitely
+
+**Access Requirements:**
+- **Localhost access**: Always available (no network required)
+- **Remote access**: Requires local network connectivity
+  - User responsible for network configuration (router, firewall, etc.)
+  - No internet required (local network only)
+
+**Playback Impact:**
+- **Automatic playback**: Works without any network access
+  - System auto-starts on boot
+  - Auto-selects and plays passages
+  - No WebUI access needed for basic operation
+- **Manual control**: Requires WebUI access (localhost or remote)
+
+### Offline Operation
+
+**Requirement:** System operates fully without internet access
+
+**Capabilities without internet:**
+- Play all passages in local library
+- Automatic passage selection and enqueueing
+- Crossfade between passages
+- WebUI access via localhost
+- Like/Dislike functionality (Full and Lite versions)
+- Queue management
+- All playback controls
+
+**Limitations without internet:**
+- Cannot import new music files (Full version)
+- Cannot fetch new MusicBrainz metadata (Full version)
+- Cannot retrieve AcousticBrainz flavor data (Full version)
+  - Falls back to local Essentia analysis (Full version only)
+- Cannot download cover art (Full version)
+- Cannot sync with ListenBrainz (Phase 2)
+
+**Internet reconnection:**
+- System continues using cached data during outages
+- User can trigger reconnection via UI controls
+- Automatic retry (20 attempts) when user requests internet-dependent features
 
 ----
 End of document - McRhythm Requirements

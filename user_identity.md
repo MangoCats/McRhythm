@@ -10,7 +10,20 @@ Defines user identity, authentication, and account management. See [Document Hie
 
 ## Overview
 
-This document specifies the design for user identity to support persistent, long-term musical taste profiles. While the system does not require authentication for core playback functionality, a persistent user identity is necessary for features like Likes/Dislikes. The design prioritizes ease of use while providing basic account management features.
+This document specifies the design for user identity to support persistent, long-term musical taste profiles and multi-user concurrent access.
+
+**Key Design Principles:**
+- **Universal Identity Requirement**: All users must have a UUID (either Anonymous or personal account)
+- **Flexible Authentication**: Users choose between no-password Anonymous access or personal accounts
+- **Persistent Sessions**: Browser-based session storage eliminates repeated login prompts
+- **Multi-User Support**: Multiple users (anonymous and authenticated) can use the system simultaneously
+- **Taste Profile Isolation**: Each user UUID has independent taste data (likes, dislikes, preferences)
+
+User identity is required for:
+- Recording likes and dislikes (Phase 1: Full and Lite versions)
+- Building user-specific musical taste profiles (Phase 1/2)
+- Tracking user-specific play history (Phase 2)
+- Future ListenBrainz integration (Phase 2)
 
 ## 1. User Identity
 
@@ -26,10 +39,14 @@ This document specifies the design for user identity to support persistent, long
 
 ## 2. Initial Connection Flow
 
-**[UID-FLOW-010]** When a user connects to the server without a stored UUID, the user interface shall present them with three choices:
-1.  **Proceed Anonymously**
-2.  **Create a new account**
-3.  **Login to an existing account**
+**[UID-FLOW-010]** When a user connects to the server without a stored UUID (first visit or after one-year expiration), the user interface shall present them with three choices:
+1.  **Proceed Anonymously** - Use shared Anonymous account, no password required
+2.  **Create a new account** - Register unique username/password, get personal UUID
+3.  **Login to an existing account** - Authenticate with existing credentials, retrieve UUID
+
+**[UID-FLOW-020]** Once authenticated by any method, the browser stores the UUID in localStorage with a rolling one-year expiration. Subsequent visits within the one-year window automatically use the stored UUID without prompting.
+
+**[UID-FLOW-030]** On each successful connection, the one-year expiration timer resets, ensuring active users maintain persistent sessions indefinitely.
 
 ## 3. User Types
 
@@ -40,6 +57,22 @@ This document specifies the design for user identity to support persistent, long
 - **Authentication:** No password is required to use the Anonymous account.
 
 **[UID-ANON-020]** When a user chooses to "Proceed Anonymously," the server shall provide the client with the static UUID for the Anonymous user. This UUID is then stored on the client as per the client-side storage rules.
+
+**[UID-ANON-030]** All users accessing the system as Anonymous share:
+- The same UUID
+- The same likes and dislikes data
+- The same taste profile
+- The same play history (if tracked)
+
+**[UID-ANON-040]** Anonymous mode is suitable for:
+- Casual users who don't want account management
+- Public installations where personal profiles are not needed
+- Initial system evaluation before creating an account
+
+**[UID-ANON-050]** Anonymous users may convert to registered users at any time. Upon conversion:
+- A new unique UUID is generated for the registered account
+- Previous Anonymous session data is NOT transferred to the new account
+- The user starts with a fresh taste profile
 
 ### 3.2. Registered User
 

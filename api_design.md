@@ -14,11 +14,18 @@ McRhythm exposes a REST API for playback control and status queries, plus a Serv
 
 **API Base:** `http://localhost:5720/api`
 
-**Authentication:** The system uses a token-based authentication system detailed in [User Identity and Authentication](user_identity.md). Some endpoints are public, while others require an authenticated user UUID.
+**Authentication:** All endpoints require a user UUID, obtained through one of three methods:
+1. Proceed as Anonymous user (shared UUID, no password)
+2. Create new account (generates unique UUID, requires username/password)
+3. Login to existing account (retrieves UUID, requires username/password)
+
+Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. Subsequent requests automatically include this UUID. See [User Identity and Authentication](user_identity.md) for complete authentication flow.
 
 **Content-Type:** `application/json` for all request/response bodies
 
-## User Management Endpoints
+## Authentication Endpoints
+
+These endpoints establish user identity and return a UUID for subsequent requests. All users must authenticate through one of these methods before accessing other endpoints.
 
 ### `POST /api/login`
 
@@ -89,7 +96,33 @@ Log out the current user. This would invalidate the client-side token/UUID.
 }
 ```
 
+### `GET /api/current-user`
+
+Retrieve information about the currently authenticated user.
+
+**Request:** Includes user UUID from localStorage
+
+**Response:**
+```json
+{
+  "user_id": "uuid",
+  "username": "string",
+  "is_anonymous": false
+}
+```
+
+**Response (Anonymous user):**
+```json
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "username": "Anonymous",
+  "is_anonymous": true
+}
+```
+
 ## REST API Endpoints
+
+**Note:** All endpoints below require a valid user UUID obtained through authentication. The UUID is automatically included from the browser's localStorage after initial authentication.
 
 ### Playback Control
 
@@ -100,7 +133,7 @@ Get current playback state.
 **Response:**
 ```json
 {
-  "state": "playing" | "paused" | "stopped",
+  "state": "playing" | "paused",
   "passage": {
     "id": "uuid",
     "title": "string",
@@ -113,6 +146,27 @@ Get current playback state.
   "queue_length": 3
 }
 ```
+
+**Response when queue is empty:**
+```json
+{
+  "state": "playing" | "paused",
+  "passage": null,
+  "position": 0.0,
+  "volume": 75,
+  "queue_length": 0
+}
+```
+
+**Notes:**
+- System has two states: "playing" or "paused" (no "stopped" state)
+- Initial state on app launch: "playing"
+- `state` reflects user-selected Play/Pause mode, independent of queue state
+- When queue is empty, `passage` is `null` but `state` remains as user set it
+- System in "playing" state with empty queue produces no audio output
+- Enqueueing a passage while in "playing" state begins playback immediately
+- Enqueueing a passage while in "paused" state queues it without starting playback
+- State persists across app restarts: always resumes to "playing" on launch
 
 #### `POST /api/play`
 
@@ -268,31 +322,43 @@ Remove passage from queue.
 
 Record a like for the currently playing passage.
 
-**Request:** Empty body
+**Request:** Empty body (user UUID automatically included from session)
 
 **Response:**
 ```json
 {
   "status": "ok",
   "passage_id": "uuid",
+  "user_id": "uuid",
   "timestamp": "2025-10-06T14:23:45Z"
 }
 ```
+
+**Notes:**
+- Like is recorded against the authenticated user's UUID
+- Anonymous users share likes (all recorded to same Anonymous UUID)
+- Used to build user-specific taste profile for passage selection
 
 #### `POST /api/dislike`
 
 Record a dislike for the currently playing passage.
 
-**Request:** Empty body
+**Request:** Empty body (user UUID automatically included from session)
 
 **Response:**
 ```json
 {
   "status": "ok",
   "passage_id": "uuid",
+  "user_id": "uuid",
   "timestamp": "2025-10-06T14:23:45Z"
 }
 ```
+
+**Notes:**
+- Dislike is recorded against the authenticated user's UUID
+- Anonymous users share dislikes (all recorded to same Anonymous UUID)
+- Used to build user-specific taste profile for passage selection
 
 ### Lyrics (Full version only)
 
@@ -465,6 +531,18 @@ All endpoints may return error responses:
 - `404 Not Found` - Resource not found
 - `500 Internal Server Error` - Server error
 - `503 Service Unavailable` - Feature not available in this version
+
+## Network Requirements
+
+**Local Network Access (WebUI Server):**
+- REST API and SSE endpoint require HTTP server running on `localhost:5720`
+- Accessible via localhost (no network) or local network (LAN required)
+- No internet connection required for API operation
+
+**Internet Access (External Data):**
+- Not required for any API endpoint
+- Library import/update operations may trigger internet requests internally
+- Internet failures do not affect API availability or playback control
 
 ## CORS Policy
 
