@@ -10,99 +10,75 @@ Defines HOW the system is structured. Derived from [requirements.md](requirement
 
 ## Overview
 
-McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
+McRhythm is a music player built on Rust, GStreamer, and SQLite that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
 
-## System Architecture
+McRhythm implements a **microservices architecture** with multiple independent processes communicating via HTTP APIs and Server-Sent Events (SSE). This enables simplified maintenance, version flexibility, and independent module updates.
 
-### Layered Architecture
+## Process Architecture
+
+McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfaces:
+
+- **Module 1: Audio Player** - Core playback engine with queue management
+- **Module 2: User Interface** - Polished web UI for end users
+- **Module 3: Program Director** - Automatic passage selection
+- **Module 4: File Ingest Interface** - New file import workflow (Full version only)
+
+**Design Benefits:**
+- **Simplifies maintenance**: Each module focuses on a single concern
+- **Enables version flexibility**: Run more/fewer processes for Full/Lite/Minimal versions
+- **Provides modularity**: Update one module without affecting others
+- **Supports independent operation**: Audio Player and Program Director work without UI
+
+### Process Communication Model
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                  Presentation Layer                        │
-│              (Tauri + Web UI)                              │
-│         HTML/CSS/JavaScript Frontend                       │
-│         Server-Sent Events for Real-time Updates           │
-└────────────────────────────────────────────────────────────┘
-                          ▼
-┌────────────────────────────────────────────────────────────┐
-│                    API Layer                               │
-│              REST Endpoints + SSE Endpoint                 │
-│    Request Validation & Command Queuing                    │
-└────────────────────────────────────────────────────────────┘
-                          ▼
-┌────────────────────────────────────────────────────────────┐
-│                Business Logic Layer                        │
-│  ┌────────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │Program Director│  │Queue Manager │  │ Playback Ctrl  │  │
-│  │ (Probability + │  │(Auto-fill +  │  │ (Crossfade +   │  │
-│  │  Flavor Match) │  │ Persistence) │  │  Transitions)  │  │
-│  └────────────────┘  └──────────────┘  └────────────────┘  │
-│  ┌────────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │   Historian    │  │Library Mgr   │  │ Flavor Mgr     │  │
-│  │ (Cooldowns +   │  │(Scan + Index)│  │ (Timeslots +   │  │
-│  │  Last Play)    │  │              │  │  Distance Calc)│  │
-│  └────────────────┘  └──────────────┘  └────────────────┘  │
-└────────────────────────────────────────────────────────────┘
-                          ▼
-┌────────────────────────────────────────────────────────────┐
-│                Audio Engine Layer                          │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │           GStreamer Pipeline Manager                │   │
-│  │  ┌──────────────┐            ┌──────────────┐       │   │
-│  │  │ Pipeline A   │            │  Pipeline B  │       │   │
-│  │  │ (Current)    │───────────▶│  (Next)      │       │   │
-│  │  └──────────────┘            └──────────────┘       │   │
-│  │           │                          │              │   │
-│  │           └──────────┬───────────────┘              │   │
-│  │                      ▼                              │   │
-│  │              ┌──────────────┐                       │   │
-│  │              │ Audio Mixer  │                       │   │
-│  │              │ (Crossfade)  │                       │   │
-│  │              └──────────────┘                       │   │
-│  │                      ▼                              │   │
-│  │              ┌──────────────┐                       │   │
-│  │              │Volume Control│                       │   │
-│  │              │(Fade Profiles│                       │   │
-│  │              │ + User Vol)  │                       │   │
-│  │              └──────────────┘                       │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                      ▼                                     │
-│              OS Audio Output                               │
-│         (ALSA/PulseAudio/CoreAudio/WASAPI)                 │
-└────────────────────────────────────────────────────────────┘
-                          ▼
-┌────────────────────────────────────────────────────────────┐
-│              Library Management Layer                      │
-│  ┌────────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │  File Scanner  │  │   Metadata   │  │  Fingerprint   │  │
-│  │  (Recursive +  │  │   Extractor  │  │   Generator    │  │
-│  │Change Detect)  │  │  (ID3/Tags)  │  │ (Chromaprint)  │  │
-│  └────────────────┘  └──────────────┘  └────────────────┘  │
-└────────────────────────────────────────────────────────────┘
-                          ▼
-┌────────────────────────────────────────────────────────────┐
-│           External Integration Layer                       │
-│  ┌────────────────┐  ┌──────────────┐  ┌────────────────┐  │
-│  │  MusicBrainz   │  │AcousticBrainz│  │ ListenBrainz   │  │
-│  │    Client      │  │   Client +   │  │    Client      │  │
-│  │  (Track/Artist │  │   Essentia   │  │  (Plays/Likes) │  │
-│  │  Identification│  │(Local Flavor)│  │                │  │
-│  └────────────────┘  └──────────────┘  └────────────────┘  │
-│     Rate Limiting & Offline Fallback                       │
-└────────────────────────────────────────────────────────────┘
-                          ▼
-┌────────────────────────────────────────────────────────────┐
-│                    Data Layer                              │
-│                  SQLite Database                           │
-│  Files | Passages | Songs | Artists | Works | Albums       │
-│  Play History | Queue State | Settings | Timeslots         │
-│  Musical Flavor Vectors | Album Art File Paths             │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Module 2: User Interface (HTTP + SSE Server)               │
+│  Port: 8080 (configurable)                                  │
+│  - Polished web UI for end users                            │
+│  - Authentication, playback control, queue management       │
+│  - Album art, lyrics, likes/dislikes, configuration         │
+└───────────┬─────────────────────────────────────────────────┘
+            │ HTTP API calls
+            │ SSE subscriptions
+    ┌───────┼────────┬────────────────────────┐
+    │       │        │                        │
+    ▼       ▼        ▼                        ▼
+┌───────┐ ┌────────────────┐  ┌──────────────────────────────┐
+│Module │ │  Module 1:     │  │  Module 3:                   │
+│  4:   │ │  Audio Player  │  │  Program Director            │
+│  New  │ │  Port: 8081    │  │  Port: 8082                  │
+│ File  │ │                │◄─┤                              │
+│Ingest │ │  - Minimal     │  │  - Minimal dev UI            │
+│  UI   │ │    dev UI      │  │  - Selection API (for UI)    │
+│       │ │  - Control API │  │  - Reads Audio Player status │
+│(Full  │ │  - Status API  │  │  - Enqueues via Audio Player │
+│ only) │ │  - SSE events  │  │                              │
+│       │ │                │  │  SQLite Database (Shared)    │
+│Port:  │ │                │  │  - Files, Passages, Songs    │
+│ 8083  │ │                │  │  - Play History, Queue       │
+└───────┘ └────────────────┘  └──────────────────────────────┘
+            │                   │
+            │ Direct HTTP API   │
+            └───────────────────┘
+               (No UI required)
 ```
 
-## Core Components
+### Version-Specific Process Configuration
 
-### 1. Playback Controller
+| Version  | Module 1<br/>Audio Player | Module 2<br/>User Interface | Module 3<br/>Program Director | Module 4<br/>File Ingest |
+|----------|---------------------------|----------------------------|------------------------------|--------------------------|
+| **Full**     | ✅ Running | ✅ Running (Full-featured) | ✅ Running | ✅ Running |
+| **Lite**     | ✅ Running | ✅ Running (De-featured)   | ✅ Running | ❌ Not included |
+| **Minimal**  | ✅ Running | ✅ Running (De-featured)   | ❌ Not included | ❌ Not included |
+
+## Module Specifications
+
+### Module 1: Audio Player
+
+**Process Type**: Independent HTTP server with minimal developer UI
+**Port**: 8081 (configurable)
+**Versions**: Full, Lite, Minimal
 
 **Responsibilities:**
 - Manages dual GStreamer pipelines for seamless crossfading
@@ -110,21 +86,105 @@ McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that auto
 - Implements three fade profiles (exponential, cosine, linear)
 - Handles pause/resume with 0.5s exponential fade-in
 - Manages volume control (user level + fade automation)
+- Maintains playback queue with persistence
 
-**Key Operations:**
-- Pre-load next passage in secondary pipeline
-- Calculate crossfade start time based on lead-in/lead-out
-- Apply volume curves during fade-in/out
-- Switch primary/secondary pipelines on passage completion
+**HTTP Control API:**
+- `POST /audio/device` - Set audio output device
+- `POST /audio/volume` - Set volume level (0-100)
+- `POST /playback/enqueue` - Enqueue a passage
+- `DELETE /playback/queue/{passage_id}` - Remove passage from queue
+- `POST /playback/play` - Resume playback
+- `POST /playback/pause` - Pause playback
+
+**HTTP Status API:**
+- `GET /audio/device` - Current audio output device
+- `GET /audio/volume` - Current volume level
+- `GET /playback/queue` - Queue contents
+- `GET /playback/state` - Playing/Paused state
+- `GET /playback/position` - Current playback position in passage
+
+**SSE Events** (Endpoint: `GET /events`):
+- `VolumeChanged` - Volume level updated
+- `QueueChanged` - Queue modified (add/remove/reorder)
+- `PlaybackStateChanged` - Playing/Paused state changed
+- `PlaybackProgress` - Position updates (every 500ms)
+- `PassageStarted` - New passage began playing
+- `PassageCompleted` - Passage finished
+- `CurrentSongChanged` - Within-passage song boundary crossed
+
+**Developer UI** (Minimal):
+- Module status display
+- Direct API testing interface
+- Event stream monitor
 
 **State:**
 - Currently playing passage (position, duration, state)
 - Next passage (pre-loaded, ready for crossfade)
+- Queue contents (persisted to SQLite)
 - User volume level (0-100)
 - Playback state (Playing/Paused only - no "stopped" state)
 - Initial state on app launch: Playing
 
-### 2. Program Director
+**Key Design Notes:**
+- **Operates independently**: Does not require Module 2 (User Interface) to be running
+- **Receives commands from**: Module 2 (User Interface), Module 3 (Program Director)
+- **Database access**: Direct SQLite access for queue persistence, passage metadata
+
+### Module 2: User Interface
+
+**Process Type**: Polished HTTP server with full web UI
+**Port**: 8080 (configurable)
+**Versions**: Full, Lite (de-featured), Minimal (de-featured)
+
+**Responsibilities:**
+- Present polished web interface for end users
+- Proxy/orchestrate requests to Module 1 (Audio Player) and Module 3 (Program Director)
+- Handle user authentication and session management
+- Display album art, lyrics, and playback information
+- Provide configuration interface for Program Director parameters
+- Aggregate SSE events from Audio Player for UI updates
+
+**HTTP API** (User-facing):
+- Authentication endpoints: `/api/login`, `/api/create-account`, `/api/current-user`
+- Playback control: `/api/playback/*` (proxied to Module 1)
+- Queue management: `/api/queue/*` (proxied to Module 1)
+- Like/Dislike: `/api/passages/{id}/like`, `/api/passages/{id}/dislike`
+- Program Director config: Proxied to Module 3
+- Manual passage selection: Browse library, enqueue to Module 1
+- Volume control: Proxied to Module 1
+- Audio device selection: Proxied to Module 1
+
+**SSE Events** (Endpoint: `GET /api/events`):
+- Aggregates and forwards events from Module 1 (Audio Player)
+- Adds user-specific events (session, likes/dislikes)
+
+**Web UI Features:**
+- Authentication flow (Anonymous/Create Account/Login)
+- Now Playing: Album art, song/artist/album, passage title, lyrics
+- Playback controls: Play/Pause, Skip, volume slider
+- Queue display and manual queue management
+- Like/Dislike buttons (Full/Lite versions)
+- Program Director configuration (timeslots, base probabilities, cooldowns)
+- Network status indicators (internet and local network)
+- Responsive design for desktop and mobile
+
+**Version Differences:**
+- **Full**: All features enabled
+- **Lite**: No file ingest, limited configuration options
+- **Minimal**: No file ingest, no likes/dislikes, no advanced configuration
+
+**Key Design Notes:**
+- **Most users interact here**: Primary interface for controlling McRhythm
+- **Orchestration layer**: Coordinates between Audio Player and Program Director
+- **Database access**: Direct SQLite access for user data, likes/dislikes, library browsing
+
+---
+
+### Module 3: Program Director
+
+**Process Type**: Independent HTTP server with minimal developer UI
+**Port**: 8082 (configurable)
+**Versions**: Full, Lite (Minimal does not include automatic selection)
 
 **Responsibilities:**
 - Calculate passage selection probabilities based on multiple factors
@@ -132,6 +192,40 @@ McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that auto
 - Maintain time-of-day flavor targets
 - Handle timeslot transitions
 - Respond to temporary flavor overrides
+- Monitor Audio Player queue and automatically enqueue passages
+
+**HTTP API for User Interface** (Module 2):
+- `GET /config/timeslots` - Retrieve timeslot configuration
+- `POST /config/timeslots` - Update timeslot configuration
+- `GET /config/probabilities` - Get base probabilities for songs/artists/works
+- `PUT /config/probabilities/{entity_type}/{id}` - Set base probability
+- `GET /config/cooldowns` - Get cooldown settings
+- `PUT /config/cooldowns` - Update cooldown settings
+- `POST /selection/override` - Temporary flavor override
+- `DELETE /selection/override` - Clear temporary override
+
+**HTTP Status API:**
+- `GET /status` - Module status, current timeslot, target flavor
+- `GET /selection/candidates` - Last selection candidates (debugging)
+
+**SSE Events** (Endpoint: `GET /events`):
+- `TimeslotChanged` - New timeslot became active
+- `TemporaryFlavorOverride` - Temporary override activated
+- `OverrideExpired` - Temporary override ended
+- `SelectionFailed` - No candidates available
+
+**Developer UI** (Minimal):
+- Module status display
+- Current timeslot and target flavor
+- Last selection results
+
+**Automatic Queue Management:**
+- Polls Module 1 (Audio Player) queue status periodically
+- When queue drops below threshold (< 2 passages or < 15 minutes):
+  1. Determine target time (end of last queued passage)
+  2. Calculate selection probabilities
+  3. Select passage via weighted random algorithm
+  4. Enqueue to Module 1 via HTTP API
 
 **Key Operations:**
 - Determine target time for selection (end time of last queued passage)
@@ -139,186 +233,193 @@ McRhythm is a music player built on Rust, GStreamer, SQLite, and Tauri that auto
 - Calculate squared Euclidean distance from target flavor
 - Sort by distance, take top 100 candidates
 - Weighted random selection from candidates
-- Handle edge cases (no candidates → stop automatic enqueueing, manual enqueueing still available)
+- Handle edge cases (no candidates → stop automatic enqueueing)
 
-**Data Sources:**
-- Current timeslot flavor target (or temporary override)
-- Passage musical flavor vectors
-- Song/artist/work last-play times
-- User-configured base probabilities
-- Queue contents and passage end times
+**Key Design Notes:**
+- **Operates independently**: Does not require Module 2 (User Interface) to be running
+- **Communicates with Module 1 only**: Reads queue status, enqueues passages
+- **Database access**: Direct SQLite access for passage metadata, timeslots, probabilities, play history
 
 > **See [Program Director](program_director.md) for complete specification of selection algorithm, cooldown system, probability calculations, and timeslot handling.**
 
-### 3. Queue Manager
+---
+
+### Module 4: File Ingest Interface
+
+**Process Type**: Polished HTTP server with guided workflow UI
+**Port**: 8083 (configurable)
+**Versions**: Full only
 
 **Responsibilities:**
-- Maintain playback queue (minimum 2 passages, 15+ minutes)
-- Persist queue state to SQLite
-- Handle manual user additions/removals
-- Trigger automatic queue replenishment
-- Enforce multi-user edge case rules
+- Present user-friendly interface for adding new audio files
+- Guide user through ingest and characterization workflow
+- Coordinate MusicBrainz/AcousticBrainz lookups
+- Manage Essentia local flavor analysis (Full version)
+- Support passage segmentation and metadata editing
 
-**Key Operations:**
-- Add passage (append to queue)
-- Remove passage (with concurrent operation handling)
-- Auto-advance on passage completion
-- Load/save queue on startup/shutdown
-- Monitor queue depth and trigger selector
+**HTTP API:**
+- `POST /ingest/scan` - Scan directory for new files
+- `GET /ingest/pending` - List files pending ingest
+- `POST /ingest/identify/{file_id}` - Trigger MusicBrainz lookup
+- `POST /ingest/characterize/{file_id}` - Trigger flavor analysis
+- `POST /ingest/segment/{file_id}` - Define passages within file
+- `PUT /ingest/metadata/{passage_id}` - Edit passage metadata
+- `POST /ingest/finalize/{file_id}` - Complete ingest workflow
 
-**Edge Cases:**
-- Skip throttling (5-second window)
-- Concurrent remove operations (ignore duplicates)
-- Temporary override queue flush
+**Web UI Workflow:**
+1. **File Discovery**: Select directories to scan for new audio files
+2. **File Review**: Preview detected files, confirm additions
+3. **Identification**: Match files to MusicBrainz recordings (fingerprinting)
+4. **Characterization**: Retrieve AcousticBrainz data or run local Essentia analysis
+5. **Passage Definition**: Define passage boundaries, timing points, metadata
+6. **Finalization**: Review and commit to library
 
-**Empty Queue Handling:**
+**Key Design Notes:**
+- **Full version only**: Not included in Lite or Minimal
+- **Database access**: Direct SQLite access for file/passage/song insertion
+- **External API integration**: MusicBrainz, AcousticBrainz, Chromaprint
+- **Local analysis**: Essentia integration for offline flavor characterization
 
-> **Requirement**: See [Requirements - Queue Empty Behavior](requirements.md#queue-empty-behavior) for authoritative specification.
+> **See [Library Management](library_management.md) for complete file scanning and metadata workflows.**
 
-- Queue becoming empty does NOT trigger automatic Play/Pause state change
-- System continues in user-selected Play/Pause mode
-- When queue is empty and system is in Play mode:
-  - No audio output (silent)
-  - State remains "Playing"
-  - Ready to immediately play when passage is enqueued
-- When queue is empty and system is in Pause mode:
-  - No audio output (silent)
-  - State remains "Paused"
-  - Enqueued passages wait until user selects Play
+---
 
-### 4. Historian
+### Internal Components
 
-**Responsibilities:**
-- Record passage plays with timestamps
-- Update last-play times for songs/artists/works
-- Track completion status (played fully vs skipped)
-- Calculate cooldown multipliers based on elapsed time
+The modules listed above are separate processes. Within each module, there are internal components that handle specific responsibilities. These are implementation details within each module:
 
-**Key Operations:**
-- Record play event on passage start
-- Update completion status on passage end/skip
-- Query last-play time for cooldown calculation
-- Calculate ramping multiplier (linear interpolation)
+**Module 1 (Audio Player) Internal Components:**
+- **Queue Manager**: Maintains playback queue (minimum 2 passages, 15+ minutes), handles manual additions/removals, triggers automatic queue replenishment
+- **Playback Controller**: Manages dual GStreamer pipelines for crossfading, coordinates passage transitions
+- **Audio Engine**: GStreamer pipeline manager with dual pipelines, audio mixer, volume control
+- **Historian**: Records passage plays with timestamps, updates last-play times for cooldown calculations
 
-**Data Stored:**
-- Passage ID, timestamp, duration played, completion status
-- Last-play timestamps for songs, artists, works
+**Module 2 (User Interface) Internal Components:**
+- **Authentication Handler**: User session management, Anonymous/Create/Login flows
+- **API Proxy**: Forwards requests to Module 1 and Module 3
+- **Event Aggregator**: Subscribes to Module 1 SSE events, forwards to web UI clients
+- **Library Browser**: Database queries for passage/song/artist/album browsing
 
-### 5. Flavor Manager
+**Module 3 (Program Director) Internal Components:**
+- **Flavor Manager**: Manages 24-hour timeslot schedule, calculates flavor targets, handles temporary overrides
+- **Selection Engine**: Implements weighted random selection algorithm with flavor distance calculations
+- **Queue Monitor**: Polls Module 1 for queue status, triggers selection when needed
 
-**Responsibilities:**
-- Manage 24-hour timeslot schedule
-- Calculate flavor targets from selected passages
-- Handle temporary flavor overrides
-- Compute musical flavor distances
+**Module 4 (File Ingest) Internal Components:**
+- **File Scanner**: Recursive directory scan with change detection (SHA-256 hashes)
+- **Metadata Extractor**: Parse ID3v2, Vorbis Comments, MP4 tags
+- **Fingerprint Generator**: Chromaprint for MusicBrainz identification
+- **External Integration Clients**: MusicBrainz, AcousticBrainz, Essentia
 
-**Key Operations:**
-- Determine current timeslot based on time-of-day
-- Average passage flavor vectors for timeslot target
-- Calculate squared Euclidean distance (binary + multi-dimensional)
-- Apply temporary override (flush queue, skip current passage)
+### Shared Infrastructure Components
 
-**Data:**
-- Timeslot definitions (start time, passages)
-- Computed flavor targets (averaged vectors)
-- Active override (target, expiration time)
+These components are used across multiple modules:
 
-### 6. Audio Engine
+**SQLite Database:**
+- Embedded in each module process (same database file)
+- Files, Passages, Songs, Artists, Works, Albums
+- Play History, Queue State, Settings, Timeslots
+- Musical Flavor Vectors, Album Art File Paths
 
-**Architecture:**
+**External API Clients:**
+- **MusicBrainz Client**: Recording/Release/Artist/Work identification, all responses cached locally
+- **AcousticBrainz Client**: High-level musical characterization vectors, fallback to Essentia (Full version)
+- **ListenBrainz Client** (Phase 2): Play history submission, recommendations (TBD)
+
+### Implementation Details Removed From This Section
+
+The following subsections previously described monolithic components. They have been replaced by the module-based architecture above:
+- ~~3. Queue Manager~~ - Now part of Module 1 (Audio Player)
+- ~~4. Historian~~ - Now part of Module 1 (Audio Player)
+- ~~5. Flavor Manager~~ - Now part of Module 3 (Program Director)
+- ~~6. Audio Engine~~ - Now part of Module 1 (Audio Player)
+- ~~7. Library Manager~~ - Now part of Module 4 (File Ingest)
+- ~~8. External Integration Clients~~ - Shared across modules
+
+---
+
+## Inter-Process Communication
+
+### HTTP/REST APIs
+
+**Primary communication method** between modules.
+
+**Benefits:**
+- **Platform-independent**: Language-agnostic interfaces
+- **Well-defined contracts**: Clear API boundaries between modules
+- **Easy debugging**: Standard HTTP tools (curl, Postman) for testing
+- **Independent deployment**: Modules can be updated separately
+- **Network transparency**: Modules can run on same machine or distributed
+
+**Request/Response Patterns:**
+- User Interface → Audio Player: Playback commands, queue management
+- User Interface → Program Director: Configuration updates
+- Program Director → Audio Player: Automatic enqueueing
+- File Ingest → Database: New file/passage insertion
+
+**Error Handling:**
+- HTTP status codes for success/failure
+- JSON error responses with details
+- Retry logic for transient failures
+- Graceful degradation when modules unavailable
+
+### Server-Sent Events (SSE)
+
+**Real-time notification method** from modules to clients.
+
+**Event Flows:**
+- Audio Player → User Interface: Playback state, queue changes, position updates
+- Program Director → User Interface: Timeslot changes, selection events
+- Each module provides `/events` endpoint for SSE subscriptions
+
+**Benefits:**
+- **One-directional push**: Server-to-client notifications
+- **Lightweight**: Built on HTTP, auto-reconnect
+- **Multi-subscriber**: Multiple UIs can subscribe to same events
+- **Loose coupling**: Event producers don't need to know consumers
+
+### Database as Shared State
+
+**SQLite database** serves as persistent shared state across all modules.
+
+**Access Patterns:**
+- Each module has direct SQLite access (embedded database, same file)
+- Coordinated writes via HTTP API boundaries
+- Read-heavy access for passage metadata, library browsing
+- Triggers maintain consistency (e.g., last_played_at updates)
+
+**Consistency Considerations:**
+- UUID primary keys enable database merging (Full → Lite → Minimal)
+- Foreign key constraints maintain referential integrity
+- Application-level coordination via HTTP APIs prevents conflicts
+- Write serialization through module ownership (e.g., only Audio Player writes queue state)
+
+### Module Dependencies
+
 ```
-Pipeline A:                          Pipeline B:
-┌─────────────┐                     ┌─────────────┐
-│ filesrc     │                     │ filesrc     │
-│ location=A  │                     │ location=B  │
-└──────┬──────┘                     └──────┬──────┘
-       │                                   │
-┌──────▼──────┐                     ┌──────▼──────┐
-│  decodebin  │                     │  decodebin  │
-│ (auto codec)│                     │ (auto codec)│
-└──────┬──────┘                     └──────┬──────┘
-       │                                   │
-┌──────▼──────┐                     ┌──────▼──────┐
-│audioconvert │                     │audioconvert │
-└──────┬──────┘                     └──────┬──────┘
-       │                                   │
-┌──────▼──────┐                     ┌──────▼──────┐
-│audioresample│                     │audioresample│
-└──────┬──────┘                     └──────┬──────┘
-       │                                   │
-       └────────────┬──────────────────────┘
-                    │
-            ┌───────▼────────┐
-            │  audiomixer    │
-            │  (crossfade)   │
-            └───────┬────────┘
-                    │
-            ┌───────▼────────┐
-            │    volume      │
-            │ (controller)   │
-            └───────┬────────┘
-                    │
-            ┌───────▼────────┐
-            │   autoaudiosink│
-            │ or manual sink │
-            └────────────────┘
+Module 2: User Interface
+    ├── Depends on: Module 1 (Audio Player) - optional, degrades gracefully
+    ├── Depends on: Module 3 (Program Director) - optional (Minimal version)
+    └── Depends on: SQLite database - required
+
+Module 3: Program Director
+    ├── Depends on: Module 1 (Audio Player) - required for enqueueing
+    └── Depends on: SQLite database - required
+
+Module 1: Audio Player
+    └── Depends on: SQLite database - required
+
+Module 4: File Ingest (Full only)
+    └── Depends on: SQLite database - required
 ```
 
-**Crossfade Timing Logic:**
-```
-Passage A: |lead-in]------------[lead-out|
-Passage B:                       |lead-in]------------[lead-out|
+**Startup Requirements:**
+- Module 1 (Audio Player) can start standalone
+- Module 3 (Program Director) requires Module 1 to be running
+- Module 2 (User Interface) can start without other modules (degrades features)
+- Module 4 (File Ingest) can start standalone
 
-If lead-out(A) < lead-in(B):
-  Start B when A reaches lead-out point
-
-If lead-out(A) > lead-in(B):
-  Start B when A has lead-in(B) time remaining
-```
-
-### 7. Library Manager
-
-**Responsibilities:**
-- Scan directories for audio files (Full version only)
-- Extract metadata from file tags
-- Generate audio fingerprints (Chromaprint)
-- Detect file changes (modified/deleted/added)
-- Handle multi-passage file segmentation
-
-**Key Operations:**
-- Recursive directory scan with change detection (SHA-256 hashes)
-- Parse ID3v2, Vorbis Comments, MP4 tags
-- Silence detection for multi-passage segmentation
-- Associate passages with MusicBrainz entities
-
-**Data Stored:**
-- File paths, modification times, hashes
-- Extracted metadata (title, artist, album, etc.)
-- Album art file paths (stored in same directory as audio files)
-- Passage boundaries within files
-
-### 8. External Integration Clients
-
-**MusicBrainz Client:**
-- Query: Recording/Release/Artist/Work IDs
-- Fetch: Canonical names, dates, genres/tags
-- Cache: All responses locally (indefinite retention)
-- Offline: Continue with cached data
-
-**AcousticBrainz Client:**
-- Query: High-level musical characterization vectors
-- Parse: Binary classifications + multi-dimensional genres/rhythms/moods
-- Fallback: Essentia local analysis (Full version)
-- Cache: All vectors in passage table
-
-**ListenBrainz Client:**
-- Submit: Play history, likes/dislikes (TBD)
-- Fetch: Recommendations, taste profile (TBD)
-- Effect: Inform selection algorithm (TBD)
-
-**Rate Limiting:**
-- AcoustID: 3 requests/second
-- Network failures: 5s delay, 20 max retries
+---
 
 ## Component Implementation Details
 
@@ -331,19 +432,17 @@ Detailed design specifications for each subsystem:
 - **Data Model**: See [Database Schema](database_schema.md)
 - **Code Organization**: See [Coding Conventions](coding_conventions.md)
 
-### Design Parameters
-
-Default values for various system parameters, such as cooldown periods and queue size, are defined in [requirements.md](requirements.md). These values can be tuned during implementation and testing.
-
 ## Concurrency Model
 
-### Threading Architecture
+### Per-Module Threading
 
+Each module is an independent process with its own threading model:
+
+**Module 1 (Audio Player):**
 ```
-Main Thread:
-  - Tauri event loop
-  - UI coordination
-  - Command dispatch
+HTTP Server Thread Pool (tokio async):
+  - API request handling
+  - SSE broadcasting to clients
 
 Audio Thread (GStreamer):
   - Pipeline execution
@@ -351,62 +450,86 @@ Audio Thread (GStreamer):
   - Volume automation
   - Isolated from blocking I/O
 
-Program Director Thread (tokio async):
+Queue Manager Thread (tokio async):
+  - Queue persistence
+  - Passage loading
+  - Database queries
+
+GStreamer Bus Handler:
+  - Pipeline events (EOS, error, state change)
+  - Position queries (every 500ms)
+  - Crossfade triggers
+```
+
+**Module 2 (User Interface):**
+```
+HTTP Server Thread Pool (tokio async):
+  - Web UI serving
+  - API request handling
+  - SSE aggregation and forwarding
+  - Proxy requests to Modules 1 and 3
+
+Database Query Pool (tokio async):
+  - Library browsing queries
+  - User data (likes/dislikes)
+  - Session management
+```
+
+**Module 3 (Program Director):**
+```
+HTTP Server Thread Pool (tokio async):
+  - API request handling
+  - SSE broadcasting
+
+Selection Thread (tokio async):
   - Passage selection algorithm
   - Distance calculations
   - Probability computations
-  - Triggered by queue manager
+
+Queue Monitor Thread (tokio async):
+  - Polls Module 1 queue status
+  - Triggers selection when needed
+```
+
+**Module 4 (File Ingest):**
+```
+HTTP Server Thread Pool (tokio async):
+  - API request handling
+  - Web UI serving
 
 Scanner Thread (tokio async):
   - File system scanning
   - Metadata extraction
   - Fingerprint generation
-  - Full version only
 
-API Thread Pool (tokio async):
-  - HTTP request handling
-  - SSE broadcasting
-  - External API calls
-  - Database queries
+External API Pool (tokio async):
+  - MusicBrainz queries
+  - AcousticBrainz queries
+  - Essentia local analysis
 ```
 
-### Inter-component Communication
+### Internal Communication Patterns
 
-> **See [Event System](event_system.md) for complete event-driven architecture specification, event types, and communication patterns.**
-
-McRhythm uses a hybrid communication model combining event broadcasting with direct message passing:
+Within each module, components use standard Rust async patterns:
 
 **Event Broadcasting (tokio::broadcast):**
-- One-to-many notification pattern
-- Playback events: PassageStarted, PassageCompleted, PlaybackStateChanged
-- Queue events: QueueChanged, PassageEnqueued
-- User interaction events: UserAction, PassageLiked, PassageDisliked
-- System events: NetworkStatusChanged, LibraryScanCompleted
-- Enables loose coupling between components
-- Supports multi-user UI synchronization (REQ-CF-042)
+- One-to-many notification pattern within a module
+- Playback events, queue events, system events
+- Enables loose coupling between internal components
 
 **Command Channels (tokio::mpsc):**
 - Request-response pattern with single handler
-- Playback commands: API → Playback Controller
-- Selection requests: Queue Manager → Program Director
 - Clear ownership and error propagation
 
 **Shared State (Arc<RwLock<T>>):**
 - Read-heavy access to current state
-- Current playback state (position, passage, status)
-- Queue contents (read-heavy, write-light)
-- Timeslot configuration (read-heavy)
-- User settings (volume, preferences)
+- Current playback state, queue contents, configuration
 
 **Watch Channels (tokio::sync::watch):**
 - Latest-value semantics for single-value updates
-- Volume level changes
-- Position updates (alternative to high-frequency events)
+- Volume level changes, position updates
 
-**GStreamer Bus:**
-- Pipeline events (EOS, error, state change)
-- Position queries (every 500ms)
-- Crossfade triggers
+> **See [Event System](event_system.md) for complete event-driven architecture specification within modules.**
 
 ## Data Model
 
@@ -432,13 +555,79 @@ See [Database Schema](database_schema.md) for complete table definitions, constr
 
 ## Version Differentiation
 
-McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature flags for conditional compilation. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
+McRhythm is built in three versions (Full, Lite, Minimal) by running different combinations of modules. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
 
 **Implementation approach:**
-- Rust feature flags: `full`, `lite`, `minimal`
-- Conditional compilation with `#[cfg(feature = "...")]`
-- Database export/import utilities for Lite/Minimal deployment
+- **Process-based differentiation**: Different modules run in each version
+- **Per-module feature flags**: Each module binary may have conditional features
+- **Configuration files**: Specify which modules to start for each version
+- **Database compatibility**: UUID-based schema enables database export/import across versions
+
+**Version Configuration:**
+
+| Version  | Modules Running | Features |
+|----------|-----------------|----------|
+| **Full** | 1, 2, 3, 4 | All features, local Essentia analysis, file ingest |
+| **Lite** | 1, 2, 3 | No file ingest, automatic selection, limited config UI |
+| **Minimal** | 1, 2 | Playback only, manual queue management, no automatic selection |
+
+**Module Binary Build Variants:**
+- Each module may be compiled with version-specific features using Rust feature flags
+- Example: Module 4 only compiled for Full version
+- Module 2 UI may have conditional features for Full/Lite/Minimal
 - See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for build details
+
+## Technology Stack
+
+### Core Technologies
+
+**Programming Language:**
+- Rust (stable channel)
+- Async runtime: Tokio
+
+**HTTP Server Framework (all modules):**
+- Axum or Actix-web (to be determined during implementation)
+- Server-Sent Events (SSE) support
+- JSON request/response handling
+
+**Audio Processing (Module 1 only):**
+- GStreamer 1.x
+- Rust bindings: gstreamer-rs
+
+**Database:**
+- SQLite 3.x (embedded in each module)
+- rusqlite crate for Rust bindings
+- JSON1 extension for flavor vector storage
+
+**External API Clients:**
+- reqwest for HTTP clients
+- MusicBrainz, AcousticBrainz, Chromaprint/AcoustID
+
+**Local Audio Analysis (Module 4, Full version only):**
+- Essentia C++ library
+- Rust FFI bindings (custom or via existing crate)
+
+**Web UI (Module 2 and Module 4):**
+- HTML/CSS/JavaScript (framework TBD - React, Vue, or Svelte)
+- SSE client for real-time updates
+- Responsive design framework (TailwindCSS or similar)
+
+**Configuration:**
+- TOML or JSON configuration files
+- Environment variables for deployment settings
+
+**Build System:**
+- Cargo workspaces for multi-module project
+- Separate binaries for each module
+- Feature flags for version differentiation
+
+### Removed Technologies
+
+**Tauri** - Previously planned for monolithic desktop app, no longer needed:
+- Replaced by: Standalone HTTP servers with web UIs
+- Benefit: Simpler deployment, network-accessible, no desktop framework dependency
+
+---
 
 ## Platform Abstraction
 
@@ -604,10 +793,15 @@ McRhythm is built in three versions (Full, Lite, Minimal) using Rust feature fla
 - Sane defaults for all optional settings
 
 ### Distribution
-- Single binary per platform/version
-- Bundled dependencies (GStreamer, SQLite)
-- Installer packages (deb, rpm, msi, dmg)
-- Tauri auto-updater for desktop versions
+- **Multiple binaries per version**: Each module is a separate binary
+- **Version-specific packaging**:
+  - Full: 4 binaries (modules 1, 2, 3, 4)
+  - Lite: 3 binaries (modules 1, 2, 3)
+  - Minimal: 2 binaries (modules 1, 2)
+- **Bundled dependencies**: GStreamer (Module 1 only), SQLite (all modules)
+- **Installer packages**: deb, rpm, msi, dmg with systemd/launchd service files
+- **Process management**: System service manager or manual startup scripts
+- **Configuration files**: Default ports, module URLs, database path
 
 ## Future Architecture Considerations
 

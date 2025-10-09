@@ -15,6 +15,8 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 ## Overview
 McRhythm is a music player that selects passages to play based on user preferences for [musical flavor](musical_flavor.md#quantitative-definition) at various times of day.
 
+**Architectural Note:** McRhythm is implemented as a microservices architecture with 4 independent HTTP-based modules: Audio Player, User Interface, Program Director, and File Ingest (Full version only). See [Architecture](architecture.md) for complete design.
+
 ## Core Features
 - Plays passages from local files (.mp3 and similar)
   - Identifies one or multiple passage start / stop points and crossfade points within each music file

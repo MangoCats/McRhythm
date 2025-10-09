@@ -50,6 +50,7 @@ flowchart TD
         DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
         CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
         SEG["audio_file_segmentation.md<br/><br/>Defines audio file<br/>segmentation workflow"]
+        DEPLOY["deployment.md<br/><br/>Defines deployment,<br/>process management,<br/>& operational config"]
     end
 
     subgraph CC["CROSS-CUTTING: PROCESS & STANDARDS"]
@@ -64,10 +65,10 @@ flowchart TD
     REQ & ENT -->|informs| ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC
     T2_SPACER ~~~ T3
     T2_SPACER ~~~ CC
-    ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC -->|informs| DB & CODE & SEG
-    DB & CODE & SEG -->|informs| IMPL
+    ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC -->|informs| DB & CODE & SEG & DEPLOY
+    DB & CODE & SEG & DEPLOY -->|informs| IMPL
 
-    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC & DB & CODE & SEG & IMPL
+    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC & DB & CODE & SEG & DEPLOY & IMPL
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
@@ -95,6 +96,7 @@ flowchart TD
     style DB fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style CODE fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style SEG fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    style DEPLOY fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style IMPL fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
 
     classDef invisible fill:none,stroke:none
@@ -459,6 +461,30 @@ These documents translate design into concrete implementation details.
 - ❌ Workflow is derived FROM requirements/design, not vice versa
 
 **Maintained By:** Library subsystem lead, UX designer, technical lead
+
+#### deployment.md
+**Purpose:** Defines deployment, process management, and operational configuration
+
+**Contains:**
+- Module binary locations and configuration file paths
+- Configuration file format for each module (TOML)
+- Database location and shared access
+- Startup order and module dependencies
+- Process management (systemd, launchd, Windows Services)
+- Health checks and monitoring
+- Graceful shutdown procedures
+- Backup and recovery processes
+- Version-specific deployments (Full, Lite, Minimal)
+- Security considerations and network architecture
+
+**Update Policy:**
+- ✅ Update to support architecture.md microservices design
+- ✅ Update when deployment strategy changes
+- ✅ Update when new modules are added or removed
+- ✅ May inform design document updates if deployment reveals operational issues
+- ❌ Deployment specs are derived FROM requirements/design, not vice versa
+
+**Maintained By:** DevOps lead, technical lead
 
 ---
 
