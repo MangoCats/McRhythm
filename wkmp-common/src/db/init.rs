@@ -20,6 +20,8 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_users_table(&pool).await?;
     create_settings_table(&pool).await?;
     create_module_config_table(&pool).await?;
+    create_files_table(&pool).await?;
+    create_queue_table(&pool).await?;
 
     Ok(pool)
 }
@@ -144,6 +146,66 @@ async fn create_module_config_table(pool: &SqlitePool) -> Result<()> {
         .execute(pool)
         .await?;
     }
+
+    Ok(())
+}
+
+async fn create_files_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS files (
+            guid TEXT PRIMARY KEY,
+            path TEXT NOT NULL UNIQUE,
+            hash TEXT NOT NULL,
+            duration REAL,
+            modification_time TIMESTAMP NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (duration IS NULL OR duration > 0)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create indexes
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_files_path ON files(path)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_queue_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS queue (
+            guid TEXT PRIMARY KEY,
+            file_path TEXT NOT NULL,
+            passage_guid TEXT,
+            play_order INTEGER NOT NULL,
+            start_time_ms INTEGER,
+            end_time_ms INTEGER,
+            lead_in_point_ms INTEGER,
+            lead_out_point_ms INTEGER,
+            fade_in_point_ms INTEGER,
+            fade_out_point_ms INTEGER,
+            fade_in_curve TEXT CHECK (fade_in_curve IS NULL OR fade_in_curve IN ('linear', 'exponential', 'cosine')),
+            fade_out_curve TEXT CHECK (fade_out_curve IS NULL OR fade_out_curve IN ('linear', 'logarithmic', 'cosine')),
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create indexes
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_queue_order ON queue(play_order)")
+        .execute(pool)
+        .await?;
 
     Ok(())
 }

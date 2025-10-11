@@ -9,6 +9,7 @@ use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod playback;
 mod server;
 
 /// WKMP Audio Player - GStreamer-based audio playback microservice
@@ -93,10 +94,15 @@ async fn main() -> anyhow::Result<()> {
     let port = args.port.unwrap_or(module_config.port);
     let bind_addr = format!("{}:{}", host, port);
 
+    // Initialize playback engine
+    info!("Initializing playback engine...");
+    let mut engine = playback::PlaybackEngine::new(db.clone(), root_folder.clone());
+    engine.init().await?;
+
     info!("Starting HTTP server on {}...", bind_addr);
 
     // Start server
-    server::start(&bind_addr, db, root_folder).await?;
+    server::start(&bind_addr, db, root_folder, engine).await?;
 
     Ok(())
 }
