@@ -12,6 +12,7 @@ mod api;
 mod config;
 mod playback;
 mod server;
+mod sse;
 
 /// WKMP Audio Player - GStreamer-based audio playback microservice
 #[derive(Parser, Debug)]

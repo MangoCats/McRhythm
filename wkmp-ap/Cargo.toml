@@ -29,3 +29,7 @@ toml = { workspace = true }
 gstreamer = "0.22"
 gstreamer-audio = "0.22"
 gstreamer-app = "0.22"
+
+# SSE support
+futures = "0.3"
+tokio-stream = { version = "0.1", features = ["sync"] }

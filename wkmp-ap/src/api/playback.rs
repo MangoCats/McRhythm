@@ -76,3 +76,17 @@ impl ResolvedTiming {
         }
     }
 }
+
+/// Volume control request
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VolumeRequest {
+    /// Volume level (0-100 for user-facing, converted to 0.0-1.0 internally)
+    pub volume: i32,
+}
+
+/// Seek request
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SeekRequest {
+    /// Position in milliseconds
+    pub position_ms: i64,
+}

@@ -14,8 +14,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use crate::api::{EnqueueRequest, EnqueueResponse};
-use crate::playback::PlaybackEngine;
+use crate::api::{EnqueueRequest, EnqueueResponse, VolumeRequest, SeekRequest};
+use crate::playback::{PlaybackEngine, start_monitoring};
+use crate::sse::SseBroadcaster;
 
 /// Application state
 #[derive(Clone)]
@@ -23,6 +24,7 @@ pub struct AppState {
     pub db: SqlitePool,
     pub root_folder: PathBuf,
     pub engine: Arc<RwLock<PlaybackEngine>>,
+    pub sse_broadcaster: SseBroadcaster,
 }
 
 /// Start the HTTP server
@@ -30,21 +32,36 @@ pub async fn start(
     bind_addr: &str,
     db: SqlitePool,
     root_folder: PathBuf,
-    engine: PlaybackEngine,
+    mut engine: PlaybackEngine,
 ) -> anyhow::Result<()> {
+    // Create SSE broadcaster
+    let sse_broadcaster = SseBroadcaster::new(100);
+
+    // Set broadcaster on engine
+    engine.set_sse_broadcaster(sse_broadcaster.clone());
+
+    let engine_arc = Arc::new(RwLock::new(engine));
+
+    // Start background monitoring tasks
+    start_monitoring(engine_arc.clone(), sse_broadcaster.clone());
+
     let state = Arc::new(AppState {
         db,
         root_folder,
-        engine: Arc::new(RwLock::new(engine)),
+        engine: engine_arc,
+        sse_broadcaster,
     });
 
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/status", get(status))
+        .route("/events", get(sse_handler))
         .route("/playback/state", get(get_playback_state))
         .route("/playback/play", post(play))
         .route("/playback/pause", post(pause))
         .route("/playback/skip", post(skip))
+        .route("/playback/volume", post(set_volume))
+        .route("/playback/seek", post(seek))
         .route("/playback/enqueue", post(enqueue))
         .route("/queue", get(get_queue))
         .with_state(state);
@@ -170,4 +187,42 @@ async fn enqueue(
     let position = queue_manager.size().await;
 
     Ok(Json(EnqueueResponse { guid, position }))
+}
+
+/// Set volume endpoint
+async fn set_volume(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<VolumeRequest>,
+) -> Result<StatusCode, StatusCode> {
+    // Convert from 0-100 (user-facing) to 0.0-1.0 (internal)
+    let volume = (req.volume.clamp(0, 100) as f64) / 100.0;
+
+    let engine = state.engine.read().await;
+    engine
+        .set_volume(volume)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::OK)
+}
+
+/// Seek endpoint
+async fn seek(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<SeekRequest>,
+) -> Result<StatusCode, StatusCode> {
+    let engine = state.engine.read().await;
+    engine
+        .seek(req.position_ms)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::OK)
+}
+
+/// SSE endpoint for real-time event streaming
+async fn sse_handler(
+    State(state): State<Arc<AppState>>,
+) -> impl axum::response::IntoResponse {
+    state.sse_broadcaster.handle_sse_connection()
 }

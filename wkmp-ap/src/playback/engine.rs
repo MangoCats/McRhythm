@@ -10,6 +10,7 @@ use tracing::{debug, info, warn, error};
 use super::pipeline::SinglePipeline;
 use super::queue::QueueManager;
 use super::state::{PlaybackState as State, SharedPlaybackState};
+use crate::sse::{SseBroadcaster, SseEvent, SseEventData};
 
 /// Playback engine coordinates GStreamer pipelines and queue management
 pub struct PlaybackEngine {
@@ -17,6 +18,7 @@ pub struct PlaybackEngine {
     queue: QueueManager,
     state: SharedPlaybackState,
     current_pipeline: Option<SinglePipeline>,
+    sse_broadcaster: Option<SseBroadcaster>,
 }
 
 impl PlaybackEngine {
@@ -30,6 +32,21 @@ impl PlaybackEngine {
             queue,
             state,
             current_pipeline: None,
+            sse_broadcaster: None,
+        }
+    }
+
+    /// Set the SSE broadcaster for emitting events
+    pub fn set_sse_broadcaster(&mut self, broadcaster: SseBroadcaster) {
+        self.sse_broadcaster = Some(broadcaster);
+    }
+
+    /// Emit a playback state changed event
+    fn emit_state_changed(&self, state: State) {
+        if let Some(ref broadcaster) = self.sse_broadcaster {
+            let event_data = SseEventData::playback_state_changed(&state.to_string());
+            let sse_event = SseEvent::new("playback_state_changed", event_data);
+            broadcaster.broadcast_lossy(sse_event);
         }
     }
 
@@ -101,6 +118,7 @@ impl PlaybackEngine {
                 if let Some(ref pipeline) = self.current_pipeline {
                     pipeline.play()?;
                     self.state.set_state(State::Playing).await;
+                    self.emit_state_changed(State::Playing);
                     info!("Playback started");
                 } else {
                     error!("Pipeline not loaded");
@@ -113,6 +131,7 @@ impl PlaybackEngine {
                 if let Some(ref pipeline) = self.current_pipeline {
                     pipeline.play()?;
                     self.state.set_state(State::Playing).await;
+                    self.emit_state_changed(State::Playing);
                 } else {
                     warn!("No pipeline to resume");
                 }
@@ -134,6 +153,7 @@ impl PlaybackEngine {
             if let Some(ref pipeline) = self.current_pipeline {
                 pipeline.pause()?;
                 self.state.set_state(State::Paused).await;
+                self.emit_state_changed(State::Paused);
             }
         } else {
             debug!("Not playing, cannot pause");
@@ -203,5 +223,40 @@ impl PlaybackEngine {
             }
         }
         Ok(())
+    }
+
+    /// Set volume (0.0 to 1.0)
+    pub async fn set_volume(&self, volume: f64) -> Result<()> {
+        let clamped_volume = volume.clamp(0.0, 1.0);
+
+        // Update state
+        self.state.set_volume(clamped_volume).await;
+
+        // Update pipeline if active
+        if let Some(ref pipeline) = self.current_pipeline {
+            pipeline.set_volume(clamped_volume)?;
+        }
+
+        // Emit volume changed event (0-100 scale for user-facing)
+        if let Some(ref broadcaster) = self.sse_broadcaster {
+            let volume_percent = (clamped_volume * 100.0) as i32;
+            let event_data = SseEventData::volume_changed(volume_percent);
+            let sse_event = SseEvent::new("volume_changed", event_data);
+            broadcaster.broadcast_lossy(sse_event);
+        }
+
+        info!("Volume set to {:.2}", clamped_volume);
+        Ok(())
+    }
+
+    /// Seek to position in milliseconds
+    pub async fn seek(&self, position_ms: i64) -> Result<()> {
+        if let Some(ref pipeline) = self.current_pipeline {
+            pipeline.seek_to(position_ms)?;
+            info!("Seeked to {}ms", position_ms);
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("No active pipeline to seek"))
+        }
     }
 }
