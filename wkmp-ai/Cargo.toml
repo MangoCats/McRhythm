@@ -1,0 +1,12 @@
+[package]
+name = "wkmp-ai"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wkmp-ai"
+path = "src/main.rs"
+
+[dependencies]
+wkmp-common = { path = "../wkmp-common" }
+tokio = { workspace = true }

@@ -1,0 +1,12 @@
+[package]
+name = "wkmp-pd"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wkmp-pd"
+path = "src/main.rs"
+
+[dependencies]
+wkmp-common = { path = "../wkmp-common" }
+tokio = { workspace = true }

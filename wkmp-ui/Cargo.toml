@@ -1,0 +1,17 @@
+[package]
+name = "wkmp-ui"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wkmp-ui"
+path = "src/main.rs"
+
+[dependencies]
+wkmp-common = { path = "../wkmp-common" }
+tokio = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
+axum = { workspace = true }
+tracing = { workspace = true }
