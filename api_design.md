@@ -16,50 +16,50 @@ McRhythm implements a **microservices architecture** with 4 independent HTTP ser
 
 | Module | Default Port | Base URL | Purpose |
 |--------|--------------|----------|---------|
-| **Module 1: Audio Player** | 8081 | `http://localhost:8081` | Playback control, queue management |
-| **Module 2: User Interface** | 8080 | `http://localhost:8080/api` | User-facing API, authentication, library browsing |
-| **Module 3: Program Director** | 8082 | `http://localhost:8082` | Selection configuration, timeslots |
-| **Module 4: File Ingest** | 8083 | `http://localhost:8083` | File scanning, ingest workflow (Full only) |
+| **Audio Player** | 5721 | `http://localhost:5721` | Playback control, queue management |
+| **User Interface** | 5720 | `http://localhost:5720/api` | User-facing API, authentication, library browsing |
+| **Program Director** | 5722 | `http://localhost:5722` | Selection configuration, timeslots |
+| **Audio Ingest** | 5723 | `http://localhost:5723` | File scanning, ingest workflow (Full only) |
 
 ### API Communication Patterns
 
-**End Users → Module 2 (User Interface):**
-- Module 2 serves as the primary API gateway for end users
-- Proxies playback requests to Module 1
-- Proxies configuration requests to Module 3
+**End Users → User Interface:**
+- User Interface serves as the primary API gateway for end users
+- Proxies playback requests to Audio Player
+- Proxies configuration requests to Program Director
 - Handles authentication and session management
-- Aggregates SSE events from Module 1
+- Aggregates SSE events from Audio Player
 
-**Module 3 (Program Director) → Module 1 (Audio Player):**
+**Program Director → Audio Player:**
 - Direct communication for automatic enqueueing
 - No user interface involvement required
 
-**Module 4 (File Ingest) → Database:**
+**Audio Ingest → Database:**
 - Direct SQLite access for new file insertion
 - Independent operation
 
 ### Authentication
 
-**User Interface API (Module 2)** handles all authentication:
+**User Interface API** handles all authentication:
 1. Proceed as Anonymous user (shared UUID, no password)
 2. Create new account (generates unique UUID, requires username/password)
 3. Login to existing account (retrieves UUID, requires username/password)
 
 Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. See [User Identity and Authentication](user_identity.md) for complete flow.
 
-**Internal Module APIs** (Modules 1, 3, 4):
+**Internal Module APIs** (Audio Player, Program Director, Audio Ingest):
 - No authentication required (assumed to be on trusted local network)
-- Minimal developer UIs for debugging
+- Minimal HTML/JavaScript developer UIs for debugging (served via HTTP)
 - Security relies on network isolation
 
 **Content-Type:** `application/json` for all request/response bodies across all modules
 
 ---
 
-## Module 2: User Interface API
+## User Interface API
 
-**Base URL:** `http://localhost:8080/api`
-**Port:** 8080 (configurable)
+**Base URL:** `http://localhost:5720/api`
+**Port:** 5720 (configurable)
 **Purpose:** Primary API for end users, handles authentication, proxies to other modules
 
 ### Authentication Endpoints
@@ -159,9 +159,9 @@ Retrieve information about the currently authenticated user.
 }
 ```
 
-### Playback Control Endpoints (Proxied to Module 1)
+### Playback Control Endpoints (Proxied to Audio Player)
 
-**Note:** These endpoints are exposed by Module 2 at `/api/playback/*` and proxied to Module 1's HTTP API. All require user authentication (UUID from localStorage).
+**Note:** These endpoints are exposed by User Interface at `/api/playback/*` and proxied to Audio Player's HTTP API. All require user authentication (UUID from localStorage).
 
 #### `GET /api/status`
 
@@ -270,7 +270,7 @@ Set master volume level.
 
 #### `POST /api/seek`
 
-Jump to specific position in current passage.
+Seek to a specific position within the currently playing passage. Allows users to rewind or fast-forward.
 
 **Request:**
 ```json
@@ -281,6 +281,8 @@ Jump to specific position in current passage.
 
 **Parameters:**
 - `position`: Float, seconds from passage start
+  - Valid range: `[0, passage_duration]`
+  - Seeking to `passage_duration` has the same effect as skip
 
 **Response:**
 ```json
@@ -289,6 +291,11 @@ Jump to specific position in current passage.
   "position": 60.5
 }
 ```
+
+**Notes:**
+- Seek only applies to the current passage
+- Position is clamped to valid range if out of bounds
+- During crossfade, seek applies to the currently playing (fading out) passage
 
 ### Queue Management
 
@@ -397,42 +404,57 @@ Record a dislike for the currently playing passage.
 - Anonymous users share dislikes (all recorded to same Anonymous UUID)
 - Used to build user-specific taste profile for passage selection
 
-### Lyrics (Full version only)
+### Lyrics
 
-#### `GET /api/lyrics/:passage_id`
+#### `GET /api/lyrics/:song_guid`
 
-Retrieve lyrics for a passage.
+Retrieve lyrics for a song with fallback chain (read-only proxy to database).
 
 **Parameters:**
-- `passage_id`: UUID in URL path
+- `song_guid`: Song GUID (UUID) in URL path
 
 **Response:**
 ```json
 {
-  "passage_id": "uuid",
-  "lyrics": "string (plain UTF-8 text, may contain newlines)"
+  "song_guid": "abc123...",
+  "lyrics": "string (plain UTF-8 text, may contain newlines)",
+  "lyrics_source_song_guid": "abc123...",
+  "last_modified": "2025-10-09T12:34:56Z"
 }
 ```
 
 **Response (no lyrics):**
 ```json
 {
-  "passage_id": "uuid",
-  "lyrics": null
+  "song_guid": "abc123...",
+  "lyrics": null,
+  "lyrics_source_song_guid": null,
+  "last_modified": null
 }
 ```
 
-#### `PUT /api/lyrics/:passage_id`
+**Lyrics Fallback Logic:**
+1. Check the specified Song's `lyrics` field
+2. If empty, iterate through the Song's `related_songs` array (ordered from most to least closely related)
+3. Return lyrics from the first related Song with a non-empty `lyrics` field
+4. If no Song in the chain has lyrics, return null
+5. The `lyrics_source_song_guid` indicates which Song's lyrics are being displayed
 
-Update lyrics for a passage (Full version only).
+**Note:** User Interface provides read-only access to lyrics. All editing is done via the Lyric Editor module (Full version only).
+
+#### `POST /api/lyrics/edit/:song_guid`
+
+Launch the Lyric Editor for a specific song (Full version only).
 
 **Parameters:**
-- `passage_id`: UUID in URL path
+- `song_guid`: Song GUID (UUID) in URL path
 
 **Request:**
 ```json
 {
-  "lyrics": "string (plain UTF-8 text)"
+  "recording_mbid": "5e46c5b4-7f91-4d86-a97e-5a3c8e3f5c4f",
+  "title": "Bohemian Rhapsody",
+  "artist": "Queen"
 }
 ```
 
@@ -440,11 +462,17 @@ Update lyrics for a passage (Full version only).
 ```json
 {
   "status": "ok",
-  "passage_id": "uuid"
+  "message": "Lyric editor launched"
 }
 ```
 
-**Edge Case:** Concurrent lyric submissions are handled via a "last write wins" strategy. See [Multi-User Coordination](multi_user_coordination.md#3-concurrent-lyric-editing) for details.
+**Behavior:**
+- Checks if wkmp-le is running on configured port (default: 5724)
+- Launches wkmp-le if not running (Full version only)
+- Forwards song_guid, recording_mbid, title, and artist to `POST /lyric_editor/open`
+- Returns success/failure status
+
+**Edge Case:** Concurrent lyric submissions are handled via a "last write wins" strategy in the Lyric Editor. See [Multi-User Coordination](multi_user_coordination.md#3-concurrent-lyric-editing) for details.
 
 ### Library Management (Full version only)
 
@@ -457,9 +485,15 @@ Trigger library scan for new/changed audio files.
 **Request (with paths):**
 ```json
 {
-  "paths": ["/path/to/music/folder"]
+  "paths": ["albums/rock", "new_imports"]
 }
 ```
+
+**Note:**
+- If no paths provided, scans the entire root folder
+- Paths are relative to the root folder (e.g., "albums/rock" scans `{root_folder}/albums/rock`)
+- All discovered audio files must be within the root folder tree
+- File paths are stored in the database relative to the root folder for portability
 
 **Response:**
 ```json
@@ -500,51 +534,570 @@ Select audio output device.
 
 ---
 
-## Module 1: Audio Player API
+## Lyric Editor API
 
-**Base URL:** `http://localhost:8081`
-**Port:** 8081 (configurable)
+**Base URL:** `http://localhost:5724`
+**Port:** 5724 (configurable)
+**Purpose:** Dedicated lyric editing interface
+**Authentication:** None (internal/trusted network only)
+**Launch Model:** On-demand (started by User Interface when needed)
+
+The Lyric Editor provides a standalone interface for editing song lyrics associated with MusicBrainz recordings. It displays a split window with a text editor on the left and an embedded web browser on the right to facilitate finding and copying lyrics from web sources.
+
+### POST /lyric_editor/open
+
+Opens the lyric editor window with a specific recording.
+
+**Request Body:**
+```json
+{
+  "recording_mbid": "5e46c5b4-7f91-4d86-a97e-5a3c8e3f5c4f",
+  "title": "Bohemian Rhapsody",
+  "artist": "Queen"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Lyric editor opened"
+}
+```
+
+**Behavior:**
+- Opens split-window UI
+- Left pane: Loads current lyrics from `songs.lyrics` (empty if none exist)
+- Right pane: Launches embedded browser searching for "{title} {artist} lyrics"
+- User can edit lyrics in left pane and browse for sources in right pane
+
+### GET /lyric_editor/lyrics/:recording_mbid
+
+Retrieves current lyrics for a recording.
+
+**Response:**
+```json
+{
+  "recording_mbid": "5e46c5b4-7f91-4d86-a97e-5a3c8e3f5c4f",
+  "lyrics": "Is this the real life?\nIs this just fantasy?...",
+  "last_modified": "2025-10-09T12:34:56Z"
+}
+```
+
+### PUT /lyric_editor/lyrics/:recording_mbid
+
+Saves edited lyrics to the database.
+
+**Request Body:**
+```json
+{
+  "lyrics": "Is this the real life?\nIs this just fantasy?..."
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "recording_mbid": "5e46c5b4-7f91-4d86-a97e-5a3c8e3f5c4f",
+  "saved_at": "2025-10-09T12:35:00Z"
+}
+```
+
+**Behavior:**
+- Updates `songs.lyrics` column for the specified recording_mbid
+- Uses last-write-wins concurrency (no locking)
+- Emits `LyricsChanged` SSE event to notify other clients
+
+### POST /lyric_editor/close
+
+Closes the lyric editor without saving.
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "message": "Lyric editor closed"
+}
+```
+
+### SSE Event Stream
+
+**Endpoint:** `GET /events`
+
+**Events:**
+- `LyricsChanged` - Emitted when lyrics are saved
+  ```json
+  {
+    "event": "LyricsChanged",
+    "recording_mbid": "5e46c5b4-7f91-4d86-a97e-5a3c8e3f5c4f",
+    "timestamp": "2025-10-09T12:35:00Z"
+  }
+  ```
+
+---
+
+## Audio Player API
+
+**Base URL:** `http://localhost:5721`
+**Port:** 5721 (configurable)
 **Purpose:** Direct playback control, queue management
 **Authentication:** None (internal/trusted network only)
 
-**Note:** End users typically access these endpoints via Module 2 (User Interface), which proxies requests. Module 3 (Program Director) calls these endpoints directly for automatic enqueueing.
+**Note:** End users typically access these endpoints via User Interface, which proxies requests. Program Director calls these endpoints directly for automatic enqueueing.
 
 ### Control Endpoints
+
+#### `GET /audio/devices`
+List available audio output devices.
+
+**Response (200 OK):**
+```json
+{
+  "devices": [
+    {"id": "default", "name": "System Default", "default": true},
+    {"id": "pulse-sink-0", "name": "Built-in Audio Analog Stereo", "default": false},
+    {"id": "pulse-sink-1", "name": "HDMI Audio", "default": false}
+  ]
+}
+```
+
+**Field Details:**
+- `id` (string): Platform-specific device identifier (see Device Identifier Format below)
+- `name` (string): Human-readable device name from audio system
+- `default` (boolean): True if this is the current system default device
+
+**Device Identifier Format:**
+- **Linux (PulseAudio):** `pulse-sink-N` where N is the sink index (e.g., `pulse-sink-0`, `pulse-sink-1`)
+- **Linux (ALSA):** `alsa-hw-N-M` where N is card number, M is device number (e.g., `alsa-hw-0-0`)
+- **macOS (CoreAudio):** `coreaudio-N` where N is the device UID (e.g., `coreaudio-AppleHDAEngineOutput:1B,0,1,0:0`)
+- **Windows (WASAPI):** `wasapi-{GUID}` where GUID is the device endpoint identifier
+- **Special:** `default` always represents the system default audio output device
+
+**Error Responses:**
+- **500 Internal Server Error**: No audio output devices available (extremely rare, indicates system misconfiguration)
+  ```json
+  {"error": "no_devices_found", "message": "No audio output devices detected"}
+  ```
+
+**Notes:**
+- Device list is queried dynamically from GStreamer at request time
+- Device availability may change (headphones plugged/unplugged, USB devices connected/disconnected)
+- See [gstreamer_design.md - Section 10: Audio Device Enumeration](gstreamer_design.md#10-audio-device-enumeration) for implementation details
 
 #### `POST /audio/device`
 Set audio output device.
 
+**Request:**
+```json
+{"device_id": "pulse-sink-1"}
+```
+
+**Response (200 OK):**
+```json
+{"status": "ok", "device_id": "pulse-sink-1", "device_name": "HDMI Audio"}
+```
+
+**Error Responses:**
+- **404 Not Found**: Specified device_id does not exist or is no longer available
+  ```json
+  {"error": "device_not_found", "device_id": "pulse-sink-1"}
+  ```
+- **500 Internal Server Error**: Device exists but cannot be opened (in use, permission denied, etc.)
+  ```json
+  {"error": "device_unavailable", "device_id": "pulse-sink-1", "reason": "Device in use by another application"}
+  ```
+
+**Behavior:**
+- If playback is active, audio switches to new device seamlessly (may cause brief interruption)
+- If no playback is active, new device becomes active for next playback
+- Device selection persists in settings table (`audio_output_device` key)
+- Using `device_id: "default"` delegates device selection to system defaults
+
+**Notes:**
+- Device must be one of the IDs returned by `GET /audio/devices`
+- See [gstreamer_design.md - Section 10: Audio Device Enumeration](gstreamer_design.md#10-audio-device-enumeration) for GStreamer sink configuration
+
 #### `POST /audio/volume`
-Set volume level (0-100).
+Set volume level (0-100 integer, user-facing scale).
+
+**Request:**
+```json
+{"volume": 75}
+```
+
+**Response (200 OK):**
+```json
+{"status": "ok", "volume": 75}
+```
+
+**Error Responses:**
+- **400 Bad Request**: Invalid volume value (out of range 0-100)
+  ```json
+  {"error": "invalid_volume", "volume": 150, "valid_range": "0-100"}
+  ```
+
+**Notes:**
+- User-facing scale: 0-100 (integer percentage)
+- Backend converts to 0.0-1.0 (double) for GStreamer: `system_volume = user_volume / 100.0`
+- Conversion back: `user_volume = ceil(system_volume * 100.0)`
+- Volume change persists to database (`settings.volume_level`)
+- VolumeChanged SSE event emitted
 
 #### `POST /playback/enqueue`
 Enqueue a passage for playback.
 
+**Request Body:**
+```json
+{
+  "file_path": "music/albums/album_name/track.mp3",
+  "start_time_ms": 0,
+  "end_time_ms": 234500,
+  "lead_in_point_ms": 0,
+  "lead_out_point_ms": 234500,
+  "fade_in_point_ms": 0,
+  "fade_out_point_ms": 234500,
+  "fade_in_curve": "cosine",
+  "fade_out_curve": "cosine",
+  "passage_guid": "uuid-string",
+  "position": {
+    "type": "after",
+    "reference_guid": "uuid-123"
+  }
+}
+```
+
+**Field Details:**
+- `file_path` (required): Relative path from music root
+- `start_time_ms` (optional, default 0): Passage start time in milliseconds
+- `end_time_ms` (optional, default = file duration): Passage end time in milliseconds
+- `lead_in_point_ms` (optional, default 0): Lead-in point relative to start_time_ms
+- `lead_out_point_ms` (optional, default = duration): Lead-out point relative to start_time_ms
+- `fade_in_point_ms` (optional, default 0): Fade-in point relative to start_time_ms
+- `fade_out_point_ms` (optional, default = duration): Fade-out point relative to start_time_ms
+- `fade_in_curve` (optional, default "cosine"): Fade-in curve type
+- `fade_out_curve` (optional, default "cosine"): Fade-out curve type
+- `passage_guid` (optional): UUID for song identification features
+- `position` (optional): Where to insert in queue
+  - `type`: "after", "before", "at_order", or "append" (default)
+  - `reference_guid`: Required if type is "after" or "before"
+
+**Response (201 Created):**
+```json
+{
+  "status": "ok",
+  "queue_entry_id": "uuid-of-queue-entry",
+  "play_order": 30
+}
+```
+
+**Error Responses:**
+- **404 Not Found**: Audio file does not exist at specified path
+  ```json
+  {"error": "file_not_found", "file_path": "music/album/track.mp3"}
+  ```
+- **400 Bad Request**: Timing points are inconsistent or invalid
+  ```json
+  {"error": "invalid_timing", "message": "end_time_ms must be greater than start_time_ms"}
+  ```
+- **404 Not Found**: Position reference_guid does not exist in queue
+  ```json
+  {"error": "reference_not_found", "reference_guid": "uuid-123"}
+  ```
+
+**Notes:**
+- All timing values are unsigned integer milliseconds
+- When timing points omitted, values from passage definition or global settings are used
+- See [Crossfade Design](crossfade.md) for timing point semantics
+
 #### `DELETE /playback/queue/{passage_id}`
-Remove passage from queue.
+Remove passage from queue by queue entry GUID.
+
+**URL Parameters:**
+- `passage_id` (string): Queue entry GUID (not passage GUID)
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "removed": true,
+  "queue_entry_id": "uuid-of-removed-entry"
+}
+```
+
+**Error Responses:**
+- **404 Not Found**: Queue entry with specified GUID does not exist
+  ```json
+  {"error": "queue_entry_not_found", "queue_entry_id": "uuid"}
+  ```
+
+**Behavior:**
+- If removing currently playing passage: Skip to next passage (or stop if queue becomes empty)
+- If removing future passage: Queue is updated, no playback interruption
+- Removal persists to database immediately
+- QueueChanged SSE event emitted with trigger `"user_dequeue"`
+- If currently playing passage removed: PassageCompleted SSE event emitted with reason `"queue_removed"`
+
+**Notes:**
+- Parameter name is `passage_id` but expects queue entry GUID for deletion
+- To find queue entry GUID for a passage, use `GET /playback/queue`
 
 #### `POST /playback/play`
-Resume playback (set state to Playing).
+Resume playback (transition to Playing state).
+
+**Request Body:** None (empty POST)
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "state": "playing"
+}
+```
+
+**Behavior:**
+- If state is already Playing: No-op, returns 200 OK
+- If state is Paused with passage loaded: Resume with 0.5s exponential fade-in
+- If queue is empty: Set state to Playing, wait for passage to be enqueued (plays immediately when enqueued)
+- PlaybackStateChanged SSE event emitted (old_state: "paused", new_state: "playing")
+- PlaybackProgress SSE event emitted immediately after state change
+
+**Fade-In Details:**
+- Duration: 0.5 seconds
+- Curve: Exponential (v(t) = t²)
+- Applies to resume from pause only (not to passage start crossfades)
+
+**Notes:**
+- Idempotent operation (safe to call multiple times)
+- State persists to `settings.initial_play_state` if configured
 
 #### `POST /playback/pause`
-Pause playback (set state to Paused).
+Pause playback (transition to Paused state).
+
+**Request Body:** None (empty POST)
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "state": "paused"
+}
+```
+
+**Behavior:**
+- If state is already Paused: No-op, returns 200 OK
+- If state is Playing: Pause with 0.5s exponential fade-out
+- Current playback position preserved during pause
+- PlaybackStateChanged SSE event emitted (old_state: "playing", new_state: "paused")
+- PlaybackProgress SSE event emitted immediately after state change (captures paused position)
+
+**Fade-Out Details:**
+- Duration: 0.5 seconds
+- Curve: Logarithmic (v(t) = (1.0 - t)²)
+- GStreamer pipeline remains in PLAYING state internally (muted) to maintain position accuracy
+
+**Notes:**
+- Idempotent operation (safe to call multiple times)
+- Position not persisted to database until clean shutdown
 
 ### Status Endpoints
 
 #### `GET /audio/device`
 Get current audio output device.
 
+**Response (200 OK):**
+```json
+{
+  "device_id": "pulse-sink-1",
+  "device_name": "HDMI Audio"
+}
+```
+
+**Special Cases:**
+- If using system default device:
+  ```json
+  {
+    "device_id": "default",
+    "device_name": "System Default"
+  }
+  ```
+- If no device configured (first startup):
+  ```json
+  {
+    "device_id": "default",
+    "device_name": "System Default"
+  }
+  ```
+
+**Notes:**
+- Returns device currently in use by GStreamer audiosink
+- Device persisted in `settings.audio_sink` database key
+
 #### `GET /audio/volume`
-Get current volume level.
+Get current volume level (0-100 integer).
+
+**Response (200 OK):**
+```json
+{"volume": 75}
+```
+
+**Notes:**
+- Returns user-facing 0-100 integer scale (converted from internal 0.0-1.0)
+- Conversion: `user_volume = ceil(system_volume * 100.0)`
 
 #### `GET /playback/queue`
-Get queue contents.
+Get queue contents in play order.
+
+**Response (200 OK):**
+```json
+{
+  "queue": [
+    {
+      "queue_entry_id": "uuid-1",
+      "passage_id": "passage-uuid-1",
+      "play_order": 10,
+      "file_path": "music/album/track1.mp3",
+      "timing_override": null
+    },
+    {
+      "queue_entry_id": "uuid-2",
+      "passage_id": "passage-uuid-2",
+      "play_order": 20,
+      "file_path": "music/album/track2.mp3",
+      "timing_override": {
+        "start_time_ms": 5000,
+        "end_time_ms": 180000,
+        "fade_in_curve": "linear"
+      }
+    }
+  ]
+}
+```
+
+**Field Details:**
+- `queue_entry_id` (string): Unique ID for this queue entry (use for deletion)
+- `passage_id` (string): Passage GUID from database
+- `play_order` (integer): Play order (ascending, gaps allowed)
+- `file_path` (string): Audio file path relative to root folder
+- `timing_override` (object or null): Timing overrides for this queue entry
+  - If null: Uses passage timing from database
+  - If object: Contains override values (only overridden fields included)
+
+**Empty Queue Response:**
+```json
+{"queue": []}
+```
+
+**Notes:**
+- Queue entries ordered by `play_order` ascending
+- Currently playing passage is NOT included (only future passages)
+- Timing override format matches `POST /playback/enqueue` request format
 
 #### `GET /playback/state`
-Get Playing/Paused state.
+Get current playback state (Playing or Paused).
+
+**Response (200 OK):**
+```json
+{"state": "playing"}
+```
+
+**Possible Values:**
+- `"playing"`: Playback is active (or waiting for queue to be populated)
+- `"paused"`: Playback is paused
+
+**Notes:**
+- McRhythm uses two-state model only (no "stopped" state)
+- State reflects intent, not whether audio is currently audible
+- If state is "playing" but queue is empty, audio plays immediately when passage enqueued
 
 #### `GET /playback/position`
-Get current playback position in passage.
+Get current playback position within currently playing passage.
+
+**Response (200 OK):**
+```json
+{
+  "passage_id": "uuid-string",
+  "position_ms": 45200,
+  "duration_ms": 234500,
+  "state": "playing"
+}
+```
+
+**No Passage Playing Response (200 OK):**
+```json
+{
+  "passage_id": null,
+  "position_ms": 0,
+  "duration_ms": 0,
+  "state": "paused"
+}
+```
+
+**Field Details:**
+- `passage_id` (string or null): UUID of currently playing passage, or null if none
+- `position_ms` (integer): Current position in milliseconds (0 if no passage)
+- `duration_ms` (integer): Total passage duration in milliseconds (0 if no passage)
+- `state` (string): Current playback state ("playing" or "paused")
+
+**Notes:**
+- Position updates in real-time during playback
+- Position query uses GStreamer pipeline position query
+- During crossfade, returns position of currently audible passage (not next passage)
+
+### Health Endpoint
+
+#### `GET /health`
+Health check endpoint for monitoring and duplicate instance detection.
+
+**Response (200 OK):**
+```json
+{
+  "status": "healthy",
+  "module": "audio_player",
+  "version": "1.0.0",
+  "uptime_seconds": 3600,
+  "checks": {
+    "database": "ok",
+    "audio_device": "ok",
+    "gstreamer": "ok"
+  }
+}
+```
+
+**Response (503 Service Unavailable):**
+```json
+{
+  "status": "unhealthy",
+  "module": "audio_player",
+  "version": "1.0.0",
+  "uptime_seconds": 120,
+  "checks": {
+    "database": "ok",
+    "audio_device": "failed",
+    "gstreamer": "ok"
+  }
+}
+```
+
+**Field Details:**
+- `status` (string): "healthy" or "unhealthy"
+- `module` (string): Always "audio_player" for this module
+- `version` (string): Module version string
+- `uptime_seconds` (integer): Seconds since module started
+- `checks` (object): Health status of critical subsystems
+  - `database` (string): "ok" if database accessible, "failed" otherwise
+  - `audio_device` (string): "ok" if audio output device working, "failed" if unavailable
+  - `gstreamer` (string): "ok" if GStreamer initialized, "failed" otherwise
+
+**Unhealthy Conditions:**
+- Database connection fails
+- Audio output device cannot be opened
+- GStreamer pipeline cannot be created
+
+**Notes:**
+- Used for duplicate instance detection during startup (see deployment.md)
+- Used for health monitoring by operators
+- Should respond quickly (<100ms) even under load
 
 ### SSE Events
 
@@ -555,21 +1108,234 @@ Server-Sent Events stream for real-time playback updates.
 - `VolumeChanged`
 - `QueueChanged`
 - `PlaybackStateChanged`
-- `PlaybackProgress` (every 500ms)
+- `PlaybackProgress` (interval configurable via `playback_progress_interval_ms` setting, default 5000ms)
 - `PassageStarted`
 - `PassageCompleted`
 - `CurrentSongChanged`
 
+**Event Format:** All events follow standard SSE format with `event:` and `data:` fields. The `data:` field contains JSON.
+
 ---
 
-## Module 3: Program Director API
+## SSE Event Formats
 
-**Base URL:** `http://localhost:8082`
-**Port:** 8082 (configurable)
+This section defines the JSON wire format for Server-Sent Events transmitted by the Audio Player (`GET /events` endpoint).
+
+**Note on Volume Scale:** SSE events use the system-level volume scale (0.0-1.0 floating-point) rather than the user-facing scale (0-100 integer). This allows for precise volume representation in real-time event streams. User interface components should convert to 0-100 integer scale for display (see [architecture.md - Volume Handling](architecture.md#volume-handling) for conversion formulas).
+
+### PlaybackProgress
+
+Emitted periodically during playback at configurable interval (`playback_progress_interval_ms` setting, default 5000ms). Also emitted once when Pause initiated and once when Play initiated.
+
+**SSE Format:**
+```
+event: PlaybackProgress
+data: {"passage_id":"uuid-string","position_ms":45200,"duration_ms":234500,"timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "passage_id": "uuid-string",
+  "position_ms": 45200,
+  "duration_ms": 234500,
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `passage_id` (string): UUID of currently playing passage
+- `position_ms` (integer): Current playback position in milliseconds
+- `duration_ms` (integer): Total passage duration in milliseconds
+- `timestamp` (string): ISO 8601 timestamp (UTC) when event was generated
+
+### VolumeChanged
+
+Emitted when volume changes via `POST /audio/volume` or other volume control mechanisms.
+
+**SSE Format:**
+```
+event: VolumeChanged
+data: {"old_volume":0.75,"new_volume":0.85,"timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "old_volume": 0.75,
+  "new_volume": 0.85,
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `old_volume` (float): Previous volume level (0.0 = mute, 1.0 = maximum)
+- `new_volume` (float): New volume level (0.0 = mute, 1.0 = maximum)
+- `timestamp` (string): ISO 8601 timestamp (UTC) when volume changed
+
+**Conversion:** System volume (0.0-1.0) → User display (0-100): `user_volume = ceil(system_volume × 100.0)`
+
+### QueueChanged
+
+Emitted when queue contents change (passage added, removed, reordered, or cleared).
+
+**SSE Format:**
+```
+event: QueueChanged
+data: {"queue":["uuid1","uuid2","uuid3"],"trigger":"user_enqueue","timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "queue": ["uuid1", "uuid2", "uuid3"],
+  "trigger": "user_enqueue",
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `queue` (array of strings): Ordered list of passage UUIDs in the queue (play_order ascending)
+- `trigger` (string): What caused the queue change
+- `timestamp` (string): ISO 8601 timestamp (UTC) when queue changed
+
+**Trigger Values:**
+- `"user_enqueue"`: User manually added passage via UI
+- `"program_director"`: Program Director automatically added passage
+- `"user_dequeue"`: User removed passage via UI
+- `"passage_completed"`: Passage finished playing and was removed
+- `"queue_cleared"`: User cleared entire queue
+- `"queue_reordered"`: User reordered queue entries
+
+### PlaybackStateChanged
+
+Emitted when playback state transitions between Playing and Paused.
+
+**SSE Format:**
+```
+event: PlaybackStateChanged
+data: {"old_state":"paused","new_state":"playing","timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "old_state": "paused",
+  "new_state": "playing",
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `old_state` (string): Previous playback state (`"playing"` or `"paused"`)
+- `new_state` (string): New playback state (`"playing"` or `"paused"`)
+- `timestamp` (string): ISO 8601 timestamp (UTC) when state changed
+
+### PassageStarted
+
+Emitted when a new passage begins playing (first passage in queue or after previous passage completes/skips).
+
+**SSE Format:**
+```
+event: PassageStarted
+data: {"passage_id":"uuid-string","file_path":"music/albums/album_name/track.mp3","start_time_ms":0,"end_time_ms":234500,"timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "passage_id": "uuid-string",
+  "file_path": "music/albums/album_name/track.mp3",
+  "start_time_ms": 0,
+  "end_time_ms": 234500,
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `passage_id` (string): UUID of passage that started
+- `file_path` (string): Audio file path relative to music root
+- `start_time_ms` (integer): Passage start time in milliseconds
+- `end_time_ms` (integer): Passage end time in milliseconds
+- `timestamp` (string): ISO 8601 timestamp (UTC) when passage started
+
+### PassageCompleted
+
+Emitted when a passage finishes playing (reached end) or is skipped.
+
+**SSE Format:**
+```
+event: PassageCompleted
+data: {"passage_id":"uuid-string","completed":true,"reason":"natural","timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "passage_id": "uuid-string",
+  "completed": true,
+  "reason": "natural",
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `passage_id` (string): UUID of passage that completed
+- `completed` (boolean): `true` if played to end, `false` if skipped or failed
+- `reason` (string): Why passage completed
+- `timestamp` (string): ISO 8601 timestamp (UTC) when passage completed
+
+**Reason Values:**
+- `"natural"`: Passage played to its end_time_ms
+- `"user_skip"`: User pressed skip button
+- `"playback_error"`: Audio file could not be decoded or played
+- `"queue_removed"`: Passage removed from queue while playing
+
+### CurrentSongChanged
+
+Emitted when the currently playing song within a passage changes (when passage contains multiple songs or gaps).
+
+**SSE Format:**
+```
+event: CurrentSongChanged
+data: {"passage_id":"uuid-string","song_id":"song-uuid","song_albums":["album-uuid-1","album-uuid-2"],"position_ms":45200,"timestamp":"2025-10-10T14:30:00Z"}
+```
+
+**JSON Structure:**
+```json
+{
+  "passage_id": "uuid-string",
+  "song_id": "song-uuid",
+  "song_albums": ["album-uuid-1", "album-uuid-2"],
+  "position_ms": 45200,
+  "timestamp": "2025-10-10T14:30:00Z"
+}
+```
+
+**Fields:**
+- `passage_id` (string): UUID of currently playing passage
+- `song_id` (string or null): UUID of current song, or `null` if in gap between songs
+- `song_albums` (array of strings): UUIDs of all albums associated with this song (empty array if song_id is null)
+- `position_ms` (integer): Current playback position in passage (milliseconds)
+- `timestamp` (string): ISO 8601 timestamp (UTC) when song changed
+
+**Use Cases:**
+- Update album art when song changes within multi-song passage
+- Display "now playing" song information
+- Track song-level play history
+
+**Note:** This event is distinct from `PassageStarted`. `PassageStarted` fires when a new queue entry begins playing. `CurrentSongChanged` fires when crossing song boundaries within a single passage.
+
+---
+
+## Program Director API
+
+**Base URL:** `http://localhost:5722`
+**Port:** 5722 (configurable)
 **Purpose:** Selection configuration, timeslot management
 **Authentication:** None (internal/trusted network only)
 
-**Note:** End users access these endpoints via Module 2 (User Interface), which proxies configuration requests.
+**Note:** End users access these endpoints via User Interface, which proxies configuration requests.
 
 ### Configuration Endpoints
 
@@ -597,6 +1363,38 @@ Activate temporary flavor override.
 #### `DELETE /selection/override`
 Clear temporary flavor override.
 
+#### `POST /selection/request`
+Request passage selection (called by Audio Player when queue is low).
+
+**Called by:** Audio Player (wkmp-ap)
+
+**Request:**
+```json
+{
+  "anticipated_start_time": "2025-10-09T15:30:45Z",
+  "current_queue_passages": 1,
+  "current_queue_duration_seconds": 240
+}
+```
+
+**Response (immediate acknowledgment):**
+```json
+{
+  "status": "acknowledged",
+  "request_id": "uuid"
+}
+```
+
+**Behavior:**
+- Program Director responds immediately to acknowledge request:
+  - Timeout configured in settings table: `queue_refill_acknowledgment_timeout_seconds` (default: 5 seconds)
+  - Audio Player uses this timeout to determine when to relaunch Program Director
+- Selection happens asynchronously (may take longer than throttle interval)
+- If no candidates available, selection fails but acknowledgment still sent
+- Selected passage is enqueued to Audio Player via `POST /playback/enqueue`
+- Audio Player throttles requests while queue is underfilled:
+  - Interval configured in settings table: `queue_refill_request_throttle_seconds` (default: 10 seconds)
+
 ### Status Endpoints
 
 #### `GET /status`
@@ -618,10 +1416,10 @@ Server-Sent Events stream for selection updates.
 
 ---
 
-## Module 4: File Ingest API (Full Version Only)
+## Audio Ingest API (Full Version Only)
 
-**Base URL:** `http://localhost:8083`
-**Port:** 8083 (configurable)
+**Base URL:** `http://localhost:5723`
+**Port:** 5723 (configurable)
 **Purpose:** File scanning, ingest workflow
 **Authentication:** None (internal/trusted network only)
 
@@ -645,6 +1443,30 @@ Define passages within file.
 #### `PUT /ingest/metadata/{passage_id}`
 Edit passage metadata.
 
+#### `PUT /ingest/related_songs/{song_guid}`
+Edit the related songs list for a song.
+
+**Request:**
+```json
+{
+  "related_songs": ["song-guid-1", "song-guid-2", "song-guid-3"]
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "song_guid": "abc123..."
+}
+```
+
+**Behavior:**
+- Accepts a JSON array of song GUIDs, ordered from most to least closely related
+- Updates the `songs.related_songs` field for the specified song
+- Related songs are typically other recordings of the same Work
+- This list is initially populated during MusicBrainz identification, but can be user-edited
+
 #### `POST /ingest/finalize/{file_id}`
 Complete ingest workflow and commit to library.
 
@@ -652,9 +1474,9 @@ Complete ingest workflow and commit to library.
 
 ## Server-Sent Events (SSE)
 
-### Module 2: `GET /api/events`
+### User Interface: `GET /api/events`
 
-Real-time event stream for UI updates. Module 2 aggregates events from Module 1 and adds user-specific events.
+Real-time event stream for UI updates. User Interface aggregates events from Audio Player and adds user-specific events.
 
 **Connection:** Keep-alive HTTP connection with `text/event-stream` content type
 

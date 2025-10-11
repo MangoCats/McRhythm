@@ -120,9 +120,12 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 
 **MFL-EDGE-033:** If a library contains only passages with zero songs:
 - Automatic selection cannot operate (no valid candidates)
-- The [Program Director](program_director.md) will not be able to automatically enqueue any passages
+- The [Program Director](program_director.md) returns error code `NO_SONGS_WITH_FLAVOR`
 - Users must manually enqueue passages to populate the queue
 - The queue may become empty if all passages finish playing and no new passages are manually enqueued
+
+> **See:** [Program Director - Selection Failure Communication](program_director.md#selection-failure-communication) for error codes and API response format
+> **See:** [UI Specification - Automatic Selection Unavailable](ui_specification.md#ui-queue-025) for user-facing error messages
 
 ### More than one Recording per Passage Calculation
 <a name="more-than-one-recording-per-passage-calculation"></a>

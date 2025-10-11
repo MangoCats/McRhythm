@@ -50,6 +50,8 @@ flowchart TD
         DB["database_schema.md<br/><br/>Defines data structures<br/>& schema"]
         CODE["coding_conventions.md<br/><br/>Defines code organization<br/>standards & patterns"]
         SEG["audio_file_segmentation.md<br/><br/>Defines audio file<br/>segmentation workflow"]
+        GST["gstreamer_design.md<br/><br/>Defines GStreamer pipeline<br/>architecture & implementation"]
+        PROJ["project_structure.md<br/><br/>Defines Rust workspace<br/>& project organization"]
         DEPLOY["deployment.md<br/><br/>Defines deployment,<br/>process management,<br/>& operational config"]
     end
 
@@ -65,10 +67,10 @@ flowchart TD
     REQ & ENT -->|informs| ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC
     T2_SPACER ~~~ T3
     T2_SPACER ~~~ CC
-    ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC -->|informs| DB & CODE & SEG & DEPLOY
-    DB & CODE & SEG & DEPLOY -->|informs| IMPL
+    ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC -->|informs| DB & CODE & SEG & GST & PROJ & DEPLOY
+    DB & CODE & SEG & GST & PROJ & DEPLOY -->|informs| IMPL
 
-    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC & DB & CODE & SEG & DEPLOY & IMPL
+    ENUM --- REQ & ENT & ARCH & API & LIB & XFD & FLV & TASTE & PD & LD & UI & AUTH & EVT & MUC & DB & CODE & SEG & GST & PROJ & DEPLOY & IMPL
 
     style T0 fill:#e1f5ff,stroke:#01579b,stroke-width:3px
     style T1 fill:#fff3e0,stroke:#e65100,stroke-width:3px
@@ -96,6 +98,8 @@ flowchart TD
     style DB fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style CODE fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style SEG fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    style GST fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
+    style PROJ fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style DEPLOY fill:#c8e6c9,stroke:#1b5e20,stroke-width:2px
     style IMPL fill:#f8bbd0,stroke:#880e4f,stroke-width:2px
 
@@ -462,13 +466,51 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Library subsystem lead, UX designer, technical lead
 
+#### gstreamer_design.md
+**Purpose:** Defines GStreamer pipeline architecture and implementation details
+
+**Contains:**
+- Dual pipeline architecture (Pipeline A/B with audiomixer)
+- GStreamer element specifications and configurations
+- Crossfade implementation using volume automation
+- Audio device enumeration and selection
+- Buffer management and synchronization
+- Platform-specific considerations (Linux/Windows/macOS)
+
+**Update Policy:**
+- ✅ Update to support crossfade.md and architecture.md audio requirements
+- ✅ Update when GStreamer implementation details need refinement
+- ✅ May inform design document updates if pipeline reveals design issues
+- ❌ Pipeline specs are derived FROM requirements/design, not vice versa
+
+**Maintained By:** Audio engineer, backend developers
+
+#### project_structure.md
+**Purpose:** Defines Rust workspace structure and project organization
+
+**Contains:**
+- Cargo workspace configuration
+- Module/crate organization (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le)
+- Shared library organization (wkmp-common)
+- Dependency management strategy
+- Testing infrastructure layout
+- Build configuration
+
+**Update Policy:**
+- ✅ Update to support architecture.md microservices design
+- ✅ Update when new modules are added or removed
+- ✅ Update when shared code organization needs refinement
+- ❌ Project structure is derived FROM requirements/design, not vice versa
+
+**Maintained By:** Technical lead, build engineer
+
 #### deployment.md
 **Purpose:** Defines deployment, process management, and operational configuration
 
 **Contains:**
 - Module binary locations and configuration file paths
 - Configuration file format for each module (TOML)
-- Database location and shared access
+- Root folder location and database access
 - Startup order and module dependencies
 - Process management (systemd, launchd, Windows Services)
 - Health checks and monitoring
@@ -552,7 +594,8 @@ architecture.md, api_design.md, library_management.md, crossfade.md,
 musical_flavor.md, musical_taste.md, program_director.md, like_dislike.md,
 ui_specification.md, user_identity.md, event_system.md, multi_user_coordination.md (Tier 2)
     ↓ Implementation specs support design
-database_schema.md, coding_conventions.md, audio_file_segmentation.md (Tier 3)
+database_schema.md, coding_conventions.md, audio_file_segmentation.md,
+gstreamer_design.md, project_structure.md, deployment.md (Tier 3)
     ↓ Execution plan aggregates all specs
 implementation_order.md (Tier 4)
 ```
@@ -563,7 +606,8 @@ implementation_order.md (Tier 4)
 ```
 implementation_order.md (Tier 4)
     ↑ Discovers gap/issue
-database_schema.md, coding_conventions.md, audio_file_segmentation.md (Tier 3)
+database_schema.md, coding_conventions.md, audio_file_segmentation.md,
+gstreamer_design.md, project_structure.md, deployment.md (Tier 3)
     ↑ May reveal design issue
 architecture.md, api_design.md, library_management.md, crossfade.md,
 musical_flavor.md, musical_taste.md, program_director.md, like_dislike.md,
@@ -709,6 +753,9 @@ Cascade: Update implementation_order.md with optimization task
 | database_schema.md | 3 | Data model changes | Tier 4 | DB engineer |
 | coding_conventions.md | 3 | Standards evolve | Tier 4 | Tech lead |
 | audio_file_segmentation.md | 3 | Segmentation workflow changes | Tier 4 | Library subsystem lead, UX designer |
+| gstreamer_design.md | 3 | GStreamer pipeline changes | Tier 4 | Audio engineer |
+| project_structure.md | 3 | Workspace structure changes | Tier 4 | Tech lead, build engineer |
+| deployment.md | 3 | Deployment strategy changes | Tier 4 | DevOps lead |
 | implementation_order.md | 4 | Any upstream change | None (downstream only) | Project manager |
 | requirements_enumeration.md | Cross-cutting | ID scheme changes | ID format in all docs | Doc lead |
 
@@ -722,7 +769,8 @@ Cascade: Update implementation_order.md with optimization task
 ### I found a gap/issue in implementation_order.md
 → Update implementation_order.md directly (it's downstream)
 
-### I found a gap/issue in database_schema.md, coding_conventions.md, or audio_file_segmentation.md
+### I found a gap/issue in any Tier 3 implementation spec
+(database_schema.md, coding_conventions.md, audio_file_segmentation.md, gstreamer_design.md, project_structure.md, deployment.md)
 → Can I fix it without changing design? Yes → Update directly
 → Does it affect design? → Review with tech lead, may need Tier 2 update
 
@@ -741,11 +789,12 @@ Cascade: Update implementation_order.md with optimization task
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** 2025-10-08
+**Document Version:** 1.2
+**Last Updated:** 2025-10-10
 **Maintained By:** Technical Lead
 
 **Change Log:**
+- v1.2 (2025-10-10): Added missing Tier 3 documents: gstreamer_design.md, project_structure.md (deployment.md was already documented in text but not in diagram)
 - v1.1 (2025-10-08): Added missing documents: musical_taste.md, program_director.md, like_dislike.md, ui_specification.md, user_identity.md, audio_file_segmentation.md
 - v1.0 (2025-10-05): Initial version
 

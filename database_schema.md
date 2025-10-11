@@ -18,6 +18,55 @@ McRhythm uses SQLite as its database engine. The schema is designed to support:
 - User preferences and time-based flavor targets
 - Queue state persistence
 
+## Global vs User-Scoped Data Design
+
+**McRhythm functions like a shared hi-fi system**, not a personal music player:
+
+**Global Data (System-Wide):**
+- **Playback settings**: Volume, audio sink, crossfade settings
+- **Playback state**: Currently playing passage, queue, play history
+- **System configuration**: Module network addresses, timeslots, flavor targets
+- **Rationale**:
+  - Multiple users may be listening simultaneously (e.g., family in living room)
+  - System may run with zero users logged in (background music)
+  - User-specific playback settings would be inappropriate for shared listening
+  - **Play history is global**: All users see the same play history; cooldowns apply to all users collectively (system assumes all listeners hear all songs as they are played)
+
+**User-Scoped Data:**
+- **Likes/Dislikes**: Individual taste preferences tracked per user
+- **User accounts**: Authentication credentials and session tokens
+- **Rationale**:
+  - Personal preferences should not affect shared playback
+  - Program Director may (or may not) incorporate user taste into selection algorithm
+  - Anonymous users share a common taste profile
+
+**Tables by Scope:**
+- **Global**: `settings`, `queue`, `play_history`, `timeslots`, `module_config`, all music metadata
+- **User-scoped**: `likes_dislikes`, `users`
+
+## File System Organization
+
+**Root Folder Structure:**
+- All audio files, artwork, and other referenced files are organized under a single **root folder**
+- The SQLite database file is located in the root folder
+- All file paths stored in the database are **relative to the root folder**
+
+**Benefits:**
+- **Portability**: The entire collection (database + files) can be moved to a new location by moving the root folder
+- **Migration**: Easy to migrate to different systems or backup/restore the complete library
+- **Flexibility**: Root folder can be on any storage device or network location
+
+**Path Storage:**
+- All `path` and `file_path` columns store paths relative to the root folder
+- Example: If root folder is `/home/user/music/` and audio file is `/home/user/music/albums/song.mp3`, the database stores `albums/song.mp3`
+- Path separator: Use forward slash (`/`) on all platforms for consistency
+- The application determines the root folder at runtime from configuration
+
+**Database Location:**
+- Database file: `wkmp.db` (or user-specified name) in the root folder
+- Application reads root folder location from configuration file or environment variable
+- See [Deployment](deployment.md) for configuration details
+
 ## Schema Versioning
 
 ### `schema_version`
@@ -63,7 +112,7 @@ Audio files discovered by the library scanner.
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique file identifier (UUID) |
-| path | TEXT | NOT NULL UNIQUE | Absolute file path |
+| path | TEXT | NOT NULL UNIQUE | File path relative to root folder |
 | hash | TEXT | NOT NULL | SHA-256 hash of file contents |
 | duration | REAL | | File duration in seconds (NULL = not yet scanned) |
 | modification_time | TIMESTAMP | NOT NULL | File last modified timestamp |
@@ -97,7 +146,6 @@ Audio passages (playable segments) extracted from files.
 | user_title | TEXT | | User-defined passage title (overrides tag title) |
 | artist | TEXT | | Artist from file tags |
 | album | TEXT | | Album from file tags |
-| lyrics | TEXT | | Passage lyrics (plain UTF-8 text) |
 | musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values (see Musical Flavor Vector Storage) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
@@ -128,13 +176,15 @@ Audio passages (playable segments) extracted from files.
 
 ### `songs`
 
-Songs are unique combinations of a recording and a weighted set of artists.
+Songs are unique combinations of a recording and a weighted set of artists. Each Song has exactly one Recording, but may be closely related to other Songs of the same Work (either by the same artist or other artists).
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique song identifier (UUID) |
 | recording_mbid | TEXT | NOT NULL | MusicBrainz Recording ID (UUID) |
 | work_id | TEXT | | Foreign key to the works table (UUID) |
+| related_songs | TEXT | | JSON array of related song GUIDs, ordered from most to least closely related |
+| lyrics | TEXT | | Lyrics for this recording (plain UTF-8 text) |
 | base_probability | REAL | NOT NULL DEFAULT 1.0 | Base selection probability (0.0-1000.0) |
 | min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown seconds (default 7 days) |
 | ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown seconds (default 14 days) |
@@ -150,6 +200,20 @@ Songs are unique combinations of a recording and a weighted set of artists.
 **Indexes:**
 - `idx_songs_recording_mbid` on `recording_mbid`
 - `idx_songs_last_played` on `last_played_at`
+
+**Related Songs:**
+- The `related_songs` field contains a JSON array of song GUIDs, ordered from most to least closely related
+- Related songs are typically other recordings of the same Work, either by the same artist or other artists
+- This list is populated by Audio Ingest (wkmp-ai) during file ingestion based on MusicBrainz relationships
+- Users can edit the related songs list via wkmp-ai's HTTP interface (Full version only)
+- Example: `["song-guid-1", "song-guid-2", "song-guid-3"]`
+
+**Lyrics Display Behavior:**
+- When displaying lyrics, User Interface (wkmp-ui) follows a fallback chain:
+  1. Check the current Song's `lyrics` field - if non-empty, display these lyrics
+  2. If empty, iterate through `related_songs` in order (most to least closely related)
+  3. Display lyrics from the first related Song with a non-empty `lyrics` field
+  4. If no Song in the chain has lyrics, leave the lyrics display area empty
 
 ### `artists`
 
@@ -226,7 +290,7 @@ Images associated with various entities (songs, passages, albums, artists, works
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique image identifier (UUID) |
-| file_path | TEXT | NOT NULL | Absolute path to image file |
+| file_path | TEXT | NOT NULL | File path relative to root folder |
 | image_type | TEXT | NOT NULL | Type of image (see below) |
 | entity_id | TEXT | NOT NULL | UUID of associated entity |
 | priority | INTEGER | NOT NULL DEFAULT 100 | Display priority (lower = higher priority) |
@@ -251,31 +315,53 @@ Images associated with various entities (songs, passages, albums, artists, works
 - `passage`: Passage-specific image (entity_id = passage guid)
 - `artist`: Artist photo/image (entity_id = artist guid)
 - `work`: Work-related image (entity_id = work guid)
-- `logo`: McRhythm logo (entity_id = 'mcrhythm')
+- `logo`: WKMP logo (entity_id = 'wkmp')
 
 **Notes:**
 - All entity_id values reference internal guid primary keys for consistency
 - Priority allows multiple images of same type; UI displays highest priority (lowest number) first
-- Logo image is bundled with application; one row with entity_id='mcrhythm' for consistency
+- Logo image is bundled with application; one row with entity_id='wkmp' for consistency
+
+**Image File Storage:**
+- Images extracted from audio files are stored in the filesystem alongside the audio files (within the root folder tree)
+- Storage location: Same folder as the audio file the artwork relates to
+- If multiple audio files in different folders relate to the same artwork, store in the same folder as the first related audio file (rare case)
+- Naming convention: Same filename as the source file the art is extracted from
+- Filename conflict resolution: Append current time in ISO8601 format before file extension
+  - Example: `cover.jpg` → `cover_2025-10-09T12:34:56Z.jpg`
+- The `file_path` column stores the path relative to the root folder
+  - Example: If audio file is `albums/artist/song.mp3`, artwork might be stored as `albums/artist/song.jpg`
+- See [Library Management](library_management.md) for complete artwork extraction and storage workflows
 
 ## Relationship Tables (Many-to-Many)
 
 ### `passage_songs`
 
-Associates passages with the songs they contain.
+Associates passages with the songs they contain, including timing information for song boundary detection.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage identifier |
 | song_id | TEXT | NOT NULL REFERENCES songs(guid) ON DELETE CASCADE | Song identifier |
+| start_time_ms | INTEGER | NOT NULL | Song start time within passage (milliseconds from passage start) |
+| end_time_ms | INTEGER | NOT NULL | Song end time within passage (milliseconds from passage start) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 
 **Constraints:**
 - PRIMARY KEY: `(passage_id, song_id)`
+- CHECK: `start_time_ms >= 0`
+- CHECK: `end_time_ms > start_time_ms`
 
 **Indexes:**
 - `idx_passage_songs_passage` on `passage_id`
 - `idx_passage_songs_song` on `song_id`
+- `idx_passage_songs_timing` on `(passage_id, start_time_ms)`
+
+**Notes:**
+- Times are relative to passage start (passage.start_time = 0ms for this table)
+- Used by Audio Player to detect song boundary crossings during playback
+- Enables CurrentSongChanged event emission at correct positions
+- Multiple songs may exist within a passage with gaps between them
 
 ### `song_artists`
 
@@ -358,7 +444,7 @@ Associates songs with the works they are recordings of. Many-to-many relationshi
 
 ### `play_history`
 
-Records of passage playback events.
+Records of passage playback events (global/system-wide).
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -374,6 +460,8 @@ Records of passage playback events.
 - `idx_play_history_passage_time` on `(passage_id, timestamp)` (optimizes cooldown time-range queries)
 
 **Notes:**
+- **Global (system-wide)**: Play history is not user-specific. All users see the same play history.
+- **Cooldowns apply collectively**: The system assumes all listeners hear all songs as they are played, so cooldowns affect passage selection for everyone.
 - `ON DELETE CASCADE` policy: When a passage is deleted from the database, its play history is also deleted
 - This maintains database integrity but loses historical statistics for deleted content
 - Acceptable trade-off for library management (deleted files should not leave orphaned data)
@@ -423,11 +511,40 @@ GROUP BY s.guid;
 - Updates automatically as play_history changes
 - Efficient for status display queries
 
+### `song_play_history`
+
+Records each time a song is played. Used primarily for cooldown calculations by Program Director.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| guid | TEXT | PRIMARY KEY | Unique play record (UUID) |
+| song_id | TEXT | NOT NULL REFERENCES songs(guid) ON DELETE CASCADE | Song played |
+| passage_id | TEXT | REFERENCES passages(guid) ON DELETE SET NULL | Passage context (may be NULL if passage deleted) |
+| start_timestamp_ms | INTEGER | NOT NULL | Unix milliseconds UTC when song started |
+| stop_timestamp_ms | INTEGER | NOT NULL | Unix milliseconds UTC when song stopped |
+| audio_played_ms | INTEGER | NOT NULL | Milliseconds of audio actually played |
+| pause_duration_ms | INTEGER | NOT NULL DEFAULT 0 | Milliseconds spent in Pause state during this play |
+
+**Indexes:**
+- `idx_song_play_history_song` on `song_id`
+- `idx_song_play_history_start` on `start_timestamp_ms`
+
+**Notes:**
+- One record per song per play (passage with 3 songs → 3 records)
+- **Primary use**: Program Director cooldown calculations (per-song timing)
+- **Secondary uses**:
+  - Skip detection: `audio_played_ms` < expected song duration
+  - Rewind detection: `audio_played_ms` > (stop_timestamp_ms - start_timestamp_ms - pause_duration_ms)
+  - Clock drift analysis: Compare wall time to audio time accounting for pause
+- All timestamps are signed 64-bit integers (Unix milliseconds UTC)
+- `passage_id` may be NULL if passage definition deleted after play
+- Single table for all songs (not one table per song)
+
 ### `likes_dislikes`
 
 **Phase 1 Feature** (Full and Lite versions only)
 
-User feedback on songs, tracked per user identity.
+**User-scoped** feedback on songs, tracked per user identity. This is an example of user-specific data (contrast with global `settings` table).
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
@@ -451,6 +568,8 @@ User feedback on songs, tracked per user identity.
 - The `user_id` references the `users.guid` column, enabling per-user taste profiles
 - Anonymous users share the same `user_id`, resulting in a shared taste profile for all anonymous sessions
 - Registered users have individual taste profiles based on their unique `user_id`
+- **User-scoped vs Global**: Likes/Dislikes are user-specific because they represent individual taste preferences. In contrast, playback settings (volume, audio sink, etc.) are global because McRhythm functions like a shared hi-fi system where multiple users may be listening simultaneously.
+- **Program Director integration**: The Program Director may (or may not) incorporate user taste profiles into passage selection, depending on configuration and future development
 - See [Likes and Dislikes](like_dislike.md) for weight distribution algorithm
 - See [Musical Taste](musical_taste.md) for how likes/dislikes build taste profiles
 
@@ -470,11 +589,24 @@ Current playback queue.
 - `idx_queue_passage` on `passage_id`
 
 **Notes:**
-- `play_order` determines playback sequence; lowest value plays first
-- Gaps in play_order values are allowed and expected (e.g., 10, 20, 30...)
-- This design avoids expensive renumbering when inserting/removing entries
+- `play_order`: Integer ordering enables fast SQL retrieval (lowest value plays first)
+- Gaps encouraged to avoid expensive renumbering on insertion (e.g., 10, 20, 30...)
+- New passages appended with `play_order = last_play_order + 10`
+- When inserting between existing entries with no gap, renumber tail: `UPDATE queue SET play_order = play_order + 10 WHERE play_order >= insertion_point`
+- API accepts UUID-based insert positions ("after guid-123") which translates to play_order internally
 - To get next passage: `SELECT * FROM queue ORDER BY play_order LIMIT 1`
-- Position 0 is not special; currently playing passage may be tracked in settings table
+- **Persistence**: Written immediately on every enqueue/dequeue operation
+- **Recovery**: Fully recoverable after crash (playback position is not)
+- Currently playing tracked via `currently_playing_passage_id` in settings
+- Completed passages removed immediately (queue is forward-looking only)
+- **Typical queue depth**: 5-10 passages (graceful degradation up to 1000+)
+- **Overflow protection**: At 3 min/passage average with +10 increment, 1,225 years until 32-bit integer overflow. Automatic renumbering triggered if play_order exceeds 2,000,000,000.
+
+**Queue Entry Timing Overrides:**
+- Queue entries may override passage timing via enqueue API
+- Overrides stored as JSON in `settings.queue_entry_timing_overrides`
+- Keyed by queue entry guid
+- If no override: Use passage timing from passages table
 
 ## Time-based Flavor System
 
@@ -518,9 +650,56 @@ Passages that define the musical flavor target for each timeslot.
 
 ## Configuration & Settings
 
+### `module_config`
+
+Module network configuration for inter-module communication. Each module reads this table on startup to discover other modules' addresses and ports.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| module_name | TEXT | PRIMARY KEY | Module identifier |
+| host | TEXT | NOT NULL | Hostname or IP address |
+| port | INTEGER | NOT NULL | TCP port number |
+| enabled | BOOLEAN | NOT NULL DEFAULT 1 | Whether module is enabled (1) or disabled (0) |
+| updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When configuration was last modified |
+
+**Constraints:**
+- CHECK: `module_name IN ('audio_player', 'user_interface', 'program_director', 'audio_ingest', 'lyric_editor')`
+- CHECK: `port > 0 AND port <= 65535`
+
+**Indexes:**
+- `idx_module_config_name` on `module_name`
+
+**Default Values:**
+
+The database is initialized with default module configurations on first run:
+
+| module_name | host | port | enabled |
+|-------------|------|------|---------|
+| user_interface | 127.0.0.1 | 5720 | 1 |
+| audio_player | 127.0.0.1 | 5721 | 1 |
+| program_director | 127.0.0.1 | 5722 | 1 |
+| audio_ingest | 0.0.0.0 | 5723 | 1 |
+| lyric_editor | 0.0.0.0 | 5724 | 1 |
+
+**Initialization:**
+- **User Interface (wkmp-ui)** initializes the entire database on first run, including `module_config` table with all default values
+- Other modules initialize their required tables if missing on startup
+- Each module verifies its entry in `module_config` exists, adding it with defaults if not found
+
+**Notes:**
+- All modules read from this table on startup to determine how to connect to other modules
+- The `enabled` flag allows modules to be logically disabled without removing configuration
+- Host can be `127.0.0.1` for localhost-only, or `0.0.0.0` to bind to all interfaces
+- Default bind addresses reflect security and accessibility needs:
+  - Internal services (audio_player, program_director): `127.0.0.1` (localhost-only)
+  - User-facing web UIs (user_interface, audio_ingest, lyric_editor): `0.0.0.0` for network access, but user_interface defaults to `127.0.0.1` for security (user can change to `0.0.0.0` if needed)
+- For distributed deployments, update `host` values to actual IP addresses or hostnames
+- Each module binds to its own configured port and uses other modules' configurations to make HTTP requests
+- See [Deployment - Module Discovery](deployment.md#module-discovery-via-database) for startup sequence
+
 ### `settings`
 
-Application settings and user preferences (key-value store).
+**Global** application settings (key-value store). All settings are system-wide, not per-user.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -528,16 +707,63 @@ Application settings and user preferences (key-value store).
 | value | TEXT | NOT NULL | Setting value (JSON format for complex values) |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When setting was last modified |
 
-**Common keys:**
-- `last_played_passage_id`: ID of last played passage
-- `last_played_position`: Position in last played passage (seconds)
-- `volume_level`: User volume level (0-100)
-- `audio_sink`: Selected audio output sink
-- `temporary_flavor_override`: JSON with target flavor and expiration
-- `music_directories`: JSON array of directories to scan
+**Design Philosophy:**
+- **McRhythm functions like a shared hi-fi system**: Settings apply to the entire system, not individual users
+- **Multiple users may be listening simultaneously**: User-specific settings would be inappropriate
+- **System may run with zero users logged in**: Settings must be independent of authentication state
+- **User-specific data belongs elsewhere**: See `likes_dislikes` table for user-scoped preferences
+
+**Common keys (all global):**
+
+**Playback State:**
+- `initial_play_state`: Playback state on app launch ("playing" or "paused", default: "playing")
+- `currently_playing_passage_id`: UUID of passage currently playing
+- `last_played_passage_id`: UUID of last played passage
+- `last_played_position`: Position in milliseconds (updated only on clean shutdown, reset to 0 on queue change)
+
+**Audio Configuration:**
+- `volume_level`: Volume as double 0.0-1.0 (user-facing API uses 0-100 integer; conversion: `system = user / 100.0`, `user = ceil(system * 100.0)`)
+- `audio_sink`: Selected audio output sink identifier
+- `playback_progress_interval_ms`: SSE update interval (default: 5000ms)
+
+**Database Backup:**
+- `backup_location`: Path to backup directory (default: same folder as wkmp.db)
+- `backup_interval_ms`: Periodic backup interval (default: 90 days = ~7,776,000,000ms)
+- `backup_minimum_interval_ms`: Minimum time between startup backups (default: 14 days = ~1,209,600,000ms)
+- `backup_retention_count`: Number of timestamped backups to keep (default: 3)
+- `last_backup_timestamp_ms`: Unix milliseconds of last successful backup
+
+**Crossfade:**
 - `global_crossfade_time`: Global crossfade time in seconds
-- `global_fade_curve`: Global fade curve pair (default: 'exponential_logarithmic', options: 'linear_linear', 'cosine_cosine')
-- `currently_playing_passage_id`: ID of passage currently playing (alternative to queue position 0)
+- `global_fade_curve`: Fade curve pair (default: 'exponential_logarithmic', options: 'linear_linear', 'cosine_cosine')
+
+**Queue Management:**
+- `queue_entry_timing_overrides`: JSON object mapping queue entry guid → timing overrides
+- `queue_refill_threshold_passages`: Min passages before refill (default: 2)
+- `queue_refill_threshold_seconds`: Min seconds before refill (default: 900)
+- `queue_refill_request_throttle_seconds`: Min interval between requests (default: 10)
+- `queue_refill_acknowledgment_timeout_seconds`: Timeout for PD acknowledgment (default: 5)
+
+**Module Management:**
+- `relaunch_delay`: Seconds between module relaunch attempts (default: 5)
+- `relaunch_attempts`: Max relaunch attempts before giving up (default: 20)
+
+**Library:**
+- `music_directories`: JSON array of directories to scan
+- `temporary_flavor_override`: JSON with target flavor and expiration
+
+**HTTP Server Configuration:**
+- `http_base_ports`: JSON array of base port numbers (default: `[5720, 15720, 25720, 17200, 23400]`)
+- `http_request_timeout_ms`: Request timeout in milliseconds (default: 30000)
+- `http_keepalive_timeout_ms`: Keepalive timeout in milliseconds (default: 60000)
+- `http_max_body_size_bytes`: Maximum request body size (default: 1048576)
+
+**Persistence Notes:**
+- `last_played_position` updated **only on clean shutdown**
+- Value automatically reset to 0 on any queue modification
+- Used for resume-from-position on clean restart (crash recovery starts from beginning naturally)
+
+> See [Deployment - HTTP Server Configuration](deployment.md#13-http-server-configuration) for details on port selection algorithm, duplicate instance detection, and bind address configuration.
 
 ## External API Caching
 
@@ -639,6 +865,12 @@ CREATE TRIGGER update_settings_timestamp
 AFTER UPDATE ON settings
 BEGIN
     UPDATE settings SET updated_at = CURRENT_TIMESTAMP WHERE key = NEW.key;
+END;
+
+CREATE TRIGGER update_module_config_timestamp
+AFTER UPDATE ON module_config
+BEGIN
+    UPDATE module_config SET updated_at = CURRENT_TIMESTAMP WHERE module_name = NEW.module_name;
 END;
 
 CREATE TRIGGER update_images_timestamp

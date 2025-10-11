@@ -16,12 +16,13 @@ McRhythm implements a **microservices architecture** with multiple independent p
 
 ## Process Architecture
 
-McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfaces:
+McRhythm consists of up to 5 independent processes (depending on version), each with defined HTTP/SSE interfaces:
 
-- **Module 1: Audio Player** - Core playback engine with queue management
-- **Module 2: User Interface** - Polished web UI for end users
-- **Module 3: Program Director** - Automatic passage selection
-- **Module 4: File Ingest Interface** - New file import workflow (Full version only)
+- **Audio Player** - Core playback engine with queue management
+- **User Interface** - Polished web UI for end users
+- **Lyric Editor** - Standalone lyric editing tool (launched on-demand)
+- **Program Director** - Automatic passage selection
+- **Audio Ingest** - New file import workflow (Full version only)
 
 **Design Benefits:**
 - **Simplifies maintenance**: Each module focuses on a single concern
@@ -33,31 +34,30 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Module 2: User Interface (HTTP + SSE Server)               │
-│  Port: 8080 (configurable)                                  │
+│  User Interface (HTTP + SSE Server)                         │
+│  Port: 5720 (configurable)                                  │
 │  - Polished web UI for end users                            │
 │  - Authentication, playback control, queue management       │
-│  - Album art, lyrics, likes/dislikes, configuration         │
+│  - Album art, lyrics display, likes/dislikes, config        │
 └───────────┬─────────────────────────────────────────────────┘
             │ HTTP API calls
             │ SSE subscriptions
-    ┌───────┼────────┬────────────────────────┐
-    │       │        │                        │
-    ▼       ▼        ▼                        ▼
-┌───────┐ ┌────────────────┐  ┌──────────────────────────────┐
-│Module │ │  Module 1:     │  │  Module 3:                   │
-│  4:   │ │  Audio Player  │  │  Program Director            │
-│  New  │ │  Port: 8081    │  │  Port: 8082                  │
-│ File  │ │                │◄─┤                              │
-│Ingest │ │  - Minimal     │  │  - Minimal dev UI            │
-│  UI   │ │    dev UI      │  │  - Selection API (for UI)    │
-│       │ │  - Control API │  │  - Reads Audio Player status │
-│(Full  │ │  - Status API  │  │  - Enqueues via Audio Player │
-│ only) │ │  - SSE events  │  │                              │
-│       │ │                │  │  SQLite Database (Shared)    │
-│Port:  │ │                │  │  - Files, Passages, Songs    │
-│ 8083  │ │                │  │  - Play History, Queue       │
-└───────┘ └────────────────┘  └──────────────────────────────┘
+    ┌───────┼────────┬────────────────────────┬───────────────┐
+    │       │        │                        │               │
+    ▼       ▼        ▼                        ▼               ▼
+┌───────┐ ┌────────────────┐  ┌──────────────────────────────┐ ┌─────────────┐
+│Audio  │ │  Audio Player  │  │  Program Director            │ │Lyric Editor │
+│Ingest │ │  Port: 5721    │  │  Port: 5722                  │ │  Port: 5724 │
+│  UI   │ │                │◄─┤                              │ │             │
+│       │ │  - Minimal     │  │  - Minimal dev UI            │ │  - Split UI │
+│(Full  │ │    dev UI      │  │  - Selection API (for UI)    │ │  - Editor + │
+│ only) │ │  - Control API │  │  - Reads Audio Player status │ │    Browser  │
+│       │ │  - Status API  │  │  - Enqueues via Audio Player │ │  - On-demand│
+│Port:  │ │  - SSE events  │  │                              │ │    launch   │
+│ 5723  │ │                │  │  SQLite Database (Shared)    │ │             │
+│       │ │                │  │  - Files, Passages, Songs    │ │             │
+│       │ │                │  │  - Play History, Queue       │ │             │
+└───────┘ └────────────────┘  └──────────────────────────────┘ └─────────────┘
             │                   │
             │ Direct HTTP API   │
             └───────────────────┘
@@ -66,18 +66,18 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 
 ### Version-Specific Process Configuration
 
-| Version  | Module 1<br/>Audio Player | Module 2<br/>User Interface | Module 3<br/>Program Director | Module 4<br/>File Ingest |
-|----------|---------------------------|----------------------------|------------------------------|--------------------------|
-| **Full**     | ✅ Running | ✅ Running (Full-featured) | ✅ Running | ✅ Running |
-| **Lite**     | ✅ Running | ✅ Running (De-featured)   | ✅ Running | ❌ Not included |
-| **Minimal**  | ✅ Running | ✅ Running (De-featured)   | ❌ Not included | ❌ Not included |
+| Version  | Audio Player | User Interface | Lyric Editor | Program Director | Audio Ingest |
+|----------|--------------|----------------|--------------|------------------|--------------|
+| **Full**     | ✅ Running | ✅ Running (Full-featured) | ✅ On-demand | ✅ Running | ✅ Running |
+| **Lite**     | ✅ Running | ✅ Running (De-featured)   | ❌ Not included | ✅ Running | ❌ Not included |
+| **Minimal**  | ✅ Running | ✅ Running (De-featured)   | ❌ Not included | ❌ Not included | ❌ Not included |
 
 ## Module Specifications
 
-### Module 1: Audio Player
+### Audio Player
 
-**Process Type**: Independent HTTP server with minimal developer UI
-**Port**: 8081 (configurable)
+**Process Type**: Independent HTTP server with minimal HTML developer UI (served via HTTP)
+**Port**: 5721 (configurable)
 **Versions**: Full, Lite, Minimal
 
 **Responsibilities:**
@@ -112,7 +112,7 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - `PassageCompleted` - Passage finished
 - `CurrentSongChanged` - Within-passage song boundary crossed
 
-**Developer UI** (Minimal):
+**Developer UI** (Minimal HTML/JavaScript served via HTTP):
 - Module status display
 - Direct API testing interface
 - Event stream monitor
@@ -123,22 +123,223 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - Queue contents (persisted to SQLite)
 - User volume level (0-100)
 - Playback state (Playing/Paused only - no "stopped" state)
-- Initial state on app launch: Playing
+- Initial state on app launch: Determined by `initial_play_state` setting (default: "playing")
 
 **Key Design Notes:**
-- **Operates independently**: Does not require Module 2 (User Interface) to be running
-- **Receives commands from**: Module 2 (User Interface), Module 3 (Program Director)
+- **Operates independently**: Does not require User Interface to be running
+- **Receives commands from**: User Interface, Program Director
 - **Database access**: Direct SQLite access for queue persistence, passage metadata
 
-### Module 2: User Interface
+### Queue and State Persistence
+
+**[ARCH-QUEUE-PERSIST-010]** Queue Persistence Strategy:
+- Queue contents written to SQLite immediately on every queue modification (enqueue/dequeue/reorder)
+- Each queue entry stored with passage reference and timing specifications
+- Queue changes are synchronous writes (blocking until persisted)
+- Single database design (queue stored with library data)
+
+**[ARCH-QUEUE-PERSIST-020]** Playback Position Persistence:
+- Playback position transmitted via SSE at configurable interval (setting: `playback_progress_interval_ms`, default 5000ms)
+- Also transmitted once when Pause initiated, once when Play initiated
+- Playback position persisted **only on clean shutdown**
+- On any queue change, `last_played_position` automatically reset to 0 in settings
+- On startup: if `last_played_position` > 0, resume from that position; otherwise start from beginning
+- No special crash detection needed - queue change reset handles both crash and normal operation
+
+**[ARCH-QUEUE-PERSIST-030]** Database Backup Strategy (wkmp-ui responsibility):
+
+**On Startup:**
+1. Run `PRAGMA integrity_check` on wkmp.db
+2. If integrity good:
+   - Check time since last automatic backup
+   - If ≥ `backup_minimum_interval_ms` (default: 2 weeks): Create backup
+   - If < threshold: Skip backup (prevents excessive wear on frequent restarts)
+3. If integrity bad:
+   - Archive corrupted database with timestamp
+   - Restore from most recent backup
+   - Repeat integrity check on restored database
+   - Continue until good database found or all backups exhausted
+4. Display minimal UI showing backup/verification progress to connecting users
+
+**Backup Process (Atomic):**
+1. Copy wkmp.db → wkmp_backup_temp.db
+2. Run `PRAGMA integrity_check` on temp
+3. If good: Atomic rename → wkmp_backup_YYYY-MM-DD.db (timestamped if keeping multiple)
+4. If bad: Delete temp, log error
+5. Maintain `backup_retention_count` backups (default: 3), delete oldest when exceeded
+
+**Periodic Backup:**
+- Interval: `backup_interval_ms` (default: 3 months / ~7,776,000,000ms)
+- Triggered by wkmp-ui background timer
+- Same atomic process as startup backup
+
+**Backup Configuration (settings table):**
+- `backup_location`: Path to backup directory (default: same folder as wkmp.db)
+- `backup_interval_ms`: Time between periodic backups (default: 90 days)
+- `backup_minimum_interval_ms`: Minimum time between startup backups (default: 14 days)
+- `backup_retention_count`: Number of timestamped backups to keep (default: 3)
+- `last_backup_timestamp_ms`: Unix milliseconds of last successful backup
+
+**Backup Failure Handling:**
+- Network backup location unreachable: Fall back to local backup path, log warning
+- Timeout: 30 seconds for network writes
+- Startup never blocked by backup failure (only by integrity check and restore if needed)
+
+### Initial Play State
+
+**[ARCH-STARTUP-005]** Initial Play State Configuration:
+- Setting: `initial_play_state` (string: "playing" or "paused", default: "playing")
+- Determines playback state on app launch
+- Current playback state is never persisted across restarts
+
+**[ARCH-STARTUP-010]** Cold Start Procedure:
+1. Run database integrity check and backup (if wkmp-ui; see ARCH-QUEUE-PERSIST-030)
+2. Read `initial_play_state` from settings (default: "playing")
+3. Set playback state according to setting
+4. Read queue from database (ORDER BY play_order)
+5. Read `last_played_passage_id` and `last_played_position` from settings
+6. Determine action:
+   - **Queue empty + Playing**: Wait in Playing state (plays immediately when passage enqueued)
+   - **Queue empty + Paused**: Wait silently
+   - **Queue has passages + Playing**: Begin playback
+   - **Queue has passages + Paused**: Load first passage but don't play
+7. Starting position:
+   - If `last_played_passage_id` matches first queue entry AND `last_played_position` > 0: Resume from position
+   - Otherwise: Start from passage `start_time_ms`
+
+**[ARCH-STARTUP-020]** Queue Entry Validation:
+- Validated lazily when scheduled for playback
+- If file missing when playback attempted:
+  1. Log error with passage ID and file path
+  2. Emit `PassageCompleted(completed=false)` event
+  3. Remove invalid entry from queue
+  4. Advance to next passage
+  5. Continue if in Playing state
+
+**[ARCH-STARTUP-025]** Queue Lifecycle:
+- Queue is forward-looking only (passages waiting to play)
+- Currently playing passage tracked via `currently_playing_passage_id` setting
+- Completed passages removed from queue immediately (FIFO)
+- Play history stored separately in `song_play_history` table (single table for all songs)
+
+**[ARCH-QUEUE-ORDER-010]** Play Order Management:
+- New passages appended with `play_order = last_play_order + 10`
+- Gaps enable insertion without renumbering (e.g., insert at 25 between 20 and 30)
+- When inserting and no gap available (e.g., 20, 21), renumber tail: `UPDATE queue SET play_order = play_order + 10 WHERE play_order >= 20`
+- Typical queue depth: 5-10 passages (graceful degradation up to 1000+, but performance not priority concern beyond that)
+
+**Play Order Overflow Protection:**
+- `play_order` stored as signed 32-bit integer (max: 2,147,483,647)
+- At typical usage (3 min/passage, +10 increment): 1,225 years until overflow
+- If `play_order` exceeds 2,000,000,000: Trigger automatic renumbering
+  - Renumber entire queue starting from 10 (10, 20, 30...)
+  - Happens transparently during enqueue operation
+  - Extremely rare (abuse/hack scenario only)
+
+### Song Boundary Detection (CurrentSongChanged Event)
+
+**[ARCH-SONG-CHANGE-010]** Passage vs Song Relationship:
+
+A **passage** is a continuous subset of an audio file played from its `start_time_ms` to `end_time_ms`. A passage plays continuously without any transitions except at its start and end points.
+
+Key characteristics:
+- Passages are continuous playback regions within audio files
+- Multiple passages can be defined within a single audio file
+- Passages may overlap or have gaps between them
+- The same audio region can play in both lead-out of one passage and lead-in of next passage
+- Each passage contains zero or more **songs** (defined in `passage_songs` table)
+
+**[ARCH-SONG-CHANGE-020]** Song Timeline Construction:
+
+The `passage_songs` table (also called a "cut list" in music production) defines which songs exist within each passage and their time boundaries.
+
+When a passage starts playing:
+1. Query `passage_songs` table for current passage: `SELECT * FROM passage_songs WHERE passage_id = ? ORDER BY start_time`
+2. Build song timeline in memory: List of `{song_id, start_time_ms, end_time_ms, albums[]}`
+3. Store timeline for duration of passage playback
+4. Timeline remains valid until passage completes (passages play continuously, timeline doesn't change)
+
+**[ARCH-SONG-CHANGE-030]** CurrentSongChanged Emission:
+
+During playback, wkmp-ap monitors playback position to detect song boundary crossings:
+
+1. **Position monitoring:** Check current position against song timeline every 500ms
+   - Use same position query mechanism as `PlaybackProgress` event
+   - Separate 500ms timer for song boundary detection
+
+2. **Boundary detection:**
+   - Compare `current_position_ms` to each song's `[start_time_ms, end_time_ms]` range
+   - Determine if position crossed into different song since last check
+
+3. **Event emission:** Emit `CurrentSongChanged` when:
+   - Position crosses from one song to another
+   - Position crosses from song to gap (no song at current position)
+   - Position crosses from gap to song
+
+4. **Event payload:**
+   ```rust
+   CurrentSongChanged {
+       passage_id: PassageId,           // Current passage UUID
+       song_id: Option<SongId>,         // Current song UUID, or None if in gap
+       song_albums: Vec<AlbumId>,       // All albums for current song (empty if None)
+       position_ms: u64,                // Current position in passage (milliseconds)
+       timestamp: SystemTime,           // When boundary was crossed
+   }
+   ```
+
+5. **Gap handling:**
+   - If `current_position_ms` is not within any song's time range: `song_id = None`
+   - Gaps between songs are normal (not errors)
+   - UI should handle `None` gracefully (e.g., clear "now playing" song info, show passage info instead)
+
+**[ARCH-SONG-CHANGE-040]** Implementation Notes:
+
+- Song timeline built **only once** per passage (on `PassageStarted`)
+- No periodic re-reading of `passage_songs` table during playback
+- Boundary checks use simple time range comparisons (no complex state machine)
+- 500ms detection interval provides smooth UI updates without excessive CPU usage
+- First `CurrentSongChanged` emitted immediately on passage start (if passage begins within a song)
+
+**[ARCH-SONG-CHANGE-050]** Edge Cases:
+
+- **Passage with no songs:** Emit `CurrentSongChanged` with `song_id=None` on passage start
+- **Passage starts in gap:** Emit with `song_id=None`, then emit again when entering first song
+- **Passage ends during song:** No special handling needed, `PassageCompleted` marks end of passage
+- **Songs with identical boundaries:** Both songs considered "current" (implementation may choose first song or emit multiple events)
+- **Seeking:** After seek, immediately check position against timeline and emit `CurrentSongChanged` if song changed
+
+**[ARCH-SONG-CHANGE-060]** Performance Considerations:
+
+- Song timeline stored in memory (typically <100 songs per passage, minimal memory impact)
+- Boundary checks are O(n) where n = songs in passage (acceptable for typical passage sizes)
+- For large passages (>1000 songs), consider binary search on sorted timeline
+- Detection timer runs only during playback (paused = no checks)
+
+### Volume Handling
+<a name="volume-handling"></a>
+
+**[ARCH-VOLUME-010]** Volume Scale Conversion:
+- **User-facing** (UI, API): Integer 0-100 (percentage)
+- **Backend** (storage, GStreamer): Double 0.0-1.0
+- **Conversion**:
+  - User → System: `system_volume = user_volume / 100.0`
+  - System → User: `user_volume = ceil(system_volume * 100.0)`
+- **Rationale for ceiling**: Ensures non-zero audio never displays as 0%
+
+**Storage:**
+- Database: Store as double (0.0-1.0) in `settings.volume_level`
+- API: Accept/return integer (0-100)
+- Events: Transmit as float (0.0-1.0) for precision in real-time streams
+
+### User Interface
 
 **Process Type**: Polished HTTP server with full web UI
-**Port**: 8080 (configurable)
+**Port**: 5720 (configurable)
 **Versions**: Full, Lite (de-featured), Minimal (de-featured)
 
 **Responsibilities:**
 - Present polished web interface for end users
-- Proxy/orchestrate requests to Module 1 (Audio Player) and Module 3 (Program Director)
+- Proxy/orchestrate requests to Audio Player and Program Director
 - Handle user authentication and session management
 - Display album art, lyrics, and playback information
 - Provide configuration interface for Program Director parameters
@@ -146,16 +347,16 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 
 **HTTP API** (User-facing):
 - Authentication endpoints: `/api/login`, `/api/create-account`, `/api/current-user`
-- Playback control: `/api/playback/*` (proxied to Module 1)
-- Queue management: `/api/queue/*` (proxied to Module 1)
+- Playback control: `/api/playback/*` (proxied to Audio Player)
+- Queue management: `/api/queue/*` (proxied to Audio Player)
 - Like/Dislike: `/api/passages/{id}/like`, `/api/passages/{id}/dislike`
-- Program Director config: Proxied to Module 3
-- Manual passage selection: Browse library, enqueue to Module 1
-- Volume control: Proxied to Module 1
-- Audio device selection: Proxied to Module 1
+- Program Director config: Proxied to Program Director
+- Manual passage selection: Browse library, enqueue to Audio Player
+- Volume control: Proxied to Audio Player
+- Audio device selection: Proxied to Audio Player
 
 **SSE Events** (Endpoint: `GET /api/events`):
-- Aggregates and forwards events from Module 1 (Audio Player)
+- Aggregates and forwards events from Audio Player
 - Adds user-specific events (session, likes/dislikes)
 
 **Web UI Features:**
@@ -167,6 +368,14 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - Program Director configuration (timeslots, base probabilities, cooldowns)
 - Network status indicators (internet and local network)
 - Responsive design for desktop and mobile
+
+**Lyrics Display Behavior:**
+- Implements fallback chain when displaying lyrics for currently playing Song:
+  1. Check current Song's `lyrics` field - if non-empty, display these lyrics
+  2. If empty, iterate through Song's `related_songs` array (most to least closely related)
+  3. Display lyrics from first related Song with non-empty `lyrics` field
+  4. If no Song in chain has lyrics, leave lyrics display area empty
+- Read-only display in wkmp-ui (all editing via wkmp-le in Full version)
 
 **Version Differences:**
 - **Full**: All features enabled
@@ -180,10 +389,49 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 
 ---
 
-### Module 3: Program Director
+### Lyric Editor
 
-**Process Type**: Independent HTTP server with minimal developer UI
-**Port**: 8082 (configurable)
+**Process Type**: Independent HTTP server with split-window UI (launched on-demand)
+**Port**: 5724 (configurable)
+**Versions**: Full only
+
+**Responsibilities:**
+- Provides dedicated interface for editing song lyrics
+- Displays split window: text editor (left) + embedded browser (right)
+- Loads and saves lyrics associated with MusicBrainz recordings
+- Facilitates finding and copying lyrics from web sources
+
+**HTTP Control API:**
+- `POST /lyric_editor/open` - Launch editor with recording MBID, title, artist
+- `GET /lyric_editor/lyrics/{recording_mbid}` - Get current lyrics for recording
+- `PUT /lyric_editor/lyrics/{recording_mbid}` - Save edited lyrics to database
+- `POST /lyric_editor/close` - Close editor without saving
+
+**SSE Event Stream** (`GET /events`):
+- `LyricsChanged` - Emitted when lyrics are saved to database
+
+**Database Access:**
+- **Read/Write**: `songs.lyrics` - Lyrics associated with recordings (via recording_mbid)
+- Uses last-write-wins concurrency model (no locking)
+
+**User Interface:**
+- **Left pane**: Multi-line text editor pre-loaded with current lyrics from database
+- **Right pane**: Embedded web browser initially searching for song lyrics
+- **Save button**: Writes edited lyrics to database via `PUT /lyric_editor/lyrics/{recording_mbid}`
+- **Cancel/Exit button**: Closes editor without saving changes
+
+**Key Design Notes:**
+- **On-demand launching**: Started by User Interface when user requests lyric editing
+- **Standalone operation**: No dependencies on other modules (except shared database)
+- **Read-only in UI**: User Interface displays lyrics but all editing happens in Lyric Editor
+- **Simple concurrency**: Last write wins, no conflict resolution needed
+
+---
+
+### Program Director
+
+**Process Type**: Independent HTTP server with minimal HTML developer UI (served via HTTP)
+**Port**: 5722 (configurable)
 **Versions**: Full, Lite (Minimal does not include automatic selection)
 
 **Responsibilities:**
@@ -192,9 +440,9 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - Maintain time-of-day flavor targets
 - Handle timeslot transitions
 - Respond to temporary flavor overrides
-- Monitor Audio Player queue and automatically enqueue passages
+- Receive queue refill requests from Audio Player and enqueue passages
 
-**HTTP API for User Interface** (Module 2):
+**HTTP API for User Interface**:
 - `GET /config/timeslots` - Retrieve timeslot configuration
 - `POST /config/timeslots` - Update timeslot configuration
 - `GET /config/probabilities` - Get base probabilities for songs/artists/works
@@ -203,6 +451,9 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - `PUT /config/cooldowns` - Update cooldown settings
 - `POST /selection/override` - Temporary flavor override
 - `DELETE /selection/override` - Clear temporary override
+
+**HTTP API for Audio Player**:
+- `POST /selection/request` - Request passage selection (called by Audio Player when queue is low)
 
 **HTTP Status API:**
 - `GET /status` - Module status, current timeslot, target flavor
@@ -214,40 +465,50 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - `OverrideExpired` - Temporary override ended
 - `SelectionFailed` - No candidates available
 
-**Developer UI** (Minimal):
+**Developer UI** (Minimal HTML/JavaScript served via HTTP):
 - Module status display
 - Current timeslot and target flavor
 - Last selection results
 
 **Automatic Queue Management:**
-- Polls Module 1 (Audio Player) queue status periodically
-- When queue drops below threshold (< 2 passages or < 15 minutes):
-  1. Determine target time (end of last queued passage)
+- Receives queue refill requests from Audio Player via `POST /selection/request`
+- Audio Player sends requests when queue drops below configurable thresholds:
+  - Default: < 2 passages OR < 15 minutes remaining
+  - Configured in settings table: `queue_refill_threshold_passages`, `queue_refill_threshold_seconds`
+- Request includes anticipated start time for the new passage
+- Program Director responds immediately to acknowledge request:
+  - Timeout configured in settings table: `queue_refill_acknowledgment_timeout_seconds` (default: 5 seconds)
+  - If no response within timeout, Audio Player may relaunch Program Director
+- Selection happens asynchronously (may take longer than throttle interval):
+  1. Determine target time from request (anticipated start time)
   2. Calculate selection probabilities
   3. Select passage via weighted random algorithm
-  4. Enqueue to Module 1 via HTTP API
+  4. Enqueue to Audio Player via HTTP API
+- Audio Player throttles requests while queue is underfilled:
+  - Interval configured in settings table: `queue_refill_request_throttle_seconds` (default: 10 seconds)
 
 **Key Operations:**
-- Determine target time for selection (end time of last queued passage)
+- Determine target time for selection (provided in request from Audio Player)
 - Filter to non-zero probability passages (passages with one or more songs only)
 - Calculate squared Euclidean distance from target flavor
 - Sort by distance, take top 100 candidates
 - Weighted random selection from candidates
-- Handle edge cases (no candidates → stop automatic enqueueing)
+- Handle edge cases (no candidates → return error status)
 
 **Key Design Notes:**
-- **Operates independently**: Does not require Module 2 (User Interface) to be running
-- **Communicates with Module 1 only**: Reads queue status, enqueues passages
+- **Request-based, not polling**: Audio Player initiates refill requests
+- **Operates independently**: Does not require User Interface to be running
+- **May enqueue proactively**: Free to enqueue passages without requests (like users via UI)
 - **Database access**: Direct SQLite access for passage metadata, timeslots, probabilities, play history
 
 > **See [Program Director](program_director.md) for complete specification of selection algorithm, cooldown system, probability calculations, and timeslot handling.**
 
 ---
 
-### Module 4: File Ingest Interface
+### Audio Ingest
 
 **Process Type**: Polished HTTP server with guided workflow UI
-**Port**: 8083 (configurable)
+**Port**: 5723 (configurable)
 **Versions**: Full only
 
 **Responsibilities:**
@@ -264,15 +525,17 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 - `POST /ingest/characterize/{file_id}` - Trigger flavor analysis
 - `POST /ingest/segment/{file_id}` - Define passages within file
 - `PUT /ingest/metadata/{passage_id}` - Edit passage metadata
+- `PUT /ingest/related_songs/{song_guid}` - Edit related songs list
 - `POST /ingest/finalize/{file_id}` - Complete ingest workflow
 
 **Web UI Workflow:**
 1. **File Discovery**: Select directories to scan for new audio files
 2. **File Review**: Preview detected files, confirm additions
 3. **Identification**: Match files to MusicBrainz recordings (fingerprinting)
-4. **Characterization**: Retrieve AcousticBrainz data or run local Essentia analysis
-5. **Passage Definition**: Define passage boundaries, timing points, metadata
-6. **Finalization**: Review and commit to library
+4. **Related Songs Population**: Query MusicBrainz for other recordings of the same Work, populate `related_songs` field
+5. **Characterization**: Retrieve AcousticBrainz data or run local Essentia analysis
+6. **Passage Definition**: Define passage boundaries, timing points, metadata
+7. **Finalization**: Review and commit to library
 
 **Key Design Notes:**
 - **Full version only**: Not included in Lite or Minimal
@@ -288,24 +551,25 @@ McRhythm consists of 4 independent processes, each with defined HTTP/SSE interfa
 
 The modules listed above are separate processes. Within each module, there are internal components that handle specific responsibilities. These are implementation details within each module:
 
-**Module 1 (Audio Player) Internal Components:**
-- **Queue Manager**: Maintains playback queue (minimum 2 passages, 15+ minutes), handles manual additions/removals, triggers automatic queue replenishment
+**Audio Player Internal Components:**
+- **Queue Manager**: Maintains playback queue, handles manual additions/removals, monitors queue levels, requests refills from Program Director
+- **Queue Monitor**: Calculates remaining queue time, sends `POST /selection/request` to Program Director when below thresholds (< 2 passages or < 15 minutes), throttles requests to once per 10 seconds
 - **Playback Controller**: Manages dual GStreamer pipelines for crossfading, coordinates passage transitions
 - **Audio Engine**: GStreamer pipeline manager with dual pipelines, audio mixer, volume control
 - **Historian**: Records passage plays with timestamps, updates last-play times for cooldown calculations
 
-**Module 2 (User Interface) Internal Components:**
+**User Interface Internal Components:**
 - **Authentication Handler**: User session management, Anonymous/Create/Login flows
-- **API Proxy**: Forwards requests to Module 1 and Module 3
-- **Event Aggregator**: Subscribes to Module 1 SSE events, forwards to web UI clients
+- **API Proxy**: Forwards requests to Audio Player and Program Director
+- **Event Aggregator**: Subscribes to Audio Player SSE events, forwards to web UI clients
 - **Library Browser**: Database queries for passage/song/artist/album browsing
 
-**Module 3 (Program Director) Internal Components:**
+**Program Director Internal Components:**
 - **Flavor Manager**: Manages 24-hour timeslot schedule, calculates flavor targets, handles temporary overrides
 - **Selection Engine**: Implements weighted random selection algorithm with flavor distance calculations
-- **Queue Monitor**: Polls Module 1 for queue status, triggers selection when needed
+- **Request Handler**: Receives queue refill requests from Audio Player, acknowledges immediately, triggers asynchronous selection
 
-**Module 4 (File Ingest) Internal Components:**
+**Audio Ingest Internal Components:**
 - **File Scanner**: Recursive directory scan with change detection (SHA-256 hashes)
 - **Metadata Extractor**: Parse ID3v2, Vorbis Comments, MP4 tags
 - **Fingerprint Generator**: Chromaprint for MusicBrainz identification
@@ -329,11 +593,11 @@ These components are used across multiple modules:
 ### Implementation Details Removed From This Section
 
 The following subsections previously described monolithic components. They have been replaced by the module-based architecture above:
-- ~~3. Queue Manager~~ - Now part of Module 1 (Audio Player)
-- ~~4. Historian~~ - Now part of Module 1 (Audio Player)
-- ~~5. Flavor Manager~~ - Now part of Module 3 (Program Director)
-- ~~6. Audio Engine~~ - Now part of Module 1 (Audio Player)
-- ~~7. Library Manager~~ - Now part of Module 4 (File Ingest)
+- ~~3. Queue Manager~~ - Now part of Audio Player
+- ~~4. Historian~~ - Now part of Audio Player
+- ~~5. Flavor Manager~~ - Now part of Program Director
+- ~~6. Audio Engine~~ - Now part of Audio Player
+- ~~7. Library Manager~~ - Now part of Audio Ingest
 - ~~8. External Integration Clients~~ - Shared across modules
 
 ---
@@ -387,37 +651,99 @@ The following subsections previously described monolithic components. They have 
 - Coordinated writes via HTTP API boundaries
 - Read-heavy access for passage metadata, library browsing
 - Triggers maintain consistency (e.g., last_played_at updates)
+- **Module discovery**: Each module reads `module_config` table on startup to determine:
+  - Its own binding address and port
+  - Other modules' addresses for HTTP communication
 
 **Consistency Considerations:**
 - UUID primary keys enable database merging (Full → Lite → Minimal)
 - Foreign key constraints maintain referential integrity
 - Application-level coordination via HTTP APIs prevents conflicts
 - Write serialization through module ownership (e.g., only Audio Player writes queue state)
+- Centralized network configuration in `module_config` table eliminates config file synchronization issues
 
 ### Module Dependencies
 
 ```
-Module 2: User Interface
-    ├── Depends on: Module 1 (Audio Player) - optional, degrades gracefully
-    ├── Depends on: Module 3 (Program Director) - optional (Minimal version)
+User Interface
+    ├── Depends on: Audio Player - optional, degrades gracefully
+    ├── Depends on: Program Director - optional (Minimal version)
     └── Depends on: SQLite database - required
 
-Module 3: Program Director
-    ├── Depends on: Module 1 (Audio Player) - required for enqueueing
+Program Director
+    ├── Depends on: Audio Player - required for enqueueing
     └── Depends on: SQLite database - required
 
-Module 1: Audio Player
+Audio Player
     └── Depends on: SQLite database - required
 
-Module 4: File Ingest (Full only)
+Audio Ingest (Full only)
     └── Depends on: SQLite database - required
 ```
 
-**Startup Requirements:**
-- Module 1 (Audio Player) can start standalone
-- Module 3 (Program Director) requires Module 1 to be running
-- Module 2 (User Interface) can start without other modules (degrades features)
-- Module 4 (File Ingest) can start standalone
+**Service Launching:**
+- **Only wkmp-ui has a system service file**: Users configure their OS to auto-start wkmp-ui (systemd, launchd, Windows Service)
+- **wkmp-ui is the primary entry point**: Launches other modules as needed (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le)
+- **Modules can launch other modules**: Any module can launch peer modules if it detects they're not running
+  - Example: wkmp-ap can relaunch wkmp-pd if it's not responding to queue refill requests
+  - Example: Any module can launch wkmp-ui if it needs the orchestration layer
+- **Module launching process** (using shared launcher utility from wkmp-common):
+  - **Binary location**:
+    - **Standard deployment**: Binaries in system PATH (wkmp-ap, wkmp-pd, wkmp-ui, wkmp-ai, wkmp-le)
+    - **Non-standard deployment**: Optional `--binary-path <path>` argument specifies directory
+    - Argument propagates: Launching module passes `--binary-path` to launched module
+  - **Command-line arguments**:
+    - Modules accept optional `--binary-path` for non-standard deployments
+    - No other arguments required (all configuration via database)
+    - Standard deployment: No arguments needed
+  - **Launch procedure**:
+    - Check if module is responding via HTTP health check
+    - If not responding, launch subprocess using shared launcher utility
+    - Pass `--binary-path` argument if received by launching module
+    - Get process handle for monitoring
+  - **Relaunch throttling** (configurable via settings table):
+    - `relaunch_delay` (default: 5 seconds) - Wait time between attempts
+    - `relaunch_attempts` (default: 20) - Maximum attempts before giving up
+    - After failure, wait `relaunch_delay` before next attempt
+    - Track attempt count per module
+    - After exhausting attempts, display error with user "Retry" button
+    - User can reset counter and resume relaunching
+  - **Logging**: All launch attempts, failures, and user retry actions logged
+- **All modules self-initialize**: Each module creates its required database tables on first startup (no central database initialization)
+
+**Module Startup Sequence:**
+1. Module reads root folder path from config file or environment variable
+2. Module opens database file (`wkmp.db`) in root folder
+3. Module initializes its required database tables using shared initialization functions from `wkmp-common`:
+   - Commonly used tables: `module_config`, `settings`, `users` (via shared functions in `wkmp-common/src/db/init.rs`)
+   - Module-specific tables: Created directly by each module (e.g., `queue` for Audio Player, `timeslots` for Program Director)
+   - All initialization is idempotent (safe to call multiple times, checks if table exists before creating)
+4. Module reads `module_config` table using shared config loader from `wkmp-common`:
+   - Shared config loader calls `init_module_config_table()` if table missing
+   - If own module's config is missing, inserts default host/port and logs warning
+   - If other required modules' configs are missing, inserts defaults and logs warnings
+   - Default configurations: user_interface (127.0.0.1:5720), audio_player (127.0.0.1:5721), program_director (127.0.0.1:5722), audio_ingest (127.0.0.1:5723), lyric_editor (127.0.0.1:5724)
+5. Module retrieves its own `host` and `port` configuration
+6. Module binds to configured address/port
+7. Module retrieves other modules' configurations for HTTP client setup (if needed for making requests to peer modules)
+8. Module begins accepting connections and making requests to peer modules
+
+**Module Launch Responsibilities:**
+- **User Interface (wkmp-ui)**:
+  - Launched by: OS service manager (systemd/launchd/Windows Service)
+  - Launches: wkmp-ap (on startup), wkmp-pd (Lite/Full only), wkmp-ai (Full only), wkmp-le (on-demand, Full only)
+- **Audio Player (wkmp-ap)**:
+  - Launched by: wkmp-ui on startup
+  - Can launch: wkmp-pd (if not responding to queue refill requests), wkmp-ui (if needed)
+- **Program Director (wkmp-pd)**:
+  - Launched by: wkmp-ui on startup (Lite/Full versions only)
+  - Can launch: wkmp-ap (if needed for enqueueing), wkmp-ui (if needed)
+- **Audio Ingest (wkmp-ai)**:
+  - Launched by: wkmp-ui on startup (Full version only)
+  - Can launch: wkmp-ui (if needed)
+- **Lyric Editor (wkmp-le)**:
+  - Launched by: wkmp-ui on-demand when user requests lyric editing (Full version only)
+  - Can launch: wkmp-ui (if needed)
 
 ---
 
@@ -430,6 +756,7 @@ Detailed design specifications for each subsystem:
 - **Musical Flavor System**: See [Musical Flavor](musical_flavor.md)
 - **Event-Driven Communication**: See [Event System](event_system.md)
 - **Data Model**: See [Database Schema](database_schema.md)
+- **Project Structure**: See [Project Structure](project_structure.md)
 - **Code Organization**: See [Coding Conventions](coding_conventions.md)
 
 ## Concurrency Model
@@ -438,7 +765,7 @@ Detailed design specifications for each subsystem:
 
 Each module is an independent process with its own threading model:
 
-**Module 1 (Audio Player):**
+**Audio Player:**
 ```
 HTTP Server Thread Pool (tokio async):
   - API request handling
@@ -461,13 +788,13 @@ GStreamer Bus Handler:
   - Crossfade triggers
 ```
 
-**Module 2 (User Interface):**
+**User Interface:**
 ```
 HTTP Server Thread Pool (tokio async):
   - Web UI serving
   - API request handling
   - SSE aggregation and forwarding
-  - Proxy requests to Modules 1 and 3
+  - Proxy requests to Audio Player and Program Director
 
 Database Query Pool (tokio async):
   - Library browsing queries
@@ -475,7 +802,7 @@ Database Query Pool (tokio async):
   - Session management
 ```
 
-**Module 3 (Program Director):**
+**Program Director:**
 ```
 HTTP Server Thread Pool (tokio async):
   - API request handling
@@ -486,12 +813,13 @@ Selection Thread (tokio async):
   - Distance calculations
   - Probability computations
 
-Queue Monitor Thread (tokio async):
-  - Polls Module 1 queue status
-  - Triggers selection when needed
+Request Handler Thread (tokio async):
+  - Receives queue refill requests from Audio Player
+  - Acknowledges requests immediately
+  - Triggers asynchronous selection
 ```
 
-**Module 4 (File Ingest):**
+**Audio Ingest:**
 ```
 HTTP Server Thread Pool (tokio async):
   - API request handling
@@ -538,7 +866,7 @@ McRhythm uses SQLite with UUID-based primary keys for all entities. The complete
 **Core Entities:** files, passages, songs, artists, works, albums
 **Relationships:** passage_songs, passage_albums, song_works
 **Playback:** play_history, likes_dislikes, queue
-**Configuration:** timeslots, timeslot_passages, settings
+**Configuration:** module_config, timeslots, timeslot_passages, settings
 **Caching:** acoustid_cache, musicbrainz_cache, acousticbrainz_cache
 
 See [Database Schema](database_schema.md) for complete table definitions, constraints, indexes, and triggers.
@@ -549,33 +877,34 @@ See [Database Schema](database_schema.md) for complete table definitions, constr
 - **Musical flavor vectors**: Stored as JSON in `passages.musical_flavor_vector` for flexibility and SQLite JSON1 integration
 - **Automatic triggers**: Update `last_played_at` timestamps on playback for cooldown calculations
 - **Foreign key cascades**: Simplify cleanup when files/passages deleted
-- **No binary blobs**: Album art stored as files, database stores paths only
+- **No binary blobs**: Album art stored as files (in root folder tree), database stores relative paths only
 - **Event-driven architecture**: Uses `tokio::broadcast` for one-to-many event distribution, avoiding tight coupling between components while staying idiomatic to Rust async ecosystem. See [Event System](event_system.md) for details.
 - **Hybrid communication**: Events for notifications, channels for commands, shared state for reads—each pattern chosen for specific use cases
 
 ## Version Differentiation
 
-McRhythm is built in three versions (Full, Lite, Minimal) by running different combinations of modules. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
+McRhythm is built in three versions (Full, Lite, Minimal) by **packaging different combinations of modules**. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
 
 **Implementation approach:**
-- **Process-based differentiation**: Different modules run in each version
-- **Per-module feature flags**: Each module binary may have conditional features
-- **Configuration files**: Specify which modules to start for each version
+- **Process-based differentiation**: Different modules are deployed in each version
+- **No conditional compilation**: Each module is built identically; versions differ only by which binaries are packaged
+- **Packaging strategy**: Version-specific installer packages include different module subsets
 - **Database compatibility**: UUID-based schema enables database export/import across versions
 
 **Version Configuration:**
 
-| Version  | Modules Running | Features |
-|----------|-----------------|----------|
-| **Full** | 1, 2, 3, 4 | All features, local Essentia analysis, file ingest |
-| **Lite** | 1, 2, 3 | No file ingest, automatic selection, limited config UI |
-| **Minimal** | 1, 2 | Playback only, manual queue management, no automatic selection |
+| Version  | Modules Deployed | Features |
+|----------|------------------|----------|
+| **Full** | wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai | All features, lyric editing, local Essentia analysis, file ingest |
+| **Lite** | wkmp-ap, wkmp-ui, wkmp-pd | No file ingest, no lyric editing, automatic selection, configuration UI |
+| **Minimal** | wkmp-ap, wkmp-ui | Playback only, no lyric editing, manual queue management, no automatic selection |
 
-**Module Binary Build Variants:**
-- Each module may be compiled with version-specific features using Rust feature flags
-- Example: Module 4 only compiled for Full version
-- Module 2 UI may have conditional features for Full/Lite/Minimal
-- See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for build details
+**Packaging Details:**
+- All modules are built with `cargo build --release` (no feature flags)
+- Full version packages all 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
+- Lite version packages 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
+- Minimal version packages 2 binaries (wkmp-ap, wkmp-ui)
+- See [Implementation Order - Version Packaging](implementation_order.md#phase-9-version-packaging--module-integration-25-weeks) for packaging details
 
 ## Technology Stack
 
@@ -590,7 +919,7 @@ McRhythm is built in three versions (Full, Lite, Minimal) by running different c
 - Server-Sent Events (SSE) support
 - JSON request/response handling
 
-**Audio Processing (Module 1 only):**
+**Audio Processing (Audio Player only):**
 - GStreamer 1.x
 - Rust bindings: gstreamer-rs
 
@@ -603,23 +932,28 @@ McRhythm is built in three versions (Full, Lite, Minimal) by running different c
 - reqwest for HTTP clients
 - MusicBrainz, AcousticBrainz, Chromaprint/AcoustID
 
-**Local Audio Analysis (Module 4, Full version only):**
+**Local Audio Analysis (Audio Ingest, Full version only):**
 - Essentia C++ library
 - Rust FFI bindings (custom or via existing crate)
 
-**Web UI (Module 2 and Module 4):**
+**Web UI (User Interface and Audio Ingest):**
 - HTML/CSS/JavaScript (framework TBD - React, Vue, or Svelte)
 - SSE client for real-time updates
 - Responsive design framework (TailwindCSS or similar)
 
 **Configuration:**
-- TOML or JSON configuration files
+- TOML configuration files for module-specific settings (root folder path, logging, etc.)
+- SQLite `module_config` table for network configuration (host/port discovery)
+- Database and all files contained in root folder tree for portability
 - Environment variables for deployment settings
 
 **Build System:**
-- Cargo workspaces for multi-module project
+- Cargo workspaces for multi-module project (see [Project Structure](project_structure.md))
+  - `common/` - Shared library crate (`wkmp-common`)
+  - `wkmp-ap/`, `wkmp-ui/`, `wkmp-pd/`, `wkmp-ai/` - Binary crates
 - Separate binaries for each module
-- Feature flags for version differentiation
+- Version differentiation via selective packaging (no conditional compilation)
+- Shared dependencies managed at workspace level
 
 ### Removed Technologies
 
@@ -664,8 +998,10 @@ McRhythm is built in three versions (Full, Lite, Minimal) by running different c
 - macOS: launchd plist (Phase 2)
 
 **File Paths:**
-- Database: Platform-specific app data directory
-- Settings: Platform-specific config directory
+- Root folder: User-configurable (default: platform-specific app data directory)
+- Database: `wkmp.db` in root folder
+- Audio/artwork files: Organized under root folder tree
+- Settings: Platform-specific config directory (stores root folder path)
 - Logs: Platform-specific log directory
 
 ## Security Considerations
@@ -697,7 +1033,8 @@ McRhythm is built in three versions (Full, Lite, Minimal) by running different c
 - SQLite with file permissions (user-only read/write)
 - Passwords stored as salted hashes (never plaintext)
 - Salt incorporates user UUID for additional security
-- File paths only (no file contents stored in database)
+- Relative file paths only (no file contents stored in database)
+- All paths relative to root folder for portability
 - User taste data (likes/dislikes) considered non-sensitive
 - Anonymous user data is shared across all anonymous sessions
 
@@ -753,10 +1090,215 @@ McRhythm is built in three versions (Full, Lite, Minimal) by running different c
 ### Categories
 
 **Recoverable Errors:**
-- Network failures → Retry with exponential backoff
+- Network failures → Retry with fixed 5-second delay (see Network Error Handling below)
 - Missing files → Skip, remove from queue, log
-- Database lock → Retry with timeout
-- Decode errors → Skip to next passage
+- Database lock → Retry with exponential backoff (see Database Lock Timeout below)
+- Decode errors → Skip to next passage (see GStreamer Pipeline Errors below)
+- Program Director timeout → Continue with existing queue, retry on next threshold
+
+### Error Recovery Strategies
+
+This section specifies the detailed recovery procedures for common error scenarios in wkmp-ap.
+
+#### GStreamer Pipeline Errors
+
+**[ARCH-ERR-PLAYBACK-010]** GStreamer Pipeline Error Recovery:
+
+When a GStreamer pipeline enters ERROR state (file not found, decode failure, audio device unavailable, etc.), the following recovery procedure is executed:
+
+1. **Log error** with pipeline state and error details
+2. **Handle as skip event**: From this point, any playback failure is treated identically to a user-initiated skip:
+   - Emit `PassageCompleted(completed=false)` event with appropriate reason:
+     - `reason: "playback_error"` if decode or pipeline failure
+     - `reason: "queue_removed"` if file not found or inaccessible
+   - Remove failed passage from queue
+3. **Advance to next passage**:
+   - If next passage already started (crossfade in progress): Continue from its current position
+   - If next passage not yet started: Begin playback from beginning
+   - Fade-in curve of next passage is **unaffected** by the skip (continues as if previous passage had played normally)
+4. **Continue until queue exhausted**:
+   - Multiple consecutive failures continue to log errors and skip passages
+   - When queue becomes empty: Audio player enters idle state (same as normal empty queue behavior)
+   - Player produces no audio until a new passage is enqueued
+
+**[ARCH-ERR-PLAYBACK-020]** Crossfade Behavior During Pipeline Error:
+
+- If error occurs during crossfade (both pipelines active):
+  - Failed pipeline stops immediately
+  - Surviving pipeline continues playing without interruption
+  - No fade adjustment applied (surviving pipeline maintains its current fade curve)
+- If error occurs in idle pipeline (pre-loading next passage):
+  - Current pipeline continues playing normally
+  - Failed pre-load logged as error
+  - Next passage skip logic applies when current passage completes
+
+**[ARCH-ERR-PLAYBACK-030]** Automatic Queue Refill Throttling (wkmp-pd responsibility):
+
+**Note:** This mechanism is implemented in wkmp-pd (Program Director), not wkmp-ap (Audio Player). Documented here for completeness.
+
+- wkmp-pd monitors `PassageCompleted(completed=false)` events
+- After 3 playback failures within 60 seconds (configurable):
+  - wkmp-pd stops automatic passage enqueueing
+  - User notification displayed in UI
+  - Manual intervention required to resume automatic selection
+- Default settings (configurable in settings table):
+  - `playback_failure_threshold`: 3 failures
+  - `playback_failure_window_seconds`: 60 seconds
+
+#### Database Lock Timeout
+
+**[ARCH-ERR-DB-010]** Database Lock Retry Strategy:
+
+When a database operation fails due to lock timeout (SQLite `SQLITE_BUSY` error), the following retry logic applies:
+
+1. **Retry with exponential backoff**:
+   - Attempt 1: Immediate (no delay)
+   - Attempt 2: Wait 10ms, retry
+   - Attempt 3: Wait 20ms, retry
+   - Attempt 4: Wait 40ms, retry
+   - Attempt 5: Wait 80ms, retry
+   - Attempt 6: Wait 160ms, retry
+   - Attempt 7: Wait 320ms, retry
+   - Attempt 8: Wait 640ms, retry (final attempt)
+
+2. **Maximum 7 retries** (8 total attempts including initial)
+
+3. **Total maximum wait time**: 1,270ms (10+20+40+80+160+320+640)
+
+4. **If all retries fail**:
+   - Log error with operation details and retry count
+   - Continue with cached state (if applicable)
+   - For critical operations (queue writes): Return error to caller, trigger UI notification
+
+**[ARCH-ERR-DB-020]** Cached State Fallback:
+
+Operations that can use cached state on lock timeout:
+- Queue read: Use last successfully read queue (may be stale)
+- Settings read: Use last successfully read settings
+- Module config read: Use last known configuration
+
+Operations that **cannot** use cached state (require retry or failure):
+- Queue write: Must succeed or return error
+- Settings write: Must succeed or return error
+- Playback position persistence: Failure is acceptable (position lost on crash)
+
+**[ARCH-ERR-DB-030]** Lock Timeout Configuration:
+
+SQLite busy timeout is set to 5000ms (5 seconds) at connection initialization:
+```rust
+connection.busy_timeout(Duration::from_millis(5000))?;
+```
+
+This timeout applies **before** the exponential backoff retry logic. The exponential backoff provides additional resilience for transient lock contention.
+
+#### Program Director Timeout
+
+**[ARCH-ERR-PD-010]** Program Director Timeout Handling:
+
+When wkmp-ap sends a queue refill request to wkmp-pd (Program Director) and does not receive acknowledgment within the timeout period:
+
+1. **Timeout detection**:
+   - Timeout configured in settings table: `queue_refill_acknowledgment_timeout_seconds` (default: 5 seconds)
+   - Timer starts when `POST /selection/request` is sent to wkmp-pd
+   - Timeout triggered if no response received within configured duration
+
+2. **Log warning**:
+   - Log message: `"Program Director timeout after {timeout}s, continuing with existing queue"`
+   - Include request details (anticipated start time, current queue status)
+
+3. **Continue playback**:
+   - Do **not** halt playback
+   - Continue playing existing queue passages
+   - Do **not** attempt to relaunch wkmp-pd (that is wkmp-ui's responsibility)
+
+4. **Retry on next threshold trigger**:
+   - When queue drops below refill threshold again, send new request to wkmp-pd
+   - Fresh timeout timer starts for new request
+   - No cumulative failure tracking in wkmp-ap (wkmp-ui handles module health monitoring)
+
+**[ARCH-ERR-PD-020]** Request Throttling:
+
+To prevent request spam during wkmp-pd unavailability:
+- Minimum interval between refill requests: `queue_refill_request_throttle_seconds` (default: 10 seconds)
+- Throttle applies even after timeout
+- If queue drops below threshold during throttle period: Wait until throttle expires, then send request
+
+**[ARCH-ERR-PD-030]** Empty Queue Behavior:
+
+If queue becomes empty while wkmp-pd is unresponsive:
+- Audio player enters idle state (no audio output)
+- Continues attempting refill requests at throttle interval
+- Resumes playback automatically when wkmp-pd responds with passage
+
+**[ARCH-ERR-PD-040]** Module Health Monitoring (wkmp-ui responsibility):
+
+**Note:** wkmp-ui (User Interface) is responsible for detecting unresponsive modules and relaunching them. wkmp-ap only logs timeouts and continues operation.
+
+### Network Error Handling
+
+**[ARCH-NET-010]** McRhythm requires two distinct types of network access with different error handling strategies:
+
+**Internet Access (External APIs - Full version only):**
+
+Used for:
+- MusicBrainz metadata lookup during library import
+- AcousticBrainz musical flavor data retrieval
+- Cover art fetching
+- Future ListenBrainz integration (Phase 2)
+
+**[ARCH-NET-020]** Retry Algorithm:
+- **Fixed delay**: Wait exactly 5 seconds between each retry attempt (not exponential backoff)
+- **Retry limit**: Maximum of 20 consecutive retry attempts
+- After 20 failures, stop attempting until user triggers reconnection
+- Reconnection triggers:
+  - User clicks any UI control that requires internet (Import, metadata refresh, etc.)
+  - User explicitly clicks "Retry Connection" button
+  - Counter resets to 20 attempts on each user-triggered reconnection
+
+**Rationale for fixed delay:**
+- Simplicity: No complex backoff calculation needed
+- Predictability: User knows exactly when next attempt occurs
+- Resource efficiency: 5-second intervals are reasonable for external API failures
+- Total duration: 20 retries × 5s = 100 seconds maximum before requiring user intervention
+
+**Example retry sequence:**
+- Attempt 1: Fail → wait 5s
+- Attempt 2: Fail → wait 5s
+- Attempt 3: Fail → wait 5s
+- ...
+- Attempt 20: Fail → stop, display "Connection Failed" message
+
+**[ARCH-NET-030]** Playback Impact:
+- No impact on playback: Music continues playing during internet outages
+- Playback uses only local database and audio files (no internet required)
+
+**Local Network Access (WebUI Server):**
+
+Used for:
+- Serving WebUI on `http://localhost:5720`
+- Server-Sent Events (SSE) for real-time UI updates
+- REST API endpoints for playback control
+
+**[ARCH-NET-040]** Error Handling:
+- HTTP server binds to localhost:5720 on startup
+- If port binding fails: Log error and exit (critical failure)
+- Once running, server continues indefinitely
+
+**[ARCH-NET-050]** Access Requirements:
+- Localhost access: Always available (no network required)
+- Remote access: Requires local network connectivity
+  - User responsible for network configuration (router, firewall, etc.)
+  - No internet required (local network only)
+
+**[ARCH-NET-060]** Playback Impact:
+- Automatic playback: Works without any network access
+  - System auto-starts on boot
+  - Auto-selects and plays passages
+  - No WebUI access needed for basic operation
+- Manual control: Requires WebUI access (localhost or remote)
+
+> **See:** [UI Specification - Network Status Indicators](ui_specification.md#network-status-indicators) for user-facing status display
+> **See:** [Requirements - Network Error Handling](requirements.md#network-error-handling) for complete requirements
 
 **Non-recoverable Errors:**
 - Database corruption → Alert user, attempt repair
@@ -788,20 +1330,22 @@ McRhythm is built in three versions (Full, Lite, Minimal) by running different c
 
 ### Configuration
 - Environment variables for system paths
-- SQLite settings table for user preferences
-- File-based config for deployment settings
+- SQLite `module_config` table for network configuration (host/port for each module)
+- SQLite `settings` table for user preferences
+- File-based config for deployment settings (root folder path, logging, application-specific settings)
 - Sane defaults for all optional settings
+- Centralized network configuration eliminates the need to duplicate module URLs across config files
 
 ### Distribution
 - **Multiple binaries per version**: Each module is a separate binary
 - **Version-specific packaging**:
-  - Full: 4 binaries (modules 1, 2, 3, 4)
-  - Lite: 3 binaries (modules 1, 2, 3)
-  - Minimal: 2 binaries (modules 1, 2)
-- **Bundled dependencies**: GStreamer (Module 1 only), SQLite (all modules)
+  - Full: 5 binaries (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest)
+  - Lite: 3 binaries (Audio Player, User Interface, Program Director)
+  - Minimal: 2 binaries (Audio Player, User Interface)
+- **Bundled dependencies**: GStreamer (Audio Player only), SQLite (all modules)
 - **Installer packages**: deb, rpm, msi, dmg with systemd/launchd service files
 - **Process management**: System service manager or manual startup scripts
-- **Configuration files**: Default ports, module URLs, database path
+- **Configuration files**: Default ports, module URLs, root folder path
 
 ## Future Architecture Considerations
 

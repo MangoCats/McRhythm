@@ -10,57 +10,84 @@ Defines deployment, process management, and operational configuration for McRhyt
 
 ## Overview
 
-**[DEP-OVR-010]** McRhythm consists of 4 independent processes that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
+**[DEP-OVR-010]** McRhythm consists of 5 independent processes that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
 
 **[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which modules run:
-- **Full Version**: Modules 1, 2, 3, 4
-- **Lite Version**: Modules 1, 2, 3
-- **Minimal Version**: Modules 1, 2
+- **Full Version**: Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest
+- **Lite Version**: Audio Player, User Interface, Program Director
+- **Minimal Version**: Audio Player, User Interface
 
 ## 1. Module Binaries
 
 **[DEP-BIN-010]** Each module is compiled as a separate executable binary:
-- `mcrhythm-audio-player` - Module 1: Audio Player
-- `mcrhythm-ui` - Module 2: User Interface
-- `mcrhythm-program-director` - Module 3: Program Director
-- `mcrhythm-file-ingest` - Module 4: File Ingest Interface
+- `wkmp-ap` - Audio Player
+- `wkmp-ui` - User Interface
+- `wkmp-le` - Lyric Editor
+- `wkmp-pd` - Program Director
+- `wkmp-ai` - Audio Ingest
 
 **[DEP-BIN-020]** Binaries shall be installed in a standard location:
-- **Linux**: `/usr/local/bin/` or `/opt/mcrhythm/bin/`
-- **macOS**: `/usr/local/bin/` or `/Applications/McRhythm.app/Contents/MacOS/`
-- **Windows**: `C:\Program Files\McRhythm\bin\`
+- **Linux**: `/usr/local/bin/` or `/opt/wkmp/bin/`
+- **macOS**: `/usr/local/bin/` or `/Applications/WKMP.app/Contents/MacOS/`
+- **Windows**: `C:\Program Files\WKMP\bin\`
 
 ## 2. Configuration Files
 
 ### 2.1. Configuration File Location
 
 **[DEP-CFG-010]** Each module reads its configuration from a TOML file located at:
-- **Linux**: `~/.config/mcrhythm/<module-name>.toml`
-- **macOS**: `~/Library/Application Support/McRhythm/<module-name>.toml`
-- **Windows**: `%APPDATA%\McRhythm\<module-name>.toml`
+- **Linux**: `~/.config/wkmp/<module-name>.toml`
+- **macOS**: `~/Library/Application Support/WKMP/<module-name>.toml`
+- **Windows**: `%APPDATA%\WKMP\<module-name>.toml`
 
 **[DEP-CFG-020]** System-wide default configurations may be placed at:
-- **Linux**: `/etc/mcrhythm/<module-name>.toml`
-- **macOS**: `/Library/Application Support/McRhythm/<module-name>.toml`
-- **Windows**: `C:\ProgramData\McRhythm\<module-name>.toml`
+- **Linux**: `/etc/wkmp/<module-name>.toml`
+- **macOS**: `/Library/Application Support/WKMP/<module-name>.toml`
+- **Windows**: `C:\ProgramData\WKMP\<module-name>.toml`
 
 **[DEP-CFG-030]** User-specific configuration files override system-wide defaults.
 
-### 2.2. Module 1: Audio Player Configuration
+### 2.1a. Module Discovery via Database
+
+**[DEP-CFG-035]** Modules discover each other's network addresses through the shared SQLite database `module_config` table.
+
+**On startup, each module:**
+1. Reads root folder path from config file or environment variable
+2. Opens database (`wkmp.db`) in root folder
+3. Queries `module_config` for its own host/port and other modules' addresses
+4. Inserts defaults if entries missing (auto-initialization)
+5. Binds to configured port and begins accepting connections
+
+**Default module configuration (using first base port 5720):**
+
+| Module | Host | Port | Notes |
+|--------|------|------|-------|
+| user_interface | 127.0.0.1 | 5720 | Configurable to 0.0.0.0 for network access |
+| audio_player | 127.0.0.1 | 5721 | Internal service (localhost-only by default) |
+| program_director | 127.0.0.1 | 5722 | Internal service (localhost-only by default) |
+| audio_ingest | 0.0.0.0 | 5723 | Network accessible by default |
+| lyric_editor | 0.0.0.0 | 5724 | Network accessible by default |
+
+**Benefits:**
+- No duplication of module URLs in TOML config files
+- Configuration changes via database updates, not file edits
+- wkmp-ui can launch modules even when configs missing (auto-insert defaults)
+- All audio files and artwork stored within root folder tree
+
+> **See Also:**
+> - [Database Schema - module_config Table](database_schema.md#module_config) - Complete table definition, constraints, initialization behavior
+> - [Section 13: HTTP Server Configuration](#13-http-server-configuration) - Port selection algorithm, fallback ports, duplicate instance detection
+> - [Database Schema - File System Organization](database_schema.md#file-system-organization) - Root folder structure
+
+### 2.2. Audio Player Configuration
 
 **[DEP-CFG-100]** Configuration file: `audio-player.toml`
 
 ```toml
-[server]
-# HTTP server listening port
-port = 8081
-
-# Bind address (use "0.0.0.0" for all interfaces, "127.0.0.1" for localhost only)
-bind_address = "127.0.0.1"
-
-[database]
-# Path to shared SQLite database
-path = "~/.local/share/mcrhythm/mcrhythm.db"
+[root_folder]
+# Path to the root folder containing the database and all audio/artwork files
+path = "~/.local/share/wkmp"
+# Database file is located at: {root_folder}/wkmp.db
 
 [audio]
 # Default audio output device (empty = system default)
@@ -84,23 +111,17 @@ level = "info"
 log_file = ""
 ```
 
-### 2.3. Module 2: User Interface Configuration
+**Note:** Server port and bind address are read from the `module_config` table in the database.
+
+### 2.3. User Interface Configuration
 
 **[DEP-CFG-200]** Configuration file: `ui.toml`
 
 ```toml
-[server]
-port = 8080
-bind_address = "0.0.0.0"  # Accept connections from any IP
-
-[database]
-path = "~/.local/share/mcrhythm/mcrhythm.db"
-
-[modules]
-# URLs for other modules
-audio_player_url = "http://localhost:8081"
-program_director_url = "http://localhost:8082"
-file_ingest_url = "http://localhost:8083"
+[root_folder]
+# Path to the root folder containing the database and all audio/artwork files
+path = "~/.local/share/wkmp"
+# Database file is located at: {root_folder}/wkmp.db
 
 [session]
 # Session timeout in seconds (1 year default)
@@ -118,20 +139,17 @@ level = "info"
 log_file = ""
 ```
 
-### 2.4. Module 3: Program Director Configuration
+**Note:** Server port and bind address are read from the `module_config` table in the database. Other module URLs are also read from the database, eliminating the need for `[server]` and `[modules]` sections in the config file.
+
+### 2.4. Program Director Configuration
 
 **[DEP-CFG-300]** Configuration file: `program-director.toml`
 
 ```toml
-[server]
-port = 8082
-bind_address = "127.0.0.1"
-
-[database]
-path = "~/.local/share/mcrhythm/mcrhythm.db"
-
-[modules]
-audio_player_url = "http://localhost:8081"
+[root_folder]
+# Path to the root folder containing the database and all audio/artwork files
+path = "~/.local/share/wkmp"
+# Database file is located at: {root_folder}/wkmp.db
 
 [director]
 # How often to check if queue needs refilling (milliseconds)
@@ -148,21 +166,21 @@ level = "info"
 log_file = ""
 ```
 
-### 2.5. Module 4: File Ingest Interface Configuration
+**Note:** Server port, bind address, and Audio Player URL are read from the `module_config` table in the database.
+
+### 2.5. Audio Ingest Configuration
 
 **[DEP-CFG-400]** Configuration file: `file-ingest.toml`
 
 ```toml
-[server]
-port = 8083
-bind_address = "127.0.0.1"
-
-[database]
-path = "~/.local/share/mcrhythm/mcrhythm.db"
+[root_folder]
+# Path to the root folder containing the database and all audio/artwork files
+path = "~/.local/share/wkmp"
+# Database file is located at: {root_folder}/wkmp.db
 
 [ingest]
-# Temporary directory for file processing
-temp_path = "~/.local/share/mcrhythm/temp/"
+# Temporary directory for file processing (within root folder)
+temp_path = "temp/"
 
 # Maximum concurrent file processing jobs
 max_concurrent_jobs = 4
@@ -176,43 +194,48 @@ level = "info"
 log_file = ""
 ```
 
+**Note:** Server port and bind address are read from the `module_config` table in the database.
+
 ## 3. Database Location
 
 **[DEP-DB-010]** The SQLite database file is shared by all modules and shall be located at:
-- **Linux**: `~/.local/share/mcrhythm/mcrhythm.db`
-- **macOS**: `~/Library/Application Support/McRhythm/mcrhythm.db`
-- **Windows**: `%APPDATA%\McRhythm\mcrhythm.db`
+- **Linux**: `~/.local/share/wkmp/wkmp.db`
+- **macOS**: `~/Library/Application Support/WKMP/wkmp.db`
+- **Windows**: `%APPDATA%\WKMP\wkmp.db`
 
-**[DEP-DB-020]** All modules must be configured to use the same database path.
+**Note:** These paths represent the default root folder locations. The database file `wkmp.db` is always located in the root folder, and all audio/artwork files are organized under the root folder tree.
 
-**[DEP-DB-030]** The database directory shall be created automatically if it does not exist.
+**[DEP-DB-020]** All modules must be configured to use the same root folder path.
+
+**[DEP-DB-030]** The root folder (and database directory) shall be created automatically if it does not exist.
 
 ## 4. Startup Order and Dependencies
 
 **[DEP-START-010]** Modules have the following startup dependencies:
 
 ```
-Module 1: Audio Player
-  └─ No dependencies (can start independently)
+User Interface
+  ├─ Depends on: Audio Player to play audio, but has independent non audio playing functionality
+  └─ Optional: Program Director
 
-Module 2: User Interface
-  ├─ Depends on: Module 1 (Audio Player)
-  └─ Optional: Module 3 (Program Director)
+Audio Player
+  └─ No dependencies (can start and run independently)
 
-Module 3: Program Director
-  └─ Depends on: Module 1 (Audio Player)
+Program Director
+  └─ Depends on: Audio Player, there's no point in selecting passsages for play if there's no audio player to enqueue them to.
 
-Module 4: File Ingest Interface
+Audio Ingest
   └─ No runtime dependencies (operates independently)
 ```
 
 **[DEP-START-020]** Recommended startup order:
-1. Module 1: Audio Player
-2. Module 3: Program Director (if running)
-3. Module 4: File Ingest Interface (if running)
-4. Module 2: User Interface
+1. User Interface
+2. Audio Player
+3. Program Director (if running)
 
-**[DEP-START-030]** Modules shall implement startup retry logic with exponential backoff when dependencies are not yet available.
+Note: Audio Ingest and Lyric Editor only start when called for (from User Interface)
+
+**[DEP-START-030]** Modules shall implement startup retry logic when dependencies are not yet available.
 
 **[DEP-START-040]** Each module shall perform a health check on startup:
 - Verify database accessibility
@@ -222,164 +245,94 @@ Module 4: File Ingest Interface
 
 ## 5. Process Management on Linux (systemd)
 
-### 5.1. Service Unit Files
+### 5.1. Service Unit File
 
-**[DEP-LINUX-010]** systemd service unit files shall be installed at `/etc/systemd/system/`.
+**[DEP-LINUX-010]** Only the User Interface requires a systemd service file. All other modules are launched automatically by wkmp-ui or other modules as needed.
 
-**[DEP-LINUX-020]** Module 1: `/etc/systemd/system/mcrhythm-audio-player.service`
+**[DEP-LINUX-020]** User Interface: `/etc/systemd/system/wkmp-ui.service`
 
 ```ini
 [Unit]
-Description=McRhythm Audio Player (Module 1)
+Description=WKMP Music Player - User Interface
 After=network.target sound.target
-
-[Service]
-Type=simple
-User=mcrhythm
-Group=audio
-ExecStart=/usr/local/bin/mcrhythm-audio-player
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/mcrhythm/.local/share/mcrhythm /home/mcrhythm/.config/mcrhythm
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**[DEP-LINUX-030]** Module 2: `/etc/systemd/system/mcrhythm-ui.service`
-
-```ini
-[Unit]
-Description=McRhythm User Interface (Module 2)
-After=network.target mcrhythm-audio-player.service
-Requires=mcrhythm-audio-player.service
+Documentation=https://github.com/wkmp/mcrhythm
 
 [Service]
 Type=simple
 User=mcrhythm
 Group=mcrhythm
-ExecStart=/usr/local/bin/mcrhythm-ui
+ExecStart=/usr/local/bin/wkmp-ui
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+
+# wkmp-ui will automatically launch other required modules:
+# - wkmp-ap (Audio Player)
+# - wkmp-pd (Program Director, Lite/Full only)
+# - wkmp-ai (Audio Ingest, on-demand, Full only)
+# - wkmp-le (Lyric Editor, on-demand, Full only)
 
 # Security hardening
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/mcrhythm/.local/share/mcrhythm /home/mcrhythm/.config/mcrhythm
+ReadWritePaths=/home/wkmp/.local/share/wkmp /home/wkmp/.config/wkmp
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-**[DEP-LINUX-040]** Module 3: `/etc/systemd/system/mcrhythm-program-director.service`
+**[DEP-LINUX-030]** ~~Audio Player: `/etc/systemd/system/wkmp-ap.service`~~ **REMOVED** - wkmp-ap is launched by wkmp-ui
 
-```ini
-[Unit]
-Description=McRhythm Program Director (Module 3)
-After=network.target mcrhythm-audio-player.service
-Requires=mcrhythm-audio-player.service
-
-[Service]
-Type=simple
-User=mcrhythm
-Group=mcrhythm
-ExecStart=/usr/local/bin/mcrhythm-program-director
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/mcrhythm/.local/share/mcrhythm /home/mcrhythm/.config/mcrhythm
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**[DEP-LINUX-050]** Module 4: `/etc/systemd/system/mcrhythm-file-ingest.service`
-
-```ini
-[Unit]
-Description=McRhythm File Ingest Interface (Module 4)
-After=network.target
-
-[Service]
-Type=simple
-User=mcrhythm
-Group=mcrhythm
-ExecStart=/usr/local/bin/mcrhythm-file-ingest
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/mcrhythm/.local/share/mcrhythm /home/mcrhythm/.config/mcrhythm
-
-[Install]
-WantedBy=multi-user.target
-```
+**[DEP-LINUX-030]** ~~Audio Ingest: `/etc/systemd/system/wkmp-ai.service`~~ **REMOVED** - wkmp-ai is launched by wkmp-ui
 
 ### 5.2. systemd Commands
 
-**[DEP-LINUX-060]** Enable and start all services (Full version):
+**[DEP-LINUX-040]** Enable and start the User Interface service:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable mcrhythm-audio-player mcrhythm-ui mcrhythm-program-director mcrhythm-file-ingest
-sudo systemctl start mcrhythm-audio-player mcrhythm-ui mcrhythm-program-director mcrhythm-file-ingest
+sudo systemctl enable wkmp-ui
+sudo systemctl start wkmp-ui
 ```
 
-**[DEP-LINUX-070]** Check service status:
+**[DEP-LINUX-050]** Check service status:
 
 ```bash
-sudo systemctl status mcrhythm-audio-player
-sudo systemctl status mcrhythm-ui
-sudo systemctl status mcrhythm-program-director
-sudo systemctl status mcrhythm-file-ingest
+sudo systemctl status wkmp-ui
 ```
 
-**[DEP-LINUX-080]** View logs:
+**[DEP-LINUX-060]** View logs for User Interface:
 
 ```bash
-sudo journalctl -u mcrhythm-audio-player -f
-sudo journalctl -u mcrhythm-ui -f
+sudo journalctl -u wkmp-ui -f
 ```
 
-**[DEP-LINUX-090]** Stop and disable services:
+**[DEP-LINUX-070]** View logs for all modules (wkmp-ui launches them as subprocesses):
 
 ```bash
-sudo systemctl stop mcrhythm-audio-player mcrhythm-ui mcrhythm-program-director mcrhythm-file-ingest
-sudo systemctl disable mcrhythm-audio-player mcrhythm-ui mcrhythm-program-director mcrhythm-file-ingest
+# All modules log to journal via wkmp-ui parent process
+sudo journalctl -u wkmp-ui -f --all
 ```
+
+**[DEP-LINUX-080]** Stop and disable service:
+
+```bash
+sudo systemctl stop wkmp-ui
+sudo systemctl disable wkmp-ui
+```
+
+**Note**: Stopping wkmp-ui will also stop all modules it launched (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le).
 
 ## 6. Process Management on macOS (launchd)
 
-### 6.1. Launch Agent Files
+### 6.1. Launch Agent File
 
-**[DEP-MACOS-010]** launchd property list files shall be installed at `~/Library/LaunchAgents/` for user-level services.
+**[DEP-MACOS-010]** Only the User Interface requires a launchd property list file. All other modules are launched automatically by wkmp-ui or other modules as needed.
 
-**[DEP-MACOS-020]** Module 1: `~/Library/LaunchAgents/com.mcrhythm.audio-player.plist`
+**[DEP-MACOS-020]** User Interface: `~/Library/LaunchAgents/com.wkmp.ui.plist`
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -387,11 +340,11 @@ sudo systemctl disable mcrhythm-audio-player mcrhythm-ui mcrhythm-program-direct
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.mcrhythm.audio-player</string>
+    <string>com.wkmp.ui</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/mcrhythm-audio-player</string>
+        <string>/usr/local/bin/wkmp-ui</string>
     </array>
 
     <key>RunAtLoad</key>
@@ -404,128 +357,84 @@ sudo systemctl disable mcrhythm-audio-player mcrhythm-ui mcrhythm-program-direct
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/tmp/mcrhythm-audio-player.log</string>
+    <string>/tmp/wkmp-ui.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/tmp/mcrhythm-audio-player-error.log</string>
+    <string>/tmp/wkmp-ui-error.log</string>
 
     <key>ThrottleInterval</key>
     <integer>5</integer>
+
+    <!-- wkmp-ui will automatically launch other required modules:
+         - wkmp-ap (Audio Player)
+         - wkmp-pd (Program Director, Lite/Full only)
+         - wkmp-ai (Audio Ingest, Full only)
+         - wkmp-le (Lyric Editor, on-demand, Full only) -->
 </dict>
 </plist>
 ```
 
-**[DEP-MACOS-030]** Module 2: `~/Library/LaunchAgents/com.mcrhythm.ui.plist`
+**[DEP-MACOS-030]** ~~Audio Player: `~/Library/LaunchAgents/com.wkmp.audio-player.plist`~~ **REMOVED** - wkmp-ap is launched by wkmp-ui
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.mcrhythm.ui</string>
-
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/local/bin/mcrhythm-ui</string>
-    </array>
-
-    <key>RunAtLoad</key>
-    <true/>
-
-    <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
-
-    <key>StandardOutPath</key>
-    <string>/tmp/mcrhythm-ui.log</string>
-
-    <key>StandardErrorPath</key>
-    <string>/tmp/mcrhythm-ui-error.log</string>
-
-    <key>ThrottleInterval</key>
-    <integer>5</integer>
-</dict>
-</plist>
-```
-
-**[DEP-MACOS-040]** Similar plist files for Module 3 and Module 4 follow the same pattern.
+**[DEP-MACOS-040]** ~~Program Director and Audio Ingest plist files~~ **REMOVED** - All modules are launched by wkmp-ui
 
 ### 6.2. launchctl Commands
 
-**[DEP-MACOS-050]** Load and start services:
+**[DEP-MACOS-050]** Load and start the User Interface service:
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.mcrhythm.audio-player.plist
-launchctl load ~/Library/LaunchAgents/com.mcrhythm.ui.plist
-launchctl load ~/Library/LaunchAgents/com.mcrhythm.program-director.plist
-launchctl load ~/Library/LaunchAgents/com.mcrhythm.file-ingest.plist
+launchctl load ~/Library/LaunchAgents/com.wkmp.ui.plist
 ```
 
 **[DEP-MACOS-060]** Check service status:
 
 ```bash
-launchctl list | grep mcrhythm
+launchctl list | grep wkmp
 ```
 
-**[DEP-MACOS-070]** Stop and unload services:
+**[DEP-MACOS-070]** Stop and unload service:
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.mcrhythm.audio-player.plist
-launchctl unload ~/Library/LaunchAgents/com.mcrhythm.ui.plist
-launchctl unload ~/Library/LaunchAgents/com.mcrhythm.program-director.plist
-launchctl unload ~/Library/LaunchAgents/com.mcrhythm.file-ingest.plist
+launchctl unload ~/Library/LaunchAgents/com.wkmp.ui.plist
 ```
+
+**Note**: Unloading wkmp-ui will also stop all modules it launched (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le).
 
 ## 7. Process Management on Windows
 
-### 7.1. Windows Services
+### 7.1. Windows Service
 
-**[DEP-WIN-010]** On Windows, modules may be run as Windows Services using a service wrapper such as NSSM (Non-Sucking Service Manager) or WinSW.
+**[DEP-WIN-010]** Only the User Interface requires a Windows Service. All other modules are launched automatically by wkmp-ui or other modules as needed.
 
-**[DEP-WIN-020]** Example using NSSM to install Module 1 as a service:
+**[DEP-WIN-020]** Example using NSSM to install User Interface as a service:
 
 ```cmd
-nssm install McRhythmAudioPlayer "C:\Program Files\McRhythm\bin\mcrhythm-audio-player.exe"
-nssm set McRhythmAudioPlayer AppDirectory "C:\Program Files\McRhythm\bin"
-nssm set McRhythmAudioPlayer DisplayName "McRhythm Audio Player"
-nssm set McRhythmAudioPlayer Description "McRhythm Audio Player Module (Module 1)"
-nssm set McRhythmAudioPlayer Start SERVICE_AUTO_START
-nssm start McRhythmAudioPlayer
+nssm install WKMPUI "C:\Program Files\WKMP\bin\wkmp-ui.exe"
+nssm set WKMPUI AppDirectory "C:\Program Files\WKMP\bin"
+nssm set WKMPUI DisplayName "WKMP Music Player - User Interface"
+nssm set WKMPUI Description "WKMP User Interface (launches all other modules automatically)"
+nssm set WKMPUI Start SERVICE_AUTO_START
+nssm start WKMPUI
 ```
 
-**[DEP-WIN-030]** Services can be managed via the Windows Services control panel (`services.msc`) or command line:
+**[DEP-WIN-030]** Service can be managed via the Windows Services control panel (`services.msc`) or command line:
 
 ```cmd
-# Start services
-net start McRhythmAudioPlayer
-net start McRhythmUI
-net start McRhythmProgramDirector
-net start McRhythmFileIngest
+# Start service
+net start WKMPUI
 
-# Stop services
-net stop McRhythmAudioPlayer
-net stop McRhythmUI
-net stop McRhythmProgramDirector
-net stop McRhythmFileIngest
+# Stop service
+net stop WKMPUI
 
 # Check status
-sc query McRhythmAudioPlayer
+sc query WKMPUI
 ```
 
-### 7.2. Windows Service Dependencies
+**Note**: Stopping WKMPUI will also stop all modules it launched (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le).
 
-**[DEP-WIN-040]** Configure service dependencies using NSSM or sc command:
+### 7.2. ~~Windows Service Dependencies~~ **REMOVED**
 
-```cmd
-# Module 2 depends on Module 1
-sc config McRhythmUI depend= McRhythmAudioPlayer
-
-# Module 3 depends on Module 1
-sc config McRhythmProgramDirector depend= McRhythmAudioPlayer
-```
+No service dependencies needed - wkmp-ui launches all other modules as subprocesses.
 
 ## 8. Manual Startup (Development/Testing)
 
@@ -533,33 +442,16 @@ sc config McRhythmProgramDirector depend= McRhythmAudioPlayer
 
 **[DEP-MANUAL-010]** For development or testing, modules can be started manually from the command line.
 
-**[DEP-MANUAL-020]** Start modules in recommended order:
+Note: modules will still attempt to launch other modules as they need them.
 
-```bash
-# Terminal 1: Audio Player
-mcrhythm-audio-player
+**[DEP-MANUAL-020]** Removed.
 
-# Terminal 2: Program Director (optional)
-mcrhythm-program-director
-
-# Terminal 3: File Ingest Interface (optional, Full version only)
-mcrhythm-file-ingest
-
-# Terminal 4: User Interface
-mcrhythm-ui
-```
-
-**[DEP-MANUAL-030]** Each module accepts command-line arguments to override configuration:
-
-```bash
-mcrhythm-audio-player --port 9081 --config /path/to/custom/config.toml
-mcrhythm-ui --port 9080 --bind-address 0.0.0.0
-```
+**[DEP-MANUAL-030]** Removed.
 
 **[DEP-MANUAL-040]** Use `--help` flag to see all available command-line options:
 
 ```bash
-mcrhythm-audio-player --help
+wkmp-ap --help
 ```
 
 ### 8.2. Environment Variables
@@ -567,18 +459,19 @@ mcrhythm-audio-player --help
 **[DEP-MANUAL-050]** Modules support environment variable configuration:
 
 ```bash
-export MCRHYTHM_AUDIO_PLAYER_PORT=9081
-export MCRHYTHM_DATABASE_PATH=/custom/path/mcrhythm.db
-export MCRHYTHM_LOG_LEVEL=debug
+export WKMP_ROOT_FOLDER=/custom/path/wkmp
+export WKMP_LOG_LEVEL=debug
 
-mcrhythm-audio-player
+wkmp-ap
 ```
+
+**Note:** `WKMP_ROOT_FOLDER` specifies the root folder path. The database file (`wkmp.db`) is located within this folder.
 
 **[DEP-MANUAL-060]** Configuration precedence (highest to lowest):
 1. Command-line arguments
 2. Environment variables
 3. User configuration file
-4. System configuration file
+4. Database settings table
 5. Built-in defaults
 
 ## 9. Health Checks and Monitoring
@@ -608,7 +501,7 @@ mcrhythm-audio-player
 **[DEP-HEALTH-030]** A module is considered unhealthy if:
 - Database connection fails
 - Required dependencies (other modules) are unreachable
-- Critical resources are unavailable (e.g., audio device for Module 1)
+- Critical resources are unavailable (e.g., audio device for Audio Player)
 
 ### 9.2. Monitoring
 
@@ -618,7 +511,7 @@ mcrhythm-audio-player
 - Log files for errors and warnings
 - CPU and memory usage
 - Database size and growth rate
-- Queue depth (Module 1)
+- Queue depth (Audio Player)
 - Request latency (all modules)
 
 **[DEP-MON-020]** Recommended monitoring tools:
@@ -638,7 +531,7 @@ mcrhythm-audio-player
 **[DEP-SHUTDOWN-020]** On receiving a shutdown signal, each module shall:
 1. Stop accepting new HTTP requests
 2. Complete in-flight requests (with timeout)
-3. For Module 1: Save playback position and queue state
+3. For Audio Player: Save playback position and queue state
 4. Close database connections
 5. Release system resources (audio devices, file handles)
 6. Log shutdown completion
@@ -646,54 +539,114 @@ mcrhythm-audio-player
 
 **[DEP-SHUTDOWN-030]** Shutdown timeout: 30 seconds. If graceful shutdown does not complete within 30 seconds, the process may be forcibly terminated.
 
-**[DEP-SHUTDOWN-040]** Recommended shutdown order (reverse of startup):
-1. Module 2: User Interface
-2. Module 3: Program Director
-3. Module 4: File Ingest Interface
-4. Module 1: Audio Player
+**[DEP-SHUTDOWN-040]** Recommended shutdown order:
+1. Program Director
+2. Audio Player
+3. Audio Ingest
+4. Lyric Editor
+5. User Interface
 
-## 11. Backup and Recovery
+## 11. Database Backup and Recovery
 
-### 11.1. Database Backup
+### 11.1. Automatic Backup Strategy
 
-**[DEP-BACKUP-010]** The SQLite database should be backed up regularly using one of these methods:
-- `sqlite3` command-line tool: `sqlite3 mcrhythm.db ".backup mcrhythm-backup.db"`
-- `VACUUM INTO` SQL command: `VACUUM INTO '/path/to/backup.db'`
-- File-level copy (only when all modules are stopped)
+**[DEP-BACKUP-010]** McRhythm implements an **automatic database backup system** managed by wkmp-ui. See [Architecture - Database Backup Strategy](architecture.md#arch-queue-persist-030) for complete specification.
 
-**[DEP-BACKUP-020]** Backup schedule recommendations:
-- **Daily**: Automated backup during low-usage hours
-- **Before major operations**: Before file ingest, before software updates
-- **On-demand**: User-initiated backup via UI or CLI tool
+**Key Features:**
+- **On Startup**: Integrity check + conditional backup (throttled to prevent excessive wear)
+- **Periodic**: Automated backup every 3 months (configurable)
+- **Atomic Process**: Temp file → integrity check → atomic rename
+- **Retention**: Keeps 3 timestamped backups (configurable)
+- **Network Support**: Configurable backup location (local or network drive with fallback)
 
-### 11.2. Configuration Backup
+**Configuration (settings table):**
+- `backup_location`: Backup directory path (default: same folder as wkmp.db)
+- `backup_interval_ms`: Periodic backup interval (default: 90 days)
+- `backup_minimum_interval_ms`: Minimum between startup backups (default: 14 days)
+- `backup_retention_count`: Number of backups to keep (default: 3)
+- `last_backup_timestamp_ms`: Last successful backup timestamp
 
-**[DEP-BACKUP-030]** Configuration files should be backed up separately from the database, as they are small and change infrequently.
+> See [Architecture - ARCH-QUEUE-PERSIST-030](architecture.md#arch-queue-persist-030) for detailed backup algorithm, integrity checking, and failure handling.
 
-**[DEP-BACKUP-040]** Backup locations should be outside the application data directory to survive application reinstallation.
+### 11.2. Manual Backup
 
-### 11.3. Recovery
+**[DEP-BACKUP-020]** Operators may also perform manual backups using standard SQLite tools:
 
-**[DEP-RECOVERY-010]** To restore from backup:
+**Recommended method (online backup, safe while modules running):**
+```bash
+sqlite3 /path/to/wkmp.db ".backup /path/to/wkmp-manual-backup.db"
+```
+
+**Alternative (VACUUM INTO, also online-safe):**
+```sql
+VACUUM INTO '/path/to/wkmp-manual-backup.db';
+```
+
+**File copy (only when all modules stopped):**
+```bash
+# Stop all modules first!
+cp /path/to/wkmp.db /path/to/wkmp-backup.db
+```
+
+**[DEP-BACKUP-030]** Manual backups recommended before:
+- Major software updates
+- Database schema migrations
+- Large-scale file ingest operations
+- Manual database modifications
+
+### 11.3. Configuration Backup
+
+**[DEP-BACKUP-040]** Configuration files should be backed up separately:
+- Located in user config directories (see section 2.1)
+- Small and change infrequently
+- Use standard file backup tools (rsync, tar, etc.)
+
+**[DEP-BACKUP-050]** Backup locations should be outside the application data directory to survive application reinstallation.
+
+### 11.4. Recovery from Backup
+
+**[DEP-RECOVERY-010]** Automatic recovery (wkmp-ui handles this on startup):
+1. wkmp-ui runs `PRAGMA integrity_check` on database
+2. If corrupted: Archives corrupted DB, restores from most recent backup
+3. Repeats integrity check on restored database
+4. Displays progress UI to connecting users during recovery
+5. Once good database verified, proceeds with normal startup
+
+> See [Architecture - ARCH-QUEUE-PERSIST-030](architecture.md#arch-queue-persist-030) for automatic recovery details.
+
+**[DEP-RECOVERY-020]** Manual recovery procedure:
 1. Stop all McRhythm modules
-2. Replace `mcrhythm.db` with backup file
-3. Verify database integrity: `sqlite3 mcrhythm.db "PRAGMA integrity_check"`
-4. Restart modules in recommended startup order
+2. Verify backup integrity: `sqlite3 wkmp-backup.db "PRAGMA integrity_check"`
+3. If backup is good, replace database:
+   ```bash
+   mv wkmp.db wkmp-corrupted-$(date +%Y%m%d).db  # Archive corrupted DB
+   cp wkmp-backup.db wkmp.db                      # Restore from backup
+   ```
+4. Restart modules in recommended startup order (wkmp-ui first)
 
-**[DEP-RECOVERY-020]** If database is corrupted and no backup exists:
-1. Create a new empty database by starting Module 1 (it will initialize the schema)
-2. Re-ingest music files using Module 4
-3. User likes/dislikes and taste profiles will be lost
+**[DEP-RECOVERY-030]** If database is corrupted and no backup exists:
+1. Archive corrupted database: `mv wkmp.db wkmp-corrupted.db`
+2. Start wkmp-ui (will initialize new empty database with schema)
+3. Re-ingest music files using Audio Ingest module
+4. **Data loss**: User likes/dislikes, play history, and custom passage edits will be lost
+
+**[DEP-RECOVERY-040]** Recovery from network backup location:
+- If network drive unreachable during automatic recovery, wkmp-ui falls back to local backup
+- Manual recovery may require mounting network drive first
+- See `backup_location` setting in database
 
 ## 12. Version-Specific Deployments
 
 ### 12.1. Full Version
 
-**[DEP-VER-FULL-010]** Deploy and enable all 4 modules:
-- Module 1: Audio Player (required)
-- Module 2: User Interface (required)
-- Module 3: Program Director (required)
-- Module 4: File Ingest Interface (required)
+**[DEP-VER-FULL-010]** Deploy and enable all 5 modules:
+- Audio Player (required)
+- User Interface (required)
+- Lyric Editor (on-demand)
+- Program Director (required)
+- Audio Ingest (required)
+
+**Note:** Lyric Editor (wkmp-le) is launched on-demand by User Interface when user requests lyric editing, not automatically at startup.
 
 **[DEP-VER-FULL-020]** Recommended for:
 - Personal music servers with local file collections
@@ -702,10 +655,10 @@ mcrhythm-audio-player
 
 ### 12.2. Lite Version
 
-**[DEP-VER-LITE-010]** Deploy modules 1, 2, and 3 only:
-- Module 1: Audio Player (required)
-- Module 2: User Interface (required)
-- Module 3: Program Director (required)
+**[DEP-VER-LITE-010]** Deploy Audio Player, User Interface, and Program Director only:
+- Audio Player (required)
+- User Interface (required)
+- Program Director (required)
 
 **[DEP-VER-LITE-020]** File ingest must be performed by a separate Full version installation or manual database population.
 
@@ -716,37 +669,391 @@ mcrhythm-audio-player
 
 ### 12.3. Minimal Version
 
-**[DEP-VER-MIN-010]** Deploy modules 1 and 2 only:
-- Module 1: Audio Player (required)
-- Module 2: User Interface (required)
+**[DEP-VER-MIN-010]** Deploy Audio Player and User Interface only:
+- Audio Player (required)
+- User Interface (required)
 
 **[DEP-VER-MIN-020]** No automatic passage selection; user manually enqueues all passages via UI.
 
 **[DEP-VER-MIN-030]** Recommended for:
 - Simple playback scenarios
+- Full manual control of passage selection from the user interface
 - Testing and development
 - Minimal resource environments
 
-## 13. Security Considerations
+## 12a. Runtime Dependencies
 
-**[DEP-SEC-010]** Module 1 (Audio Player), Module 3 (Program Director), and Module 4 (File Ingest) should only bind to `127.0.0.1` (localhost) by default, as they are not designed for direct external access.
+### 12a.1. GStreamer Bundling (Audio Player)
 
-**[DEP-SEC-020]** Module 2 (User Interface) may bind to `0.0.0.0` (all interfaces) for remote access, but should be protected by:
-- HTTPS/TLS encryption (reverse proxy recommended)
+**[DEP-DEP-010]** Audio Player (wkmp-ap) requires GStreamer runtime and plugins.
+
+**Bundling Strategy:**
+
+**[DEP-DEP-020]** GStreamer shall be **dynamically linked with bundled libraries**:
+- Static linking is not practical due to GStreamer's plugin-based architecture
+- Bundle GStreamer core libraries and required plugins with wkmp-ap binary
+- Platform-specific audio backends (PulseAudio, ALSA, CoreAudio, WASAPI) use system libraries
+
+**Required Audio Format Plugins:**
+
+**[DEP-DEP-030]** Include plugins for all popular audio formats:
+- **MP3**: `gst-plugins-good` (mpegaudioparse, mpg123audiodec)
+- **FLAC**: `gst-plugins-good` (flacparse, flacdec)
+- **Ogg Vorbis**: `gst-plugins-base` (oggdemux, vorbisdec)
+- **Opus**: `gst-plugins-base` (opusparse, opusdec)
+- **AAC/M4A**: `gst-plugins-bad` (aacparse, faad)
+- **WavPack**: `gst-plugins-good` (wavpackparse, wavpackdec)
+- **ALAC (Apple Lossless)**: `gst-plugins-bad` (alacparse, alacdec)
+- **WAV**: `gst-plugins-good` (wavparse, audioconvert)
+- **AIFF**: `gst-plugins-bad` (aiffparse, audioconvert)
+- **Monkey's Audio (APE)**: `gst-plugins-bad` (apedemux, ffdec_ape)
+- **Musepack**: `gst-plugins-bad` (musepackdec)
+- **TrueAudio (TTA)**: `gst-plugins-bad` (ttadec)
+
+**Core Plugins:**
+
+**[DEP-DEP-040]** Include essential GStreamer plugins:
+- `gst-plugins-base`: Core functionality (audioconvert, audioresample, playback, volume)
+- `gst-plugins-good`: Stable, well-maintained plugins
+- `gst-plugins-bad`: Additional format support
+- `gst-plugins-ugly`: MP3 support (if using mad or lame decoders)
+- `decodebin`: Automatic decoder selection
+- `audiomixer`: Required for crossfade functionality
+
+**Platform-Specific Audio Output:**
+
+**[DEP-DEP-050]** Include appropriate audio sink plugins per platform:
+- **Linux**: `pulsesink` (PulseAudio), `alsasink` (ALSA fallback)
+- **macOS**: `osxaudiosink` (CoreAudio)
+- **Windows**: `wasapisink` (WASAPI)
+- **All platforms**: `autoaudiosink` (automatic sink selection)
+
+**Bundling Directories:**
+
+**[DEP-DEP-060]** Organize bundled GStreamer libraries:
+```
+wkmp-ap/
+├── bin/
+│   └── wkmp-ap              # Binary
+├── lib/
+│   ├── libgstreamer-1.0.*   # GStreamer core
+│   ├── libglib-2.0.*        # GLib dependency
+│   └── gstreamer-1.0/       # Plugin directory
+│       └── *.so/*.dll/*.dylib  # Format plugins
+└── share/
+    └── gstreamer-1.0/       # Plugin registry cache
+```
+
+**[DEP-DEP-070]** Set `GST_PLUGIN_PATH` environment variable to bundled plugin directory on startup.
+
+### 12a.2. SQLite Bundling
+
+**[DEP-DEP-080]** All modules require SQLite:
+- Bundle SQLite library with each module binary
+- Use `rusqlite` crate with bundled feature: `rusqlite = { version = "0.30", features = ["bundled"] }`
+- No separate SQLite installation required
+
+**[DEP-DEP-090]** SQLite extensions required:
+- JSON1 extension (for musical flavor vector queries)
+- Enabled by default in bundled SQLite
+
+## 13. HTTP Server Configuration
+
+**[DEP-HTTP-010]** All microservices implement HTTP servers with consistent configuration behavior. This section applies to all modules: wkmp-ui, wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le.
+
+### 13.1. Port Configuration and Selection
+
+**[DEP-HTTP-020]** Port numbers are managed through a base port list in the settings table plus per-module offsets:
+
+**Module Port Offsets:**
+- wkmp-ui (User Interface): offset = 0
+- wkmp-ap (Audio Player): offset = 1
+- wkmp-pd (Program Director): offset = 2
+- wkmp-ai (Audio Ingest): offset = 3
+- wkmp-le (Lyric Editor): offset = 4
+
+**[DEP-HTTP-030]** Default base port list (stored in `settings.http_base_ports` as JSON array):
+```json
+[5720, 15720, 25720, 17200, 23400]
+```
+
+**[DEP-HTTP-040]** Port selection algorithm on module startup:
+
+1. **Read configuration:**
+   - Read module's last successful port from `module_config.port` (if exists)
+
+2. **Try last known port first:**
+   - If module has a previously successful port in `module_config.port`, try that port first
+   - Send identity request: `GET /health` to `http://localhost:{port}`
+   - If response indicates same module type already running:
+     - Log to stderr: `"[module_name] already running on port {port}. Multiple instances not allowed."`
+     - Exit with status code 1
+   - If port unavailable for other reason (no response, different service):
+     - Continue to next step
+
+3. **Try all base+offset ports:**
+   - Read `http_base_ports` list from settings table (default: `[5720, 15720, 25720, 17200, 23400]`)
+   - For each base port in `http_base_ports` list:
+     - Calculate: `candidate_port = base_port + module_offset`
+     - Skip if `candidate_port` equals the already-tried last known port
+     - Attempt to bind to `candidate_port`
+     - If bind succeeds:
+       - Update `module_config.port` to `candidate_port`
+       - Log to stdout: `"[module_name] listening on port {candidate_port}"`
+       - Proceed with startup
+     - If bind fails (port in use), continue to next base port
+
+4. **All ports exhausted:**
+   - If all base+offset ports fail to bind:
+     - Log to stderr: `"[module_name] unable to bind to any configured port. Tried: {list_of_attempted_ports}"`
+     - Exit with status code 1
+
+**[DEP-HTTP-050]** Port persistence behavior:
+- Once a module successfully binds to a port, that port is stored in `module_config.port`
+- On subsequent restarts, the module tries its last successful port first
+- Only tries fallback ports if last known port is unavailable
+- This prevents unnecessary port hopping on normal restarts
+
+**[DEP-HTTP-060]** Example port allocation scenario:
+```
+Startup attempt 1:
+- wkmp-ui tries 5720 → success, stores 5720 in module_config
+- wkmp-ap tries 5721 → blocked by another process
+- wkmp-ap tries 15721 → success, stores 15721 in module_config
+- wkmp-pd tries 5722 → success, stores 5722 in module_config
+
+Startup attempt 2 (after restart):
+- wkmp-ui tries 5720 (last known) → success
+- wkmp-ap tries 15721 (last known) → success
+- wkmp-pd tries 5722 (last known) → success
+(No fallback port search needed)
+```
+
+### 13.2. Duplicate Instance Detection
+
+**[DEP-HTTP-070]** Health endpoint identity response:
+
+Each module's `GET /health` endpoint includes module identity:
+```json
+{
+  "status": "healthy",
+  "module": "audio_player",
+  "version": "1.0.0",
+  "uptime_seconds": 3600
+}
+```
+
+**[DEP-HTTP-080]** When a module finds a port occupied, it sends `GET /health` to determine if it's another instance:
+- If `module` field matches the attempting module's name → duplicate instance detected → exit
+- If no response or different `module` value → port occupied by different service → try next port
+
+### 13.3. Bind Address Configuration
+
+**[DEP-HTTP-090]** Each module's bind address is configured in `module_config.host`:
+
+**Default bind addresses:**
+- wkmp-ui: `0.0.0.0` (accessible from network)
+- wkmp-ap: `127.0.0.1` (localhost-only)
+- wkmp-pd: `127.0.0.1` (localhost-only)
+- wkmp-ai: `0.0.0.0` (accessible from network)
+- wkmp-le: `0.0.0.0` (accessible from network)
+
+**[DEP-HTTP-100]** Bind address semantics:
+- `127.0.0.1`: Listen on localhost only (not accessible from network)
+- `0.0.0.0`: Listen on all network interfaces (accessible from network)
+- Specific IP (e.g., `192.168.1.10`): Listen on specific interface
+
+**[DEP-HTTP-110]** Security rationale:
+- Only wkmp-ui, -ai, -le need network access (user facing web UI)
+- Internal microservices (ap, pd) should not be exposed externally
+- User can configure any module to use `0.0.0.0` if needed (advanced use cases)
+- User can configure any module to use `127.0.0.1` if desired (enhanced security)
+
+### 13.4. HTTP Server Timeouts
+
+**[DEP-HTTP-120]** Request timeout: 30 seconds
+- If request processing exceeds 30 seconds, connection is closed
+- Applies to all HTTP endpoints
+- Prevents resource exhaustion from hung requests
+
+**[DEP-HTTP-130]** Connection keepalive timeout: 60 seconds
+- Idle connections closed after 60 seconds
+- Reduces resource usage for inactive clients
+
+### 13.5. Request Body Limits
+
+**[DEP-HTTP-140]** Maximum request body size: 1 MB (1,048,576 bytes)
+- Applies to all POST/PUT/PATCH requests
+- Prevents memory exhaustion from malicious large payloads
+- Sufficient for all WKMP API operations (JSON payloads are small)
+
+**[DEP-HTTP-150]** Exceeding request body limit:
+- Return HTTP 413 Payload Too Large
+- Close connection immediately
+- Log warning with client IP and attempted size
+
+### 13.6. CORS Configuration
+
+**[DEP-HTTP-160]** CORS (Cross-Origin Resource Sharing) disabled by default on all modules except wkmp-le.
+
+**[DEP-HTTP-170]** wkmp-ui, wkmp-ai CORS policy:
+- CORS disabled (same-origin only)
+- Web UI assets served from same origin as API
+- No cross-origin requests needed for normal operation
+
+**[DEP-HTTP-180]** wkmp-ap, wkmp-pd CORS policy:
+- CORS disabled (same-origin only)
+- These modules are internal services accessed only by wkmp-ui and each other
+- No browser-based cross-origin access needed
+
+**[DEP-HTTP-190]** wkmp-le CORS policy:
+- CORS **enabled** with permissive policy
+- Allows cross-origin requests from any origin (`Access-Control-Allow-Origin: *`)
+- Required for lyric editor workflow:
+  - User opens wkmp-le interface in browser
+  - User navigates to external lyric websites
+  - User copies/pastes lyrics back to wkmp-le interface
+  - Some lyric sites may be embedded as iframes or fetched via AJAX
+
+**[DEP-HTTP-200]** wkmp-le CORS headers:
+```
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization
+Access-Control-Max-Age: 86400
+```
+
+### 13.7. HTTP Server Implementation
+
+**[DEP-HTTP-210]** Server framework: Use async Rust HTTP server (e.g., `axum`, `actix-web`, `warp`)
+
+**[DEP-HTTP-220]** Server configuration consistency:
+- All modules use same HTTP server framework for consistency
+- All modules implement same timeout, body limit, and error handling behavior
+- All modules use same JSON serialization library
+
+**[DEP-HTTP-230]** Graceful shutdown on SIGTERM/SIGINT:
+1. Stop accepting new connections
+2. Wait for in-flight requests to complete (max 5 seconds)
+3. Force-close any remaining connections
+4. Proceed with module shutdown sequence
+
+### 13.8. Settings Table Schema Addition
+
+**[DEP-HTTP-240]** Add to `settings` table common keys:
+
+```markdown
+**HTTP Server Configuration:**
+- `http_base_ports`: JSON array of base port numbers (default: `[5720, 15720, 25720, 17200, 23400]`)
+- `http_request_timeout_ms`: Request timeout in milliseconds (default: 30000)
+- `http_keepalive_timeout_ms`: Keepalive timeout in milliseconds (default: 60000)
+- `http_max_body_size_bytes`: Maximum request body size (default: 1048576)
+```
+
+**[DEP-HTTP-250]** Module-specific configuration stored in `module_config` table:
+- `host`: Bind address (e.g., `127.0.0.1`, `0.0.0.0`)
+- `port`: Actual bound port (updated by module on successful bind)
+
+### 13.9. Example Configurations
+
+**[DEP-HTTP-260]** Default configuration (single-host deployment):
+```sql
+-- Settings table
+INSERT INTO settings (key, value) VALUES
+  ('http_base_ports', '[5720, 15720, 25720, 17200, 23400]'),
+  ('http_request_timeout_ms', '30000'),
+  ('http_keepalive_timeout_ms', '60000'),
+  ('http_max_body_size_bytes', '1048576');
+
+-- Module config table
+INSERT INTO module_config (module_name, host, port, enabled) VALUES
+  ('user_interface', '0.0.0.0', 5720, 1),
+  ('audio_player', '127.0.0.1', 5721, 1),
+  ('program_director', '127.0.0.1', 5722, 1),
+  ('audio_ingest', '127.0.0.1', 5723, 1),
+  ('lyric_editor', '127.0.0.1', 5724, 1);
+```
+
+**[DEP-HTTP-270]** Remote access configuration:
+```sql
+-- Allow wkmp-ui to be accessed from network
+UPDATE module_config SET host = '0.0.0.0' WHERE module_name = 'user_interface';
+
+-- Keep internal services on localhost
+UPDATE module_config SET host = '127.0.0.1'
+  WHERE module_name IN ('audio_player', 'program_director', 'audio_ingest', 'lyric_editor');
+```
+
+**[DEP-HTTP-280]** Custom port list for restricted environments:
+```sql
+-- Use higher port numbers to avoid conflicts
+UPDATE settings SET value = '[8080, 8090, 8100, 8110, 8120]'
+  WHERE key = 'http_base_ports';
+```
+
+## 14. Security Considerations
+
+### 14.1. Network Access Control
+
+**[DEP-SEC-010]** Audio Player and Program Director should only bind to `127.0.0.1` (localhost) by default, as they are not designed for direct external access.
+
+**[DEP-SEC-020]** User Interface, Audio Ingest, and Lyric Editor may bind to `0.0.0.0` (all interfaces) for remote access, but should be protected by:
+- HTTPS/TLS encryption (reverse proxy strongly recommended)
 - Authentication (enforced by application)
 - Firewall rules limiting access to trusted networks
 
-**[DEP-SEC-030]** Consider deploying a reverse proxy (nginx, Apache, Caddy) in front of Module 2 for:
-- TLS termination
-- Rate limiting
-- IP-based access control
-- Static asset caching
+### 14.2. Password Protection Over HTTP
 
-**[DEP-SEC-040]** Database file permissions should be restricted to the user account running McRhythm modules (chmod 600 or equivalent).
+**[DEP-SEC-030]** WKMP implements **challenge-response authentication** to protect passwords when transmitted over insecure HTTP connections.
 
-**[DEP-SEC-050]** Configuration files containing sensitive data (session secret keys) should be protected with restrictive permissions (chmod 600 or equivalent).
+**Key Security Features:**
+- Passwords never transmitted in cleartext
+- Client-side SHA-256 hashing before transmission
+- Single-use challenges with 60-second expiration (prevents replay attacks)
+- Server never sees actual password, only `client_hash`
 
-## 14. Network Architecture
+> See [User Identity - Password Transmission Protection](user_identity.md#43-password-transmission-protection) for complete protocol specification.
+
+**[DEP-SEC-031]** Removed.
+
+### 14.3. Removed.
+
+**[DEP-SEC-040]** Removed.
+
+### 14.4. Localhost-Only Deployment
+
+**[DEP-SEC-050]** For localhost-only deployments (single-user workstations), HTTP is acceptable:
+- All traffic stays on `127.0.0.1` (loopback interface)
+- No network transmission, no interception risk
+- Challenge-response still provides defense-in-depth
+- Simplifies deployment (no certificates needed)
+
+**[DEP-SEC-051]** Localhost deployment configuration:
+```sql
+-- Bind wkmp-ui to localhost only
+UPDATE module_config SET host = '127.0.0.1' WHERE module_name = 'user_interface';
+```
+
+Access via: `http://localhost:5720`
+
+### 14.5. File System Security
+
+**[DEP-SEC-060]** Database file permissions should be restricted to the user account running McRhythm modules:
+```bash
+chmod 600 ~/.local/share/wkmp/wkmp.db
+chown wkmp:wkmp ~/.local/share/wkmp/wkmp.db
+```
+
+**[DEP-SEC-070]** Configuration files containing sensitive data should be protected with restrictive permissions:
+```bash
+chmod 600 ~/.config/wkmp/*.toml
+```
+
+### 14.6. Additional Security Measures
+
+**[DEP-SEC-080]** Do not create public-facing deployments, WKMP is a local audio player, distant users have few if any reasons to access it.
+
+## 15. Network Architecture
 
 **[DEP-NET-010]** Typical deployment network diagram:
 
@@ -755,30 +1062,32 @@ mcrhythm-audio-player
 │                         Host System                          │
 │                                                               │
 │  ┌─────────────┐                                             │
-│  │  Module 2:  │ ← External HTTP requests (port 8080)        │
-│  │     UI      │                                             │
+│  │    User     │ ← External HTTP requests (port 5720)        │
+│  │  Interface  │                                             │
 │  └──────┬──────┘                                             │
 │         │                                                     │
-│         ├──────→ Module 1: Audio Player (localhost:8081)     │
-│         ├──────→ Module 3: Program Director (localhost:8082) │
-│         └──────→ Module 4: File Ingest (localhost:8083)      │
+│         ├──────→ Audio Player (localhost:5721)               │
+│         ├──────→ Program Director (localhost:5722)           │
+│         └──────→ Audio Ingest (localhost:5723)               │
 │                                                               │
 │  ┌────────────────────────────────────────┐                  │
-│  │  Module 3: Program Director            │                  │
+│  │  Program Director                      │                  │
 │  │      ↓                                  │                  │
-│  │  Module 1: Audio Player (direct call)  │                  │
+│  │  Audio Player (direct call)            │                  │
 │  └────────────────────────────────────────┘                  │
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐    │
 │  │          Shared SQLite Database                       │    │
-│  │  ~/.local/share/mcrhythm/mcrhythm.db                 │    │
+│  │  ~/.local/share/wkmp/wkmp.db                          │    │
 │  └──────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**[DEP-NET-020]** Port configuration must be consistent across all module configuration files. If Module 2 is configured to call Module 1 at `http://localhost:9081`, then Module 1 must be configured to listen on port 9081.
+**[DEP-NET-020]** Port configuration is centralized in the `module_config` database table. All modules read their binding configuration and peer module addresses from this single source of truth.
 
-**[DEP-NET-030]** For distributed deployments (modules on separate hosts), update the `[modules]` section URLs in configuration files to use appropriate hostnames or IP addresses instead of `localhost`.
+**[DEP-NET-030]** WKMP is not designed for distributed deployments (modules on separate hosts).
+- Remote network access to the SQLite database is less than ideal.
+- Computational resource loads do not merit separation of the microservices on different servers
 
 ---
 

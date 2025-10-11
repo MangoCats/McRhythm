@@ -144,10 +144,18 @@ Where `nearest_song()` returns the song with the closest start or end time to th
 5. Cycle through sequence continuously while song is playing
 
 **[UI-ART-060]** Rotation timer behavior:
-- Starts when song begins playing
-- Pauses when playback is paused (maintains current image)
-- Resumes from current position when playback resumes
-- Resets when crossing to a new song
+- Starts when song begins playing (timer = 0s)
+- Pauses when playback is paused (maintains current image and timer position)
+- Resumes from paused timer position when playback resumes (does not reset to 0s)
+- Resets to 0s when crossing to a new song
+
+**Example:** Song has 3 album images rotating every 15 seconds:
+- At 8 seconds: Playback paused (showing image 1, timer at 8s)
+- User pauses for 2 minutes
+- Resume playback: Timer resumes at 8s, still showing image 1
+- At 15 seconds: Rotate to image 2 (7 seconds after resume)
+- At 30 seconds: Rotate to image 3
+- At 45 seconds: Rotate back to image 1
 
 **[UI-ART-070]** Song boundary transitions:
 - When playback crosses from Song A to Song B:
@@ -213,6 +221,18 @@ Song appears on 3 albums, each with front and rear art:
 - The "only when different" comparison uses whichever title is selected
 - Passage title is displayed in addition to (not replacing) song title and album title
 
+**[UI-INFO-016]** Display logic examples:
+
+| Passage Title | Song Title | Album Title | Display Passage? | Reason |
+|---------------|------------|-------------|------------------|--------|
+| "Live at Wembley" | "Bohemian Rhapsody" | "Live at Wembley" | ❌ Hide | passage = album |
+| "Bohemian Rhapsody" | "Bohemian Rhapsody" | "A Night at the Opera" | ❌ Hide | passage = song |
+| "Medley" | "Bohemian Rhapsody" | "A Night at the Opera" | ✅ Show | passage ≠ both song and album |
+| "Live at Wembley" | "Bohemian Rhapsody" | "Greatest Hits" | ✅ Show | passage ≠ both song and album |
+| "Bohemian Rhapsody" | "Bohemian Rhapsody" | "Bohemian Rhapsody" | ❌ Hide | passage = both song and album |
+
+**Rule:** Display passage title ONLY when it differs from BOTH the song title AND the album title. If passage title matches either one, hide it to avoid redundancy.
+
 **[UI-INFO-020]** When passage contains:
 - **One song**: Display that song's information (usually no passage title shown)
 - **Multiple songs**: Display currently playing song based on playback position
@@ -228,13 +248,14 @@ Song appears on 3 albums, each with front and rear art:
    - Multiple artists: "Artist 1, Artist 2, Artist 3"
    - No artist: "Unknown Artist"
 3. **Album**: Album title (or "Unknown Album")
-4. **Play History**: (Full and Lite versions only)
+4. **Play History** (global/system-wide): (Full and Lite versions only)
    - Time since last play: "Last played: 2 hours ago" / "3 days ago" / "Never"
    - Play counts:
      - Past week: "5 plays this week"
      - Past month: "12 plays this month"
      - Past year: "48 plays this year"
      - All time: "127 plays total"
+   - **Note**: Play history is global (all users see the same history)
 
 **[UI-INFO-040]** Play history time formatting:
 - < 1 hour: "X minutes ago"
@@ -253,7 +274,30 @@ Song appears on 3 albums, each with front and rear art:
 - Scrollable text area below album art and song info
 - Plain UTF-8 text (preserve line breaks)
 - Auto-scroll disabled by default (user can scroll manually)
-- "No lyrics available" message when lyrics are null
+- "No lyrics available" message when fallback chain exhausted (see below)
+
+**[UI-LYRICS-025]** Lyrics fallback chain logic:
+
+The system attempts to find lyrics using a fallback chain to maximize the chance of displaying relevant lyrics:
+
+1. **Check current song's lyrics field**
+   - If current song has `lyrics` field populated (non-empty), display those lyrics
+
+2. **Check related songs (if current song lyrics empty)**
+   - Iterate through `related_songs` array (ordered from most to least closely related)
+   - Display lyrics from first related song with non-empty `lyrics` field
+   - Related songs represent the same work by different artists or different performances
+
+3. **Display "No lyrics available"**
+   - Only shown when fallback chain is exhausted: current song AND all related songs have empty/null lyrics
+   - This indicates no lyrics are available for this work in the database
+
+**Example:** Current song is "Bohemian Rhapsody (Live at Wembley)" with no lyrics:
+- Step 1: Check "Bohemian Rhapsody (Live at Wembley)" lyrics → empty
+- Step 2: Check related_songs[0] "Bohemian Rhapsody (Studio)" lyrics → found! Display these lyrics
+- Result: Studio version lyrics displayed for live performance (same work, different performance)
+
+> **See:** [Architecture - Lyrics Display Behavior](architecture.md#lyrics-display-behavior) for technical implementation details
 
 **[UI-LYRICS-030]** **(Full version only)** Lyrics editing:
 - "Edit Lyrics" button visible
@@ -329,9 +373,11 @@ Song appears on 3 albums, each with front and rear art:
 ### Seek Control
 
 **[UI-CTRL-070]** Progress bar is interactive (clickable/draggable):
-- Click anywhere on bar to jump to that position
+- Click anywhere on bar to jump to that position within current passage
 - Drag playhead to scrub through passage
 - Display position tooltip on hover
+- Valid range: 0 seconds to passage duration
+- Seeking to the end (passage duration) has the same effect as skip
 
 ---
 
@@ -348,7 +394,29 @@ Song appears on 3 albums, each with front and rear art:
 **[UI-QUEUE-020]** Queue empty state:
 - Display message: "Queue is empty"
 - Show "Add Passage" button (links to library browser)
-- Explain automatic enqueueing if no candidates available
+- Display explanation of why automatic selection is not working (if applicable)
+
+**[UI-QUEUE-025]** Automatic selection unavailable messages:
+
+When queue is empty and automatic selection cannot enqueue passages, display the reason instead of "now playing" song information:
+
+1. **No songs with flavor data:**
+   - Message: "The library does not contain any songs with musical flavor definitions."
+   - Action: "Import music files or wait for flavor data retrieval" (Full version)
+
+2. **All songs in cooldown:**
+   - Message: "All songs in the library with musical flavor definitions have been played recently. Waiting until their cooldown periods elapse."
+   - Show countdown to next available song (optional)
+
+3. **Program Director processing:**
+   - Message: "The Program Director is working hard to select your next song, please be patient."
+   - Show spinner/loading indicator
+
+4. **Program Director not responding:**
+   - Message: "The Program Director is not responding to my requests for something to play."
+   - Action: "Check system status" or "Restart Program Director" (with appropriate permissions)
+
+**Note:** These messages replace the "now playing" display area, not the queue display area.
 
 ### Queue Management
 

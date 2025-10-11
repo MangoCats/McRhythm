@@ -173,18 +173,23 @@ pub enum McRhythmEvent {
         timestamp: SystemTime,
     },
 
-    /// Emitted periodically during playback (every 500ms)
+    /// Emitted periodically during playback
     ///
-    /// NOTE: High-frequency event. Subscribers should process quickly.
+    /// Frequency controlled by `playback_progress_interval_ms` setting (default: 5000ms)
+    /// Also emitted once when Pause initiated, once when Play initiated (resume)
+    ///
+    /// NOTE: Configurable-frequency event. Subscribers should process quickly.
     /// Consider using watch channel for position updates instead.
     ///
     /// Triggers:
     /// - SSE: Update progress bar
-    /// - State Persistence: Periodic checkpoint
-    PositionUpdate {
+    /// - NOT persisted to database during playback (only transmitted via SSE)
+    /// - Database persistence only on clean shutdown via settings.last_played_position
+    PlaybackProgress {
         passage_id: PassageId,
-        position: f64,    // Seconds into passage
-        duration: f64,    // Total passage duration
+        position_ms: u64,     // Current position in milliseconds
+        duration_ms: u64,     // Total passage duration in milliseconds
+        timestamp: SystemTime,
     },
 
     /// Emitted when volume changes
@@ -193,8 +198,9 @@ pub enum McRhythmEvent {
     /// - SSE: Update volume slider
     /// - State Persistence: Save volume preference
     VolumeChanged {
-        old_volume: f32,  // 0.0-1.0
-        new_volume: f32,
+        old_volume: f32,  // 0.0-1.0 (system-level scale for precision)
+        new_volume: f32,  // 0.0-1.0 (system-level scale for precision)
+        timestamp: SystemTime,
     },
 
     /// Emitted when current song within passage changes
@@ -278,7 +284,7 @@ pub enum McRhythmEvent {
     /// - Analytics: User interaction tracking
     UserAction {
         action: UserActionType,
-        user_session_id: String,
+        user_id: String,  // User's persistent UUID (see user_identity.md)
         timestamp: SystemTime,
     },
 

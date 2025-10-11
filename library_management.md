@@ -14,8 +14,15 @@ Library Management encompasses the full workflow from discovering audio files on
 
 **Scope:** Full version only. Lite and Minimal versions use pre-built databases exported from Full version.
 
+**File System Organization:**
+- All audio files, artwork, and other files are organized under a single **root folder**
+- The SQLite database file (`wkmp.db`) is located in the root folder
+- All file paths stored in the database are **relative to the root folder**
+- This design enables easy migration: move the root folder to relocate the entire library
+- See [Database Schema - File System Organization](database_schema.md#file-system-organization) for details
+
 **Components:**
-- File Scanner: Discovers audio files on disk
+- File Scanner: Discovers audio files on disk (within root folder tree)
 - Metadata Extractor: Reads embedded tags
 - Fingerprint Generator: Creates AcoustID fingerprints
 - MusicBrainz Client: Identifies recordings and artists
@@ -47,7 +54,8 @@ Library Management encompasses the full workflow from discovering audio files on
    - Store hash in `files` table
 
 4. **Database Recording**
-   - Insert file record with path, hash, modification time
+   - Insert file record with path (relative to root folder), hash, modification time
+   - Path is stored relative to root folder for portability (e.g., `albums/artist/song.mp3`)
    - Initially `duration` is NULL (populated during metadata extraction)
    - Create default single passage per file (user can split later)
 
@@ -133,10 +141,13 @@ Regex patterns for common naming conventions (flexible, best-effort)
    - Validate image (non-corrupt, reasonable dimensions)
 
 3. **Save to disk**
-   - Filename: `{audio_filename}.cover.{ext}`
-   - Example: `song.mp3` → `song.mp3.cover.jpg`
-   - Same directory as audio file
-   - If file exists, check hash before overwriting
+   - Storage location: Same folder as the audio file the artwork relates to
+   - Naming convention: Same filename as the source file the art is extracted from
+     - Example: `song.mp3` → `song.jpg` (assuming embedded art is JPEG)
+   - Filename conflict resolution:
+     - If file already exists with that name, append current time in ISO8601 format before extension
+     - Example: `song.jpg` exists → save as `song_2025-10-09T12:34:56Z.jpg`
+   - For artwork related to multiple audio files in different folders, store in folder of first related audio file (rare case)
 
 4. **Resize if needed**
    - If width > 1024 or height > 1024:
@@ -145,12 +156,56 @@ Regex patterns for common naming conventions (flexible, best-effort)
    - Library: `image` crate
 
 5. **Record in database**
-   - Insert into `images` table
+   - Insert into `images` table (see [Database Schema](database_schema.md#images))
    - `image_type` = 'album_front' (assumption for embedded art)
    - `entity_id` = album guid (if album identified, else passage guid)
-   - `file_path` = absolute path to saved image
+   - `file_path` = path relative to root folder (e.g., `albums/artist/song.jpg`)
 
-**Note:** External cover art (from MusicBrainz) handled separately (see MusicBrainz Integration below)
+**Note:** External cover art (from MusicBrainz) handled separately (see Cover Art Fetch section below)
+
+### Additional Image Types
+
+**[LIB-IMG-010]** Beyond album artwork, McRhythm supports additional image types for specific entities:
+
+**User-Uploaded Images (Full version only):**
+- **Song-specific images**: For special performances, live versions, or remixes
+  - Storage: Same folder as related audio file (see [LIB-IMG-030] for multi-location handling)
+  - Database: `entity_type` = 'song', `entity_id` = song guid
+- **Passage-specific images**: For compilation tracks, medleys, or custom edits
+  - Storage: Same folder as source audio file
+  - Database: `entity_type` = 'passage', `entity_id` = passage guid
+- **Work images**: For sheet music covers, opera/ballet production stills
+  - Storage: Same folder as related audio file (see [LIB-IMG-030] for multi-location handling)
+  - Database: `entity_type` = 'work', `entity_id` = work guid
+
+**Fetched Images:**
+- **Artist images**: Fetched from MusicBrainz (artist photos) or user-uploaded (Full version only)
+  - Storage: Root folder `/artists/` directory
+  - Database: `entity_type` = 'artist', `entity_id` = artist guid
+
+**[LIB-IMG-020]** All images follow the same sizing policy:
+- Maximum dimensions: 1024x1024 pixels
+- Aspect ratio preserved during resize
+- High-quality resampling (Lanczos3)
+- Database stores file path references, not binary data
+
+**[LIB-IMG-030]** Multi-Location Entity Image Storage:
+
+When an entity (song, work, artist) is associated with multiple audio files in different folders:
+- **Storage location**: Use the folder of the first encountered audio file for that entity
+- **Selection order**: Determined by library scan order (arbitrary but consistent)
+- **Database record**: `entity_id` + `file_path` allows multiple images per entity if needed
+- **Rationale**: Specific folder choice is unimportant; consistency within a single import session is sufficient
+
+**Examples:**
+- Work "Symphony No. 5" appears in `/classical/beethoven/symphony5.flac` and `/compilations/best-of/track3.mp3`
+  - First encountered: `/classical/beethoven/symphony5.flac`
+  - Work image stored in: `/classical/beethoven/`
+  - Database: `entity_type='work'`, `entity_id='<work-guid>'`, `file_path='classical/beethoven/symphony5_work.jpg'`
+
+- Song with multiple passages across folders uses the first passage's folder encountered during scan
+
+> **See:** [Database Schema - images](database_schema.md#images) for complete image storage schema
 
 ## Audio Fingerprinting
 
@@ -241,7 +296,7 @@ client=<API_KEY>&duration=<seconds>&fingerprint=<base64>&meta=recordings+release
 ```http
 GET /ws/2/recording/{mbid}?inc=artists+releases+tags
 Accept: application/json
-User-Agent: McRhythm/1.0.0 ( contact@example.com )
+User-Agent: WKMP/1.0.0 ( contact@example.com )
 ```
 
 **Response:** (Simplified)
@@ -339,14 +394,17 @@ User-Agent: McRhythm/1.0.0 ( contact@example.com )
 1. **Fetch JSON** to get image URLs
 2. **Download images** (Front, Back, optionally Liner/Booklet)
 3. **Save to disk:**
-   - `{album_mbid}.front.jpg`
-   - `{album_mbid}.back.jpg`
-   - `{album_mbid}.liner.{ext}` (if available)
-   - Same directory as audio files (or user-designated art directory)
+   - Storage location: Same folder as the audio file the artwork relates to
+   - Naming convention: Derive from MusicBrainz Release MBID or source URL filename
+     - Example: `{album_mbid}.front.jpg`, `{album_mbid}.back.jpg`, `{album_mbid}.liner.{ext}`
+   - Filename conflict resolution: Append ISO8601 timestamp before extension if file exists
+     - Example: `album.front.jpg` → `album.front_2025-10-09T12:34:56Z.jpg`
+   - For artwork related to multiple audio files in different folders, store in folder of first related audio file (rare case)
 4. **Resize** if > 1024x1024 (same as embedded art)
 5. **Record in database:**
    - `images` table with `image_type` = 'album_front', 'album_back', 'album_liner'
    - `entity_id` = album guid
+   - `file_path` = path relative to root folder (see [Database Schema](database_schema.md#images))
 
 **Caching:**
 - Store fetched art URLs in `musicbrainz_cache`
@@ -368,7 +426,7 @@ User-Agent: McRhythm/1.0.0 ( contact@example.com )
 
 **User-Agent Requirement:**
 - Must include application name and contact info
-- Example: `McRhythm/1.0.0 ( https://github.com/user/mcrhythm )`
+- Example: `WKMP/1.0.0 ( https://github.com/user/wkmp )`
 
 ## Multi-Passage Files
 

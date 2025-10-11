@@ -13,6 +13,43 @@ Defines code organization and quality standards. Supports Tier 2 design document
 This document establishes coding standards and organizational requirements for the McRhythm codebase.
 These conventions ensure maintainability, testability, and consistency across the Rust/GStreamer/Tauri application.
 
+## Workspace Structure
+
+**CO-005: Cargo Workspace Organization**
+
+McRhythm uses a Cargo workspace with multiple binary crates and a shared common library. See [Project Structure](project_structure.md) for complete details.
+
+- **CO-006:** The workspace shall contain:
+  - `common/` - Shared library crate (`wkmp-common`)
+  - `wkmp-ap/` - Audio Player binary
+  - `wkmp-ui/` - User Interface binary
+  - `wkmp-le/` - Lyric Editor binary
+  - `wkmp-pd/` - Program Director binary
+  - `wkmp-ai/` - Audio Ingest binary (Full version only)
+
+- **CO-007:** Shared code shall be implemented in the `common/` library:
+  - Database models and queries
+  - Event types (`McRhythmEvent` enum)
+  - API request/response types
+  - Flavor calculation algorithms
+  - Cooldown calculation logic
+  - UUID and timestamp utilities
+  - Module configuration loading
+
+- **CO-008:** Module-specific code shall remain in respective binary crates:
+  - HTTP server setup (module-specific)
+  - GStreamer code (Audio Player only)
+  - Password hashing (User Interface only)
+  - Selection algorithm (Program Director only)
+  - File scanning (Audio Ingest only)
+
+- **CO-009:** Binary names shall follow the `wkmp-` prefix convention:
+  - `wkmp-ap` - Audio Player
+  - `wkmp-ui` - User Interface
+  - `wkmp-le` - Lyric Editor
+  - `wkmp-pd` - Program Director
+  - `wkmp-ai` - Audio Ingest
+
 ## Code Organization and Module Structure
 
 ### Module Size and Complexity
@@ -32,48 +69,102 @@ These conventions ensure maintainability, testability, and consistency across th
 
 **CO-030: Component Module Structure**
 
-Each major component shall be organized into separate modules by functional area:
+Each module binary shall be organized into separate submodules by functional area:
 
-- **CO-031:** Playback controller modules:
-  - `playback/controller.rs` - Main playback coordination
-  - `playback/gstreamer_pipeline.rs` - GStreamer pipeline management
+- **CO-031:** Audio Player (`wkmp-ap/src/`) modules:
+  - `playback/engine.rs` - Main playback coordination
+  - `playback/pipeline.rs` - GStreamer pipeline management
   - `playback/crossfade.rs` - Crossfade timing and volume control
-  - `playback/fade_curves.rs` - Fade curve implementations (exponential, cosine, linear)
+  - `playback/queue.rs` - Queue management
+  - `audio/device.rs` - Audio device management
+  - `audio/volume.rs` - Volume control
+  - `api/playback.rs` - Playback HTTP endpoints
+  - `api/audio.rs` - Audio HTTP endpoints
+  - `api/events.rs` - SSE endpoint
 
-- **CO-032:** Program director modules:
-  - `selection/director.rs` - Main selection coordination
-  - `selection/probability.rs` - Probability calculation logic
-  - `selection/cooldown.rs` - Cooldown calculation logic
-  - `selection/flavor_distance.rs` - Musical flavor distance calculations
+- **CO-032:** Program Director (`wkmp-pd/src/`) modules:
+  - `selection/algorithm.rs` - Main selection coordination
+  - `selection/candidates.rs` - Candidate filtering
+  - `selection/weights.rs` - Weight calculation logic
+  - `timeslots/manager.rs` - Timeslot management
+  - `timeslots/calculator.rs` - Target flavor calculation
+  - `monitor/queue.rs` - Queue monitoring
+  - `api/config.rs` - Configuration HTTP endpoints
+  - `api/status.rs` - Status HTTP endpoints
 
-- **CO-033:** Web UI modules:
-  - `ui/tauri_handlers.rs` - Tauri command handlers
-  - `ui/sse.rs` - Server-sent events broadcasting
-  - `ui/api.rs` - REST API endpoint definitions
-  - Frontend assets in `src-tauri/frontend/` directory
+- **CO-033:** User Interface (`wkmp-ui/src/`) modules:
+  - `auth/session.rs` - Session management
+  - `auth/password.rs` - Password hashing
+  - `proxy/audio_player.rs` - Audio Player client
+  - `proxy/program_director.rs` - Program Director client
+  - `api/auth.rs` - Authentication HTTP endpoints
+  - `api/proxy.rs` - Proxy endpoints to other modules
+  - `api/library.rs` - Library browsing endpoints
+  - `api/events.rs` - SSE aggregation
+  - `static/` - Web UI assets (HTML, CSS, JS)
+
+- **CO-033a:** Audio Ingest (`wkmp-ai/src/`) modules:
+  - `scanner/filesystem.rs` - Directory scanning
+  - `scanner/metadata.rs` - Metadata extraction
+  - `external/musicbrainz.rs` - MusicBrainz client
+  - `external/acousticbrainz.rs` - AcousticBrainz client
+  - `external/acoustid.rs` - AcoustID/Chromaprint
+  - `external/essentia.rs` - Essentia FFI bindings
+  - `segmentation/silence.rs` - Silence detection
+  - `segmentation/boundaries.rs` - Boundary detection
+  - `api/scan.rs` - File scanning endpoints
+  - `api/identify.rs` - MusicBrainz identification endpoints
+
+- **CO-033b:** Lyric Editor (`wkmp-le/src/`) modules:
+  - `ui/editor.rs` - Text editor component
+  - `ui/browser.rs` - Embedded web browser component
+  - `ui/window.rs` - Split-window layout manager
+  - `api/lyrics.rs` - Lyric CRUD endpoints
+  - `api/open.rs` - Editor launch endpoint
+  - `db/lyrics.rs` - Database access for lyrics
 
 - **CO-034:** Each module shall have a single, well-defined responsibility
 
 - **CO-035:** A coordinator module (`mod.rs`) shall compose sub-modules without containing substantial logic
 
-**CO-040: Backend Module Organization**
+**CO-040: Common Library Organization**
 
-- **CO-041:** Database access logic shall be separated from business logic
-  - Database queries in `db/queries.rs`, `db/schema.rs`
-  - Business logic in component-specific modules
+The `common/` library crate shall be organized as follows:
 
-- **CO-042:** External API clients shall be isolated in dedicated modules
-  - `external/acoustid.rs` - AcoustID fingerprinting
-  - `external/musicbrainz.rs` - MusicBrainz API client
-  - `external/acousticbrainz.rs` - AcousticBrainz API client
-  - `external/listenbrainz.rs` - ListenBrainz API client (future)
+- **CO-041:** Database code in `common/src/db/`:
+  - `schema.rs` - Database schema types
+  - `models.rs` - Data models (File, Passage, Song, etc.)
+  - `queries.rs` - Common database queries
+  - `migrations.rs` - Migration management
 
-- **CO-043:** Audio metadata parsing shall be isolated in dedicated modules
-  - `metadata/id3.rs` - ID3v2 tag parsing
-  - `metadata/vorbis.rs` - Vorbis comment parsing
-  - `metadata/mp4.rs` - MP4/M4A tag parsing
+- **CO-042:** Event system in `common/src/events/`:
+  - `types.rs` - `McRhythmEvent` enum and related types
 
-- **CO-044:** Public API functions shall be clearly separated from internal implementation
+- **CO-043:** API types in `common/src/api/`:
+  - `types.rs` - API request/response types
+  - `client.rs` - HTTP client helpers
+
+- **CO-044:** Flavor system in `common/src/flavor/`:
+  - `types.rs` - FlavorVector, FlavorTarget types
+  - `distance.rs` - Distance calculations (squared Euclidean)
+  - `centroid.rs` - Weighted centroid calculation
+
+- **CO-045:** Cooldown system in `common/src/cooldown/`:
+  - `calculator.rs` - Cooldown multiplier calculation
+
+- **CO-046:** Module configuration in `common/src/config/`:
+  - `module.rs` - Module config loading from database
+
+- **CO-047:** External API clients in Audio Ingest module (`wkmp-ai/src/external/`):
+  - `acoustid.rs` - AcoustID fingerprinting
+  - `musicbrainz.rs` - MusicBrainz API client
+  - `acousticbrainz.rs` - AcousticBrainz API client
+  - `essentia.rs` - Essentia FFI bindings
+
+- **CO-048:** Audio metadata parsing in Audio Ingest module (`wkmp-ai/src/scanner/`):
+  - Metadata extraction in `metadata.rs` using id3, metaflac, mp4ameta crates
+
+- **CO-049:** Public API functions shall be clearly separated from internal implementation
 
 ### Module Dependencies
 
@@ -82,7 +173,9 @@ Each major component shall be organized into separate modules by functional area
 - **CO-051:** Lower-level utility modules shall not depend on higher-level application modules
 - **CO-052:** Module dependency graphs shall be acyclic (no circular dependencies)
 - **CO-053:** Each module shall explicitly declare its dependencies via `use` statements at the top of the file
-- **CO-054:** Common code shared across modules shall be extracted to a `common` or `utils` module
+- **CO-054:** Common code shared across binary crates shall be implemented in the `common/` library
+- **CO-055:** Binary crates (`wkmp-*`) shall not depend on each other; they communicate via HTTP APIs only
+- **CO-056:** All binary crates shall depend on `wkmp-common` for shared types and logic
 
 **CO-060: Interface Boundaries**
 
@@ -131,7 +224,7 @@ Each major component shall be organized into separate modules by functional area
 
 - **CO-094:** Each test function shall test a single, specific behavior
 - **CO-095:** Integration tests shall be placed in `tests/` directory
-- **CO-096:** Use `#[cfg(feature = "full")]` / `#[cfg(feature = "lite")]` for version-specific tests
+- **CO-096:** Module-specific tests are in their respective binary crates (e.g., Audio Ingest tests in `wkmp-ai/tests/`)
 
 **CO-100: Code Documentation**
 
@@ -161,20 +254,45 @@ Each major component shall be organized into separate modules by functional area
 **CO-120: Logical Grouping**
 
 - **CO-121:** Related functionality shall be grouped in the same module or directory
-- **CO-122:** Directory structure shall reflect functional organization:
+- **CO-122:** Directory structure shall reflect workspace organization (see [Project Structure](project_structure.md)):
   ```
-  src/
-  ├── playback/          # Playback controller and audio engine
-  ├── selection/         # Program director and selection logic
-  ├── queue/             # Queue manager
-  ├── history/           # Historian and play tracking
-  ├── flavor/            # Flavor manager and timeslots
-  ├── library/           # Library scanner and file management
-  ├── metadata/          # Metadata extraction
-  ├── external/          # External API clients
-  ├── db/                # Database schema and queries
-  ├── ui/                # Tauri handlers and API
-  └── common/            # Shared utilities
+  /
+  ├── common/            # Shared library (wkmp-common)
+  │   └── src/
+  │       ├── db/        # Database models and queries
+  │       ├── events/    # Event types
+  │       ├── api/       # API types and HTTP helpers
+  │       ├── flavor/    # Flavor calculation algorithms
+  │       ├── cooldown/  # Cooldown logic
+  │       └── config/    # Module configuration
+  ├── wkmp-ap/           # Audio Player binary
+  │   └── src/
+  │       ├── playback/  # Playback engine and pipeline
+  │       ├── audio/     # Audio device management
+  │       └── api/       # HTTP endpoints
+  ├── wkmp-pd/           # Program Director binary
+  │   └── src/
+  │       ├── selection/ # Selection algorithm
+  │       ├── timeslots/ # Timeslot management
+  │       ├── monitor/   # Queue monitoring
+  │       └── api/       # HTTP endpoints
+  ├── wkmp-ui/           # User Interface binary
+  │   └── src/
+  │       ├── auth/      # Authentication and session
+  │       ├── proxy/     # Proxies to other modules
+  │       ├── api/       # HTTP endpoints
+  │       └── static/    # Web UI assets
+  ├── wkmp-le/           # Lyric Editor binary
+  │   └── src/
+  │       ├── ui/        # Editor and browser components
+  │       ├── api/       # HTTP endpoints
+  │       └── db/        # Database access
+  └── wkmp-ai/           # Audio Ingest binary (Full only)
+      └── src/
+          ├── scanner/   # File scanning and metadata
+          ├── external/  # MusicBrainz, AcoustID, Essentia
+          ├── segmentation/ # Silence and boundary detection
+          └── api/       # HTTP endpoints
   ```
 
 - **CO-123:** Feature-specific code should be co-located when appropriate
@@ -252,17 +370,19 @@ Each major component shall be organized into separate modules by functional area
 
 ### Version-Specific Code
 
-**CO-190: Feature Flag Usage**
+**CO-190: Version Differentiation Strategy**
 
-- **CO-191:** Version-specific code shall use Rust feature flags:
-  - `#[cfg(feature = "full")]` - Full version only
-  - `#[cfg(feature = "lite")]` - Lite and Full versions
-  - `#[cfg(feature = "minimal")]` - All versions
+- **CO-191:** Versions are differentiated by **which modules are deployed**, not by conditional compilation:
+  - **Full version**: All 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
+  - **Lite version**: 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
+  - **Minimal version**: 2 binaries (wkmp-ap, wkmp-ui)
 
-- **CO-192:** Feature-gated modules shall have clear documentation about version applicability
-- **CO-193:** Shared code shall be implemented in a way that works across all versions
-- **CO-194:** Version-specific functionality shall degrade gracefully
-  - Example: Lite version shows read-only UI instead of edit controls
+- **CO-192:** Each module is built identically; no feature flags or conditional compilation required
+- **CO-193:** Module-specific code remains in respective binary crates:
+  - Audio Ingest functionality is in `wkmp-ai` binary (only included in Full version package)
+  - Lyric Editor functionality is in `wkmp-le` binary (only included in Full version package, launched on-demand)
+  - Program Director functionality is in `wkmp-pd` binary (included in Full and Lite version packages)
+- **CO-194:** Shared code in `wkmp-common` works identically across all modules
 
 ### API and Interface Contracts
 
@@ -409,8 +529,8 @@ Each major component shall be organized into separate modules by functional area
 
 - **CO-299:** "McRhythm" is a code name for the project during design. "McRhythm" and other 
               references to the project name shall not appear anywhere in the source code.
-              The public facing name of the project while coding shall be: "WKMP" in long
-              form: "Wonderfully Kinetic Music Player".
+              The public facing name of the project while coding shall be: "WKMP" ; 
+              in long form: "Wonderfully Kinetic Music Player".
 
 ## Review and Approval
 

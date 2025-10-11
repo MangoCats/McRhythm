@@ -227,16 +227,58 @@ Rare edge case where multiple passages are identical to target:
 **[PD-EDGE-030]** **Library Contains Only Zero-Song Passages:**
 
 - No passages can be automatically selected
-- Program Director returns "no candidates" error
+- Program Director returns "no candidates" error with reason: `NO_SONGS_WITH_FLAVOR`
 - Automatic enqueueing stops
 - Manual enqueueing still works
 
+## Selection Failure Communication
+
+**[PD-COMM-010]** When Program Director cannot select a passage, it returns an error with a specific reason code to enable appropriate UI feedback:
+
+**Error Reasons:**
+
+1. **`NO_SONGS_WITH_FLAVOR`**
+   - Library contains no songs with musical flavor definitions
+   - Triggered when: All passages have zero songs OR all songs lack flavor data
+   - UI displays: "The library does not contain any songs with musical flavor definitions."
+
+2. **`ALL_IN_COOLDOWN`**
+   - All songs with flavor data are currently in cooldown
+   - Triggered when: At least one song exists with flavor, but all have cooldown_multiplier = 0.0
+   - UI displays: "All songs in the library with musical flavor definitions have been played recently. Waiting until their cooldown periods elapse."
+
+3. **`PROCESSING`**
+   - Selection algorithm is running (normal for first request after startup)
+   - Triggered when: Initial taste calculation or large library analysis in progress
+   - UI displays: "The Program Director is working hard to select your next song, please be patient."
+
+4. **`NOT_RESPONDING`**
+   - Program Director module is not responding to requests
+   - Triggered when: HTTP request timeout or connection refused
+   - UI displays: "The Program Director is not responding to my requests for something to play."
+
+**[PD-COMM-020]** API Response Format:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ALL_IN_COOLDOWN",
+    "message": "No passages available (all in cooldown)",
+    "next_available_at": "2025-10-09T14:30:00Z"  // optional, ISO 8601 timestamp
+  }
+}
+```
+
+> **See:** [UI Specification - Automatic Selection Unavailable](ui_specification.md#ui-queue-025) for user-facing message display
 > **See:** [Musical Flavor - Edge Cases](musical_flavor.md#edge-cases) for additional scenarios
 
 ## Cooldown System
 <a name="cooldown-system"></a>
 
 **[PD-COOL-010]** The cooldown system prevents too-frequent replay of songs, artists, and works.
+
+**[PD-COOL-015]** Cooldowns are **global (system-wide)**: All users see the same cooldown state. The system assumes all listeners hear all songs as they are played, so cooldowns apply to passage selection for everyone collectively.
 
 **[PD-COOL-020]** Each entity (song, artist, work) has:
 - **Minimum cooldown period**: Probability is zero (cannot be selected)

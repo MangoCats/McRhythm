@@ -8,176 +8,964 @@ This document aggregates all specifications to define WHEN features are built. I
 
 > **Timeline Estimate:** 1 Week = 20 developer-hours.
 
----
-
-## Phase 1: Foundation (4.5 Weeks)
-
-*Goal: A minimal application that can play a single audio file with basic manual controls.* 
-
-- **1.1. Database & Migrations (1 Week):**
-  - Implement all tables from `database_schema.md`.
-  - Set up `sqlx-cli` or a similar tool for migration management.
-
-- **1.2. Event System & Core Types (0.5 Weeks):**
-  - Implement the `EventBus` using `tokio::broadcast`.
-  - Define the core `McRhythmEvent` enum as specified in `event_system.md`.
-
-- **1.3. Basic Playback Engine (1.5 Weeks):**
-  - Implement a single GStreamer pipeline for playback (`filesrc` → `decodebin` → `autoaudiosink`).
-  - Implement API commands and backend logic for Play, Pause, and Seek.
-  - Emit basic playback events: `PassageStarted`, `PassageCompleted`, `PlaybackStateChanged`.
-
-- **1.4. Basic API & UI (1.5 Weeks):**
-  - Set up Tauri and Axum web server.
-  - Create a minimal web UI with HTML/JS for basic playback control (play/pause buttons, seek bar).
-  - Implement a `/api/status` endpoint.
-  - Implement a basic SSE endpoint (`/api/events`) that connects but doesn't yet broadcast all states.
-
-## Phase 2: Library & Queue Management (4 Weeks)
-
-*Goal: A functional music player that can scan a library, manage a queue, and play multiple songs in sequence.* 
-
-- **2.1. File Scanner & Metadata (1 Week):**
-  - Implement recursive directory scanning for audio files.
-  - Parse basic metadata (ID3, etc.) and store `files` and `passages` in the database (assuming one passage per file for now).
-
-- **2.2. Queue Management (1 Week):**
-  - Implement the `QueueManager` component.
-  - Persist queue state to the database.
-  - Handle manual user additions/removals via API endpoints.
-  - Implement auto-advancing to the next passage upon `PassageCompleted` event.
-
-- **2.3. Historian & SSE Integration (1 Week):**
-  - Implement the `Historian` component to record play history.
-  - Fully integrate the SSE broadcaster to push all playback and queue events to the UI.
-  - UI now updates in real-time based on server events.
-
-- **2.4. Album Art Handling (1 Week):**
-  - Extract embedded cover art from files.
-  - Implement API endpoint to serve album art images.
-  - Display artwork in the UI.
-
-## Phase 3: Advanced Playback & Segmentation (5.5 Weeks)
-
-*Goal: Implement the signature crossfading feature and the complete multi-passage file workflow.* 
-
-- **3.1. Dual-Pipeline Crossfade Engine (2 Weeks):**
-  - This is a complex task.
-  - Implement the dual GStreamer pipeline architecture.
-  - Add logic for pre-loading the next track, calculating overlap based on lead-in/lead-out times, and managing the `audiomixer`.
-  - Implement volume automation for fade curves.
-
-- **3.2. Audio File Segmentation Workflow (2 Weeks):**
-  - Implement the full workflow from `audio_file_segmentation.md`.
-  - Create the multi-step UI for source selection, silence detection, and MusicBrainz release matching.
-  - Integrate ChromaPrint/AcoustID for fingerprinting.
-
-- **3.3. Passage Boundary Editor (1.5 Weeks):**
-  - Create the UI for manually adjusting passage boundaries on a waveform display.
-  - Implement logic to save these user-defined passages to the database.
-
-## Phase 4: External Integration & Flavor Analysis (5.5 Weeks)
-
-*Goal: Enrich the local library with data from external services and enable local flavor analysis.* 
-
-- **4.1. MusicBrainz Integration (1 Week):**
-  - Build the API client to fetch and cache data for Recordings, Releases, Artists, and Works.
-  - Create the logic to associate local passages with these MusicBrainz entities.
-
-- **4.2. AcousticBrainz Integration (0.5 Weeks):**
-  - Build the API client to fetch and cache high-level musical flavor data for recordings.
-
-- **4.3. Essentia Integration (3 Weeks):**
-  - This is a very significant task.
-  - Set up Rust bindings for the Essentia C++ library.
-  - Implement the local analysis pipeline to generate musical flavor data for recordings missing from AcousticBrainz.
-  - This task is exclusive to the `full` version build.
-
-- **4.4. Passage Flavor Calculation (1 Week):**
-  - Implement the logic to calculate the net flavor for a passage based on the weighted centroid of its constituent recordings, as specified in `musical_flavor.md`.
-  - Store the calculated `musical_flavor_vector` in the `passages` table.
-
-## Phase 5: Musical Flavor Selection System (6 Weeks)
-
-*Goal: Implement the full, flavor-driven automatic selection algorithm.* 
-
-- **5.1. Distance & Cooldown Calculation (1.5 Weeks):**
-  - Implement the squared Euclidean distance formula for flavor comparison.
-  - Implement the cooldown logic (min/ramping) for songs, artists, and works.
-
-- **5.2. Base Probability System (1 Week):**
-  - Implement the UI for editing base probabilities on songs, artists, and works.
-  - Implement the logic for calculating a passage's final base probability.
-
-- **5.3. Time-of-Day Flavor Target System (2 Weeks):**
-  - Implement the UI for managing the 24-hour timeslot schedule.
-  - Implement the logic for calculating the target flavor for each timeslot.
-  - Implement the temporary flavor override mechanism, including the queue flush.
-
-- **5.4. Program Director & Selection Algorithm (1.5 Weeks):**
-  - Create the `Program Director` component.
-  - Implement the full weighted random selection algorithm, bringing together flavor distance, cooldowns, and base probabilities.
-  - Implement automatic queue replenishment logic.
-
-## Phase 6: User Identity & Authentication (1.5 Weeks)
-
-*Goal: Add multi-user support with persistent taste profiles.* 
-
-- **6.1. User Identity System (1.5 Weeks):**
-  - Implement the full specification from `user_identity.md`.
-  - Create the `users` table and `mcrhythm-account-maintenance` tool.
-  - Implement registration, login, and logout APIs.
-  - Implement client-side UUID/token handling.
-
-## Phase 7: User Feedback & Features (2 Weeks + TBD)
-
-*Goal: Add core user feedback mechanisms and other features.* 
-
-- **7.1. Like/Dislike Functionality (1 Week):**
-  - Implement the UI controls and API endpoints.
-  - Record likes and dislikes to the database, associated with a `user_id`.
-  - **Note:** The effect on the selection algorithm is TBD and not included in this estimate.
-
-- **7.2. Lyrics (1 Week):**
-  - Implement the UI for displaying and editing lyrics.
-  - Implement the API endpoint for saving lyric changes.
-
-- **7.3. ListenBrainz Integration (TBD):**
-  - This feature is not yet specified and cannot be estimated.
-
-## Phase 8: Platform & Versioning (2 Weeks)
-
-*Goal: Ensure the application runs correctly on target platforms and that version builds are functional.* 
-
-- **8.1. Platform Startup & Audio Output (1 Week):**
-  - Create `systemd` and other platform-specific service files.
-  - Implement the UI for audio sink selection.
-
-- **8.2. Version Builds (1 Week):**
-  - Implement and test the Rust feature flags (`full`, `lite`, `minimal`).
-  - Create build scripts for each version.
-  - Implement the database export/import process for Lite/Minimal versions.
-
-## Phase 9: Polish & Optimization (6 Weeks)
-
-*Goal: Harden the application, improve performance, and refine the user experience.* 
-
-- **9.1. Raspberry Pi Zero2W Optimization (2 Weeks):**
-  - Profile memory and CPU usage on the target device.
-  - Optimize GStreamer pipelines, database queries, and other bottlenecks.
-
-- **9.2. Error Handling & UI/UX Refinements (2 Weeks):**
-  - Conduct a full review of error handling paths.
-  - Refine UI responsiveness, add loading states, and improve visual polish.
-  - Test and harden multi-user edge cases (skip throttling, etc.).
-
-- **9.3. Comprehensive Testing (2 Weeks):**
-  - Increase unit and integration test coverage.
-  - Create end-to-end tests for all major user workflows.
+> **Architecture Note:** McRhythm uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](architecture.md) for complete details.
 
 ---
 
-### Total Estimated Timeline: 36.5 Weeks
+## Phase 1: Foundation & Database (2.5 Weeks)
+
+*Goal: Establish shared database schema, core infrastructure, and Cargo workspace structure.*
+
+- **1.0. Workspace Setup (0.5 Weeks):**
+  - Create Cargo workspace structure (see `project_structure.md`)
+  - Set up root `Cargo.toml` with workspace members and shared dependencies
+  - Create `common/` library crate (`wkmp-common`) for shared code
+  - Create binary crates: `wkmp-ap/`, `wkmp-ui/`, `wkmp-le/`, `wkmp-pd/`, `wkmp-ai/`
+  - Set up packaging scripts for Full/Lite/Minimal versions:
+    - Full: Package all 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
+    - Lite: Package 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
+    - Minimal: Package 2 binaries (wkmp-ap, wkmp-ui)
+  - Configure basic CI/CD pipeline (GitHub Actions or GitLab CI):
+    - Automated builds on every commit (cargo build --release)
+    - Build all workspace members (all 5 binaries + common library)
+    - Basic compilation error detection
+    - Branch protection for main branch
+    - No testing or coverage yet (added in Phase 12.5)
+  - Set up development environment and initial project structure
+
+- **1.1. Database Schema & Migrations (1.5 Weeks):**
+  - Define SQL schema for all tables from `database_schema.md`:
+    - Core entities: files, passages, songs, artists, works, albums
+    - Relationships: passage_songs, song_artists, passage_albums, song_works
+    - Configuration: **module_config**, timeslots, timeslot_passages, settings, users
+    - Playback: play_history, queue, likes_dislikes
+    - Caching: acoustid_cache, musicbrainz_cache, acousticbrainz_cache
+    - Images table for multi-entity image storage
+  - Set up SQLite migration management framework (e.g., `sqlx-cli` or `refinery`)
+  - Define triggers for automatic timestamp updates and cooldown tracking
+  - **Note**: No standalone database initialization - each module creates its required tables on first startup (see Phase 1.2)
+
+- **1.2. Common Library Foundation (0.5 Weeks):**
+  - Implement shared types in `common/` crate (`wkmp-common`):
+    - Database models (Passage, Song, Artist, Work, Album, etc.)
+    - Event types (`McRhythmEvent` enum from `event_system.md`)
+    - API request/response types
+  - **Shared database initialization functions** (`wkmp-common/src/db/init.rs`):
+    - Table creation functions for commonly used tables:
+      - `init_module_config_table()` - Create and populate `module_config` with defaults
+      - `init_settings_table()` - Create `settings` table
+      - `init_users_table()` - Create `users` table and ensure Anonymous user exists
+        - Create table if missing
+        - Check if Anonymous user exists (guid: `00000000-0000-0000-0000-000000000001`)
+        - If Anonymous user missing, insert with username "Anonymous", empty password_hash, empty password_salt
+        - Idempotent: Safe to call on every startup
+      - Each function checks if table exists before creating (idempotent operations)
+    - Default module configurations:
+      - user_interface: 127.0.0.1:5720
+      - audio_player: 127.0.0.1:5721
+      - program_director: 127.0.0.1:5722
+      - audio_ingest: 127.0.0.1:5723
+      - lyric_editor: 127.0.0.1:5724
+    - Each module calls relevant init functions on startup (see module scaffolding phases)
+  - **Module configuration loader** with error handling (`wkmp-common/src/db/config.rs`):
+    - Read `module_config` table (calls `init_module_config_table()` if missing)
+    - If own module's config is missing, insert default host/port and log warning
+    - If other required modules' configs are missing, insert defaults and log warning
+    - Return module network configuration for HTTP client setup
+  - **Module launcher utility** (`wkmp-common/src/launcher.rs`):
+    - Locate binary for module (e.g., `wkmp-pd`, `wkmp-ap`)
+    - **Standard deployment**: Assume binaries in system PATH (no arguments needed)
+    - **Non-standard deployment**: Pass optional `--binary-path` argument received by launching module
+    - Launch subprocess with optional `--binary-path` argument (propagates to launched module)
+    - No other command-line arguments required (modules configured via database)
+    - Return process handle for monitoring
+  - **Relaunch throttling logic** (`wkmp-common/src/launcher.rs`):
+    - Read relaunch parameters from settings table:
+      - `relaunch_delay` (default: 5 seconds) - Wait time between relaunch attempts
+      - `relaunch_attempts` (default: 20) - Maximum relaunch attempts before giving up
+    - Track relaunch attempt count per module
+    - After failure, wait `relaunch_delay` seconds before next attempt
+    - After `relaunch_attempts` exhausted, stop and return error to caller
+    - Caller (e.g., wkmp-ui, wkmp-ap) displays error with user control to restart attempts
+  - UUID generation helpers (`wkmp-common/src/uuid.rs`)
+  - Timestamp utilities (`wkmp-common/src/time.rs`)
+  - Common error types (`wkmp-common/src/error.rs`)
+  - Shared serialization/deserialization helpers
+  - All binary crates depend on `wkmp-common` for shared types and logic
+
+---
+
+## Phase 2: Audio Player Module (5 Weeks)
+
+*Goal: Build the core playback engine as an independent HTTP server with minimal developer UI.*
+
+- **2.1. Module Scaffolding (0.5 Weeks):**
+  - Implement `wkmp-ap` binary in workspace (already created in Phase 1.0)
+  - Implement HTTP server (Axum or Actix-web) with module discovery:
+    1. Read root folder path from config file or environment variable
+    2. Open database file (`wkmp.db` in root folder)
+    3. Initialize required database tables using shared common library functions:
+       - Call `init_module_config_table()` - Creates `module_config` with all defaults
+       - Call `init_settings_table()` - Creates `settings` table
+       - Create Audio Player-specific tables: `queue`, `play_history`
+       - All initialization is idempotent (safe to call multiple times)
+    4. Read module configuration using shared config loader from Phase 1.2:
+       - Loader calls `init_module_config_table()` if table missing
+       - If own config missing, inserts default and logs warning
+    5. Retrieve own host/port configuration (audio_player entry, default: 127.0.0.1:5721)
+    6. Bind to configured address/port
+    7. No other module dependencies (Audio Player is standalone)
+  - Create minimal HTML developer UI (served via HTTP) for status display and event stream monitor
+  - Implement SSE endpoint (`GET /events`) with basic broadcasting
+
+- **2.2. Basic Playback Engine (1.5 Weeks):**
+  - Implement single GStreamer pipeline for playback (`filesrc` → `decodebin` → `autoaudiosink`)
+  - Create HTTP API endpoints:
+    - `POST /playback/play` - Resume playback
+    - `POST /playback/pause` - Pause playback
+    - `POST /playback/seek` - Seek to position within current passage (0 to passage duration in seconds)
+      - Seeking to passage duration is equivalent to skip
+    - `GET /playback/state` - Get playing/paused state
+    - `GET /playback/position` - Get current position
+  - Emit basic events: `PassageStarted`, `PassageCompleted`, `PlaybackStateChanged`
+  - Implement position updates (every 500ms)
+
+- **2.3. Queue Management (1.5 Weeks):**
+  - Implement queue persistence to database
+  - Create HTTP API endpoints:
+    - `POST /playback/enqueue` - Add passage to queue
+    - `DELETE /playback/queue/{passage_id}` - Remove from queue
+    - `GET /playback/queue` - Get queue contents
+    - `POST /playback/skip` - Skip to next passage in queue
+  - Implement auto-advance to next passage on completion
+  - Emit `QueueChanged` events
+
+- **2.4. Audio Control (0.5 Weeks):**
+  - Implement volume control:
+    - `POST /audio/volume` - Set volume (0-100)
+    - `GET /audio/volume` - Get current volume
+    - Emit `VolumeChanged` events
+  - Implement audio device selection:
+    - `POST /audio/device` - Set output device
+    - `GET /audio/device` - Get current device
+  - Platform-specific sink detection (PulseAudio, ALSA, CoreAudio, WASAPI)
+
+- **2.5. Historian (0.5 Weeks):**
+  - Record passage plays to `play_history` table
+  - Update `last_played_at` timestamps (via database triggers)
+  - Track duration_played and completion status
+
+- **2.6. Dual-Pipeline Crossfade Engine (2 Weeks):**
+  - **Complex task** - Implement dual GStreamer pipeline architecture
+  - Pre-load next passage in second pipeline
+  - Calculate crossfade timing from passage lead-in/lead-out points
+  - Implement `audiomixer` with volume automation
+  - Support three fade curves (exponential, cosine, linear)
+  - Emit `CurrentSongChanged` events for multi-song passages
+
+- **2.7. Queue Refill Request System (0.5 Weeks):**
+  - Monitor queue status continuously during playback
+  - Calculate remaining queue time based on:
+    - Current passage position and remaining duration
+    - Durations of all queued passages
+  - Trigger queue refill when below thresholds (configurable in settings table):
+    - Default: < 2 passages (`queue_refill_threshold_passages`)
+    - Default: < 15 minutes (`queue_refill_threshold_seconds` = 900)
+    - Condition: Refill triggered when **either** threshold is met (< queue_refill_threshold_passages value passages **OR** < queue_refill_threshold_seconds remaining)
+  - Send `POST /selection/request` to Program Director with:
+    - Anticipated start time for new passage
+    - Current queue state
+  - Throttle requests while queue is underfilled:
+    - Configurable interval in settings table (`queue_refill_request_throttle_seconds`)
+    - Default: 10 seconds between requests
+  - Handle Program Director unavailability with relaunch throttling:
+    - Wait for acknowledgment with configurable timeout (`queue_refill_acknowledgment_timeout_seconds`)
+    - Default timeout: 5 seconds
+    - If no response, attempt to relaunch wkmp-pd using shared launcher utility:
+      - **Binary location**: Assume `wkmp-pd` in system PATH (standard deployment)
+      - **Non-standard deployment**: If wkmp-ap received `--binary-path` argument, pass it to wkmp-pd
+      - **No other arguments**: wkmp-pd configured via database, no command-line config needed
+      - Launch subprocess and get process handle
+    - **Relaunch throttling** (using shared logic from wkmp-common):
+      - Read `relaunch_delay` (default: 5 seconds) and `relaunch_attempts` (default: 20) from settings
+      - Track relaunch attempt count for wkmp-pd
+      - After launch failure, wait `relaunch_delay` seconds before next attempt
+      - Maximum `relaunch_attempts` attempts before giving up
+      - After exhausting attempts, display error in developer UI with "Retry" button
+      - User can click "Retry" to reset attempt counter and resume relaunching
+    - Continue playback normally even if refill and all relaunch attempts fail
+    - Log all launch attempts, failures, and user-initiated retry actions
+  - Note: Program Director may also enqueue passages proactively without requests
+
+---
+
+## Phase 2A: Lyric Editor Module (1.5 Weeks)
+
+*Goal: Build a standalone lyric editing tool launched on-demand by the User Interface.*
+
+- **2A.1. Module Scaffolding (0.5 Weeks):**
+  - Implement `wkmp-le` binary in workspace
+  - Implement HTTP server with module discovery:
+    1. Read root folder path from config file or environment variable
+    2. Open database file (`wkmp.db` in root folder)
+    3. Initialize required database tables using shared common library functions:
+       - Call `init_module_config_table()` - Creates `module_config` with all defaults
+       - Create Lyric Editor-specific tables: `songs` table (if not already created)
+       - All initialization is idempotent (safe to call multiple times)
+    4. Read module configuration using shared config loader from Phase 1.2:
+       - Loader calls `init_module_config_table()` if table missing
+       - If own config missing, inserts default and logs warning
+    5. Retrieve own host/port configuration (lyric_editor entry, default: 127.0.0.1:5724)
+    6. Bind to configured address/port
+    7. No other module dependencies (Lyric Editor is standalone)
+  - Create split-window UI framework:
+    - Left pane: Text editor for lyrics
+    - Right pane: Embedded web browser
+  - Implement SSE endpoint (`GET /events`) for status updates
+
+- **2A.2. Lyric Editing Interface (1 Week):**
+  - Create HTTP API endpoints:
+    - `POST /lyric_editor/open` - Launch editor with recording MBID
+      - Parameters: `recording_mbid` (UUID), `title` (string), `artist` (string)
+      - Load current lyrics from `songs.lyrics` column via recording_mbid
+      - Initialize embedded browser with search for "song_title artist lyrics"
+    - `GET /lyric_editor/lyrics/{recording_mbid}` - Get current lyrics for recording
+    - `PUT /lyric_editor/lyrics/{recording_mbid}` - Save edited lyrics
+      - Body: Plain UTF-8 text
+      - Update `songs.lyrics` column for the specified recording_mbid
+      - Return success/failure status
+    - `POST /lyric_editor/close` - Close editor (no save)
+  - Implement text editor component:
+    - Load lyrics from database on open
+    - Multi-line text editing with UTF-8 support
+    - Save button to persist to database
+    - Cancel/Exit button to close without saving
+  - Implement embedded browser component:
+    - Platform-specific web view (WebKit/WebView2/Qt WebEngine)
+    - Initial navigation to lyrics search query
+    - User can freely navigate to find lyrics sources
+    - Copy-paste support from browser to editor
+  - Implement last-write-wins concurrency:
+    - No locking or conflict detection
+    - Most recent PUT request overwrites existing lyrics
+    - Emit `LyricsChanged` event on successful save
+
+---
+
+## Phase 3: User Interface Module (4.5 Weeks)
+
+*Goal: Build the polished web UI as an HTTP server that proxies requests to other modules.*
+
+- **3.1. Module Scaffolding (0.5 Weeks):**
+  - Implement `wkmp-ui` binary in workspace (already created in Phase 1.0)
+  - Implement HTTP server with module discovery and service launching:
+    1. Read root folder path from config file or environment variable
+    2. Open database file (`wkmp.db` in root folder)
+    3. Initialize required database tables using shared common library functions:
+       - Call `init_module_config_table()` - Creates `module_config` with all defaults
+       - Call `init_settings_table()` - Creates `settings` table
+       - Call `init_users_table()` - Creates `users` table with Anonymous user
+       - Create User Interface-specific tables: `likes_dislikes`
+       - All initialization is idempotent (safe to call multiple times)
+    4. Read module configuration using shared config loader from Phase 1.2:
+       - Loader calls `init_module_config_table()` if table missing
+       - If own config missing, inserts default and logs warning
+       - If other required modules' configs missing, inserts defaults and logs warnings
+    5. Retrieve own host/port configuration (user_interface entry, default: 127.0.0.1:5720)
+    6. Bind to configured address/port
+    7. Retrieve other modules' configurations for HTTP client setup:
+       - Audio Player URL (for playback control proxying)
+       - Program Director URL (for configuration proxying)
+       - Audio Ingest URL (for file ingest, Full only)
+       - Lyric Editor URL (for on-demand launch)
+    8. Implement service launching logic using shared launcher utility (wkmp-ui is the primary entry point):
+       - **Command-line argument handling**:
+         - Accept optional `--binary-path <path>` argument for non-standard deployments
+         - If provided, pass same argument to all launched modules
+         - Standard deployment: No arguments needed, binaries in system PATH
+       - Check if required services are running by attempting HTTP connection
+       - If service not responding, launch using shared launcher utility from wkmp-common:
+         - Launch `wkmp-ap` if not responding on configured port (all versions)
+         - Launch `wkmp-pd` if not responding on configured port (Lite/Full only)
+         - Launch `wkmp-ai` if not responding on configured port (Full only)
+         - Launch `wkmp-le` on-demand when user requests lyric editing (Full only)
+       - **Binary location**: Assume binaries in system PATH (wkmp-ap, wkmp-pd, etc.)
+       - **Non-standard deployment**: Use `--binary-path` to specify directory
+       - **No other arguments**: Modules configured via database, not command-line
+       - **Relaunch on failure**: Use shared relaunch throttling logic
+         - Read `relaunch_delay` and `relaunch_attempts` from settings
+         - Display errors in web UI with "Retry" button after attempts exhausted
+       - Log all module launches, failures, and retry actions
+  - Set up static file serving for web UI assets
+  - Implement SSE aggregation (subscribe to Audio Player events, forward to clients)
+
+- **3.2. Authentication System (1 Week):**
+  - **Database Setup**:
+    - Verify `users` table initialized by `init_users_table()` from Phase 1.2
+    - Verify Anonymous user exists (guid: `00000000-0000-0000-0000-000000000001`)
+    - On startup, if Anonymous user missing, call `init_users_table()` to create it
+  - **Password Hashing Implementation** (lightweight security, not high-value account protection):
+    - Generate random 64-bit integer salt
+    - Encode salt to base64 UTF-8 using RFC 4648 encoding
+    - Concatenate: `salt + user_guid + password`
+    - Calculate hash using SHA3-256 hashing algorithm
+    - Store both `password_salt` (base64 encoded) and `password_hash` (hex encoded) in `users` table
+    - Note: Fast and lightweight design, protects password from discovery but not attempting high-security protection
+  - **Session Token Generation**:
+    - Generate session token as UUID v4
+    - Store in browser localStorage with key `wkmp_session_token` (per CO-299)
+    - Associate token with user_id in server-side session store (in-memory or database)
+    - Set expiration: 1 year from last use (rolling expiration)
+    - On each authenticated request, extend expiration by 1 year
+  - **API Endpoints** (implementing `user_identity.md`):
+    - `POST /api/register` - Create new user account
+      - Validate username uniqueness
+      - Generate salt, hash password, create user record
+      - Return session token for immediate login
+    - `POST /api/login` - Authenticate existing user
+      - Look up user by username
+      - Retrieve stored salt and hash
+      - Hash provided password with stored salt
+      - Compare hashes, return session token if match
+    - `POST /api/logout` - End session
+      - Invalidate session token
+      - Remove from session store
+    - `GET /api/current-user` - Get authenticated user info
+      - Validate session token from request header or cookie
+      - Return user guid, username (exclude password_hash/salt)
+  - **localStorage Session Persistence**:
+    - Store session token in localStorage (persists across browser restarts)
+    - On page load, check for existing session token
+    - Validate token with server via `/api/current-user`
+    - If invalid, clear localStorage and show login
+    - If valid, extend expiration and proceed as authenticated user
+
+- **3.3. Playback Control Proxying (1 Week):**
+  - Implement proxy endpoints to Audio Player:
+    - `/api/play`, `/api/pause`, `/api/skip`, `/api/seek`
+    - `/api/volume`, `/api/output`
+    - `/api/status` - Aggregate current state
+  - Add user authentication to all endpoints (UUID from localStorage)
+  - Handle Audio Player unavailability gracefully
+
+- **3.4. Queue Management UI (0.5 Weeks):**
+  - Implement proxy endpoints:
+    - `/api/queue` - Get queue contents
+    - `/api/enqueue` - Add passage
+    - `/api/remove` - Remove passage
+  - Handle concurrent queue operations (multi-user coordination)
+
+- **3.5. Web UI - Now Playing (1 Week):**
+  - Create responsive UI with desktop/mobile support
+  - Display current passage: title, artist, album, album art
+  - Playback controls: play/pause, skip, volume slider, seek bar
+  - Real-time updates via SSE (`GET /api/events`)
+  - Display queue with drag-to-reorder (future phase)
+
+- **3.6. Library Browsing (0.5 Weeks):**
+  - Database queries for passages, songs, artists, albums
+  - Implement search/filter functionality
+  - Manual passage selection and enqueue
+  - Album art display with priority handling
+
+- **3.7. Likes/Dislikes (Full & Lite) (0.5 Weeks):**
+  - Implement UI controls (thumbs up/down)
+  - API endpoints:
+    - `POST /api/like` - Record like for current passage
+    - `POST /api/dislike` - Record dislike
+  - Associate feedback with authenticated user UUID
+  - Weight distribution across songs (per `like_dislike.md`)
+
+- **3.8. Lyrics Display & Integration (Full only) (0.5 Weeks):**
+  - API endpoints:
+    - `GET /api/lyrics/:song_guid` - Retrieve lyrics with fallback chain
+      - Read-only proxy to database (no editing in wkmp-ui)
+      - Implements lyrics fallback logic:
+        1. Check current Song's `lyrics` field
+        2. If empty, iterate through `related_songs` array in order
+        3. Return lyrics from first Song with non-empty `lyrics` field
+        4. Return null if no lyrics found in chain
+    - `POST /api/lyrics/edit/:song_guid` - Launch wkmp-le for editing (Full only)
+      - Check if wkmp-le is running, launch if needed
+      - Forward song GUID, recording MBID, title, and artist to wkmp-le via `POST /lyric_editor/open`
+      - Return success/failure status
+  - UI for viewing and editing lyrics:
+    - Display current lyrics for currently playing song/passage (read-only)
+    - Lyrics are retrieved via fallback chain through related songs
+    - "Edit Lyrics" button launches wkmp-le via `/api/lyrics/edit/:song_guid` (Full only)
+    - Listen for `LyricsChanged` SSE events to refresh display when lyrics are saved
+  - No direct editing in wkmp-ui (all editing via wkmp-le in Full version)
+
+---
+
+## Phase 4: Program Director Module (4 Weeks)
+
+*Goal: Build the automatic passage selection engine as an independent HTTP server.*
+
+- **4.1. Module Scaffolding (0.5 Weeks):**
+  - Implement `wkmp-pd` binary in workspace (already created in Phase 1.0)
+  - Implement HTTP server with module discovery:
+    1. Read root folder path from config file or environment variable
+    2. Open database file (`wkmp.db` in root folder)
+    3. Initialize required database tables using shared common library functions:
+       - Call `init_module_config_table()` - Creates `module_config` with all defaults
+       - Call `init_settings_table()` - Creates `settings` table
+       - Create Program Director-specific tables: `timeslots`, `timeslot_passages`
+       - All initialization is idempotent (safe to call multiple times)
+    4. Read module configuration using shared config loader from Phase 1.2:
+       - Loader calls `init_module_config_table()` if table missing
+       - If own config missing, inserts default and logs warning
+       - If Audio Player config missing, inserts default and logs warning
+    5. Retrieve own host/port configuration (program_director entry, default: 127.0.0.1:5722)
+    6. Bind to configured address/port
+    7. Retrieve Audio Player URL for automatic enqueueing
+  - Create minimal HTML developer UI (served via HTTP) for current timeslot display and last selection results
+  - Implement SSE endpoint for selection events
+
+- **4.2. Flavor Distance Calculation (1 Week):**
+  - Implement in `wkmp-common/src/flavor/distance.rs` (shared with other modules)
+  - Squared Euclidean distance formula for flavor vectors
+  - Calculate distances from target flavor for all passages
+  - Sort by distance, take top 100 candidates
+  - Handle passages with missing flavor data
+
+- **4.3. Cooldown System (1.5 Weeks):**
+  - Implement in `wkmp-common/src/cooldown/calculator.rs` (shared logic)
+  - Min/ramping cooldown logic for:
+    - Songs (default: 7 days min, 14 days ramping)
+    - Artists (default: 2 hours min, 4 hours ramping)
+    - Works (default: 3 days min, 7 days ramping)
+  - Calculate cooldown multiplier based on time since last play
+  - Product of all entity cooldowns for final multiplier
+
+- **4.4. Base Probability System (0.5 Weeks):**
+  - Load base probabilities from database (songs, artists, works)
+  - Calculate passage final base probability (product of all entities)
+  - Filter out zero-probability passages
+
+- **4.5. Selection Algorithm (1 Week):**
+  - Implement weighted random selection:
+    - Final weight = (1 / distance²) × cooldown_multiplier × base_probability
+    - Normalize weights to sum to 1.0
+    - Random selection from weighted distribution
+  - Handle edge cases (no candidates → stop enqueueing)
+  - Log selection decisions for debugging
+
+- **4.6. Queue Refill Request Handler (0.5 Weeks):**
+  - Implement `POST /selection/request` endpoint to receive queue refill requests from Audio Player
+  - Request includes anticipated start time for the new passage
+  - Immediately acknowledge request to prevent Audio Player from relaunching:
+    - Read acknowledgment timeout from settings table (`queue_refill_acknowledgment_timeout_seconds`)
+    - Default: Must respond within 5 seconds
+    - Audio Player uses this same setting to determine when to relaunch
+  - Trigger passage selection asynchronously (may take longer than threshold interval)
+  - Enqueue selected passage via Audio Player HTTP API
+  - Handle edge cases:
+    - No candidates available → return error status
+    - Selection already in progress → acknowledge but don't duplicate work
+  - Note: Audio Player initiates requests when queue drops below threshold (see Phase 2.7)
+
+---
+
+## Phase 5: Timeslot & Flavor Configuration (3 Weeks)
+
+*Goal: Complete the time-of-day flavor system with UI configuration.*
+
+- **5.1. Timeslot Management (1.5 Weeks):**
+  - User Interface proxies to Program Director:
+    - `GET /config/timeslots` - Retrieve 24-hour schedule
+    - `POST /config/timeslots` - Update timeslot configuration
+  - Program Director implements:
+    - Calculate active timeslot based on current time
+    - Determine target flavor from timeslot passages (weighted centroid)
+    - Emit `TimeslotChanged` events
+  - UI for creating/editing timeslots with start times and names
+
+- **5.2. Timeslot Passage Assignment (1 Week):**
+  - UI for assigning passages to timeslots
+  - Calculate net timeslot flavor as weighted centroid
+  - Visualize target flavor profile
+  - Preview how passages match timeslot
+
+- **5.3. Temporary Flavor Override (0.5 Weeks):**
+  - Program Director API:
+    - `POST /selection/override` - Activate temporary override
+    - `DELETE /selection/override` - Clear override
+  - Implement override expiration
+  - Emit `TemporaryFlavorOverride` and `OverrideExpired` events
+  - Optional queue flush on override activation
+
+---
+
+## Phase 6: Audio Ingest Module (Full Version Only) (7 Weeks)
+
+*Goal: Build the guided workflow for adding new audio files.*
+
+- **6.1. Module Scaffolding (0.5 Weeks):**
+  - Implement `wkmp-ai` binary in workspace (already created in Phase 1.0)
+  - Note: Audio Ingest is only included in Full version packaging (no conditional compilation needed)
+  - Implement HTTP server with module discovery:
+    1. Read root folder path from config file or environment variable
+    2. Open database file (`wkmp.db` in root folder)
+    3. Initialize required database tables using shared common library functions:
+       - Call `init_module_config_table()` - Creates `module_config` with all defaults
+       - Create Audio Ingest-specific tables: `files`, `passages`, `songs`, `artists`, `works`, `albums`, `images`
+       - Create relationship tables: `passage_songs`, `song_artists`, `passage_albums`, `song_works`
+       - Create cache tables: `acoustid_cache`, `musicbrainz_cache`, `acousticbrainz_cache`
+       - All initialization is idempotent (safe to call multiple times)
+    4. Read module configuration using shared config loader from Phase 1.2:
+       - Loader calls `init_module_config_table()` if table missing
+       - If own config missing, inserts default and logs warning
+    5. Retrieve own host/port configuration (audio_ingest entry, default: 127.0.0.1:5723)
+    6. Bind to configured address/port
+    7. No other module dependencies (Audio Ingest is standalone)
+  - Create guided workflow UI
+
+- **6.2. File Scanner & Metadata (1.5 Weeks):**
+  - API endpoints:
+    - `POST /ingest/scan` - Scan directory for audio files
+    - `GET /ingest/pending` - List files pending ingest
+  - Recursive directory scanning with change detection (SHA-256 hashes)
+  - Parse basic metadata (ID3v2, Vorbis Comments, MP4 tags)
+  - Store files in database with pending status
+
+- **6.3. MusicBrainz Integration (1.5 Weeks):**
+  - Build API client for MusicBrainz queries
+  - Implement AcoustID fingerprinting (via Chromaprint)
+  - API endpoint: `POST /ingest/identify/{file_id}`
+  - Match files to recordings, releases, artists, works
+  - Cache all responses in `musicbrainz_cache` table
+  - Handle multiple match candidates
+  - Populate `related_songs` field:
+    - Query MusicBrainz for other recordings of the same Work
+    - Order by relationship closeness (same artist first, then other artists)
+    - Store as JSON array in `songs.related_songs` field
+    - API endpoint: `PUT /ingest/related_songs/{song_guid}` - User edit related songs list
+
+- **6.4. AcousticBrainz Integration (0.5 Weeks):**
+  - Build API client for AcousticBrainz
+  - API endpoint: `POST /ingest/characterize/{file_id}`
+  - Fetch high-level musical flavor data
+  - Cache in `acousticbrainz_cache` table
+  - Add TODO comment for fallback to Essentia (implemented in Phase 6.5)
+  - For now: If AcousticBrainz data unavailable, leave flavor vector empty (will be filled by Essentia in Phase 6.5)
+
+- **6.5. Essentia Integration (2 Weeks):**
+  - **Very significant task** - Set up Rust FFI bindings for Essentia C++
+  - Implement local analysis pipeline
+  - Generate musical flavor vectors locally when AcousticBrainz data unavailable
+  - Store in `musical_flavor_vector` JSON field
+  - Complete fallback mechanism from Phase 6.4: Check for AcousticBrainz data first, use Essentia only if missing
+  - Note: Part of wkmp-ai binary (Full version only)
+
+- **6.6. Passage Segmentation (1 Week):**
+  - API endpoint: `POST /ingest/segment/{file_id}`
+  - UI workflow for defining passage boundaries:
+    - Source selection (MusicBrainz release track matching)
+    - Silence detection for automatic suggestions
+    - Manual boundary adjustment with waveform display
+  - Set lead-in/lead-out points, fade curves
+  - Support multiple passages per file
+
+- **6.7. Metadata Editing & Finalization (0.5 Weeks):**
+  - API endpoints:
+    - `PUT /ingest/metadata/{passage_id}` - Edit passage metadata
+    - `POST /ingest/finalize/{file_id}` - Complete ingest workflow
+  - Manual metadata correction UI
+  - Commit finalized passages to library
+
+---
+
+## Phase 7: Multi-Song Passages & Advanced Features (4 Weeks)
+
+*Goal: Support complex passage structures and album art handling.*
+
+- **7.1. Multi-Song Passage Support (1.5 Weeks):**
+  - Implement passage-to-song many-to-many relationships
+  - Implement weighted centroid in `wkmp-common/src/flavor/centroid.rs`:
+    - Calculate passage flavor as weighted centroid of constituent songs
+    - Songs weighted by duration within passage (not total song duration)
+    - For multi-song passages: weight = (song's time span in passage) / (total passage duration)
+    - For single-song passages: weight = 1.0
+    - See [musical_flavor.md](musical_flavor.md) for complete algorithm details
+  - Handle `CurrentSongChanged` events during playback
+  - Display current song within passage in UI
+
+- **7.2. Album Art Handling (1.5 Weeks):**
+  - Extract embedded cover art from audio files
+  - Store in filesystem alongside audio files:
+    - Storage location: Same folder as the audio file the artwork relates to
+    - Naming convention: Same filename as source file art is extracted from
+    - Conflict resolution: Append ISO8601 timestamp before extension (e.g., `cover_2025-10-09T12:34:56Z.jpg`)
+    - For artwork related to multiple audio files in different folders, store with first related audio file (rare)
+  - Store relative file paths in `images` table (relative to root folder) (see [Database Schema](database_schema.md#images))
+  - Support multiple image types (front, back, liner, artist, work)
+  - Priority-based selection for display
+  - UI displays art based on currently playing song
+  - Rotate multiple albums every 15 seconds
+  - See [Library Management](library_management.md) for complete artwork extraction workflows
+
+- **7.3. Multi-Album Passage Support (0.5 Weeks):**
+  - Handle passages spanning multiple albums (compilations)
+  - Album art switches based on current song
+  - UI logic per `ui_specification.md`
+
+- **7.4. Works Support (0.5 Weeks):**
+  - Implement song-to-work many-to-many relationships
+  - Handle mashups (multiple works per song)
+  - Work cooldown multiplier = product of all associated works
+  - All works must be out of cooldown for song to be selectable
+
+---
+
+## Phase 8: Configuration UI & Base Probabilities (2 Weeks)
+
+*Goal: Complete the configuration interfaces for controlling selection behavior.*
+
+- **8.1. Base Probability Editing (1 Week):**
+  - User Interface proxies to Program Director:
+    - `GET /config/probabilities` - Get base probabilities
+    - `PUT /config/probabilities/{entity_type}/{id}` - Set base probability
+  - UI for adjusting probabilities (0.0-1000.0) for:
+    - Individual songs
+    - Individual artists
+    - Individual works
+  - Visualize impact on selection likelihood
+
+- **8.2. Cooldown Configuration (0.5 Weeks):**
+  - User Interface proxies to Program Director:
+    - `GET /config/cooldowns` - Get cooldown settings
+    - `PUT /config/cooldowns` - Update cooldown settings
+  - UI for editing min/ramping periods:
+    - Per-song custom cooldowns
+    - Per-artist custom cooldowns
+    - Per-work custom cooldowns
+    - Global defaults
+
+- **8.3. Program Director Status (0.5 Weeks):**
+  - User Interface display of:
+    - Current timeslot and target flavor
+    - Last selection candidates (debugging)
+    - Selection success/failure events
+  - SSE events from Program Director forwarded to UI
+
+---
+
+## Phase 9: Version Packaging & Module Integration (2.5 Weeks)
+
+*Goal: Create version-specific distribution packages and ensure modules work together.*
+
+- **9.1. Version Packaging Strategy (0.5 Weeks):**
+  - **Key principle**: Versions are differentiated by **which modules are deployed**, not by conditional compilation
+  - Each module is built identically; no feature flags or conditional compilation required
+  - Create packaging scripts for each version:
+    - **Full version**: Package all 5 binaries
+      - `wkmp-ap` (Audio Player)
+      - `wkmp-ui` (User Interface)
+      - `wkmp-le` (Lyric Editor - launched on-demand)
+      - `wkmp-pd` (Program Director)
+      - `wkmp-ai` (Audio Ingest)
+    - **Lite version**: Package 3 binaries
+      - `wkmp-ap` (Audio Player)
+      - `wkmp-ui` (User Interface)
+      - `wkmp-pd` (Program Director)
+    - **Minimal version**: Package 2 binaries
+      - `wkmp-ap` (Audio Player)
+      - `wkmp-ui` (User Interface)
+  - Document deployment configurations in `deployment.md`
+
+- **9.2. Build Scripts & Distribution (0.5 Weeks):**
+  - Create unified build script: `cargo build --release` (builds all binaries)
+  - Create distribution packaging scripts:
+    - `package-full.sh` - Packages 5 binaries + dependencies
+    - `package-lite.sh` - Packages 3 binaries + dependencies
+    - `package-minimal.sh` - Packages 2 binaries + dependencies
+  - Bundle runtime dependencies:
+    - **GStreamer** (with wkmp-ap only): See deployment.md DEP-DEP-020 for complete specification
+    - **SQLite** (with all modules): Use `rusqlite` with `bundled` feature (includes JSON1 extension)
+  - Create installer packages (.deb, .rpm, .dmg, .msi) per version
+  - Include default database with pre-populated `module_config` table
+
+- **9.3. Module Integration Testing (1 Week):**
+  - Test all HTTP API communication between modules
+  - Verify module discovery via `module_config` table
+  - Test graceful degradation when modules unavailable
+  - Test SSE event flow from Audio Player → User Interface
+  - Test Program Director → Audio Player enqueueing
+
+- **9.4. Database Export/Import (0.5 Weeks):**
+  - Simple SQLite database file copy workflow
+  - Full version: Copy `wkmp.db` file to share with Lite/Minimal installations
+  - Lite/Minimal versions: Copy received `wkmp.db` file to their root folder
+  - UUID-based primary keys enable seamless merging (no ID conflicts)
+  - Document workflow for users:
+    - Full version users: Locate and copy `wkmp.db` from root folder
+    - Lite/Minimal users: Place received `wkmp.db` in their root folder
+  - Note: Simple file copy operation justifies 0.5 week estimate for implementation and documentation
+
+---
+
+## Phase 10: Platform Support & Deployment (3.5 Weeks)
+
+*Goal: Ensure cross-platform operation and proper system integration.*
+
+- **10.1. Linux Deployment (1 Week):**
+  - Create systemd service file for User Interface (see `deployment.md`):
+    - `wkmp-ui.service` - Only service file needed
+    - wkmp-ui launches other modules (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le) automatically as needed
+    - Other modules can also launch wkmp-ui if they detect it's not running
+  - Configure auto-start on boot (enable wkmp-ui.service)
+  - Test startup/shutdown sequences
+  - Test module launching and relaunching logic
+  - Create installation scripts (.deb, .rpm)
+
+- **10.2. macOS Deployment (1 Week):**
+  - Create launchd plist file for User Interface:
+    - `com.wkmp.ui.plist` - Only plist needed
+    - wkmp-ui launches other modules automatically as needed
+  - Configure auto-start on login
+  - Test with macOS audio system (CoreAudio)
+  - Test module launching and relaunching logic
+  - Create .dmg installer package
+  - Code signing for Gatekeeper
+
+- **10.3. Windows Deployment (1.5 Weeks):**
+  - Create Windows Service wrapper for User Interface (using NSSM or native API):
+    - `WKMP-UI` service - Only service needed
+    - wkmp-ui launches other modules automatically as needed
+  - Configure auto-start on boot
+  - Test with Windows audio (WASAPI)
+  - Test module launching and relaunching logic
+  - Create .msi installer package
+
+---
+
+## Phase 11: Distributed Deployment Support (1 Week)
+
+*Goal: Enable modules to run on separate hosts.*
+
+- **11.1. Network Configuration (0.5 Weeks):**
+  - Document updating `module_config` table for distributed setups
+  - Test modules communicating across network
+  - Security considerations for exposed HTTP ports
+  - Firewall configuration guidance
+
+- **11.2. Multi-Host Testing (0.5 Weeks):**
+  - Test with Audio Player on one machine, User Interface on another
+  - Verify SSE works across network
+  - Test reconnection logic when modules restart
+  - Document deployment topologies
+
+---
+
+## Phase 12: Polish, Optimization & Testing (7 Weeks)
+
+*Goal: Harden the application, improve performance, and ensure quality.*
+
+- **12.1. Raspberry Pi Zero2W Optimization (2 Weeks):**
+  - Profile memory and CPU usage on target device (Lite/Minimal versions)
+  - Optimize GStreamer pipelines for low-power devices
+  - Optimize database queries (indexes, query plans)
+  - Reduce binary sizes
+  - Target: < 256MB memory, < 5s startup time
+
+- **12.2. Error Handling & Recovery (2 Weeks):**
+  - Comprehensive error handling in all modules
+  - Graceful degradation when dependencies unavailable
+  - Retry logic for transient failures (network, database locks)
+  - User-friendly error messages in UI
+  - Logging strategy (file rotation, log levels)
+
+- **12.3. Multi-User Edge Cases (1 Week):**
+  - Test and harden skip throttling (< 5 seconds)
+  - Test concurrent queue removal
+  - Test concurrent lyric editing
+  - Verify user identity isolation
+  - Test Anonymous user shared state
+
+- **12.4. UI/UX Refinements (1 Week):**
+  - Loading states for asynchronous operations
+  - Responsive design polish (mobile/desktop)
+  - Accessibility (keyboard navigation, screen readers)
+  - Visual polish (transitions, animations)
+  - Error state displays
+
+- **12.5. Comprehensive Testing (1 Week):**
+  - **Test Framework**: Rust `cargo test` with standard test harness
+  - **Test Coverage Targets** (per CO-093, measured with `cargo-tarpaulin` or `cargo-llvm-cov`):
+    - **wkmp-ap (Audio Player)**: 80% coverage
+      - Critical: Playback engine, queue management, crossfade logic, dual-pipeline coordination
+      - Important: Volume control, audio device selection, play history recording
+      - Excluded: Minimal HTML developer UI
+    - **wkmp-pd (Program Director)**: 80% coverage
+      - Critical: Selection algorithm, cooldown calculations, flavor distance calculations, weighted random selection
+      - Important: Timeslot management, request handling, probability calculations
+      - Excluded: Minimal HTML developer UI
+    - **wkmp-ui (User Interface)**: 70% coverage
+      - Less critical (mostly proxy logic and orchestration)
+      - Important: Authentication, session management, module launching logic
+      - Excluded: Static web UI assets (HTML/CSS/JavaScript files)
+    - **wkmp-ai (Audio Ingest)**: 70% coverage (Full version only)
+      - Complex workflows but fewer edge cases than playback/selection
+      - Important: File scanning, MusicBrainz/AcousticBrainz integration, passage segmentation
+      - Excluded: Web UI assets
+    - **wkmp-le (Lyric Editor)**: 60% coverage (Full version only)
+      - Simple CRUD operations, lower complexity
+      - Important: Database read/write, HTTP API endpoints
+      - Excluded: Embedded browser component, UI framework
+    - **wkmp-common (Shared Library)**: 80% coverage
+      - Critical shared logic used by all modules
+      - Important: Database initialization, config loader, flavor calculations, event types
+  - **Unit Tests**:
+    - Core algorithms (distance, cooldown, selection)
+    - Weighted centroid calculations
+    - Queue management logic
+    - Configuration loader with error handling
+  - **Integration Tests**:
+    - HTTP API endpoints for all modules
+    - Module-to-module communication
+    - Database operations and migrations
+    - SSE event stream delivery
+  - **End-to-End Tests**:
+    - Complete user workflows (playback, queue management, library ingest)
+    - Multi-module coordination scenarios
+    - Error recovery and graceful degradation
+  - **Performance Benchmarks**:
+    - Selection algorithm performance with large libraries
+    - Database query optimization
+    - Concurrent request handling
+  - **Cross-Platform Testing**:
+    - Linux, macOS, Windows compatibility
+    - Different audio sink configurations
+  - **Load Testing**:
+    - Concurrent users (multiple UI connections)
+    - Large library sizes (10k+ songs)
+    - Sustained playback over extended periods
+  - **CI/CD Enhancement** (builds on Phase 1.0 basic build pipeline):
+    - Add automated test execution on every commit (extends existing build-only pipeline)
+    - Add coverage reporting and enforcement (80% threshold for critical modules)
+    - Add platform-specific test runners (Linux, macOS, Windows)
+    - Add test result reporting in pull requests
+    - Add quality gates (tests must pass before merge)
+    - Add benchmark tracking over time
+    - Integration with code review process
+    - Note: Phase 1.0 provided basic build automation; this phase adds comprehensive testing automation
+
+---
+
+## Phase 13: Documentation & Developer Tools (2 Weeks)
+
+*Goal: Complete documentation and create developer-friendly tools.*
+
+- **13.1. User Documentation (0.5 Weeks):**
+  - Installation guides for all platforms
+  - Configuration guide (module_config, settings)
+  - User manual for core features
+  - Troubleshooting guide
+
+- **13.2. API Documentation (0.5 Weeks):**
+  - OpenAPI/Swagger specs for all module APIs
+  - API client examples (curl, JavaScript)
+  - SSE event documentation
+
+- **13.3. Developer Documentation (0.5 Weeks):**
+  - Architecture overview
+  - Module communication patterns
+  - Database schema documentation
+  - Build and development setup
+
+- **13.4. Developer Tools (0.5 Weeks):**
+  - CLI tool for database inspection
+  - CLI tool for testing module communication
+  - Mock servers for development/testing
+  - Debugging utilities
+
+---
+
+## Future Phases (Not Estimated)
+
+The following features are specified but not yet estimated:
+
+- **ListenBrainz Integration:**
+  - Play history submission
+  - Recommendations (TBD)
+
+- **Musical Taste System:**
+  - Use likes/dislikes to influence selection
+  - User-specific taste profiles
+  - Taste profile visualization
+
+- **Advanced Queue Management:**
+  - Drag-to-reorder in UI
+  - Save/load queue presets
+  - Queue sharing between users
+
+- **Mobile App (Flutter Rewrite):**
+  - Shared Rust core via FFI
+  - Platform-specific audio engines
+  - Background playback
+  - Offline-first architecture
+
+---
+
+## Total Estimated Timeline
+
+| Phase | Duration (Weeks) |
+|-------|------------------|
+| 1. Foundation & Database | 2.5 |
+| 2. Audio Player Module | 5.0 |
+| 3. User Interface Module | 4.5 |
+| 4. Program Director Module | 4.0 |
+| 5. Timeslot & Flavor Config | 3.0 |
+| 6. Audio Ingest Module (Full) | 7.0 |
+| 7. Multi-Song & Album Art | 4.0 |
+| 8. Configuration UI | 2.0 |
+| 9. Version Builds | 2.5 |
+| 10. Platform Support | 3.5 |
+| 11. Distributed Deployment | 1.0 |
+| 12. Polish & Testing | 7.0 |
+| 13. Documentation | 2.0 |
+| **Total** | **49.0 Weeks** |
+
+**Notes:**
+- Timeline assumes single experienced developer at 20 hours/week
+- Workspace setup (Phase 1.0) adds 0.5 weeks but simplifies later work
+- Phases 6-13 can have significant parallelization opportunities with multiple developers
+- Audio Ingest module (Phase 6) can be developed in parallel with other modules
+- Platform-specific work (Phase 10) can be parallelized across platforms
+- **Increased from 36.5 weeks** to reflect microservices architecture complexity
+- Module integration and testing requires additional time
+- Each module requires independent HTTP server setup and testing
+
+---
+
+## Parallelization Opportunities
+
+With multiple developers, these phases can run in parallel:
+
+**Track 1 (Core):**
+- Phase 1 → Phase 2 → Phase 9 → Phase 12
+
+**Track 2 (UI):**
+- (Wait for Phase 2.1-2.3) → Phase 3 → Phase 8 → Phase 12.4
+
+**Track 3 (Selection):**
+- (Wait for Phase 1) → Phase 4 → Phase 5 → Phase 8.1-8.2
+
+**Track 4 (Ingest - Full only):**
+- (Wait for Phase 1) → Phase 6 → Phase 7
+
+**Track 5 (Platform):**
+- (Wait for Phase 9) → Phase 10 (can split Linux/macOS/Windows)
+
+**Estimated Timeline with 3 Developers:** ~25-30 weeks
+
+**Note:** This is a rough estimate that assumes perfect parallelization (unrealistic). In practice, expect:
+- Communication overhead between developers
+- Integration complexity at module boundaries
+- Serialization points where work cannot be parallelized
+- Code review and synchronization delays
+- Actual timeline likely closer to 30-35 weeks with realistic team coordination
 
 ----
 End of document - McRhythm Implementation Order & Timeline
