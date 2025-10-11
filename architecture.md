@@ -84,7 +84,7 @@ McRhythm consists of up to 5 independent processes (depending on version), each 
 - Manages dual GStreamer pipelines for seamless crossfading
 - Coordinates passage transitions based on lead-in/lead-out timing
 - Implements three fade profiles (exponential, cosine, linear)
-- Handles pause/resume with 0.5s exponential fade-in
+- Handles pause (immediate stop) and resume (configurable fade-in, default: 0.5s exponential)
 - Manages volume control (user level + fade automation)
 - Maintains playback queue with persistence
 
@@ -200,6 +200,9 @@ McRhythm consists of up to 5 independent processes (depending on version), each 
 5. Read `last_played_passage_id` and `last_played_position` from settings
 6. Determine action:
    - **Queue empty + Playing**: Wait in Playing state (plays immediately when passage enqueued)
+     - User-facing state: "playing"
+     - Internal GStreamer state: PAUSED (no audio to play)
+     - See [gstreamer_design.md - Empty Queue Behavior](gstreamer_design.md#44-empty-queue-behavior) for implementation details
    - **Queue empty + Paused**: Wait silently
    - **Queue has passages + Playing**: Begin playback
    - **Queue has passages + Paused**: Load first passage but don't play

@@ -89,20 +89,6 @@ Defines deployment, process management, and operational configuration for McRhyt
 path = "~/.local/share/wkmp"
 # Database file is located at: {root_folder}/wkmp.db
 
-[audio]
-# Default audio output device (empty = system default)
-default_device = ""
-
-# Default volume level (0-100)
-default_volume = 50
-
-[playback]
-# Maximum queue size (number of passages)
-max_queue_size = 100
-
-# Crossfade duration in milliseconds
-crossfade_ms = 3000
-
 [logging]
 # Log level: trace, debug, info, warn, error
 level = "info"
@@ -111,7 +97,16 @@ level = "info"
 log_file = ""
 ```
 
-**Note:** Server port and bind address are read from the `module_config` table in the database.
+**Configuration Source of Truth:**
+- **Database settings table**: Volume level, audio output device, crossfade time, all playback and fade settings, queue limits
+- **TOML config file**: Root folder path, logging only
+- **module_config table**: Server port and bind address
+
+**Runtime settings in database:**
+- `queue_max_size`: Maximum queue size (default: 100)
+- See [database_schema.md - settings table](database_schema.md#settings) for complete list
+
+**Precedence:** Database is the source of truth for runtime settings. TOML provides bootstrap configuration (root folder, logging). When database settings are missing, application code creates them with built-in default values.
 
 ### 2.3. User Interface Configuration
 
@@ -124,9 +119,6 @@ path = "~/.local/share/wkmp"
 # Database file is located at: {root_folder}/wkmp.db
 
 [session]
-# Session timeout in seconds (1 year default)
-timeout_seconds = 31536000
-
 # Secret key for session encryption (auto-generated if not provided)
 secret_key = ""
 
@@ -138,6 +130,10 @@ assets_path = "/usr/local/share/mcrhythm/ui/"
 level = "info"
 log_file = ""
 ```
+
+**Runtime settings in database:**
+- `session_timeout_seconds`: Session timeout duration (default: 31536000 = 1 year)
+- See [database_schema.md - settings table](database_schema.md#settings) for complete list
 
 **Note:** Server port and bind address are read from the `module_config` table in the database. Other module URLs are also read from the database, eliminating the need for `[server]` and `[modules]` sections in the config file.
 
@@ -151,22 +147,19 @@ log_file = ""
 path = "~/.local/share/wkmp"
 # Database file is located at: {root_folder}/wkmp.db
 
-[director]
-# How often to check if queue needs refilling (milliseconds)
-check_interval_ms = 5000
-
-# Minimum passages to maintain in queue
-min_queue_size = 3
-
-# Maximum passages to enqueue at once
-max_enqueue_batch = 5
-
 [logging]
 level = "info"
 log_file = ""
 ```
 
-**Note:** Server port, bind address, and Audio Player URL are read from the `module_config` table in the database.
+**Runtime settings in database:**
+- `queue_refill_threshold_passages`: Min passages before refill (default: 2)
+- `queue_refill_threshold_seconds`: Min seconds before refill (default: 900)
+- `queue_refill_request_throttle_seconds`: Min interval between requests (default: 10)
+- `queue_max_enqueue_batch`: Maximum passages to enqueue at once (default: 5)
+- See [database_schema.md - settings table](database_schema.md#settings) for complete list
+
+**Note:** Server port, bind address, and Audio Player URL are read from the `module_config` table in the database. All queue management and refill behavior is configured via database settings table, not TOML.
 
 ### 2.5. Audio Ingest Configuration
 
@@ -182,9 +175,6 @@ path = "~/.local/share/wkmp"
 # Temporary directory for file processing (within root folder)
 temp_path = "temp/"
 
-# Maximum concurrent file processing jobs
-max_concurrent_jobs = 4
-
 [essentia]
 # Path to Essentia extractor binary
 extractor_path = "/usr/local/bin/essentia_streaming_extractor_music"
@@ -193,6 +183,10 @@ extractor_path = "/usr/local/bin/essentia_streaming_extractor_music"
 level = "info"
 log_file = ""
 ```
+
+**Runtime settings in database:**
+- `ingest_max_concurrent_jobs`: Maximum concurrent file processing jobs (default: 4)
+- See [database_schema.md - settings table](database_schema.md#settings) for complete list
 
 **Note:** Server port and bind address are read from the `module_config` table in the database.
 
@@ -467,12 +461,23 @@ wkmp-ap
 
 **Note:** `WKMP_ROOT_FOLDER` specifies the root folder path. The database file (`wkmp.db`) is located within this folder.
 
-**[DEP-MANUAL-060]** Configuration precedence (highest to lowest):
+**[DEP-MANUAL-060]** Configuration precedence by setting type:
+
+**Runtime/Playback Settings** (volume, crossfade time, audio device, etc.):
+1. Database settings table (source of truth)
+2. Built-in defaults (if database value missing)
+
+**Bootstrap Configuration** (root folder, logging, module discovery):
 1. Command-line arguments
 2. Environment variables
-3. User configuration file
-4. Database settings table
-5. Built-in defaults
+3. User TOML configuration file
+4. Built-in defaults
+
+**Module Network Configuration** (ports, bind addresses):
+1. Database module_config table (source of truth)
+2. Built-in defaults (auto-inserted if missing)
+
+**Design Philosophy:** Database is the persistent source of truth for all user-configurable runtime settings. TOML files only configure bootstrap parameters (paths, logging) and cannot override database settings.
 
 ## 9. Health Checks and Monitoring
 

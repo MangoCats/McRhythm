@@ -734,19 +734,82 @@ The database is initialized with default module configurations on first run:
 - `last_backup_timestamp_ms`: Unix milliseconds of last successful backup
 
 **Crossfade:**
-- `global_crossfade_time`: Global crossfade time in seconds
-- `global_fade_curve`: Fade curve pair (default: 'exponential_logarithmic', options: 'linear_linear', 'cosine_cosine')
+- `global_crossfade_time`: Global crossfade time in seconds (default: 2.0)
+- `global_fade_curve`: Fade curve pair (default: 'exponential_logarithmic', options: 'exponential_logarithmic', 'linear_linear', 'cosine_cosine')
+  - Used when passage `fade_in_curve` and/or `fade_out_curve` are NULL
+  - Default 'exponential_logarithmic' provides smooth, natural crossfades
+  - See [crossfade.md - Global Fade Curve Selection](crossfade.md#global-fade-curve-selection) for complete specification
+
+**Pause/Resume:**
+- `resume_from_pause_fade_in_duration`: Resume fade-in duration in seconds (default: 0.5, range: 0.0-5.0)
+- `resume_from_pause_fade_in_curve`: Resume fade-in curve type (default: 'exponential', options: 'linear', 'exponential', 'cosine')
+
+**Volume Fade Updates:**
+- `volume_fade_update_period`: Volume fade update period in milliseconds (default: 10, range: 1-100)
+  - How often to recalculate and apply volume levels during crossfades and resume fade-in
+  - Lower values = smoother fades but higher CPU usage
+  - 10ms = 100 Hz update rate (recommended for smooth, artifact-free transitions)
 
 **Queue Management:**
-- `queue_entry_timing_overrides`: JSON object mapping queue entry guid → timing overrides
+- `queue_entry_timing_overrides`: JSON object mapping queue entry guid → timing overrides (see schema below)
 - `queue_refill_threshold_passages`: Min passages before refill (default: 2)
 - `queue_refill_threshold_seconds`: Min seconds before refill (default: 900)
 - `queue_refill_request_throttle_seconds`: Min interval between requests (default: 10)
 - `queue_refill_acknowledgment_timeout_seconds`: Timeout for PD acknowledgment (default: 5)
+- `queue_max_size`: Maximum queue size in passages (default: 100)
+- `queue_max_enqueue_batch`: Maximum passages to enqueue at once by Program Director (default: 5)
+
+**Queue Entry Timing Overrides JSON Schema:**
+
+The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrides as a JSON object. Each key is a queue entry GUID, and each value is an object containing override fields. All fields are optional; only overridden values are included.
+
+**Structure:**
+```json
+{
+  "queue-entry-uuid-1": {
+    "start_time_ms": 1000,
+    "end_time_ms": 180000,
+    "lead_in_point_ms": 2000,
+    "lead_out_point_ms": 175000,
+    "fade_in_point_ms": 500,
+    "fade_out_point_ms": 179500,
+    "fade_in_curve": "linear",
+    "fade_out_curve": "cosine"
+  },
+  "queue-entry-uuid-2": {
+    "end_time_ms": 120000,
+    "fade_in_curve": "exponential"
+  }
+}
+```
+
+**Field Definitions:**
+- `start_time_ms` (integer, optional): Override passage start time (milliseconds from file start)
+- `end_time_ms` (integer, optional): Override passage end time (milliseconds from file start)
+- `lead_in_point_ms` (integer, optional): Override lead-in point (milliseconds from passage start)
+- `lead_out_point_ms` (integer, optional): Override lead-out point (milliseconds from passage start)
+- `fade_in_point_ms` (integer, optional): Override fade-in point (milliseconds from passage start)
+- `fade_out_point_ms` (integer, optional): Override fade-out point (milliseconds from passage start)
+- `fade_in_curve` (string, optional): Override fade-in curve ("linear", "exponential", "cosine")
+- `fade_out_curve` (string, optional): Override fade-out curve ("linear", "logarithmic", "cosine")
+
+**Notes:**
+- Empty object `{}` means no overrides (use passage defaults from `passages` table)
+- Missing fields mean "use passage default for this field"
+- Partial overrides are supported (e.g., override only `end_time_ms` and `fade_in_curve`)
+- When queue entry is removed, its override entry should be deleted from this JSON object
+- Timing points relative to passage start (not file start), except `start_time_ms` and `end_time_ms`
+- See [api_design.md - POST /playback/enqueue](api_design.md#post-playbackenqueue) for override semantics during enqueue
 
 **Module Management:**
 - `relaunch_delay`: Seconds between module relaunch attempts (default: 5)
 - `relaunch_attempts`: Max relaunch attempts before giving up (default: 20)
+
+**Session Management:**
+- `session_timeout_seconds`: Session timeout duration (default: 31536000 = 1 year)
+
+**File Ingest:**
+- `ingest_max_concurrent_jobs`: Maximum concurrent file processing jobs (default: 4)
 
 **Library:**
 - `music_directories`: JSON array of directories to scan

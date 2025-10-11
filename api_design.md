@@ -711,7 +711,7 @@ Set audio output device.
 **Behavior:**
 - If playback is active, audio switches to new device seamlessly (may cause brief interruption)
 - If no playback is active, new device becomes active for next playback
-- Device selection persists in settings table (`audio_output_device` key)
+- Device selection persists in settings table (`audio_sink` key)
 - Using `device_id: "default"` delegates device selection to system defaults
 
 **Notes:**
@@ -768,15 +768,18 @@ Enqueue a passage for playback.
 ```
 
 **Field Details:**
-- `file_path` (required): Relative path from music root
+- `file_path` (required): Path relative to root folder (not including root folder path itself)
+  - Example: If root_folder is `/home/user/wkmp` and audio file is at `/home/user/wkmp/music/albums/track.mp3`, use `file_path: "music/albums/track.mp3"`
+  - Must match a path in the `files` table (see [database_schema.md - File System Organization](database_schema.md#file-system-organization))
+  - Forward slashes (`/`) used as path separator on all platforms
 - `start_time_ms` (optional, default 0): Passage start time in milliseconds
 - `end_time_ms` (optional, default = file duration): Passage end time in milliseconds
 - `lead_in_point_ms` (optional, default 0): Lead-in point relative to start_time_ms
 - `lead_out_point_ms` (optional, default = duration): Lead-out point relative to start_time_ms
 - `fade_in_point_ms` (optional, default 0): Fade-in point relative to start_time_ms
 - `fade_out_point_ms` (optional, default = duration): Fade-out point relative to start_time_ms
-- `fade_in_curve` (optional, default "cosine"): Fade-in curve type
-- `fade_out_curve` (optional, default "cosine"): Fade-out curve type
+- `fade_in_curve` (optional, default = passage default or global): Fade-in curve type ("linear", "exponential", "cosine")
+- `fade_out_curve` (optional, default = passage default or global): Fade-out curve type ("linear", "logarithmic", "cosine")
 - `passage_guid` (optional): UUID for song identification features
 - `position` (optional): Where to insert in queue
   - `type`: "after", "before", "at_order", or "append" (default)
@@ -805,10 +808,19 @@ Enqueue a passage for playback.
   {"error": "reference_not_found", "reference_guid": "uuid-123"}
   ```
 
+**Timing Override Behavior:**
+- When timing fields are provided in request: Override persists to `settings.queue_entry_timing_overrides` as JSON
+- Override keyed by generated `queue_entry_id` (not `passage_guid`)
+- Override applied when passage plays; passage defaults used if no override
+- Override deleted when queue entry removed from queue
+- Partial overrides supported (e.g., override only `end_time_ms` while using passage defaults for other fields)
+- See [database_schema.md - Queue Entry Timing Overrides](database_schema.md#queue-entry-timing-overrides-json-schema) for complete JSON schema
+
 **Notes:**
 - All timing values are unsigned integer milliseconds
-- When timing points omitted, values from passage definition or global settings are used
+- When timing points omitted in request, values from passage definition or global settings are used
 - See [Crossfade Design](crossfade.md) for timing point semantics
+- `passage_guid` parameter is optional and used for song identification features (CurrentSongChanged events)
 
 #### `DELETE /playback/queue/{passage_id}`
 Remove passage from queue by queue entry GUID.
@@ -835,12 +847,14 @@ Remove passage from queue by queue entry GUID.
 - If removing currently playing passage: Skip to next passage (or stop if queue becomes empty)
 - If removing future passage: Queue is updated, no playback interruption
 - Removal persists to database immediately
+- Timing override deleted from `settings.queue_entry_timing_overrides` if present
 - QueueChanged SSE event emitted with trigger `"user_dequeue"`
 - If currently playing passage removed: PassageCompleted SSE event emitted with reason `"queue_removed"`
 
 **Notes:**
 - Parameter name is `passage_id` but expects queue entry GUID for deletion
 - To find queue entry GUID for a passage, use `GET /playback/queue`
+- Cleanup: Removes entry from both `queue` table and `queue_entry_timing_overrides` JSON
 
 #### `POST /playback/play`
 Resume playback (transition to Playing state).
@@ -857,15 +871,17 @@ Resume playback (transition to Playing state).
 
 **Behavior:**
 - If state is already Playing: No-op, returns 200 OK
-- If state is Paused with passage loaded: Resume with 0.5s exponential fade-in
+- If state is Paused with passage loaded: Resume with configurable fade-in
 - If queue is empty: Set state to Playing, wait for passage to be enqueued (plays immediately when enqueued)
 - PlaybackStateChanged SSE event emitted (old_state: "paused", new_state: "playing")
 - PlaybackProgress SSE event emitted immediately after state change
 
-**Fade-In Details:**
-- Duration: 0.5 seconds
-- Curve: Exponential (v(t) = t²)
-- Applies to resume from pause only (not to passage start crossfades)
+**Resume Fade-In Details:**
+- Duration: `resume_from_pause_fade_in_duration` setting (default: 0.5 seconds)
+- Curve: `resume_from_pause_fade_in_curve` setting (default: "exponential")
+- Available curves: "linear", "exponential" (v(t) = t²), "cosine"
+- Applies multiplicatively with any active crossfade curves
+- See [crossfade.md - Pause and Resume Behavior](crossfade.md#pause-and-resume-behavior) for complete specification
 
 **Notes:**
 - Idempotent operation (safe to call multiple times)
@@ -886,15 +902,16 @@ Pause playback (transition to Paused state).
 
 **Behavior:**
 - If state is already Paused: No-op, returns 200 OK
-- If state is Playing: Pause with 0.5s exponential fade-out
+- If state is Playing: Pause immediately (no fade-out)
 - Current playback position preserved during pause
 - PlaybackStateChanged SSE event emitted (old_state: "playing", new_state: "paused")
 - PlaybackProgress SSE event emitted immediately after state change (captures paused position)
 
-**Fade-Out Details:**
-- Duration: 0.5 seconds
-- Curve: Logarithmic (v(t) = (1.0 - t)²)
+**Pause Details:**
+- No fade-out: Immediate stop (volume set to 0.0 instantly)
 - GStreamer pipeline remains in PLAYING state internally (muted) to maintain position accuracy
+- Rationale: Pause is an immediate stop; users expect instant response
+- See [crossfade.md - Pause and Resume Behavior](crossfade.md#pause-and-resume-behavior) for complete specification
 
 **Notes:**
 - Idempotent operation (safe to call multiple times)
@@ -1254,7 +1271,7 @@ data: {"passage_id":"uuid-string","file_path":"music/albums/album_name/track.mp3
 
 **Fields:**
 - `passage_id` (string): UUID of passage that started
-- `file_path` (string): Audio file path relative to music root
+- `file_path` (string): Audio file path relative to root folder (see [database_schema.md - File System Organization](database_schema.md#file-system-organization))
 - `start_time_ms` (integer): Passage start time in milliseconds
 - `end_time_ms` (integer): Passage end time in milliseconds
 - `timestamp` (string): ISO 8601 timestamp (UTC) when passage started

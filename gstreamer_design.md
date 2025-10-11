@@ -361,6 +361,7 @@ NULL ──→ READY ──→ PAUSED ──→ PLAYING
 | **Playing** | PLAYING | NULL or PAUSED | Passage A playing, B may be pre-loaded |
 | **Crossfading** | PLAYING (fade out) | PLAYING (fade in) | Both playing, transitioning |
 | **Paused** | PAUSED | PAUSED or NULL | Playback paused |
+| **Playing (Empty Queue)** | PAUSED | NULL | User-facing state is "playing" but no audio available |
 
 **[GST-STATE-040]** State transition diagram:
 
@@ -454,6 +455,46 @@ fn pause(&mut self) -> Result<()> {
     Ok(())
 }
 ```
+
+### 4.4. Empty Queue Behavior
+
+**[GST-STATE-080]** When queue is empty and user-facing state is "playing":
+
+- **User-facing state**: `GET /playback/state` returns `"playing"`
+- **Internal GStreamer state**: Pipelines are in `PAUSED` state (no audio available)
+- **Rationale**: User expects immediate playback when passage is enqueued
+
+**Implementation:**
+```rust
+fn handle_empty_queue_in_playing_state(&mut self) -> Result<()> {
+    // Set both pipelines to PAUSED (no audio to play)
+    self.pipeline_a.pipeline.set_state(gst::State::Paused)?;
+    self.pipeline_b.pipeline.set_state(gst::State::Paused)?;
+
+    // Keep user-facing state as "playing"
+    self.user_facing_state = PlaybackState::Playing;
+
+    // When passage is enqueued, load and immediately transition to PLAYING
+    Ok(())
+}
+```
+
+**[GST-STATE-081]** GStreamer behavior in PAUSED state with no audio:
+- No audio output (silent)
+- No CPU usage for audio processing
+- Pipelines remain ready to transition to PLAYING instantly
+- This is the standard GStreamer pattern for "ready but not playing"
+
+**[GST-STATE-082]** When passage is enqueued while in "playing" state with empty queue:
+1. Load passage into Pipeline A (filesrc, decodebin, etc.)
+2. Transition Pipeline A from NULL → PAUSED (pre-roll)
+3. Immediately transition Pipeline A to PLAYING
+4. Audio begins playing without user interaction
+
+**[GST-STATE-083]** Contrast with "paused" state and empty queue:
+- **User-facing state**: `"paused"`
+- **Internal GStreamer state**: Pipelines in `PAUSED` or `NULL`
+- When passage enqueued: Load but don't play (user must POST /playback/play)
 
 ---
 
@@ -639,7 +680,35 @@ fn get_position(&self) -> Option<ClockTime> {
 }
 ```
 
-**[GST-QUERY-020]** Position query for SSE updates (called every 5 seconds):
+**Alternative explicit query method:**
+
+```rust
+fn get_position_explicit(&self) -> Result<Option<u64>, gst::StateChangeError> {
+    // Create position query
+    let mut query = gst::query::Position::new(gst::Format::Time);
+
+    // Execute query on pipeline
+    if self.pipeline_a.pipeline.query(&mut query) {
+        // Extract result from query
+        if let gst::GenericFormattedValue::Time(position_ns) = query.result() {
+            // Convert nanoseconds to milliseconds
+            let position_ms = position_ns.nseconds() / 1_000_000;
+            return Ok(Some(position_ms));
+        }
+    }
+
+    Ok(None)
+}
+```
+
+**Notes:**
+- `query_position::<ClockTime>()` is a convenience method that handles query creation and execution
+- Explicit query method shown above for reference (demonstrates underlying GStreamer query API)
+- Position is in nanoseconds (GStreamer's native time format); convert to milliseconds for API responses
+- Returns `None` if pipeline is not in PLAYING or PAUSED state, or if query fails
+- Query is very fast (<1ms) and can be called frequently without performance impact
+
+**[GST-QUERY-020]** Position query for SSE updates and API responses:
 
 ```rust
 fn emit_playback_progress(&self) -> Result<()> {
@@ -657,6 +726,28 @@ fn emit_playback_progress(&self) -> Result<()> {
     Ok(())
 }
 ```
+
+**[GST-QUERY-025]** Position query for `GET /playback/position` API endpoint:
+
+```rust
+fn handle_get_position(&self) -> Result<PositionResponse> {
+    let position = self.get_position();
+    let duration = self.get_duration();
+
+    Ok(PositionResponse {
+        passage_id: self.current_passage_id.clone(),
+        position_ms: position.map(|p| p.mseconds()).unwrap_or(0),
+        duration_ms: duration.map(|d| d.mseconds()).unwrap_or(0),
+        state: if self.is_playing { "playing" } else { "paused" },
+    })
+}
+```
+
+**Query frequency recommendations:**
+- **SSE PlaybackProgress events**: Every `playback_progress_interval_ms` (default: 5000ms)
+- **Song boundary detection**: Every 500ms (see [architecture.md - Song Boundary Detection](architecture.md#song-boundary-detection))
+- **Volume fade updates**: Every `volume_fade_update_period` (default: 10ms) - only when crossfading
+- **API GET /playback/position**: On-demand (called by client)
 
 ### 6.2. Querying Duration
 
@@ -964,7 +1055,7 @@ fn set_audio_device(&mut self, device_id: &str) -> Result<()> {
     self.replace_audio_sink(new_audiosink)?;
 
     // Persist device selection in settings table
-    self.db.set_setting("audio_output_device", device_id)?;
+    self.db.set_setting("audio_sink", device_id)?;
 
     Ok(())
 }

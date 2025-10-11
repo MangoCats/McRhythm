@@ -263,18 +263,134 @@ function compute_clamped_crossfade_time(passage_a, passage_b) -> f64:
     return effective_crossfade_time
 ```
 
-**[XFD-IMPL-040]** Case Detection:
+**[XFD-IMPL-040]** Timing Data Validation and Error Recovery:
+
+Before calculating crossfade parameters, passage timing data must be validated and corrected if invalid. This handles corrupted database data, user input errors, or programmatic mistakes.
+
+```pseudocode
+function validate_and_correct_passage_timing(passage) -> ValidatedPassage:
+    // Step 1: Establish start and end boundaries
+    start_time = passage.start_time ?? 0.0
+    end_time = passage.end_time ?? file_duration
+    duration = end_time - start_time
+
+    // Step 2: Validate start < end
+    if start_time >= end_time:
+        log_error("Passage {id}: Invalid start/end times (start={start_time}, end={end_time}). " +
+                  "Start time must be less than end time. Setting start=0.0, end=file_duration.")
+        start_time = 0.0
+        end_time = file_duration
+        duration = end_time - start_time
+
+    // Step 3: Get timing points (may be NULL)
+    fade_in_point = passage.fade_in_point
+    lead_in_point = passage.lead_in_point
+    lead_out_point = passage.lead_out_point
+    fade_out_point = passage.fade_out_point
+
+    // Step 4: Correct fade-in point if invalid
+    if fade_in_point is not NULL:
+        if fade_in_point < start_time:
+            log_warning("Passage {id}: fade_in_point ({fade_in_point}) < start_time ({start_time}). " +
+                       "Clamping fade_in_point to start_time.")
+            fade_in_point = start_time
+        if fade_in_point > end_time:
+            log_warning("Passage {id}: fade_in_point ({fade_in_point}) > end_time ({end_time}). " +
+                       "Clamping fade_in_point to end_time.")
+            fade_in_point = end_time
+
+    // Step 5: Correct lead-in point if invalid
+    if lead_in_point is not NULL:
+        if lead_in_point < start_time:
+            log_warning("Passage {id}: lead_in_point ({lead_in_point}) < start_time ({start_time}). " +
+                       "Clamping lead_in_point to start_time.")
+            lead_in_point = start_time
+        if lead_in_point > end_time:
+            log_warning("Passage {id}: lead_in_point ({lead_in_point}) > end_time ({end_time}). " +
+                       "Clamping lead_in_point to end_time.")
+            lead_in_point = end_time
+
+    // Step 6: Correct fade-out point if invalid
+    if fade_out_point is not NULL:
+        if fade_out_point < start_time:
+            log_warning("Passage {id}: fade_out_point ({fade_out_point}) < start_time ({start_time}). " +
+                       "Clamping fade_out_point to start_time.")
+            fade_out_point = start_time
+        if fade_out_point > end_time:
+            log_warning("Passage {id}: fade_out_point ({fade_out_point}) > end_time ({end_time}). " +
+                       "Clamping fade_out_point to end_time.")
+            fade_out_point = end_time
+
+    // Step 7: Correct lead-out point if invalid
+    if lead_out_point is not NULL:
+        if lead_out_point < start_time:
+            log_warning("Passage {id}: lead_out_point ({lead_out_point}) < start_time ({start_time}). " +
+                       "Clamping lead_out_point to start_time.")
+            lead_out_point = start_time
+        if lead_out_point > end_time:
+            log_warning("Passage {id}: lead_out_point ({lead_out_point}) > end_time ({end_time}). " +
+                       "Clamping lead_out_point to end_time.")
+            lead_out_point = end_time
+
+    // Step 8: Correct fade-in > fade-out ordering violation
+    if fade_in_point is not NULL and fade_out_point is not NULL:
+        if fade_in_point > fade_out_point:
+            midpoint = (fade_in_point + fade_out_point) / 2.0
+            log_warning("Passage {id}: fade_in_point ({fade_in_point}) > fade_out_point ({fade_out_point}). " +
+                       "Setting both to midpoint ({midpoint}).")
+            fade_in_point = midpoint
+            fade_out_point = midpoint
+
+    // Step 9: Correct lead-in > lead-out ordering violation
+    if lead_in_point is not NULL and lead_out_point is not NULL:
+        if lead_in_point > lead_out_point:
+            midpoint = (lead_in_point + lead_out_point) / 2.0
+            log_warning("Passage {id}: lead_in_point ({lead_in_point}) > lead_out_point ({lead_out_point}). " +
+                       "Setting both to midpoint ({midpoint}).")
+            lead_in_point = midpoint
+            lead_out_point = midpoint
+
+    // Step 10: Return validated passage
+    return ValidatedPassage {
+        start_time: start_time,
+        end_time: end_time,
+        fade_in_point: fade_in_point,
+        lead_in_point: lead_in_point,
+        lead_out_point: lead_out_point,
+        fade_out_point: fade_out_point,
+        fade_in_curve: passage.fade_in_curve,
+        fade_out_curve: passage.fade_out_curve,
+    }
+```
+
+**[XFD-IMPL-041]** Validation rules:
+1. **Boundary clamping**: Points outside [start_time, end_time] are clamped to boundaries
+2. **Ordering violations**: If fade-in > fade-out or lead-in > lead-out, both points set to midpoint
+3. **Logging**: All corrections logged with warning level, including passage ID and corrected values
+4. **Graceful degradation**: Never fail playback due to bad timing data; always recover
+
+**[XFD-IMPL-042]** When validation is performed:
+- **On passage load**: Before starting playback or calculating crossfade
+- **On enqueue**: When passage added to queue via `POST /playback/enqueue`
+- **On database read**: When reading passage definitions from database
+
+**[XFD-IMPL-043]** Edge cases handled:
+- **Both lead durations = 0**: Results in `crossfade_duration = 0` (Case 3, no overlap)
+- **Negative durations from bad data**: Corrected by validation to produce duration ≥ 0
+- **NULL timing points**: Handled by computing from global crossfade time (no validation needed)
+
+**[XFD-IMPL-050]** Case Detection:
 
 The algorithm automatically handles all three cases:
 - **Case 1** (passage_a_lead_out_duration ≤ passage_b_lead_in_duration): `crossfade_duration = passage_a_lead_out_duration`
 - **Case 2** (passage_a_lead_out_duration > passage_b_lead_in_duration): `crossfade_duration = passage_b_lead_in_duration`
-- **Case 3** (both durations = 0): `crossfade_duration = 0` (no overlap)
+- **Case 3** (both durations = 0): `crossfade_duration = 0` (no overlap, passages play sequentially)
 
 ### Pre-Loading Strategy
 
-**[XFD-IMPL-050]** To enable seamless crossfading, the next passage must be pre-loaded into the idle pipeline before the crossfade begins.
+**[XFD-IMPL-060]** To enable seamless crossfading, the next passage must be pre-loaded into the idle pipeline before the crossfade begins.
 
-**[XFD-IMPL-060]** Pre-loading trigger calculation:
+**[XFD-IMPL-070]** Pre-loading trigger calculation:
 
 ```pseudocode
 // Calculate when to trigger pre-loading of next passage
@@ -287,17 +403,17 @@ if current_position_a >= preload_trigger_point:
     transition_pipeline_to_paused_state(idle_pipeline)
 ```
 
-**[XFD-IMPL-070]** Pre-loading ensures the idle pipeline is in PAUSED state (buffered and ready) before crossfade begins, preventing audio glitches.
+**[XFD-IMPL-080]** Pre-loading ensures the idle pipeline is in PAUSED state (buffered and ready) before crossfade begins, preventing audio glitches.
 
 > See [gstreamer_design.md - Section 5: Crossfade Implementation](gstreamer_design.md#5-crossfade-implementation) for complete pre-loading and pipeline management details.
 
 ### Volume Fade Curve Formulas
 
-**[XFD-IMPL-080]** During crossfade, each passage's volume is controlled by applying a fade curve. The fade curve maps normalized time `t` (where 0.0 = fade start, 1.0 = fade end) to volume multiplier `v` (where 0.0 = silence, 1.0 = full volume).
+**[XFD-IMPL-090]** During crossfade, each passage's volume is controlled by applying a fade curve. The fade curve maps normalized time `t` (where 0.0 = fade start, 1.0 = fade end) to volume multiplier `v` (where 0.0 = silence, 1.0 = full volume).
 
 #### Fade-In Curves (0.0 → 1.0 volume)
 
-**[XFD-IMPL-081] Linear Fade-In:**
+**[XFD-IMPL-091] Linear Fade-In:**
 ```
 v(t) = t
 
@@ -306,7 +422,7 @@ where:
   v ∈ [0.0, 1.0] (output volume multiplier)
 ```
 
-**[XFD-IMPL-082] Exponential Fade-In:**
+**[XFD-IMPL-092] Exponential Fade-In:**
 ```
 v(t) = t²
 
@@ -317,7 +433,7 @@ where:
 Characteristic: Slow start, fast finish (perceived as "natural" swell)
 ```
 
-**[XFD-IMPL-083] Cosine Fade-In (S-Curve):**
+**[XFD-IMPL-093] Cosine Fade-In (S-Curve):**
 ```
 v(t) = 0.5 × (1 - cos(π × t))
 
@@ -331,7 +447,7 @@ Characteristic: Smooth acceleration and deceleration
 
 #### Fade-Out Curves (1.0 → 0.0 volume)
 
-**[XFD-IMPL-084] Linear Fade-Out:**
+**[XFD-IMPL-094] Linear Fade-Out:**
 ```
 v(t) = 1.0 - t
 
@@ -340,7 +456,7 @@ where:
   v ∈ [1.0, 0.0] (output volume multiplier)
 ```
 
-**[XFD-IMPL-085] Logarithmic Fade-Out:**
+**[XFD-IMPL-095] Logarithmic Fade-Out:**
 ```
 v(t) = (1.0 - t)²
 
@@ -351,7 +467,7 @@ where:
 Characteristic: Fast start, slow finish (perceived as "natural" decay)
 ```
 
-**[XFD-IMPL-086] Cosine Fade-Out (S-Curve):**
+**[XFD-IMPL-096] Cosine Fade-Out (S-Curve):**
 ```
 v(t) = 0.5 × (1 + cos(π × t))
 
@@ -365,7 +481,7 @@ Characteristic: Smooth acceleration and deceleration
 
 #### Normalized Time Calculation
 
-**[XFD-IMPL-090]** For any fade operation, normalized time `t` is calculated as:
+**[XFD-IMPL-100]** For any fade operation, normalized time `t` is calculated as:
 
 ```pseudocode
 // For fade-in (from fade start to fade-in point)
@@ -381,7 +497,7 @@ t_fade_out = current_fade_out_position / fade_out_duration  // Clamp to [0.0, 1.
 
 #### Volume Application During Crossfade
 
-**[XFD-IMPL-100]** Complete volume calculation for a passage at time `t`:
+**[XFD-IMPL-110]** Complete volume calculation for a passage at time `t`:
 
 ```pseudocode
 function calculate_passage_volume(passage, current_time) -> f64:
@@ -418,7 +534,7 @@ function apply_fade_out_curve(t, curve_type) -> f64:
         case "cosine":      return 0.5 * (1.0 + cos(π * t))
 ```
 
-**[XFD-IMPL-110]** During crossfade overlap, both passages have their volumes calculated independently, then mixed:
+**[XFD-IMPL-120]** During crossfade overlap, both passages have their volumes calculated independently, then mixed:
 
 ```pseudocode
 // At any time during crossfade overlap:
@@ -426,25 +542,162 @@ volume_a = calculate_passage_volume(passage_a, current_time_in_a)
 volume_b = calculate_passage_volume(passage_b, current_time_in_b)
 
 // Mix audio streams (performed by GStreamer audiomixer)
-final_output = (audio_a * volume_a) + (audio_b * volume_b)
+mixed_audio = (audio_a * volume_a) + (audio_b * volume_b)
 
-// Apply resume-from-pause ramp if applicable
-if in_resume_ramp:
-    final_output *= resume_ramp_volume
+// Apply resume-from-pause fade-in if active (see Pause/Resume section below)
+if in_resume_from_pause_fade_in:
+    resume_fade_in_level = calculate_resume_fade_in_level(time_since_resume)
+    mixed_audio *= resume_fade_in_level
 
-// Apply master volume
-final_output *= master_volume
+// Apply master volume (0.0-1.0, set by user via POST /audio/volume)
+final_output = mixed_audio * master_volume
 ```
 
-**[XFD-IMPL-120]** Crossfade Update Rate:
+**[XFD-IMPL-130]** Volume Fade Update Frequency:
 
-- Volume curves are evaluated and updated at 50ms intervals (20 Hz)
-- Provides smooth, artifact-free transitions
-- See [gstreamer_design.md - Section 14: Performance Optimization](gstreamer_design.md#14-performance-optimization) for rationale
+Volume curves are evaluated and applied at regular intervals controlled by the `volume_fade_update_period` setting.
+
+```pseudocode
+function volume_update_loop():
+    update_period_ms = get_setting("volume_fade_update_period")  // Default: 10ms
+
+    while playback_active:
+        current_time = get_current_time()
+
+        // Calculate passage volumes (with crossfade curves if applicable)
+        if passage_a_active:
+            volume_a = calculate_passage_volume(passage_a, current_time_in_a)
+            set_pipeline_volume(pipeline_a, volume_a)
+
+        if passage_b_active:
+            volume_b = calculate_passage_volume(passage_b, current_time_in_b)
+            set_pipeline_volume(pipeline_b, volume_b)
+
+        // Apply resume-from-pause fade-in if active
+        if in_resume_from_pause_fade_in:
+            resume_level = calculate_resume_fade_in_level(time_since_resume)
+            set_master_fade_multiplier(resume_level)
+        else:
+            set_master_fade_multiplier(1.0)
+
+        // Sleep until next update
+        sleep(update_period_ms)
+```
+
+**Configuration:**
+- **Setting key**: `volume_fade_update_period`
+- **Type**: INTEGER (milliseconds)
+- **Default**: 10ms (100 Hz update rate)
+- **Valid range**: 1-100ms
+- **Trade-offs**:
+  - Lower values (e.g., 5ms): Smoother fades, higher CPU usage
+  - Higher values (e.g., 50ms): Lower CPU usage, may have audible steps in fade curves
+  - Recommended: 10ms provides smooth, artifact-free transitions with reasonable CPU usage
+
+**Implementation Notes:**
+- Update timer runs continuously during playback (even when not crossfading)
+- When not in crossfade or resume fade-in, volumes remain constant (no calculations needed)
+- Timer precision affects fade smoothness; use high-resolution timer if available
+- See [gstreamer_design.md - Section 14: Performance Optimization](gstreamer_design.md#14-performance-optimization) for GStreamer-specific implementation details
+
+---
+
+## Pause and Resume Behavior
+
+This section specifies how pause and resume operations affect audio playback, distinct from passage-to-passage crossfades.
+
+### Pause Behavior
+
+**[XFD-PAUS-010]** When user initiates pause (`POST /playback/pause`):
+
+- **Fade-out duration**: None (immediate stop)
+- **Fade-out curve**: Does not apply
+- **Implementation**: GStreamer pipeline volume set to 0.0 immediately
+- **Pipeline state**: Remains in PLAYING state internally (muted) to maintain accurate position tracking
+- **Playback position**: Preserved at moment of pause
+- **Crossfade interaction**: If pause occurs during crossfade, both pipelines are muted immediately
+
+**Rationale:** Pause is conceptually an immediate stop, not a gradual fade. Users expect instant response when pausing.
+
+### Resume Behavior
+
+**[XFD-PAUS-020]** When user initiates resume (`POST /playback/play` from Paused state):
+
+- **Fade-in duration**: `resume_from_pause_fade_in_duration` seconds (configurable, default: 0.5)
+- **Fade-in curve**: `resume_from_pause_fade_in_curve` (configurable, default: "exponential")
+- **Available curves**: All fade-in curves used for crossfades:
+  - `"linear"`: v(t) = t
+  - `"exponential"`: v(t) = t²
+  - `"cosine"`: v(t) = 0.5 × (1 - cos(π × t))
+
+**[XFD-PAUS-030]** Resume fade-in calculation:
+
+```pseudocode
+function calculate_resume_fade_in_level(time_since_resume) -> f64:
+    fade_in_duration = get_setting("resume_from_pause_fade_in_duration")  // Default: 0.5
+    fade_in_curve = get_setting("resume_from_pause_fade_in_curve")        // Default: "exponential"
+
+    if time_since_resume >= fade_in_duration:
+        return 1.0  // Fade-in complete
+
+    t = time_since_resume / fade_in_duration
+    t = clamp(t, 0.0, 1.0)
+
+    return apply_fade_in_curve(t, fade_in_curve)
+```
+
+**[XFD-PAUS-040]** Resume fade-in is applied **multiplicatively** with all other volume levels:
+
+```pseudocode
+// During resume fade-in:
+passage_volume_a = calculate_passage_volume(passage_a, current_time)  // Includes any crossfade curves
+passage_volume_b = calculate_passage_volume(passage_b, current_time)  // (if crossfading)
+
+mixed_audio = (audio_a * passage_volume_a) + (audio_b * passage_volume_b)
+
+// Resume fade-in multiplies the mixed result
+resume_level = calculate_resume_fade_in_level(time_since_resume)
+mixed_audio *= resume_level
+
+// Master volume applied last
+final_output = mixed_audio * master_volume
+```
+
+**[XFD-PAUS-050]** Key characteristics of resume fade-in:
+
+- **Applies to all audible audio**: Affects all passages equally (both during crossfade if applicable)
+- **Independent of crossfade**: Resume fade-in is orthogonal to passage crossfade curves
+- **Update frequency**: Same as crossfade volume updates (`volume_fade_update_period` setting, default 10ms)
+- **Completes after duration**: Once `time_since_resume >= fade_in_duration`, resume level remains at 1.0
+
+**Example scenario:** User resumes during crossfade:
+1. Passage A is fading out (volume_a = 0.3 from fade-out curve)
+2. Passage B is fading in (volume_b = 0.7 from fade-in curve)
+3. Resume fade-in active (resume_level = 0.5 at 0.25s into 0.5s fade-in)
+4. Mixed audio = (audio_a × 0.3) + (audio_b × 0.7)
+5. With resume fade-in: mixed_audio × 0.5
+6. With master volume (e.g., 0.8): mixed_audio × 0.5 × 0.8 = final output
+
+### Configuration
+
+**[XFD-PAUS-060]** Resume fade-in settings stored in database `settings` table:
+
+- **Key**: `resume_from_pause_fade_in_duration`
+  - **Type**: REAL (seconds)
+  - **Default**: 0.5
+  - **Valid range**: 0.0 to 5.0
+  - **Value 0.0**: Instant resume (no fade-in)
+
+- **Key**: `resume_from_pause_fade_in_curve`
+  - **Type**: TEXT
+  - **Default**: "exponential"
+  - **Valid values**: "linear", "exponential", "cosine"
+
+See [database_schema.md - settings table](database_schema.md#settings) for complete settings documentation.
 
 ### Implementation Notes
 
-**[XFD-IMPL-130]** Key implementation considerations:
+**[XFD-IMPL-140]** Key implementation considerations:
 
 1. **Timing precision**: All calculations use floating-point seconds internally; convert to nanoseconds only when interfacing with GStreamer
 2. **Thread safety**: Crossfade calculations performed on main thread; volume updates applied atomically to pipeline elements
@@ -668,17 +921,20 @@ When passages are enqueued via `/playback/enqueue` API endpoint, timing points m
 
 **[XFD-DEF-071] Global Fade Curve Options:**
 
-1. **Exponential In / Logarithmic Out** (default)
-   - Fade-In: Exponential
-   - Fade-Out: Logarithmic
+1. **Exponential In / Logarithmic Out** (default, recommended for smooth natural crossfades)
+   - Database value: `'exponential_logarithmic'`
+   - Fade-In: Exponential (v(t) = t²)
+   - Fade-Out: Logarithmic (v(t) = (1-t)²)
 
 2. **Linear In / Linear Out**
-   - Fade-In: Linear
-   - Fade-Out: Linear
+   - Database value: `'linear_linear'`
+   - Fade-In: Linear (v(t) = t)
+   - Fade-Out: Linear (v(t) = 1-t)
 
 3. **Cosine In / Cosine Out (S-Curve)**
-   - Fade-In: Cosine
-   - Fade-Out: Cosine
+   - Database value: `'cosine_cosine'`
+   - Fade-In: Cosine (v(t) = 0.5 × (1 - cos(π × t)))
+   - Fade-Out: Cosine (v(t) = 0.5 × (1 + cos(π × t)))
 
 **[XFD-DEF-072] Application:**
 - When passage `fade_in_curve` is NULL: Use fade-in component of global setting
