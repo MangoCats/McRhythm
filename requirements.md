@@ -1,8 +1,8 @@
-# McRhythm Requirements
+# WKMP Requirements
 
 **📜 TIER 1 - AUTHORITATIVE SOURCE DOCUMENT**
 
-This document is the **top-level specification** defining WHAT McRhythm must do. Other documents are designed to satisfy these requirements.
+This document is the **top-level specification** defining WHAT WKMP must do. Other documents are designed to satisfy these requirements.
 
 **Update Policy:** ✅ Product decisions only | ❌ NOT derived from design/implementation
 
@@ -14,9 +14,9 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 
 ## Overview
 
-**[REQ-OV-010]** McRhythm is a music player that selects passages to play based on user preferences for [musical flavor](musical_flavor.md#quantitative-definition) at various times of day.
+**[REQ-OV-010]** WKMP is a music player that selects passages to play based on user preferences for [musical flavor](musical_flavor.md#quantitative-definition) at various times of day.
 
-**Architectural Note:** McRhythm is implemented as a microservices architecture with 4 independent HTTP-based modules: Audio Player, User Interface, Program Director, and File Ingest (Full version only). See [Architecture](architecture.md) for complete design.
+**Architectural Note:** WKMP is implemented as a microservices architecture with 4 independent HTTP-based modules: Audio Player, User Interface, Program Director, and File Ingest (Full version only). See [Architecture](architecture.md) for complete design.
 
 ## Core Features
 
@@ -35,7 +35,7 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
   - The AcousticBrainz project ceased accepting new submissions in 2022
   - The existing database and API remain online in read-only mode
   - Contains musical analysis data for millions of recordings submitted before discontinuation
-  - McRhythm uses AcousticBrainz data when available, falls back to local Essentia analysis when not
+  - WKMP uses AcousticBrainz data when available, falls back to local Essentia analysis when not
 
 > **See [Library Management - AcousticBrainz Integration](library_management.md#acousticbrainz-integration) for fallback behavior.**
 
@@ -506,7 +506,7 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 
 ### Network Error Handling
 
-**[REQ-NET-030]** McRhythm requires two distinct types of network access with different error handling:
+**[REQ-NET-030]** WKMP requires two distinct types of network access with different error handling:
 
 #### Internet Access (External APIs - Full version only)
 
@@ -565,4 +565,4 @@ This document is the **top-level specification** defining WHAT McRhythm must do.
 - **[REQ-OFF-043]** Automatic retry (20 attempts) when user requests internet-dependent features
 
 ----
-End of document - McRhythm Requirements
+End of document - WKMP Requirements

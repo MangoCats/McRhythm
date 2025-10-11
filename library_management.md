@@ -1,4 +1,4 @@
-# McRhythm Library Management
+# WKMP Library Management
 
 **📚 TIER 2 - DESIGN SPECIFICATION**
 
@@ -165,7 +165,7 @@ Regex patterns for common naming conventions (flexible, best-effort)
 
 ### Additional Image Types
 
-**[LIB-IMG-010]** Beyond album artwork, McRhythm supports additional image types for specific entities:
+**[LIB-IMG-010]** Beyond album artwork, WKMP supports additional image types for specific entities:
 
 **User-Uploaded Images (Full version only):**
 - **Song-specific images**: For special performances, live versions, or remixes
@@ -426,11 +426,11 @@ User-Agent: WKMP/1.0.0 ( contact@example.com )
 
 **User-Agent Requirement:**
 - Must include application name and contact info
-- Example: `WKMP/1.0.0 ( https://github.com/user/wkmp )`
+- Example: `WKMP/1.0.0 ( https://github.com/user/mcrhythm )`
 
 ## Multi-Passage Files
 
-**[LIB-MPF-010]** McRhythm supports the segmentation of a single audio file (e.g., a full album rip) into multiple, distinct Passages. The detailed workflow for this process, including automatic silence detection, MusicBrainz release matching, and manual user review, is specified in the [Audio File Segmentation](audio_file_segmentation.md) document.
+**[LIB-MPF-010]** WKMP supports the segmentation of a single audio file (e.g., a full album rip) into multiple, distinct Passages. The detailed workflow for this process, including automatic silence detection, MusicBrainz release matching, and manual user review, is specified in the [Audio File Segmentation](audio_file_segmentation.md) document.
 
 ## AcousticBrainz Integration
 
@@ -477,7 +477,7 @@ Accept: application/json
    - Never expires (AcousticBrainz project is discontinued but API remains available, data is static - no new submissions accepted)
    - The AcousticBrainz website and API continue to operate in read-only mode
    - Any recordings added to MusicBrainz after the AcousticBrainz shutdown will not have AcousticBrainz data available
-   - For such recordings, McRhythm Full version will generate musical flavor locally using Essentia
+   - For such recordings, WKMP Full version will generate musical flavor locally using Essentia
 
 2. **Extract flavor vector**
    - Parse all `highlevel.*` dimensions
@@ -612,4 +612,4 @@ See [Database Schema](database_schema.md) for complete table definitions:
 - Test offline mode (cached data only)
 
 ----
-End of document - McRhythm Library Management
+End of document - WKMP Library Management

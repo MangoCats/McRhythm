@@ -1,4 +1,4 @@
-# McRhythm User Interface Specification
+# WKMP User Interface Specification
 
 **🎨 TIER 2 - DESIGN SPECIFICATION**
 
@@ -10,7 +10,7 @@ Defines the Web UI design, layout, and behavior. Derived from [requirements.md](
 
 ## Overview
 
-McRhythm's user interface is a web-based UI accessible via desktop and mobile browsers. The primary design philosophy is **automatic operation with manual control available when desired**. The UI provides real-time status updates, playback control, and library management capabilities.
+WKMP's user interface is a web-based UI accessible via desktop and mobile browsers. The primary design philosophy is **automatic operation with manual control available when desired**. The UI provides real-time status updates, playback control, and library management capabilities.
 
 **Key Principles:**
 - **Automatic-first**: System operates without user intervention by default
@@ -126,7 +126,7 @@ Where `nearest_song()` returns the song with the closest start or end time to th
 5. Album Liner notes images
 6. Artist images (photos)
 7. Work images (sheet music, production stills)
-8. McRhythm Logo (fallback, always available)
+8. WKMP Logo (fallback, always available)
 
 **[UI-ART-040]** Display layout:
 - **Left image**: Highest priority available image
@@ -831,4 +831,4 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - Keyboard-only operation
 
 ----
-End of document - McRhythm User Interface Specification
+End of document - WKMP User Interface Specification

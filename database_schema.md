@@ -1,4 +1,4 @@
-# McRhythm Database Schema
+# WKMP Database Schema
 
 **🗄️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
@@ -10,7 +10,7 @@ Defines data structures and schema. Derived from Tier 2 design documents. See [D
 
 ## Overview
 
-McRhythm uses SQLite as its database engine. The schema is designed to support:
+WKMP uses SQLite as its database engine. The schema is designed to support:
 - Music file and passage management
 - MusicBrainz entity relationships (songs, artists, works, albums)
 - Musical flavor characterization vectors
@@ -20,7 +20,7 @@ McRhythm uses SQLite as its database engine. The schema is designed to support:
 
 ## Global vs User-Scoped Data Design
 
-**McRhythm functions like a shared hi-fi system**, not a personal music player:
+**WKMP functions like a shared hi-fi system**, not a personal music player:
 
 **Global Data (System-Wide):**
 - **Playback settings**: Volume, audio sink, crossfade settings
@@ -568,7 +568,7 @@ Records each time a song is played. Used primarily for cooldown calculations by 
 - The `user_id` references the `users.guid` column, enabling per-user taste profiles
 - Anonymous users share the same `user_id`, resulting in a shared taste profile for all anonymous sessions
 - Registered users have individual taste profiles based on their unique `user_id`
-- **User-scoped vs Global**: Likes/Dislikes are user-specific because they represent individual taste preferences. In contrast, playback settings (volume, audio sink, etc.) are global because McRhythm functions like a shared hi-fi system where multiple users may be listening simultaneously.
+- **User-scoped vs Global**: Likes/Dislikes are user-specific because they represent individual taste preferences. In contrast, playback settings (volume, audio sink, etc.) are global because WKMP functions like a shared hi-fi system where multiple users may be listening simultaneously.
 - **Program Director integration**: The Program Director may (or may not) incorporate user taste profiles into passage selection, depending on configuration and future development
 - See [Likes and Dislikes](like_dislike.md) for weight distribution algorithm
 - See [Musical Taste](musical_taste.md) for how likes/dislikes build taste profiles
@@ -708,7 +708,7 @@ The database is initialized with default module configurations on first run:
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When setting was last modified |
 
 **Design Philosophy:**
-- **McRhythm functions like a shared hi-fi system**: Settings apply to the entire system, not individual users
+- **WKMP functions like a shared hi-fi system**: Settings apply to the entire system, not individual users
 - **Multiple users may be listening simultaneously**: User-specific settings would be inappropriate
 - **System may run with zero users logged in**: Settings must be independent of authentication state
 - **User-specific data belongs elsewhere**: See `likes_dislikes` table for user-scoped preferences
@@ -1071,4 +1071,4 @@ Potential schema additions (not yet specified):
 - ✅ `passages.user_title` column for user-defined passage titles
 
 ----
-End of document - McRhythm Database Schema
+End of document - WKMP Database Schema

@@ -14,7 +14,7 @@ Defines the workflow for segmenting a single audio file into multiple Passages. 
 
 ## 2. Segmentation Workflow
 
-The process is a guided, step-by-step workflow within the McRhythm UI (Full version only).
+The process is a guided, step-by-step workflow within the WKMP UI (Full version only).
 
 ### Step 1: Source Media Identification
 
@@ -71,7 +71,7 @@ The process is a guided, step-by-step workflow within the McRhythm UI (Full vers
 
 **[AFS-ING-010]** Once the user indicates they are satisfied with the segmentation and metadata, the system performs the final ingestion:
 
-1.  **Passage Creation:** For each segment, a new Passage is created in the McRhythm database, linked to the source audio file and with the correct start/end times.
+1.  **Passage Creation:** For each segment, a new Passage is created in the WKMP database, linked to the source audio file and with the correct start/end times.
 2.  **Song Association:** The appropriate Song record (including Recording, Artist, and Work) is associated with each new Passage.
 3.  **Album Passage:** A single overarching Passage, encompassing the entire audio file, is also created. This allows the user to play the entire album side as a single unit if desired.
 4.  **AcousticBrainz Lookup:** The system then queries the AcousticBrainz database for each new Recording ID to fetch the high-level characterization data (Musical Flavor).

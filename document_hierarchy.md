@@ -1,4 +1,4 @@
-# McRhythm Document Hierarchy
+# WKMP Document Hierarchy
 
 > **All project documents reference this hierarchy specification**
 
@@ -14,7 +14,7 @@ This document defines the documentation framework itself. It sits outside the co
 
 ## Document Classification
 
-McRhythm project documentation is organized into a strict hierarchy that governs how information flows between documents and when each document should be updated.
+WKMP project documentation is organized into a strict hierarchy that governs how information flows between documents and when each document should be updated.
 
 ### Document Hierarchy Diagram
 
@@ -138,7 +138,7 @@ flowchart TD
 ### Tier 1: Authoritative Requirements
 
 #### requirements.md
-**Purpose:** Defines WHAT McRhythm must do from a product/user perspective
+**Purpose:** Defines WHAT WKMP must do from a product/user perspective
 
 **Contains:**
 - Functional requirements (features, behaviors)
@@ -160,14 +160,14 @@ flowchart TD
 **Maintained By:** Product owner, stakeholders, with technical input
 
 #### entity_definitions.md
-**Purpose:** Defines core entity terminology used across all McRhythm documentation
+**Purpose:** Defines core entity terminology used across all WKMP documentation
 
 **Contains:**
 - Track, Recording, Work, Artist definitions (MusicBrainz entities)
-- Song definition (McRhythm-specific: Recording + Artist(s))
-- Passage definition (McRhythm-specific: span of audio with timing points)
+- Song definition (WKMP-specific: Recording + Artist(s))
+- Passage definition (WKMP-specific: span of audio with timing points)
 - Entity relationships and cardinality rules
-- McRhythm-specific entity constraints
+- WKMP-specific entity constraints
 
 **Update Policy:**
 - ✅ Update when product terminology evolves
@@ -378,7 +378,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Contains:**
 - EventBus design and implementation
-- Event type enumeration (McRhythmEvent)
+- Event type enumeration (WkmpEvent)
 - Communication pattern selection (broadcast vs channels vs shared state)
 - Event flows and examples
 - Testing patterns for event-driven code
@@ -801,4 +801,4 @@ Cascade: Update implementation_order.md with optimization task
 For questions about document hierarchy or update procedures, consult the technical lead or refer to this specification.
 
 ----
-End of document - McRhythm Document Hierarchy
+End of document - WKMP Document Hierarchy

@@ -1,4 +1,4 @@
-# McRhythm Coding Conventions
+# WKMP Coding Conventions
 
 **📝 TIER 3 - IMPLEMENTATION SPECIFICATION**
 
@@ -10,14 +10,14 @@ Defines code organization and quality standards. Supports Tier 2 design document
 
 ## Overview
 
-This document establishes coding standards and organizational requirements for the McRhythm codebase.
+This document establishes coding standards and organizational requirements for the WKMP codebase.
 These conventions ensure maintainability, testability, and consistency across the Rust/GStreamer/Tauri application.
 
 ## Workspace Structure
 
 **CO-005: Cargo Workspace Organization**
 
-McRhythm uses a Cargo workspace with multiple binary crates and a shared common library. See [Project Structure](project_structure.md) for complete details.
+WKMP uses a Cargo workspace with multiple binary crates and a shared common library. See [Project Structure](project_structure.md) for complete details.
 
 - **CO-006:** The workspace shall contain:
   - `common/` - Shared library crate (`wkmp-common`)
@@ -29,7 +29,7 @@ McRhythm uses a Cargo workspace with multiple binary crates and a shared common 
 
 - **CO-007:** Shared code shall be implemented in the `common/` library:
   - Database models and queries
-  - Event types (`McRhythmEvent` enum)
+  - Event types (`WkmpEvent` enum)
   - API request/response types
   - Flavor calculation algorithms
   - Cooldown calculation logic
@@ -138,7 +138,7 @@ The `common/` library crate shall be organized as follows:
   - `migrations.rs` - Migration management
 
 - **CO-042:** Event system in `common/src/events/`:
-  - `types.rs` - `McRhythmEvent` enum and related types
+  - `types.rs` - `WkmpEvent` enum and related types
 
 - **CO-043:** API types in `common/src/api/`:
   - `types.rs` - API request/response types
@@ -527,7 +527,7 @@ The `common/` library crate shall be organized as follows:
 - **CO-293:** FIXME comments shall include issue tracking reference when applicable
 - **CO-294:** Avoid commented-out code in production branches
 
-- **CO-299:** "McRhythm" is a code name for the project during design. "McRhythm" and other 
+- **CO-299:** "WKMP" is the project name. "WKMP" and other 
               references to the project name shall not appear anywhere in the source code.
               The public facing name of the project while coding shall be: "WKMP" ; 
               in long form: "Wonderfully Kinetic Music Player".
@@ -537,10 +537,10 @@ The `common/` library crate shall be organized as follows:
 **Document Status:** Draft
 **Version:** 1.0
 **Last Updated:** 2025-10-05
-**Author:** McRhythm Development Team
+**Author:** WKMP Development Team
 
 **Change History:**
 - 2025-10-05: Initial version adapted from coding conventions specification
 
 ----
-End of document - McRhythm Coding Conventions
+End of document - WKMP Coding Conventions

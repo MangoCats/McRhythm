@@ -1,4 +1,4 @@
-# McRhythm
+# WKMP
 Auto DJ for playing your music library
 
 ## Documentation
@@ -24,6 +24,6 @@ Auto DJ for playing your music library
 
 ## Overview
 
-McRhythm is a music player that automatically selects passages to play based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
+WKMP is a music player that automatically selects passages to play based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
 
 Built with Rust, GStreamer, SQLite, and Tauri.

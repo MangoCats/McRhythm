@@ -1,4 +1,4 @@
-# McRhythm Multi-User Coordination
+# WKMP Multi-User Coordination
 
 **🤝 TIER 2 - DESIGN SPECIFICATION**
 
@@ -10,7 +10,7 @@ Defines the mechanism for coordinating actions from multiple users to ensure a c
 
 ## Overview
 
-**[MUC-OV-010]** McRhythm allows multiple users to interact with the same playback queue and state via the WebUI. This document specifies the design for handling concurrent user actions to prevent race conditions and ensure predictable behavior.
+**[MUC-OV-010]** WKMP allows multiple users to interact with the same playback queue and state via the WebUI. This document specifies the design for handling concurrent user actions to prevent race conditions and ensure predictable behavior.
 
 **[MUC-OV-020]** The core of the multi-user coordination is the `UserAction` event, which is broadcast to all components and connected clients. This allows for both client-side UI updates and server-side logic to handle edge cases.
 
@@ -138,4 +138,4 @@ pub enum UserActionType {
   ```
 
 ---
-End of document - McRhythm Multi-User Coordination
+End of document - WKMP Multi-User Coordination

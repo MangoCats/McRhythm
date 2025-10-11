@@ -96,7 +96,7 @@ User identity is required for:
 
 ### 4.3. Password Transmission Protection
 
-**[UID-PASS-030]** To protect passwords during transmission over insecure HTTP connections, McRhythm uses **client-side password hashing** before transmission.
+**[UID-PASS-030]** To protect passwords during transmission over insecure HTTP connections, WKMP uses **client-side password hashing** before transmission.
 
 **[UID-PASS-031]** Client-side password hashing protocol:
 

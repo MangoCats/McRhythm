@@ -1,4 +1,4 @@
-# McRhythm Program Director
+# WKMP Program Director
 
 **🎯 TIER 2 - DESIGN SPECIFICATION**
 
@@ -460,4 +460,4 @@ Where each factor is the weighted average across multiple songs/artists if appli
 - No memory leaks over extended operation
 
 ----
-End of document - McRhythm Program Director
+End of document - WKMP Program Director

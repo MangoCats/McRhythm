@@ -10,7 +10,7 @@ Defines crossfade timing and behavior. Derived from [requirements.md](requiremen
 
 ## Overview
 
-**[XFD-OV-010]** McRhythm supports sophisticated crossfading between passages, allowing smooth transitions with configurable fade curves and overlap timing. Each passage has six timing points that control how it begins, ends, and overlaps with adjacent passages.
+**[XFD-OV-010]** WKMP supports sophisticated crossfading between passages, allowing smooth transitions with configurable fade curves and overlap timing. Each passage has six timing points that control how it begins, ends, and overlaps with adjacent passages.
 
 ## Timing Points
 

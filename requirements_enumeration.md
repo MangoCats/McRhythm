@@ -1,4 +1,4 @@
-# McRhythm Requirements Enumeration Scheme
+# WKMP Requirements Enumeration Scheme
 
 > **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Implementation Order](implementation_order.md) | [Document Hierarchy](document_hierarchy.md)
 
@@ -12,7 +12,7 @@ Defines requirement ID scheme for traceability. Applied TO all documents. See [D
 
 ## Overview
 
-This document defines the comprehensive enumeration scheme for all requirements, design specifications, and architectural decisions across the McRhythm documentation set. The scheme provides unique, maintainable, compact identifiers that enable precise requirement tracking, traceability, and cross-referencing.
+This document defines the comprehensive enumeration scheme for all requirements, design specifications, and architectural decisions across the WKMP documentation set. The scheme provides unique, maintainable, compact identifiers that enable precise requirement tracking, traceability, and cross-referencing.
 
 ## Enumeration Format
 
@@ -118,10 +118,10 @@ For simple lists where hierarchy is clear from context:
 | Code | Section | Scope |
 |------|---------|-------|
 | MB | MusicBrainz | MusicBrainz entities (Track, Recording, Work, Artist) |
-| MCR | McRhythm | McRhythm-specific entities (Song, Passage) |
+| MCR | WKMP | WKMP-specific entities (Song, Passage) |
 | REL | Relationships | Entity relationships and cardinality |
 | CARD | Cardinality | Cardinality rules |
-| CONST | Constraints | McRhythm-specific entity constraints |
+| CONST | Constraints | WKMP-specific entity constraints |
 
 ### ARCH (architecture.md)
 
@@ -622,4 +622,4 @@ The crossfade timing (see `XFD-BEH-C1`) depends on lead-in duration (`XFD-DUR-03
 5. Establish maintenance process
 
 ----
-End of document - McRhythm Requirements Enumeration Scheme
+End of document - WKMP Requirements Enumeration Scheme

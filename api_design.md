@@ -1,4 +1,4 @@
-# McRhythm API Design
+# WKMP API Design
 
 **🌐 TIER 2 - DESIGN SPECIFICATION**
 
@@ -10,7 +10,7 @@ Defines REST API structure and Server-Sent Events interface. Derived from [requi
 
 ## Overview
 
-McRhythm implements a **microservices architecture** with 4 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
+WKMP implements a **microservices architecture** with 4 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
 
 ### Module API Endpoints
 
@@ -1023,7 +1023,7 @@ Get current playback state (Playing or Paused).
 - `"paused"`: Playback is paused
 
 **Notes:**
-- McRhythm uses two-state model only (no "stopped" state)
+- WKMP uses two-state model only (no "stopped" state)
 - State reflects intent, not whether audio is currently audible
 - If state is "playing" but queue is empty, audio plays immediately when passage enqueued
 
@@ -1582,7 +1582,7 @@ All endpoints may return error responses:
 
 No rate limiting on local API endpoints.
 
-**Note:** External API rate limits (AcoustID, MusicBrainz) handled internally by McRhythm, not exposed to API clients.
+**Note:** External API rate limits (AcoustID, MusicBrainz) handled internally by WKMP, not exposed to API clients.
 
 ## API Versioning
 
@@ -1616,4 +1616,4 @@ API endpoints should have integration tests covering:
 - Version-specific endpoint availability
 
 ----
-End of document - McRhythm API Design
+End of document - WKMP API Design

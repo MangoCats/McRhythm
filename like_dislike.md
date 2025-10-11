@@ -4,7 +4,7 @@
 
 **LD-DESC-010:** Defines Like and Dislike functionality and their impact on Musical Taste. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
 
-> **Note:** This feature is available in the **Full** and **Lite** versions of McRhythm only.
+> **Note:** This feature is available in the **Full** and **Lite** versions of WKMP only.
 
 > **Authentication Context:** Likes and Dislikes are recorded per user UUID. Anonymous users share a common UUID and therefore a shared taste profile. Registered users have individual UUIDs and separate taste profiles. See [User Identity and Authentication](user_identity.md) for authentication details.
 

@@ -2,7 +2,7 @@
 
 **🚀 TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines deployment, process management, and operational configuration for McRhythm's microservices architecture. See [Document Hierarchy](document_hierarchy.md).
+Defines deployment, process management, and operational configuration for WKMP's microservices architecture. See [Document Hierarchy](document_hierarchy.md).
 
 > **Related Documentation:** [Architecture](architecture.md) | [API Design](api_design.md) | [Requirements](requirements.md)
 
@@ -10,7 +10,7 @@ Defines deployment, process management, and operational configuration for McRhyt
 
 ## Overview
 
-**[DEP-OVR-010]** McRhythm consists of 5 independent processes that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
+**[DEP-OVR-010]** WKMP consists of 5 independent processes that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
 
 **[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which modules run:
 - **Full Version**: Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest
@@ -124,7 +124,7 @@ secret_key = ""
 
 [static]
 # Path to static web assets (HTML, CSS, JS)
-assets_path = "/usr/local/share/mcrhythm/ui/"
+assets_path = "/usr/local/share/wkmp/ui/"
 
 [logging]
 level = "info"
@@ -249,12 +249,12 @@ Note: Audio Ingest and Lyric Editor only start when called for (from User Interf
 [Unit]
 Description=WKMP Music Player - User Interface
 After=network.target sound.target
-Documentation=https://github.com/wkmp/mcrhythm
+Documentation=https://github.com/mcrhythm/mcrhythm
 
 [Service]
 Type=simple
-User=mcrhythm
-Group=mcrhythm
+User=wkmp
+Group=wkmp
 ExecStart=/usr/local/bin/wkmp-ui
 Restart=on-failure
 RestartSec=5
@@ -555,7 +555,7 @@ wkmp-ap
 
 ### 11.1. Automatic Backup Strategy
 
-**[DEP-BACKUP-010]** McRhythm implements an **automatic database backup system** managed by wkmp-ui. See [Architecture - Database Backup Strategy](architecture.md#arch-queue-persist-030) for complete specification.
+**[DEP-BACKUP-010]** WKMP implements an **automatic database backup system** managed by wkmp-ui. See [Architecture - Database Backup Strategy](architecture.md#arch-queue-persist-030) for complete specification.
 
 **Key Features:**
 - **On Startup**: Integrity check + conditional backup (throttled to prevent excessive wear)
@@ -620,7 +620,7 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 > See [Architecture - ARCH-QUEUE-PERSIST-030](architecture.md#arch-queue-persist-030) for automatic recovery details.
 
 **[DEP-RECOVERY-020]** Manual recovery procedure:
-1. Stop all McRhythm modules
+1. Stop all WKMP modules
 2. Verify backup integrity: `sqlite3 wkmp-backup.db "PRAGMA integrity_check"`
 3. If backup is good, replace database:
    ```bash
@@ -1043,7 +1043,7 @@ Access via: `http://localhost:5720`
 
 ### 14.5. File System Security
 
-**[DEP-SEC-060]** Database file permissions should be restricted to the user account running McRhythm modules:
+**[DEP-SEC-060]** Database file permissions should be restricted to the user account running WKMP modules:
 ```bash
 chmod 600 ~/.local/share/wkmp/wkmp.db
 chown wkmp:wkmp ~/.local/share/wkmp/wkmp.db

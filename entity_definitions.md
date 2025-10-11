@@ -2,7 +2,7 @@
 
 **📜 TIER 1 - AUTHORITATIVE SOURCE DOCUMENT (Component)**
 
-Defines core entity terminology used throughout McRhythm documentation. Part of [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines core entity terminology used throughout WKMP documentation. Part of [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
 
 **Update Policy:** ✅ Product terminology decisions | ❌ NOT derived from design/implementation
 
@@ -26,7 +26,7 @@ Defines core entity terminology used throughout McRhythm documentation. Part of 
   - Each audio file may contain one or more passages.
   - Audio files are stored in user-designated music library directories.
 - **[ENT-MCR-030]** Passage: A defined span of audio, plus optional metadata
-  - In McRhythm a passage is a defined part of an audio file with start, fade-in, lead-in,
+  - In WKMP a passage is a defined part of an audio file with start, fade-in, lead-in,
     lead-out, fade-out, end points in time defined, as described in [Crossfade Design](crossfade.md#overview).
   - Multiple passages defined within an audio file may, or may not, overlap each other in time.
   - A passage may contain zero or more specific Songs.
@@ -72,7 +72,7 @@ erDiagram
 - **[ENT-CARD-060]** Passage → Song: Many-to-many (passages can contain multiple songs; songs appear in multiple passages)
 - **[ENT-CARD-070]** Passage → Audio File: Many-to-one (multiple passages can be defined within one audio file)
 
-## McRhythm-Specific Constraints
+## WKMP-Specific Constraints
 
 - **[ENT-CONST-010]** Passage with zero songs: Allowed, but excluded from automatic selection (can only be manually queued)
 - **[ENT-CONST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted centroid of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage. See [Musical Flavor - Weighted Centroid Calculation](musical_flavor.md#more-than-one-recording-per-passage-calculation) and [Musical Taste - Weighted Taste](musical_taste.md#weighted-taste) for algorithm details.

@@ -1,8 +1,8 @@
-# McRhythm Project Structure
+# WKMP Project Structure
 
 **🏗️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines the Rust workspace structure and organization for McRhythm's microservices architecture.
+Defines the Rust workspace structure and organization for WKMP's microservices architecture.
 
 > **Related Documentation:** [Architecture](architecture.md) | [Coding Conventions](coding_conventions.md) | [Implementation Order](implementation_order.md)
 
@@ -10,7 +10,7 @@ Defines the Rust workspace structure and organization for McRhythm's microservic
 
 ## Overview
 
-McRhythm uses a **Cargo workspace** to manage multiple binaries with shared common code. This structure enables:
+WKMP uses a **Cargo workspace** to manage multiple binaries with shared common code. This structure enables:
 - Code reuse across modules (database models, serialization, utilities)
 - Unified dependency management
 - Single build command for all modules
@@ -40,7 +40,7 @@ mcrhythm/
 │   │   │   └── migrations.rs    # Migration management
 │   │   ├── events/
 │   │   │   ├── mod.rs
-│   │   │   └── types.rs         # McRhythmEvent enum
+│   │   │   └── types.rs         # WkmpEvent enum
 │   │   ├── api/
 │   │   │   ├── mod.rs
 │   │   │   ├── types.rs         # API request/response types
@@ -335,7 +335,7 @@ pub use uuid::generate_uuid;
 
    #[derive(Debug, Clone, Serialize, Deserialize)]
    #[serde(tag = "type", rename_all = "snake_case")]
-   pub enum McRhythmEvent {
+   pub enum WkmpEvent {
        PassageStarted {
            passage_id: Uuid,
            timestamp: chrono::DateTime<chrono::Utc>,
@@ -689,7 +689,7 @@ All modules are built identically with no conditional compilation. Version diffe
 #!/bin/bash
 set -e
 
-echo "Building all McRhythm modules..."
+echo "Building all WKMP modules..."
 
 # Build all binaries in release mode
 cargo build --release
@@ -703,7 +703,7 @@ ls -lh target/release/wkmp-*
 #!/bin/bash
 set -e
 
-echo "Packaging McRhythm Full version..."
+echo "Packaging WKMP Full version..."
 
 # Build all binaries
 ./scripts/build_all.sh
@@ -724,7 +724,7 @@ echo "Full version packaged in dist/full/"
 #!/bin/bash
 set -e
 
-echo "Packaging McRhythm Lite version..."
+echo "Packaging WKMP Lite version..."
 
 # Build all binaries
 ./scripts/build_all.sh
@@ -743,7 +743,7 @@ echo "Lite version packaged in dist/lite/"
 #!/bin/bash
 set -e
 
-echo "Packaging McRhythm Minimal version..."
+echo "Packaging WKMP Minimal version..."
 
 # Build all binaries
 ./scripts/build_all.sh
@@ -895,7 +895,7 @@ cargo outdated
 
 ✅ **Should be in common:**
 - Database models (Passage, Song, Artist, etc.)
-- Event types (McRhythmEvent enum)
+- Event types (WkmpEvent enum)
 - API request/response types
 - Flavor calculation algorithms
 - Cooldown calculation logic
@@ -1165,7 +1165,7 @@ The Cargo workspace structure provides:
 ✅ **Version flexibility**: Build Full/Lite/Minimal from same codebase
 ✅ **Testability**: Unit and integration tests for all components
 
-This structure supports McRhythm's microservices architecture while maintaining a clean, maintainable codebase.
+This structure supports WKMP's microservices architecture while maintaining a clean, maintainable codebase.
 
 ----
-End of document - McRhythm Project Structure
+End of document - WKMP Project Structure

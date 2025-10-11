@@ -1,4 +1,4 @@
-# McRhythm Event System
+# WKMP Event System
 
 **📡 TIER 2 - DESIGN SPECIFICATION**
 
@@ -10,13 +10,13 @@ Defines event-driven communication architecture. Derived from [requirements.md](
 
 ## Overview
 
-McRhythm uses a hybrid event-driven communication architecture combining event broadcasting with direct message passing. This document specifies the event system design, implementation patterns, and usage guidelines.
+WKMP uses a hybrid event-driven communication architecture combining event broadcasting with direct message passing. This document specifies the event system design, implementation patterns, and usage guidelines.
 
 ### Design Rationale
 
 **Why Event-Driven Architecture?**
 
-McRhythm requires coordinated responses to state changes across multiple components:
+WKMP requires coordinated responses to state changes across multiple components:
 - Multiple UI clients need real-time synchronization (`REQ-CF-042`)
 - Play events trigger actions in Historian, Queue Manager, and SSE Broadcaster
 - User actions must propagate to all connected clients
@@ -26,7 +26,7 @@ McRhythm requires coordinated responses to state changes across multiple compone
 
 Considered `signals2` and similar observer pattern crates but rejected because:
 
-1. **Async Integration**: McRhythm is built on Tokio async runtime
+1. **Async Integration**: WKMP is built on Tokio async runtime
    - Signal/slot libraries are primarily synchronous
    - Mixing sync callbacks with async handlers creates complexity
    - Tokio broadcast channels are async-native
@@ -43,7 +43,7 @@ Considered `signals2` and similar observer pattern crates but rejected because:
 
 ## Communication Patterns
 
-McRhythm uses a hybrid communication architecture. See [Architecture - Inter-component Communication](architecture.md#inter-component-communication) for overview.
+WKMP uses a hybrid communication architecture. See [Architecture - Inter-component Communication](architecture.md#inter-component-communication) for overview.
 
 This document specifies the **event broadcasting** pattern in detail.
 
@@ -123,7 +123,7 @@ This document specifies the **event broadcasting** pattern in detail.
 
 ### Event Enumeration
 
-All events are variants of a central `McRhythmEvent` enum:
+All events are variants of a central `WkmpEvent` enum:
 
 ```rust
 /// Global event types for cross-component communication
@@ -131,7 +131,7 @@ All events are variants of a central `McRhythmEvent` enum:
 /// Events are broadcast via the EventBus and can be subscribed to by any component.
 /// Each event is self-contained and includes all necessary context.
 #[derive(Debug, Clone)]
-pub enum McRhythmEvent {
+pub enum WkmpEvent {
     // ═══════════════════════════════════════════════════════════
     // Playback Events
     // ═══════════════════════════════════════════════════════════
@@ -438,7 +438,7 @@ pub enum EnqueueSource {
 /// Playback state
 /// <a name="playbackstate-enum"></a>
 ///
-/// McRhythm has only two playback states controlled by the user.
+/// WKMP has only two playback states controlled by the user.
 /// There is no "stopped" state - the system is always either playing or paused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlaybackState {
@@ -509,7 +509,7 @@ use std::sync::Arc;
 /// let mut rx = event_bus.subscribe();
 ///
 /// // Emit an event
-/// event_bus.emit(McRhythmEvent::PassageStarted {
+/// event_bus.emit(WkmpEvent::PassageStarted {
 ///     passage_id: passage.id,
 ///     timestamp: SystemTime::now(),
 ///     queue_position: 0,
@@ -518,7 +518,7 @@ use std::sync::Arc;
 /// // Receive events
 /// while let Ok(event) = rx.recv().await {
 ///     match event {
-///         McRhythmEvent::PassageStarted { .. } => {
+///         WkmpEvent::PassageStarted { .. } => {
 ///             // Handle passage start
 ///         }
 ///         _ => {}
@@ -526,7 +526,7 @@ use std::sync::Arc;
 /// }
 /// ```
 pub struct EventBus {
-    tx: broadcast::Sender<McRhythmEvent>,
+    tx: broadcast::Sender<WkmpEvent>,
     capacity: usize,
 }
 
@@ -569,7 +569,7 @@ impl EventBus {
     ///     }
     /// });
     /// ```
-    pub fn subscribe(&self) -> broadcast::Receiver<McRhythmEvent> {
+    pub fn subscribe(&self) -> broadcast::Receiver<WkmpEvent> {
         self.tx.subscribe()
     }
 
@@ -586,7 +586,7 @@ impl EventBus {
     ///     tracing::warn!("No subscribers for critical event");
     /// }
     /// ```
-    pub fn emit(&self, event: McRhythmEvent) -> Result<usize, broadcast::error::SendError<McRhythmEvent>> {
+    pub fn emit(&self, event: WkmpEvent) -> Result<usize, broadcast::error::SendError<WkmpEvent>> {
         self.tx.send(event)
     }
 
@@ -599,13 +599,13 @@ impl EventBus {
     ///
     /// ```
     /// // Position updates - OK if no one is listening
-    /// event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
+    /// event_bus.emit_lossy(WkmpEvent::PositionUpdate {
     ///     passage_id,
     ///     position: 42.0,
     ///     duration: 180.0,
     /// });
     /// ```
-    pub fn emit_lossy(&self, event: McRhythmEvent) {
+    pub fn emit_lossy(&self, event: WkmpEvent) {
         let _ = self.tx.send(event);
     }
 
@@ -665,7 +665,7 @@ impl PlaybackController {
     async fn on_passage_completed(&mut self, duration: f64, completed: bool) {
         if let Some(passage_id) = self.current_passage {
             // Emit event - implements event system specification
-            self.event_bus.emit(McRhythmEvent::PassageCompleted {
+            self.event_bus.emit(WkmpEvent::PassageCompleted {
                 passage_id,
                 duration_played: duration,
                 completed,
@@ -683,7 +683,7 @@ impl PlaybackController {
         self.state = new_state;
 
         // Emit state change event
-        self.event_bus.emit(McRhythmEvent::PlaybackStateChanged {
+        self.event_bus.emit(WkmpEvent::PlaybackStateChanged {
             old_state,
             new_state,
             timestamp: SystemTime::now(),
@@ -698,7 +698,7 @@ Components that react to events should subscribe at startup:
 /// Historian - Event Consumer Example
 pub struct Historian {
     db: DatabasePool,
-    event_rx: broadcast::Receiver<McRhythmEvent>,
+    event_rx: broadcast::Receiver<WkmpEvent>,
 }
 
 impl Historian {
@@ -735,13 +735,13 @@ impl Historian {
         }
     }
 
-    async fn handle_event(&self, event: McRhythmEvent) -> anyhow::Result<()> {
+    async fn handle_event(&self, event: WkmpEvent) -> anyhow::Result<()> {
         match event {
-            McRhythmEvent::PassageStarted { passage_id, timestamp, .. } => {
+            WkmpEvent::PassageStarted { passage_id, timestamp, .. } => {
                 self.record_passage_start(passage_id, timestamp).await?;
             }
 
-            McRhythmEvent::PassageCompleted { passage_id, duration_played, completed, .. } => {
+            WkmpEvent::PassageCompleted { passage_id, duration_played, completed, .. } => {
                 self.record_passage_completion(passage_id, duration_played, completed).await?;
             }
 
@@ -975,7 +975,7 @@ let (pos, dur) = *position_rx.borrow();
 // Option 2: Throttle position events on EventBus
 // Only emit every 2 seconds instead of every 500ms
 if last_position_event.elapsed() > Duration::from_secs(2) {
-    event_bus.emit_lossy(McRhythmEvent::PositionUpdate { ... });
+    event_bus.emit_lossy(WkmpEvent::PositionUpdate { ... });
 }
 
 // Option 3: Separate position channel
@@ -1026,7 +1026,7 @@ match event_rx.recv().await {
 
 ```rust
 // Critical events - log if no subscribers
-match event_bus.emit(McRhythmEvent::DatabaseError { ... }) {
+match event_bus.emit(WkmpEvent::DatabaseError { ... }) {
     Ok(count) => {
         tracing::debug!("Database error event sent to {} subscribers", count);
     }
@@ -1037,7 +1037,7 @@ match event_bus.emit(McRhythmEvent::DatabaseError { ... }) {
 }
 
 // Non-critical events - lossy send OK
-event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
+event_bus.emit_lossy(WkmpEvent::PositionUpdate {
     passage_id,
     position: 42.0,
     duration: 180.0,
@@ -1047,9 +1047,9 @@ event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
 ### Subscriber Error Handling
 
 ```rust
-async fn handle_event(&self, event: McRhythmEvent) -> anyhow::Result<()> {
+async fn handle_event(&self, event: WkmpEvent) -> anyhow::Result<()> {
     match event {
-        McRhythmEvent::PassageCompleted { passage_id, duration_played, completed, .. } => {
+        WkmpEvent::PassageCompleted { passage_id, duration_played, completed, .. } => {
             // Try to record play
             if let Err(e) = self.record_play(passage_id, duration_played, completed).await {
                 // Log error but don't crash event loop
@@ -1097,7 +1097,7 @@ async fn test_passage_completion_emits_event() {
     .expect("Event receive error");
 
     match event {
-        McRhythmEvent::PassageCompleted { passage_id: id, completed: true, .. } => {
+        WkmpEvent::PassageCompleted { passage_id: id, completed: true, .. } => {
             assert_eq!(id, passage_id);
         }
         _ => panic!("Expected PassageCompleted event, got {:?}", event),
@@ -1122,7 +1122,7 @@ async fn test_historian_records_passage_completion() {
     });
 
     // Act
-    event_bus.emit(McRhythmEvent::PassageCompleted {
+    event_bus.emit(WkmpEvent::PassageCompleted {
         passage_id: test_passage_id(),
         duration_played: 180.0,
         completed: true,
@@ -1162,7 +1162,7 @@ async fn test_event_reaches_all_subscribers() {
     let mut rx3 = event_bus.subscribe();
 
     // Emit event
-    let test_event = McRhythmEvent::PlaybackStateChanged {
+    let test_event = WkmpEvent::PlaybackStateChanged {
         old_state: PlaybackState::Stopped,
         new_state: PlaybackState::Playing,
         timestamp: SystemTime::now(),
@@ -1187,7 +1187,7 @@ async fn test_slow_subscriber_lags() {
 
     // Flood with events (more than capacity)
     for i in 0..10 {
-        event_bus.emit_lossy(McRhythmEvent::PositionUpdate {
+        event_bus.emit_lossy(WkmpEvent::PositionUpdate {
             passage_id: test_passage_id(),
             position: i as f64,
             duration: 100.0,
@@ -1285,7 +1285,7 @@ async fn main() -> anyhow::Result<()> {
 
 ## Summary
 
-The McRhythm event system provides:
+The WKMP event system provides:
 
 ✅ **Loose coupling** - Components don't need to know about each other
 
@@ -1301,7 +1301,7 @@ The McRhythm event system provides:
 
 ✅ **Multi-user support** - Natural broadcast to all connected UI clients
 
-This design positions McRhythm for maintainable, scalable development.
+This design positions WKMP for maintainable, scalable development.
 
 ----
-End of document - McRhythm Event System
+End of document - WKMP Event System

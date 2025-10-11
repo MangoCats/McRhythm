@@ -1,4 +1,4 @@
-# McRhythm Architecture
+# WKMP Architecture
 
 **🏗️ TIER 2 - DESIGN SPECIFICATION**
 
@@ -10,13 +10,13 @@ Defines HOW the system is structured. Derived from [requirements.md](requirement
 
 ## Overview
 
-McRhythm is a music player built on Rust, GStreamer, and SQLite that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
+WKMP is a music player built on Rust, GStreamer, and SQLite that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
 
-McRhythm implements a **microservices architecture** with multiple independent processes communicating via HTTP APIs and Server-Sent Events (SSE). This enables simplified maintenance, version flexibility, and independent module updates.
+WKMP implements a **microservices architecture** with multiple independent processes communicating via HTTP APIs and Server-Sent Events (SSE). This enables simplified maintenance, version flexibility, and independent module updates.
 
 ## Process Architecture
 
-McRhythm consists of up to 5 independent processes (depending on version), each with defined HTTP/SSE interfaces:
+WKMP consists of up to 5 independent processes (depending on version), each with defined HTTP/SSE interfaces:
 
 - **Audio Player** - Core playback engine with queue management
 - **User Interface** - Polished web UI for end users
@@ -386,7 +386,7 @@ During playback, wkmp-ap monitors playback position to detect song boundary cros
 - **Minimal**: No file ingest, no likes/dislikes, no advanced configuration
 
 **Key Design Notes:**
-- **Most users interact here**: Primary interface for controlling McRhythm
+- **Most users interact here**: Primary interface for controlling WKMP
 - **Orchestration layer**: Coordinates between Audio Player and Program Director
 - **Database access**: Direct SQLite access for user data, likes/dislikes, library browsing
 
@@ -864,7 +864,7 @@ Within each module, components use standard Rust async patterns:
 
 ## Data Model
 
-McRhythm uses SQLite with UUID-based primary keys for all entities. The complete schema includes:
+WKMP uses SQLite with UUID-based primary keys for all entities. The complete schema includes:
 
 **Core Entities:** files, passages, songs, artists, works, albums
 **Relationships:** passage_songs, passage_albums, song_works
@@ -886,7 +886,7 @@ See [Database Schema](database_schema.md) for complete table definitions, constr
 
 ## Version Differentiation
 
-McRhythm is built in three versions (Full, Lite, Minimal) by **packaging different combinations of modules**. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
+WKMP is built in three versions (Full, Lite, Minimal) by **packaging different combinations of modules**. See [Requirements - Three Versions](requirements.md#three-versions) for detailed feature comparison and resource profiles.
 
 **Implementation approach:**
 - **Process-based differentiation**: Different modules are deployed in each version
@@ -1239,7 +1239,7 @@ If queue becomes empty while wkmp-pd is unresponsive:
 
 ### Network Error Handling
 
-**[ARCH-NET-010]** McRhythm requires two distinct types of network access with different error handling strategies:
+**[ARCH-NET-010]** WKMP requires two distinct types of network access with different error handling strategies:
 
 **Internet Access (External APIs - Full version only):**
 
@@ -1372,4 +1372,4 @@ Used for:
 - External player control protocols (MPD, etc.)
 
 ----
-End of document - McRhythm Architecture
+End of document - WKMP Architecture

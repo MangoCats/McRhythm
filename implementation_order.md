@@ -1,4 +1,4 @@
-# McRhythm Implementation Order & Timeline
+# WKMP Implementation Order & Timeline
 
 **📋 TIER 4 - DOWNSTREAM EXECUTION PLAN**
 
@@ -8,7 +8,7 @@ This document aggregates all specifications to define WHEN features are built. I
 
 > **Timeline Estimate:** 1 Week = 20 developer-hours.
 
-> **Architecture Note:** McRhythm uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](architecture.md) for complete details.
+> **Architecture Note:** WKMP uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](architecture.md) for complete details.
 
 ---
 
@@ -48,7 +48,7 @@ This document aggregates all specifications to define WHEN features are built. I
 - **1.2. Common Library Foundation (0.5 Weeks):**
   - Implement shared types in `common/` crate (`wkmp-common`):
     - Database models (Passage, Song, Artist, Work, Album, etc.)
-    - Event types (`McRhythmEvent` enum from `event_system.md`)
+    - Event types (`WkmpEvent` enum from `event_system.md`)
     - API request/response types
   - **Shared database initialization functions** (`wkmp-common/src/db/init.rs`):
     - Table creation functions for commonly used tables:
@@ -968,4 +968,4 @@ With multiple developers, these phases can run in parallel:
 - Actual timeline likely closer to 30-35 weeks with realistic team coordination
 
 ----
-End of document - McRhythm Implementation Order & Timeline
+End of document - WKMP Implementation Order & Timeline
