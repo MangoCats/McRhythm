@@ -1,0 +1,167 @@
+> Review implementation_order.md and related documentation status for readiness
+    to begin implementing the wkmp-ap microservice (only, not related microservices),
+    identify any gaps, inconsistencies, conflicts or ambiguities with respect to implementation -
+    please neglect project planning time estimates and similar meta-documentation 
+    that does not affect the implemented code.
+
+Answers embedded below:
+
+1. Volume Fade Update Period Inconsistency
+
+  Location: database_schema.md (line 759) vs gstreamer_design.md (line 637)
+
+  - Database Schema specifies volume_fade_update_period with default: 10ms (100 Hz update rate)
+  - GStreamer Design shows crossfade controller using 50ms intervals (20 Hz update rate)
+
+  Impact: The crossfade implementation code contradicts the database default setting.
+
+  Resolution Needed:
+  - Clarify which value is authoritative
+  - Update code or documentation to match
+  - Recommended: Use 10ms for smoother fades per database schema
+
+Answer: Clarify that 10ms is the default period to use, and that the same update period 
+        is used for all volume fade-in and fade-out applications.
+
+  ---
+  2. Queue Entry Timing Overrides: Enqueue API Gap
+
+  Location: api_design.md (line 747-823), database_schema.md (line 773-813)
+
+  Issue: The enqueue API specification is incomplete:
+
+  - POST /playback/enqueue accepts timing override fields in request body
+  - However, the API response schema (201 Created) does not specify what happens when timing overrides
+  are provided
+  - The relationship between passage_guid (optional) and database lookup for default timing is unclear
+
+  Questions:
+  1. If passage_guid is omitted AND no timing fields provided: What happens? (Error? Use file
+  duration?)  
+  2. If passage_guid is provided AND timing fields provided: Which takes precedence?
+  3. How does the API differentiate between "use passage default" vs "override with this explicit
+  value"?
+  
+Order of precedence:  
+1. If valid timing override fields are provided, then these are used.
+2. Any missing or invalid timing override fields are replaced by timing fields from 
+   the passage identified by the passage_guid, when the passage_guid is present and
+   valid (this is "the passage default")
+3. Any timing fields which are still missing or invalid after reading, or attempting
+   to read, from the passage_guid's timing fields are replaced with system default values:
+3a. Default start time = 0 (start of the audio file)
+3b. Default end time = end of the audio file
+3c. Default lead-in point = start time (zero lead-in duration)
+3d. Default fade-in point = start time (zero fade-in duration)
+3e. Default fade-in curve = Exponential
+3f. Default lead-out point = end time (zero lead-out duration)
+3g. Default fade-out point = end time (zero fade-out duration)
+3h. Default fade-out curve = Logarithmic
+  
+  Resolution Needed: Clarify the precedence rules and API behavior when mixing passage_guid with
+  explicit timing parameters.
+
+Answer: use the order of precedence defined above.
+
+  ---
+  3. Empty Queue Behavior: GStreamer State Ambiguity
+
+  Location: architecture.md (line 202-210), gstreamer_design.md (line 488-527)
+
+  Issue: The specification states:
+  - User-facing state: "playing"
+  - Internal GStreamer state: PAUSED (line 205 in architecture.md)
+  - But GST-STATE-080 says pipelines in PAUSED with no audio behave as "no audio output (silent)"
+
+  Ambiguity:
+  - How does "PAUSED state with no audio" differ from NULL state?
+  - Why use PAUSED instead of NULL when queue is empty?
+  - The rationale mentions "ready to transition to PLAYING instantly" - but PAUSED→PLAYING for
+  pre-rolled pipeline is equally fast as NULL→PAUSED→PLAYING
+
+  Resolution Needed: Clarify the technical reason for preferring PAUSED over NULL when queue is empty.
+
+Answer: I am not aware of a technical reason for preferring PAUSED over NULL when the queue is empty.
+The objective is to use GStreamer in the most natural way for GStreamer to provide the desired output:
+silence, while facilitating a smooth pop free, transition to playing state when a new passage becomes
+available in the queue.
+
+  ---
+  4. Crossfade Pre-loading Trigger Calculation Incomplete
+
+  Location: gstreamer_design.md (line 533-545)
+
+  Issue: The calculate_preload_trigger() function references:
+  passage.global_crossfade_ms
+
+  Problem:
+  - The passages table schema (database_schema.md) has no global_crossfade_ms field
+  - The global default is stored in settings.global_crossfade_time (in seconds, not milliseconds)
+  - The calculation doesn't account for passage-specific lead_out_point being NULL
+
+  Resolution Needed:
+  - Correct the field name/source for global crossfade time
+  - Add NULL handling for lead_out_point_ms
+  - Clarify units (ms vs seconds) and conversion logic
+  
+Answer: provide resolution as described.  Add NULL handling and use unit of ms for internal timing
+calculation constants.  
+
+  ---
+  5. File Path Resolution: Root Folder Configuration Missing
+
+  Location: gstreamer_design.md (line 85-120), database_schema.md (line 49-69)
+
+  Issue: The file path resolution function requires root_folder parameter:
+  fn resolve_file_path(root_folder: &str, file_path: &str) -> String
+
+  Missing Specification:
+  - How does wkmp-ap obtain root_folder on startup?
+  - Is it read from TOML config file? Environment variable? Command-line argument?
+  - Where in the initialization sequence does this happen?
+
+  Partial Reference: architecture.md mentions "Read root folder path from config file or environment
+  variable" but no specifics provided.
+
+  Resolution Needed: Document the complete startup sequence for obtaining root_folder configuration.
+  
+Root folder location resolution priority order:
+1. command-line argument, when present, is used as first choice
+2. environment variable, when present, is used as second choice
+3. TOML config file value, when present, is used as third choice
+4. OS dependent default path, compiled into the application, is used as default.  
+
+  ---
+  6. Song Boundary Detection: Implementation Details Sparse
+
+  Location: architecture.md (line 280-360), api_design.md (line 1319-1348)
+
+  Issue: The specification describes what to do (emit CurrentSongChanged when crossing boundaries) but
+  lacks how to efficiently implement it:
+
+  - How is the passage_songs timeline stored in memory?  
+  - Is it a sorted Vec? HashMap? Other structure?
+
+  - The spec mentions "O(n) acceptable for typical passage sizes" but doesn't specify the algorithm
+  
+  - 500ms detection interval is specified, but no guidance on position query caching
+
+  Resolution Needed: Add pseudocode or algorithm outline for:
+  1. Building song timeline on PassageStarted
+  2. Efficient boundary detection during 500ms timer ticks
+  3. Handling edge cases (gaps, overlapping songs)
+  
+Answer:  
+- passage_songs timeline is stored in memory as a sorted Vec.
+- when playback passes a timeline point, the associated signal is emitted.
+- regarding efficient algorithms: typical passages contain 1 to 10 songs, up to 100 songs in rare cases.
+  While playback is happening, the current playback time will exist between previous and next boundaries, if
+  the next time to evaluate is still between those boundaries then no further analysis is required.  Once
+  a boundary has been crossed then analysis is performed to determine the appropriate signals to emit.
+- when there are gaps, then song-end signals happen before the gap and next song-start signal happens after the gap
+- songs are defined to not be able to overlap within a passage.
+- note: in the case of passage crossfade, the following song-start signal _is_ emitted before the ending song's
+        song-end signal.  Signal receivers should expect this behavior and handle it appropriately.
+          
+  ---
+

@@ -98,15 +98,15 @@ log_file = ""
 ```
 
 **Configuration Source of Truth:**
-- **Database settings table**: Volume level, audio output device, crossfade time, all playback and fade settings, queue limits
-- **TOML config file**: Root folder path, logging only
-- **module_config table**: Server port and bind address
+- **Database `settings` table**: Volume level, audio output device, crossfade time, all playback and fade settings, queue limits, and ALL runtime configuration
+- **Database `module_config` table**: Server port and bind address for all modules
+- **TOML config file**: Root folder path, logging, static asset paths ONLY (NEVER runtime settings that belong in database)
 
 **Runtime settings in database:**
 - `queue_max_size`: Maximum queue size (default: 100)
 - See [database_schema.md - settings table](database_schema.md#settings) for complete list
 
-**Precedence:** Database is the source of truth for runtime settings. TOML provides bootstrap configuration (root folder, logging). When database settings are missing, application code creates them with built-in default values.
+**Precedence:** Database is the source of truth for ALL runtime settings. TOML files MUST NOT provide any values which are stored in database. TOML provides only bootstrap configuration (root folder path, logging, static asset paths). When database settings are missing, NULL, or the database does not exist, the application SHALL initialize them with built-in default values and write those defaults to the database.
 
 ### 2.3. User Interface Configuration
 
@@ -479,9 +479,84 @@ wkmp-ap
 
 **Design Philosophy:** Database is the persistent source of truth for all user-configurable runtime settings. TOML files only configure bootstrap parameters (paths, logging) and cannot override database settings.
 
-## 9. Health Checks and Monitoring
+## 9. Administrative Command-Line Tools
 
-### 9.1. Health Check Endpoints
+### 9.1. Password Reset Tool
+
+**[DEP-ADMIN-010]** WKMP provides a command-line password reset tool for recovering access to user accounts and configuration interfaces.
+
+**Tool Name**: `wkmp-passwd` (or `wkmp-password-reset`)
+
+**Usage:**
+
+```bash
+# Reset password only (config_interface_access unchanged)
+wkmp-passwd --user <username>
+
+# Reset password AND enable config interface access
+wkmp-passwd --user <username> --enable-config-access
+
+# Enable config interface access for Anonymous user (no password change)
+wkmp-passwd --user Anonymous --enable-config-access
+```
+
+**Functionality:**
+
+1. **Password Reset**:
+   - Prompts for new password (twice for confirmation)
+   - Generates new salt
+   - Computes new password_hash using same algorithm as web UI
+   - Updates `users.password_hash` and `users.password_salt` in database
+   - Does NOT change `config_interface_access` unless `--enable-config-access` flag is provided
+
+2. **Configuration Interface Access Control**:
+   - `--enable-config-access` flag: Sets `users.config_interface_access = 1` (enabled)
+   - If flag NOT provided: `users.config_interface_access` remains unchanged
+   - Works for any user, including Anonymous
+
+3. **Anonymous User Special Handling**:
+   - Tool MAY reset `config_interface_access` for Anonymous user
+   - Tool MUST NOT set a password for Anonymous user
+   - If user specifies `--user Anonymous` WITHOUT `--enable-config-access`: Error message explaining Anonymous cannot have a password
+   - If user specifies `--user Anonymous` WITH `--enable-config-access`: Only updates `config_interface_access`, no password prompt
+
+**Recovery Scenarios:**
+
+- **Lost Password**: `wkmp-passwd --user myusername`
+- **Configuration Interface Lockout**: `wkmp-passwd --user myusername --enable-config-access`
+- **Anonymous Locked Out of Config**: `wkmp-passwd --user Anonymous --enable-config-access`
+- **Both Password and Config Access Lost**: `wkmp-passwd --user myusername --enable-config-access`
+
+**Database Location:**
+
+The tool reads the root folder path using the same precedence as other modules:
+1. Command-line argument: `--root-folder /path/to/wkmp`
+2. Environment variable: `WKMP_ROOT_FOLDER`
+3. User TOML configuration file
+4. Built-in default
+
+The database is located at `{root_folder}/wkmp.db`.
+
+**Security Notes:**
+
+- Requires filesystem access to the database file
+- Should be run by the system administrator or user who owns the WKMP installation
+- No network authentication required (direct database access)
+- This is the single point of recovery for password and configuration interface access lockout scenarios
+
+**Implementation Notes:**
+
+- Tool is a standalone binary (can be separate from main modules)
+- May be part of `wkmp-common` utilities or a dedicated `wkmp-tools` package
+- Direct SQLite database access (does not require any WKMP modules to be running)
+- Validates that user exists before prompting for password
+- Returns appropriate exit codes for scripting (0 = success, non-zero = error)
+
+See [Architecture - Configuration Interface Access Control](architecture.md#configuration-interface-access-control) for complete access control specification.
+
+## 10. Health Checks and Monitoring
+
+### 10.1. Health Check Endpoints
 
 **[DEP-HEALTH-010]** Each module exposes a health check endpoint at `GET /health` that returns:
 - HTTP 200 OK if the module is healthy
@@ -508,7 +583,7 @@ wkmp-ap
 - Required dependencies (other modules) are unreachable
 - Critical resources are unavailable (e.g., audio device for Audio Player)
 
-### 9.2. Monitoring
+### 10.2. Monitoring
 
 **[DEP-MON-010]** Operators should monitor:
 - Module process status (running/stopped)
@@ -529,7 +604,7 @@ wkmp-ap
 - **macOS**: Use newsyslog or manual log rotation
 - **Windows**: Configure log file size limits in application configuration
 
-## 10. Graceful Shutdown
+## 11. Graceful Shutdown
 
 **[DEP-SHUTDOWN-010]** All modules shall handle SIGTERM (Linux/macOS) or SERVICE_CONTROL_STOP (Windows) signals for graceful shutdown.
 
@@ -551,9 +626,9 @@ wkmp-ap
 4. Lyric Editor
 5. User Interface
 
-## 11. Database Backup and Recovery
+## 12. Database Backup and Recovery
 
-### 11.1. Automatic Backup Strategy
+### 12.1. Automatic Backup Strategy
 
 **[DEP-BACKUP-010]** WKMP implements an **automatic database backup system** managed by wkmp-ui. See [Architecture - Database Backup Strategy](architecture.md#arch-queue-persist-030) for complete specification.
 
@@ -573,7 +648,7 @@ wkmp-ap
 
 > See [Architecture - ARCH-QUEUE-PERSIST-030](architecture.md#arch-queue-persist-030) for detailed backup algorithm, integrity checking, and failure handling.
 
-### 11.2. Manual Backup
+### 12.2. Manual Backup
 
 **[DEP-BACKUP-020]** Operators may also perform manual backups using standard SQLite tools:
 
@@ -599,7 +674,7 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 - Large-scale file ingest operations
 - Manual database modifications
 
-### 11.3. Configuration Backup
+### 12.3. Configuration Backup
 
 **[DEP-BACKUP-040]** Configuration files should be backed up separately:
 - Located in user config directories (see section 2.1)
@@ -608,7 +683,7 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 
 **[DEP-BACKUP-050]** Backup locations should be outside the application data directory to survive application reinstallation.
 
-### 11.4. Recovery from Backup
+### 12.4. Recovery from Backup
 
 **[DEP-RECOVERY-010]** Automatic recovery (wkmp-ui handles this on startup):
 1. wkmp-ui runs `PRAGMA integrity_check` on database
@@ -640,9 +715,9 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 - Manual recovery may require mounting network drive first
 - See `backup_location` setting in database
 
-## 12. Version-Specific Deployments
+## 13. Version-Specific Deployments
 
-### 12.1. Full Version
+### 13.1. Full Version
 
 **[DEP-VER-FULL-010]** Deploy and enable all 5 modules:
 - Audio Player (required)
@@ -658,7 +733,7 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 - Installations requiring file ingest and characterization
 - Full-featured deployments
 
-### 12.2. Lite Version
+### 13.2. Lite Version
 
 **[DEP-VER-LITE-010]** Deploy Audio Player, User Interface, and Program Director only:
 - Audio Player (required)
@@ -672,7 +747,7 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 - Embedded devices with limited resources
 - Remote players accessing a centralized database
 
-### 12.3. Minimal Version
+### 13.3. Minimal Version
 
 **[DEP-VER-MIN-010]** Deploy Audio Player and User Interface only:
 - Audio Player (required)
@@ -686,9 +761,9 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 - Testing and development
 - Minimal resource environments
 
-## 12a. Runtime Dependencies
+## 13a. Runtime Dependencies
 
-### 12a.1. GStreamer Bundling (Audio Player)
+### 13a.1. GStreamer Bundling (Audio Player)
 
 **[DEP-DEP-010]** Audio Player (wkmp-ap) requires GStreamer runtime and plugins.
 
@@ -751,7 +826,7 @@ wkmp-ap/
 
 **[DEP-DEP-070]** Set `GST_PLUGIN_PATH` environment variable to bundled plugin directory on startup.
 
-### 12a.2. SQLite Bundling
+### 13a.2. SQLite Bundling
 
 **[DEP-DEP-080]** All modules require SQLite:
 - Bundle SQLite library with each module binary
@@ -762,11 +837,11 @@ wkmp-ap/
 - JSON1 extension (for musical flavor vector queries)
 - Enabled by default in bundled SQLite
 
-## 13. HTTP Server Configuration
+## 14. HTTP Server Configuration
 
 **[DEP-HTTP-010]** All microservices implement HTTP servers with consistent configuration behavior. This section applies to all modules: wkmp-ui, wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le.
 
-### 13.1. Port Configuration and Selection
+### 14.1. Port Configuration and Selection
 
 **[DEP-HTTP-020]** Port numbers are managed through a base port list in the settings table plus per-module offsets:
 
@@ -834,7 +909,7 @@ Startup attempt 2 (after restart):
 (No fallback port search needed)
 ```
 
-### 13.2. Duplicate Instance Detection
+### 14.2. Duplicate Instance Detection
 
 **[DEP-HTTP-070]** Health endpoint identity response:
 
@@ -852,7 +927,7 @@ Each module's `GET /health` endpoint includes module identity:
 - If `module` field matches the attempting module's name → duplicate instance detected → exit
 - If no response or different `module` value → port occupied by different service → try next port
 
-### 13.3. Bind Address Configuration
+### 14.3. Bind Address Configuration
 
 **[DEP-HTTP-090]** Each module's bind address is configured in `module_config.host`:
 
@@ -874,7 +949,7 @@ Each module's `GET /health` endpoint includes module identity:
 - User can configure any module to use `0.0.0.0` if needed (advanced use cases)
 - User can configure any module to use `127.0.0.1` if desired (enhanced security)
 
-### 13.4. HTTP Server Timeouts
+### 14.4. HTTP Server Timeouts
 
 **[DEP-HTTP-120]** Request timeout: 30 seconds
 - If request processing exceeds 30 seconds, connection is closed
@@ -885,7 +960,7 @@ Each module's `GET /health` endpoint includes module identity:
 - Idle connections closed after 60 seconds
 - Reduces resource usage for inactive clients
 
-### 13.5. Request Body Limits
+### 14.5. Request Body Limits
 
 **[DEP-HTTP-140]** Maximum request body size: 1 MB (1,048,576 bytes)
 - Applies to all POST/PUT/PATCH requests
@@ -897,7 +972,7 @@ Each module's `GET /health` endpoint includes module identity:
 - Close connection immediately
 - Log warning with client IP and attempted size
 
-### 13.6. CORS Configuration
+### 14.6. CORS Configuration
 
 **[DEP-HTTP-160]** CORS (Cross-Origin Resource Sharing) disabled by default on all modules except wkmp-le.
 
@@ -928,7 +1003,7 @@ Access-Control-Allow-Headers: Content-Type, Authorization
 Access-Control-Max-Age: 86400
 ```
 
-### 13.7. HTTP Server Implementation
+### 14.7. HTTP Server Implementation
 
 **[DEP-HTTP-210]** Server framework: Use async Rust HTTP server (e.g., `axum`, `actix-web`, `warp`)
 
@@ -943,7 +1018,7 @@ Access-Control-Max-Age: 86400
 3. Force-close any remaining connections
 4. Proceed with module shutdown sequence
 
-### 13.8. Settings Table Schema Addition
+### 14.8. Settings Table Schema Addition
 
 **[DEP-HTTP-240]** Add to `settings` table common keys:
 
@@ -959,7 +1034,7 @@ Access-Control-Max-Age: 86400
 - `host`: Bind address (e.g., `127.0.0.1`, `0.0.0.0`)
 - `port`: Actual bound port (updated by module on successful bind)
 
-### 13.9. Example Configurations
+### 14.9. Example Configurations
 
 **[DEP-HTTP-260]** Default configuration (single-host deployment):
 ```sql
@@ -996,9 +1071,9 @@ UPDATE settings SET value = '[8080, 8090, 8100, 8110, 8120]'
   WHERE key = 'http_base_ports';
 ```
 
-## 14. Security Considerations
+## 15. Security Considerations
 
-### 14.1. Network Access Control
+### 15.1. Network Access Control
 
 **[DEP-SEC-010]** Audio Player and Program Director should only bind to `127.0.0.1` (localhost) by default, as they are not designed for direct external access.
 
@@ -1007,7 +1082,7 @@ UPDATE settings SET value = '[8080, 8090, 8100, 8110, 8120]'
 - Authentication (enforced by application)
 - Firewall rules limiting access to trusted networks
 
-### 14.2. Password Protection Over HTTP
+### 15.2. Password Protection Over HTTP
 
 **[DEP-SEC-030]** WKMP implements **challenge-response authentication** to protect passwords when transmitted over insecure HTTP connections.
 
@@ -1021,11 +1096,11 @@ UPDATE settings SET value = '[8080, 8090, 8100, 8110, 8120]'
 
 **[DEP-SEC-031]** Removed.
 
-### 14.3. Removed.
+### 15.3. Removed.
 
 **[DEP-SEC-040]** Removed.
 
-### 14.4. Localhost-Only Deployment
+### 15.4. Localhost-Only Deployment
 
 **[DEP-SEC-050]** For localhost-only deployments (single-user workstations), HTTP is acceptable:
 - All traffic stays on `127.0.0.1` (loopback interface)
@@ -1041,7 +1116,7 @@ UPDATE module_config SET host = '127.0.0.1' WHERE module_name = 'user_interface'
 
 Access via: `http://localhost:5720`
 
-### 14.5. File System Security
+### 15.5. File System Security
 
 **[DEP-SEC-060]** Database file permissions should be restricted to the user account running WKMP modules:
 ```bash
@@ -1054,11 +1129,11 @@ chown wkmp:wkmp ~/.local/share/wkmp/wkmp.db
 chmod 600 ~/.config/wkmp/*.toml
 ```
 
-### 14.6. Additional Security Measures
+### 15.6. Additional Security Measures
 
 **[DEP-SEC-080]** Do not create public-facing deployments, WKMP is a local audio player, distant users have few if any reasons to access it.
 
-## 15. Network Architecture
+## 16. Network Architecture
 
 **[DEP-NET-010]** Typical deployment network diagram:
 

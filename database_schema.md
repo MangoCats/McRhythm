@@ -88,6 +88,7 @@ Stores user account information for both Anonymous and registered users.
 | username | TEXT | NOT NULL UNIQUE | User's chosen username |
 | password_hash | TEXT | NOT NULL | Salted hash of the user's password for authentication (empty string for Anonymous) |
 | password_salt | TEXT | NOT NULL | The random salt used for hashing the password (empty string for Anonymous) |
+| config_interface_access | BOOLEAN | NOT NULL DEFAULT 1 | Whether user has access to configuration interfaces (1 = enabled, 0 = disabled) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
@@ -97,6 +98,16 @@ Stores user account information for both Anonymous and registered users.
   - `username`: `Anonymous`
   - `password_hash`: `''` (empty string - no password)
   - `password_salt`: `''` (empty string - no salt needed)
+  - `config_interface_access`: `1` (enabled by default)
+
+**Configuration Interface Access:**
+- The `config_interface_access` column controls whether a user can view and edit configuration settings via any microservice module's configuration interface
+- **Default**: `1` (enabled) for all users
+- **Anonymous user default**: Enabled (`1`)
+- **New user accounts**: Inherit the Anonymous user's current `config_interface_access` value at account creation time
+- **NULL handling**: If value is NULL when read, it is reset to `1` (enabled) and stored
+- **Rationale**: Accessibility-first design; prevents accidental lockouts; command-line password reset tool provides recovery path
+- See [Architecture - Configuration Interface Access Control](architecture.md) for complete access control specification
 
 **Notes:**
 - All users (anonymous and registered) must have a record in this table

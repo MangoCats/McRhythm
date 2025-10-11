@@ -772,18 +772,40 @@ Enqueue a passage for playback.
   - Example: If root_folder is `/home/user/wkmp` and audio file is at `/home/user/wkmp/music/albums/track.mp3`, use `file_path: "music/albums/track.mp3"`
   - Must match a path in the `files` table (see [database_schema.md - File System Organization](database_schema.md#file-system-organization))
   - Forward slashes (`/`) used as path separator on all platforms
-- `start_time_ms` (optional, default 0): Passage start time in milliseconds
-- `end_time_ms` (optional, default = file duration): Passage end time in milliseconds
-- `lead_in_point_ms` (optional, default 0): Lead-in point relative to start_time_ms
-- `lead_out_point_ms` (optional, default = duration): Lead-out point relative to start_time_ms
-- `fade_in_point_ms` (optional, default 0): Fade-in point relative to start_time_ms
-- `fade_out_point_ms` (optional, default = duration): Fade-out point relative to start_time_ms
-- `fade_in_curve` (optional, default = passage default or global): Fade-in curve type ("linear", "exponential", "cosine")
-- `fade_out_curve` (optional, default = passage default or global): Fade-out curve type ("linear", "logarithmic", "cosine")
-- `passage_guid` (optional): UUID for song identification features
+- `start_time_ms` (optional): Passage start time in milliseconds
+- `end_time_ms` (optional): Passage end time in milliseconds
+- `lead_in_point_ms` (optional): Lead-in point relative to start_time_ms
+- `lead_out_point_ms` (optional): Lead-out point relative to start_time_ms
+- `fade_in_point_ms` (optional): Fade-in point relative to start_time_ms
+- `fade_out_point_ms` (optional): Fade-out point relative to start_time_ms
+- `fade_in_curve` (optional): Fade-in curve type ("linear", "exponential", "cosine")
+- `fade_out_curve` (optional): Fade-out curve type ("linear", "logarithmic", "cosine")
+- `passage_guid` (optional): UUID for song identification features and passage timing defaults
 - `position` (optional): Where to insert in queue
   - `type`: "after", "before", "at_order", or "append" (default)
   - `reference_guid`: Required if type is "after" or "before"
+
+**Timing Parameter Precedence:**
+
+When determining timing values for the enqueued passage, the following precedence order applies:
+
+1. **Explicit timing override fields** (when provided and valid in request): Use these values
+2. **Passage defaults** (when `passage_guid` is provided and timing field is missing/invalid): Read from `passages` table for the specified passage
+3. **System defaults** (when timing field is still missing/invalid after steps 1-2):
+   - `start_time_ms`: 0 (start of audio file)
+   - `end_time_ms`: End of audio file (from file metadata)
+   - `lead_in_point_ms`: Same as `start_time_ms` (zero lead-in duration)
+   - `fade_in_point_ms`: Same as `start_time_ms` (zero fade-in duration)
+   - `fade_in_curve`: "exponential"
+   - `lead_out_point_ms`: Same as `end_time_ms` (zero lead-out duration)
+   - `fade_out_point_ms`: Same as `end_time_ms` (zero fade-out duration)
+   - `fade_out_curve`: "logarithmic"
+
+**Examples:**
+- **No passage_guid, no timing overrides**: All system defaults used
+- **passage_guid only**: All timing from passage definition, system defaults for any NULL passage fields
+- **passage_guid + partial overrides**: Override fields take precedence, passage defaults fill gaps, system defaults for remaining gaps
+- **No passage_guid + partial overrides**: Override fields used, system defaults for missing fields
 
 **Response (201 Created):**
 ```json
@@ -802,6 +824,10 @@ Enqueue a passage for playback.
 - **400 Bad Request**: Timing points are inconsistent or invalid
   ```json
   {"error": "invalid_timing", "message": "end_time_ms must be greater than start_time_ms"}
+  ```
+- **409 Conflict**: Queue is full (at queue_max_size limit)
+  ```json
+  {"error": "queue_full", "current_size": 100, "max_size": 100}
   ```
 - **404 Not Found**: Position reference_guid does not exist in queue
   ```json

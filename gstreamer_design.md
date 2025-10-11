@@ -86,7 +86,35 @@ let filesrc = gst::ElementFactory::make("filesrc")
 - Reads audio file from disk
 - Supports all local file formats
 
-**[GST-ELEM-011]** Alternative for future network streaming: **souphttpsrc** or **uridecodebin**
+**[GST-ELEM-011]** File Path Resolution:
+
+The `file_path` received via API (`POST /playback/enqueue`) is relative to the root folder. It must be resolved to an absolute path for GStreamer.
+
+```rust
+/// Resolve relative file path to absolute path for GStreamer
+fn resolve_file_path(root_folder: &str, file_path: &str) -> String {
+    // Normalize root_folder (remove trailing slash if present)
+    let root = root_folder.trim_end_matches('/');
+
+    // Normalize file_path (remove leading slash if present)
+    let relative = file_path.trim_start_matches('/');
+
+    // Construct full path
+    format!("{}/{}", root, relative)
+}
+```
+
+**Examples:**
+- `root_folder = "/home/user/wkmp"`, `file_path = "music/track.mp3"` → `"/home/user/wkmp/music/track.mp3"`
+- `root_folder = "/home/user/wkmp/"`, `file_path = "music/track.mp3"` → `"/home/user/wkmp/music/track.mp3"`
+- `root_folder = "/home/user/wkmp"`, `file_path = "/music/track.mp3"` → `"/home/user/wkmp/music/track.mp3"`
+
+**Edge Cases Handled:**
+- Trailing slash in root_folder: Stripped
+- Leading slash in file_path: Stripped
+- Result is always absolute path with single separator
+
+**[GST-ELEM-012]** Alternative for future network streaming: **souphttpsrc** or **uridecodebin**
 
 ### 2.2. Decoder Elements
 
@@ -461,15 +489,22 @@ fn pause(&mut self) -> Result<()> {
 **[GST-STATE-080]** When queue is empty and user-facing state is "playing":
 
 - **User-facing state**: `GET /playback/state` returns `"playing"`
-- **Internal GStreamer state**: Pipelines are in `PAUSED` state (no audio available)
-- **Rationale**: User expects immediate playback when passage is enqueued
+- **Internal GStreamer state**: Use whichever GStreamer state most naturally provides:
+  1. Silence (no audio output)
+  2. Smooth, pop-free transition to playing when passage becomes available
+  3. Minimal resource usage
+- **Recommended approach**: NULL state for both pipelines (no resources allocated)
+  - Provides complete silence
+  - Minimal CPU/memory usage
+  - NULL→PAUSED→PLAYING transition is fast and pop-free when passage enqueued
+  - No disadvantage compared to PAUSED state for this use case
 
 **Implementation:**
 ```rust
 fn handle_empty_queue_in_playing_state(&mut self) -> Result<()> {
-    // Set both pipelines to PAUSED (no audio to play)
-    self.pipeline_a.pipeline.set_state(gst::State::Paused)?;
-    self.pipeline_b.pipeline.set_state(gst::State::Paused)?;
+    // Set both pipelines to NULL (no audio to play, minimal resources)
+    self.pipeline_a.pipeline.set_state(gst::State::Null)?;
+    self.pipeline_b.pipeline.set_state(gst::State::Null)?;
 
     // Keep user-facing state as "playing"
     self.user_facing_state = PlaybackState::Playing;
@@ -479,11 +514,13 @@ fn handle_empty_queue_in_playing_state(&mut self) -> Result<()> {
 }
 ```
 
-**[GST-STATE-081]** GStreamer behavior in PAUSED state with no audio:
-- No audio output (silent)
-- No CPU usage for audio processing
-- Pipelines remain ready to transition to PLAYING instantly
-- This is the standard GStreamer pattern for "ready but not playing"
+**[GST-STATE-081]** Alternative: PAUSED state with no audio
+- If NULL state proves problematic, PAUSED is acceptable:
+  - No audio output (silent)
+  - Slightly higher resource usage (pipelines allocated but idle)
+  - PAUSED→PLAYING transition is equally smooth
+  - This is the standard GStreamer pattern for "ready but not playing"
+- **Decision**: Use NULL unless implementation testing reveals issues
 
 **[GST-STATE-082]** When passage is enqueued while in "playing" state with empty queue:
 1. Load passage into Pipeline A (filesrc, decodebin, etc.)
@@ -493,7 +530,7 @@ fn handle_empty_queue_in_playing_state(&mut self) -> Result<()> {
 
 **[GST-STATE-083]** Contrast with "paused" state and empty queue:
 - **User-facing state**: `"paused"`
-- **Internal GStreamer state**: Pipelines in `PAUSED` or `NULL`
+- **Internal GStreamer state**: Pipelines in NULL
 - When passage enqueued: Load but don't play (user must POST /playback/play)
 
 ---
@@ -505,14 +542,36 @@ fn handle_empty_queue_in_playing_state(&mut self) -> Result<()> {
 **[GST-XFADE-010]** Pre-load trigger calculation:
 
 ```rust
-fn calculate_preload_trigger(passage: &Passage) -> ClockTime {
+fn calculate_preload_trigger(
+    passage: &Passage,
+    global_crossfade_time_ms: u64  // From settings.global_crossfade_time (converted from seconds to ms)
+) -> ClockTime {
     // Pre-load when: lead_out_point - 5 seconds
-    let preload_advance = ClockTime::from_seconds(5);
-    let lead_out = passage.lead_out_point_ms.unwrap_or(
-        passage.end_time_ms - passage.global_crossfade_ms
-    );
+    let preload_advance_ms = 5000u64;  // 5 seconds in milliseconds
 
-    ClockTime::from_mseconds(lead_out).saturating_sub(preload_advance)
+    // Determine lead_out_point_ms, with fallback chain:
+    // 1. Use passage-specific lead_out_point if present
+    // 2. Otherwise, calculate from end_time_ms - global_crossfade_time_ms
+    // 3. If end_time_ms is NULL, use file duration (obtained from GStreamer query)
+    let lead_out_ms = if let Some(lead_out) = passage.lead_out_point_ms {
+        lead_out
+    } else {
+        // Calculate default lead_out: end_time - global_crossfade_time
+        let end_time = passage.end_time_ms.unwrap_or_else(|| {
+            // Query file duration from GStreamer pipeline
+            query_file_duration_ms(&passage.file_path)
+        });
+        end_time.saturating_sub(global_crossfade_time_ms)
+    };
+
+    ClockTime::from_mseconds(lead_out_ms).saturating_sub(ClockTime::from_mseconds(preload_advance_ms))
+}
+
+fn query_file_duration_ms(file_path: &str) -> u64 {
+    // Query duration from GStreamer (implementation detail)
+    // Returns duration in milliseconds
+    // This is called only when passage.end_time_ms is NULL
+    unimplemented!("Query file duration via GStreamer")
 }
 ```
 
@@ -603,10 +662,11 @@ fn crossfade_controller(
     duration_ms: u64,
     fade_out_curve: FadeCurve,
     fade_in_curve: FadeCurve,
+    volume_fade_update_period_ms: u64,  // From settings.volume_fade_update_period (default: 10ms)
 ) {
     let start_time = std::time::Instant::now();
     let duration = std::time::Duration::from_millis(duration_ms);
-    let update_interval = std::time::Duration::from_millis(50);  // 50ms updates (20Hz)
+    let update_interval = std::time::Duration::from_millis(volume_fade_update_period_ms);
 
     loop {
         let elapsed = start_time.elapsed();
@@ -630,6 +690,11 @@ fn crossfade_controller(
         std::thread::sleep(update_interval);
     }
 }
+
+// Note: The same volume_fade_update_period setting is used for all volume fade operations:
+// - Crossfade volume automation (fade-out and fade-in)
+// - Resume from pause fade-in
+// Default: 10ms (100 Hz update rate) provides smooth, artifact-free transitions
 ```
 
 **[GST-XFADE-060]** Fade curve implementation:
@@ -744,10 +809,27 @@ fn handle_get_position(&self) -> Result<PositionResponse> {
 ```
 
 **Query frequency recommendations:**
-- **SSE PlaybackProgress events**: Every `playback_progress_interval_ms` (default: 5000ms)
-- **Song boundary detection**: Every 500ms (see [architecture.md - Song Boundary Detection](architecture.md#song-boundary-detection))
-- **Volume fade updates**: Every `volume_fade_update_period` (default: 10ms) - only when crossfading
-- **API GET /playback/position**: On-demand (called by client)
+
+wkmp-ap uses **two separate position query timers** for different purposes:
+
+1. **SSE PlaybackProgress events**: Every `playback_progress_interval_ms` (default: 5000ms)
+   - Timer: 5-second periodic task
+   - Query purpose: Update UI progress bars and position displays
+   - Low frequency acceptable for user-visible progress updates
+
+2. **Song boundary detection**: Every 500ms (see [architecture.md - Song Boundary Detection](architecture.md#song-boundary-detection))
+   - Timer: 500ms periodic task (separate from PlaybackProgress timer)
+   - Query purpose: Detect song start/end events for UI updates (album art, lyrics, song info)
+   - Higher frequency needed for responsive song transitions
+
+3. **Volume fade updates**: Every `volume_fade_update_period` (default: 10ms) - only when crossfading
+   - Timer: Crossfade controller thread only
+   - No position query (uses elapsed time since crossfade start)
+
+4. **API GET /playback/position**: On-demand (called by client)
+   - No timer (synchronous request/response)
+
+**Implementation Note:** The two position query timers (5000ms for progress, 500ms for boundaries) run concurrently. This is intentional and provides optimal balance between smooth UI updates and minimal CPU usage.
 
 ### 6.2. Querying Duration
 

@@ -194,21 +194,59 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 
 **[ARCH-STARTUP-010]** Cold Start Procedure:
 1. Run database integrity check and backup (if wkmp-ui; see ARCH-QUEUE-PERSIST-030)
-2. Read `initial_play_state` from settings (default: "playing")
-3. Set playback state according to setting
-4. Read queue from database (ORDER BY play_order)
-5. Read `last_played_passage_id` and `last_played_position` from settings
-6. Determine action:
+2. Initialize audio device (see ARCH-AUDIO-DEVICE-010 below)
+3. Read `initial_play_state` from settings (default: "playing")
+4. Set playback state according to setting
+5. Read queue from database (ORDER BY play_order)
+6. Read `last_played_passage_id` and `last_played_position` from settings
+7. Determine action:
    - **Queue empty + Playing**: Wait in Playing state (plays immediately when passage enqueued)
      - User-facing state: "playing"
-     - Internal GStreamer state: PAUSED (no audio to play)
+     - Internal GStreamer state: Use whichever GStreamer state most naturally provides silence and smooth pop-free transition to playing when passage becomes available (NULL or PAUSED)
      - See [gstreamer_design.md - Empty Queue Behavior](gstreamer_design.md#44-empty-queue-behavior) for implementation details
    - **Queue empty + Paused**: Wait silently
    - **Queue has passages + Playing**: Begin playback
    - **Queue has passages + Paused**: Load first passage but don't play
-7. Starting position:
+8. Starting position:
    - If `last_played_passage_id` matches first queue entry AND `last_played_position` > 0: Resume from position
    - Otherwise: Start from passage `start_time_ms`
+
+**[ARCH-AUDIO-DEVICE-010]** Audio Device Initialization:
+
+On module startup, wkmp-ap must initialize an audio output device before playback can begin.
+
+1. **Read persisted device setting:**
+   - Query `settings` table for `audio_sink` value
+   - If value is NULL or empty string: Proceed to step 2
+   - If value exists: Proceed to step 3
+
+2. **First-time startup (no persisted device):**
+   - Use system default device (GStreamer `autoaudiosink`)
+   - Query GStreamer to determine which actual device was selected
+   - Write selected device_id to `settings.audio_sink` for future startups
+   - Log: "Audio device initialized: [device_name] (system default)"
+
+3. **Subsequent startup (device persisted):**
+   - Query available audio devices from GStreamer
+   - Check if persisted `audio_sink` device_id exists in available devices list
+   - **If device found**: Use persisted device, log: "Audio device restored: [device_name]"
+   - **If device NOT found** (unplugged USB, disconnected Bluetooth, etc.):
+     - Log warning: "Persisted audio device '[device_id]' not found, falling back to system default"
+     - Use system default device (GStreamer `autoaudiosink`)
+     - Update `settings.audio_sink` to `"default"` to record fallback
+     - Continue startup normally
+
+4. **Device initialization failure:**
+   - If system default device also fails to initialize:
+     - Log error: "Failed to initialize any audio output device"
+     - Set module health status to "unhealthy"
+     - `GET /health` returns `503 Service Unavailable` with `audio_device: "failed"`
+     - Module continues running but playback cannot start
+     - User can attempt to set different device via `POST /audio/device`
+
+5. **Special device_id values:**
+   - `"default"`: Always uses GStreamer `autoaudiosink` (system default selection)
+   - Specific device_id (e.g., `"pulse-sink-1"`): Uses exact GStreamer sink
 
 **[ARCH-STARTUP-020]** Queue Entry Validation:
 - Validated lazily when scheduled for playback
@@ -303,6 +341,99 @@ During playback, wkmp-ap monitors playback position to detect song boundary cros
 - 500ms detection interval provides smooth UI updates without excessive CPU usage
 - First `CurrentSongChanged` emitted immediately on passage start (if passage begins within a song)
 
+**[ARCH-SONG-CHANGE-041]** Song Timeline Data Structure:
+
+The song timeline is stored as a **sorted Vec** in memory:
+
+```rust
+struct SongTimelineEntry {
+    song_id: Option<Uuid>,      // None for gaps between songs
+    start_time_ms: u64,          // Start time within passage
+    end_time_ms: u64,            // End time within passage
+    albums: Vec<Uuid>,           // Album IDs for this song (empty for gaps)
+}
+
+struct SongTimeline {
+    entries: Vec<SongTimelineEntry>,  // Sorted by start_time_ms ascending
+    current_index: usize,              // Index of currently playing entry (cache)
+}
+```
+
+**[ARCH-SONG-CHANGE-042]** Efficient Boundary Detection Algorithm:
+
+```rust
+fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentSongChanged> {
+    let timeline = &mut self.song_timeline;
+    let current_entry = &timeline.entries[timeline.current_index];
+
+    // Fast path: Position still within current entry's time range
+    if current_position_ms >= current_entry.start_time_ms
+       && current_position_ms < current_entry.end_time_ms {
+        return None;  // No boundary crossed, no signal to emit
+    }
+
+    // Boundary crossed: Find new current entry
+    // Typical passages have 1-10 songs, up to 100 in rare cases
+    // Linear search is acceptable for these sizes
+    for (index, entry) in timeline.entries.iter().enumerate() {
+        if current_position_ms >= entry.start_time_ms
+           && current_position_ms < entry.end_time_ms {
+            // Found new current entry
+            timeline.current_index = index;
+
+            return Some(CurrentSongChanged {
+                passage_id: self.current_passage_id,
+                song_id: entry.song_id,
+                song_albums: entry.albums.clone(),
+                position_ms: current_position_ms,
+                timestamp: SystemTime::now(),
+            });
+        }
+    }
+
+    // Position is in a gap (between songs or after last song)
+    // Emit CurrentSongChanged with song_id=None
+    Some(CurrentSongChanged {
+        passage_id: self.current_passage_id,
+        song_id: None,
+        song_albums: vec![],
+        position_ms: current_position_ms,
+        timestamp: SystemTime::now(),
+    })
+}
+```
+
+**[ARCH-SONG-CHANGE-043]** Gap Handling:
+
+- **Gaps between songs**: When `current_position_ms` is not within any song's time range
+  - Emit `CurrentSongChanged` with `song_id = None` and empty `song_albums`
+  - Song-end signal happens when leaving the previous song
+  - Next song-start signal happens when entering the next song
+  - Gaps are normal and expected (not errors)
+
+**[ARCH-SONG-CHANGE-044]** Songs Cannot Overlap Within Passage:
+
+- The `passage_songs` table enforces non-overlapping songs within a single passage
+- Database constraint: No two songs in the same passage may have overlapping time ranges
+- This simplifies boundary detection (no ambiguity about which song is "current")
+
+**[ARCH-SONG-CHANGE-045]** Crossfade Song Boundary Behavior:
+
+During passage crossfade (when both Pipeline A and B are playing simultaneously):
+
+- **Song-start of following passage may occur before song-end of ending passage**
+- Example timeline:
+  ```
+  Time:     0s ─────── 3s ─────── 5s ─────── 8s
+  Pipeline A: [Song X playing────────X ends]
+  Pipeline B:           [Song Y──starts──────playing]
+  Events:               ↑                    ↑
+                   Song Y Start          Song X End
+  ```
+- **Signal receivers must handle this ordering**: Song-start before previous song-end
+- This is expected behavior, not an error condition
+- UI should update album art and song info immediately on Song-start, even if previous song hasn't signaled end yet
+
 **[ARCH-SONG-CHANGE-050]** Edge Cases:
 
 - **Passage with no songs:** Emit `CurrentSongChanged` with `song_id=None` on passage start
@@ -389,6 +520,60 @@ During playback, wkmp-ap monitors playback position to detect song boundary cros
 - **Most users interact here**: Primary interface for controlling WKMP
 - **Orchestration layer**: Coordinates between Audio Player and Program Director
 - **Database access**: Direct SQLite access for user data, likes/dislikes, library browsing
+
+---
+
+### Configuration Interface Access Control
+
+**[ARCH-CONFIG-ACCESS-010]** Each microservice module (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le) SHALL provide an access-restricted configuration interface page that enables authorized users to both view and edit configuration settings that affect the module.
+
+**Access Control Rules:**
+
+1. **Per-User Configuration**: Configuration interface access is individually configurable per user via the `users.config_interface_access` database column (BOOLEAN).
+
+2. **Not Per-Module**: Configuration interface access applies uniformly to ALL microservice modules. There is no per-module access control (e.g., cannot grant access to wkmp-ui config but deny access to wkmp-ap config).
+
+3. **UI Behavior When Access Denied**:
+   - When the current user does NOT have configuration interface access (config_interface_access = 0):
+     - All indications that configuration interfaces exist are removed from the UI of every microservice module
+     - Configuration links, buttons, menu items, and pages are hidden
+     - Direct navigation to configuration URLs returns 403 Forbidden
+   - When the current user DOES have configuration interface access (config_interface_access = 1):
+     - Configuration interfaces are visible and functional in all modules
+
+4. **Default Access**:
+   - **Anonymous user**: config_interface_access = 1 (enabled by default)
+   - **New user accounts**: Inherit the Anonymous user's current config_interface_access value at account creation time
+   - **NULL handling**: If config_interface_access is NULL when read, reset to 1 (enabled) and store
+
+5. **Managing Access**:
+   - Users with configuration interface access MAY enable or disable configuration interface access for any user, including:
+     - Anonymous user
+     - Other registered users
+     - Themselves (WARNING: Self-lockout requires command-line password reset tool recovery)
+
+6. **Command-Line Password Reset Tool**:
+   - The password reset tool SHALL include an option to set config_interface_access = 1 (enabled) for the target user at the same time as password is reset
+   - If this option is NOT selected, the user's config_interface_access remains unchanged
+   - The tool MAY re-enable config_interface_access for the Anonymous user
+   - The tool MUST NOT set a password for the Anonymous user (password_hash and password_salt remain empty strings)
+
+**Rationale:**
+
+Configuration interface access restriction is provided to prevent inexperienced or unknowledgeable users from accidentally misconfiguring settings. It is NOT intended to "secure" the system from malicious users. The design operates on the principle of **accessibility first**:
+
+- Default-enabled for all users (including Anonymous)
+- Simple recovery path via command-line tool
+- No complicated logic to prevent self-lockout scenarios
+- Single point of recovery for both lost passwords and configuration access lockout
+
+**Implementation Notes:**
+
+- Configuration interface access check occurs at HTTP request time (middleware or route handler)
+- Session must include user's config_interface_access flag for efficient checking
+- UI templates/components conditionally render configuration elements based on session flag
+- See [Database Schema - users table](database_schema.md#users) for column definition
+- See [Deployment - Password Reset Tool](deployment.md) for command-line tool specification
 
 ---
 
@@ -714,8 +899,31 @@ Audio Ingest (Full only)
   - **Logging**: All launch attempts, failures, and user retry actions logged
 - **All modules self-initialize**: Each module creates its required database tables on first startup (no central database initialization)
 
+**Root Folder Location Resolution:**
+
+**[ARCH-INIT-005]** On module startup, the root folder path is determined using the following priority order:
+
+1. **Command-line argument** (highest priority): `--root-folder <path>` or `--root <path>`
+   - When present, this value is used as the root folder location
+   - Overrides all other sources
+2. **Environment variable** (second priority): `WKMP_ROOT_FOLDER` or `WKMP_ROOT`
+   - When present and command-line argument is absent, this value is used
+   - Enables deployment-specific configuration without code changes
+3. **TOML config file** (third priority): `root_folder` key in config file
+   - Default config file locations:
+     - Linux: `~/.config/wkmp/config.toml` or `/etc/wkmp/config.toml`
+     - macOS: `~/Library/Application Support/wkmp/config.toml`
+     - Windows: `%APPDATA%\wkmp\config.toml`
+   - When present and higher-priority sources are absent, this value is used
+4. **OS-dependent compiled default** (lowest priority, fallback):
+   - Linux: `~/.local/share/wkmp` (or `/var/lib/wkmp` for system-wide installation)
+   - macOS: `~/Library/Application Support/wkmp`
+   - Windows: `%LOCALAPPDATA%\wkmp`
+   - Used when no other source provides a value
+   - Ensures module can always start with a valid root folder path
+
 **Module Startup Sequence:**
-1. Module reads root folder path from config file or environment variable
+1. Module determines root folder path using resolution priority order above
 2. Module opens database file (`wkmp.db`) in root folder
 3. Module initializes its required database tables using shared initialization functions from `wkmp-common`:
    - Commonly used tables: `module_config`, `settings`, `users` (via shared functions in `wkmp-common/src/db/init.rs`)
@@ -730,6 +938,52 @@ Audio Ingest (Full only)
 6. Module binds to configured address/port
 7. Module retrieves other modules' configurations for HTTP client setup (if needed for making requests to peer modules)
 8. Module begins accepting connections and making requests to peer modules
+
+**Default Value Initialization Behavior:**
+
+**[ARCH-INIT-020]** When the application reads a configuration value from the database, it SHALL handle missing, NULL, or nonexistent values according to the following rules:
+
+1. **Database Does Not Exist**:
+   - Module creates database file and all required tables
+   - All settings are initialized with built-in default values
+   - Defaults are written to the database immediately
+
+2. **Settings Table Missing**:
+   - Module creates `settings` table
+   - All settings are initialized with built-in default values
+   - Defaults are written to the database immediately
+
+3. **Setting Key Does Not Exist**:
+   - Module inserts the setting key with built-in default value
+   - Default is written to the database immediately
+   - Logged as INFO: "Initialized setting 'key_name' with default value: X"
+
+4. **Setting Value is NULL**:
+   - Module treats NULL as missing value
+   - Module replaces NULL with built-in default value
+   - Default is written to the database immediately (UPDATE operation)
+   - Logged as WARNING: "Setting 'key_name' was NULL, reset to default: X"
+
+5. **Built-in Default Values**:
+   - All default values are defined in application code, NOT in TOML config files
+   - Defaults are version-controlled with the application source code
+   - See [Database Schema - settings table](database_schema.md#settings) for complete list of settings and their defaults
+
+**Rationale:**
+
+- **Database is source of truth**: All runtime configuration lives in database, never in TOML files
+- **TOML only for bootstrap**: TOML files provide only root folder path, logging config, and static asset paths
+- **Self-healing**: NULL values are automatically corrected on read
+- **Predictable behavior**: Missing values always get the same built-in defaults
+- **Migration-friendly**: Schema changes can add new settings with proper defaults
+- **No TOML/database conflicts**: TOML never contains runtime settings, eliminating precedence questions
+
+**Example Default Values** (see database_schema.md for authoritative list):
+- `volume_level`: 0.5 (50%)
+- `global_crossfade_time`: 2.0 seconds
+- `queue_max_size`: 100 passages
+- `session_timeout_seconds`: 31536000 (1 year)
+- `config_interface_access` (users table): 1 (enabled)
 
 **Module Launch Responsibilities:**
 - **User Interface (wkmp-ui)**:
@@ -945,10 +1199,10 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 - Responsive design framework (TailwindCSS or similar)
 
 **Configuration:**
-- TOML configuration files for module-specific settings (root folder path, logging, etc.)
-- SQLite `module_config` table for network configuration (host/port discovery)
+- **Database first**: ALL runtime settings stored in database (`settings` and `module_config` tables)
+- **TOML files**: Bootstrap configuration ONLY (root folder path, logging, static asset paths)
+- **Default value initialization**: When database settings are missing/NULL, application initializes with built-in defaults and writes to database
 - Database and all files contained in root folder tree for portability
-- Environment variables for deployment settings
 
 **Build System:**
 - Cargo workspaces for multi-module project (see [Project Structure](project_structure.md))
