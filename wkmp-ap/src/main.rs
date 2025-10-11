@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod api;
 mod config;
 mod playback;
 mod server;

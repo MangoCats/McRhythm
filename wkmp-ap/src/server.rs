@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::api::{EnqueueRequest, EnqueueResponse};
 use crate::playback::PlaybackEngine;
 
 /// Application state
@@ -44,6 +45,7 @@ pub async fn start(
         .route("/playback/play", post(play))
         .route("/playback/pause", post(pause))
         .route("/playback/skip", post(skip))
+        .route("/playback/enqueue", post(enqueue))
         .route("/queue", get(get_queue))
         .with_state(state);
 
@@ -121,4 +123,51 @@ async fn get_queue(State(state): State<Arc<AppState>>) -> Json<serde_json::Value
         "entries": queue,
         "count": queue.len(),
     }))
+}
+
+/// Enqueue endpoint
+async fn enqueue(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<EnqueueRequest>,
+) -> Result<Json<EnqueueResponse>, StatusCode> {
+    let engine = state.engine.read().await;
+    let queue_manager = engine.queue();
+
+    // Resolve timing parameters using precedence rules
+    let timing = queue_manager
+        .resolve_timing(
+            &req.file_path,
+            req.passage_guid.as_deref(),
+            req.start_time_ms,
+            req.end_time_ms,
+            req.lead_in_point_ms,
+            req.lead_out_point_ms,
+            req.fade_in_point_ms,
+            req.fade_out_point_ms,
+            req.fade_in_curve.as_deref(),
+            req.fade_out_curve.as_deref(),
+        )
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // Enqueue with resolved timing
+    let guid = queue_manager
+        .enqueue(
+            req.file_path,
+            req.passage_guid,
+            Some(timing.start_time_ms),
+            Some(timing.end_time_ms),
+            Some(timing.lead_in_point_ms),
+            Some(timing.lead_out_point_ms),
+            Some(timing.fade_in_point_ms),
+            Some(timing.fade_out_point_ms),
+            Some(timing.fade_in_curve),
+            Some(timing.fade_out_curve),
+        )
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let position = queue_manager.size().await;
+
+    Ok(Json(EnqueueResponse { guid, position }))
 }
