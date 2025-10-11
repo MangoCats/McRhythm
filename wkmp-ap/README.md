@@ -45,7 +45,72 @@ cargo build --package wkmp-ap
 ## API Endpoints
 
 - `GET /health` - Health check (returns 200 OK)
-- `GET /status` - Service status and version info
+- `GET /status` - Service status, version, playback state, queue size
+- `GET /playback/state` - Current playback state (position, duration, passage ID)
+- `POST /playback/play` - Start or resume playback
+- `POST /playback/pause` - Pause playback
+- `POST /playback/skip` - Skip to next track in queue
+- `POST /playback/enqueue` - Add file to playback queue
+- `GET /queue` - Get all queue entries
+
+## Usage Examples
+
+### Enqueue a file
+
+**IMPORTANT:** File paths must be:
+- Relative to the root folder (no leading `/`)
+- Use forward slashes on all platforms
+
+```bash
+# Correct: relative path
+curl -X POST http://localhost:5721/playback/enqueue \
+  -H "Content-Type: application/json" \
+  -d '{"file_path": "music/song.mp3"}'
+
+# Wrong: absolute path (will fail)
+curl -X POST http://localhost:5721/playback/enqueue \
+  -H "Content-Type: application/json" \
+  -d '{"file_path": "/music/song.mp3"}'
+```
+
+### Start playback
+
+```bash
+curl -X POST http://localhost:5721/playback/play
+```
+
+### Check current state
+
+```bash
+curl http://localhost:5721/playback/state | jq .
+```
+
+### Complete workflow
+
+```bash
+# 1. Start server with custom root folder
+./target/debug/wkmp-ap --root-folder /path/to/music --port 5999
+
+# 2. Enqueue files
+curl -X POST http://localhost:5999/playback/enqueue \
+  -H "Content-Type: application/json" \
+  -d '{"file_path": "albums/artist/track01.mp3"}'
+
+curl -X POST http://localhost:5999/playback/enqueue \
+  -H "Content-Type: application/json" \
+  -d '{"file_path": "albums/artist/track02.mp3"}'
+
+# 3. Start playback
+curl -X POST http://localhost:5999/playback/play
+
+# 4. Check queue
+curl http://localhost:5999/queue | jq .
+
+# 5. Control playback
+curl -X POST http://localhost:5999/playback/pause
+curl -X POST http://localhost:5999/playback/play
+curl -X POST http://localhost:5999/playback/skip
+```
 
 ## Configuration
 
