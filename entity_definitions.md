@@ -34,6 +34,7 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
   - Passage metadata may optionally include:
     - A title for the passage
     - References to one or more images associated with the passage
+- **[ENT-MCR-035]** Audio file as Passage: A passage which only identifies an audio file, with start, end, fade, lead and other metadata undefined, shall be handled as a passage which starts at the beginning of the file, ends at the end of the file, and has zero duration lead-in, lead-out, fade-in and fade-out times.
 
 ## Entity Relationships
 

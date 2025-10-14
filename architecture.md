@@ -2,7 +2,7 @@
 
 **🏗️ TIER 2 - DESIGN SPECIFICATION**
 
-Defines HOW the system is structured. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines HOW the system is structured. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md), and [Requirements Enumeration](requirements_enumeration.md).
 
 > **Related Documentation:** [Database Schema](database_schema.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md)| [Event System](event_system.md)
 
@@ -20,9 +20,9 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 
 - **Audio Player** - Core playback engine with queue management
 - **User Interface** - Polished web UI for end users
-- **Lyric Editor** - Standalone lyric editing tool (launched on-demand)
-- **Program Director** - Automatic passage selection
-- **Audio Ingest** - New file import workflow (Full version only)
+- **Lyric Editor** - Standalone lyric editing tool (launched on-demand, Full version only)
+- **Program Director** - Automatic passage selection (Full and Lite versions only)
+- **Audio File Ingest** - New file import workflow (launched on-demand, Full version only)
 
 **Design Benefits:**
 - **Simplifies maintenance**: Each module focuses on a single concern
@@ -46,10 +46,10 @@ WKMP consists of up to 5 independent processes (depending on version), each with
     │       │        │                        │               │
     ▼       ▼        ▼                        ▼               ▼
 ┌───────┐ ┌────────────────┐  ┌──────────────────────────────┐ ┌─────────────┐
-│Audio  │ │  Audio Player  │  │  Program Director            │ │Lyric Editor │
-│Ingest │ │  Port: 5721    │  │  Port: 5722                  │ │  Port: 5724 │
-│  UI   │ │                │◄─┤                              │ │             │
-│       │ │  - Minimal     │  │  - Minimal dev UI            │ │  - Split UI │
+│ Audio │ │  Audio Player  │  │  Program Director            │ │Lyric Editor │
+│ File  │ │  Port: 5721    │  │  Port: 5722                  │ │  Port: 5724 │
+│Ingest │ │                │◄─┤ (Full and Lite only)         │ │ (Full only) │
+│  UI   │ │  - Minimal     │  │  - Minimal dev UI            │ │  - Split UI │
 │(Full  │ │    dev UI      │  │  - Selection API (for UI)    │ │  - Editor + │
 │ only) │ │  - Control API │  │  - Reads Audio Player status │ │    Browser  │
 │       │ │  - Status API  │  │  - Enqueues via Audio Player │ │  - On-demand│
@@ -66,11 +66,11 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 
 ### Version-Specific Process Configuration
 
-| Version  | Audio Player | User Interface | Lyric Editor | Program Director | Audio Ingest |
-|----------|--------------|----------------|--------------|------------------|--------------|
-| **Full**     | ✅ Running | ✅ Running (Full-featured) | ✅ On-demand | ✅ Running | ✅ Running |
-| **Lite**     | ✅ Running | ✅ Running (De-featured)   | ❌ Not included | ✅ Running | ❌ Not included |
-| **Minimal**  | ✅ Running | ✅ Running (De-featured)   | ❌ Not included | ❌ Not included | ❌ Not included |
+| Version  | Audio Player | User Interface | Program Director | Audio Ingest | Lyric Editor |
+|----------|--------------|----------------|------------------|--------------|--------------|
+| **Full**     | ✅ Running | ✅ Running | ✅ Running | ✅ On-demand<br/><small><small>(invoked only during<br/>ingest sessions)</small></small>| ✅ On-demand<br/><small><small>(invoked only during<br/>lyric editing)</small></small> |
+| **Lite**     | ✅ Running | ✅ Running | ✅ Running | ❌ Not included | ❌ Not included |
+| **Minimal**  | ✅ Running | ✅ Running | ❌ Not included | ❌ Not included | ❌ Not included |
 
 ## Module Specifications
 
@@ -90,7 +90,7 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 
 **HTTP Control API:**
 - `POST /audio/device` - Set audio output device
-- `POST /audio/volume` - Set volume level (0-100)
+- `POST /audio/volume` - Set volume level (0.0-1.0)
 - `POST /playback/enqueue` - Enqueue a passage
 - `DELETE /playback/queue/{passage_id}` - Remove passage from queue
 - `POST /playback/play` - Resume playback
@@ -107,15 +107,25 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 - `VolumeChanged` - Volume level updated
 - `QueueChanged` - Queue modified (add/remove/reorder)
 - `PlaybackStateChanged` - Playing/Paused state changed
-- `PlaybackProgress` - Position updates (every 500ms)
+- `PlaybackProgress` - Position updates (every 5000ms)
 - `PassageStarted` - New passage began playing
 - `PassageCompleted` - Passage finished
 - `CurrentSongChanged` - Within-passage song boundary crossed
 
 **Developer UI** (Minimal HTML/JavaScript served via HTTP):
 - Module status display
+  - queue contents
+  - playing/paused state
+  - playback position in passage (elapsed/total)
+  - volume level
+  - audio output device
 - Direct API testing interface
+  - set audio device
+  - set volume level
+  - enqueue an audio file
+  - remove passage from queue
 - Event stream monitor
+  (Configuration settings editor available only to authorized users.)
 
 **State:**
 - Currently playing passage (position, duration, state)
@@ -126,27 +136,32 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 - Initial state on app launch: Determined by `initial_play_state` setting (default: "playing")
 
 **Key Design Notes:**
-- **Operates independently**: Does not require User Interface to be running
+- **Operates independently**: Does not require User Interface or Program Director to be running
+  - Any application capable of communicating to the Control API can enqueue passages and control
+    playback state, volume, output device, etc.  wkmp-ap otherwise plays these enqueued passages
+    independently without need for communication from any other module.
 - **Receives commands from**: User Interface, Program Director
+  - wkmp-ap has no knowledge of user identity, the API is open (implicitly insecure) and accepts
+    any valid control messages.
 - **Database access**: Direct SQLite access for queue persistence, passage metadata
 
 ### Queue and State Persistence
 
-**[ARCH-QUEUE-PERSIST-010]** Queue Persistence Strategy:
+**[ARCH-QP-010]** Queue Persistence Strategy:
 - Queue contents written to SQLite immediately on every queue modification (enqueue/dequeue/reorder)
 - Each queue entry stored with passage reference and timing specifications
 - Queue changes are synchronous writes (blocking until persisted)
 - Single database design (queue stored with library data)
 
-**[ARCH-QUEUE-PERSIST-020]** Playback Position Persistence:
+**[ARCH-QP-020]** Playback Position Persistence:
 - Playback position transmitted via SSE at configurable interval (setting: `playback_progress_interval_ms`, default 5000ms)
 - Also transmitted once when Pause initiated, once when Play initiated
-- Playback position persisted **only on clean shutdown**
+- Playback position persisted **on clean shutdown and when Pause or Play initiated**
 - On any queue change, `last_played_position` automatically reset to 0 in settings
-- On startup: if `last_played_position` > 0, resume from that position; otherwise start from beginning
+- On startup: if `last_played_position` > 0, resume first passage in the queue from that position; otherwise start the first passage in the queue from its start point
 - No special crash detection needed - queue change reset handles both crash and normal operation
 
-**[ARCH-QUEUE-PERSIST-030]** Database Backup Strategy (wkmp-ui responsibility):
+**[ARCH-BM-010]** Database Backup Strategy (wkmp-ui responsibility):
 
 **On Startup:**
 1. Run `PRAGMA integrity_check` on wkmp.db
@@ -187,14 +202,14 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 
 ### Initial Play State
 
-**[ARCH-STARTUP-005]** Initial Play State Configuration:
+**[ARCH-STRT-005]** Initial Play State Configuration:
 - Setting: `initial_play_state` (string: "playing" or "paused", default: "playing")
 - Determines playback state on app launch
 - Current playback state is never persisted across restarts
 
-**[ARCH-STARTUP-010]** Cold Start Procedure:
-1. Run database integrity check and backup (if wkmp-ui; see ARCH-QUEUE-PERSIST-030)
-2. Initialize audio device (see ARCH-AUDIO-DEVICE-010 below)
+**[ARCH-STRT-010]** Cold Start Procedure:
+1. Run database integrity check and backup (if wkmp-ui; see ARCH-QP-030)
+2. Initialize audio device (see ARCH-AUDV-010 below)
 3. Read `initial_play_state` from settings (default: "playing")
 4. Set playback state according to setting
 5. Read queue from database (ORDER BY play_order)
@@ -211,7 +226,7 @@ WKMP consists of up to 5 independent processes (depending on version), each with
    - If `last_played_passage_id` matches first queue entry AND `last_played_position` > 0: Resume from position
    - Otherwise: Start from passage `start_time_ms`
 
-**[ARCH-AUDIO-DEVICE-010]** Audio Device Initialization:
+**[ARCH-AUDV-010]** Audio Device Initialization:
 
 On module startup, wkmp-ap must initialize an audio output device before playback can begin.
 
@@ -248,7 +263,7 @@ On module startup, wkmp-ap must initialize an audio output device before playbac
    - `"default"`: Always uses GStreamer `autoaudiosink` (system default selection)
    - Specific device_id (e.g., `"pulse-sink-1"`): Uses exact GStreamer sink
 
-**[ARCH-STARTUP-020]** Queue Entry Validation:
+**[ARCH-STRT-020]** Queue Entry Validation:
 - Validated lazily when scheduled for playback
 - If file missing when playback attempted:
   1. Log error with passage ID and file path
@@ -257,50 +272,55 @@ On module startup, wkmp-ap must initialize an audio output device before playbac
   4. Advance to next passage
   5. Continue if in Playing state
 
-**[ARCH-STARTUP-025]** Queue Lifecycle:
+**[ARCH-STRT-025]** Queue Lifecycle:
 - Queue is forward-looking only (passages waiting to play)
 - Currently playing passage tracked via `currently_playing_passage_id` setting
 - Completed passages removed from queue immediately (FIFO)
 - Play history stored separately in `song_play_history` table (single table for all songs)
 
-**[ARCH-QUEUE-ORDER-010]** Play Order Management:
-- New passages appended with `play_order = last_play_order + 10`
-- Gaps enable insertion without renumbering (e.g., insert at 25 between 20 and 30)
-- When inserting and no gap available (e.g., 20, 21), renumber tail: `UPDATE queue SET play_order = play_order + 10 WHERE play_order >= 20`
+**[ARCH-QM-010]** Play Order Management:
+- New passages appended with `play_order = last_play_order + 64`
+- Gaps enable insertion without renumbering (e.g., insert at 96 between 64 and 128)
+- When inserting and no gap available (e.g., 128, 129), renumber tail: `UPDATE queue SET play_order = play_order + 8 WHERE play_order >= 128`
 - Typical queue depth: 5-10 passages (graceful degradation up to 1000+, but performance not priority concern beyond that)
 
 **Play Order Overflow Protection:**
 - `play_order` stored as signed 32-bit integer (max: 2,147,483,647)
-- At typical usage (3 min/passage, +10 increment): 1,225 years until overflow
-- If `play_order` exceeds 2,000,000,000: Trigger automatic renumbering
-  - Renumber entire queue starting from 10 (10, 20, 30...)
+- At typical usage (3 min/passage, +64 increment): 191 years until overflow
+- If `play_order` exceeds 2,100,000,000: Trigger automatic renumbering
+  - Renumber entire queue starting from 64 (64, 128, 192...)
   - Happens transparently during enqueue operation
   - Extremely rare (abuse/hack scenario only)
 
 ### Song Boundary Detection (CurrentSongChanged Event)
 
-**[ARCH-SONG-CHANGE-010]** Passage vs Song Relationship:
+**[ARCH-SNGC-010]** Passage vs Song Relationship:
 
-A **passage** is a continuous subset of an audio file played from its `start_time_ms` to `end_time_ms`. A passage plays continuously without any transitions except at its start and end points.
+A **passage** is a continuous subset of an audio file played from its `start_time_ms` to `end_time_ms`.
 
 Key characteristics:
 - Passages are continuous playback regions within audio files
 - Multiple passages can be defined within a single audio file
 - Passages may overlap or have gaps between them
-- The same audio region can play in both lead-out of one passage and lead-in of next passage
+- The same region of an audio file can play in both lead-out of one passage and lead-in of next passage
 - Each passage contains zero or more **songs** (defined in `passage_songs` table)
+- Songs never overlap other songs within a passage, but they may have gaps
+- an audio file with no passage_id and no defined lead or fade timing information is, by default, an 
+  unidentified passage that plays from the start of the audio file through to the end with zero fade-in, 
+  fade-out, lead-in and lead-out durations.
+- when no passage_id is provided with an audio file for playback, no song_id can be determined, only the audio_file_path
 
-**[ARCH-SONG-CHANGE-020]** Song Timeline Construction:
+**[ARCH-SNGC-020]** Song Timeline Construction:
 
 The `passage_songs` table (also called a "cut list" in music production) defines which songs exist within each passage and their time boundaries.
 
 When a passage starts playing:
 1. Query `passage_songs` table for current passage: `SELECT * FROM passage_songs WHERE passage_id = ? ORDER BY start_time`
-2. Build song timeline in memory: List of `{song_id, start_time_ms, end_time_ms, albums[]}`
+2. Build song timeline in memory: List of `{song_id, start_time_ms, end_time_ms}`
 3. Store timeline for duration of passage playback
 4. Timeline remains valid until passage completes (passages play continuously, timeline doesn't change)
 
-**[ARCH-SONG-CHANGE-030]** CurrentSongChanged Emission:
+**[ARCH-SNGC-030]** CurrentSongChanged Emission:
 
 During playback, wkmp-ap monitors playback position to detect song boundary crossings:
 
@@ -310,21 +330,31 @@ During playback, wkmp-ap monitors playback position to detect song boundary cros
 
 2. **Boundary detection:**
    - Compare `current_position_ms` to each song's `[start_time_ms, end_time_ms]` range
-   - Determine if position crossed into different song since last check
+   - Determine if position crossed into different song or gap since last check
 
 3. **Event emission:** Emit `CurrentSongChanged` when:
+   - Passage starts, in a song or gap
    - Position crosses from one song to another
    - Position crosses from song to gap (no song at current position)
    - Position crosses from gap to song
+   - Passage ends, in a song or gap
+   
+3.1 **Event emission, no passage_id:** Emit `CurrentSongChanged` when:
+   - Passage starts, song_id and passage_id are None, audio_file_path contains path and filename of file to play
+   - Passage ends, song_id, passage_id and audio_file_path are None
+   
+Do not emit `CurrentSongChanged` when passage starts or ends in a gap.
+
 
 4. **Event payload:**
    ```rust
    CurrentSongChanged {
-       passage_id: PassageId,           // Current passage UUID
-       song_id: Option<SongId>,         // Current song UUID, or None if in gap
-       song_albums: Vec<AlbumId>,       // All albums for current song (empty if None)
-       position_ms: u64,                // Current position in passage (milliseconds)
-       timestamp: SystemTime,           // When boundary was crossed
+       song_id: Option<SongId>,          // Current song UUID, or None if in gap or song is unknown
+       passage_id: Option<PassageId>,    // Current passage UUID, or None if passage UUID is unknown
+       audio_file_path: Option<PathBuf>, // Current audio file's path, None at the end of passage event 
+       pipeline_id: PipelineId,          // Pipeline playing this passage (A or B)
+       position_ms: u64,                 // Current position in passage (milliseconds)
+       timestamp: SystemTime,            // When boundary was crossed
    }
    ```
 
@@ -333,24 +363,24 @@ During playback, wkmp-ap monitors playback position to detect song boundary cros
    - Gaps between songs are normal (not errors)
    - UI should handle `None` gracefully (e.g., clear "now playing" song info, show passage info instead)
 
-**[ARCH-SONG-CHANGE-040]** Implementation Notes:
+**[ARCH-SNGC-040]** Implementation Notes:
 
 - Song timeline built **only once** per passage (on `PassageStarted`)
 - No periodic re-reading of `passage_songs` table during playback
 - Boundary checks use simple time range comparisons (no complex state machine)
 - 500ms detection interval provides smooth UI updates without excessive CPU usage
-- First `CurrentSongChanged` emitted immediately on passage start (if passage begins within a song)
+  - note: detection only triggers SSE emission when transition is detected.
+- First `CurrentSongChanged` emitted immediately on passage start (if passage begins within a song and not a gap)
 
-**[ARCH-SONG-CHANGE-041]** Song Timeline Data Structure:
+**[ARCH-SNGC-041]** Song Timeline Data Structure:
 
 The song timeline is stored as a **sorted Vec** in memory:
 
 ```rust
 struct SongTimelineEntry {
-    song_id: Option<Uuid>,      // None for gaps between songs
+    song_id: Option<Uuid>,       // None for gaps between songs
     start_time_ms: u64,          // Start time within passage
     end_time_ms: u64,            // End time within passage
-    albums: Vec<Uuid>,           // Album IDs for this song (empty for gaps)
 }
 
 struct SongTimeline {
@@ -359,7 +389,7 @@ struct SongTimeline {
 }
 ```
 
-**[ARCH-SONG-CHANGE-042]** Efficient Boundary Detection Algorithm:
+**[ARCH-SNGC-042]** Efficient Boundary Detection Algorithm:
 
 ```rust
 fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentSongChanged> {
@@ -382,9 +412,10 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
             timeline.current_index = index;
 
             return Some(CurrentSongChanged {
-                passage_id: self.current_passage_id,
                 song_id: entry.song_id,
-                song_albums: entry.albums.clone(),
+                passage_id: self.current_passage_id,
+                audio_file_path: self.audio_file_path,
+                pipeline_id: self.pipeline_id,
                 position_ms: current_position_ms,
                 timestamp: SystemTime::now(),
             });
@@ -394,67 +425,44 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
     // Position is in a gap (between songs or after last song)
     // Emit CurrentSongChanged with song_id=None
     Some(CurrentSongChanged {
-        passage_id: self.current_passage_id,
         song_id: None,
-        song_albums: vec![],
+        passage_id: self.current_passage_id,
+        audio_file_path: if after_last_song { None } else { self.audio_file_path },
+        pipeline_id: self.pipeline_id,
         position_ms: current_position_ms,
         timestamp: SystemTime::now(),
     })
 }
 ```
 
-**[ARCH-SONG-CHANGE-043]** Gap Handling:
-
-- **Gaps between songs**: When `current_position_ms` is not within any song's time range
-  - Emit `CurrentSongChanged` with `song_id = None` and empty `song_albums`
-  - Song-end signal happens when leaving the previous song
-  - Next song-start signal happens when entering the next song
-  - Gaps are normal and expected (not errors)
-
-**[ARCH-SONG-CHANGE-044]** Songs Cannot Overlap Within Passage:
+**[ARCH-SNGC-044]** Songs Cannot Overlap Within Passage:
 
 - The `passage_songs` table enforces non-overlapping songs within a single passage
 - Database constraint: No two songs in the same passage may have overlapping time ranges
 - This simplifies boundary detection (no ambiguity about which song is "current")
 
-**[ARCH-SONG-CHANGE-045]** Crossfade Song Boundary Behavior:
-
-During passage crossfade (when both Pipeline A and B are playing simultaneously):
-
-- **Song-start of following passage may occur before song-end of ending passage**
-- Example timeline:
-  ```
-  Time:     0s ─────── 3s ─────── 5s ─────── 8s
-  Pipeline A: [Song X playing────────X ends]
-  Pipeline B:           [Song Y──starts──────playing]
-  Events:               ↑                    ↑
-                   Song Y Start          Song X End
-  ```
-- **Signal receivers must handle this ordering**: Song-start before previous song-end
-- This is expected behavior, not an error condition
-- UI should update album art and song info immediately on Song-start, even if previous song hasn't signaled end yet
-
-**[ARCH-SONG-CHANGE-050]** Edge Cases:
+**[ARCH-SNGC-050]** Edge Cases:
 
 - **Passage with no songs:** Emit `CurrentSongChanged` with `song_id=None` on passage start
 - **Passage starts in gap:** Emit with `song_id=None`, then emit again when entering first song
-- **Passage ends during song:** No special handling needed, `PassageCompleted` marks end of passage
-- **Songs with identical boundaries:** Both songs considered "current" (implementation may choose first song or emit multiple events)
+- **Passage ends during gap:** Emit `CurrentSongChanged` with `song_id=None` and `audio_file_path=None` on passage end
+- **Passage ends in Song:** Emit with `song_id=None` and `audio_file_path=None` on passage end
+- **Songs with identical boundaries:** Emit `CurrentSongChanged` of the song that is starting
 - **Seeking:** After seek, immediately check position against timeline and emit `CurrentSongChanged` if song changed
 
-**[ARCH-SONG-CHANGE-060]** Performance Considerations:
+**[ARCH-SNGC-060]** Performance Considerations:
 
 - Song timeline stored in memory (typically <100 songs per passage, minimal memory impact)
 - Boundary checks are O(n) where n = songs in passage (acceptable for typical passage sizes)
-- For large passages (>1000 songs), consider binary search on sorted timeline
+  - If the future should bring large passages (>1000 songs), consider binary search on sorted timeline
 - Detection timer runs only during playback (paused = no checks)
 
 ### Volume Handling
 <a name="volume-handling"></a>
 
-**[ARCH-VOLUME-010]** Volume Scale Conversion:
-- **User-facing** (UI, API): Integer 0-100 (percentage)
-- **Backend** (storage, GStreamer): Double 0.0-1.0
+**[ARCH-VOL-010]** Volume Scale Conversion:
+- **User-facing** (UI): Integer 0-100 (percentage)
+- **Backend** (API, storage, GStreamer): Double 0.0-1.0
 - **Conversion**:
   - User → System: `system_volume = user_volume / 100.0`
   - System → User: `user_volume = ceil(system_volume * 100.0)`
@@ -462,14 +470,14 @@ During passage crossfade (when both Pipeline A and B are playing simultaneously)
 
 **Storage:**
 - Database: Store as double (0.0-1.0) in `settings.volume_level`
-- API: Accept/return integer (0-100)
-- Events: Transmit as float (0.0-1.0) for precision in real-time streams
+- API: Accept/return double (0.0-1.0)
+- Events: Transmit as double (0.0-1.0) for precision in real-time streams
 
 ### User Interface
 
 **Process Type**: Polished HTTP server with full web UI
 **Port**: 5720 (configurable)
-**Versions**: Full, Lite (de-featured), Minimal (de-featured)
+**Versions**: Full, Lite, Minimal
 
 **Responsibilities:**
 - Present polished web interface for end users
@@ -490,8 +498,8 @@ During passage crossfade (when both Pipeline A and B are playing simultaneously)
 - Audio device selection: Proxied to Audio Player
 
 **SSE Events** (Endpoint: `GET /api/events`):
-- Aggregates and forwards events from Audio Player
-- Adds user-specific events (session, likes/dislikes)
+- Events from Audio Player trigger user interface updates
+- Adds user-specific events (session, likes/dislikes, manual passage enqueue)
 
 **Web UI Features:**
 - Authentication flow (Anonymous/Create Account/Login)
@@ -499,8 +507,9 @@ During passage crossfade (when both Pipeline A and B are playing simultaneously)
 - Playback controls: Play/Pause, Skip, volume slider
 - Queue display and manual queue management
 - Like/Dislike buttons (Full/Lite versions)
+- Library browser for manual user selection of passages to enqueue
 - Program Director configuration (timeslots, base probabilities, cooldowns)
-- Network status indicators (internet and local network)
+- Network status indicators (local network)
 - Responsive design for desktop and mobile
 
 **Lyrics Display Behavior:**
@@ -513,8 +522,8 @@ During passage crossfade (when both Pipeline A and B are playing simultaneously)
 
 **Version Differences:**
 - **Full**: All features enabled
-- **Lite**: No file ingest, limited configuration options
-- **Minimal**: No file ingest, no likes/dislikes, no advanced configuration
+- **Lite**: No links to file ingest or lyrics editing interfaces
+- **Minimal**: No links to file ingest or lyrics editing interfaces, user always Anonymous (no login or create account)
 
 **Key Design Notes:**
 - **Most users interact here**: Primary interface for controlling WKMP
@@ -525,7 +534,10 @@ During passage crossfade (when both Pipeline A and B are playing simultaneously)
 
 ### Configuration Interface Access Control
 
-**[ARCH-CONFIG-ACCESS-010]** Each microservice module (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le) SHALL provide an access-restricted configuration interface page that enables authorized users to both view and edit configuration settings that affect the module.
+**[ARCH-USER-010]** Each microservice module (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le) SHALL provide an access-restricted configuration interface page that enables authorized users to both view and edit configuration settings that affect the module.
+
+*(All “configuration settings editor” mentions in module sections above refer to this unified interface which appears
+  in each microservice's http interface, when the current user is authorized to access it.)*
 
 **Access Control Rules:**
 
@@ -586,7 +598,7 @@ Configuration interface access restriction is provided to prevent inexperienced 
 **Responsibilities:**
 - Provides dedicated interface for editing song lyrics
 - Displays split window: text editor (left) + embedded browser (right)
-- Loads and saves lyrics associated with MusicBrainz recordings
+- Loads and saves lyrics associated with MusicBrainz recordings, associates them with songs in the database.
 - Facilitates finding and copying lyrics from web sources
 
 **HTTP Control API:**
@@ -607,13 +619,18 @@ Configuration interface access restriction is provided to prevent inexperienced 
 - **Right pane**: Embedded web browser initially searching for song lyrics
 - **Save button**: Writes edited lyrics to database via `PUT /lyric_editor/lyrics/{recording_mbid}`
 - **Cancel/Exit button**: Closes editor without saving changes
+  (Configuration settings editor available only to authorized users.)
 
 **Key Design Notes:**
-- **On-demand launching**: Started by User Interface when user requests lyric editing
-- **Standalone operation**: No dependencies on other modules (except shared database)
-- **Read-only in UI**: User Interface displays lyrics but all editing happens in Lyric Editor
-- **Simple concurrency**: Last write wins, no conflict resolution needed
-
+- **On-demand launching**: Typically started by the User Interface when a user requests lyric editing,
+but may also be launched manually or by external tools if desired.
+- **Standalone operation**: Fully independent process that can run and edit lyrics without any other
+module active, provided it can access the shared database.
+- **Optional UI integration**: The User Interface simply acts as a convenience launcher and
+controller; once running, the Lyric Editor communicates directly with the shared database and
+operates independently.
+- **Read-only in UI**: User Interface displays lyrics, but all editing happens exclusively in Lyric Editor.
+- **Simple concurrency**: Last write wins, no conflict resolution needed.
 ---
 
 ### Program Director
@@ -657,6 +674,7 @@ Configuration interface access restriction is provided to prevent inexperienced 
 - Module status display
 - Current timeslot and target flavor
 - Last selection results
+  (Configuration settings editor available only to authorized users.)
 
 **Automatic Queue Management:**
 - Receives queue refill requests from Audio Player via `POST /selection/request`
@@ -693,7 +711,7 @@ Configuration interface access restriction is provided to prevent inexperienced 
 
 ---
 
-### Audio Ingest
+### Audio File Ingest
 
 **Process Type**: Polished HTTP server with guided workflow UI
 **Port**: 5723 (configurable)
@@ -703,7 +721,7 @@ Configuration interface access restriction is provided to prevent inexperienced 
 - Present user-friendly interface for adding new audio files
 - Guide user through ingest and characterization workflow
 - Coordinate MusicBrainz/AcousticBrainz lookups
-- Manage Essentia local flavor analysis (Full version)
+- Manage Essentia local flavor analysis
 - Support passage segmentation and metadata editing
 
 **HTTP API:**
@@ -727,8 +745,9 @@ Configuration interface access restriction is provided to prevent inexperienced 
 
 **Key Design Notes:**
 - **Full version only**: Not included in Lite or Minimal
+**On-demand invocation**: The module is launched only during ingest sessions, typically when a user initiates a new audio import via the User Interface.
 - **Database access**: Direct SQLite access for file/passage/song insertion
-- **External API integration**: MusicBrainz, AcousticBrainz, Chromaprint
+- **External API integration**: MusicBrainz, AcousticBrainz, Chromaprint+AcoustID
 - **Local analysis**: Essentia integration for offline flavor characterization
 
 > **See [Library Management](library_management.md) for complete file scanning and metadata workflows.**
@@ -757,7 +776,7 @@ The modules listed above are separate processes. Within each module, there are i
 - **Selection Engine**: Implements weighted random selection algorithm with flavor distance calculations
 - **Request Handler**: Receives queue refill requests from Audio Player, acknowledges immediately, triggers asynchronous selection
 
-**Audio Ingest Internal Components:**
+**Audio File Ingest Internal Components:**
 - **File Scanner**: Recursive directory scan with change detection (SHA-256 hashes)
 - **Metadata Extractor**: Parse ID3v2, Vorbis Comments, MP4 tags
 - **Fingerprint Generator**: Chromaprint for MusicBrainz identification
@@ -776,17 +795,8 @@ These components are used across multiple modules:
 **External API Clients:**
 - **MusicBrainz Client**: Recording/Release/Artist/Work identification, all responses cached locally
 - **AcousticBrainz Client**: High-level musical characterization vectors, fallback to Essentia (Full version)
-- **ListenBrainz Client** (Phase 2): Play history submission, recommendations (TBD)
-
-### Implementation Details Removed From This Section
-
-The following subsections previously described monolithic components. They have been replaced by the module-based architecture above:
-- ~~3. Queue Manager~~ - Now part of Audio Player
-- ~~4. Historian~~ - Now part of Audio Player
-- ~~5. Flavor Manager~~ - Now part of Program Director
-- ~~6. Audio Engine~~ - Now part of Audio Player
-- ~~7. Library Manager~~ - Now part of Audio Ingest
-- ~~8. External Integration Clients~~ - Shared across modules
+- **Chromaprint Client**: Song identification profiler
+- **AcoustID Client**: Translates Chromaprint profiles to MusicBrainz recording MBIDs
 
 ---
 
@@ -820,8 +830,12 @@ The following subsections previously described monolithic components. They have 
 **Real-time notification method** from modules to clients.
 
 **Event Flows:**
-- Audio Player → User Interface: Playback state, queue changes, position updates
-- Program Director → User Interface: Timeslot changes, selection events
+- Audio Player → User Interface: Playback state, queue changes, position updates, song changes
+- Audio Player → Program Director: passage selection requests
+- User Interface → Audio Player: user passage selections, volume changes, play/pause changes
+- User Interface → Program Director: user program changes
+- Program Director → Audio Player: passage selection events
+- Program Director → User Interface: timed program changes
 - Each module provides `/events` endpoint for SSE subscriptions
 
 **Benefits:**
@@ -855,7 +869,7 @@ The following subsections previously described monolithic components. They have 
 ```
 User Interface
     ├── Depends on: Audio Player - optional, degrades gracefully
-    ├── Depends on: Program Director - optional (Minimal version)
+    ├── Depends on: Program Director - optional (not present in Minimal version)
     └── Depends on: SQLite database - required
 
 Program Director
@@ -865,7 +879,10 @@ Program Director
 Audio Player
     └── Depends on: SQLite database - required
 
-Audio Ingest (Full only)
+Audio File Ingest (Full only)
+    └── Depends on: SQLite database - required
+
+Lyric Editor (Full only)
     └── Depends on: SQLite database - required
 ```
 
@@ -874,7 +891,8 @@ Audio Ingest (Full only)
 - **wkmp-ui is the primary entry point**: Launches other modules as needed (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le)
 - **Modules can launch other modules**: Any module can launch peer modules if it detects they're not running
   - Example: wkmp-ap can relaunch wkmp-pd if it's not responding to queue refill requests
-  - Example: Any module can launch wkmp-ui if it needs the orchestration layer
+  - Example: wkmp-ui can launch wkmp-le when the user wants to edit lyrics
+  - Example: wkmp-ui can launch wkmp-ap when the Playing mode is engaged, but wkmp-ap is not responsive
 - **Module launching process** (using shared launcher utility from wkmp-common):
   - **Binary location**:
     - **Standard deployment**: Binaries in system PATH (wkmp-ap, wkmp-pd, wkmp-ui, wkmp-ai, wkmp-le)
@@ -944,7 +962,7 @@ Audio Ingest (Full only)
 **[ARCH-INIT-020]** When the application reads a configuration value from the database, it SHALL handle missing, NULL, or nonexistent values according to the following rules:
 
 1. **Database Does Not Exist**:
-   - Module creates database file and all required tables
+   - Module creates database file and all tables required by the module
    - All settings are initialized with built-in default values
    - Defaults are written to the database immediately
 
@@ -971,7 +989,7 @@ Audio Ingest (Full only)
 
 **Rationale:**
 
-- **Database is source of truth**: All runtime configuration lives in database, never in TOML files
+- **Database is source of truth**: All runtime configuration lives in database, TOML files do not contain parameters that are found in the database
 - **TOML only for bootstrap**: TOML files provide only root folder path, logging config, and static asset paths
 - **Self-healing**: NULL values are automatically corrected on read
 - **Predictable behavior**: Missing values always get the same built-in defaults
@@ -988,15 +1006,15 @@ Audio Ingest (Full only)
 **Module Launch Responsibilities:**
 - **User Interface (wkmp-ui)**:
   - Launched by: OS service manager (systemd/launchd/Windows Service)
-  - Launches: wkmp-ap (on startup), wkmp-pd (Lite/Full only), wkmp-ai (Full only), wkmp-le (on-demand, Full only)
+  - Launches: wkmp-ap (on startup), wkmp-pd (Lite/Full only), wkmp-ai (on-demand, Full only), wkmp-le (on-demand, Full only)
 - **Audio Player (wkmp-ap)**:
   - Launched by: wkmp-ui on startup
   - Can launch: wkmp-pd (if not responding to queue refill requests), wkmp-ui (if needed)
 - **Program Director (wkmp-pd)**:
   - Launched by: wkmp-ui on startup (Lite/Full versions only)
   - Can launch: wkmp-ap (if needed for enqueueing), wkmp-ui (if needed)
-- **Audio Ingest (wkmp-ai)**:
-  - Launched by: wkmp-ui on startup (Full version only)
+- **Audio File Ingest (wkmp-ai)**:
+  - Launched by: wkmp-ui when user initiates audio file ingest (Full version only)
   - Can launch: wkmp-ui (if needed)
 - **Lyric Editor (wkmp-le)**:
   - Launched by: wkmp-ui on-demand when user requests lyric editing (Full version only)
@@ -1076,7 +1094,7 @@ Request Handler Thread (tokio async):
   - Triggers asynchronous selection
 ```
 
-**Audio Ingest:**
+**Audio File Ingest:**
 ```
 HTTP Server Thread Pool (tokio async):
   - API request handling
@@ -1090,6 +1108,8 @@ Scanner Thread (tokio async):
 External API Pool (tokio async):
   - MusicBrainz queries
   - AcousticBrainz queries
+  - Chromaprint queries
+  - AcoustID queries
   - Essentia local analysis
 ```
 
@@ -1187,13 +1207,14 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 **External API Clients:**
 - reqwest for HTTP clients
-- MusicBrainz, AcousticBrainz, Chromaprint/AcoustID
+- MusicBrainz, AcousticBrainz, AcoustID
 
-**Local Audio Analysis (Audio Ingest, Full version only):**
+**Local Audio Analysis (Audio File Ingest, Full version only):**
 - Essentia C++ library
+- Chromaprint C library
 - Rust FFI bindings (custom or via existing crate)
 
-**Web UI (User Interface and Audio Ingest):**
+**Web UI (User Interface and Audio File Ingest):**
 - HTML/CSS/JavaScript (framework TBD - React, Vue, or Svelte)
 - SSE client for real-time updates
 - Responsive design framework (TailwindCSS or similar)
@@ -1281,7 +1302,7 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 - Session persistence via browser localStorage (one-year rolling expiration)
 
 **Security:**
-- CORS restricted to localhost
+- CORS restricted to localhost (except Lyric Editor)
 - No external network exposure by default
 - User responsible for network security if exposing to local network
 - No internet access required for WebUI operation (local network only)
@@ -1298,10 +1319,10 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 ### Internet Access (External APIs)
 
 **Purpose:**
+- AcoustID recording identification
 - MusicBrainz metadata lookup
 - AcousticBrainz flavor data retrieval
 - Cover art fetching
-- Future ListenBrainz integration (Phase 2)
 
 **Connectivity:**
 - Required only during library import/update (Full version)
@@ -1359,7 +1380,7 @@ This section specifies the detailed recovery procedures for common error scenari
 
 #### GStreamer Pipeline Errors
 
-**[ARCH-ERR-PLAYBACK-010]** GStreamer Pipeline Error Recovery:
+**[ARCH-ERRH-010]** GStreamer Pipeline Error Recovery:
 
 When a GStreamer pipeline enters ERROR state (file not found, decode failure, audio device unavailable, etc.), the following recovery procedure is executed:
 
@@ -1378,7 +1399,7 @@ When a GStreamer pipeline enters ERROR state (file not found, decode failure, au
    - When queue becomes empty: Audio player enters idle state (same as normal empty queue behavior)
    - Player produces no audio until a new passage is enqueued
 
-**[ARCH-ERR-PLAYBACK-020]** Crossfade Behavior During Pipeline Error:
+**[ARCH-ERRH-020]** Crossfade Behavior During Pipeline Error:
 
 - If error occurs during crossfade (both pipelines active):
   - Failed pipeline stops immediately
@@ -1389,7 +1410,7 @@ When a GStreamer pipeline enters ERROR state (file not found, decode failure, au
   - Failed pre-load logged as error
   - Next passage skip logic applies when current passage completes
 
-**[ARCH-ERR-PLAYBACK-030]** Automatic Queue Refill Throttling (wkmp-pd responsibility):
+**[ARCH-ERRH-030]** Automatic Queue Refill Throttling (wkmp-pd responsibility):
 
 **Note:** This mechanism is implemented in wkmp-pd (Program Director), not wkmp-ap (Audio Player). Documented here for completeness.
 
@@ -1404,7 +1425,7 @@ When a GStreamer pipeline enters ERROR state (file not found, decode failure, au
 
 #### Database Lock Timeout
 
-**[ARCH-ERR-DB-010]** Database Lock Retry Strategy:
+**[ARCH-ERRH-050]** Database Lock Retry Strategy:
 
 When a database operation fails due to lock timeout (SQLite `SQLITE_BUSY` error), the following retry logic applies:
 
@@ -1427,7 +1448,7 @@ When a database operation fails due to lock timeout (SQLite `SQLITE_BUSY` error)
    - Continue with cached state (if applicable)
    - For critical operations (queue writes): Return error to caller, trigger UI notification
 
-**[ARCH-ERR-DB-020]** Cached State Fallback:
+**[ARCH-ERRH-060]** Cached State Fallback:
 
 Operations that can use cached state on lock timeout:
 - Queue read: Use last successfully read queue (may be stale)
@@ -1439,7 +1460,7 @@ Operations that **cannot** use cached state (require retry or failure):
 - Settings write: Must succeed or return error
 - Playback position persistence: Failure is acceptable (position lost on crash)
 
-**[ARCH-ERR-DB-030]** Lock Timeout Configuration:
+**[ARCH-ERRH-070]** Lock Timeout Configuration:
 
 SQLite busy timeout is set to 5000ms (5 seconds) at connection initialization:
 ```rust
@@ -1450,7 +1471,7 @@ This timeout applies **before** the exponential backoff retry logic. The exponen
 
 #### Program Director Timeout
 
-**[ARCH-ERR-PD-010]** Program Director Timeout Handling:
+**[ARCH-ERRH-100]** Program Director Timeout Handling:
 
 When wkmp-ap sends a queue refill request to wkmp-pd (Program Director) and does not receive acknowledgment within the timeout period:
 
@@ -1473,27 +1494,27 @@ When wkmp-ap sends a queue refill request to wkmp-pd (Program Director) and does
    - Fresh timeout timer starts for new request
    - No cumulative failure tracking in wkmp-ap (wkmp-ui handles module health monitoring)
 
-**[ARCH-ERR-PD-020]** Request Throttling:
+**[ARCH-ERRH-110]** Request Throttling:
 
 To prevent request spam during wkmp-pd unavailability:
 - Minimum interval between refill requests: `queue_refill_request_throttle_seconds` (default: 10 seconds)
 - Throttle applies even after timeout
 - If queue drops below threshold during throttle period: Wait until throttle expires, then send request
 
-**[ARCH-ERR-PD-030]** Empty Queue Behavior:
+**[ARCH-ERRH-120]** Empty Queue Behavior:
 
 If queue becomes empty while wkmp-pd is unresponsive:
 - Audio player enters idle state (no audio output)
 - Continues attempting refill requests at throttle interval
 - Resumes playback automatically when wkmp-pd responds with passage
 
-**[ARCH-ERR-PD-040]** Module Health Monitoring (wkmp-ui responsibility):
+**[ARCH-ERRH-130]** Module Health Monitoring (wkmp-ui responsibility):
 
 **Note:** wkmp-ui (User Interface) is responsible for detecting unresponsive modules and relaunching them. wkmp-ap only logs timeouts and continues operation.
 
 ### Network Error Handling
 
-**[ARCH-NET-010]** WKMP requires two distinct types of network access with different error handling strategies:
+**[ARCH-ERRH-150]** WKMP requires two distinct types of network access with different error handling strategies:
 
 **Internet Access (External APIs - Full version only):**
 
@@ -1503,7 +1524,7 @@ Used for:
 - Cover art fetching
 - Future ListenBrainz integration (Phase 2)
 
-**[ARCH-NET-020]** Retry Algorithm:
+**[ARCH-ERRH-160]** Retry Algorithm:
 - **Fixed delay**: Wait exactly 5 seconds between each retry attempt (not exponential backoff)
 - **Retry limit**: Maximum of 20 consecutive retry attempts
 - After 20 failures, stop attempting until user triggers reconnection
@@ -1525,7 +1546,7 @@ Used for:
 - ...
 - Attempt 20: Fail → stop, display "Connection Failed" message
 
-**[ARCH-NET-030]** Playback Impact:
+**[ARCH-ERRH-170]** Playback Impact:
 - No impact on playback: Music continues playing during internet outages
 - Playback uses only local database and audio files (no internet required)
 
@@ -1536,18 +1557,18 @@ Used for:
 - Server-Sent Events (SSE) for real-time UI updates
 - REST API endpoints for playback control
 
-**[ARCH-NET-040]** Error Handling:
+**[ARCH-ERRH-180]** Error Handling:
 - HTTP server binds to localhost:5720 on startup
 - If port binding fails: Log error and exit (critical failure)
 - Once running, server continues indefinitely
 
-**[ARCH-NET-050]** Access Requirements:
+**[ARCH-ERRH-190]** Access Requirements:
 - Localhost access: Always available (no network required)
 - Remote access: Requires local network connectivity
   - User responsible for network configuration (router, firewall, etc.)
   - No internet required (local network only)
 
-**[ARCH-NET-060]** Playback Impact:
+**[ARCH-ERRH-200]** Playback Impact:
 - Automatic playback: Works without any network access
   - System auto-starts on boot
   - Auto-selects and plays passages
@@ -1589,14 +1610,14 @@ Used for:
 - Environment variables for system paths
 - SQLite `module_config` table for network configuration (host/port for each module)
 - SQLite `settings` table for user preferences
-- File-based config for deployment settings (root folder path, logging, application-specific settings)
+- File-based config for deployment settings which are not found in the database settings table (root folder path, logging configuration)
 - Sane defaults for all optional settings
 - Centralized network configuration eliminates the need to duplicate module URLs across config files
 
 ### Distribution
 - **Multiple binaries per version**: Each module is a separate binary
 - **Version-specific packaging**:
-  - Full: 5 binaries (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest)
+  - Full: 5 binaries (Audio Player, User Interface, Lyric Editor, Program Director, Audio File Ingest)
   - Lite: 3 binaries (Audio Player, User Interface, Program Director)
   - Minimal: 2 binaries (Audio Player, User Interface)
 - **Bundled dependencies**: GStreamer (Audio Player only), SQLite (all modules)

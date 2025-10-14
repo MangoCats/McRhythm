@@ -665,9 +665,9 @@ cargo build -p wkmp-ui --release
 
 ### Version-Specific Builds
 
-**Full Version (all 4 modules):**
+**Full Version (all 5 modules):**
 ```bash
-cargo build --release -p wkmp-ap -p wkmp-ui -p wkmp-pd -p wkmp-ai --features wkmp-ai/full
+cargo build --release -p wkmp-ap -p wkmp-ui -p wkmp-pd -p wkmp-ai -p wkmp-le --features wkmp-ai/full
 ```
 
 **Lite Version (3 modules):**
@@ -782,9 +782,10 @@ Each module reads its config file from standard location:
 ```bash
 # Linux
 ~/.config/wkmp/audio-player.toml
-~/.config/wkmp/ui.toml
+~/.config/wkmp/user-interface.toml
 ~/.config/wkmp/program-director.toml
 ~/.config/wkmp/audio-ingest.toml
+~/.config/wkmp/lyrics-editor.toml
 
 # Override with environment variable
 WKMP_ROOT_FOLDER=/custom/path cargo run -p wkmp-ap
@@ -1088,6 +1089,7 @@ wkmp-full-v0.1.0-linux/
 │   ├── wkmp-ap
 │   ├── wkmp-ui
 │   ├── wkmp-pd
+│   ├── wkmp-le
 │   └── wkmp-ai
 ├── migrations/
 │   └── *.sql

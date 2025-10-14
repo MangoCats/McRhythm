@@ -131,8 +131,13 @@ For simple lists where hierarchy is clear from context:
 | SYS | System Architecture | Layered architecture description |
 | COMP | Core Components | Component descriptions |
 | PC | Playback Controller | Playback controller component |
+| VOL | Volume | How volume is defined |
+| SNGC | Song Change Notification | Realtime notification of system components that a song has started, or ended. |
 | PD | Program Director | Program director component |
+| BM | Backup Manager | Database backup schedule and rotation |
 | QM | Queue Manager | Queue manager component |
+| QP | Queue Persistence | Preservation of queue contents through shutdown into next session |
+| STRT | Startup Procedures | Session startup restoration of state and related procedures |
 | HIST | Historian | Historian component |
 | FM | Flavor Manager | Flavor manager component |
 | AE | Audio Engine | Audio engine architecture |
@@ -146,9 +151,10 @@ For simple lists where hierarchy is clear from context:
 | DES | Design Decisions | Key design decisions |
 | VER | Version Differentiation | Full/Lite/Minimal differences |
 | PLAT | Platform Abstraction | Platform-specific abstractions |
-| AUD | Audio Output | Audio output platform handling |
+| AUDV | Audio Device | Audio output platform handling |
 | INT | System Integration | Auto-start and system integration |
 | SEC | Security | Security considerations |
+| USER | User Identification | User Identification specifics |
 | PERF | Performance Targets | Performance goals |
 | ERRH | Error Handling | Error handling strategy |
 | CAT | Error Categories | Error categorization |
