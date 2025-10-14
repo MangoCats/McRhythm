@@ -23,7 +23,6 @@ User identity is required for:
 - Recording likes and dislikes (Phase 1: Full and Lite versions)
 - Building user-specific musical taste profiles (Phase 1/2)
 - Tracking user-specific play history (Phase 2)
-- Future ListenBrainz integration (Phase 2)
 
 ## 1. User Identity
 

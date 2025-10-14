@@ -294,7 +294,6 @@ pub enum WkmpEvent {
     /// - Database: Record like associated with user UUID
     /// - Taste Manager: Update user's taste profile
     /// - SSE: Update like button state for all connected clients
-    /// - ListenBrainz: Submit feedback (Phase 2)
     PassageLiked {
         passage_id: PassageId,
         user_id: UserId,  // UUID of user who liked (may be Anonymous UUID)

@@ -480,7 +480,6 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - Fetch MusicBrainz metadata
 - Retrieve AcousticBrainz flavor data
 - Download cover art
-- (Phase 2) Sync with ListenBrainz
 
 **[UI-NET-080]** Lite and Minimal versions:
 - Do not display internet status indicator (no internet required)

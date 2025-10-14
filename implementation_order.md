@@ -886,10 +886,6 @@ This document aggregates all specifications to define WHEN features are built. I
 
 The following features are specified but not yet estimated:
 
-- **ListenBrainz Integration:**
-  - Play history submission
-  - Recommendations (TBD)
-
 - **Musical Taste System:**
   - Use likes/dislikes to influence selection
   - User-specific taste profiles

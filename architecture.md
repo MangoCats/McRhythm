@@ -1338,8 +1338,8 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 **Version Differences:**
 - **Full version**: Internet required for initial setup, optional thereafter
-- **Lite version**: Internet optional (ListenBrainz sync only, Phase 2)
-- **Minimal version**: No internet access at all
+- **Lite version**: Internet may be used for optional Program Director features (News and Weather)
+- **Minimal version**: Internet not required
 
 **Security:**
 - HTTPS for all external requests
@@ -1522,7 +1522,6 @@ Used for:
 - MusicBrainz metadata lookup during library import
 - AcousticBrainz musical flavor data retrieval
 - Cover art fetching
-- Future ListenBrainz integration (Phase 2)
 
 **[ARCH-ERRH-160]** Retry Algorithm:
 - **Fixed delay**: Wait exactly 5 seconds between each retry attempt (not exponential backoff)

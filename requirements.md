@@ -23,7 +23,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 **[REQ-CF-010]** Plays passages from local files (.mp3, .opus, .aac, .flac and similar)
   - **[REQ-CF-011]** Identifies one or multiple passage start / stop points and crossfade points within each music file
 
-**[REQ-CF-020]** Records when passages are played to avoid repetition
+**[REQ-CF-020]** Records when songs within passages are played to avoid repetition
 
 **[REQ-CF-030]** Cross references passages to the MusicBrainz database for:
   - **[REQ-CF-031]** identification of the song(s) contained in the passage (see Definitions for definition of song in this context)
@@ -78,7 +78,6 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 ## Additional Features
 
 **[REQ-AF-010]** Planned for later development (Rollout phase 2):
-  - **[REQ-AF-011]** Interface to ListenBrainz to inform future listening choices based on past likes and dislikes
   - **[REQ-AF-012]** Mobile (Android, iOS) versions
 
 ## Three Versions
@@ -100,7 +99,6 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - Lyrics editing
 - MusicBrainz/AcousticBrainz integration
 - Essentia local analysis for musical flavor
-- For future development: ListenBrainz integration
 
 **[REQ-VER-025]** Resource Profile:
 - CPU: Higher (Essentia analysis during import)
@@ -124,15 +122,13 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - Uses pre-built static database from Full version
 - Read-only external data (MusicBrainz/AcousticBrainz cached)
 - No file scanning, no Essentia
-- For future development: ListenBrainz integration for feedback sync
 
 **[REQ-VER-036]** Resource Profile:
 - CPU: Moderate (playback + selection only)
 - Disk I/O: Low (no scanning, read-only database)
 - Memory: ~256MB typical
 - Network:
-  - Internet: Optional (Rollout phase 2: ListenBrainz sync only)
-  - Local network: Required for remote WebUI access, not required for localhost
+  - Local network: Required for remote WebUI access, not required for localhost access
 
 ### Minimal Version (Rollout phase 2)
 
@@ -510,7 +506,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 #### Internet Access (External APIs - Full version only)
 
-**[REQ-NET-040]** Used for MusicBrainz metadata lookup, AcousticBrainz flavor data retrieval, cover art fetching, and future ListenBrainz integration
+**[REQ-NET-040]** Used for MusicBrainz metadata lookup, AcousticBrainz flavor data retrieval, cover art fetching, and lyrics research.
 
 **[REQ-NET-050]** Error Handling:
 - **[REQ-NET-051]** When internet access fails, retry with fixed 5-second delay (not exponential backoff)
@@ -557,7 +553,6 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-OFF-033]** Cannot retrieve AcousticBrainz flavor data (Full version)
   - Falls back to local Essentia analysis (Full version only)
 - **[REQ-OFF-034]** Cannot download cover art (Full version)
-- **[REQ-OFF-035]** Cannot sync with ListenBrainz (Rollout phase 2)
 
 **[REQ-OFF-040]** Internet reconnection:
 - **[REQ-OFF-041]** System continues using cached data during outages
