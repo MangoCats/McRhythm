@@ -24,6 +24,19 @@ Auto DJ for playing your music library
 
 ## Overview
 
-WKMP is a music player that automatically selects passages to play based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
+WKMP is a music player that plays locally stored audio files to local audio output devices.  Passages from the audio files are automatically selected to play based on user-configured musical flavor preferences using AcousticBrainz musical characterization data and other algorithms.
 
-Built with Rust, GStreamer, SQLite, and Tauri.
+The system can work as a simple music file player, or build up to a hourly, daily, weekly, annually programed music source inspired by FM radio stations of the 1970s.
+
+Built with Rust, GStreamer and SQLite.
+
+## Idea for a future feature
+
+Text to speech news and weather read between songs on a schedule
+
+Third-party news aggregation APIs
+
+These are the most suitable option for comprehensive local coverage because they pull from a vast network of sources, including local affiliates and online publications.
+- NewsData.io: Integrates content from thousands of trusted news sources and can be filtered by country (e.g., US), language, keyword, and more. You can access real-time and historical data through a simple JSON format.
+- News API: A popular choice that indexes articles from over 80,000 worldwide sources. It supports location-based filtering, provides articles in JSON format, and is well-documented.
+- World News API: Offers access to news from thousands of sources and can be filtered by country or region, as well as by language and category. It provides a free tier for low-volume personal projects. 
