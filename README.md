@@ -1,6 +1,14 @@
 # WKMP
 Auto DJ for playing your music library
 
+## Overview
+
+WKMP is a music player that plays locally stored audio files to local audio output devices.  Passages from the audio files are automatically selected to play based on user-configured musical flavor preferences using AcousticBrainz musical characterization data and other algorithms.
+
+The system can work as a simple music file player, or build up to a hourly, daily, weekly, annually programed music source inspired by FM radio stations of the 1970s.
+
+Built with Rust, GStreamer and SQLite.
+
 ## Documentation
 
 **📋 Start Here:** [Document Hierarchy](document_hierarchy.md) - Documentation framework and governance (Tier 0)
@@ -21,14 +29,6 @@ Auto DJ for playing your music library
 
 - **[Document Hierarchy](document_hierarchy.md)** - Documentation framework, relationships, and change control (Tier 0 - Governance)
 - **[Requirements Enumeration](requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
-
-## Overview
-
-WKMP is a music player that plays locally stored audio files to local audio output devices.  Passages from the audio files are automatically selected to play based on user-configured musical flavor preferences using AcousticBrainz musical characterization data and other algorithms.
-
-The system can work as a simple music file player, or build up to a hourly, daily, weekly, annually programed music source inspired by FM radio stations of the 1970s.
-
-Built with Rust, GStreamer and SQLite.
 
 ## Idea for a future feature
 
