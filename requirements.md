@@ -131,7 +131,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - Network:
   - Local network: Required for remote WebUI access, not required for localhost access
 
-### Minimal Version (Rollout phase 2)
+### Minimal Version (Rollout phase 1 and 2)
 
 **[REQ-VER-040]** Target Platforms:
 - Raspberry Pi Zero2W (Rollout phase 1)
@@ -139,14 +139,13 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - Resource-constrained devices (Rollout phase 2)
 
 **[REQ-VER-041]** Features:
-- Player and Program Director only
+- Player and User Interface only
 - Read-only database and preferences
 - No editing capabilities
   - No like/dislike
-  - No changing of flavor profiles
-- Pre-configured timeslots and probabilities
+- Manual passage selection for enqueue via User Interface
 - Smallest memory footprint
-- No network access
+- No internet access
 
 **[REQ-VER-042]** Resource Profile:
 - CPU: Minimal (playback + basic selection)
