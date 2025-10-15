@@ -1,22 +1,22 @@
-# WKMP Implementation Order & Timeline
+# WKMP Implementation Order
 
 **📋 TIER 4 - DOWNSTREAM EXECUTION PLAN**
 
-This document aggregates all specifications to define WHEN features are built. It provides a realistic timeline based on an estimate of a single experienced developer working 20 hours per week.
+This document aggregates all specifications to define the order in which features are built.
 
 **Update Policy:** ✅ Always update when upstream docs change | ❌ NEVER update upstream docs from this
 
-> **Timeline Estimate:** 1 Week = 20 developer-hours.
-
 > **Architecture Note:** WKMP uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](architecture.md) for complete details.
+
+> **Related Documentation:** [Database Schema](database_schema.md) | [API Design](api_design.md) | [Event System](event_system.md) | [Coding Conventions](coding_conventions.md)
 
 ---
 
-## Phase 1: Foundation & Database (2.5 Weeks)
+## Phase 1: Foundation & Database
 
 *Goal: Establish shared database schema, core infrastructure, and Cargo workspace structure.*
 
-- **1.0. Workspace Setup (0.5 Weeks):**
+- **1.0. Workspace Setup:**
   - Create Cargo workspace structure (see `project_structure.md`)
   - Set up root `Cargo.toml` with workspace members and shared dependencies
   - Create `common/` library crate (`wkmp-common`) for shared code
@@ -33,7 +33,7 @@ This document aggregates all specifications to define WHEN features are built. I
     - No testing or coverage yet (added in Phase 12.5)
   - Set up development environment and initial project structure
 
-- **1.1. Database Schema & Migrations (1.5 Weeks):**
+- **1.1. Database Schema & Migrations:**
   - Define SQL schema for all tables from `database_schema.md`:
     - Core entities: files, passages, songs, artists, works, albums
     - Relationships: passage_songs, song_artists, passage_albums, song_works
@@ -45,7 +45,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Define triggers for automatic timestamp updates and cooldown tracking
   - **Note**: No standalone database initialization - each module creates its required tables on first startup (see Phase 1.2)
 
-- **1.2. Common Library Foundation (0.5 Weeks):**
+- **1.2. Common Library Foundation:**
   - Implement shared types in `common/` crate (`wkmp-common`):
     - Database models (Passage, Song, Artist, Work, Album, etc.)
     - Event types (`WkmpEvent` enum from `event_system.md`)
@@ -95,11 +95,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 2: Audio Player Module (5 Weeks)
+## Phase 2: Audio Player Module
 
 *Goal: Build the core playback engine as an independent HTTP server with minimal developer UI.*
 
-- **2.1. Module Scaffolding (0.5 Weeks):**
+- **2.1. Module Scaffolding:**
   - Implement `wkmp-ap` binary in workspace (already created in Phase 1.0)
   - Implement HTTP server (Axum or Actix-web) with module discovery:
     1. Read root folder path from config file or environment variable
@@ -118,7 +118,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Create minimal HTML developer UI (served via HTTP) for status display and event stream monitor
   - Implement SSE endpoint (`GET /events`) with basic broadcasting
 
-- **2.2. Basic Playback Engine (1.5 Weeks):**
+- **2.2. Basic Playback Engine:**
   - Implement single GStreamer pipeline for playback (`filesrc` → `decodebin` → `autoaudiosink`)
   - Create HTTP API endpoints:
     - `POST /playback/play` - Resume playback
@@ -130,7 +130,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Emit basic events: `PassageStarted`, `PassageCompleted`, `PlaybackStateChanged`
   - Implement position updates (every 500ms)
 
-- **2.3. Queue Management (1.5 Weeks):**
+- **2.3. Queue Management:**
   - Implement queue persistence to database
   - Create HTTP API endpoints:
     - `POST /playback/enqueue` - Add passage to queue
@@ -140,7 +140,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Implement auto-advance to next passage on completion
   - Emit `QueueChanged` events
 
-- **2.4. Audio Control (0.5 Weeks):**
+- **2.4. Audio Control:**
   - Implement volume control:
     - `POST /audio/volume` - Set volume (0-100)
     - `GET /audio/volume` - Get current volume
@@ -150,12 +150,12 @@ This document aggregates all specifications to define WHEN features are built. I
     - `GET /audio/device` - Get current device
   - Platform-specific sink detection (PulseAudio, ALSA, CoreAudio, WASAPI)
 
-- **2.5. Historian (0.5 Weeks):**
+- **2.5. Historian:**
   - Record passage plays to `play_history` table
   - Update `last_played_at` timestamps (via database triggers)
   - Track duration_played and completion status
 
-- **2.6. Dual-Pipeline Crossfade Engine (2 Weeks):**
+- **2.6. Dual-Pipeline Crossfade Engine:**
   - **Complex task** - Implement dual GStreamer pipeline architecture
   - Pre-load next passage in second pipeline
   - Calculate crossfade timing from passage lead-in/lead-out points
@@ -163,7 +163,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Support three fade curves (exponential, cosine, linear)
   - Emit `CurrentSongChanged` events for multi-song passages
 
-- **2.7. Queue Refill Request System (0.5 Weeks):**
+- **2.7. Queue Refill Request System:**
   - Monitor queue status continuously during playback
   - Calculate remaining queue time based on:
     - Current passage position and remaining duration
@@ -199,11 +199,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 2A: Lyric Editor Module (1.5 Weeks)
+## Phase 2A: Lyric Editor Module
 
 *Goal: Build a standalone lyric editing tool launched on-demand by the User Interface.*
 
-- **2A.1. Module Scaffolding (0.5 Weeks):**
+- **2A.1. Module Scaffolding:**
   - Implement `wkmp-le` binary in workspace
   - Implement HTTP server with module discovery:
     1. Read root folder path from config file or environment variable
@@ -223,7 +223,7 @@ This document aggregates all specifications to define WHEN features are built. I
     - Right pane: Embedded web browser
   - Implement SSE endpoint (`GET /events`) for status updates
 
-- **2A.2. Lyric Editing Interface (1 Week):**
+- **2A.2. Lyric Editing Interface:**
   - Create HTTP API endpoints:
     - `POST /lyric_editor/open` - Launch editor with recording MBID
       - Parameters: `recording_mbid` (UUID), `title` (string), `artist` (string)
@@ -252,11 +252,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 3: User Interface Module (4.5 Weeks)
+## Phase 3: User Interface Module
 
 *Goal: Build the polished web UI as an HTTP server that proxies requests to other modules.*
 
-- **3.1. Module Scaffolding (0.5 Weeks):**
+- **3.1. Module Scaffolding:**
   - Implement `wkmp-ui` binary in workspace (already created in Phase 1.0)
   - Implement HTTP server with module discovery and service launching:
     1. Read root folder path from config file or environment variable
@@ -299,7 +299,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Set up static file serving for web UI assets
   - Implement SSE aggregation (subscribe to Audio Player events, forward to clients)
 
-- **3.2. Authentication System (1 Week):**
+- **3.2. Authentication System:**
   - **Database Setup**:
     - Verify `users` table initialized by `init_users_table()` from Phase 1.2
     - Verify Anonymous user exists (guid: `00000000-0000-0000-0000-000000000001`)
@@ -340,7 +340,7 @@ This document aggregates all specifications to define WHEN features are built. I
     - If invalid, clear localStorage and show login
     - If valid, extend expiration and proceed as authenticated user
 
-- **3.3. Playback Control Proxying (1 Week):**
+- **3.3. Playback Control Proxying:**
   - Implement proxy endpoints to Audio Player:
     - `/api/play`, `/api/pause`, `/api/skip`, `/api/seek`
     - `/api/volume`, `/api/output`
@@ -348,27 +348,27 @@ This document aggregates all specifications to define WHEN features are built. I
   - Add user authentication to all endpoints (UUID from localStorage)
   - Handle Audio Player unavailability gracefully
 
-- **3.4. Queue Management UI (0.5 Weeks):**
+- **3.4. Queue Management UI:**
   - Implement proxy endpoints:
     - `/api/queue` - Get queue contents
     - `/api/enqueue` - Add passage
     - `/api/remove` - Remove passage
   - Handle concurrent queue operations (multi-user coordination)
 
-- **3.5. Web UI - Now Playing (1 Week):**
+- **3.5. Web UI - Now Playing:**
   - Create responsive UI with desktop/mobile support
   - Display current passage: title, artist, album, album art
   - Playback controls: play/pause, skip, volume slider, seek bar
   - Real-time updates via SSE (`GET /api/events`)
   - Display queue with drag-to-reorder (future phase)
 
-- **3.6. Library Browsing (0.5 Weeks):**
+- **3.6. Library Browsing:**
   - Database queries for passages, songs, artists, albums
   - Implement search/filter functionality
   - Manual passage selection and enqueue
   - Album art display with priority handling
 
-- **3.7. Likes/Dislikes (Full & Lite) (0.5 Weeks):**
+- **3.7. Likes/Dislikes (Full & Lite):**
   - Implement UI controls (thumbs up/down)
   - API endpoints:
     - `POST /api/like` - Record like for current passage
@@ -376,7 +376,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Associate feedback with authenticated user UUID
   - Weight distribution across songs (per `like_dislike.md`)
 
-- **3.8. Lyrics Display & Integration (Full only) (0.5 Weeks):**
+- **3.8. Lyrics Display & Integration (Full only):**
   - API endpoints:
     - `GET /api/lyrics/:song_guid` - Retrieve lyrics with fallback chain
       - Read-only proxy to database (no editing in wkmp-ui)
@@ -398,11 +398,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 4: Program Director Module (4 Weeks)
+## Phase 4: Program Director Module
 
 *Goal: Build the automatic passage selection engine as an independent HTTP server.*
 
-- **4.1. Module Scaffolding (0.5 Weeks):**
+- **4.1. Module Scaffolding:**
   - Implement `wkmp-pd` binary in workspace (already created in Phase 1.0)
   - Implement HTTP server with module discovery:
     1. Read root folder path from config file or environment variable
@@ -422,14 +422,14 @@ This document aggregates all specifications to define WHEN features are built. I
   - Create minimal HTML developer UI (served via HTTP) for current timeslot display and last selection results
   - Implement SSE endpoint for selection events
 
-- **4.2. Flavor Distance Calculation (1 Week):**
+- **4.2. Flavor Distance Calculation:**
   - Implement in `wkmp-common/src/flavor/distance.rs` (shared with other modules)
   - Squared Euclidean distance formula for flavor vectors
   - Calculate distances from target flavor for all passages
   - Sort by distance, take top 100 candidates
   - Handle passages with missing flavor data
 
-- **4.3. Cooldown System (1.5 Weeks):**
+- **4.3. Cooldown System:**
   - Implement in `wkmp-common/src/cooldown/calculator.rs` (shared logic)
   - Min/ramping cooldown logic for:
     - Songs (default: 7 days min, 14 days ramping)
@@ -438,12 +438,12 @@ This document aggregates all specifications to define WHEN features are built. I
   - Calculate cooldown multiplier based on time since last play
   - Product of all entity cooldowns for final multiplier
 
-- **4.4. Base Probability System (0.5 Weeks):**
+- **4.4. Base Probability System:**
   - Load base probabilities from database (songs, artists, works)
   - Calculate passage final base probability (product of all entities)
   - Filter out zero-probability passages
 
-- **4.5. Selection Algorithm (1 Week):**
+- **4.5. Selection Algorithm:**
   - Implement weighted random selection:
     - Final weight = (1 / distance²) × cooldown_multiplier × base_probability
     - Normalize weights to sum to 1.0
@@ -451,7 +451,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Handle edge cases (no candidates → stop enqueueing)
   - Log selection decisions for debugging
 
-- **4.6. Queue Refill Request Handler (0.5 Weeks):**
+- **4.6. Queue Refill Request Handler:**
   - Implement `POST /selection/request` endpoint to receive queue refill requests from Audio Player
   - Request includes anticipated start time for the new passage
   - Immediately acknowledge request to prevent Audio Player from relaunching:
@@ -467,11 +467,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 5: Timeslot & Flavor Configuration (3 Weeks)
+## Phase 5: Timeslot & Flavor Configuration
 
 *Goal: Complete the time-of-day flavor system with UI configuration.*
 
-- **5.1. Timeslot Management (1.5 Weeks):**
+- **5.1. Timeslot Management:**
   - User Interface proxies to Program Director:
     - `GET /config/timeslots` - Retrieve 24-hour schedule
     - `POST /config/timeslots` - Update timeslot configuration
@@ -481,13 +481,13 @@ This document aggregates all specifications to define WHEN features are built. I
     - Emit `TimeslotChanged` events
   - UI for creating/editing timeslots with start times and names
 
-- **5.2. Timeslot Passage Assignment (1 Week):**
+- **5.2. Timeslot Passage Assignment:**
   - UI for assigning passages to timeslots
   - Calculate net timeslot flavor as weighted centroid
   - Visualize target flavor profile
   - Preview how passages match timeslot
 
-- **5.3. Temporary Flavor Override (0.5 Weeks):**
+- **5.3. Temporary Flavor Override:**
   - Program Director API:
     - `POST /selection/override` - Activate temporary override
     - `DELETE /selection/override` - Clear override
@@ -497,11 +497,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 6: Audio Ingest Module (Full Version Only) (7 Weeks)
+## Phase 6: Audio Ingest Module (Full Version Only)
 
 *Goal: Build the guided workflow for adding new audio files.*
 
-- **6.1. Module Scaffolding (0.5 Weeks):**
+- **6.1. Module Scaffolding:**
   - Implement `wkmp-ai` binary in workspace (already created in Phase 1.0)
   - Note: Audio Ingest is only included in Full version packaging (no conditional compilation needed)
   - Implement HTTP server with module discovery:
@@ -521,7 +521,7 @@ This document aggregates all specifications to define WHEN features are built. I
     7. No other module dependencies (Audio Ingest is standalone)
   - Create guided workflow UI
 
-- **6.2. File Scanner & Metadata (1.5 Weeks):**
+- **6.2. File Scanner & Metadata:**
   - API endpoints:
     - `POST /ingest/scan` - Scan directory for audio files
     - `GET /ingest/pending` - List files pending ingest
@@ -529,7 +529,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Parse basic metadata (ID3v2, Vorbis Comments, MP4 tags)
   - Store files in database with pending status
 
-- **6.3. MusicBrainz Integration (1.5 Weeks):**
+- **6.3. MusicBrainz Integration:**
   - Build API client for MusicBrainz queries
   - Implement AcoustID fingerprinting (via Chromaprint)
   - API endpoint: `POST /ingest/identify/{file_id}`
@@ -542,7 +542,7 @@ This document aggregates all specifications to define WHEN features are built. I
     - Store as JSON array in `songs.related_songs` field
     - API endpoint: `PUT /ingest/related_songs/{song_guid}` - User edit related songs list
 
-- **6.4. AcousticBrainz Integration (0.5 Weeks):**
+- **6.4. AcousticBrainz Integration:**
   - Build API client for AcousticBrainz
   - API endpoint: `POST /ingest/characterize/{file_id}`
   - Fetch high-level musical flavor data
@@ -550,7 +550,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Add TODO comment for fallback to Essentia (implemented in Phase 6.5)
   - For now: If AcousticBrainz data unavailable, leave flavor vector empty (will be filled by Essentia in Phase 6.5)
 
-- **6.5. Essentia Integration (2 Weeks):**
+- **6.5. Essentia Integration:**
   - **Very significant task** - Set up Rust FFI bindings for Essentia C++
   - Implement local analysis pipeline
   - Generate musical flavor vectors locally when AcousticBrainz data unavailable
@@ -558,7 +558,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Complete fallback mechanism from Phase 6.4: Check for AcousticBrainz data first, use Essentia only if missing
   - Note: Part of wkmp-ai binary (Full version only)
 
-- **6.6. Passage Segmentation (1 Week):**
+- **6.6. Passage Segmentation:**
   - API endpoint: `POST /ingest/segment/{file_id}`
   - UI workflow for defining passage boundaries:
     - Source selection (MusicBrainz release track matching)
@@ -567,7 +567,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Set lead-in/lead-out points, fade curves
   - Support multiple passages per file
 
-- **6.7. Metadata Editing & Finalization (0.5 Weeks):**
+- **6.7. Metadata Editing & Finalization:**
   - API endpoints:
     - `PUT /ingest/metadata/{passage_id}` - Edit passage metadata
     - `POST /ingest/finalize/{file_id}` - Complete ingest workflow
@@ -576,11 +576,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 7: Multi-Song Passages & Advanced Features (4 Weeks)
+## Phase 7: Multi-Song Passages & Advanced Features
 
 *Goal: Support complex passage structures and album art handling.*
 
-- **7.1. Multi-Song Passage Support (1.5 Weeks):**
+- **7.1. Multi-Song Passage Support:**
   - Implement passage-to-song many-to-many relationships
   - Implement weighted centroid in `wkmp-common/src/flavor/centroid.rs`:
     - Calculate passage flavor as weighted centroid of constituent songs
@@ -591,7 +591,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Handle `CurrentSongChanged` events during playback
   - Display current song within passage in UI
 
-- **7.2. Album Art Handling (1.5 Weeks):**
+- **7.2. Album Art Handling:**
   - Extract embedded cover art from audio files
   - Store in filesystem alongside audio files:
     - Storage location: Same folder as the audio file the artwork relates to
@@ -605,12 +605,12 @@ This document aggregates all specifications to define WHEN features are built. I
   - Rotate multiple albums every 15 seconds
   - See [Library Management](library_management.md) for complete artwork extraction workflows
 
-- **7.3. Multi-Album Passage Support (0.5 Weeks):**
+- **7.3. Multi-Album Passage Support:**
   - Handle passages spanning multiple albums (compilations)
   - Album art switches based on current song
   - UI logic per `ui_specification.md`
 
-- **7.4. Works Support (0.5 Weeks):**
+- **7.4. Works Support:**
   - Implement song-to-work many-to-many relationships
   - Handle mashups (multiple works per song)
   - Work cooldown multiplier = product of all associated works
@@ -618,11 +618,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 8: Configuration UI & Base Probabilities (2 Weeks)
+## Phase 8: Configuration UI & Base Probabilities
 
 *Goal: Complete the configuration interfaces for controlling selection behavior.*
 
-- **8.1. Base Probability Editing (1 Week):**
+- **8.1. Base Probability Editing:**
   - User Interface proxies to Program Director:
     - `GET /config/probabilities` - Get base probabilities
     - `PUT /config/probabilities/{entity_type}/{id}` - Set base probability
@@ -632,7 +632,7 @@ This document aggregates all specifications to define WHEN features are built. I
     - Individual works
   - Visualize impact on selection likelihood
 
-- **8.2. Cooldown Configuration (0.5 Weeks):**
+- **8.2. Cooldown Configuration:**
   - User Interface proxies to Program Director:
     - `GET /config/cooldowns` - Get cooldown settings
     - `PUT /config/cooldowns` - Update cooldown settings
@@ -642,7 +642,7 @@ This document aggregates all specifications to define WHEN features are built. I
     - Per-work custom cooldowns
     - Global defaults
 
-- **8.3. Program Director Status (0.5 Weeks):**
+- **8.3. Program Director Status:**
   - User Interface display of:
     - Current timeslot and target flavor
     - Last selection candidates (debugging)
@@ -651,11 +651,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 9: Version Packaging & Module Integration (2.5 Weeks)
+## Phase 9: Version Packaging & Module Integration
 
 *Goal: Create version-specific distribution packages and ensure modules work together.*
 
-- **9.1. Version Packaging Strategy (0.5 Weeks):**
+- **9.1. Version Packaging Strategy:**
   - **Key principle**: Versions are differentiated by **which modules are deployed**, not by conditional compilation
   - Each module is built identically; no feature flags or conditional compilation required
   - Create packaging scripts for each version:
@@ -674,7 +674,7 @@ This document aggregates all specifications to define WHEN features are built. I
       - `wkmp-ui` (User Interface)
   - Document deployment configurations in `deployment.md`
 
-- **9.2. Build Scripts & Distribution (0.5 Weeks):**
+- **9.2. Build Scripts & Distribution:**
   - Create unified build script: `cargo build --release` (builds all binaries)
   - Create distribution packaging scripts:
     - `package-full.sh` - Packages 5 binaries + dependencies
@@ -686,14 +686,14 @@ This document aggregates all specifications to define WHEN features are built. I
   - Create installer packages (.deb, .rpm, .dmg, .msi) per version
   - Include default database with pre-populated `module_config` table
 
-- **9.3. Module Integration Testing (1 Week):**
+- **9.3. Module Integration Testing:**
   - Test all HTTP API communication between modules
   - Verify module discovery via `module_config` table
   - Test graceful degradation when modules unavailable
   - Test SSE event flow from Audio Player → User Interface
   - Test Program Director → Audio Player enqueueing
 
-- **9.4. Database Export/Import (0.5 Weeks):**
+- **9.4. Database Export/Import:**
   - Simple SQLite database file copy workflow
   - Full version: Copy `wkmp.db` file to share with Lite/Minimal installations
   - Lite/Minimal versions: Copy received `wkmp.db` file to their root folder
@@ -705,11 +705,11 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 10: Platform Support & Deployment (3.5 Weeks)
+## Phase 10: Platform Support & Deployment
 
 *Goal: Ensure cross-platform operation and proper system integration.*
 
-- **10.1. Linux Deployment (1 Week):**
+- **10.1. Linux Deployment:**
   - Create systemd service file for User Interface (see `deployment.md`):
     - `wkmp-ui.service` - Only service file needed
     - wkmp-ui launches other modules (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le) automatically as needed
@@ -719,7 +719,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Test module launching and relaunching logic
   - Create installation scripts (.deb, .rpm)
 
-- **10.2. macOS Deployment (1 Week):**
+- **10.2. macOS Deployment:**
   - Create launchd plist file for User Interface:
     - `com.wkmp.ui.plist` - Only plist needed
     - wkmp-ui launches other modules automatically as needed
@@ -729,7 +729,7 @@ This document aggregates all specifications to define WHEN features are built. I
   - Create .dmg installer package
   - Code signing for Gatekeeper
 
-- **10.3. Windows Deployment (1.5 Weeks):**
+- **10.3. Windows Deployment:**
   - Create Windows Service wrapper for User Interface (using NSSM or native API):
     - `WKMP-UI` service - Only service needed
     - wkmp-ui launches other modules automatically as needed
@@ -740,17 +740,17 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 11: Distributed Deployment Support (1 Week)
+## Phase 11: Distributed Deployment Support
 
 *Goal: Enable modules to run on separate hosts.*
 
-- **11.1. Network Configuration (0.5 Weeks):**
+- **11.1. Network Configuration:**
   - Document updating `module_config` table for distributed setups
   - Test modules communicating across network
   - Security considerations for exposed HTTP ports
   - Firewall configuration guidance
 
-- **11.2. Multi-Host Testing (0.5 Weeks):**
+- **11.2. Multi-Host Testing:**
   - Test with Audio Player on one machine, User Interface on another
   - Verify SSE works across network
   - Test reconnection logic when modules restart
@@ -758,39 +758,39 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 12: Polish, Optimization & Testing (7 Weeks)
+## Phase 12: Polish, Optimization & Testing
 
 *Goal: Harden the application, improve performance, and ensure quality.*
 
-- **12.1. Raspberry Pi Zero2W Optimization (2 Weeks):**
+- **12.1. Raspberry Pi Zero2W Optimization:**
   - Profile memory and CPU usage on target device (Lite/Minimal versions)
   - Optimize GStreamer pipelines for low-power devices
   - Optimize database queries (indexes, query plans)
   - Reduce binary sizes
   - Target: < 256MB memory, < 5s startup time
 
-- **12.2. Error Handling & Recovery (2 Weeks):**
+- **12.2. Error Handling & Recovery:**
   - Comprehensive error handling in all modules
   - Graceful degradation when dependencies unavailable
   - Retry logic for transient failures (network, database locks)
   - User-friendly error messages in UI
   - Logging strategy (file rotation, log levels)
 
-- **12.3. Multi-User Edge Cases (1 Week):**
+- **12.3. Multi-User Edge Cases:**
   - Test and harden skip throttling (< 5 seconds)
   - Test concurrent queue removal
   - Test concurrent lyric editing
   - Verify user identity isolation
   - Test Anonymous user shared state
 
-- **12.4. UI/UX Refinements (1 Week):**
+- **12.4. UI/UX Refinements:**
   - Loading states for asynchronous operations
   - Responsive design polish (mobile/desktop)
   - Accessibility (keyboard navigation, screen readers)
   - Visual polish (transitions, animations)
   - Error state displays
 
-- **12.5. Comprehensive Testing (1 Week):**
+- **12.5. Comprehensive Testing:**
   - **Test Framework**: Rust `cargo test` with standard test harness
   - **Test Coverage Targets** (per CO-093, measured with `cargo-tarpaulin` or `cargo-llvm-cov`):
     - **wkmp-ap (Audio Player)**: 80% coverage
@@ -853,28 +853,28 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Phase 13: Documentation & Developer Tools (2 Weeks)
+## Phase 13: Documentation & Developer Tools
 
 *Goal: Complete documentation and create developer-friendly tools.*
 
-- **13.1. User Documentation (0.5 Weeks):**
+- **13.1. User Documentation:**
   - Installation guides for all platforms
   - Configuration guide (module_config, settings)
   - User manual for core features
   - Troubleshooting guide
 
-- **13.2. API Documentation (0.5 Weeks):**
+- **13.2. API Documentation:**
   - OpenAPI/Swagger specs for all module APIs
   - API client examples (curl, JavaScript)
   - SSE event documentation
 
-- **13.3. Developer Documentation (0.5 Weeks):**
+- **13.3. Developer Documentation:**
   - Architecture overview
   - Module communication patterns
   - Database schema documentation
   - Build and development setup
 
-- **13.4. Developer Tools (0.5 Weeks):**
+- **13.4. Developer Tools:**
   - CLI tool for database inspection
   - CLI tool for testing module communication
   - Mock servers for development/testing
@@ -882,7 +882,7 @@ This document aggregates all specifications to define WHEN features are built. I
 
 ---
 
-## Future Phases (Not Estimated)
+## Future Phases
 
 The following features are specified but not yet estimated:
 
@@ -901,67 +901,6 @@ The following features are specified but not yet estimated:
   - Platform-specific audio engines
   - Background playback
   - Offline-first architecture
-
----
-
-## Total Estimated Timeline
-
-| Phase | Duration (Weeks) |
-|-------|------------------|
-| 1. Foundation & Database | 2.5 |
-| 2. Audio Player Module | 5.0 |
-| 3. User Interface Module | 4.5 |
-| 4. Program Director Module | 4.0 |
-| 5. Timeslot & Flavor Config | 3.0 |
-| 6. Audio Ingest Module (Full) | 7.0 |
-| 7. Multi-Song & Album Art | 4.0 |
-| 8. Configuration UI | 2.0 |
-| 9. Version Builds | 2.5 |
-| 10. Platform Support | 3.5 |
-| 11. Distributed Deployment | 1.0 |
-| 12. Polish & Testing | 7.0 |
-| 13. Documentation | 2.0 |
-| **Total** | **49.0 Weeks** |
-
-**Notes:**
-- Timeline assumes single experienced developer at 20 hours/week
-- Workspace setup (Phase 1.0) adds 0.5 weeks but simplifies later work
-- Phases 6-13 can have significant parallelization opportunities with multiple developers
-- Audio Ingest module (Phase 6) can be developed in parallel with other modules
-- Platform-specific work (Phase 10) can be parallelized across platforms
-- **Increased from 36.5 weeks** to reflect microservices architecture complexity
-- Module integration and testing requires additional time
-- Each module requires independent HTTP server setup and testing
-
----
-
-## Parallelization Opportunities
-
-With multiple developers, these phases can run in parallel:
-
-**Track 1 (Core):**
-- Phase 1 → Phase 2 → Phase 9 → Phase 12
-
-**Track 2 (UI):**
-- (Wait for Phase 2.1-2.3) → Phase 3 → Phase 8 → Phase 12.4
-
-**Track 3 (Selection):**
-- (Wait for Phase 1) → Phase 4 → Phase 5 → Phase 8.1-8.2
-
-**Track 4 (Ingest - Full only):**
-- (Wait for Phase 1) → Phase 6 → Phase 7
-
-**Track 5 (Platform):**
-- (Wait for Phase 9) → Phase 10 (can split Linux/macOS/Windows)
-
-**Estimated Timeline with 3 Developers:** ~25-30 weeks
-
-**Note:** This is a rough estimate that assumes perfect parallelization (unrealistic). In practice, expect:
-- Communication overhead between developers
-- Integration complexity at module boundaries
-- Serialization points where work cannot be parallelized
-- Code review and synchronization delays
-- Actual timeline likely closer to 30-35 weeks with realistic team coordination
 
 ----
 End of document - WKMP Implementation Order & Timeline

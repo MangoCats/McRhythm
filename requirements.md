@@ -49,12 +49,12 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
       - **[REQ-CF-061A3]** launchd on macOS (Rollout phase 2)
     - **[REQ-CF-061B]** Auto-selection of passages to play
       - **[REQ-CF-061B1]** Automatically select passages until at least N passages are either currently playing, paused or waiting in the queue and at least M minutes of total passage playing time is remaining in the queue.
-        - N default value is 3 passages, and M default value is 15 minutes. These are user configurable parameters and persisted in the database.
+        - **[REQ-CF-061B1A]** N default value is 3 passages, and M default value is 15 minutes. These are user configurable parameters and persisted in the database.
       - **[REQ-CF-061B2]** Stop automatic enqueueing when no passages with associated songs are available to enqueue, because the library lacks passages with songs which are not currently available for automatic selection.
-        - When automatic enqueueing is unable to add passages to the queue, the queue may eventually become empty as passages finish playing.
-  - **[REQ-CF-062]** Shows details of passage currently playing
-    - **[REQ-CF-062A]** Shows associated album art or other still image(s) associated with the passage when available
-    - **[REQ-CF-062B]** Shows passage lyrics when available
+        - **[REQ-CF-061B2A]** When automatic enqueueing is unable to add passages to the queue, the queue may eventually become empty as passages finish playing.
+  - **[REQ-CF-062]** Shows details of song or passage currently playing
+    - **[REQ-CF-062A]** Shows associated album art or other still image(s) associated with the song when available
+    - **[REQ-CF-062B]** Shows song lyrics when available
   - **[REQ-CF-063]** Shows basic identity of passages queued for playing next
   - **[REQ-CF-064]** Manual user controls allow the user to control and configure the system when they want to
     - **[REQ-CF-064A]** Access manual controls from phone and desktop browsers
@@ -79,10 +79,10 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-AF-010]** Planned for later development (Rollout phase 2):
   - **[REQ-AF-012]** Mobile (Android, iOS) versions
-
+    - **[REQ-AF-012A]** Automatically select passages to play based on database and audio files stored locally on phone or tablet.
 ## Three Versions
 
-**[REQ-VER-010]** Default Behavior: When not otherwise specified, requirements apply to all versions
+**[REQ-VER-010]** When not otherwise specified, requirements apply to all versions in Rollout phase 1.
 
 ### Full Version
 
@@ -97,11 +97,12 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - File scanning and library management
 - Preference editing (timeslots, base probabilities)
 - Lyrics editing
+- ChromaPrint+AcoustID song identification
 - MusicBrainz/AcousticBrainz integration
 - Essentia local analysis for musical flavor
 
 **[REQ-VER-025]** Resource Profile:
-- CPU: Higher (Essentia analysis during import)
+- CPU: Higher (ChromaPrint & Essentia analysis during import)
 - Disk I/O: Higher (file scanning)
 - Memory: ~512MB typical
 - Network: Two distinct network access types:
@@ -157,12 +158,12 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 ### Build Strategy
 
-**[REQ-VER-050]** See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for Rust feature flags and conditional compilation approach.
+**[REQ-VER-050]** See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for compilation approach.
 
 **[REQ-VER-051]** Database Deployment:
 - Full version exports complete database snapshot, records passage play history, likes and dislikes, configure preference parameters, edit lyrics.
 - Lite version imports database developed in full version, records passage play history, likes and dislikes.
-- Minimal version imports database developed in full version, records passage play history.
+- Minimal version imports database developed in full version, can operate in read only mode.
 - Migration tools for version upgrades
 
 ## Technical Requirements
@@ -172,7 +173,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
   - **[REQ-TECH-012]** Generic Linux (Rollout phase 1)
   - **[REQ-TECH-013]** Windows (Rollout phase 1)
   - **[REQ-TECH-014]** macOS (Rollout phase 2)
-  - **[REQ-TECH-015]** Later targets (will use different technical stack, e.g. Flutter instead of Tauri)
+  - **[REQ-TECH-015]** Later targets (will use different technical stack, e.g. Flutter)
     - Android (Lite and Minimal versions) (Rollout phase 2)
     - iOS (Lite and Minimal versions) (Rollout phase 2)
 
