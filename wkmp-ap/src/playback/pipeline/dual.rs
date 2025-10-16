@@ -244,6 +244,8 @@ impl DualPipeline {
         // Set file location
         components.filesrc.set_property("location", file_path.to_str().unwrap());
 
+        debug!("File set for pipeline {:?}", pipeline);
+
         Ok(())
     }
 
