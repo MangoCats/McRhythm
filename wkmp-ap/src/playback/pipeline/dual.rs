@@ -124,7 +124,21 @@ impl DualPipeline {
         // Link mixer -> master_volume -> audio_sink
         gst::Element::link_many([&audiomixer, &master_volume, &audio_sink])?;
 
-        // Link pipeline bins to mixer (will be done when pads become available)
+        // Link pipeline A bin to mixer
+        let pipeline_a_pad = pipeline_a.bin.static_pad("src")
+            .ok_or_else(|| anyhow::anyhow!("No src pad on pipeline A bin"))?;
+        let mixer_sink_a = audiomixer.request_pad_simple("sink_%u")
+            .ok_or_else(|| anyhow::anyhow!("Failed to get mixer sink pad for pipeline A"))?;
+        pipeline_a_pad.link(&mixer_sink_a)?;
+        debug!("Linked pipeline A to mixer");
+
+        // Link pipeline B bin to mixer
+        let pipeline_b_pad = pipeline_b.bin.static_pad("src")
+            .ok_or_else(|| anyhow::anyhow!("No src pad on pipeline B bin"))?;
+        let mixer_sink_b = audiomixer.request_pad_simple("sink_%u")
+            .ok_or_else(|| anyhow::anyhow!("Failed to get mixer sink pad for pipeline B"))?;
+        pipeline_b_pad.link(&mixer_sink_b)?;
+        debug!("Linked pipeline B to mixer");
 
         Ok(Self {
             main_pipeline,
@@ -331,6 +345,76 @@ impl DualPipeline {
         }
 
         false
+    }
+
+    /// Start crossfade from current pipeline to the other
+    ///
+    /// This initiates a volume crossfade over the specified duration.
+    /// The caller is responsible for calling update_crossfade() periodically
+    /// to update the volume levels.
+    pub async fn start_crossfade(&self, duration_ms: u64) -> Result<()> {
+        let active = self.active().await;
+        info!("Starting crossfade from {:?} to {:?} over {}ms",
+              active, active.other(), duration_ms);
+
+        // The actual crossfade is performed by periodically calling update_crossfade()
+        // from the monitoring task
+        Ok(())
+    }
+
+    /// Update crossfade progress
+    ///
+    /// # Arguments
+    /// * `progress` - Crossfade progress from 0.0 (start) to 1.0 (complete)
+    /// * `curve` - Fade curve to use ("linear", "exponential", or "cosine")
+    ///
+    /// This should be called periodically during a crossfade to update volumes
+    pub async fn update_crossfade(&self, progress: f64, curve: &str) -> Result<()> {
+        let progress = progress.clamp(0.0, 1.0);
+        let active = self.active().await;
+
+        // Calculate fade-out volume for current pipeline
+        let fade_out_volume = Self::calculate_fade_curve(1.0 - progress, curve);
+
+        // Calculate fade-in volume for next pipeline
+        let fade_in_volume = Self::calculate_fade_curve(progress, curve);
+
+        // Apply volumes
+        self.set_pipeline_volume(active, fade_out_volume).await?;
+        self.set_pipeline_volume(active.other(), fade_in_volume).await?;
+
+        debug!("Crossfade progress: {:.2}%, {:?} vol: {:.2}, {:?} vol: {:.2}",
+               progress * 100.0, active, fade_out_volume, active.other(), fade_in_volume);
+
+        Ok(())
+    }
+
+    /// Calculate volume based on fade curve
+    ///
+    /// # Arguments
+    /// * `t` - Progress from 0.0 to 1.0
+    /// * `curve` - "linear", "exponential", or "cosine"
+    fn calculate_fade_curve(t: f64, curve: &str) -> f64 {
+        let t = t.clamp(0.0, 1.0);
+
+        match curve {
+            "exponential" => {
+                // Exponential curve: slow start, fast finish
+                t * t
+            }
+            "logarithmic" => {
+                // Logarithmic curve: fast start, slow finish
+                1.0 - (1.0 - t) * (1.0 - t)
+            }
+            "cosine" => {
+                // Cosine S-curve: smooth acceleration and deceleration
+                0.5 * (1.0 - f64::cos(t * std::f64::consts::PI))
+            }
+            _ => {
+                // Linear (default)
+                t
+            }
+        }
     }
 }
 
