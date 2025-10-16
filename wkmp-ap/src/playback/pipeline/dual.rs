@@ -140,9 +140,11 @@ impl DualPipeline {
         pipeline_b_pad.link(&mixer_sink_b)?;
         debug!("Linked pipeline B to mixer");
 
-        // Set pipeline A to READY
-        pipeline_a.bin.set_state(gst::State::Ready)?;
-        debug!("Set pipeline A bin to READY state");
+        // Give both pipelines dummy files initially so their pads can activate
+        // Pipeline A will be replaced with actual file on first load
+        pipeline_a.filesrc.set_property("location", "/dev/null");
+        pipeline_a.volume.set_property("volume", 0.0f64);
+        debug!("Set pipeline A with dummy file and 0 volume");
 
         // Set pipeline B volume to 0 and give it a dummy file location
         // This prevents "No file name specified" errors when main pipeline transitions to PLAYING
@@ -224,11 +226,11 @@ impl DualPipeline {
             }
         });
 
-        // Create ghost pad for output
+        // Create ghost pad for output - don't manually activate, let GStreamer do it
         let volume_src_pad = volume.static_pad("src")
             .ok_or_else(|| anyhow::anyhow!("No src pad on volume"))?;
         let ghost_pad = gst::GhostPad::with_target(&volume_src_pad)?;
-        ghost_pad.set_active(true)?;
+        // Note: Don't call set_active(true) - GStreamer will activate when pipeline plays
         bin.add_pad(&ghost_pad)?;
 
         Ok(PipelineComponents {
@@ -258,10 +260,12 @@ impl DualPipeline {
         // Set file location (must be done while filesrc is in NULL state)
         components.filesrc.set_property("location", file_path.to_str().unwrap());
 
-        // Set bin to READY so it's prepared for playback when main pipeline transitions
-        debug!("Setting pipeline {:?} bin to READY", pipeline);
-        components.bin.set_state(gst::State::Ready)?;
-        debug!("File loaded into pipeline {:?}, bin ready for playback", pipeline);
+        // Set volume to 1.0 for active playback
+        components.volume.set_property("volume", 1.0f64);
+        *components.volume_level.write().await = 1.0;
+
+        // Don't set state here - let the main pipeline state change propagate down
+        debug!("File loaded into pipeline {:?}, bin will sync when main pipeline plays", pipeline);
 
         Ok(())
     }
