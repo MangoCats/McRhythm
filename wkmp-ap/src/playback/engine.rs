@@ -65,7 +65,7 @@ impl PlaybackEngine {
         Ok(())
     }
 
-    /// Load and prepare the next track from queue into the inactive pipeline
+    /// Load and prepare the next track from queue
     async fn load_next_track(&mut self) -> Result<()> {
         // Get pipeline
         let pipeline = self.pipeline.as_ref()
@@ -80,11 +80,21 @@ impl PlaybackEngine {
         // Build full path
         let full_path = self.root_folder.join(&entry.file_path);
 
-        // Get the active pipeline (we'll load into the inactive one)
+        // Determine which pipeline to load into
         let active = pipeline.active().await;
-        let target = active.other();
+        let currently_playing = self.state.get_currently_playing().await;
 
-        // Load file into inactive pipeline
+        // If nothing is currently playing, load into active pipeline (initial load)
+        // Otherwise, load into inactive pipeline for crossfade pre-loading
+        let target = if currently_playing.is_none() {
+            info!("Initial load - using active pipeline {:?}", active);
+            active
+        } else {
+            info!("Pre-loading next track into inactive pipeline");
+            active.other()
+        };
+
+        // Load file into target pipeline
         pipeline.load_file(target, &full_path).await?;
 
         info!("Loaded track into pipeline {:?}", target);
