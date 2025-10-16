@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn, error};
 
-use super::pipeline::SinglePipeline;
+use super::pipeline::{DualPipeline, ActivePipeline};
 use super::queue::QueueManager;
 use super::state::{PlaybackState as State, SharedPlaybackState};
 use crate::sse::{SseBroadcaster, SseEvent, SseEventData};
@@ -17,7 +17,7 @@ pub struct PlaybackEngine {
     root_folder: PathBuf,
     queue: QueueManager,
     state: SharedPlaybackState,
-    current_pipeline: Option<SinglePipeline>,
+    pipeline: Option<DualPipeline>,
     sse_broadcaster: Option<SseBroadcaster>,
 }
 
@@ -31,7 +31,7 @@ impl PlaybackEngine {
             root_folder,
             queue,
             state,
-            current_pipeline: None,
+            pipeline: None,
             sse_broadcaster: None,
         }
     }
@@ -57,12 +57,20 @@ impl PlaybackEngine {
         // Initialize queue manager
         self.queue.init().await?;
 
-        info!("Playback engine initialized");
+        // Create dual pipeline
+        let pipeline = DualPipeline::new()?;
+        self.pipeline = Some(pipeline);
+
+        info!("Playback engine initialized with dual pipeline");
         Ok(())
     }
 
-    /// Load and prepare the next track from queue
+    /// Load and prepare the next track from queue into the inactive pipeline
     async fn load_next_track(&mut self) -> Result<()> {
+        // Get pipeline
+        let pipeline = self.pipeline.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Pipeline not initialized"))?;
+
         // Get next entry from queue
         let entry = self.queue.get_next().await
             .ok_or_else(|| anyhow::anyhow!("Queue is empty"))?;
@@ -72,19 +80,14 @@ impl PlaybackEngine {
         // Build full path
         let full_path = self.root_folder.join(&entry.file_path);
 
-        // Create pipeline
-        let start_ms = entry.start_time_ms.unwrap_or(0);
-        let end_ms = entry.end_time_ms.unwrap_or(180000); // Default 3 min
+        // Get the active pipeline (we'll load into the inactive one)
+        let active = pipeline.active().await;
+        let target = active.other();
 
-        let pipeline = SinglePipeline::new(&full_path, start_ms, end_ms)?;
+        // Load file into inactive pipeline
+        pipeline.load_file(target, &full_path).await?;
 
-        // Seek to start position if not zero
-        if start_ms > 0 {
-            pipeline.seek_to(start_ms)?;
-        }
-
-        // Store pipeline
-        self.current_pipeline = Some(pipeline);
+        info!("Loaded track into pipeline {:?}", target);
 
         // Update state
         let passage_id = entry.passage_guid.as_ref()
@@ -115,20 +118,20 @@ impl PlaybackEngine {
                 }
 
                 // Start pipeline
-                if let Some(ref pipeline) = self.current_pipeline {
+                if let Some(ref pipeline) = self.pipeline {
                     pipeline.play()?;
                     self.state.set_state(State::Playing).await;
                     self.emit_state_changed(State::Playing);
                     info!("Playback started");
                 } else {
-                    error!("Pipeline not loaded");
-                    return Err(anyhow::anyhow!("Pipeline not loaded"));
+                    error!("Pipeline not initialized");
+                    return Err(anyhow::anyhow!("Pipeline not initialized"));
                 }
             }
             State::Paused => {
                 // Resume playback
                 info!("Resuming playback");
-                if let Some(ref pipeline) = self.current_pipeline {
+                if let Some(ref pipeline) = self.pipeline {
                     pipeline.play()?;
                     self.state.set_state(State::Playing).await;
                     self.emit_state_changed(State::Playing);
@@ -150,7 +153,7 @@ impl PlaybackEngine {
 
         if current_state == State::Playing {
             info!("Pausing playback");
-            if let Some(ref pipeline) = self.current_pipeline {
+            if let Some(ref pipeline) = self.pipeline {
                 pipeline.pause()?;
                 self.state.set_state(State::Paused).await;
                 self.emit_state_changed(State::Paused);
@@ -166,15 +169,16 @@ impl PlaybackEngine {
     pub async fn skip(&mut self) -> Result<()> {
         info!("Skipping to next track");
 
-        // Stop current pipeline
-        if let Some(ref pipeline) = self.current_pipeline {
-            let _ = pipeline.stop();
-        }
-        self.current_pipeline = None;
-
         // Remove current entry from queue
         if let Some(current) = self.queue.get_next().await {
             self.queue.remove(&current.guid).await?;
+        }
+
+        // Switch to next pipeline and start loading the next track
+        if let Some(ref pipeline) = self.pipeline {
+            // Switch active pipeline
+            pipeline.switch_active().await;
+            info!("Switched to next pipeline");
         }
 
         // Set to stopped and restart if we were playing
@@ -205,9 +209,9 @@ impl PlaybackEngine {
 
     /// Update position from pipeline (call this periodically)
     pub async fn update_position(&self) {
-        if let Some(ref pipeline) = self.current_pipeline {
-            if let Some(pos_ms) = pipeline.position_ms() {
-                if let Some(dur_ms) = pipeline.duration_ms() {
+        if let Some(ref pipeline) = self.pipeline {
+            if let Some(pos_ms) = pipeline.position_ms().await {
+                if let Some(dur_ms) = pipeline.duration_ms().await {
                     self.state.set_position(pos_ms as u64, dur_ms as u64).await;
                 }
             }
@@ -216,7 +220,7 @@ impl PlaybackEngine {
 
     /// Check if end of stream and advance to next track
     pub async fn check_eos(&mut self) -> Result<()> {
-        if let Some(ref pipeline) = self.current_pipeline {
+        if let Some(ref pipeline) = self.pipeline {
             if pipeline.is_eos() {
                 info!("End of stream reached, advancing to next track");
                 self.skip().await?;
@@ -232,9 +236,9 @@ impl PlaybackEngine {
         // Update state
         self.state.set_volume(clamped_volume).await;
 
-        // Update pipeline if active
-        if let Some(ref pipeline) = self.current_pipeline {
-            pipeline.set_volume(clamped_volume)?;
+        // Update master volume on pipeline
+        if let Some(ref pipeline) = self.pipeline {
+            pipeline.set_master_volume(clamped_volume).await?;
         }
 
         // Emit volume changed event (0-100 scale for user-facing)
@@ -251,12 +255,12 @@ impl PlaybackEngine {
 
     /// Seek to position in milliseconds
     pub async fn seek(&self, position_ms: i64) -> Result<()> {
-        if let Some(ref pipeline) = self.current_pipeline {
+        if let Some(ref pipeline) = self.pipeline {
             pipeline.seek_to(position_ms)?;
             info!("Seeked to {}ms", position_ms);
             Ok(())
         } else {
-            Err(anyhow::anyhow!("No active pipeline to seek"))
+            Err(anyhow::anyhow!("Pipeline not initialized"))
         }
     }
 }
