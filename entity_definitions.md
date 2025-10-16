@@ -14,7 +14,7 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
 - **[ENT-MB-020]** Recording: the unique distinct piece of audio underlying a track. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Recording).
 - **[ENT-MB-030]** Work: one or more recordings can exist of each work. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Work) definition of discrete works.
 - **[ENT-MB-040]** Artist: the artist(s) credited with creating a recording. Has a MBID, definition is [harmonized with MusicBrainz](https://musicbrainz.org/doc/Recording#Artist) definition of "The artist(s) that the recording is primarily credited to."
-- **[ENT-MCR-010]** Song: A combination of a recording, zero or more associated works, and one or more artists, each with an assigned weight.
+- **[ENT-MP-010]** Song: A combination of a recording, zero or more associated works, and zero or more artists, each with an assigned weight.
   - The sum of artist weights for a song must equal 1.0.
   - These weights are used in probability and cooldown calculations.
   - Each song may appear in one or more passages.
@@ -22,10 +22,10 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
     - **Common case**: One work per song (original composition)
     - **Zero works**: Improvisations, sound effects, non-musical passages
     - **Multiple works**: Mashups, medleys combining multiple source works
-- **[ENT-MCR-020]** Audio File: A file on disk containing audio data in formats such as MP3, FLAC, OGG, M4A, or WAV.
+- **[ENT-MP-020]** Audio File: A file on disk containing audio data in formats such as MP3, FLAC, OGG, M4A, or WAV.
   - Each audio file may contain one or more passages.
   - Audio files are stored in user-designated music library directories.
-- **[ENT-MCR-030]** Passage: A defined span of audio, plus optional metadata
+- **[ENT-MP-030]** Passage: A defined span of audio, plus optional metadata
   - In WKMP a passage is a defined part of an audio file with start, fade-in, lead-in,
     lead-out, fade-out, end points in time defined, as described in [Crossfade Design](crossfade.md#overview).
   - Multiple passages defined within an audio file may, or may not, overlap each other in time.
@@ -34,7 +34,7 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
   - Passage metadata may optionally include:
     - A title for the passage
     - References to one or more images associated with the passage
-- **[ENT-MCR-035]** Audio file as Passage: A passage which only identifies an audio file, with start, end, fade, lead and other metadata undefined, shall be handled as a passage which starts at the beginning of the file, ends at the end of the file, and has zero duration lead-in, lead-out, fade-in and fade-out times.
+- **[ENT-MP-035]** Audio file as Passage: A passage which only identifies an audio file, with start, end, fade, lead and other metadata undefined, shall be handled as a passage which starts at the beginning of the file, ends at the end of the file, and has zero duration lead-in, lead-out, fade-in and fade-out times.
 
 ## Entity Relationships
 
@@ -43,9 +43,9 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
 - **[ENT-REL-030]** Recording performed by Artist(s)
 - **[ENT-REL-040]** Song contains Recording
 - **[ENT-REL-045]** Song may represent zero, one, or multiple Works
-- **[ENT-REL-050]** Song performed by Artist(s)
-- **[ENT-REL-060]** Passage contains Song(s)
-- **[ENT-REL-070]** Passage is part of Audio File
+- **[ENT-REL-050]** Song performed by Artist(s), no defined artist means artist unknown.
+- **[ENT-REL-060]** Passage contains zero or more Song(s)
+- **[ENT-REL-070]** Passage is part of Audio File, can be the entire audio file.
 
 ```mermaid
 erDiagram
@@ -75,9 +75,9 @@ erDiagram
 
 ## WKMP-Specific Constraints
 
-- **[ENT-CONST-010]** Passage with zero songs: Allowed, but excluded from automatic selection (can only be manually queued)
-- **[ENT-CONST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted centroid of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage. See [Musical Flavor - Weighted Centroid Calculation](musical_flavor.md#more-than-one-recording-per-passage-calculation) and [Musical Taste - Weighted Taste](musical_taste.md#weighted-taste) for algorithm details.
-- **[ENT-CONST-030]** Song identity: Defined by unique (Recording, Work, weighted Artist set) combination
+- **[ENT-CNST-010]** Passage with zero songs: Allowed, but excluded from automatic selection (can only be manually queued)
+- **[ENT-CNST-020]** Passage with multiple songs: The passage's Musical Flavor is the weighted centroid of the Flavors of the Recordings contained within its Songs. The weight for each Recording's Flavor is directly proportional to that Recording's runtime within the passage. See [Musical Flavor - Weighted Centroid Calculation](musical_flavor.md#more-than-one-recording-per-passage-calculation) and [Musical Taste - Weighted Taste](musical_taste.md#weighted-taste) for algorithm details.
+- **[ENT-CNST-030]** Song identity: Defined by unique (Recording, Work, weighted Artist set) combination
   - Same recording of the same work performed by different artists (or the same artists with different weights) = different songs
   - Different recordings of same work by same artist = different songs
 

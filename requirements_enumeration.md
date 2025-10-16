@@ -118,10 +118,10 @@ For simple lists where hierarchy is clear from context:
 | Code | Section | Scope |
 |------|---------|-------|
 | MB | MusicBrainz | MusicBrainz entities (Track, Recording, Work, Artist) |
-| MCR | WKMP | WKMP-specific entities (Song, Passage) |
+| MP | WKMP | WKMP-specific entities (Song, Passage) |
 | REL | Relationships | Entity relationships and cardinality |
 | CARD | Cardinality | Cardinality rules |
-| CONST | Constraints | WKMP-specific entity constraints |
+| CNST | Constraints | WKMP-specific entity constraints |
 
 ### ARCH (architecture.md)
 
