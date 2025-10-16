@@ -6,7 +6,7 @@ use gstreamer::prelude::*;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 /// Which pipeline is currently active
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,6 +140,16 @@ impl DualPipeline {
         pipeline_b_pad.link(&mixer_sink_b)?;
         debug!("Linked pipeline B to mixer");
 
+        // Set pipeline A to READY
+        pipeline_a.bin.set_state(gst::State::Ready)?;
+        debug!("Set pipeline A bin to READY state");
+
+        // Set pipeline B volume to 0 and give it a dummy file location
+        // This prevents "No file name specified" errors when main pipeline transitions to PLAYING
+        pipeline_b.volume.set_property("volume", 0.0f64);
+        pipeline_b.filesrc.set_property("location", "/dev/null");
+        debug!("Set pipeline B volume to 0 and dummy file location");
+
         Ok(Self {
             main_pipeline,
             pipeline_a,
@@ -241,18 +251,60 @@ impl DualPipeline {
             ActivePipeline::B => &self.pipeline_b,
         };
 
-        // Set file location
+        // Set bin to NULL so we can change filesrc location
+        debug!("Setting pipeline {:?} bin to NULL to load new file", pipeline);
+        components.bin.set_state(gst::State::Null)?;
+
+        // Set file location (must be done while filesrc is in NULL state)
         components.filesrc.set_property("location", file_path.to_str().unwrap());
+        debug!("File loaded into pipeline {:?}, bin will follow main pipeline state", pipeline);
 
-        debug!("File set for pipeline {:?}", pipeline);
-
+        // DON'T set bin state here - let it follow the main pipeline's state automatically
         Ok(())
     }
 
     /// Start playback
     pub fn play(&self) -> Result<()> {
-        self.main_pipeline.set_state(gst::State::Playing)?;
-        info!("Dual pipeline playing");
+        // Set directly to PLAYING - GStreamer will transition through PAUSED automatically
+        debug!("Setting main pipeline to PLAYING");
+        let ret = self.main_pipeline.set_state(gst::State::Playing);
+        match ret {
+            Ok(gst::StateChangeSuccess::Success) => {
+                info!("Dual pipeline playing (immediate success)");
+            }
+            Ok(gst::StateChangeSuccess::Async) => {
+                info!("Dual pipeline state change in progress (async)");
+            }
+            Ok(gst::StateChangeSuccess::NoPreroll) => {
+                info!("Dual pipeline playing (no preroll)");
+            }
+            Err(e) => {
+                error!("Failed to start pipeline: {}", e);
+
+                // Check bus for error messages
+                if let Some(bus) = self.main_pipeline.bus() {
+                    while let Some(msg) = bus.pop() {
+                        use gst::MessageView;
+                        match msg.view() {
+                            MessageView::Error(err) => {
+                                error!("GStreamer error from {}: {} ({})",
+                                    err.src().map(|s| s.path_string()).unwrap_or_else(|| "unknown".into()),
+                                    err.error(),
+                                    err.debug().unwrap_or_else(|| "no debug info".into()));
+                            }
+                            MessageView::Warning(warn) => {
+                                warn!("GStreamer warning from {}: {}",
+                                    warn.src().map(|s| s.path_string()).unwrap_or_else(|| "unknown".into()),
+                                    warn.error());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                return Err(anyhow::anyhow!("Failed to start pipeline: {}", e));
+            }
+        }
         Ok(())
     }
 
@@ -309,16 +361,34 @@ impl DualPipeline {
 
     /// Get current playback position in milliseconds for active pipeline
     pub async fn position_ms(&self) -> Option<i64> {
-        self.main_pipeline
+        // Query position from the active pipeline's bin (not main pipeline)
+        let active_pipeline = *self.active.read().await;
+        let components = match active_pipeline {
+            ActivePipeline::A => &self.pipeline_a,
+            ActivePipeline::B => &self.pipeline_b,
+        };
+
+        let result = components.bin
             .query_position::<gst::ClockTime>()
-            .map(|pos| pos.mseconds() as i64)
+            .map(|pos| pos.mseconds() as i64);
+        debug!("position_ms query on {:?} bin result: {:?}", active_pipeline, result);
+        result
     }
 
     /// Get duration in milliseconds for active pipeline
     pub async fn duration_ms(&self) -> Option<i64> {
-        self.main_pipeline
+        // Query duration from the active pipeline's bin (not main pipeline)
+        let active_pipeline = *self.active.read().await;
+        let components = match active_pipeline {
+            ActivePipeline::A => &self.pipeline_a,
+            ActivePipeline::B => &self.pipeline_b,
+        };
+
+        let result = components.bin
             .query_duration::<gst::ClockTime>()
-            .map(|dur| dur.mseconds() as i64)
+            .map(|dur| dur.mseconds() as i64);
+        debug!("duration_ms query on {:?} bin result: {:?}", active_pipeline, result);
+        result
     }
 
     /// Seek to position in milliseconds
