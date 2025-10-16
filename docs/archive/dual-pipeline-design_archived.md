@@ -1,8 +1,29 @@
 # Dual Pipeline Design for Audio Playback with Crossfading
 
+**📦 ARCHIVED DOCUMENT - BEING REPLACED**
+
+**Archive Date:** 2025-10-16
+**Status:** Partially implemented but being abandoned in favor of single-stream architecture.
+**Replacement Document:** See [single-stream-playback.md](single-stream-playback.md) for the new architecture.
+
+**Decision Rationale:**
+- Single stream provides 500-2500x better crossfade precision (0.02ms vs 10-50ms)
+- 6x lower memory usage (27 MB vs 170 MB for 5 buffered passages)
+- Simpler architecture with direct per-sample control
+- Pure Rust implementation reduces external dependencies
+- See [single-stream-migration-proposal.md](single-stream-migration-proposal.md) for complete migration details
+
+This document is preserved for historical reference and to document the partially-implemented dual pipeline code.
+
+---
+
+> **Note (Historical):** This document described the **implementation** using GStreamer. An alternative **Single Stream** architecture was considered - see `single-stream-design.md` for details and `architecture-comparison.md` for a full comparison of both approaches.
+
 ## Overview
 
-The WKMP Audio Player uses a dual pipeline architecture with GStreamer's `audiomixer` element to enable seamless crossfading between audio tracks. This design allows pre-loading the next track while the current track is playing, enabling smooth transitions without gaps or interruptions.
+The WKMP Audio Player dual pipeline architecture uses GStreamer's `audiomixer` element to enable crossfading between audio tracks. This design allows pre-loading the next track while the current track is playing, enabling transitions.
+
+**Status at Archive:** ✅ Partially implemented - Basic playback functional, crossfading partially implemented.
 
 ## Architecture
 
@@ -334,6 +355,31 @@ pactl list sink-inputs | grep -A 10 "application.name"
    - Reduce latency when switching tracks
    - Pre-load tracks earlier for smoother transitions
 
+## Alternative Architectures
+
+### Single Stream Approach
+
+An alternative **Single Stream** architecture using manual buffer management has been designed. Key differences:
+
+**Advantages of Single Stream:**
+- ✅ **Sample-accurate crossfading** (0.02ms vs 10-50ms precision)
+- ✅ **Lower memory usage** (31 MB vs 170 MB)
+- ✅ **Pure Rust dependencies** (static binary, no GStreamer runtime)
+- ✅ **Easier debugging** (your code vs framework internals)
+- ✅ **Better cross-platform** (single binary works everywhere)
+
+**Advantages of Dual Pipeline (this approach):**
+- ✅ **Faster implementation** (working now vs 2-4 weeks)
+- ✅ **Battle-tested framework** (GStreamer powers millions of apps)
+- ✅ **Automatic format detection** (handles exotic codecs)
+
+**Documentation:**
+- Full design: See `single-stream-design.md`
+- Side-by-side comparison: See `architecture-comparison.md`
+- Original concept: See `../single_stream_crossfade.txt`
+
+**Recommendation:** The Single Stream approach is better suited for WKMP's professional audio requirements (sample-accurate crossfading, low resource usage, cross-platform). Consider migrating after validating the current implementation.
+
 ## References
 
 - GStreamer Documentation: https://gstreamer.freedesktop.org/documentation/
@@ -342,6 +388,7 @@ pactl list sink-inputs | grep -A 10 "application.name"
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Last Updated:** 2025-10-16
 **Status:** Playback working, crossfading pending implementation
+**Related:** `single-stream-design.md`, `architecture-comparison.md`

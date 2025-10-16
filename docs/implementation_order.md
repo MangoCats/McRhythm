@@ -30,7 +30,9 @@ This document aggregates all specifications to define the order in which feature
     - Build all workspace members (all 5 binaries + common library)
     - Basic compilation error detection
     - Branch protection for main branch
-    - No testing or coverage yet (added in Phase 12.5)
+    - Run unit tests from Phase 1.2 onward (cargo test)
+    - Add integration tests starting in Phase 2.0
+    - Coverage tracking to be added later (Phase 12.5)
   - Set up development environment and initial project structure
 
 - **1.1. Database Schema & Migrations:**
@@ -41,8 +43,8 @@ This document aggregates all specifications to define the order in which feature
     - Playback: play_history, queue, likes_dislikes
     - Caching: acoustid_cache, musicbrainz_cache, acousticbrainz_cache
     - Images table for multi-entity image storage
-  - Set up SQLite migration management framework (e.g., `sqlx-cli` or `refinery`)
   - Define triggers for automatic timestamp updates and cooldown tracking
+  - **Note:** Database migration framework will be developed as-needed prior to release of a version that introduces breaking schema changes
   - **Note**: No standalone database initialization - each module creates its required tables on first startup (see Phase 1.2)
 
 - **1.2. Common Library Foundation:**
@@ -119,7 +121,7 @@ This document aggregates all specifications to define the order in which feature
   - Implement SSE endpoint (`GET /events`) with basic broadcasting
 
 - **2.2. Basic Playback Engine:**
-  - Implement single GStreamer pipeline for playback (`filesrc` → `decodebin` → `autoaudiosink`)
+  - Implement basic single-stream playback (without crossfading initially)
   - Create HTTP API endpoints:
     - `POST /playback/play` - Resume playback
     - `POST /playback/pause` - Pause playback
@@ -131,6 +133,11 @@ This document aggregates all specifications to define the order in which feature
   - Implement position updates (every 500ms)
 
 - **2.3. Queue Management:**
+  - **Testing Requirements:**
+    - Unit tests for playback state transitions
+    - Unit tests for queue operations (enqueue, dequeue, reorder)
+    - Integration tests for HTTP API endpoints
+    - Mock audio output for testing playback without actual audio
   - Implement queue persistence to database
   - Create HTTP API endpoints:
     - `POST /playback/enqueue` - Add passage to queue
@@ -155,13 +162,27 @@ This document aggregates all specifications to define the order in which feature
   - Update `last_played_at` timestamps (via database triggers)
   - Track duration_played and completion status
 
-- **2.6. Dual-Pipeline Crossfade Engine:**
-  - **Complex task** - Implement dual GStreamer pipeline architecture
-  - Pre-load next passage in second pipeline
-  - Calculate crossfade timing from passage lead-in/lead-out points
-  - Implement `audiomixer` with volume automation
-  - Support three fade curves (exponential, cosine, linear)
+- **2.6. Single-Stream Crossfade Engine:**
+  - **Complex task** - Implement single stream audio architecture with sample-accurate crossfading
+  - Integrate audio decoder using `symphonia` crate:
+    - Support MP3, FLAC, AAC, Vorbis, Opus, and other common formats
+    - Handle sample rate conversion with `rubato`
+    - Decode passages to PCM buffers in memory (interleaved stereo f32)
+    - Seek to passage start position for accurate playback
+  - Integrate audio output using `cpal` crate:
+    - Ring buffer for smooth audio delivery to output device
+    - Support PulseAudio, ALSA, CoreAudio, WASAPI backends
+    - Handle buffer underruns gracefully
+    - Mixer thread to keep ring buffer filled from CrossfadeMixer
+  - Leverage existing single_stream components (already implemented with 28/28 tests passing):
+    - Fade curve algorithms (`curves.rs`) - 5 curve types (Linear, Logarithmic, Exponential, S-Curve, Equal-Power) ✅
+    - PCM buffer management (`buffer.rs`) - automatic fade application during sample read ✅
+    - Sample-accurate crossfade mixer (`mixer.rs`) - per-sample mixing with automatic crossfade detection ✅
+  - Calculate crossfade timing from passage lead-in/lead-out points (same logic as dual pipeline)
+  - Support five fade curves: Linear, Logarithmic, Exponential, S-Curve, Equal-Power (already implemented)
   - Emit `CurrentSongChanged` events for multi-song passages
+  - **Performance**: ~0.02ms crossfade precision (500-2500x better than GStreamer dual pipeline)
+  - **Memory**: ~27 MB for 5 buffered passages (6x reduction vs dual pipeline)
 
 - **2.7. Queue Refill Request System:**
   - Monitor queue status continuously during playback
@@ -175,6 +196,7 @@ This document aggregates all specifications to define the order in which feature
   - Send `POST /selection/request` to Program Director with:
     - Anticipated start time for new passage
     - Current queue state
+    - **TODO:** Specify detailed request/response protocol including error handling for duplicate requests and Program Director crash scenarios (to be addressed prior to Program Director implementation)
   - Throttle requests while queue is underfilled:
     - Configurable interval in settings table (`queue_refill_request_throttle_seconds`)
     - Default: 10 seconds between requests
@@ -241,6 +263,7 @@ This document aggregates all specifications to define the order in which feature
     - Save button to persist to database
     - Cancel/Exit button to close without saving
   - Implement embedded browser component:
+    - **TODO:** Web view technology selection (WebKit/WebView2/Qt WebEngine) with platform-specific dependencies and build requirements will be specified prior to wkmp-le module implementation
     - Platform-specific web view (WebKit/WebView2/Qt WebEngine)
     - Initial navigation to lyrics search query
     - User can freely navigate to find lyrics sources
@@ -551,6 +574,7 @@ This document aggregates all specifications to define the order in which feature
   - For now: If AcousticBrainz data unavailable, leave flavor vector empty (will be filled by Essentia in Phase 6.5)
 
 - **6.5. Essentia Integration:**
+  - **TODO:** Detailed Essentia integration requirements including version, build process, platform requirements, and conditional compilation strategy will be specified prior to wkmp-ai module implementation
   - **Very significant task** - Set up Rust FFI bindings for Essentia C++
   - Implement local analysis pipeline
   - Generate musical flavor vectors locally when AcousticBrainz data unavailable
@@ -681,8 +705,9 @@ This document aggregates all specifications to define the order in which feature
     - `package-lite.sh` - Packages 3 binaries + dependencies
     - `package-minimal.sh` - Packages 2 binaries + dependencies
   - Bundle runtime dependencies:
-    - **GStreamer** (with wkmp-ap only): See deployment.md DEP-DEP-020 for complete specification
+    - **Audio libraries** (with wkmp-ap only): System audio libraries (PulseAudio/ALSA/CoreAudio/WASAPI)
     - **SQLite** (with all modules): Use `rusqlite` with `bundled` feature (includes JSON1 extension)
+    - Note: symphonia, rubato, and cpal are compiled into the wkmp-ap binary (no external runtime dependencies except system audio)
   - Create installer packages (.deb, .rpm, .dmg, .msi) per version
   - Include default database with pre-populated `module_config` table
 
@@ -764,7 +789,7 @@ This document aggregates all specifications to define the order in which feature
 
 - **12.1. Raspberry Pi Zero2W Optimization:**
   - Profile memory and CPU usage on target device (Lite/Minimal versions)
-  - Optimize GStreamer pipelines for low-power devices
+  - Optimize audio buffer management for low-power devices (reduce pre-buffered passages if needed)
   - Optimize database queries (indexes, query plans)
   - Reduce binary sizes
   - Target: < 256MB memory, < 5s startup time
@@ -794,8 +819,8 @@ This document aggregates all specifications to define the order in which feature
   - **Test Framework**: Rust `cargo test` with standard test harness
   - **Test Coverage Targets** (per CO-093, measured with `cargo-tarpaulin` or `cargo-llvm-cov`):
     - **wkmp-ap (Audio Player)**: 80% coverage
-      - Critical: Playback engine, queue management, crossfade logic, dual-pipeline coordination
-      - Important: Volume control, audio device selection, play history recording
+      - Critical: Playback engine, queue management, crossfade logic, single-stream mixing coordination
+      - Important: Volume control, audio device selection, play history recording, PCM buffer management
       - Excluded: Minimal HTML developer UI
     - **wkmp-pd (Program Director)**: 80% coverage
       - Critical: Selection algorithm, cooldown calculations, flavor distance calculations, weighted random selection

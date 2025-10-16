@@ -10,7 +10,7 @@ Defines HOW the system is structured. Derived from [requirements.md](requirement
 
 ## Overview
 
-WKMP is a music player built on Rust, GStreamer, and SQLite that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data.
+WKMP is a music player built on Rust and SQLite that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data. Audio playback uses a custom single-stream architecture with sample-accurate crossfading powered by symphonia (decoding), rubato (resampling), and cpal (output).
 
 WKMP implements a **microservices architecture** with multiple independent processes communicating via HTTP APIs and Server-Sent Events (SSE). This enables simplified maintenance, version flexibility, and independent module updates.
 
@@ -81,12 +81,15 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 **Versions**: Full, Lite, Minimal
 
 **Responsibilities:**
-- Manages dual GStreamer pipelines for seamless crossfading
+- Implements single-stream audio architecture with sample-accurate crossfading (~0.02ms precision)
+- Decodes audio files using symphonia (MP3, FLAC, AAC, Vorbis, Opus support)
+- Buffers decoded PCM audio in memory with automatic fade application
 - Coordinates passage transitions based on lead-in/lead-out timing
-- Implements three fade profiles (exponential, cosine, linear)
+- Implements five fade curves (Linear, Logarithmic, Exponential, S-Curve, Equal-Power)
 - Handles pause (immediate stop) and resume (configurable fade-in, default: 0.5s exponential)
 - Manages volume control (user level + fade automation)
 - Maintains playback queue with persistence
+- Outputs audio via cpal (cross-platform: PulseAudio, ALSA, CoreAudio, WASAPI)
 
 **HTTP Control API:**
 - `POST /audio/device` - Set audio output device
@@ -217,8 +220,8 @@ WKMP consists of up to 5 independent processes (depending on version), each with
 7. Determine action:
    - **Queue empty + Playing**: Wait in Playing state (plays immediately when passage enqueued)
      - User-facing state: "playing"
-     - Internal GStreamer state: Use whichever GStreamer state most naturally provides silence and smooth pop-free transition to playing when passage becomes available (NULL or PAUSED)
-     - See [gstreamer_design.md - Empty Queue Behavior](gstreamer_design.md#44-empty-queue-behavior) for implementation details
+     - Internal audio state: Audio output thread continues but receives silence from empty mixer
+     - See [single-stream-playback.md - Queue Empty Behavior](single-stream-playback.md#queue-empty-behavior) for implementation details
    - **Queue empty + Paused**: Wait silently
    - **Queue has passages + Playing**: Begin playback
    - **Queue has passages + Paused**: Load first passage but don't play
@@ -236,18 +239,18 @@ On module startup, wkmp-ap must initialize an audio output device before playbac
    - If value exists: Proceed to step 3
 
 2. **First-time startup (no persisted device):**
-   - Use system default device (GStreamer `autoaudiosink`)
-   - Query GStreamer to determine which actual device was selected
+   - Use system default device (cpal default host/output device)
+   - Query cpal to determine which actual device was selected
    - Write selected device_id to `settings.audio_sink` for future startups
    - Log: "Audio device initialized: [device_name] (system default)"
 
 3. **Subsequent startup (device persisted):**
-   - Query available audio devices from GStreamer
+   - Query available audio devices from cpal host
    - Check if persisted `audio_sink` device_id exists in available devices list
    - **If device found**: Use persisted device, log: "Audio device restored: [device_name]"
    - **If device NOT found** (unplugged USB, disconnected Bluetooth, etc.):
      - Log warning: "Persisted audio device '[device_id]' not found, falling back to system default"
-     - Use system default device (GStreamer `autoaudiosink`)
+     - Use system default device (cpal default output)
      - Update `settings.audio_sink` to `"default"` to record fallback
      - Continue startup normally
 
@@ -260,8 +263,8 @@ On module startup, wkmp-ap must initialize an audio output device before playbac
      - User can attempt to set different device via `POST /audio/device`
 
 5. **Special device_id values:**
-   - `"default"`: Always uses GStreamer `autoaudiosink` (system default selection)
-   - Specific device_id (e.g., `"pulse-sink-1"`): Uses exact GStreamer sink
+   - `"default"`: Always uses cpal default output device (system default selection)
+   - Specific device_id (e.g., `"alsa_output.usb-..."`, `"pulse_output.1"`): Uses exact cpal device
 
 **[ARCH-STRT-020]** Queue Entry Validation:
 - Validated lazily when scheduled for playback
@@ -523,7 +526,10 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 **Version Differences:**
 - **Full**: All features enabled
 - **Lite**: No links to file ingest or lyrics editing interfaces
-- **Minimal**: No links to file ingest or lyrics editing interfaces, user always Anonymous (no login or create account)
+- **Minimal**: No links to file ingest or lyrics editing interfaces, user always operates as Anonymous
+  - UI elements for login and account creation are completely hidden
+  - No authentication system present (hardcoded to Anonymous user)
+  - No Like/Dislike features (Full and Lite only per [requirements.md#like-dislike](../requirements.md#like-dislike))
 
 **Key Design Notes:**
 - **Most users interact here**: Primary interface for controlling WKMP
@@ -761,8 +767,10 @@ The modules listed above are separate processes. Within each module, there are i
 **Audio Player Internal Components:**
 - **Queue Manager**: Maintains playback queue, handles manual additions/removals, monitors queue levels, requests refills from Program Director
 - **Queue Monitor**: Calculates remaining queue time, sends `POST /selection/request` to Program Director when below thresholds (< 2 passages or < 15 minutes), throttles requests to once per 10 seconds
-- **Playback Controller**: Manages dual GStreamer pipelines for crossfading, coordinates passage transitions
-- **Audio Engine**: GStreamer pipeline manager with dual pipelines, audio mixer, volume control
+- **Playback Controller**: Coordinates passage transitions, manages crossfade timing based on lead-in/lead-out points
+- **Audio Decoder**: Decodes audio files using symphonia, handles sample rate conversion with rubato, fills PCM buffers
+- **Crossfade Mixer**: Sample-accurate mixing engine with automatic fade curve application (5 curve types supported)
+- **Audio Output**: cpal-based audio output with ring buffer management, handles platform-specific audio backends
 - **Historian**: Records passage plays with timestamps, updates last-play times for cooldown calculations
 
 **User Interface Internal Components:**
@@ -811,7 +819,7 @@ These components are used across multiple modules:
 - **Well-defined contracts**: Clear API boundaries between modules
 - **Easy debugging**: Standard HTTP tools (curl, Postman) for testing
 - **Independent deployment**: Modules can be updated separately
-- **Network transparency**: Modules can run on same machine or distributed
+- **Local-only deployment**: All modules must run on same machine (require local SQLite database access)
 
 **Request/Response Patterns:**
 - User Interface → Audio Player: Playback commands, queue management
@@ -827,7 +835,13 @@ These components are used across multiple modules:
 
 ### Server-Sent Events (SSE)
 
-**Real-time notification method** from modules to clients.
+**Real-time notification method** from modules to clients for inter-process state synchronization.
+
+**State Synchronization Role:**
+- **Primary mechanism** for keeping process state synchronized beyond database
+- **Real-time updates** ensure all processes have current state without polling
+- **Event-driven architecture** reduces coupling between processes
+- **Automatic recovery**: SSE reconnects automatically if connection drops
 
 **Event Flows:**
 - Audio Player → User Interface: Playback state, queue changes, position updates, song changes
@@ -903,10 +917,32 @@ Lyric Editor (Full only)
     - No other arguments required (all configuration via database)
     - Standard deployment: No arguments needed
   - **Launch procedure**:
-    - Check if module is responding via HTTP health check
-    - If not responding, launch subprocess using shared launcher utility
-    - Pass `--binary-path` argument if received by launching module
-    - Get process handle for monitoring
+    - **Health check**: Send HTTP GET request to module's `/health` endpoint
+      - Expected response: HTTP 200 with JSON `{"status": "healthy", "module": "<module-name>"}`
+      - Timeout: 2 seconds for health check response
+    - **Subprocess spawning**: If health check fails (timeout, connection refused, or non-200 response):
+      - Parent process spawns child subprocess using system ProcessBuilder/spawn mechanism
+      - Pass `--binary-path` argument if received by launching module
+      - Get process handle for monitoring and potential future termination
+    - **Crash detection and respawning**:
+      - When a process needs another process for any reason (e.g., to present another interface to the user)
+      - First checks health via `/health` endpoint
+      - If non-responsive, initiates respawn procedure with rate limiting
+      - Respawn rate: Configurable via settings table `relaunch_delay` (default: 5000 milliseconds)
+      - Retry count limit: Configurable via settings table `relaunch_attempts` (default: 20)
+      - Respawn retries are equal-time spaced (wait `relaunch_delay` between each attempt)
+      - When retries exhausted: User notification displayed with manual retry option
+    - **Duplicate instance detection**:
+      - **Lock-file based IPC strategy**: Each module creates a lock file on startup
+      - Lock file location: `{root_folder}/.wkmp/locks/{module_name}.lock` (e.g., `wkmp-ap.lock`)
+      - Lock file contains: PID, port number, start timestamp
+      - On startup, module checks if lock file exists:
+        - If exists: Read PID and check if process is still running
+        - If process running: Attempt health check on specified port
+        - If health check succeeds: Exit with error "Instance already running"
+        - If health check fails or process not running: Remove stale lock file and proceed
+      - On shutdown: Module removes its lock file
+      - This prevents multiple instances when module is healthy but network issues prevent health check
   - **Relaunch throttling** (configurable via settings table):
     - `relaunch_delay` (default: 5 seconds) - Wait time between attempts
     - `relaunch_attempts` (default: 20) - Maximum attempts before giving up
@@ -1046,21 +1082,27 @@ HTTP Server Thread Pool (tokio async):
   - API request handling
   - SSE broadcasting to clients
 
-Audio Thread (GStreamer):
-  - Pipeline execution
-  - Crossfade timing
-  - Volume automation
+Audio Thread (cpal callback):
+  - Audio output callback execution
+  - Reads from ring buffer
+  - Low-latency audio delivery
   - Isolated from blocking I/O
+
+Mixer Thread (single-stream):
+  - Reads decoded samples from PassageBuffers
+  - Applies fade curves per-sample
+  - Performs crossfade mixing
+  - Fills ring buffer for audio thread
 
 Queue Manager Thread (tokio async):
   - Queue persistence
-  - Passage loading
+  - Passage loading and decoding
   - Database queries
 
-GStreamer Bus Handler:
-  - Pipeline events (EOS, error, state change)
-  - Position queries (every 500ms)
-  - Crossfade triggers
+Decoder Thread Pool:
+  - Decodes audio files using symphonia
+  - Resamples using rubato
+  - Fills PassageBuffers with PCM data
 ```
 
 **User Interface:**
@@ -1197,8 +1239,10 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 - JSON request/response handling
 
 **Audio Processing (Audio Player only):**
-- GStreamer 1.x
-- Rust bindings: gstreamer-rs
+- Audio decoding: symphonia 0.5.x (pure Rust, supports MP3, FLAC, AAC, Vorbis, Opus, etc.)
+- Sample rate conversion: rubato 0.15.x (high-quality resampling)
+- Audio output: cpal 0.15.x (cross-platform, supports PulseAudio, ALSA, CoreAudio, WASAPI)
+- Crossfading: Custom single-stream implementation with sample-accurate mixing
 
 **Database:**
 - SQLite 3.x (embedded in each module)
@@ -1338,7 +1382,8 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 **Version Differences:**
 - **Full version**: Internet required for initial setup, optional thereafter
-- **Lite version**: Internet may be used for optional Program Director features (News and Weather)
+- **Lite version**: Internet not required for core functionality
+  - *Future Enhancement*: News and Weather features may utilize internet when available (not part of initial implementation)
 - **Minimal version**: Internet not required
 
 **Security:**
@@ -1371,23 +1416,23 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 - Network failures → Retry with fixed 5-second delay (see Network Error Handling below)
 - Missing files → Skip, remove from queue, log
 - Database lock → Retry with exponential backoff (see Database Lock Timeout below)
-- Decode errors → Skip to next passage (see GStreamer Pipeline Errors below)
+- Decode errors → Skip to next passage (see Audio Playback Errors below)
 - Program Director timeout → Continue with existing queue, retry on next threshold
 
 ### Error Recovery Strategies
 
 This section specifies the detailed recovery procedures for common error scenarios in wkmp-ap.
 
-#### GStreamer Pipeline Errors
+#### Audio Playback Errors
 
-**[ARCH-ERRH-010]** GStreamer Pipeline Error Recovery:
+**[ARCH-ERRH-010]** Audio Playback Error Recovery:
 
-When a GStreamer pipeline enters ERROR state (file not found, decode failure, audio device unavailable, etc.), the following recovery procedure is executed:
+When an audio playback error occurs (file not found, decode failure using symphonia, audio device unavailable via cpal, etc.), the following recovery procedure is executed:
 
-1. **Log error** with pipeline state and error details
+1. **Log error** with playback state and error details
 2. **Handle as skip event**: From this point, any playback failure is treated identically to a user-initiated skip:
    - Emit `PassageCompleted(completed=false)` event with appropriate reason:
-     - `reason: "playback_error"` if decode or pipeline failure
+     - `reason: "playback_error"` if decode or audio output failure
      - `reason: "queue_removed"` if file not found or inaccessible
    - Remove failed passage from queue
 3. **Advance to next passage**:
@@ -1580,7 +1625,7 @@ Used for:
 **Non-recoverable Errors:**
 - Database corruption → Alert user, attempt repair
 - Configuration errors → Reset to defaults, warn user
-- Critical GStreamer failures → Restart pipeline
+- Critical audio system failures → Restart audio output subsystem
 
 ### Logging
 
@@ -1619,7 +1664,7 @@ Used for:
   - Full: 5 binaries (Audio Player, User Interface, Lyric Editor, Program Director, Audio File Ingest)
   - Lite: 3 binaries (Audio Player, User Interface, Program Director)
   - Minimal: 2 binaries (Audio Player, User Interface)
-- **Bundled dependencies**: GStreamer (Audio Player only), SQLite (all modules)
+- **Bundled dependencies**: SQLite (all modules)
 - **Installer packages**: deb, rpm, msi, dmg with systemd/launchd service files
 - **Process management**: System service manager or manual startup scripts
 - **Configuration files**: Default ports, module URLs, root folder path

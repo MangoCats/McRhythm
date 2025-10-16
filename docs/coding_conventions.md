@@ -71,58 +71,6 @@ WKMP uses a Cargo workspace with multiple binary crates and a shared common libr
 
 Each module binary shall be organized into separate submodules by functional area:
 
-- **CO-031:** Audio Player (`wkmp-ap/src/`) modules:
-  - `playback/engine.rs` - Main playback coordination
-  - `playback/pipeline.rs` - GStreamer pipeline management
-  - `playback/crossfade.rs` - Crossfade timing and volume control
-  - `playback/queue.rs` - Queue management
-  - `audio/device.rs` - Audio device management
-  - `audio/volume.rs` - Volume control
-  - `api/playback.rs` - Playback HTTP endpoints
-  - `api/audio.rs` - Audio HTTP endpoints
-  - `api/events.rs` - SSE endpoint
-
-- **CO-032:** Program Director (`wkmp-pd/src/`) modules:
-  - `selection/algorithm.rs` - Main selection coordination
-  - `selection/candidates.rs` - Candidate filtering
-  - `selection/weights.rs` - Weight calculation logic
-  - `timeslots/manager.rs` - Timeslot management
-  - `timeslots/calculator.rs` - Target flavor calculation
-  - `monitor/queue.rs` - Queue monitoring
-  - `api/config.rs` - Configuration HTTP endpoints
-  - `api/status.rs` - Status HTTP endpoints
-
-- **CO-033:** User Interface (`wkmp-ui/src/`) modules:
-  - `auth/session.rs` - Session management
-  - `auth/password.rs` - Password hashing
-  - `proxy/audio_player.rs` - Audio Player client
-  - `proxy/program_director.rs` - Program Director client
-  - `api/auth.rs` - Authentication HTTP endpoints
-  - `api/proxy.rs` - Proxy endpoints to other modules
-  - `api/library.rs` - Library browsing endpoints
-  - `api/events.rs` - SSE aggregation
-  - `static/` - Web UI assets (HTML, CSS, JS)
-
-- **CO-033a:** Audio Ingest (`wkmp-ai/src/`) modules:
-  - `scanner/filesystem.rs` - Directory scanning
-  - `scanner/metadata.rs` - Metadata extraction
-  - `external/musicbrainz.rs` - MusicBrainz client
-  - `external/acousticbrainz.rs` - AcousticBrainz client
-  - `external/acoustid.rs` - AcoustID/Chromaprint
-  - `external/essentia.rs` - Essentia FFI bindings
-  - `segmentation/silence.rs` - Silence detection
-  - `segmentation/boundaries.rs` - Boundary detection
-  - `api/scan.rs` - File scanning endpoints
-  - `api/identify.rs` - MusicBrainz identification endpoints
-
-- **CO-033b:** Lyric Editor (`wkmp-le/src/`) modules:
-  - `ui/editor.rs` - Text editor component
-  - `ui/browser.rs` - Embedded web browser component
-  - `ui/window.rs` - Split-window layout manager
-  - `api/lyrics.rs` - Lyric CRUD endpoints
-  - `api/open.rs` - Editor launch endpoint
-  - `db/lyrics.rs` - Database access for lyrics
-
 - **CO-034:** Each module shall have a single, well-defined responsibility
 
 - **CO-035:** A coordinator module (`mod.rs`) shall compose sub-modules without containing substantial logic
@@ -297,16 +245,6 @@ The `common/` library crate shall be organized as follows:
 
 - **CO-123:** Feature-specific code should be co-located when appropriate
 
-### GStreamer Integration
-
-**CO-130: GStreamer Code Organization**
-
-- **CO-131:** GStreamer pipeline creation shall be separated from pipeline control
-- **CO-132:** GStreamer bus message handling shall be in a dedicated event loop
-- **CO-133:** Volume control and fade automation shall be encapsulated in separate functions
-- **CO-134:** Pipeline state transitions shall use proper error handling (all state change results checked)
-- **CO-135:** GStreamer element creation shall check for `None` and return appropriate errors
-
 ### Async/Await and Concurrency
 
 **CO-140: Async Organization**
@@ -367,22 +305,6 @@ The `common/` library crate shall be organized as follows:
 - **CO-182:** Queries used in multiple places shall be in a shared module
 - **CO-183:** Use SQLite JSON1 extension for musical flavor vector queries
 - **CO-184:** Database triggers shall be documented in code comments
-
-### Version-Specific Code
-
-**CO-190: Version Differentiation Strategy**
-
-- **CO-191:** Versions are differentiated by **which modules are deployed**, not by conditional compilation:
-  - **Full version**: All 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
-  - **Lite version**: 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
-  - **Minimal version**: 2 binaries (wkmp-ap, wkmp-ui)
-
-- **CO-192:** Each module is built identically; no feature flags or conditional compilation required
-- **CO-193:** Module-specific code remains in respective binary crates:
-  - Audio Ingest functionality is in `wkmp-ai` binary (only included in Full version package)
-  - Lyric Editor functionality is in `wkmp-le` binary (only included in Full version package, launched on-demand)
-  - Program Director functionality is in `wkmp-pd` binary (included in Full and Lite version packages)
-- **CO-194:** Shared code in `wkmp-common` works identically across all modules
 
 ### API and Interface Contracts
 
@@ -456,14 +378,12 @@ The `common/` library crate shall be organized as follows:
 
 - **CO-252:** Database queries in loops shall be batched when possible
 - **CO-253:** Musical flavor distance calculations shall be optimized for the top-100 selection
-- **CO-254:** GStreamer pipeline creation shall happen off the critical path
 - **CO-255:** Memory allocations in audio callback paths shall be minimized
 
 **CO-260: Raspberry Pi Optimization**
 
 - **CO-261:** Be mindful of memory usage on resource-constrained devices
 - **CO-262:** Avoid unnecessary buffering of large audio data
-- **CO-263:** Use appropriate GStreamer buffer sizes for Pi Zero2W
 - **CO-264:** Test performance on actual target hardware, not just desktop
 
 ### Requirements Traceability

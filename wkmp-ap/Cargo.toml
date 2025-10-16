@@ -25,11 +25,11 @@ chrono = { workspace = true }
 clap = { workspace = true }
 toml = { workspace = true }
 
-# GStreamer bindings
-gstreamer = "0.22"
-gstreamer-audio = "0.22"
-gstreamer-app = "0.22"
-
 # SSE support
 futures = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
+
+# Single stream audio
+symphonia = { version = "0.5", features = ["mp3", "flac", "aac", "isomp4", "vorbis"] }
+rubato = "0.15"
+cpal = "0.15"

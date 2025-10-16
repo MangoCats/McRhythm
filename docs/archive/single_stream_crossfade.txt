@@ -1,0 +1,10 @@
+Method to achieve continuous playback of many passages from many audio files with simultaneous output and crossfade at transitions between passages providing a single (stereo) stream to the audio system:
+
+- decode audio file (potentially in compressed / mp3 format) into raw stereo audio waveforms in memory
+- skip / discard sections of the raw audio that are not part of the selected passage (subset of the audio file contents)
+- when necessary, resample raw audio to a common sample rate (for example 44.1kHz) found in most audio files in the library
+- repeat the process as necessary to prepare next passages for play
+- at crossover points, do the fade-out / fade-in curve application to the stored audio waveforms in memory and sum the waveforms together to form a single stream of audio data
+- feed this single stream of raw audio data (now processed to crossfade passages for continuous playback) to the audio device (analog, HDMI, Bluetooth, etc.)
+- pause may be implemented by replacing the audio stream with zeros until play is resumed
+- prepare short (15 second?) buffers of all enqueued passages to enable instant skipping to them when desired, with decoding resuming in time to keep output continuous if/when they are skipped to or otherwise advanced to the currently playing position in the queue.

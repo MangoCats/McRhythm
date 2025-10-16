@@ -1,6 +1,22 @@
 # GStreamer Pipeline Architecture
 
-**🔧 TIER 3 - IMPLEMENTATION SPECIFICATION**
+**📦 ARCHIVED DOCUMENT - NOT IMPLEMENTED**
+
+**Archive Date:** 2025-10-16
+**Reason:** Project switched to single-stream audio architecture with sample-accurate mixing instead of GStreamer dual pipeline approach.
+**Replacement Document:** See [single-stream-playback.md](single-stream-playback.md) for the implemented architecture.
+
+**Decision Rationale:**
+- Single stream provides 500-2500x better crossfade precision (0.02ms vs 10-50ms)
+- 6x lower memory usage (27 MB vs 170 MB for 5 buffered passages)
+- Simpler architecture with direct per-sample control
+- Pure Rust implementation reduces external dependencies
+
+This document is preserved for historical reference.
+
+---
+
+**🔧 TIER 3 - IMPLEMENTATION SPECIFICATION (HISTORICAL)**
 
 Technical design for wkmp-ap audio playback engine using GStreamer. See [Document Hierarchy](document_hierarchy.md).
 

@@ -763,68 +763,64 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 
 ## 13a. Runtime Dependencies
 
-### 13a.1. GStreamer Bundling (Audio Player)
+### 13a.1. Audio Runtime Dependencies (Audio Player)
 
-**[DEP-DEP-010]** Audio Player (wkmp-ap) requires GStreamer runtime and plugins.
+**[DEP-DEP-010]** Audio Player (wkmp-ap) uses single-stream architecture with pure Rust audio processing libraries.
 
-**Bundling Strategy:**
+**Audio Processing Libraries:**
 
-**[DEP-DEP-020]** GStreamer shall be **dynamically linked with bundled libraries**:
-- Static linking is not practical due to GStreamer's plugin-based architecture
-- Bundle GStreamer core libraries and required plugins with wkmp-ap binary
-- Platform-specific audio backends (PulseAudio, ALSA, CoreAudio, WASAPI) use system libraries
+**[DEP-DEP-020]** Audio decoding, resampling, and output libraries are **statically compiled into the binary**:
+- **symphonia 0.5.x**: Audio decoding (MP3, FLAC, AAC, Vorbis, Opus, WAV, AIFF, etc.)
+- **rubato 0.15.x**: High-quality sample rate conversion
+- **cpal 0.15.x**: Cross-platform audio output abstraction
+- No separate runtime libraries or plugins needed - all code compiles into wkmp-ap binary
 
-**Required Audio Format Plugins:**
+**Supported Audio Formats:**
 
-**[DEP-DEP-030]** Include plugins for all popular audio formats:
-- **MP3**: `gst-plugins-good` (mpegaudioparse, mpg123audiodec)
-- **FLAC**: `gst-plugins-good` (flacparse, flacdec)
-- **Ogg Vorbis**: `gst-plugins-base` (oggdemux, vorbisdec)
-- **Opus**: `gst-plugins-base` (opusparse, opusdec)
-- **AAC/M4A**: `gst-plugins-bad` (aacparse, faad)
-- **WavPack**: `gst-plugins-good` (wavpackparse, wavpackdec)
-- **ALAC (Apple Lossless)**: `gst-plugins-bad` (alacparse, alacdec)
-- **WAV**: `gst-plugins-good` (wavparse, audioconvert)
-- **AIFF**: `gst-plugins-bad` (aiffparse, audioconvert)
-- **Monkey's Audio (APE)**: `gst-plugins-bad` (apedemux, ffdec_ape)
-- **Musepack**: `gst-plugins-bad` (musepackdec)
-- **TrueAudio (TTA)**: `gst-plugins-bad` (ttadec)
-
-**Core Plugins:**
-
-**[DEP-DEP-040]** Include essential GStreamer plugins:
-- `gst-plugins-base`: Core functionality (audioconvert, audioresample, playback, volume)
-- `gst-plugins-good`: Stable, well-maintained plugins
-- `gst-plugins-bad`: Additional format support
-- `gst-plugins-ugly`: MP3 support (if using mad or lame decoders)
-- `decodebin`: Automatic decoder selection
-- `audiomixer`: Required for crossfade functionality
+**[DEP-DEP-030]** Symphonia provides built-in support for all popular audio formats:
+- **MP3**: MPEG-1/2 Layer 3 audio
+- **FLAC**: Free Lossless Audio Codec
+- **Ogg Vorbis**: Ogg container with Vorbis codec
+- **Opus**: Modern low-latency codec
+- **AAC/M4A**: Advanced Audio Coding (MP4/M4A containers)
+- **WAV**: Waveform Audio File Format
+- **AIFF**: Audio Interchange File Format
+- **WavPack**: Hybrid lossless compression
+- **ALAC**: Apple Lossless Audio Codec
+- **APE**: Monkey's Audio
+- Additional formats via symphonia feature flags
 
 **Platform-Specific Audio Output:**
 
-**[DEP-DEP-050]** Include appropriate audio sink plugins per platform:
-- **Linux**: `pulsesink` (PulseAudio), `alsasink` (ALSA fallback)
-- **macOS**: `osxaudiosink` (CoreAudio)
-- **Windows**: `wasapisink` (WASAPI)
-- **All platforms**: `autoaudiosink` (automatic sink selection)
+**[DEP-DEP-050]** cpal provides unified audio output across platforms (no bundling required):
+- **Linux**: PulseAudio (primary), ALSA (fallback) - requires system libraries
+- **macOS**: CoreAudio - built into OS
+- **Windows**: WASAPI - built into OS
+- cpal automatically selects appropriate backend at runtime
 
-**Bundling Directories:**
+**System Audio Library Requirements:**
 
-**[DEP-DEP-060]** Organize bundled GStreamer libraries:
-```
-wkmp-ap/
-├── bin/
-│   └── wkmp-ap              # Binary
-├── lib/
-│   ├── libgstreamer-1.0.*   # GStreamer core
-│   ├── libglib-2.0.*        # GLib dependency
-│   └── gstreamer-1.0/       # Plugin directory
-│       └── *.so/*.dll/*.dylib  # Format plugins
-└── share/
-    └── gstreamer-1.0/       # Plugin registry cache
-```
+**[DEP-DEP-060]** Audio Player requires only platform-standard audio libraries (already present on target systems):
 
-**[DEP-DEP-070]** Set `GST_PLUGIN_PATH` environment variable to bundled plugin directory on startup.
+**Linux:**
+- `libasound2` (ALSA library) - typically pre-installed
+- `libpulse0` (PulseAudio client library) - typically pre-installed on desktop systems
+
+**macOS:**
+- CoreAudio framework - built into macOS, no additional libraries needed
+
+**Windows:**
+- WASAPI (Windows Audio Session API) - built into Windows Vista and later, no additional libraries needed
+
+**Deployment Simplicity:**
+
+**[DEP-DEP-070]** Single-stream architecture simplifies deployment:
+- **Single binary**: All audio processing code compiled into wkmp-ap executable
+- **No plugin directories**: No need to bundle separate plugin libraries
+- **No environment variables**: No `GST_PLUGIN_PATH` or similar configuration required
+- **Smaller distribution**: ~15-20 MB binary vs ~100+ MB with GStreamer bundling
+- **Faster startup**: No plugin discovery or registry loading
+- **Consistent behavior**: Same code on all platforms (no plugin version mismatches)
 
 ### 13a.2. SQLite Bundling
 

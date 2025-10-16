@@ -60,6 +60,7 @@ WKMP uses SQLite as its database engine. The schema is designed to support:
 - All `path` and `file_path` columns store paths relative to the root folder
 - Example: If root folder is `/home/user/music/` and audio file is `/home/user/music/albums/song.mp3`, the database stores `albums/song.mp3`
 - Path separator: Use forward slash (`/`) on all platforms for consistency
+  - **Windows Platform Note**: When deployed on Windows, modules must translate forward slashes to backslashes before passing paths to Windows APIs that require backslashes
 - The application determines the root folder at runtime from configuration
 
 **Database Location:**
@@ -815,6 +816,7 @@ The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrid
 **Module Management:**
 - `relaunch_delay`: Seconds between module relaunch attempts (default: 5)
 - `relaunch_attempts`: Max relaunch attempts before giving up (default: 20)
+- See [architecture.md - Launch procedure](architecture.md#launch-procedure) for detailed subprocess health monitoring and respawn behavior
 
 **Session Management:**
 - `session_timeout_seconds`: Session timeout duration (default: 31536000 = 1 year)
@@ -1045,11 +1047,34 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 
 ### Migration Strategy
 
+**Current Schema Version:** `0.1` (Development)
+
+**Development Phase:**
+- During development, the database schema version is established as `0.1`
+- Any changes to the database schema during development are addressed by deletion of existing databases and rebuild from scratch with default values
+- No migration scripts are maintained during the development phase
+
+**Post-Release Strategy:**
 1. Schema version is tracked in `schema_version` table
 2. Migration scripts are numbered sequentially (001_initial.sql, 002_add_works.sql, etc.)
 3. On startup, application checks current version and applies pending migrations
 4. Each migration is wrapped in a transaction
 5. Database is backed up before applying migrations
+
+**Breaking Changes:**
+- After initial release, breaking changes are to be avoided
+- If a breaking change must be implemented for release, migration strategies shall be developed and implemented before release of the breaking change
+
+**Version Upgrade Paths (Minimal → Lite → Full):**
+- Minimal, Lite, and Full versions are implemented by launching different subsets of the modules (microservices)
+- Each module creates database tables it requires if they are missing
+- Each module initializes missing values it requires with default values encoded in the module
+- See [architecture.md#module-launching-process](architecture.md#module-launching-process) for module initialization details
+
+**Database Downgrades:**
+- **Important:** Databases cannot be downgraded
+- Once a schema migration is applied, reverting to an earlier version is not supported
+- Users must backup their database before upgrading if they need to preserve the ability to use an older version
 
 ### Performance Considerations
 

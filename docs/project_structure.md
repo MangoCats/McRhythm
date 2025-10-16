@@ -76,7 +76,14 @@ mcrhythm/
 │   │   ├── playback/
 │   │   │   ├── mod.rs
 │   │   │   ├── engine.rs        # Playback engine
-│   │   │   ├── pipeline.rs      # GStreamer pipelines
+│   │   │   ├── pipeline/        # Single-stream architecture
+│   │   │   │   ├── mod.rs
+│   │   │   │   ├── single_stream/ # Sample-accurate crossfading
+│   │   │   │   │   ├── mod.rs
+│   │   │   │   │   ├── buffer.rs  # PCM buffer management
+│   │   │   │   │   ├── mixer.rs   # Sample-accurate mixer
+│   │   │   │   │   └── curves.rs  # Fade curve algorithms
+│   │   │   │   └── dual.rs       # Legacy dual-pipeline (archived)
 │   │   │   ├── crossfade.rs     # Crossfade logic
 │   │   │   └── queue.rs         # Queue manager
 │   │   ├── audio/

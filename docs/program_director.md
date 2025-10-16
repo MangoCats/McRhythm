@@ -231,6 +231,12 @@ Rare edge case where multiple passages are identical to target:
 - Automatic enqueueing stops
 - Manual enqueueing still works
 
+**TODO: Zero-Song Passage Implementation Details**
+The following items will be addressed when Program Director is fully specified:
+- Define whether users can set base probability for zero-song passages (UI consideration)
+- Specify whether UI should disable/hide probability controls for zero-song passages
+- Clarify exact Program Director error handling when library contains ONLY zero-song passages
+
 ## Selection Failure Communication
 
 **[PD-COMM-010]** When Program Director cannot select a passage, it returns an error with a specific reason code to enable appropriate UI feedback:

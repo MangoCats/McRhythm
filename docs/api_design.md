@@ -10,7 +10,7 @@ Defines REST API structure and Server-Sent Events interface. Derived from [requi
 
 ## Overview
 
-WKMP implements a **microservices architecture** with 4 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
+WKMP implements a **microservices architecture** with 5 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
 
 ### Module API Endpoints
 
@@ -20,6 +20,7 @@ WKMP implements a **microservices architecture** with 4 independent HTTP servers
 | **User Interface** | 5720 | `http://localhost:5720/api` | User-facing API, authentication, library browsing |
 | **Program Director** | 5722 | `http://localhost:5722` | Selection configuration, timeslots |
 | **Audio Ingest** | 5723 | `http://localhost:5723` | File scanning, ingest workflow (Full only) |
+| **Lyric Editor** | 5724 | `http://localhost:5724` | Lyric editing interface (Full only, launched on-demand) |
 
 ### API Communication Patterns
 
@@ -47,10 +48,11 @@ WKMP implements a **microservices architecture** with 4 independent HTTP servers
 
 Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. See [User Identity and Authentication](user_identity.md) for complete flow.
 
-**Internal Module APIs** (Audio Player, Program Director, Audio Ingest):
+**Internal Module APIs** (Audio Player, Program Director, Audio Ingest, Lyric Editor):
 - No authentication required (assumed to be on trusted local network)
 - Minimal HTML/JavaScript developer UIs for debugging (served via HTTP)
 - Security relies on network isolation
+- Lyric Editor is launched on-demand by User Interface when needed
 
 **Content-Type:** `application/json` for all request/response bodies across all modules
 
@@ -153,11 +155,12 @@ Retrieve information about the currently authenticated user.
 **Response (Anonymous user):**
 ```json
 {
-  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "00000000-0000-0000-0000-000000000001",
   "username": "Anonymous",
   "is_anonymous": true
 }
 ```
+*Note: The Anonymous user GUID is fixed as defined in [Database Schema](database_schema.md#users)*
 
 ### Playback Control Endpoints (Proxied to Audio Player)
 
@@ -197,13 +200,13 @@ Get current playback state.
 
 **Notes:**
 - System has two states: "playing" or "paused" (no "stopped" state)
-- Initial state on app launch: "playing"
+- Initial state on app launch: "playing" (always resumes to playing)
 - `state` reflects user-selected Play/Pause mode, independent of queue state
 - When queue is empty, `passage` is `null` but `state` remains as user set it
 - System in "playing" state with empty queue produces no audio output
 - Enqueueing a passage while in "playing" state begins playback immediately
 - Enqueueing a passage while in "paused" state queues it without starting playback
-- State persists across app restarts: always resumes to "playing" on launch
+- State NOT persisted across app restarts - see [Architecture](architecture.md#state-persistence) for details
 
 #### `POST /api/play`
 
@@ -296,6 +299,7 @@ Seek to a specific position within the currently playing passage. Allows users t
 - Seek only applies to the current passage
 - Position is clamped to valid range if out of bounds
 - During crossfade, seek applies to the currently playing (fading out) passage
+- The crossfading (next) passage seeks along with the current passage, adjusting by the same time offset to maintain crossfade synchronization
 
 ### Queue Management
 
@@ -681,9 +685,9 @@ List available audio output devices.
   ```
 
 **Notes:**
-- Device list is queried dynamically from GStreamer at request time
+- Device list is queried dynamically from the audio subsystem at request time
 - Device availability may change (headphones plugged/unplugged, USB devices connected/disconnected)
-- See [gstreamer_design.md - Section 10: Audio Device Enumeration](gstreamer_design.md#10-audio-device-enumeration) for implementation details
+- See [single-stream-design.md](single-stream-design.md) for audio architecture implementation details
 
 #### `POST /audio/device`
 Set audio output device.
@@ -716,7 +720,7 @@ Set audio output device.
 
 **Notes:**
 - Device must be one of the IDs returned by `GET /audio/devices`
-- See [gstreamer_design.md - Section 10: Audio Device Enumeration](gstreamer_design.md#10-audio-device-enumeration) for GStreamer sink configuration
+- See [single-stream-design.md](single-stream-design.md) for audio device configuration details
 
 #### `POST /audio/volume`
 Set volume level (0-100 integer, user-facing scale).
@@ -739,7 +743,7 @@ Set volume level (0-100 integer, user-facing scale).
 
 **Notes:**
 - User-facing scale: 0-100 (integer percentage)
-- Backend converts to 0.0-1.0 (double) for GStreamer: `system_volume = user_volume / 100.0`
+- Backend converts to 0.0-1.0 (double) for audio system: `system_volume = user_volume / 100.0`
 - Conversion back: `user_volume = ceil(system_volume * 100.0)`
 - Volume change persists to database (`settings.volume_level`)
 - VolumeChanged SSE event emitted
@@ -935,7 +939,7 @@ Pause playback (transition to Paused state).
 
 **Pause Details:**
 - No fade-out: Immediate stop (volume set to 0.0 instantly)
-- GStreamer pipeline remains in PLAYING state internally (muted) to maintain position accuracy
+- Audio stream continues internally (muted) to maintain position accuracy
 - Rationale: Pause is an immediate stop; users expect instant response
 - See [crossfade.md - Pause and Resume Behavior](crossfade.md#pause-and-resume-behavior) for complete specification
 
@@ -973,7 +977,7 @@ Get current audio output device.
   ```
 
 **Notes:**
-- Returns device currently in use by GStreamer audiosink
+- Returns device currently in use by audio output system
 - Device persisted in `settings.audio_sink` database key
 
 #### `GET /audio/volume`
@@ -1084,13 +1088,28 @@ Get current playback position within currently playing passage.
 
 **Notes:**
 - Position updates in real-time during playback
-- Position query uses GStreamer pipeline position query
+- Position query uses audio system's playback position tracking
 - During crossfade, returns position of currently audible passage (not next passage)
 
 ### Health Endpoint
 
 #### `GET /health`
-Health check endpoint for monitoring and duplicate instance detection.
+Health check endpoint for monitoring and duplicate instance detection. **Required for all modules** (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-le, wkmp-ai).
+
+See [architecture.md - Health check and respawning](architecture.md#launch-procedure) for detailed subprocess health monitoring behavior.
+
+**Request Format:**
+- Method: `GET`
+- Path: `/health`
+- Headers: None required
+- Body: None
+- This is a minimal health check that simply ensures the server is responsive
+
+**Health Check Behavior:**
+- **Timeout**: If no response within 2 seconds, the health check is considered failed
+- **Timeout triggers relaunch**: A timeout or connection refused triggers the subprocess relaunch procedure
+- **Any response indicates health**: Currently, any HTTP response (even error codes) indicates the service is alive
+- Additional health parameters with more nuanced information may be added in the future
 
 **Response (200 OK):**
 ```json
@@ -1102,7 +1121,7 @@ Health check endpoint for monitoring and duplicate instance detection.
   "checks": {
     "database": "ok",
     "audio_device": "ok",
-    "gstreamer": "ok"
+    "audio_subsystem": "ok"
   }
 }
 ```
@@ -1117,25 +1136,25 @@ Health check endpoint for monitoring and duplicate instance detection.
   "checks": {
     "database": "ok",
     "audio_device": "failed",
-    "gstreamer": "ok"
+    "audio_subsystem": "ok"
   }
 }
 ```
 
 **Field Details:**
 - `status` (string): "healthy" or "unhealthy"
-- `module` (string): Always "audio_player" for this module
+- `module` (string): Module name ("audio_player", "user_interface", "program_director", etc.)
 - `version` (string): Module version string
 - `uptime_seconds` (integer): Seconds since module started
 - `checks` (object): Health status of critical subsystems
   - `database` (string): "ok" if database accessible, "failed" otherwise
   - `audio_device` (string): "ok" if audio output device working, "failed" if unavailable
-  - `gstreamer` (string): "ok" if GStreamer initialized, "failed" otherwise
+  - `audio_subsystem` (string): "ok" if audio subsystem initialized, "failed" otherwise
 
 **Unhealthy Conditions:**
 - Database connection fails
 - Audio output device cannot be opened
-- GStreamer pipeline cannot be created
+- Audio subsystem cannot be initialized
 
 **Notes:**
 - Used for duplicate instance detection during startup (see deployment.md)

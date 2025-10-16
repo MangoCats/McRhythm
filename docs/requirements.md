@@ -146,6 +146,9 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - Manual passage selection for enqueue via User Interface
 - Smallest memory footprint
 - No internet access
+- Authentication: Always operates as Anonymous user
+  - No login or account creation UI elements shown
+  - See [architecture.md#version-differences](architecture.md#version-differences)
 
 **[REQ-VER-042]** Resource Profile:
 - CPU: Minimal (playback + basic selection)
@@ -178,7 +181,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-TECH-020]** Technical Stack:
   - **[REQ-TECH-021]** Rust
-  - **[REQ-TECH-022]** GStreamer
+  - **[REQ-TECH-022]** Single-stream audio architecture (symphonia for decoding, rubato for resampling, cpal for output)
   - **[REQ-TECH-023]** SQLite
   - **[REQ-TECH-024]** Web server
   
