@@ -258,7 +258,10 @@ impl DualPipeline {
         // Set file location (must be done while filesrc is in NULL state)
         components.filesrc.set_property("location", file_path.to_str().unwrap());
 
-        debug!("File loaded into pipeline {:?}, will sync on next play()", pipeline);
+        // Set bin to READY so it's prepared for playback when main pipeline transitions
+        debug!("Setting pipeline {:?} bin to READY", pipeline);
+        components.bin.set_state(gst::State::Ready)?;
+        debug!("File loaded into pipeline {:?}, bin ready for playback", pipeline);
 
         Ok(())
     }
@@ -274,6 +277,10 @@ impl DualPipeline {
             }
             Ok(gst::StateChangeSuccess::Async) => {
                 info!("Dual pipeline state change in progress (async)");
+                // Wait for async state change to complete (with 5 second timeout)
+                debug!("Waiting for async state change to complete");
+                let (state_ret, current, pending) = self.main_pipeline.state(gst::ClockTime::from_seconds(5));
+                debug!("State change result: {:?}, current: {:?}, pending: {:?}", state_ret, current, pending);
             }
             Ok(gst::StateChangeSuccess::NoPreroll) => {
                 info!("Dual pipeline playing (no preroll)");
@@ -312,6 +319,21 @@ impl DualPipeline {
         self.pipeline_a.bin.sync_state_with_parent()?;
         self.pipeline_b.bin.sync_state_with_parent()?;
         debug!("Bins synced with parent");
+
+        // Debug: Check clock state
+        if let Some(clock) = self.main_pipeline.clock() {
+            let clock_time = clock.time();
+            let base_time = self.main_pipeline.base_time();
+            debug!("Pipeline clock: {:?}, clock_time: {:?}, base_time: {:?}",
+                   clock.name(), clock_time, base_time);
+        } else {
+            warn!("Pipeline has no clock!");
+        }
+
+        // Debug: Check bin states
+        let (_, bin_a_state, _) = self.pipeline_a.bin.state(gst::ClockTime::ZERO);
+        let (_, bin_b_state, _) = self.pipeline_b.bin.state(gst::ClockTime::ZERO);
+        debug!("After sync - Bin A state: {:?}, Bin B state: {:?}", bin_a_state, bin_b_state);
 
         Ok(())
     }
