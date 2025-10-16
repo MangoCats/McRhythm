@@ -257,9 +257,9 @@ impl DualPipeline {
 
         // Set file location (must be done while filesrc is in NULL state)
         components.filesrc.set_property("location", file_path.to_str().unwrap());
-        debug!("File loaded into pipeline {:?}, bin will follow main pipeline state", pipeline);
 
-        // DON'T set bin state here - let it follow the main pipeline's state automatically
+        debug!("File loaded into pipeline {:?}, will sync on next play()", pipeline);
+
         Ok(())
     }
 
@@ -305,6 +305,14 @@ impl DualPipeline {
                 return Err(anyhow::anyhow!("Failed to start pipeline: {}", e));
             }
         }
+
+        // Sync both bins with parent to ensure they follow the main pipeline's state
+        // This is critical after loading new files (which sets bins to NULL)
+        debug!("Syncing bins with parent pipeline");
+        self.pipeline_a.bin.sync_state_with_parent()?;
+        self.pipeline_b.bin.sync_state_with_parent()?;
+        debug!("Bins synced with parent");
+
         Ok(())
     }
 
