@@ -109,10 +109,14 @@ impl PlaybackEngine {
 
     /// Start playback
     pub async fn play(&mut self) -> Result<()> {
+        debug!("play() called, getting current state");
         let current_state = self.state.get_state().await;
+        let currently_playing = self.state.get_currently_playing().await;
+        debug!("Current state: {:?}, currently_playing: {:?}", current_state, currently_playing);
 
         match current_state {
             State::Stopped => {
+                debug!("State is Stopped, checking queue");
                 // Load first item from queue and start playing
                 if self.queue.is_empty().await {
                     warn!("Queue is empty, cannot start playback");
@@ -121,17 +125,23 @@ impl PlaybackEngine {
                     return Ok(());
                 }
 
+                debug!("Queue not empty, loading next track");
                 // Load next track
                 if let Err(e) = self.load_next_track().await {
                     error!("Failed to load track: {}", e);
                     return Err(e);
                 }
 
+                debug!("Track loaded successfully, starting pipeline");
                 // Start pipeline
                 if let Some(ref pipeline) = self.pipeline {
+                    debug!("Pipeline exists, calling pipeline.play()");
                     pipeline.play()?;
+                    debug!("pipeline.play() returned successfully");
                     self.state.set_state(State::Playing).await;
+                    debug!("State set to Playing");
                     self.emit_state_changed(State::Playing);
+                    debug!("SSE event emitted");
                     info!("Playback started");
                 } else {
                     error!("Pipeline not initialized");
@@ -142,6 +152,7 @@ impl PlaybackEngine {
                 // Resume playback
                 info!("Resuming playback");
                 if let Some(ref pipeline) = self.pipeline {
+                    debug!("Calling pipeline.play() to resume");
                     pipeline.play()?;
                     self.state.set_state(State::Playing).await;
                     self.emit_state_changed(State::Playing);
@@ -150,10 +161,39 @@ impl PlaybackEngine {
                 }
             }
             State::Playing => {
-                debug!("Already playing");
+                // Check if we're actually playing something
+                if currently_playing.is_none() {
+                    debug!("State is Playing but nothing currently playing, attempting to load and play");
+                    // Try to load and play if queue has items
+                    if !self.queue.is_empty().await {
+                        debug!("Queue not empty, loading next track");
+                        if let Err(e) = self.load_next_track().await {
+                            error!("Failed to load track: {}", e);
+                            return Err(e);
+                        }
+
+                        debug!("Track loaded successfully, starting pipeline");
+                        if let Some(ref pipeline) = self.pipeline {
+                            debug!("Pipeline exists, calling pipeline.play()");
+                            pipeline.play()?;
+                            debug!("pipeline.play() returned successfully");
+                            self.emit_state_changed(State::Playing);
+                            debug!("SSE event emitted");
+                            info!("Playback started");
+                        } else {
+                            error!("Pipeline not initialized");
+                            return Err(anyhow::anyhow!("Pipeline not initialized"));
+                        }
+                    } else {
+                        debug!("Queue is empty, nothing to play");
+                    }
+                } else {
+                    debug!("Already playing");
+                }
             }
         }
 
+        debug!("play() method completed");
         Ok(())
     }
 
