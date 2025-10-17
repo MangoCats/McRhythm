@@ -91,23 +91,51 @@ enum DecodePriority {
 
 **Decoding Flow:**
 
-The decoder uses a **decode-from-start-and-skip** approach for reliable, sample-accurate positioning:
+**[SSD-DEC-010]** The decoder uses a **decode-from-start-and-skip** approach for reliable, sample-accurate positioning:
 
-1. Receive decode request from buffer manager (with passage start/end times)
-2. Open file using `symphonia` decoder
-3. **Always decode from the beginning of the audio file** (never use compressed seek)
-4. Skip samples until reaching passage start time
-5. Continue decoding and buffering until passage end time
-6. Resample to standard rate (44.1kHz) if needed using `rubato`
-7. Write PCM data to passage buffer
-8. Notify buffer manager of completion
+1. **[SSD-DEC-011]** Receive decode request from buffer manager (with passage start/end times)
+2. **[SSD-DEC-012]** Open file using `symphonia` decoder
+3. **[SSD-DEC-013]** Always decode from the beginning of the audio file (never use compressed seek)
+4. **[SSD-DEC-014]** Skip samples until reaching passage start time
+5. **[SSD-DEC-015]** Continue decoding and buffering until passage end time
+6. **[SSD-DEC-016]** Resample to standard rate (44.1kHz) if needed using `rubato`
+7. **[SSD-DEC-017]** Write PCM data to passage buffer
+8. **[SSD-DEC-018]** Notify buffer manager of completion
 
-**Rationale for decode-and-skip:**
-- Compressed file seeking (e.g., MP3, AAC) is unreliable and format-dependent
-- Variable bitrate files have unpredictable seek performance
-- Decode-from-start ensures exact, repeatable time points
-- Provides sample-accurate positioning required for crossfading
-- Trade-off: Slightly longer decode time, but guarantees correctness
+**[SSD-DEC-020]** Rationale for decode-and-skip:
+- **[SSD-DEC-021]** Compressed file seeking (e.g., MP3, AAC) is unreliable and format-dependent
+- **[SSD-DEC-022]** Variable bitrate files have unpredictable seek performance
+- **[SSD-DEC-023]** Decode-from-start ensures exact, repeatable time points
+- **[SSD-DEC-024]** Provides sample-accurate positioning required for crossfading
+- **[SSD-DEC-025]** Trade-off: Slightly longer decode time, but guarantees correctness
+
+### Decoder Pool Lifecycle Specification
+
+**[SSD-DEC-030]** Pool Sizing:
+- Fixed pool: 2 decoder threads
+- Rationale: Sufficient for current + next passage full decode (SSD-FBUF-010)
+- Hardware constraint: Raspberry Pi Zero2W resource limits (REQ-TECH-011)
+
+**[SSD-DEC-031]** Thread Creation:
+- Lazy initialization: Threads created on first decode request
+- Persistent: Threads remain alive until module shutdown
+- No dynamic scaling: Pool size fixed at 2 for entire session
+
+**[SSD-DEC-032]** Priority Queue Management:
+- Implementation: Ordered `VecDeque<DecodeRequest>`
+- Insertion: Insert at position based on priority value
+  - Priority 0 (Immediate): Currently playing passage (buffer underrun recovery)
+  - Priority 1 (Next): Next-to-play passage
+  - Priority 2 (Prefetch): Queued passages after next
+- Dequeue: Always pop front (highest priority first)
+
+**[SSD-DEC-033]** Shutdown Behavior:
+- Signal: Set `AtomicBool` stop flag read by all threads
+- Join: Wait for all threads with 5-second timeout
+- Timeout handling: Log warning and proceed (non-critical at shutdown)
+- In-flight decodes: Abandoned (buffers discarded)
+
+**Memory Impact:** 2 threads × ~8KB stack = ~16KB overhead (negligible)
 
 **Dependencies:**
 - `symphonia` - Pure Rust audio decoding (MP3, FLAC, AAC, Vorbis, etc.)
@@ -154,25 +182,72 @@ pub enum FadeCurve {
 
 **Buffer Management Strategy:**
 
-The system uses two distinct buffering strategies based on passage playback state:
+**[SSD-BUF-010]** The system uses two distinct buffering strategies based on passage playback state:
 
-**1. Currently Playing Passage - Full Decode Strategy:**
-- When a passage enters "currently playing" status, the ENTIRE passage is decoded into RAM
-- Purpose: Enable instant, sample-accurate seeking anywhere within the passage
-- Rationale: Compressed file decoder seek-to-time performance is unreliable across formats
-- Implementation: Always decode from file start, skip samples until passage start time, continue until passage end time
-- Benefits:
-  - Sample-accurate positioning at any point in the passage
-  - Repeatable, exact time points within the audio file
-  - No dependency on format-specific seeking capabilities
-  - Eliminates seeking latency during playback
+**[SSD-FBUF-010] 1. Currently Playing or Next-to-Play Passage - Full Decode Strategy:**
+- **[SSD-FBUF-011]** When a passage is in the currently playing OR next-to-be-played position in the queue, the ENTIRE passage is completely decoded into raw waveforms buffered in RAM ready to be played
+- **[SSD-FBUF-012]** Purpose: Enable instant, sample-accurate seeking anywhere within the passage
+- **[SSD-FBUF-013]** Rationale: Compressed file decoder seek-to-time performance is unreliable across formats
 
-**2. Queued Passages - 15-Second Buffer Strategy (Configurable):**
-- The 15-second buffer applies to LATER passages in the queue (not currently playing)
-- Purpose: Facilitate instant skip to queued passages without audio dropout
-- Gives sufficient time to fully decode the entire passage before playback buffer starvation
-- Prevents audio glitches during passage transitions
-- Configurable buffer size allows tuning for different use cases
+**Decoding Process:**
+- **[SSD-FBUF-020]** Resampling: When necessary, resample to the standard 44.1kHz sample rate using `rubato`
+- **[SSD-FBUF-021]** Decode-and-skip approach: Always decode from the start of the audio file through to the end time specified in the passage to achieve accurate timing
+  - **[SSD-FBUF-022]** Never use compressed seek (unreliable across formats and variable bitrate files)
+  - **[SSD-FBUF-023]** Skip decoded audio before the start time specified in the passage
+  - **[SSD-FBUF-024]** If no start time is specified, implicit start time is at the start of the audio file
+  - **[SSD-FBUF-025]** Continue decoding until passage end time is reached
+  - **[SSD-FBUF-026]** If no end time is specified, implicit end time is at the end of the audio file
+  - **[SSD-FBUF-027]** When the end time of the passage is before the end of the audio file, decoding may stop as soon as the end time uncompressed audio has been buffered - no need to decode to the end of the audio file
+
+**Fade Curve Application:**
+- **[SSD-FADE-010]** Fade-in curve: May be applied to the buffered data as soon as the decoding process has passed the fade-in point
+- **[SSD-FADE-011]** Fade-out curve: May be applied to the buffered data as soon as the decoding process has reached the end time
+- **[SSD-FADE-012]** Fade application can occur during decode or be deferred to read-time (implementation choice)
+
+**Benefits:**
+- **[SSD-FBUF-030]** Sample-accurate positioning at any point in the passage
+- **[SSD-FBUF-031]** Repeatable, exact time points within the audio file
+- **[SSD-FBUF-032]** No dependency on format-specific seeking capabilities
+- **[SSD-FBUF-033]** Eliminates seeking latency during playback
+
+**[SSD-PBUF-010] 2. Queued Passages (After Next) - Partial Buffer Strategy (Configurable):**
+- **[SSD-PBUF-011]** Passages in the queue AFTER the next-to-be-played position are partially decoded to obtain a short buffer of audio ready to be played immediately in case the user skips ahead in the queue
+- **[SSD-PBUF-012]** Default: 15-second buffer (configurable)
+- **[SSD-PBUF-013]** Purpose: Facilitate instant skip to queued passages without audio dropout
+- **[SSD-PBUF-014]** Gives sufficient time to fully decode the entire passage before playback buffer starvation
+- **[SSD-PBUF-015]** Prevents audio glitches during passage transitions
+
+**Partial Buffer Playback Handling:**
+
+**[SSD-PBUF-020]** When a buffer starts playing that does not contain the entire passage:
+
+1. **[SSD-PBUF-021]** If decoding is currently in process when buffer starts playing:
+   - **[SSD-PBUF-022]** Decoding continues to complete the buffer
+   - **[SSD-PBUF-023]** Playback proceeds from partial buffer while decode completes in background
+
+2. **[SSD-PBUF-024]** If decoding is not currently in process when buffer starts playing:
+   - **[SSD-PBUF-025]** A new buffer is created by restarting the decoding process
+   - **[SSD-PBUF-026]** When the currently playing buffer reaches the end of its cleanly decoded audio data, playback is seamlessly switched to the same sample point in the buffer that is being completely filled through decoding, whether decoding is complete yet or not
+
+**Buffer Underrun Handling:**
+
+**[SSD-UND-010]** If playback should progress to a point where no decoded audio is yet available to play:
+- **[SSD-UND-011]** Log warning describing:
+  - **[SSD-UND-012]** Current buffer status
+  - **[SSD-UND-013]** Recent skip activity
+  - **[SSD-UND-014]** Current decoding speed relative to playback speed
+  - **[SSD-UND-015]** Note: Pre-buffering time to handle multiple skips may need to be extended, or estimated on a passage-by-passage basis depending on the passage's start time in its audio file
+- **[SSD-UND-016]** Pause playback until at least one second of buffered data beyond the current playback point is available in buffer
+  - **[SSD-UND-017]** Pause is implemented by re-feeding the same audio output level (flatline from the point of pausing) while pause is in effect
+- **[SSD-UND-018]** Automatically resume once sufficient buffer is available
+
+**[SSD-UND-020]** If playback should reach the fade-out point of a buffer before the fade-out curve has been applied to the data in the buffer:
+- **[SSD-UND-021]** Log warning describing:
+  - **[SSD-UND-022]** Current buffer status
+  - **[SSD-UND-023]** Recent skip activity
+  - **[SSD-UND-024]** Current decoding speed relative to playback speed
+- **[SSD-UND-025]** Pause playback until the fade-out curve has been completely applied
+- **[SSD-UND-026]** Automatically resume once fade-out curve is applied
 
 **Additional Buffer Management:**
 - **Background decoding** for next 2-3 passages in queue
@@ -181,10 +256,88 @@ The system uses two distinct buffering strategies based on passage playback stat
 
 **Memory Calculation:**
 ```
-Queued passage (15-second buffer): 44100 Hz * 2 channels * 4 bytes/sample * 15 sec = ~5.3 MB
-Currently playing passage (full): Varies by passage duration (e.g., 3 minutes = ~63 MB)
-For 5 passages (1 playing, 4 queued): ~63 MB + (4 × 5.3 MB) = ~84 MB typical
+Partial buffer (15-second): 44100 Hz * 2 channels * 4 bytes/sample * 15 sec = ~5.3 MB
+Full passage buffer: Varies by passage duration (e.g., 3 minutes = ~63 MB)
+For 5 passages (1 playing + 1 next + 3 queued):
+  - 2 fully decoded: 2 × ~63 MB = ~126 MB
+  - 3 partially buffered: 3 × 5.3 MB = ~16 MB
+  - Total: ~142 MB typical
 ```
+
+### Partial to Complete Buffer Handoff Mechanism
+
+**[SSD-PBUF-030]** Handoff Architecture:
+
+When a partial buffer starts playing before complete decode finishes, the system seamlessly transitions to the complete buffer.
+
+**Buffer References:**
+- `partial_buffer_ref`: Initial 15-second buffer (available immediately for skip-ahead)
+- `complete_buffer_ref`: Full passage buffer (populated during background decode)
+
+**Handoff Procedure:**
+
+1. **Initial State:**
+   - Mixer starts reading from `partial_buffer_ref`
+   - Decoder fills `complete_buffer_ref` in background
+   - Both buffers share sample position tracking
+
+2. **Decode Completion:**
+   - Decoder signals completion
+   - Atomically swap: `partial_buffer_ref = complete_buffer_ref`
+   - Swap occurs at mixer cycle boundary (not mid-sample)
+
+3. **Continued Playback:**
+   - Sample position tracking continues uninterrupted
+   - Mixer transparently reads from new buffer reference
+   - No audible discontinuity (references point to same underlying data once decode completes)
+
+**[SSD-PBUF-031]** Synchronization Mechanism:
+- Buffer storage: `Arc<RwLock<PassageBuffer>>`
+- Atomic reference updates: Write lock for swap, read lock for mixer access
+- No sample-level synchronization needed (buffers contain identical data after decode)
+- Lock contention: Minimal (swap occurs once per passage, mixer read locks are brief)
+
+**[SSD-PBUF-032]** Edge Case - Playback Completes Before Full Decode:
+- If partial buffer exhausts before complete buffer ready: Normal underrun handling (SSD-UND-015)
+- Auto-pause applies if needed
+- Complete buffer swap still occurs when decode finishes
+- Subsequent seeks/replays use complete buffer
+
+### Buffer State Event Emission
+
+**[SSD-BUF-020]** Event Integration:
+
+The Passage Buffer Manager emits `BufferStateChanged` events (event_system.md) at four key transition points:
+
+**Transition 1: None → Decoding**
+- **Trigger:** Decoder thread starts filling buffer from audio file
+- **Event Data:** `old_state=None, new_state=Decoding, decode_progress_percent=0.0`
+- **Use Case:** UI can show decode progress indicator
+
+**Transition 2: Decoding → Ready**
+- **Trigger:** Decoder completes buffer population (full or partial)
+- **Event Data:** `old_state=Decoding, new_state=Ready, decode_progress_percent=100.0`
+- **Use Case:** Confirms buffer available for playback
+
+**Transition 3: Ready → Playing**
+- **Trigger:** Mixer starts reading buffer for audio output
+- **Event Data:** `old_state=Ready, new_state=Playing, decode_progress_percent=None`
+- **Use Case:** Track which passage currently outputting audio
+
+**Transition 4: Playing → Exhausted**
+- **Trigger:** Mixer reaches end of buffer (or crossfade lead-out completes)
+- **Event Data:** `old_state=Playing, new_state=Exhausted, decode_progress_percent=None`
+- **Use Case:** Buffer lifecycle debugging
+
+**[SSD-BUF-021]** Decode Progress Updates:
+- While in Decoding state: Emit progress updates every 10% completion
+- Throttling: Maximum one event per second
+- Use Case: Large file decode monitoring (e.g., 30-minute recording)
+
+**[SSD-BUF-022]** API Integration:
+- `GET /playback/buffer_status` endpoint returns current state of all buffers
+- State reflects most recent BufferStateChanged event for each passage
+- See api_design.md for complete endpoint specification
 
 #### 3. Crossfade Mixer
 
@@ -260,6 +413,18 @@ for i in 0..output.len() step 2 {
 }
 ```
 
+**Crossfade Summation and Clipping Detection:**
+
+**[SSD-CLIP-010]** During crossover from one passage to the next (lead-out of the currently playing passage and lead-in of the next), data from the two passages' buffers is summed to get the audio data for output.
+
+**[SSD-CLIP-020]** If summation results in an output level that will be clipped (absolute value > 1.0 for f32 samples):
+- **[SSD-CLIP-021]** Log warning describing:
+  - **[SSD-CLIP-022]** The playback point in both passages
+  - **[SSD-CLIP-023]** Fade durations of both passages
+  - **[SSD-CLIP-024]** Fade curves of both passages
+- **[SSD-CLIP-025]** Clipping prevention: Apply appropriate gain reduction or limiting
+- **[SSD-CLIP-026]** Warning frequency: Only log a maximum of one warning per crossover (avoid log spam)
+
 **Fade Curve Examples:**
 ```
 Linear:       y = x
@@ -267,6 +432,25 @@ Logarithmic:  y = ln(100x + 1) / ln(101)  [gradual start, faster end]
 Exponential:  y = x²                       [faster start, gradual end]
 S-Curve:      y = (1 - cos(πx)) / 2       [smooth acceleration/deceleration]
 ```
+
+### Crossfade Timing Calculation Ownership
+
+**[SSD-MIX-040]** Calculation Responsibility:
+- Owner: CrossfadeMixer component
+- Trigger: When `queue_next_passage()` called by PlaybackEngine
+- Timing: Calculation happens BEFORE decode starts (enables pre-loading trigger)
+- Algorithm: See crossfade.md [XFD-IMPL-020] for complete pseudocode
+
+**[SSD-MIX-041]** Validation Integration:
+- Executes Phase 3 validation (crossfade.md XFD-VAL-010)
+- On validation failure: Return error to PlaybackEngine
+- PlaybackEngine response: Emit PassageCompleted(reason="invalid_timing"), skip passage
+- See crossfade.md "Validation Responsibility" for three-phase strategy
+
+**[SSD-MIX-042]** Timing Output:
+- Returns: (lead_out_start_sample, crossfade_duration_samples, next_passage_lead_in_samples)
+- Used by: PlaybackEngine to calculate decoder queue submission timing
+- Precision: Sample-accurate (not time-based)
 
 #### 4. Audio Output Thread
 
@@ -403,14 +587,14 @@ Decoder reads compressed audio file and populates PCM buffer.
 
 **Buffering Strategy:**
 
-1. **Currently Playing Passage - Full Decode:**
-   - ENTIRE passage decoded into RAM when entering "currently playing" status
+1. **Currently Playing or Next-to-Play Passage - Full Decode:**
+   - ENTIRE passage decoded into RAM when entering "currently playing" OR "next-to-be-played" status
    - Enables instant, sample-accurate seeking anywhere within passage
    - Memory: ~63 MB for 3-minute passage @ 44.1kHz stereo
    - Eliminates dependency on unreliable compressed file seeking
 
-2. **Queued Passages - 15-Second Buffer (Configurable):**
-   - Only first 15 seconds buffered for queued (not currently playing) passages
+2. **Queued Passages (After Next) - Partial Buffer (Configurable):**
+   - Only first 15 seconds buffered for passages AFTER the next-to-be-played position
    - Provides instant skip capability
    - Sufficient time to complete full decode before playback starts
    - Memory: ~5.3 MB per passage @ 44.1kHz stereo
@@ -568,8 +752,15 @@ Verified functionality:
 2. Decoder processes file
    └─> symphonia opens and decodes file
    └─> Uses decode-and-skip for sample-accurate positioning
+       - Always decode from start of audio file
+       - Skip samples until passage start time
+       - Continue decoding until passage end time
+       - If passage ends before file end, stop decoding at passage end
    └─> rubato resamples to 44.1kHz if needed
    └─> PCM data written to PassageBuffer
+   └─> Fade curves applied during decode (or deferred to read-time)
+       - Fade-in curve applied as soon as decode passes fade-in point
+       - Fade-out curve applied as soon as decode reaches end time
    └─> BufferManager marks passage as Ready
 
 3. Playback starts
@@ -775,6 +966,23 @@ Skip latency:           <100 ms (if buffer ready)
 - For queued passages: 15-second buffer provides time to complete full decode before playback
 - Trade-off: Accepts longer initial decode time for guaranteed accuracy and reliability
 
+### Challenge 6: Buffer Underruns During Skip-Ahead
+**[SSD-UND-030] Problem:** User may skip ahead in queue faster than decoder can populate buffers.
+**[SSD-UND-031] Solution:**
+- **[SSD-UND-032]** Partial buffer playback: Start playing from partial buffer while decode continues
+- **[SSD-UND-033]** Automatic pause/resume: If playback reaches unbuffered region, pause with flatline output until sufficient buffer available (1+ second)
+- **[SSD-UND-034]** Logging and diagnostics: Log warnings with buffer status, skip activity, and decode speed
+- **[SSD-UND-035]** Adaptive pre-buffering: Estimate required buffer time based on passage start time in file
+- **[SSD-UND-036]** Seamless buffer switching: Switch from partial to complete buffer at same sample point when full decode completes
+
+### Challenge 7: Fade Curve Application Timing
+**[SSD-FADE-020] Problem:** Playback may reach fade-out point before curve has been applied to buffer data.
+**[SSD-FADE-021] Solution:**
+- **[SSD-FADE-022]** Early application: Apply fade-out curve as soon as decode reaches end time (during buffer population)
+- **[SSD-FADE-023]** Automatic pause: If playback reaches fade-out point before curve applied, pause until application complete
+- **[SSD-FADE-024]** Implementation flexibility: Allow fade application during decode OR defer to read-time based on implementation needs
+- **[SSD-FADE-025]** Logging: Warn if timing issue occurs, including buffer status and skip activity
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -886,8 +1094,159 @@ tracing = "0.1"
 
 ---
 
-**Document Version:** 1.0
+## Requirement Traceability Index
+
+This section provides a comprehensive index of all traceability IDs assigned to specifications in this document, organized by category for easy reference.
+
+### DEC - Decoder (Decoding and Decode-and-Skip Strategy)
+
+| ID | Description |
+|----|-------------|
+| SSD-DEC-010 | Decode-from-start-and-skip approach for sample-accurate positioning |
+| SSD-DEC-011 | Receive decode request from buffer manager |
+| SSD-DEC-012 | Open file using symphonia decoder |
+| SSD-DEC-013 | Always decode from beginning of audio file (never use compressed seek) |
+| SSD-DEC-014 | Skip samples until reaching passage start time |
+| SSD-DEC-015 | Continue decoding until passage end time |
+| SSD-DEC-016 | Resample to 44.1kHz if needed using rubato |
+| SSD-DEC-017 | Write PCM data to passage buffer |
+| SSD-DEC-018 | Notify buffer manager of completion |
+| SSD-DEC-020 | Rationale for decode-and-skip approach |
+| SSD-DEC-021 | Compressed file seeking is unreliable and format-dependent |
+| SSD-DEC-022 | Variable bitrate files have unpredictable seek performance |
+| SSD-DEC-023 | Decode-from-start ensures exact, repeatable time points |
+| SSD-DEC-024 | Provides sample-accurate positioning for crossfading |
+| SSD-DEC-025 | Trade-off: Longer decode time guarantees correctness |
+
+### BUF - Buffer Management
+
+| ID | Description |
+|----|-------------|
+| SSD-BUF-010 | Two distinct buffering strategies based on passage playback state |
+
+### FBUF - Full Buffer (Full Decode Strategy)
+
+| ID | Description |
+|----|-------------|
+| SSD-FBUF-010 | Full decode strategy for currently playing or next-to-play passages |
+| SSD-FBUF-011 | Entire passage decoded to RAM when in current/next position |
+| SSD-FBUF-012 | Purpose: Enable instant, sample-accurate seeking |
+| SSD-FBUF-013 | Rationale: Compressed decoder seek-to-time is unreliable |
+| SSD-FBUF-020 | Resampling to 44.1kHz when necessary |
+| SSD-FBUF-021 | Decode-and-skip approach for accurate timing |
+| SSD-FBUF-022 | Never use compressed seek |
+| SSD-FBUF-023 | Skip decoded audio before passage start time |
+| SSD-FBUF-024 | Implicit start time at audio file start if not specified |
+| SSD-FBUF-025 | Continue decoding until passage end time |
+| SSD-FBUF-026 | Implicit end time at audio file end if not specified |
+| SSD-FBUF-027 | May stop decoding when passage end reached (before file end) |
+| SSD-FBUF-030 | Benefit: Sample-accurate positioning at any point |
+| SSD-FBUF-031 | Benefit: Repeatable, exact time points |
+| SSD-FBUF-032 | Benefit: No dependency on format-specific seeking |
+| SSD-FBUF-033 | Benefit: Eliminates seeking latency |
+
+### FADE - Fade Curve Application
+
+| ID | Description |
+|----|-------------|
+| SSD-FADE-010 | Fade-in curve may be applied after decode passes fade-in point |
+| SSD-FADE-011 | Fade-out curve may be applied when decode reaches end time |
+| SSD-FADE-012 | Fade application during decode or deferred to read-time |
+| SSD-FADE-020 | Problem: Playback may reach fade-out before curve applied |
+| SSD-FADE-021 | Solution for fade curve timing challenge |
+| SSD-FADE-022 | Early application: Apply fade-out during buffer population |
+| SSD-FADE-023 | Automatic pause if fade-out point reached before application |
+| SSD-FADE-024 | Implementation flexibility: decode-time or read-time application |
+| SSD-FADE-025 | Logging: Warn if timing issue occurs |
+
+### PBUF - Partial Buffer (Partial Buffer Strategy)
+
+| ID | Description |
+|----|-------------|
+| SSD-PBUF-010 | Partial buffer strategy for queued passages after next |
+| SSD-PBUF-011 | Partial decode for passages after next-to-be-played position |
+| SSD-PBUF-012 | Default: 15-second buffer (configurable) |
+| SSD-PBUF-013 | Purpose: Instant skip without audio dropout |
+| SSD-PBUF-014 | Sufficient time to fully decode before buffer starvation |
+| SSD-PBUF-015 | Prevents audio glitches during transitions |
+| SSD-PBUF-020 | Partial buffer playback handling |
+| SSD-PBUF-021 | Case: Decoding in process when buffer starts playing |
+| SSD-PBUF-022 | Continue decode to complete buffer |
+| SSD-PBUF-023 | Playback proceeds while decode completes in background |
+| SSD-PBUF-024 | Case: Decoding not in process when buffer starts playing |
+| SSD-PBUF-025 | Create new buffer by restarting decode |
+| SSD-PBUF-026 | Seamlessly switch to complete buffer at same sample point |
+
+### UND - Underrun Handling (Buffer Underrun Detection and Recovery)
+
+| ID | Description |
+|----|-------------|
+| SSD-UND-010 | Buffer underrun: Playback reaches unbuffered region |
+| SSD-UND-011 | Log warning on buffer underrun |
+| SSD-UND-012 | Log: Current buffer status |
+| SSD-UND-013 | Log: Recent skip activity |
+| SSD-UND-014 | Log: Decoding speed relative to playback speed |
+| SSD-UND-015 | Log: Note about adaptive pre-buffering estimation |
+| SSD-UND-016 | Pause playback until 1+ second buffer available |
+| SSD-UND-017 | Pause implementation: Flatline output at pause point |
+| SSD-UND-018 | Automatically resume when sufficient buffer available |
+| SSD-UND-020 | Fade-out timing: Playback reaches fade-out before application |
+| SSD-UND-021 | Log warning on fade-out timing issue |
+| SSD-UND-022 | Log: Current buffer status |
+| SSD-UND-023 | Log: Recent skip activity |
+| SSD-UND-024 | Log: Decoding speed relative to playback speed |
+| SSD-UND-025 | Pause until fade-out curve completely applied |
+| SSD-UND-026 | Automatically resume once fade-out applied |
+| SSD-UND-030 | Challenge: Skip-ahead faster than decoder can populate |
+| SSD-UND-031 | Solution for buffer underrun challenge |
+| SSD-UND-032 | Partial buffer playback while decode continues |
+| SSD-UND-033 | Automatic pause/resume with flatline output |
+| SSD-UND-034 | Logging and diagnostics for underrun events |
+| SSD-UND-035 | Adaptive pre-buffering based on passage start time |
+| SSD-UND-036 | Seamless buffer switching at same sample point |
+
+### CLIP - Clipping Detection (Crossfade Summation)
+
+| ID | Description |
+|----|-------------|
+| SSD-CLIP-010 | Crossfade summation of two passage buffers |
+| SSD-CLIP-020 | Clipping detection when summation exceeds ±1.0 |
+| SSD-CLIP-021 | Log warning on clipping detection |
+| SSD-CLIP-022 | Log: Playback point in both passages |
+| SSD-CLIP-023 | Log: Fade durations of both passages |
+| SSD-CLIP-024 | Log: Fade curves of both passages |
+| SSD-CLIP-025 | Clipping prevention: Apply gain reduction or limiting |
+| SSD-CLIP-026 | Warning frequency: Maximum one warning per crossover |
+
+---
+
+**Document Version:** 1.3
 **Created:** 2025-10-16
+**Last Updated:** 2025-10-17
 **Status:** Current Architecture (Selected for Implementation)
 **Note:** This single-stream architecture has been selected as the current implementation approach. See [architecture.md](architecture.md) for integration details.
 **Related:** `dual-pipeline-design.md` (archived), `architecture-comparison.md`, `single-stream-playback.md`
+
+**Change Log:**
+- v1.2 (2025-10-17): Added requirement traceability IDs
+  - Added document code `SSD` (Single Stream Design) to requirements_enumeration.md
+  - Added category codes: DEC, BUF, FBUF, PBUF, UND, FADE, CLIP, and others
+  - Assigned 79 traceability IDs to specifications throughout document
+  - Created comprehensive traceability index section organized by category
+  - All v1.1 specifications now have unique, traceable requirement IDs
+- v1.3 (2025-10-17): Architectural decision specifications from wkmp-ap design review
+  - Added "Decoder Pool Lifecycle Specification" section with pool sizing, thread creation, priority queue management, and shutdown behavior
+  - Added "Crossfade Timing Calculation Ownership" section specifying CrossfadeMixer responsibility
+  - Added "Partial to Complete Buffer Handoff Mechanism" section with handoff procedure and synchronization details
+  - Added "Buffer State Event Emission" section with four transition points and decode progress updates
+  - Supports architectural decisions from wkmp-ap design review (ISSUE-5, ISSUE-7, ISSUE-8, ISSUE-1)
+- v1.1 (2025-10-17): Enhanced buffer management specifications
+  - Clarified that both "currently playing" AND "next-to-be-played" passages receive full decode
+  - Added detailed decode-and-skip process with implicit start/end time handling
+  - Specified fade curve application timing (during decode or at read-time)
+  - Added partial buffer playback handling for skip-ahead scenarios
+  - Added buffer underrun handling with automatic pause/resume behavior
+  - Added crossfade summation and clipping detection specifications
+  - Added Challenge 6 (Buffer Underruns) and Challenge 7 (Fade Curve Timing)
+  - Updated memory calculations to reflect 2 fully-decoded passages
+- v1.0 (2025-10-16): Initial version

@@ -219,6 +219,35 @@ This document aggregates all specifications to define the order in which feature
     - Log all launch attempts, failures, and user-initiated retry actions
   - Note: Program Director may also enqueue passages proactively without requests
 
+#### Request Deduplication Strategy
+
+**Problem:** Network retries between Audio Player and Program Director may cause duplicate passage selection requests.
+
+**Solution: UUID-Based Idempotency**
+
+**Audio Player (wkmp-ap) Responsibilities:**
+1. Generate unique `request_id = Uuid::new_v4()` for each refill request
+2. Include `request_id` in `POST /selection/request` body
+3. Cache sent requests: `HashMap<request_id, request_timestamp>`
+4. On retry: Resend same `request_id` (not new UUID)
+5. Cleanup: Remove cache entries after acknowledgment received
+
+**Program Director (wkmp-pd) Responsibilities:**
+1. Track in-flight requests: `HashMap<request_id, (timestamp, passage_id_result)>`
+2. On request receive:
+   - If `request_id` exists in map: Return cached acknowledgment immediately (no re-selection)
+   - If `request_id` new: Perform passage selection, cache result with request_id, return acknowledgment
+3. Cleanup: Remove map entries older than 5 minutes (stale request timeout)
+
+**Benefits:**
+- Idempotent operations: Safe to retry without duplicate selection
+- Resource efficiency: No wasteful re-computation of selection algorithm
+- Network resilience: Handles temporary connectivity issues gracefully
+
+**Implementation Note:** This enhancement should be added during Phase 2.7 implementation. It does not affect initial prototype functionality but improves production robustness.
+
+**Traceability:** ARCH-ERRH-010 (error recovery strategy)
+
 ---
 
 ## Phase 2A: Lyric Editor Module
@@ -929,3 +958,14 @@ The following features are specified but not yet estimated:
 
 ----
 End of document - WKMP Implementation Order & Timeline
+
+**Document Version:** 1.1
+**Last Updated:** 2025-10-17
+
+**Change Log:**
+- v1.1 (2025-10-17): Added request deduplication strategy for Audio Player / Program Director communication
+  - Added "Request Deduplication Strategy" section in Phase 2.7
+  - Specified UUID-based idempotency approach for queue refill requests
+  - Defined responsibilities for both Audio Player (wkmp-ap) and Program Director (wkmp-pd)
+  - Added benefits and implementation notes for production robustness
+  - Supports architectural decision from wkmp-ap design review (ISSUE-10)

@@ -1,9 +1,9 @@
 # WKMP
-Auto DJ for playing your music library
+Wonderfully Kinetic Music Player
 
 ## Overview
 
-WKMP is a music player that plays locally stored audio files to local audio output devices.  Passages from the audio files are automatically selected to play based on user-configured musical flavor preferences using AcousticBrainz musical characterization data and other algorithms.
+WKMP is a music player that plays locally stored audio files to local audio output devices.  Passages from the audio files may be automatically selected to play based on user-configured musical flavor preferences using AcousticBrainz musical characterization data and other algorithms.
 
 The system can work as a simple music file player, or build up to a hourly, daily, weekly, annually programed music source inspired by FM radio stations of the 1970s.
 
@@ -46,7 +46,8 @@ WKMP's microservices architecture currently consists of **5 core modules**, but 
 **Additional Module Ideas**
 - **Alternative UI Implementations**: Mobile-optimized interfaces, accessibility-focused designs, minimal kiosk mode
 - **External Control Protocols**: MPD (Music Player Daemon) compatibility, voice assistant integration (Alexa, Google Assistant), MQTT control for home automation
-- **Streaming Service Integration**: Supplementing local library with streaming sources
 - **Podcast and Audiobook Support**: Extending beyond music to spoken-word content
+- **Streaming Service Integration**: Supplementing local library with streaming sources
+- **ListenBrainz Integration**: Social sharing of listening data
 
 The architecture's HTTP/SSE-based communication and shared database design enable new modules to be added without modifying existing services. See [Architecture - Extensibility Principle](docs/architecture.md#extensibility-principle) for technical details. 

@@ -219,6 +219,25 @@ pub enum WkmpEvent {
         position: f64,  // Current position in passage (seconds)
     },
 
+    /// Emitted when passage buffer state transitions
+    ///
+    /// Purpose: Notify clients of passage buffer decode/playback state changes
+    /// for monitoring and debugging
+    ///
+    /// Module: wkmp-ap (Audio Player)
+    ///
+    /// Triggers:
+    /// - Developer UI: Show buffer state transitions for debugging
+    /// - Performance monitoring: Track decode speed vs. playback speed
+    /// - UI display: Show decode progress for large files
+    BufferStateChanged {
+        passage_id: PassageId,
+        old_state: BufferStatus,
+        new_state: BufferStatus,
+        decode_progress_percent: Option<f32>,  // Only for Decoding state
+        timestamp: SystemTime,
+    },
+
     // ═══════════════════════════════════════════════════════════
     // Queue Events
     // ═══════════════════════════════════════════════════════════
@@ -445,6 +464,15 @@ pub enum PlaybackState {
     Paused,    // Audio paused by user, regardless of queue state
 }
 
+/// Buffer status for passage decode/playback lifecycle
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BufferStatus {
+    Decoding,   // Buffer currently being populated from audio file
+    Ready,      // Buffer fully decoded and ready for playback
+    Playing,    // Buffer currently being read for audio output
+    Exhausted,  // Buffer playback completed
+}
+
 **Note on Playback State:**
 - System always starts in `Playing` state on app launch
 - Only two states exist: `Playing` and `Paused`
@@ -459,8 +487,8 @@ pub enum PlaybackState {
 ### Event Categories
 
 **Playback Events:**
-- **Publishers**: Playback Controller
-- **Subscribers**: Historian, SSE Broadcaster, State Persistence, Lyrics Display
+- **Publishers**: Playback Controller, Passage Buffer Manager
+- **Subscribers**: Historian, SSE Broadcaster, State Persistence, Lyrics Display, Developer UI
 - **Frequency**: Low (on state change) to Medium (position updates every 500ms)
 
 **Queue Events:**
@@ -482,6 +510,49 @@ pub enum PlaybackState {
 - **Publishers**: Network layer, Library scanner, Database layer
 - **Subscribers**: Error logging, SSE Broadcaster, External API clients
 - **Frequency**: Low (error conditions, periodic scans)
+
+### BufferStateChanged Event
+
+#### Purpose
+
+Notify clients of passage buffer decode/playback state transitions for monitoring and debugging.
+
+#### Module
+
+wkmp-ap (Audio Player)
+
+#### Event Data
+
+- `passage_id` (PassageId): Passage whose buffer state changed
+- `old_state` (BufferStatus): Previous buffer state
+- `new_state` (BufferStatus): New buffer state
+- `decode_progress_percent` (Option<f32>): Decode progress (only for Decoding state)
+- `timestamp` (SystemTime): When transition occurred
+
+#### BufferStatus Values
+
+- `Decoding`: Buffer currently being populated from audio file
+- `Ready`: Buffer fully decoded and ready for playback
+- `Playing`: Buffer currently being read for audio output
+- `Exhausted`: Buffer playback completed
+
+#### Emission Points
+
+- Decoder starts filling buffer (None → Decoding)
+- Decoder completes buffer (Decoding → Ready)
+- Mixer starts reading buffer (Ready → Playing)
+- Mixer finishes buffer (Playing → Exhausted)
+
+#### Use Cases
+
+- Developer debugging of buffer underrun scenarios (SSD-UND-015)
+- UI display of decode progress for large files
+- Performance monitoring of decode speed vs. playback speed
+- Pre-buffering diagnostics for skip-ahead behavior
+
+#### Traceability
+
+SSD-BUF-010 (Buffer state visibility requirement)
 
 ## EventBus Implementation
 
@@ -1304,3 +1375,14 @@ This design positions WKMP for maintainable, scalable development.
 
 ----
 End of document - WKMP Event System
+
+**Document Version:** 1.1
+**Last Updated:** 2025-10-17
+
+**Change Log:**
+- v1.1 (2025-10-17): Added BufferStateChanged event
+  - Added new event variant to WkmpEvent enum
+  - Added BufferStatus enum (Decoding, Ready, Playing, Exhausted)
+  - Added dedicated event section with emission points and use cases
+  - Updated Event Categories to include Passage Buffer Manager as publisher
+  - Supports architectural decision from wkmp-ap design review (ISSUE-1)

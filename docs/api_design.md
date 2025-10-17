@@ -821,6 +821,19 @@ When determining timing values for the enqueued passage, the following precedenc
 ```
 
 **Error Responses:**
+- **400 Bad Request**: Invalid timing parameters (Phase 1 validation)
+  ```json
+  {
+    "error": "Invalid passage timing",
+    "details": {
+      "validation_failures": [
+        "start_time_ms (5000) >= end_time_ms (3000)",
+        "fade_in_point_ms (200) < start_time_ms (5000)"
+      ]
+    }
+  }
+  ```
+  Validation follows XFD-IMPL-040 through XFD-IMPL-043.
 - **404 Not Found**: Audio file does not exist at specified path
   ```json
   {"error": "file_not_found", "file_path": "music/album/track.mp3"}
@@ -837,6 +850,18 @@ When determining timing values for the enqueued passage, the following precedenc
   ```json
   {"error": "reference_not_found", "reference_guid": "uuid-123"}
   ```
+
+**Ephemeral Passage Creation:**
+
+When only `file_path` is provided (without `passage_guid`), the Audio Player creates an ephemeral passage definition with default timing:
+- start_time = 0
+- end_time = audio file duration (detected during decode)
+- All lead/fade points = 0 (no crossfade)
+- fade curves = system defaults
+
+The ephemeral passage exists only for the current playback session and is not persisted to the database. It behaves identically to persistent passages during playback.
+
+See entity_definitions.md REQ-DEF-035 for ephemeral passage specification.
 
 **Timing Override Behavior:**
 - When timing fields are provided in request: Override persists to `settings.queue_entry_timing_overrides` as JSON
@@ -1090,6 +1115,49 @@ Get current playback position within currently playing passage.
 - Position updates in real-time during playback
 - Position query uses audio system's playback position tracking
 - During crossfade, returns position of currently audible passage (not next passage)
+
+#### `GET /playback/buffer_status`
+
+Retrieve current buffer decode/playback status for all passages in queue.
+
+**Authentication:** None
+
+**Request:** No parameters
+
+**Response (200 OK):**
+```json
+{
+  "buffers": [
+    {
+      "passage_id": "550e8400-e29b-41d4-a716-446655440000",
+      "status": "Ready",
+      "decode_progress_percent": null,
+      "sample_count": 1234567,
+      "sample_rate": 44100
+    },
+    {
+      "passage_id": "550e8400-e29b-41d4-a716-446655440001",
+      "status": "Decoding",
+      "decode_progress_percent": 45.2,
+      "sample_count": 567890,
+      "sample_rate": 44100
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `buffers`: Array of buffer status objects, ordered by queue position
+- `passage_id`: UUID of passage
+- `status`: One of: "Decoding", "Ready", "Playing", "Exhausted"
+- `decode_progress_percent`: 0.0-100.0 (only present for "Decoding" status)
+- `sample_count`: Number of samples currently buffered
+- `sample_rate`: Sample rate (Hz) after resampling
+
+**Error Responses:**
+- 503 Service Unavailable: Audio playback subsystem not initialized
+
+**Traceability:** SSD-BUF-010 (Buffer state visibility)
 
 ### Health Endpoint
 
@@ -1662,3 +1730,13 @@ API endpoints should have integration tests covering:
 
 ----
 End of document - WKMP API Design
+
+**Document Version:** 1.1
+**Last Updated:** 2025-10-17
+
+**Change Log:**
+- v1.1 (2025-10-17): Added buffer status endpoint and timing validation specifications
+  - Added `GET /playback/buffer_status` endpoint with buffer state and progress reporting
+  - Added Phase 1 validation error response to `POST /playback/enqueue` endpoint
+  - Added Ephemeral Passage Creation section explaining transient passage behavior
+  - Supports architectural decisions from wkmp-ap design review (ISSUE-1, ISSUE-2, ISSUE-4)

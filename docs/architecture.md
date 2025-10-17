@@ -369,7 +369,7 @@ During playback, wkmp-ap monitors playback position to detect song boundary cros
 3.1 **Event emission, no passage_id:** Emit `CurrentSongChanged` when:
    - Passage starts, song_id and passage_id are None, audio_file_path contains path and filename of file to play
    - Passage ends, song_id, passage_id and audio_file_path are None
-   
+
 Do not emit `CurrentSongChanged` when passage starts or ends in a gap.
 
 
@@ -377,13 +377,20 @@ Do not emit `CurrentSongChanged` when passage starts or ends in a gap.
    ```rust
    CurrentSongChanged {
        song_id: Option<SongId>,          // Current song UUID, or None if in gap or song is unknown
-       passage_id: Option<PassageId>,    // Current passage UUID, or None if passage UUID is unknown
-       audio_file_path: Option<PathBuf>, // Current audio file's path, None at the end of passage event 
+       passage_id: PassageId,            // ALWAYS present during passage playback
+       audio_file_path: Option<PathBuf>, // Current audio file's path, None at the end of passage event
        pipeline_id: PipelineId,          // Pipeline playing this passage (A or B)
        position_ms: u64,                 // Current position in passage (milliseconds)
        timestamp: SystemTime,            // When boundary was crossed
    }
    ```
+
+**[ARCH-SNGC-030]** CurrentSongChanged Event - Passage Identity:
+- `passage_id` (PassageId): ALWAYS present during passage playback
+- For persistent passages: References `passages` table entry
+- For ephemeral passages: Transient UUID for current session only
+- See entity_definitions.md REQ-DEF-035 for ephemeral passage model
+- `passage_id=None` only valid at system start (before first passage) or explicit stop
 
 5. **Gap handling:**
    - If `current_position_ms` is not within any song's time range: `song_id = None`
@@ -941,6 +948,13 @@ Lyric Editor (Full only)
     - No other arguments required (all configuration via database)
     - Standard deployment: No arguments needed
   - **Launch procedure**:
+    - **[ARCH-INIT-005]** Module Health Check Strategy:
+      - Current implementation: Basic health check (HTTP 200 = alive, 503 = not ready)
+      - Initial startup: Any HTTP response (even error codes) indicates service is alive
+      - Launch detection: Service considered ready when HTTP server responds
+      - Future enhancement: Detailed health checks (database connectivity, audio device availability, audio subsystem status)
+      - API structure: See api_design.md `/health` endpoint (reserves fields for future detailed diagnostics)
+      - Traceability: REQ-OPS-010 (operational monitoring)
     - **Health check**: Send HTTP GET request to module's `/health` endpoint
       - Expected response: HTTP 200 with JSON `{"status": "healthy", "module": "<module-name>"}`
       - Timeout: 2 seconds for health check response
@@ -1716,3 +1730,15 @@ Used for:
 
 ----
 End of document - WKMP Architecture
+
+**Document Version:** 1.1
+**Last Updated:** 2025-10-17
+
+**Change Log:**
+- v1.1 (2025-10-17): Updated CurrentSongChanged event and health check specifications
+  - Updated [ARCH-SNGC-030] to clarify passage_id is always present during playback
+  - Added ephemeral passage support to CurrentSongChanged event specification
+  - Updated event payload structure to reflect passage_id as non-optional (PassageId not Option<PassageId>)
+  - Added [ARCH-INIT-005] Module Health Check Strategy specification
+  - Clarified basic health check (initial) vs. detailed health check (future enhancement)
+  - Supports architectural decisions from wkmp-ap design review (ISSUE-4, ISSUE-9)

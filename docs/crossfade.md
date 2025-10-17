@@ -379,6 +379,68 @@ function validate_and_correct_passage_timing(passage) -> ValidatedPassage:
 - **Negative durations from bad data**: Corrected by validation to produce duration ≥ 0
 - **NULL timing points**: Handled by computing from global crossfade time (no validation needed)
 
+## Validation Responsibility
+
+The timing validation algorithm ([XFD-IMPL-040] through [XFD-IMPL-043]) is executed at three distinct phases with different ownership and failure handling:
+
+### Phase 1: Enqueue-Time Validation
+
+**Owner:** Audio Player API handler (`POST /playback/enqueue`)
+
+**Scope:** Validate all timing points provided in enqueue request
+
+**Validation Rules:**
+- Apply [XFD-IMPL-040]: start_time < end_time
+- Apply [XFD-IMPL-041]: fade/lead points within [start_time, end_time]
+- Apply [XFD-IMPL-042]: fade points allow minimum fade duration
+- Apply [XFD-IMPL-043]: lead points allow minimum crossfade overlap
+
+**Action on Failure:**
+- Return `400 Bad Request` with detailed validation error list
+- Do not enqueue passage
+- Do not modify database or queue
+
+**Rationale:** Fail fast for user-provided invalid data. Prevents bad data from entering the system.
+
+### Phase 2: Database Read Validation
+
+**Owner:** Playback Engine (passage loading from `passages` table)
+
+**Scope:** Validate passage definitions retrieved from database
+
+**Validation Rules:**
+- Same as Phase 1, but with correction capability
+- Apply boundary clamping per [XFD-IMPL-040]
+- Apply midpoint correction per [XFD-IMPL-041], [XFD-IMPL-042]
+
+**Action on Failure:**
+- Log warning with passage_id and applied corrections
+- Use corrected values for playback
+- Continue playback (graceful degradation)
+- Do not modify database (corrections are runtime-only)
+
+**Rationale:** Tolerate and correct corrupted database data. Prioritize playback continuity over strict validation.
+
+### Phase 3: Pre-Decode Validation
+
+**Owner:** Playback Engine (crossfade calculation before decoder queue submission)
+
+**Scope:** Final validation before decode resources allocated
+
+**Validation Rules:**
+- Same as Phase 1 (strict, no correction)
+- Includes audio file duration check (ensures end_time <= file_duration)
+
+**Action on Failure:**
+- Emit `PassageCompleted` event with `reason="invalid_timing"`
+- Skip passage entirely
+- Advance to next passage in queue
+- Log error with passage_id and specific validation failure
+
+**Rationale:** Last-resort safety check before expensive decode operation. Prevents resource waste on unplayable passages.
+
+**Traceability:** XFD-VAL-010 (Three-phase validation strategy)
+
 **[XFD-IMPL-050]** Case Detection:
 
 The algorithm automatically handles all three cases:
@@ -1020,3 +1082,14 @@ See [database_schema.md#settings](database_schema.md#settings) for the definitio
 
 ----
 End of document - Crossfade Design
+
+**Document Version:** 1.1
+**Last Updated:** 2025-10-17
+
+**Change Log:**
+- v1.1 (2025-10-17): Added three-phase validation strategy specification
+  - Added new "Validation Responsibility" section after timing validation algorithm
+  - Defined Phase 1 (Enqueue-time), Phase 2 (Database read), and Phase 3 (Pre-decode) validation
+  - Specified ownership, scope, validation rules, and failure actions for each phase
+  - Added traceability ID XFD-VAL-010 for three-phase validation strategy
+  - Supports architectural decision from wkmp-ap design review (ISSUE-2)
