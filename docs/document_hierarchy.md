@@ -12,6 +12,30 @@ This document defines the documentation framework itself. It sits outside the co
 
 ---
 
+## Filename Convention
+
+All documentation files follow a systematic naming convention defined in [GOV003-filename_convention.md](GOV003-filename_convention.md). The convention uses prefixes (GOV, REQ, SPEC, IMPL, EXEC, etc.) to indicate document tier and type, making the documentation structure immediately obvious.
+
+**Format:** `PREFIX###-descriptive_name.md`
+
+**Examples:**
+- `GOV001-document_hierarchy.md` (Tier 0: Governance)
+- `REQ001-requirements.md` (Tier 1: Requirements)
+- `SPEC001-architecture.md` (Tier 2: Specifications)
+- `IMPL001-database_schema.md` (Tier 3: Implementation)
+- `EXEC001-implementation_order.md` (Tier 4: Execution)
+
+**Benefits:**
+- Natural alphabetical grouping by document type
+- Tier-based organization visible in filenames
+- Easy to identify document purpose without opening files
+- Scalable for future document additions
+- Compatible with all file managers and tools
+
+See [GOV003-filename_convention.md](GOV003-filename_convention.md) for complete specification, prefix definitions, numbering guidelines, and migration procedures.
+
+---
+
 ## Document Classification
 
 WKMP project documentation is organized into a strict hierarchy that governs how information flows between documents and when each document should be updated.
