@@ -21,19 +21,6 @@ This document establishes a systematic filename convention for all WKMP document
 - **Groups naturally in file explorers** by alphabetical sorting
 - **Scales easily** for future document additions
 
-### Example Transformations
-
-| Current Filename | Proposed Filename | Rationale |
-|------------------|-------------------|-----------|
-| `document_hierarchy.md` | `GOV001-document_hierarchy.md` | Tier 0: Governance |
-| `requirements.md` | `REQ001-requirements.md` | Tier 1: Authoritative Requirements |
-| `entity_definitions.md` | `REQ002-entity_definitions.md` | Tier 1: Authoritative Requirements |
-| `architecture.md` | `SPEC001-architecture.md` | Tier 2: System Design |
-| `crossfade.md` | `SPEC002-crossfade.md` | Tier 2: Technical Design |
-| `database_schema.md` | `IMPL001-database_schema.md` | Tier 3: Implementation Specs |
-| `implementation_order.md` | `EXEC001-implementation_order.md` | Tier 4: Execution Plan |
-| `review-findings.md` | `REV001-review_findings.md` | Special: Review Document |
-
 ---
 
 ## Governance Context
