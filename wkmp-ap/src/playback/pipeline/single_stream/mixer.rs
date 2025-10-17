@@ -132,8 +132,14 @@ pub struct CrossfadeMixer {
     /// Output buffer for mixed audio
     output_buffer: Arc<RwLock<VecDeque<f32>>>,
 
-    /// Current playback position in samples
+    /// Current playback position in samples (global counter for API)
     playback_position: Arc<RwLock<u64>>,
+
+    /// Position within current passage buffer (samples, not interleaved)
+    current_passage_position: Arc<RwLock<u64>>,
+
+    /// Position within next passage buffer (samples, not interleaved)
+    next_passage_position: Arc<RwLock<u64>>,
 }
 
 impl CrossfadeMixer {
@@ -151,6 +157,8 @@ impl CrossfadeMixer {
                 STANDARD_SAMPLE_RATE as usize * CHANNELS as usize * 2 // 2 seconds buffer
             ))),
             playback_position: Arc::new(RwLock::new(0)),
+            current_passage_position: Arc::new(RwLock::new(0)),
+            next_passage_position: Arc::new(RwLock::new(0)),
         }
     }
 
@@ -168,8 +176,9 @@ impl CrossfadeMixer {
             return Err(anyhow!("Passage {} not ready for playback (status: {:?})", passage_id, status));
         }
 
-        // Set as current passage
+        // Set as current passage and reset position to start of buffer
         *self.current_passage.write().await = Some(passage_id);
+        *self.current_passage_position.write().await = 0;  // Reset to beginning of this passage's buffer
         *self.state.write().await = CrossfadeState::SinglePassage;
 
         // Mark buffer as playing
@@ -209,6 +218,7 @@ impl CrossfadeMixer {
 
         // Set up for crossfade
         *self.next_passage.write().await = Some(passage_id);
+        *self.next_passage_position.write().await = 0;  // Reset to beginning of next passage's buffer
         *self.crossfade_points.write().await = Some(points);
 
         Ok(())
@@ -277,13 +287,17 @@ impl CrossfadeMixer {
         // Get buffer access
         if let Some(buffers) = self.buffer_manager.get_buffer(passage_id).await {
             if let Some(buffer) = buffers.get(passage_id) {
-                // Read PCM data
-                let position = *self.playback_position.read().await;
+                // Read PCM data using passage-specific position (NOT global position)
+                let position = *self.current_passage_position.read().await;
                 let start_idx = (position * CHANNELS as u64) as usize;
                 let end_idx = (start_idx + num_samples).min(buffer.pcm_data.len());
 
                 if start_idx < buffer.pcm_data.len() {
                     output.extend_from_slice(&buffer.pcm_data[start_idx..end_idx]);
+
+                    // Update current passage position
+                    let samples_read = (end_idx - start_idx) / CHANNELS as usize;
+                    *self.current_passage_position.write().await += samples_read as u64;
 
                     // Check if we've reached the end of the buffer
                     if end_idx >= buffer.pcm_data.len() {
@@ -330,7 +344,9 @@ impl CrossfadeMixer {
             if let (Some(current), Some(next)) =
                 (current_buffers.get(current_id), next_buffers.get(next_id)) {
 
-                let position = *self.playback_position.read().await;
+                // Use per-passage positions (NOT global position)
+                let current_pos = *self.current_passage_position.read().await;
+                let next_pos = *self.next_passage_position.read().await;
                 let samples_per_frame = CHANNELS as usize;
                 let num_frames = num_samples / samples_per_frame;
 
@@ -351,9 +367,9 @@ impl CrossfadeMixer {
                         true // fade in
                     );
 
-                    // Mix samples for each channel
-                    let current_idx = ((position + frame as u64) * CHANNELS as u64) as usize;
-                    let next_idx = (frame as u64 * CHANNELS as u64) as usize;
+                    // Mix samples for each channel using per-passage positions
+                    let current_idx = ((current_pos + frame as u64) * CHANNELS as u64) as usize;
+                    let next_idx = ((next_pos + frame as u64) * CHANNELS as u64) as usize;
 
                     for ch in 0..samples_per_frame {
                         let current_sample = if current_idx + ch < current.pcm_data.len() {
@@ -373,6 +389,10 @@ impl CrossfadeMixer {
                         output.push(mixed.clamp(-1.0, 1.0)); // Prevent clipping
                     }
                 }
+
+                // Update per-passage positions
+                *self.current_passage_position.write().await += num_frames as u64;
+                *self.next_passage_position.write().await += num_frames as u64;
 
                 // Update crossfade state
                 let new_sample = current_sample + num_frames as u64;
@@ -402,9 +422,15 @@ impl CrossfadeMixer {
         }
 
         if let Some(new_id) = next_id {
-            // Transition next to current
+            // Transition next passage to current passage
             *self.current_passage.write().await = Some(new_id);
             *self.next_passage.write().await = None;
+
+            // Transfer next passage position to current passage position
+            let next_pos = *self.next_passage_position.read().await;
+            *self.current_passage_position.write().await = next_pos;
+            *self.next_passage_position.write().await = 0;  // Reset for future use
+
             *self.state.write().await = CrossfadeState::SinglePassage;
             *self.crossfade_points.write().await = None;
 

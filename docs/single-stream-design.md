@@ -90,13 +90,24 @@ enum DecodePriority {
 ```
 
 **Decoding Flow:**
-1. Receive decode request from buffer manager
+
+The decoder uses a **decode-from-start-and-skip** approach for reliable, sample-accurate positioning:
+
+1. Receive decode request from buffer manager (with passage start/end times)
 2. Open file using `symphonia` decoder
-3. Seek to start position (skip unwanted samples)
-4. Decode compressed audio into PCM samples
-5. Resample to standard rate (44.1kHz) if needed using `rubato`
-6. Write PCM data to passage buffer
-7. Notify buffer manager of completion
+3. **Always decode from the beginning of the audio file** (never use compressed seek)
+4. Skip samples until reaching passage start time
+5. Continue decoding and buffering until passage end time
+6. Resample to standard rate (44.1kHz) if needed using `rubato`
+7. Write PCM data to passage buffer
+8. Notify buffer manager of completion
+
+**Rationale for decode-and-skip:**
+- Compressed file seeking (e.g., MP3, AAC) is unreliable and format-dependent
+- Variable bitrate files have unpredictable seek performance
+- Decode-from-start ensures exact, repeatable time points
+- Provides sample-accurate positioning required for crossfading
+- Trade-off: Slightly longer decode time, but guarantees correctness
 
 **Dependencies:**
 - `symphonia` - Pure Rust audio decoding (MP3, FLAC, AAC, Vorbis, etc.)
@@ -142,16 +153,37 @@ pub enum FadeCurve {
 ```
 
 **Buffer Management Strategy:**
-- **15-second buffers** for all queued passages (configurable)
-- **Immediate decoding** for currently playing passage
+
+The system uses two distinct buffering strategies based on passage playback state:
+
+**1. Currently Playing Passage - Full Decode Strategy:**
+- When a passage enters "currently playing" status, the ENTIRE passage is decoded into RAM
+- Purpose: Enable instant, sample-accurate seeking anywhere within the passage
+- Rationale: Compressed file decoder seek-to-time performance is unreliable across formats
+- Implementation: Always decode from file start, skip samples until passage start time, continue until passage end time
+- Benefits:
+  - Sample-accurate positioning at any point in the passage
+  - Repeatable, exact time points within the audio file
+  - No dependency on format-specific seeking capabilities
+  - Eliminates seeking latency during playback
+
+**2. Queued Passages - 15-Second Buffer Strategy (Configurable):**
+- The 15-second buffer applies to LATER passages in the queue (not currently playing)
+- Purpose: Facilitate instant skip to queued passages without audio dropout
+- Gives sufficient time to fully decode the entire passage before playback buffer starvation
+- Prevents audio glitches during passage transitions
+- Configurable buffer size allows tuning for different use cases
+
+**Additional Buffer Management:**
 - **Background decoding** for next 2-3 passages in queue
 - **On-demand decoding** for skip targets
 - **Buffer recycling** - reuse memory after passage completes
 
 **Memory Calculation:**
 ```
-Per passage: 44100 Hz * 2 channels * 4 bytes/sample * 15 sec = ~5.3 MB
-For 5 passages: ~26.5 MB total
+Queued passage (15-second buffer): 44100 Hz * 2 channels * 4 bytes/sample * 15 sec = ~5.3 MB
+Currently playing passage (full): Varies by passage duration (e.g., 3 minutes = ~63 MB)
+For 5 passages (1 playing, 4 queued): ~63 MB + (4 × 5.3 MB) = ~84 MB typical
 ```
 
 #### 3. Crossfade Mixer
@@ -512,11 +544,13 @@ Skip latency:           <100 ms (if buffer ready)
 - Standard rate: 44.1kHz (most common)
 
 ### Challenge 5: Seek Performance
-**Problem:** Seeking in compressed formats can be slow.
+**Problem:** Seeking in compressed formats is unreliable and format-dependent.
 **Solution:**
-- Buffer ahead to minimize seek operations
-- Use format-specific seek optimization (MP3 frame seeking)
-- Show loading indicator for slow seeks
+- **Never use compressed file seeking** - always decode from file start
+- Skip samples to reach desired position (decode-and-skip approach)
+- For currently playing passage: Full decode ensures instant seeks within passage
+- For queued passages: 15-second buffer provides time to complete full decode before playback
+- Trade-off: Accepts longer initial decode time for guaranteed accuracy and reliability
 
 ## Testing Strategy
 
