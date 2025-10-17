@@ -36,6 +36,32 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
     - References to one or more images associated with the passage
 - **[ENT-MP-035]** Audio file as Passage: A passage which only identifies an audio file, with start, end, fade, lead and other metadata undefined, shall be handled as a passage which starts at the beginning of the file, ends at the end of the file, and has zero duration lead-in, lead-out, fade-in and fade-out times.
 
+#### Ephemeral Passage
+
+**Definition:** A temporary passage definition created transiently for ad-hoc playback without database persistence.
+
+**Purpose:** Enable immediate playback of audio files without requiring pre-defined passage entries in the database, while maintaining consistent entity model throughout the system.
+
+**Properties:**
+- **Lifecycle:** Created on-demand during enqueue, exists only for current playback session, destroyed after passage completion
+- **Identity:** Has internal passage_id (UUID) for the duration of playback
+- **Storage:** Never persisted to `passages` table
+- **Timing:** Uses default values (start_time=0, end_time=file_duration, zero lead/fade times)
+- **Crossfade:** Uses system default fade curves and durations
+
+**Use Cases:**
+- User enqueues audio file via `POST /playback/enqueue` with only `file_path` (no `passage_guid`)
+- Quick playback testing without database modification
+- Temporary playback of non-library files
+
+**Distinction from Persistent Passages:**
+- Persistent passages stored in `passages` table with guid
+- Ephemeral passages exist only in memory during playback
+- Both types have identical structure and behavior during playback
+- All crossfade logic works identically for both types
+
+**[REQ-DEF-035]** All playable audio in WKMP must have a passage definition, either persistent (database-stored) or ephemeral (transiently-created).
+
 ## Entity Relationships
 
 - **[ENT-REL-010]** Track references Recording
@@ -83,3 +109,13 @@ erDiagram
 
 ----
 End of document - Entity Definitions
+
+**Document Version:** 1.1
+**Last Updated:** 2025-10-17
+
+**Change Log:**
+- v1.1 (2025-10-17): Added Ephemeral Passage definition
+  - Added new entity definition section after [ENT-MP-035]
+  - Defined temporary passage model for ad-hoc playback without database persistence
+  - Added requirement traceability ID [REQ-DEF-035]
+  - Supports architectural decision from wkmp-ap design review (ISSUE-4)

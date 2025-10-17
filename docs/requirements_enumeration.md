@@ -72,6 +72,7 @@ For simple lists where hierarchy is clear from context:
 | LD | like_dislike.md | Like and Dislike functionality |
 | UID | user_identity.md | User identity and authentication |
 | AFS | audio_file_segmentation.md | Audio file segmentation workflow |
+| SSD | single-stream-design.md | Single stream audio architecture design |
 
 ## Category Codes by Document
 
@@ -381,6 +382,25 @@ For simple lists where hierarchy is clear from context:
 | QUE | Concurrent Queue Removal | Concurrent queue removal mechanism |
 | LYR | Concurrent Lyric Editing | Concurrent lyric editing mechanism |
 
+### SSD (single-stream-design.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| OV | Overview | Architecture overview and motivation |
+| ARCH | Architecture | High-level design and component structure |
+| DEC | Decoder | Decoding and decode-and-skip strategy |
+| BUF | Buffer Management | Buffer management strategies and policies |
+| FBUF | Full Buffer | Full decode strategy for current/next passages |
+| PBUF | Partial Buffer | Partial buffer strategy for queued passages |
+| UND | Underrun Handling | Buffer underrun detection and recovery |
+| FADE | Fade Application | Fade curve application timing |
+| MIX | Crossfade Mixer | Crossfade mixing and sample-accurate timing |
+| CLIP | Clipping Detection | Crossfade summation clipping detection |
+| OUT | Audio Output | Audio output thread and device interface |
+| LOG | Logging | Logging requirements and diagnostics |
+| FLOW | Data Flow | Complete playback sequence and timing |
+| PERF | Performance | Performance characteristics and optimization |
+| TEST | Testing | Testing strategy and coverage |
 
 ## Numbering Guidelines
 
