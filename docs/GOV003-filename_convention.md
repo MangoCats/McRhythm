@@ -62,9 +62,10 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 | **ENUM** | Enumeration | Requirement ID schemes and traceability frameworks | ENUM001-requirements_enumeration.md |
 | **REV** | Review | Documentation reviews, audits, and findings | REV001-review_findings.md |
 | **PLAN** | Plan | Migration plans, proposals, and strategic documents | PLAN001-single_stream_migration_plan.md |
+| **GUIDE** | Guide | Implementation guides, phased build plans for specific modules | GUIDE001-wkmp_ap_implementation_plan.md |
 | **STATUS** | Status | Status reports, proof-of-concept outcomes, progress updates | STATUS001-single_stream_poc_status.md |
+| **TEST** | Test Documentation | Test documentation, test plans, testing procedures | TEST001-crossfade_integration_tests.md |
 | **DATA** | Data/Samples | Sample data files, examples, fixtures | DATA001-sample_highlevel.json |
-| **INDEX** | Index/README | Directory indexes and navigation documents | INDEX001-README.md |
 
 ### Archive Prefix
 
@@ -73,6 +74,57 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 | **ARCH** | Archived | Superseded documents retained for historical reference | ARCH001-dual_pipeline_design.md |
 
 **Note:** "ARCH" for "Archived" is distinct from "architecture" (which uses "SPEC" prefix for Tier 2).
+
+---
+
+## Scope and Applicability
+
+### In Scope: `docs/` Directory
+
+This filename convention **applies to all markdown files** in:
+- `docs/` (main documentation directory)
+- `docs/archive/` (archived/superseded documentation)
+- Any subdirectories within `docs/`
+
+**All committed documentation files in these directories MUST follow the prefix convention.**
+
+### Out of Scope: Other Directories
+
+This convention **does NOT apply to**:
+
+#### 1. Root-Level Special Files
+- **`README.md`** - Project overview and entry point (standard name for GitHub/GitLab)
+- **`CLAUDE.md`** - Agent instructions (standard Claude Code convention)
+- **`CONTRIBUTING.md`**, **`LICENSE.md`**, etc. - Standard open-source project files
+
+**Rationale:** These files have standard names recognized by development platforms and tools. Renaming would break conventions and tooling expectations.
+
+This exclusion applies README.md in all folders.
+
+#### 2. Agent Definitions (`.claude/agents/`)
+- **`docs-specialist.md`**, **`project-architect.md`**, etc. - Agent definition files
+
+**Rationale:** Agent filenames are used by Claude Code tooling. These are configuration files, not project documentation.
+
+#### 3. Module-Level Documentation (e.g., `wkmp-ap/`)
+- **`CROSSFADE_TEST_README.md`**, **`WIRING_PLAN.md`**, etc. - Module-specific technical notes
+
+**Rationale:** These are implementation artifacts that live with the code they document. They follow ALL_CAPS naming convention typical of auxiliary documentation in code directories (similar to README, CHANGELOG, etc.).
+
+**Note:** If module-level documentation becomes authoritative or needs to be referenced by other modules, it should be moved to `docs/` and given appropriate prefix.
+
+#### 4. Source Code and Tests
+- Rust source files (`.rs`) - Follow Rust naming conventions (snake_case)
+- Test files - Follow test framework conventions
+- Configuration files (`Cargo.toml`, `.gitignore`, etc.) - Follow tool conventions
+
+### When to Move Documents Into Scope
+
+Move a document from out-of-scope to `docs/` when:
+- It becomes **authoritative** (referenced by requirements or specifications)
+- It needs **cross-module visibility** (referenced by multiple modules)
+- It defines **project-wide standards** (not module-specific implementation)
+- It requires **version control** according to document hierarchy
 
 ---
 
@@ -134,20 +186,22 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 | Current | Proposed | Category | Notes |
 |---------|----------|----------|-------|
 | `requirements_enumeration.md` | `ENUM001-requirements_enumeration.md` | Enumeration | Requirement ID scheme |
-| `review-findings.md` | `REV001-review_findings.md` | Review | Current review findings |
-| `review-findings-backup-20251017.md` | `REV001-review_findings-backup-20251017.md` | Review (backup) | Keep date suffix for backups |
-| `single-stream-poc-status.md` | `STATUS001-single_stream_poc_status.md` | Status | POC outcome report |
-| `sample_highlevel.json` | `DATA001-sample_highlevel.json` | Data | Sample AcousticBrainz data |
-| `README.md` | `INDEX001-README.md` | Index | Main documentation index |
+| `wkmp_ap_design_review.md` | `REV001-wkmp_ap_design_review.md` | Review | wkmp-ap module design review |
+| `review-findings.md` | `REV002-review_findings.md` | Review | Documentation review findings (if exists) |
+| `review-findings-backup-20251017.md` | `REV002-review_findings-backup-20251017.md` | Review (backup) | Keep date suffix for backups |
+| `single-stream-poc-status.md` | `STATUS001-single_stream_poc_status.md` | Status | POC outcome report (if exists) |
+| `wkmp_ap_implementation_plan.md` | `GUIDE001-wkmp_ap_implementation_plan.md` | Guide | wkmp-ap phased build guide |
+| `sample_highlevel.json` | `DATA001-sample_highlevel.json` | Data | Sample AcousticBrainz data (if exists) |
+| `README.md` | `README.md` | N/A | Out of scope for prefix application |
 
 #### Archive Directory (docs/archive/)
 
 | Current | Proposed | Notes |
 |---------|----------|-------|
-| `README.md` | `INDEX001-README.md` | Archive directory index |
+| `README.md` | `README.md` | Out of scope for prefix application |
 | `dual-pipeline-design_archived.md` | `ARCH001-dual_pipeline_design.md` | Remove "_archived" suffix (ARCH prefix makes it clear) |
-| `gstreamer_design_archived.md` | `ARCH002-gstreamer_design.md` | Remove "_archived" suffix |
-| `architecture-comparison_archived.md` | `ARCH003-architecture_comparison.md` | Remove "_archived" suffix |
+| `gstreamer_design_archived.md` | `ARCH002-gstreamer_design.md` | Remove "_archived" suffix, redundant with prefix and folder location |
+| `architecture-comparison_archived.md` | `ARCH003-architecture_comparison.md` | Remove "_archived" suffix, redundant with prefix and folder location |
 | `single-stream-migration-proposal.md` | `ARCH004-single_stream_migration_proposal.md` | Completed migration proposal |
 
 ---
@@ -165,17 +219,11 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 
 ### Number Assignment Strategy
 
-**Option A: Creation Order** (RECOMMENDED)
+**Creation Order**
 - Assign numbers based on when documents were created
 - Preserve historical sequence
 - Simple and unambiguous
 
-**Option B: Logical Grouping**
-- Group related specs together (e.g., all audio specs, all UI specs)
-- Requires subjective decisions about grouping
-- More organizational overhead
-
-**Recommendation:** Use **Option A (Creation Order)** for initial migration, then use logical grouping for new documents.
 
 ### Renumbering Policy
 
@@ -220,15 +268,16 @@ docs/
 ├── EXEC001-implementation_order.md
 ├── GOV001-document_hierarchy.md
 ├── GOV003-filename_convention.md
+├── GUIDE001-wkmp_ap_implementation_plan.md
 ├── IMPL001-database_schema.md
 ├── IMPL002-coding_conventions.md
 ├── IMPL003-project_structure.md
 ├── IMPL004-deployment.md
 ├── IMPL005-audio_file_segmentation.md
-├── INDEX001-README.md
 ├── REQ001-requirements.md
 ├── REQ002-entity_definitions.md
-├── REV001-review_findings.md
+├── REV001-wkmp_ap_design_review.md
+├── REV002-review_findings.md
 ├── SPEC001-architecture.md
 ├── SPEC002-crossfade.md
 ├── SPEC003-musical_flavor.md
@@ -249,8 +298,7 @@ archive/
 ├── ARCH001-dual_pipeline_design.md
 ├── ARCH002-gstreamer_design.md
 ├── ARCH003-architecture_comparison.md
-├── ARCH004-single_stream_migration_proposal.md
-└── INDEX001-README.md
+└── ARCH004-single_stream_migration_proposal.md
 ```
 
 ### Benefits of This Sorting
@@ -269,37 +317,18 @@ archive/
 
 **Scenario:** A specification becomes too large and needs to be split
 
-**Option A: Use Sub-numbering** (NOT RECOMMENDED)
-```
-SPEC005-program_director.md
-SPEC005A-selection_algorithm.md
-SPEC005B-cooldown_system.md
-```
-
-**Option B: Use Sequential Numbers** (RECOMMENDED)
+**Use Sequential Numbers**
 ```
 SPEC005-program_director.md
 SPEC015-selection_algorithm.md
 SPEC016-cooldown_system.md
 ```
 
-**Recommendation:** Use Option B (sequential numbers) to avoid complexity
-
 ### 2. Temporary/Draft Documents
 
 **Scenario:** Working drafts, proposals, or experiments
 
-**Option A: Use DRAFT prefix**
-```
-DRAFT001-new_feature_proposal.md
-```
-
-**Option B: Use existing prefixes with DRAFT in filename**
-```
-SPEC999-DRAFT-new_feature_design.md
-```
-
-**Recommendation:** Use existing directory structure (e.g., `docs/drafts/`) rather than filename prefixes
+Use existing directory structure (e.g., `docs/drafts/`) rather than filename prefixes
 
 ### 3. Version-Specific Documentation
 
@@ -363,27 +392,6 @@ docs/
 - Add comprehensive commit message listing all transformations
 - Tag the commit for easy reference (`git tag v1.0-filename-migration`)
 
-**Suggested Commit Message Format:**
-```
-docs: Migrate to prefix-based filename convention
-
-Implements GOV003 filename convention. All documentation files
-renamed to use tier-based prefixes (GOV/REQ/SPEC/IMPL/EXEC) with
-sequential numbering.
-
-Mapping preserved in:
-- docs/GOV003-filename_convention.md (migration table)
-- This commit message
-
-Key transformations:
-- document_hierarchy.md → GOV001-document_hierarchy.md
-- requirements.md → REQ001-requirements.md
-- architecture.md → SPEC001-architecture.md
-[... complete list ...]
-
-Ref: docs/GOV001-document_hierarchy.md, docs/GOV003-filename_convention.md
-```
-
 ### Cross-References in Files
 
 **Issue:** Many documents reference other documents by filename
@@ -419,80 +427,6 @@ grep -r "docs/" *.md
 # Update references
 # Example: docs/requirements.md → docs/REQ001-requirements.md
 ```
-
-### Documentation Generation Tools
-
-**Impact:** If using tools like mdBook, Docusaurus, or custom generators
-
-**Mitigation:**
-- Update SUMMARY.md or equivalent navigation files
-- Update any URL rewriting rules
-- Test generated output before deploying
-
----
-
-## Alternative Approaches Considered
-
-### Alternative 1: Tier Number in Prefix
-
-**Format:** `T0-document_hierarchy.md`, `T1-requirements.md`, `T2-architecture.md`
-
-**Pros:**
-- Very clear tier mapping
-- Extremely short prefix (T0, T1, T2)
-
-**Cons:**
-- Confusing for special categories (what tier is a review document?)
-- Less descriptive (T2 doesn't convey "specification")
-- Numbers feel arbitrary without context
-
-**Decision:** REJECTED - Less readable than descriptive prefixes
-
-### Alternative 2: Hierarchical Numbering
-
-**Format:** `001-000-document_hierarchy.md`, `001-010-requirements.md`, `002-010-architecture.md`
-
-**Pros:**
-- Can encode both tier and sequence
-- Numeric sorting matches logical structure
-
-**Cons:**
-- Less human-readable
-- Harder to remember
-- Requires complex numbering scheme
-- Still needs prefix for document type
-
-**Decision:** REJECTED - Over-engineered for this project size
-
-### Alternative 3: Domain-Based Prefixes
-
-**Format:** `AUDIO-crossfade.md`, `DB-schema.md`, `UI-specification.md`
-
-**Pros:**
-- Groups by functional domain
-- Clear what area of system is documented
-
-**Cons:**
-- Doesn't map to document hierarchy
-- Some documents span multiple domains
-- Loses tier information
-
-**Decision:** REJECTED - Violates document hierarchy governance model
-
-### Alternative 4: Date-Based Prefixes
-
-**Format:** `2025-10-01-requirements.md`
-
-**Pros:**
-- Clear chronological ordering
-- Version control built into filename
-
-**Cons:**
-- Date of creation doesn't convey document purpose
-- Doesn't map to tier structure
-- Sorting by date is rarely useful for documentation
-
-**Decision:** REJECTED - Dates don't help identify document type
 
 ---
 
@@ -552,11 +486,8 @@ Example:
 
 ### Q7: What about non-markdown files?
 
-**A:** Convention applies to all documentation files:
+**A:** Convention only applies to markdown documentation files:
 - Markdown: `SPEC001-architecture.md`
-- JSON: `DATA001-sample_highlevel.json`
-- CSV: `DATA002-example_timings.csv`
-- Images: `assets/SPEC001-diagram.png`
 
 ### Q8: Can I use this convention in other directories?
 
@@ -564,6 +495,62 @@ Example:
 - Source code: Follow language conventions (snake_case, camelCase)
 - Tests: Follow test framework conventions
 - Config: Follow tool conventions (Cargo.toml, .gitignore)
+
+### Q9: What about files like CROSSFADE_TEST_README.md in wkmp-ap/?
+
+**A:** Module-level documentation files are **out of scope**:
+- They follow ALL_CAPS naming (like README, CHANGELOG)
+- They live with the code they document
+- They are implementation artifacts, not authoritative documentation
+- If they become authoritative, move them to `docs/` with proper prefix
+
+### Q10: Do agent definition files in .claude/agents/ need prefixes?
+
+**A:** No, agent definition files are **configuration, not documentation**:
+- They are used by Claude Code tooling
+- Their filenames are functional (agent-name.md)
+- They should not be renamed
+- They are out of scope for this convention
+
+---
+
+## Out-of-Scope File Inventory
+
+This section documents files that are **intentionally excluded** from the prefix convention.
+
+### Root Directory Files
+
+| File | Purpose | Convention | Notes |
+|------|---------|------------|-------|
+| `README.md` | Project overview, GitHub entry point | Standard GitHub/GitLab | Do not rename |
+| `CLAUDE.md` | Agent instructions | Claude Code standard | Do not rename |
+
+### Agent Definitions (`.claude/agents/`)
+
+| File | Purpose | Notes |
+|------|---------|-------|
+| `docs-specialist.md` | Agent definition for documentation review | Configuration file |
+| `project-architect.md` | Agent definition for architecture planning | Configuration file |
+| `code-implementer.md` | Agent definition for code implementation | Configuration file |
+| `ui-ux-designer.md` | Agent definition for UI/UX design | Configuration file |
+| `microservice-planner.md` | Agent definition for microservice planning | Configuration file |
+
+### Module-Level Documentation (`wkmp-ap/`)
+
+| File | Purpose | Notes |
+|------|---------|-------|
+| `CROSSFADE_TEST_README.md` | Crossfade integration test documentation | Implementation artifact |
+| `AUDIBLE_TEST_ENHANCEMENTS.md` | Enhancements to audible test | Implementation notes |
+| `WIRING_PLAN.md` | Audio pipeline implementation status | Implementation artifact |
+
+### Module Test Documentation (`wkmp-ap/tests/`)
+
+| File | Purpose | Notes |
+|------|---------|-------|
+| `CROSSFADE_INTEGRATION_README.md` | Integration test documentation | Test artifact |
+| `AUDIBLE_TEST_README.md` | Audible test user guide | Test artifact |
+
+**Migration Path:** If any module-level documentation becomes **authoritative** (referenced by requirements or cross-module specs), move it to `docs/` and assign appropriate prefix (likely GUIDE or TEST).
 
 ---
 
