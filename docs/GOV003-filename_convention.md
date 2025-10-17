@@ -63,7 +63,6 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 
 | Prefix | Meaning | When to Use | Examples |
 |--------|---------|-------------|----------|
-| **ENUM** | Enumeration | Requirement ID schemes and traceability frameworks | GOV002-requirements_enumeration.md |
 | **REV** | Review | Documentation reviews, audits, and findings | REV001-review_findings.md |
 | **PLAN** | Plan | Migration plans, proposals, and strategic documents | PLAN001-single_stream_migration_plan.md |
 | **GUIDE** | Guide | Implementation guides, phased build plans for specific modules | GUIDE001-wkmp_ap_implementation_plan.md |
