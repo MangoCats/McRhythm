@@ -12,7 +12,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use wkmp_ap::audio::{AudioFrame, PassageBuffer};
-use wkmp_ap::playback::pipeline::{CrossfadeMixer, FadeCurve};
+use wkmp_ap::playback::pipeline::CrossfadeMixer;
+use wkmp_common::FadeCurve;
 
 const SAMPLE_RATE: u32 = 44100;
 const CHANNELS: u16 = 2;

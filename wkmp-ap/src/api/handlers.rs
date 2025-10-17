@@ -100,6 +100,17 @@ pub struct DeviceResponse {
     device_name: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SeekRequest {
+    position_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReorderQueueRequest {
+    queue_entry_id: Uuid,
+    new_position: i32,
+}
+
 // ============================================================================
 // Health Endpoint
 // ============================================================================
@@ -393,13 +404,17 @@ pub async fn pause(
 ///
 /// **Traceability:** API Design - GET /playback/queue
 pub async fn get_queue(
-    State(_ctx): State<AppContext>,
+    State(ctx): State<AppContext>,
 ) -> Json<QueueResponse> {
-    // TODO: Access queue from engine
-    // For now, return empty queue
-    Json(QueueResponse {
-        queue: Vec::new(),
-    })
+    let entries = ctx.engine.get_queue_entries().await;
+
+    let queue = entries.into_iter().map(|entry| QueueEntryInfo {
+        queue_entry_id: entry.queue_entry_id,
+        passage_id: entry.passage_id,
+        file_path: entry.file_path.to_string_lossy().to_string(),
+    }).collect();
+
+    Json(QueueResponse { queue })
 }
 
 pub async fn get_playback_state(
@@ -452,13 +467,35 @@ pub async fn get_position(
 ///
 /// **Traceability:** API Design - GET /playback/buffer_status
 pub async fn get_buffer_status(
-    State(_ctx): State<AppContext>,
+    State(ctx): State<AppContext>,
 ) -> Json<BufferStatusResponse> {
-    // TODO: Get actual buffer status from engine/buffer manager
-    // For now, return empty list
-    Json(BufferStatusResponse {
-        buffers: Vec::new(),
-    })
+    use crate::audio::types::BufferStatus;
+
+    // Get all buffer statuses from engine
+    let statuses = ctx.engine.get_buffer_statuses().await;
+
+    // Convert to response format
+    let buffers = statuses
+        .into_iter()
+        .map(|(passage_id, status)| {
+            let (status_str, decode_progress) = match status {
+                BufferStatus::Decoding { progress_percent } => {
+                    ("decoding", Some(progress_percent as f32))
+                }
+                BufferStatus::Ready => ("ready", None),
+                BufferStatus::Playing => ("playing", None),
+                BufferStatus::Exhausted => ("exhausted", None),
+            };
+
+            BufferInfo {
+                passage_id,
+                status: status_str.to_string(),
+                decode_progress_percent: decode_progress,
+            }
+        })
+        .collect();
+
+    Json(BufferStatusResponse { buffers })
 }
 
 /// POST /playback/next - Skip to next passage
@@ -500,4 +537,64 @@ pub async fn skip_previous(
             status: "Previous playback not implemented".to_string(),
         }),
     )
+}
+
+/// POST /playback/seek - Seek to position in current passage
+///
+/// **Traceability:** API Design - POST /playback/seek
+/// **Requirements:** [SSD-ENG-026] Seek functionality
+pub async fn seek(
+    State(ctx): State<AppContext>,
+    Json(req): Json<SeekRequest>,
+) -> Result<StatusCode, (StatusCode, Json<StatusResponse>)> {
+    info!("Seek request: position={}ms", req.position_ms);
+
+    match ctx.engine.seek(req.position_ms).await {
+        Ok(_) => {
+            info!("Seek command succeeded: {}ms", req.position_ms);
+            Ok(StatusCode::OK)
+        }
+        Err(e) => {
+            error!("Seek command failed: {}", e);
+            Err((
+                StatusCode::BAD_REQUEST,
+                Json(StatusResponse {
+                    status: format!("error: {}", e),
+                }),
+            ))
+        }
+    }
+}
+
+/// POST /playback/queue/reorder - Reorder a queue entry
+///
+/// **Traceability:** API Design - POST /playback/queue/reorder
+/// **Requirements:** [DB-QUEUE-080] Queue reordering
+pub async fn reorder_queue_entry(
+    State(ctx): State<AppContext>,
+    Json(req): Json<ReorderQueueRequest>,
+) -> Result<StatusCode, (StatusCode, Json<StatusResponse>)> {
+    info!("Reorder queue request: entry={}, position={}", req.queue_entry_id, req.new_position);
+
+    match ctx.engine.reorder_queue_entry(req.queue_entry_id, req.new_position).await {
+        Ok(_) => {
+            info!("Queue reordered successfully");
+
+            // Emit QueueChanged event
+            ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                timestamp: chrono::Utc::now(),
+            });
+
+            Ok(StatusCode::OK)
+        }
+        Err(e) => {
+            error!("Queue reorder failed: {}", e);
+            Err((
+                StatusCode::BAD_REQUEST,
+                Json(StatusResponse {
+                    status: format!("error: {}", e),
+                }),
+            ))
+        }
+    }
 }

@@ -23,7 +23,8 @@ use std::env;
 use uuid::Uuid;
 use walkdir::WalkDir;
 use wkmp_ap::audio::{AudioFrame, AudioOutput, PassageBuffer, Resampler, SimpleDecoder};
-use wkmp_ap::playback::pipeline::{CrossfadeMixer, FadeCurve};
+use wkmp_ap::playback::pipeline::CrossfadeMixer;
+use wkmp_common::FadeCurve;
 
 /// Playback events for tracking test timeline
 #[derive(Debug, Clone)]

@@ -12,6 +12,7 @@ use crate::error::{Error, Result};
 use sqlx::{Pool, Row, Sqlite};
 use std::path::PathBuf;
 use uuid::Uuid;
+use wkmp_common::FadeCurve;
 
 /// Passage with all timing points resolved
 ///
@@ -31,52 +32,6 @@ pub struct PassageWithTiming {
     pub fade_out_point_ms: Option<u64>, // None = calculated from global setting
     pub fade_in_curve: FadeCurve,
     pub fade_out_curve: FadeCurve,
-}
-
-/// Fade curve types
-///
-/// **Traceability:** XFD-CURV-010, XFD-CURV-020, XFD-CURV-030
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FadeCurve {
-    Linear,
-    Exponential,
-    Logarithmic,
-    Cosine,
-}
-
-impl FadeCurve {
-    /// Parse fade curve from database string
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "linear" => Some(FadeCurve::Linear),
-            "exponential" => Some(FadeCurve::Exponential),
-            "logarithmic" => Some(FadeCurve::Logarithmic),
-            "cosine" => Some(FadeCurve::Cosine),
-            _ => None,
-        }
-    }
-
-    /// Convert to database string
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            FadeCurve::Linear => "linear",
-            FadeCurve::Exponential => "exponential",
-            FadeCurve::Logarithmic => "logarithmic",
-            FadeCurve::Cosine => "cosine",
-        }
-    }
-
-    /// Convert to playback mixer FadeCurve type
-    /// Maps database fade curve enum to the playback pipeline fade curve enum
-    pub fn to_playback_curve(&self) -> crate::playback::pipeline::fade_curves::FadeCurve {
-        use crate::playback::pipeline::fade_curves::FadeCurve as PlaybackCurve;
-        match self {
-            FadeCurve::Linear => PlaybackCurve::Linear,
-            FadeCurve::Exponential => PlaybackCurve::Exponential,
-            FadeCurve::Logarithmic => PlaybackCurve::Logarithmic,
-            FadeCurve::Cosine => PlaybackCurve::SCurve, // Cosine → SCurve (similar smooth transition)
-        }
-    }
 }
 
 /// Get passage by ID with timing information
@@ -386,11 +341,11 @@ mod tests {
             FadeCurve::from_str("logarithmic"),
             Some(FadeCurve::Logarithmic)
         );
-        assert_eq!(FadeCurve::from_str("cosine"), Some(FadeCurve::Cosine));
+        assert_eq!(FadeCurve::from_str("cosine"), Some(FadeCurve::SCurve));
         assert_eq!(FadeCurve::from_str("invalid"), None);
 
-        assert_eq!(FadeCurve::Linear.to_str(), "linear");
-        assert_eq!(FadeCurve::Exponential.to_str(), "exponential");
+        assert_eq!(FadeCurve::Linear.to_db_string(), "linear");
+        assert_eq!(FadeCurve::Exponential.to_db_string(), "exponential");
     }
 
     #[test]

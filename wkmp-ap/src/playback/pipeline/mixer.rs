@@ -13,10 +13,10 @@
 
 use crate::audio::types::{AudioFrame, PassageBuffer};
 use crate::error::Error;
-use crate::playback::pipeline::fade_curves::FadeCurve;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use wkmp_common::FadeCurve;
 
 /// Standard sample rate for all audio processing
 const STANDARD_SAMPLE_RATE: u32 = 44100;
@@ -336,6 +336,50 @@ impl CrossfadeMixer {
         }
     }
 
+    /// Set playback position (seek)
+    ///
+    /// Updates the position in the current passage. Clamps to buffer bounds.
+    /// Does nothing if mixer is idle.
+    ///
+    /// # Arguments
+    /// * `position_frames` - Target position in frames
+    ///
+    /// # Returns
+    /// * `Ok(())` if position updated
+    /// * `Err` if position invalid or no passage playing
+    ///
+    /// **[SSD-ENG-026]** Seek position control
+    pub async fn set_position(&mut self, position_frames: usize) -> crate::error::Result<()> {
+        match &mut self.state {
+            MixerState::SinglePassage {
+                position, buffer, ..
+            } => {
+                // Clamp position to buffer bounds
+                let buf = buffer.read().await;
+                let max_position = buf.sample_count.saturating_sub(1);
+                *position = position_frames.min(max_position);
+                Ok(())
+            }
+            MixerState::Crossfading {
+                current_position,
+                current_buffer,
+                ..
+            } => {
+                // During crossfade, only seek the current (fading out) passage
+                // This maintains crossfade state while allowing position control
+                let buf = current_buffer.read().await;
+                let max_position = buf.sample_count.saturating_sub(1);
+                *current_position = position_frames.min(max_position);
+                Ok(())
+            }
+            MixerState::None => {
+                Err(crate::error::Error::Playback(
+                    "Cannot seek: no passage playing".to_string(),
+                ))
+            }
+        }
+    }
+
     /// Check if currently crossfading
     ///
     /// # Returns
@@ -621,5 +665,75 @@ mod tests {
 
         // 10ms = 441 samples
         assert_eq!(mixer.ms_to_samples(10), 441);
+    }
+
+    #[tokio::test]
+    async fn test_set_position() {
+        let mut mixer = CrossfadeMixer::new();
+        let passage_id = Uuid::new_v4();
+        let buffer = create_test_buffer(passage_id, 1000, 0.5);
+
+        // Start passage
+        mixer.start_passage(buffer, passage_id, None, 0).await;
+        assert_eq!(mixer.get_position(), 0);
+
+        // Seek to position 100
+        mixer.set_position(100).await.unwrap();
+        assert_eq!(mixer.get_position(), 100);
+
+        // Seek to position 500
+        mixer.set_position(500).await.unwrap();
+        assert_eq!(mixer.get_position(), 500);
+
+        // Seek beyond buffer (should clamp to max-1)
+        mixer.set_position(5000).await.unwrap();
+        assert_eq!(mixer.get_position(), 999); // buffer has 1000 frames (0-999)
+
+        // Seek back to 0
+        mixer.set_position(0).await.unwrap();
+        assert_eq!(mixer.get_position(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_set_position_no_passage() {
+        let mut mixer = CrossfadeMixer::new();
+
+        // Try to seek when nothing is playing
+        let result = mixer.set_position(100).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_position_during_crossfade() {
+        let mut mixer = CrossfadeMixer::new();
+        let passage_id_1 = Uuid::new_v4();
+        let passage_id_2 = Uuid::new_v4();
+        let buffer1 = create_test_buffer(passage_id_1, 1000, 0.5);
+        let buffer2 = create_test_buffer(passage_id_2, 1000, 0.5);
+
+        // Start first passage and play a bit
+        mixer.start_passage(buffer1, passage_id_1, None, 0).await;
+        for _ in 0..100 {
+            mixer.get_next_frame().await;
+        }
+
+        // Start crossfade
+        mixer
+            .start_crossfade(
+                buffer2,
+                passage_id_2,
+                FadeCurve::Linear,
+                1000,
+                FadeCurve::Linear,
+                1000,
+            )
+            .await
+            .unwrap();
+
+        assert!(mixer.is_crossfading());
+
+        // Seek during crossfade (should seek the current/fading out passage)
+        mixer.set_position(200).await.unwrap();
+        assert_eq!(mixer.get_position(), 200);
     }
 }

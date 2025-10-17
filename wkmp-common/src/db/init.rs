@@ -193,8 +193,8 @@ async fn create_queue_table(pool: &SqlitePool) -> Result<()> {
             lead_out_point_ms INTEGER,
             fade_in_point_ms INTEGER,
             fade_out_point_ms INTEGER,
-            fade_in_curve TEXT CHECK (fade_in_curve IS NULL OR fade_in_curve IN ('linear', 'exponential', 'cosine')),
-            fade_out_curve TEXT CHECK (fade_out_curve IS NULL OR fade_out_curve IN ('linear', 'logarithmic', 'cosine')),
+            fade_in_curve TEXT CHECK (fade_in_curve IS NULL OR fade_in_curve IN ('linear', 'exponential', 'logarithmic', 'cosine', 'equal_power')),
+            fade_out_curve TEXT CHECK (fade_out_curve IS NULL OR fade_out_curve IN ('linear', 'exponential', 'logarithmic', 'cosine', 'equal_power')),
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         "#,

@@ -423,7 +423,8 @@ mod tests {
     }
 
     fn create_test_passage() -> PassageWithTiming {
-        use crate::db::passages::{FadeCurve, PassageWithTiming};
+        use crate::db::passages::PassageWithTiming;
+        use wkmp_common::FadeCurve;
 
         PassageWithTiming {
             passage_id: Some(Uuid::new_v4()),

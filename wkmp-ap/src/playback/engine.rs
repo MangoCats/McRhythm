@@ -9,7 +9,7 @@
 use crate::audio::output::AudioOutput;
 use crate::audio::types::AudioFrame;
 use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, PassageWithTiming};
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::decoder_pool::DecoderPool;
 use crate::playback::pipeline::mixer::CrossfadeMixer;
@@ -281,13 +281,201 @@ impl PlaybackEngine {
     /// Skip to next passage
     ///
     /// [API] POST /playback/next
+    /// Skip to next passage
+    ///
+    /// Stops current passage immediately and advances to next passage in queue.
+    /// Emits PassageCompleted event with completed=false (skipped).
+    ///
+    /// [SSD-ENG-025] Skip passage functionality
+    /// [API] POST /playback/skip
     pub async fn skip_next(&self) -> Result<()> {
         info!("Skip next command received");
 
-        let mut queue = self.queue.write().await;
-        queue.advance();
+        // Get current passage info before advancing
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        drop(queue);
+
+        if let Some(current) = current {
+            info!("Skipping passage: {:?}", current.passage_id);
+
+            // Emit PassageCompleted event with completed=false (skipped)
+            self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
+                passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                completed: false, // false = skipped
+                timestamp: chrono::Utc::now(),
+            });
+
+            // Mark buffer as exhausted
+            self.buffer_manager.mark_exhausted(current.queue_entry_id).await;
+
+            // Stop mixer immediately
+            let mut mixer = self.mixer.write().await;
+            mixer.stop();
+            drop(mixer);
+
+            // Remove buffer from memory
+            if let Some(passage_id) = current.passage_id {
+                self.buffer_manager.remove(passage_id).await;
+            }
+
+            info!("Mixer stopped and buffer cleaned up");
+        } else {
+            info!("No current passage to skip");
+        }
+
+        // Advance queue to next passage
+        let mut queue_write = self.queue.write().await;
+        queue_write.advance();
+        drop(queue_write);
+
+        info!("Queue advanced to next passage");
 
         Ok(())
+    }
+
+    /// Seek to position in current passage
+    ///
+    /// Updates playback position to specified time. Clamps to passage bounds.
+    /// Emits PlaybackProgress event with new position.
+    ///
+    /// # Arguments
+    /// * `position_ms` - Target position in milliseconds
+    ///
+    /// # Returns
+    /// * `Ok(())` if seek successful
+    /// * `Err` if no passage playing or position invalid
+    ///
+    /// [SSD-ENG-026] Seek position control
+    /// [API] POST /playback/seek
+    pub async fn seek(&self, position_ms: u64) -> Result<()> {
+        info!("Seek command received: position={}ms", position_ms);
+
+        // Get current passage to validate seek bounds
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        drop(queue);
+
+        if current.is_none() {
+            return Err(Error::Playback("Cannot seek: no passage playing".to_string()));
+        }
+
+        let current = current.unwrap();
+
+        // Get buffer to calculate position in frames
+        let buffer_ref = self.buffer_manager.get_buffer(current.queue_entry_id).await;
+        if buffer_ref.is_none() {
+            return Err(Error::Playback("Cannot seek: buffer not available".to_string()));
+        }
+
+        let buffer = buffer_ref.unwrap();
+        let buf_read = buffer.read().await;
+        let sample_rate = buf_read.sample_rate;
+
+        // Convert milliseconds to frames
+        let position_frames = ((position_ms as f32 / 1000.0) * sample_rate as f32) as usize;
+
+        // Clamp to buffer bounds
+        let max_frames = buf_read.sample_count;
+        let clamped_position = position_frames.min(max_frames.saturating_sub(1));
+
+        drop(buf_read);
+        drop(buffer);
+
+        // Update mixer position
+        let mut mixer = self.mixer.write().await;
+        mixer.set_position(clamped_position).await?;
+        drop(mixer);
+
+        // Emit PlaybackProgress event with new position
+        if let Some(passage_id) = current.passage_id {
+            let actual_position_ms = ((clamped_position as f32 / sample_rate as f32) * 1000.0) as u64;
+
+            // Get buffer again to read duration
+            let buffer_ref = self.buffer_manager.get_buffer(current.queue_entry_id).await;
+            if let Some(buffer) = buffer_ref {
+                let buf_read = buffer.read().await;
+                let duration_ms = buf_read.duration_ms();
+
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
+                    passage_id,
+                    position_ms: actual_position_ms,
+                    duration_ms,
+                    timestamp: chrono::Utc::now(),
+                });
+            }
+
+            info!("Seek complete: new position={}ms ({}ms requested)", actual_position_ms, position_ms);
+        }
+
+        Ok(())
+    }
+
+    /// Get current queue length
+    ///
+    /// Returns the number of passages in the playback queue.
+    ///
+    /// [API] GET /playback/queue (returns queue length in response)
+    pub async fn queue_len(&self) -> usize {
+        let queue = self.queue.read().await;
+        queue.len()
+    }
+
+    /// Get all queue entries for API response
+    ///
+    /// Returns current, next, and all queued passages.
+    /// [SSD-ENG-020] Queue processing
+    /// [API] GET /playback/queue
+    pub async fn get_queue_entries(&self) -> Vec<crate::playback::queue_manager::QueueEntry> {
+        let queue = self.queue.read().await;
+        let mut entries = Vec::new();
+
+        // Add current if exists
+        if let Some(current) = queue.current() {
+            entries.push(current.clone());
+        }
+
+        // Add next if exists
+        if let Some(next) = queue.next() {
+            entries.push(next.clone());
+        }
+
+        // Add all queued entries
+        entries.extend_from_slice(queue.queued());
+
+        entries
+    }
+
+    /// Reorder a queue entry to a new position
+    ///
+    /// Moves the specified queue entry to the new position (0-based index).
+    /// Only affects entries in the "queued" portion (not current/next).
+    ///
+    /// [API] POST /playback/queue/reorder
+    /// [DB-QUEUE-080] Queue reordering
+    pub async fn reorder_queue_entry(&self, queue_entry_id: Uuid, new_position: i32) -> Result<()> {
+        info!("Reorder queue request: entry={}, position={}", queue_entry_id, new_position);
+
+        // Call database reorder function
+        crate::db::queue::reorder_queue(&self.db_pool, queue_entry_id, new_position).await?;
+
+        // Reload queue from database to sync in-memory state
+        let mut queue = self.queue.write().await;
+        *queue = crate::playback::queue_manager::QueueManager::load_from_db(&self.db_pool).await?;
+        drop(queue);
+
+        info!("Queue reordered successfully");
+
+        Ok(())
+    }
+
+    /// Get buffer statuses for all managed buffers
+    ///
+    /// Returns a map of passage_id to buffer status.
+    ///
+    /// [API] GET /playback/buffer_status
+    pub async fn get_buffer_statuses(&self) -> std::collections::HashMap<Uuid, crate::audio::types::BufferStatus> {
+        self.buffer_manager.get_all_statuses().await
     }
 
     /// Enqueue passage for playback
@@ -311,8 +499,8 @@ impl PlaybackEngine {
             passage.lead_out_point_ms.map(|v| v as i64),
             Some(passage.fade_in_point_ms as i64),
             passage.fade_out_point_ms.map(|v| v as i64),
-            Some(passage.fade_in_curve.to_str().to_string()),
-            Some(passage.fade_out_curve.to_str().to_string()),
+            Some(passage.fade_in_curve.to_db_string().to_string()),
+            Some(passage.fade_out_curve.to_db_string().to_string()),
         )
         .await?;
 
@@ -328,8 +516,8 @@ impl PlaybackEngine {
             lead_out_point_ms: passage.lead_out_point_ms,
             fade_in_point_ms: Some(passage.fade_in_point_ms),
             fade_out_point_ms: passage.fade_out_point_ms,
-            fade_in_curve: Some(passage.fade_in_curve.to_str().to_string()),
-            fade_out_curve: Some(passage.fade_out_curve.to_str().to_string()),
+            fade_in_curve: Some(passage.fade_in_curve.to_db_string().to_string()),
+            fade_out_curve: Some(passage.fade_out_curve.to_db_string().to_string()),
         };
 
         self.queue.write().await.enqueue(entry);
@@ -400,10 +588,10 @@ impl PlaybackEngine {
 
                         // Determine fade-in curve (default to Exponential if not specified)
                         let fade_in_curve = if let Some(curve_str) = current.fade_in_curve.as_ref() {
-                            crate::playback::pipeline::fade_curves::FadeCurve::from_str(curve_str)
-                                .unwrap_or(crate::playback::pipeline::fade_curves::FadeCurve::Exponential)
+                            wkmp_common::FadeCurve::from_str(curve_str)
+                                .unwrap_or(wkmp_common::FadeCurve::Exponential)
                         } else {
-                            crate::playback::pipeline::fade_curves::FadeCurve::Exponential
+                            wkmp_common::FadeCurve::Exponential
                         };
 
                         info!(
@@ -512,9 +700,9 @@ impl PlaybackEngine {
                                                     if let Err(e) = self.mixer.write().await.start_crossfade(
                                                         next_buffer,
                                                         next.queue_entry_id,
-                                                        passage.fade_out_curve.to_playback_curve(),
+                                                        passage.fade_out_curve,
                                                         fade_out_duration_ms,
-                                                        next_passage.fade_in_curve.to_playback_curve(),
+                                                        next_passage.fade_in_curve,
                                                         fade_in_duration_ms,
                                                     ).await {
                                                         error!("Failed to start crossfade: {}", e);
@@ -808,5 +996,77 @@ mod tests {
         // Pause
         engine.pause().await.unwrap();
         assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+    }
+
+    #[tokio::test]
+    async fn test_skip_next() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // Enqueue 3 test passages
+        let passage1 = PathBuf::from("/test/song1.mp3");
+        let passage2 = PathBuf::from("/test/song2.mp3");
+        let passage3 = PathBuf::from("/test/song3.mp3");
+
+        engine.enqueue_file(passage1).await.unwrap();
+        engine.enqueue_file(passage2).await.unwrap();
+        engine.enqueue_file(passage3).await.unwrap();
+
+        // Verify queue has 3 entries
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 3);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip current passage
+        engine.skip_next().await.unwrap();
+
+        // Verify queue advanced (now has 2 entries)
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 2);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip again
+        engine.skip_next().await.unwrap();
+
+        // Verify queue advanced again (now has 1 entry)
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 1);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip final passage
+        engine.skip_next().await.unwrap();
+
+        // Verify queue is now empty
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 0);
+            assert!(queue.current().is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_skip_empty_queue() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // Try to skip with empty queue (should not panic)
+        let result = engine.skip_next().await;
+        assert!(result.is_ok());
+
+        // Queue should still be empty
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 0);
+        }
     }
 }
