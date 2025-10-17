@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use anyhow::{Result, anyhow};
-use tracing::info;
+use tracing::{info, warn};
 
 use super::buffer::{PassageBufferManager, FadeCurve, BufferStatus};
 
@@ -284,6 +284,21 @@ impl CrossfadeMixer {
 
                 if start_idx < buffer.pcm_data.len() {
                     output.extend_from_slice(&buffer.pcm_data[start_idx..end_idx]);
+
+                    // Check if we've reached the end of the buffer
+                    if end_idx >= buffer.pcm_data.len() {
+                        // Buffer exhausted - check if there's a next passage queued
+                        let next_id = *self.next_passage.read().await;
+                        if next_id.is_some() {
+                            warn!(
+                                passage_id = %passage_id,
+                                "Current passage buffer exhausted, transitioning to next passage"
+                            );
+                            // Transition to next passage
+                            self.complete_crossfade().await?;
+                            // The next process_audio call will read from the new current passage
+                        }
+                    }
 
                     // Pad with silence if needed
                     if output.len() < num_samples {

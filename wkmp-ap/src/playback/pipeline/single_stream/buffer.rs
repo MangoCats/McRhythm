@@ -104,7 +104,13 @@ impl PassageBuffer {
         start_sample: u64,
         end_sample: u64,
     ) -> Self {
-        let capacity = ((end_sample - start_sample) * CHANNELS as u64) as usize;
+        // Handle u64::MAX as "unknown size" - use 15 seconds as default capacity (matches BUFFER_DURATION_SECS)
+        let capacity = if end_sample == u64::MAX {
+            // 15 seconds * 44100 Hz * 2 channels = 1,323,000 samples
+            (15.0 * STANDARD_SAMPLE_RATE as f64 * CHANNELS as f64) as usize
+        } else {
+            ((end_sample - start_sample) * CHANNELS as u64) as usize
+        };
 
         Self {
             passage_id,

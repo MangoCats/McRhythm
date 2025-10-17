@@ -295,20 +295,21 @@ async fn decode_file(
         None
     };
 
-    // Seek to start position if needed
-    if request.start_sample > 0 {
-        let start_time_ns = (request.start_sample as f64 / sample_rate as f64 * 1_000_000_000.0) as u64;
-        let seek_to = SeekTo::Time {
-            time: symphonia::core::units::Time::from(start_time_ns),
-            track_id: Some(track_id),
-        };
+    // For MP3 and other formats with variable bit rates, seeking is unreliable
+    // We'll decode from the beginning and skip samples for accurate positioning
+    let mut samples_to_skip = request.start_sample;
 
-        format_reader.seek(SeekMode::Coarse, seek_to)
-            .context("Failed to seek to start position")?;
+    if request.start_sample > 0 {
+        debug!(
+            passage_id = %request.passage_id,
+            start_sample = request.start_sample,
+            "Will decode from beginning and skip samples for accurate positioning"
+        );
     }
 
     // Decode audio packets
     let mut total_samples = 0u64;
+    let mut skipped_samples = 0u64;
     let mut pcm_buffer = Vec::new();
 
     loop {
@@ -360,9 +361,31 @@ async fn decode_file(
             samples
         };
 
-        // Add to PCM buffer
-        pcm_buffer.extend_from_slice(&output_samples);
-        total_samples += (output_samples.len() / channels as usize) as u64;
+        let sample_count = (output_samples.len() / channels as usize) as u64;
+
+        // Skip samples if we haven't reached the start position yet
+        if skipped_samples < samples_to_skip {
+            let samples_left_to_skip = samples_to_skip - skipped_samples;
+
+            if sample_count <= samples_left_to_skip {
+                // Skip entire packet
+                skipped_samples += sample_count;
+                continue;
+            } else {
+                // Skip partial packet, use the rest
+                let skip_frames = samples_left_to_skip as usize;
+                let skip_samples = skip_frames * channels as usize;
+                skipped_samples += samples_left_to_skip;
+
+                // Add only the portion after the skip point
+                pcm_buffer.extend_from_slice(&output_samples[skip_samples..]);
+                total_samples += sample_count - samples_left_to_skip;
+            }
+        } else {
+            // No more skipping needed, add all samples
+            pcm_buffer.extend_from_slice(&output_samples);
+            total_samples += sample_count;
+        }
 
         // Periodically write to passage buffer to avoid large memory allocations
         if pcm_buffer.len() >= 44100 * channels as usize * 2 { // ~2 seconds of audio
