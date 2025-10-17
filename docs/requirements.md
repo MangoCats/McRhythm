@@ -16,7 +16,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-OV-010]** WKMP is a music player that selects passages to play based on user preferences for [musical flavor](musical_flavor.md#quantitative-definition) at various times of day.
 
-**Architectural Note:** WKMP is implemented as a microservices architecture with 4 independent HTTP-based modules: Audio Player, User Interface, Program Director, and File Ingest (Full version only). See [Architecture](architecture.md) for complete design.
+**Architectural Note:** WKMP is implemented as a microservices architecture with **5 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, and Audio Ingest. See [Architecture](architecture.md) for complete design.
 
 ## Core Features
 

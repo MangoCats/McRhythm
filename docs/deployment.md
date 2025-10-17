@@ -10,12 +10,12 @@ Defines deployment, process management, and operational configuration for WKMP's
 
 ## Overview
 
-**[DEP-OVR-010]** WKMP consists of 5 independent processes that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
+**[DEP-OVR-010]** WKMP consists of **5 independent microservices** that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
 
-**[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which modules run:
-- **Full Version**: Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest
-- **Lite Version**: Audio Player, User Interface, Program Director
-- **Minimal Version**: Audio Player, User Interface
+**[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which of the **5 microservices** run:
+- **Full Version** (all 5): Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest
+- **Lite Version** (3 of 5): Audio Player, User Interface, Program Director
+- **Minimal Version** (2 of 5): Audio Player, User Interface
 
 ## 1. Module Binaries
 

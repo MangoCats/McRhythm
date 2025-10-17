@@ -7,7 +7,7 @@ WKMP is a music player that plays locally stored audio files to local audio outp
 
 The system can work as a simple music file player, or build up to a hourly, daily, weekly, annually programed music source inspired by FM radio stations of the 1970s.
 
-Built with Rust, GStreamer and SQLite.
+Built with Rust and SQLite using a **5-microservice architecture** for modularity and version flexibility.
 
 ## Documentation
 
@@ -30,13 +30,23 @@ Built with Rust, GStreamer and SQLite.
 - **[Document Hierarchy](docs/document_hierarchy.md)** - Documentation framework, relationships, and change control (Tier 0 - Governance)
 - **[Requirements Enumeration](docs/requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
 
-## Idea for a future feature
+## Future Features & Extensibility
 
-Text to speech news and weather read between songs on a schedule
+WKMP's microservices architecture currently consists of **5 core modules**, but is designed to support additional modules for future functionality:
 
-Third-party news aggregation APIs
+### Potential Future Modules
 
-These are the most suitable option for comprehensive local coverage because they pull from a vast network of sources, including local affiliates and online publications.
-- NewsData.io: Integrates content from thousands of trusted news sources and can be filtered by country (e.g., US), language, keyword, and more. You can access real-time and historical data through a simple JSON format.
-- News API: A popular choice that indexes articles from over 80,000 worldwide sources. It supports location-based filtering, provides articles in JSON format, and is well-documented.
-- World News API: Offers access to news from thousands of sources and can be filtered by country or region, as well as by language and category. It provides a free tier for low-volume personal projects. 
+**News and Weather Integration**
+- Text-to-speech news and weather segments between songs on a schedule
+- Third-party news aggregation APIs:
+  - **NewsData.io**: Integrates content from thousands of trusted news sources and can be filtered by country (e.g., US), language, keyword, and more. You can access real-time and historical data through a simple JSON format.
+  - **News API**: A popular choice that indexes articles from over 80,000 worldwide sources. It supports location-based filtering, provides articles in JSON format, and is well-documented.
+  - **World News API**: Offers access to news from thousands of sources and can be filtered by country or region, as well as by language and category. It provides a free tier for low-volume personal projects.
+
+**Additional Module Ideas**
+- **Alternative UI Implementations**: Mobile-optimized interfaces, accessibility-focused designs, minimal kiosk mode
+- **External Control Protocols**: MPD (Music Player Daemon) compatibility, voice assistant integration (Alexa, Google Assistant), MQTT control for home automation
+- **Streaming Service Integration**: Supplementing local library with streaming sources
+- **Podcast and Audiobook Support**: Extending beyond music to spoken-word content
+
+The architecture's HTTP/SSE-based communication and shared database design enable new modules to be added without modifying existing services. See [Architecture - Extensibility Principle](docs/architecture.md#extensibility-principle) for technical details. 

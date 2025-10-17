@@ -725,51 +725,76 @@ The database is initialized with default module configurations on first run:
 - **System may run with zero users logged in**: Settings must be independent of authentication state
 - **User-specific data belongs elsewhere**: See `likes_dislikes` table for user-scoped preferences
 
-**Common keys (all global):**
+### Settings Keys Reference
 
-**Playback State:**
-- `initial_play_state`: Playback state on app launch ("playing" or "paused", default: "playing")
-- `currently_playing_passage_id`: UUID of passage currently playing
-- `last_played_passage_id`: UUID of last played passage
-- `last_played_position`: Position in milliseconds (updated only on clean shutdown, reset to 0 on queue change)
+All runtime configuration is stored in the `settings` table using a key-value pattern. Settings are typed in application code but stored as TEXT in the database.
 
-**Audio Configuration:**
-- `volume_level`: Volume as double 0.0-1.0 (user-facing API uses 0-100 integer; conversion: `system = user / 100.0`, `user = ceil(system * 100.0)`)
-- `audio_sink`: Selected audio output sink identifier
-- `playback_progress_interval_ms`: SSE update interval (default: 5000ms)
+**Configuration Philosophy:**
+- **Database-first**: All runtime settings in `settings` table (per architecture.md)
+- **TOML files**: Bootstrap only (root folder path, logging)
+- **NULL values**: When a setting is NULL or missing, the application initializes it with the built-in default value and writes that default to the database
+- **Built-in defaults**: All default values are defined in application code, NOT in TOML config files
 
-**Database Backup:**
-- `backup_location`: Path to backup directory (default: same folder as wkmp.db)
-- `backup_interval_ms`: Periodic backup interval (default: 90 days = ~7,776,000,000ms)
-- `backup_minimum_interval_ms`: Minimum time between startup backups (default: 14 days = ~1,209,600,000ms)
-- `backup_retention_count`: Number of timestamped backups to keep (default: 3)
-- `last_backup_timestamp_ms`: Unix milliseconds of last successful backup
+| Key | Type | Default | Purpose | Module | Version |
+|-----|------|---------|---------|--------|---------|
+| **Playback State** |
+| `initial_play_state` | TEXT | `"playing"` | Playback state on app launch ("playing" or "paused") | wkmp-ap | All |
+| `currently_playing_passage_id` | TEXT (UUID) | NULL | UUID of passage currently playing | wkmp-ap | All |
+| `last_played_passage_id` | TEXT (UUID) | NULL | UUID of last played passage | wkmp-ap | All |
+| `last_played_position` | INTEGER (ms) | 0 | Position in milliseconds (updated only on clean shutdown, reset to 0 on queue change) | wkmp-ap | All |
+| **Audio Configuration** |
+| `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (user-facing API uses 0-100 integer; conversion: `system = user / 100.0`, `user = ceil(system * 100.0)`) | wkmp-ap | All |
+| `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
+| `playback_progress_interval_ms` | INTEGER | 5000 | SSE PlaybackProgress event frequency (milliseconds) | wkmp-ap | All |
+| `current_song_check_interval_ms` | INTEGER | 500 | Song boundary detection check frequency (milliseconds) | wkmp-ap | All |
+| **Database Backup** |
+| `backup_location` | TEXT | (same folder as wkmp.db) | Path to backup directory | wkmp-ui | All |
+| `backup_interval_ms` | INTEGER | 7776000000 | Periodic backup interval (default: 90 days) | wkmp-ui | All |
+| `backup_minimum_interval_ms` | INTEGER | 1209600000 | Minimum time between startup backups (default: 14 days) | wkmp-ui | All |
+| `backup_retention_count` | INTEGER | 3 | Number of timestamped backups to keep | wkmp-ui | All |
+| `last_backup_timestamp_ms` | INTEGER | NULL | Unix milliseconds of last successful backup | wkmp-ui | All |
+| **Crossfade** |
+| `global_crossfade_time` | REAL | 2.0 | Global crossfade time in seconds | wkmp-ap | All |
+| `global_fade_curve` | TEXT | `"exponential_logarithmic"` | Fade curve pair (options: 'exponential_logarithmic', 'linear_linear', 'cosine_cosine') | wkmp-ap | All |
+| **Pause/Resume** |
+| `resume_from_pause_fade_in_duration` | REAL | 0.5 | Resume fade-in duration in seconds (range: 0.0-5.0) | wkmp-ap | All |
+| `resume_from_pause_fade_in_curve` | TEXT | `"exponential"` | Resume fade-in curve type (options: 'linear', 'exponential', 'cosine') | wkmp-ap | All |
+| **Volume Fade Updates** |
+| `volume_fade_update_period` | INTEGER | 10 | Volume fade update period in milliseconds (range: 1-100) | wkmp-ap | All |
+| **Queue Management** |
+| `queue_entry_timing_overrides` | TEXT (JSON) | `{}` | JSON object mapping queue entry guid → timing overrides (see schema below) | wkmp-ap | All |
+| `queue_refill_threshold_passages` | INTEGER | 2 | Min passages before refill | wkmp-ap | Full, Lite |
+| `queue_refill_threshold_seconds` | INTEGER | 900 | Min seconds before refill (15 minutes) | wkmp-ap | Full, Lite |
+| `queue_refill_request_throttle_seconds` | INTEGER | 10 | Min interval between refill requests | wkmp-ap | Full, Lite |
+| `queue_refill_acknowledgment_timeout_seconds` | INTEGER | 5 | Timeout for PD acknowledgment | wkmp-ap | Full, Lite |
+| `queue_max_size` | INTEGER | 100 | Maximum queue size in passages | wkmp-ap | All |
+| `queue_max_enqueue_batch` | INTEGER | 5 | Maximum passages to enqueue at once by Program Director | wkmp-pd | Full, Lite |
+| **Module Management** |
+| `relaunch_delay` | INTEGER | 5 | Seconds between module relaunch attempts | wkmp-ui | All |
+| `relaunch_attempts` | INTEGER | 20 | Max relaunch attempts before giving up | wkmp-ui | All |
+| **Session Management** |
+| `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
+| **File Ingest** |
+| `ingest_max_concurrent_jobs` | INTEGER | 4 | Maximum concurrent file processing jobs | wkmp-ai | Full |
+| **Library** |
+| `music_directories` | TEXT (JSON) | `[]` | JSON array of directories to scan | wkmp-ai | Full |
+| `temporary_flavor_override` | TEXT (JSON) | NULL | JSON with target flavor and expiration | wkmp-pd | Full, Lite |
+| **HTTP Server Configuration** |
+| `http_base_ports` | TEXT (JSON) | `[5720, 15720, 25720, 17200, 23400]` | JSON array of base port numbers | All modules | All |
+| `http_request_timeout_ms` | INTEGER | 30000 | Request timeout in milliseconds | All modules | All |
+| `http_keepalive_timeout_ms` | INTEGER | 60000 | Keepalive timeout in milliseconds | All modules | All |
+| `http_max_body_size_bytes` | INTEGER | 1048576 | Maximum request body size (1 MB) | All modules | All |
+| **Program Director** |
+| `playback_failure_threshold` | INTEGER | 3 | Failures before stopping automatic selection | wkmp-pd | Full, Lite |
+| `playback_failure_window_seconds` | INTEGER | 60 | Time window for failure counting | wkmp-pd | Full, Lite |
 
-**Crossfade:**
-- `global_crossfade_time`: Global crossfade time in seconds (default: 2.0)
-- `global_fade_curve`: Fade curve pair (default: 'exponential_logarithmic', options: 'exponential_logarithmic', 'linear_linear', 'cosine_cosine')
-  - Used when passage `fade_in_curve` and/or `fade_out_curve` are NULL
-  - Default 'exponential_logarithmic' provides smooth, natural crossfades
-  - See [crossfade.md - Global Fade Curve Selection](crossfade.md#global-fade-curve-selection) for complete specification
-
-**Pause/Resume:**
-- `resume_from_pause_fade_in_duration`: Resume fade-in duration in seconds (default: 0.5, range: 0.0-5.0)
-- `resume_from_pause_fade_in_curve`: Resume fade-in curve type (default: 'exponential', options: 'linear', 'exponential', 'cosine')
-
-**Volume Fade Updates:**
-- `volume_fade_update_period`: Volume fade update period in milliseconds (default: 10, range: 1-100)
-  - How often to recalculate and apply volume levels during crossfades and resume fade-in
-  - Lower values = smoother fades but higher CPU usage
-  - 10ms = 100 Hz update rate (recommended for smooth, artifact-free transitions)
-
-**Queue Management:**
-- `queue_entry_timing_overrides`: JSON object mapping queue entry guid → timing overrides (see schema below)
-- `queue_refill_threshold_passages`: Min passages before refill (default: 2)
-- `queue_refill_threshold_seconds`: Min seconds before refill (default: 900)
-- `queue_refill_request_throttle_seconds`: Min interval between requests (default: 10)
-- `queue_refill_acknowledgment_timeout_seconds`: Timeout for PD acknowledgment (default: 5)
-- `queue_max_size`: Maximum queue size in passages (default: 100)
-- `queue_max_enqueue_batch`: Maximum passages to enqueue at once by Program Director (default: 5)
+**Notes:**
+- All settings are stored as TEXT in the database but represent different types in application code
+- NULL or missing values are automatically initialized with built-in defaults and written to the database
+- Version column indicates which WKMP versions use each setting (All = Full, Lite, Minimal)
+- See [Requirements](requirements.md) for requirement references (e.g., [REQ-PB-050] for `initial_play_state`)
+- See [Crossfade Design](crossfade.md) for complete crossfade system specifications
+- See [Architecture](architecture.md) for module responsibilities and configuration patterns
 
 **Queue Entry Timing Overrides JSON Schema:**
 
@@ -812,32 +837,6 @@ The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrid
 - When queue entry is removed, its override entry should be deleted from this JSON object
 - Timing points relative to passage start (not file start), except `start_time_ms` and `end_time_ms`
 - See [api_design.md - POST /playback/enqueue](api_design.md#post-playbackenqueue) for override semantics during enqueue
-
-**Module Management:**
-- `relaunch_delay`: Seconds between module relaunch attempts (default: 5)
-- `relaunch_attempts`: Max relaunch attempts before giving up (default: 20)
-- See [architecture.md - Launch procedure](architecture.md#launch-procedure) for detailed subprocess health monitoring and respawn behavior
-
-**Session Management:**
-- `session_timeout_seconds`: Session timeout duration (default: 31536000 = 1 year)
-
-**File Ingest:**
-- `ingest_max_concurrent_jobs`: Maximum concurrent file processing jobs (default: 4)
-
-**Library:**
-- `music_directories`: JSON array of directories to scan
-- `temporary_flavor_override`: JSON with target flavor and expiration
-
-**HTTP Server Configuration:**
-- `http_base_ports`: JSON array of base port numbers (default: `[5720, 15720, 25720, 17200, 23400]`)
-- `http_request_timeout_ms`: Request timeout in milliseconds (default: 30000)
-- `http_keepalive_timeout_ms`: Keepalive timeout in milliseconds (default: 60000)
-- `http_max_body_size_bytes`: Maximum request body size (default: 1048576)
-
-**Persistence Notes:**
-- `last_played_position` updated **only on clean shutdown**
-- Value automatically reset to 0 on any queue modification
-- Used for resume-from-position on clean restart (crash recovery starts from beginning naturally)
 
 > See [Deployment - HTTP Server Configuration](deployment.md#13-http-server-configuration) for details on port selection algorithm, duplicate instance detection, and bind address configuration.
 

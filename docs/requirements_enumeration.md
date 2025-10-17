@@ -415,53 +415,53 @@ For simple lists where hierarchy is clear from context:
 ### Simple Requirement
 
 ```markdown
-**REQ-CF-010:** Plays passages from local files (.mp3 and similar)
+[REQ-CF-010] Plays passages from local files (.mp3 and similar)
 ```
 
 ### Requirement with Sub-items
 
 ```markdown
-**REQ-CF-030:** Cross references passages to the MusicBrainz database for:
-  - **REQ-CF-031:** identification of the song(s) contained in the passage
-  - **REQ-CF-032:** identification of other relationships that may influence selection
+[REQ-CF-030] Cross references passages to the MusicBrainz database for:
+  - [REQ-CF-031] identification of the song(s) contained in the passage
+  - [REQ-CF-032] identification of other relationships that may influence selection
 ```
 
 ### Multi-level Hierarchy
 
 ```markdown
-**REQ-CF-060:** Web-based UI
-  - **REQ-CF-061:** Primary mode of operation is automatic, without user intervention
-    - **REQ-CF-061A:** Auto-start on boot (of Linux / Windows / OS-X systems)
-      - **REQ-CF-061A1:** systemd service on Linux
-      - **REQ-CF-061A2:** Task scheduler launched service on Windows
-      - **REQ-CF-061A3:** launchd on OS-X
+[REQ-CF-060] Web-based UI
+  - [REQ-CF-061] Primary mode of operation is automatic, without user intervention
+    - [REQ-CF-061A] Auto-start on boot (of Linux / Windows / OS-X systems)
+      - [REQ-CF-061A1] systemd service on Linux
+      - [REQ-CF-061A2] Task scheduler launched service on Windows
+      - [REQ-CF-061A3] launchd on OS-X
 ```
 
 ### Cross-document References
 
 ```markdown
-**REQ-PB-010:** Each passage has six configurable timing points that control crossfade behavior. See XFD-TP-010 through XFD-TP-060 for detailed timing point specifications.
+[REQ-PB-010] Each passage has six configurable timing points that control crossfade behavior. See XFD-TP-010 through XFD-TP-060 for detailed timing point specifications.
 
-**ARCH-PC-020:** Implements three fade profiles as specified in XFD-CURV-010, XFD-CURV-020, and XFD-CURV-030.
+[ARCH-PC-020] Implements three fade profiles as specified in XFD-CURV-010, XFD-CURV-020, and XFD-CURV-030.
 
-**DB-PASS-015:** The `passages` table stores timing values as defined in XFD-DUR-010 through XFD-DUR-040.
+[DB-PASS-015] The `passages` table stores timing values as defined in XFD-DUR-010 through XFD-DUR-040.
 ```
 
 ### Specification Gaps (TBD)
 
 ```markdown
-**REQ-PROB-050:** Passage base probability calculation
+[REQ-PROB-050] Passage base probability calculation
 
-**DB-WORK-020:** Work cooldown defaults (TBD: specification needed, see REQ-SEL-060)
+[DB-WORK-020] Work cooldown defaults (TBD: specification needed, see REQ-SEL-060)
 ```
 
 ## Integration in Documentation
 
 ### Markdown Formatting
 
-**Bold the ID at start of requirement:**
+**Use bracket format for requirement IDs:**
 ```markdown
-**REQ-CF-010:** Requirement text here
+[REQ-CF-010] Requirement text here
 ```
 
 **Inline references use code formatting:**
@@ -589,8 +589,8 @@ The crossfade timing (see `XFD-BEH-C1`) depends on lead-in duration (`XFD-DUR-03
 ### Deprecating Requirements
 
 **Do not delete or renumber:**
-- Mark as deprecated: `**REQ-CF-035:** [DEPRECATED] Old requirement text`
-- Add deprecation note: `**REQ-CF-035:** [DEPRECATED as of 2025-10-15] Use REQ-CF-037 instead`
+- Mark as deprecated: `[REQ-CF-035] [DEPRECATED] Old requirement text`
+- Add deprecation note: `[REQ-CF-035] [DEPRECATED as of 2025-10-15] Use REQ-CF-037 instead`
 - Preserve in documentation for historical tracking
 
 ### Splitting Requirements
@@ -598,13 +598,13 @@ The crossfade timing (see `XFD-BEH-C1`) depends on lead-in duration (`XFD-DUR-03
 **When a requirement becomes too complex:**
 1. Keep original ID for primary concept
 2. Extract sub-concepts to new sub-requirement IDs
-3. Add note: `**REQ-CF-040:** [Split into REQ-CF-041, REQ-CF-042, REQ-CF-043 as of 2025-10-15]`
+3. Add note: `[REQ-CF-040] [Split into REQ-CF-041, REQ-CF-042, REQ-CF-043 as of 2025-10-15]`
 
 ### Merging Requirements
 
 **When requirements are redundant:**
 1. Keep lower-numbered ID as canonical
-2. Mark higher-numbered as merged: `**REQ-CF-045:** [MERGED into REQ-CF-040]`
+2. Mark higher-numbered as merged: `[REQ-CF-045] [MERGED into REQ-CF-040]`
 3. Update all references to use canonical ID
 
 ## Review and Approval

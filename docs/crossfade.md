@@ -1,8 +1,8 @@
 # Crossfade Design
 
-**🎵 TIER 2 - DESIGN SPECIFICATION**
+**🏗️ TIER 2 - DESIGN SPECIFICATION**
 
-Defines crossfade timing and behavior. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md), and [Requirements Enumeration](requirements_enumeration.md).
 
 > **Related Documentation:** [Architecture](architecture.md)
 

@@ -12,11 +12,35 @@ Defines HOW the system is structured. Derived from [requirements.md](requirement
 
 WKMP is a music player built on Rust and SQLite that automatically selects music passages based on user-configured musical flavor preferences by time of day, using cooldown-based probability calculations and AcousticBrainz musical characterization data. Audio playback uses a custom single-stream architecture with sample-accurate crossfading powered by symphonia (decoding), rubato (resampling), and cpal (output).
 
-WKMP implements a **microservices architecture** with multiple independent processes communicating via HTTP APIs and Server-Sent Events (SSE). This enables simplified maintenance, version flexibility, and independent module updates.
+WKMP implements a **microservices architecture with 5 core processes** communicating via HTTP APIs and Server-Sent Events (SSE). This enables simplified maintenance, version flexibility, and independent module updates.
+
+### Extensibility Principle
+
+**[ARCH-EXT-010]** The microservices architecture is designed to accommodate additional modules beyond the current 5 core services. The system's HTTP/SSE-based communication pattern, shared SQLite database, and module discovery mechanisms (via `module_config` table) enable future expansion without architectural changes.
+
+**Current Core Modules (5):**
+- **Audio Player (wkmp-ap)** - Port 5721 - Core playback engine with queue management
+- **User Interface (wkmp-ui)** - Port 5720 - Polished web UI for end users
+- **Program Director (wkmp-pd)** - Port 5722 - Automatic passage selection (Full and Lite versions only)
+- **Audio File Ingest (wkmp-ai)** - Port 5723 - New file import workflow (Full version only, on-demand)
+- **Lyric Editor (wkmp-le)** - Port 5724 - Standalone lyric editing tool (Full version only, on-demand)
+
+**Potential Future Modules:**
+- News and Weather Integration - Text-to-speech audio segments reading current local news and weather reports between passages
+- Alternative UI Implementations - Specialized interfaces (mobile-optimized, accessibility-focused, minimal kiosk mode)
+- Additional Content Sources - Streaming integration, podcast support, audiobook playback
+- External Control Interfaces - MPD protocol compatibility, voice assistant integration, MQTT control
+
+**Design Benefits:**
+- **Simplifies maintenance**: Each module focuses on a single concern
+- **Enables version flexibility**: Run more/fewer processes for Full/Lite/Minimal versions
+- **Provides modularity**: Update one module without affecting others
+- **Supports independent operation**: Audio Player and Program Director work without UI
+- **Accommodates future expansion**: New modules can be added without modifying existing services
 
 ## Process Architecture
 
-WKMP consists of up to 5 independent processes (depending on version), each with defined HTTP/SSE interfaces:
+WKMP consists of **5 independent processes** (depending on version, Full deployments run all 5), each with defined HTTP/SSE interfaces:
 
 - **Audio Player** - Core playback engine with queue management
 - **User Interface** - Polished web UI for end users

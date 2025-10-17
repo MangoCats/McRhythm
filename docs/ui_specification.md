@@ -211,6 +211,8 @@ Song appears on 3 albums, each with front and rear art:
 
 ## Now Playing Information
 
+> **Terminology Reminder:** A **Passage** is a continuous playable region within an audio file (defined by start/end points and crossfade timings), while a **Song** is a MusicBrainz Recording + Artist(s) + optional Work(s). A passage may contain 0, 1, or multiple songs. The UI displays both passage metadata (title, album art) and current song information (which song within the passage is playing now). See [Entity Definitions](entity_definitions.md) for complete definitions.
+
 ### Passage Title Display
 
 **[UI-INFO-010]** Display passage title only when different from current song title AND album title.
