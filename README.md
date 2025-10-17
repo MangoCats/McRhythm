@@ -28,7 +28,7 @@ Built with Rust and SQLite using a **5-microservice architecture** for modularit
 ### Process & Standards
 
 - **[Document Hierarchy](docs/GOV001-document_hierarchy.md)** - Documentation framework, relationships, and change control (Tier 0 - Governance)
-- **[Requirements Enumeration](docs/ENUM001-requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
+- **[Requirements Enumeration](docs/GOV002-requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
 
 ## Future Features & Extensibility
 

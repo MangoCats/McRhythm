@@ -4,7 +4,7 @@
 
 Defines code organization and quality standards. Supports Tier 2 design documents. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Requirements Enumeration](ENUM001-requirements_enumeration.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
 
 ---
 

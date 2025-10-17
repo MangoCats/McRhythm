@@ -1,6 +1,6 @@
 ﻿# WKMP Library Management
 
-**ðŸ“š TIER 2 - DESIGN SPECIFICATION**
+**📚 TIER 2 - DESIGN SPECIFICATION**
 
 Defines file scanning, metadata extraction, and MusicBrainz integration workflows. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
@@ -120,9 +120,9 @@ Library Management encompasses the full workflow from discovering audio files on
 If tags are completely missing:
 
 ```
-Artist - Album - 01 - Title.mp3  â†’  Artist: "Artist", Album: "Album", Title: "Title"
-01 - Title.mp3                   â†’  Artist: "Unknown Artist", Title: "Title"
-Title.mp3                        â†’  Artist: "Unknown Artist", Title: "Title"
+Artist - Album - 01 - Title.mp3  →  Artist: "Artist", Album: "Album", Title: "Title"
+01 - Title.mp3                   →  Artist: "Unknown Artist", Title: "Title"
+Title.mp3                        →  Artist: "Unknown Artist", Title: "Title"
 ```
 
 Regex patterns for common naming conventions (flexible, best-effort)
@@ -143,10 +143,10 @@ Regex patterns for common naming conventions (flexible, best-effort)
 3. **Save to disk**
    - Storage location: Same folder as the audio file the artwork relates to
    - Naming convention: Same filename as the source file the art is extracted from
-     - Example: `song.mp3` â†’ `song.jpg` (assuming embedded art is JPEG)
+     - Example: `song.mp3` → `song.jpg` (assuming embedded art is JPEG)
    - Filename conflict resolution:
      - If file already exists with that name, append current time in ISO8601 format before extension
-     - Example: `song.jpg` exists â†’ save as `song_2025-10-09T12:34:56Z.jpg`
+     - Example: `song.jpg` exists → save as `song_2025-10-09T12:34:56Z.jpg`
    - For artwork related to multiple audio files in different folders, store in folder of first related audio file (rare case)
 
 4. **Resize if needed**
@@ -216,7 +216,7 @@ When an entity (song, work, artist) is associated with multiple audio files in d
 **Process:**
 
 1. **Decode audio to PCM**
-   - Use GStreamer pipeline: `filesrc â†’ decodebin â†’ audioconvert â†’ audioresample`
+   - Use GStreamer pipeline: `filesrc → decodebin → audioconvert → audioresample`
    - Target format: 16-bit signed integer, mono, 11025 Hz (Chromaprint requirement)
    - Duration: Full passage (or first 120 seconds for very long passages)
 
@@ -398,7 +398,7 @@ User-Agent: WKMP/1.0.0 ( contact@example.com )
    - Naming convention: Derive from MusicBrainz Release MBID or source URL filename
      - Example: `{album_mbid}.front.jpg`, `{album_mbid}.back.jpg`, `{album_mbid}.liner.{ext}`
    - Filename conflict resolution: Append ISO8601 timestamp before extension if file exists
-     - Example: `album.front.jpg` â†’ `album.front_2025-10-09T12:34:56Z.jpg`
+     - Example: `album.front.jpg` → `album.front_2025-10-09T12:34:56Z.jpg`
    - For artwork related to multiple audio files in different folders, store in folder of first related audio file (rare case)
 4. **Resize** if > 1024x1024 (same as embedded art)
 5. **Record in database:**
@@ -523,23 +523,23 @@ Accept: application/json
 **Layout:**
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Editing Lyrics for: {Passage Title}            â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚                                                  â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
-â”‚  â”‚ Lyrics Editor    â”‚  â”‚ Web Search Helper    â”‚ â”‚
-â”‚  â”‚                  â”‚  â”‚                      â”‚ â”‚
-â”‚  â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚  â”‚ Search: [        ] â”‚ â”‚
-â”‚  â”‚ â”‚              â”‚ â”‚  â”‚                      â”‚ â”‚
-â”‚  â”‚ â”‚  [textarea]  â”‚ â”‚  â”‚ <iframe with search  â”‚ â”‚
-â”‚  â”‚ â”‚              â”‚ â”‚  â”‚  results from        â”‚ â”‚
-â”‚  â”‚ â”‚              â”‚ â”‚  â”‚  lyrics site>        â”‚ â”‚
-â”‚  â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚  â”‚                      â”‚ â”‚
-â”‚  â”‚                  â”‚  â”‚                      â”‚ â”‚
-â”‚  â”‚  [Submit] [Cancel]  â”‚                      â”‚ â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─────────────────────────────────────────────────┐
+│  Editing Lyrics for: {Passage Title}            │
+├─────────────────────────────────────────────────┤
+│                                                  │
+│  ┌──────────────────┐  ┌──────────────────────┐ │
+│  │ Lyrics Editor    │  │ Web Search Helper    │ │
+│  │                  │  │                      │ │
+│  │ ┌──────────────┐ │  │ Search: [        ] │ │
+│  │ │              │ │  │                      │ │
+│  │ │  [textarea]  │ │  │ <iframe with search  │ │
+│  │ │              │ │  │  results from        │ │
+│  │ │              │ │  │  lyrics site>        │ │
+│  │ └──────────────┘ │  │                      │ │
+│  │                  │  │                      │ │
+│  │  [Submit] [Cancel]  │                      │ │
+│  └──────────────────┘  └──────────────────────┘ │
+└─────────────────────────────────────────────────┘
 ```
 
 **Features:**

@@ -2,7 +2,7 @@
 
 **ðŸ—ï¸ TIER 2 - DESIGN SPECIFICATION**
 
-Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](ENUM001-requirements_enumeration.md).
+Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](GOV002-requirements_enumeration.md).
 
 > **Related Documentation:** [Architecture](SPEC001-architecture.md)
 
@@ -71,10 +71,10 @@ operation to take place.
 **[XFD-CONS-010]** Timing points must satisfy two independent constraint chains:
 
   **[XFD-CONS-011] Fade Point Constraints:**
-  - Start â‰¤ Fade-In â‰¤ Fade-Out â‰¤ End
+  - Start ≤ Fade-In ≤ Fade-Out ≤ End
 
   **[XFD-CONS-012] Lead Point Constraints:**
-  - Start â‰¤ Lead-In â‰¤ Lead-Out â‰¤ End
+  - Start ≤ Lead-In ≤ Lead-Out ≤ End
 
   **[XFD-CONS-020] Cross-Chain Independence:**
   - Fade-In and Lead-In points are independent (either may come first, or may be equal)
@@ -103,10 +103,10 @@ operation to take place.
 
   While any ordering satisfying the constraints is valid, typical usage patterns include:
 
-  - **Fade-In after Lead-In** (Fade-In â‰¥ Lead-In): Use when passage starts with quiet intro that needs gentle fade-in even after crossfade completes
-  - **Lead-In after Fade-In** (Lead-In â‰¥ Fade-In): Use when passage has abrupt start that benefits from fade-in, but crossfade should end before full volume
-  - **Fade-Out before Lead-Out** (Fade-Out â‰¤ Lead-Out): Use when passage should start fading out before next passage begins crossfading in
-  - **Lead-Out before Fade-Out** (Lead-Out â‰¤ Fade-Out): Use when next passage should start while current passage is still at full volume
+  - **Fade-In after Lead-In** (Fade-In ≥ Lead-In): Use when passage starts with quiet intro that needs gentle fade-in even after crossfade completes
+  - **Lead-In after Fade-In** (Lead-In ≥ Fade-In): Use when passage has abrupt start that benefits from fade-in, but crossfade should end before full volume
+  - **Fade-Out before Lead-Out** (Fade-Out ≤ Lead-Out): Use when passage should start fading out before next passage begins crossfading in
+  - **Lead-Out before Fade-Out** (Lead-Out ≤ Fade-Out): Use when next passage should start while current passage is still at full volume
 
 ## Fade Curves
 
@@ -130,14 +130,14 @@ operation to take place.
 
 ### Case 1: Following Passage Has Longer Lead-In Duration
 
-**[XFD-BEH-C1-010]** When `Lead-Out Duration of Passage A â‰¤ Lead-In Duration of Passage B`:
+**[XFD-BEH-C1-010]** When `Lead-Out Duration of Passage A ≤ Lead-In Duration of Passage B`:
 
 ```
 Passage A: |---------------------------|******|
-                         Lead-Out Pointâ†‘   Endâ†‘
+                         Lead-Out Point←   End←
 
 Passage B:                             |*********|-------------------|
-                                       â†‘Start    â†‘Lead-In Point
+                                       ←Start    ←Lead-In Point
 
 Timeline:  |---------------------------|------|------------------------|
            A playing alone             Both playing
@@ -157,10 +157,10 @@ Timeline:  |---------------------------|------|------------------------|
 
 ```
 Passage A: |---------------------------|*************|
-                         Lead-Out Pointâ†‘          Endâ†‘
+                         Lead-Out Point←          End←
 
 Passage B:                                   |*******|-----------------|
-                                             â†‘Start  â†‘Lead-In Point
+                                             ←Start  ←Lead-In Point
 
 Timeline:  |---------------------------------|-------|-----------------|
            A playing alone                   Both playing
@@ -180,10 +180,10 @@ Timeline:  |---------------------------------|-------|-----------------|
 
 ```
 Passage A: |---------------------------|
-                                       â†‘End
+                                       ←End
 
 Passage B:                             |-----------------|
-                                       â†‘Start
+                                       ←Start
 
 Timeline:  |---------------------------|------------------|
            A playing                   B playing
@@ -376,7 +376,7 @@ function validate_and_correct_passage_timing(passage) -> ValidatedPassage:
 
 **[XFD-IMPL-043]** Edge cases handled:
 - **Both lead durations = 0**: Results in `crossfade_duration = 0` (Case 3, no overlap)
-- **Negative durations from bad data**: Corrected by validation to produce duration â‰¥ 0
+- **Negative durations from bad data**: Corrected by validation to produce duration ≥ 0
 - **NULL timing points**: Handled by computing from global crossfade time (no validation needed)
 
 ## Validation Responsibility
@@ -444,7 +444,7 @@ The timing validation algorithm ([XFD-IMPL-040] through [XFD-IMPL-043]) is execu
 **[XFD-IMPL-050]** Case Detection:
 
 The algorithm automatically handles all three cases:
-- **Case 1** (passage_a_lead_out_duration â‰¤ passage_b_lead_in_duration): `crossfade_duration = passage_a_lead_out_duration`
+- **Case 1** (passage_a_lead_out_duration ≤ passage_b_lead_in_duration): `crossfade_duration = passage_a_lead_out_duration`
 - **Case 2** (passage_a_lead_out_duration > passage_b_lead_in_duration): `crossfade_duration = passage_b_lead_in_duration`
 - **Case 3** (both durations = 0): `crossfade_duration = 0` (no overlap, passages play sequentially)
 
@@ -473,15 +473,15 @@ if current_position_a >= preload_trigger_point:
 
 **[XFD-IMPL-090]** During crossfade, each passage's volume is controlled by applying a fade curve. The fade curve maps normalized time `t` (where 0.0 = fade start, 1.0 = fade end) to volume multiplier `v` (where 0.0 = silence, 1.0 = full volume).
 
-#### Fade-In Curves (0.0 â†’ 1.0 volume)
+#### Fade-In Curves (0.0 → 1.0 volume)
 
 **[XFD-IMPL-091] Linear Fade-In:**
 ```
 v(t) = t
 
 where:
-  t âˆˆ [0.0, 1.0] (normalized time through fade)
-  v âˆˆ [0.0, 1.0] (output volume multiplier)
+  t ∈ [0.0, 1.0] (normalized time through fade)
+  v ∈ [0.0, 1.0] (output volume multiplier)
 ```
 
 **[XFD-IMPL-092] Exponential Fade-In:**
@@ -489,8 +489,8 @@ where:
 v(t) = tÂ²
 
 where:
-  t âˆˆ [0.0, 1.0]
-  v âˆˆ [0.0, 1.0]
+  t ∈ [0.0, 1.0]
+  v ∈ [0.0, 1.0]
 
 Characteristic: Slow start, fast finish (perceived as "natural" swell)
 ```
@@ -500,22 +500,22 @@ Characteristic: Slow start, fast finish (perceived as "natural" swell)
 v(t) = 0.5 Ã— (1 - cos(Ï€ Ã— t))
 
 where:
-  t âˆˆ [0.0, 1.0]
-  v âˆˆ [0.0, 1.0]
-  Ï€ â‰ˆ 3.14159265359
+  t ∈ [0.0, 1.0]
+  v ∈ [0.0, 1.0]
+  Ï€ ∈ 3.14159265359
 
 Characteristic: Smooth acceleration and deceleration
 ```
 
-#### Fade-Out Curves (1.0 â†’ 0.0 volume)
+#### Fade-Out Curves (1.0 → 0.0 volume)
 
 **[XFD-IMPL-094] Linear Fade-Out:**
 ```
 v(t) = 1.0 - t
 
 where:
-  t âˆˆ [0.0, 1.0] (normalized time through fade)
-  v âˆˆ [1.0, 0.0] (output volume multiplier)
+  t ∈ [0.0, 1.0] (normalized time through fade)
+  v ∈ [1.0, 0.0] (output volume multiplier)
 ```
 
 **[XFD-IMPL-095] Logarithmic Fade-Out:**
@@ -523,8 +523,8 @@ where:
 v(t) = (1.0 - t)Â²
 
 where:
-  t âˆˆ [0.0, 1.0]
-  v âˆˆ [1.0, 0.0]
+  t ∈ [0.0, 1.0]
+  v ∈ [1.0, 0.0]
 
 Characteristic: Fast start, slow finish (perceived as "natural" decay)
 ```
@@ -534,9 +534,9 @@ Characteristic: Fast start, slow finish (perceived as "natural" decay)
 v(t) = 0.5 Ã— (1 + cos(Ï€ Ã— t))
 
 where:
-  t âˆˆ [0.0, 1.0]
-  v âˆˆ [1.0, 0.0]
-  Ï€ â‰ˆ 3.14159265359
+  t ∈ [0.0, 1.0]
+  v ∈ [1.0, 0.0]
+  Ï€ ∈ 3.14159265359
 
 Characteristic: Smooth acceleration and deceleration
 ```
@@ -935,8 +935,8 @@ Example:
     - Crossfade begins at 18.0s in Passage A
     - Crossfade ends at 14.0s in Passage B (when B reaches its lead-in point)
     - The `min()` function naturally constrains crossfade to valid range
-    - Passage A plays from 18.0s â†’ 20.0s (2 seconds) while B plays from 0.0s â†’ 2.0s
-    - At 2.0s into crossfade, A completes and B continues solo from 2.0s â†’ 14.0s
+    - Passage A plays from 18.0s → 20.0s (2 seconds) while B plays from 0.0s → 2.0s
+    - At 2.0s into crossfade, A completes and B continues solo from 2.0s → 14.0s
     - Even extreme user-defined values cannot cause >100% overlap or invalid states
   - **Key Insight:** The crossfade system is self-constraining. User-defined lead times that seem "extreme" (e.g., lead-out at 90% of passage) are perfectly valid because:
     1. Lead-in must be < lead-out within each passage (enforced at input time)
@@ -1046,7 +1046,7 @@ See [database_schema.md#settings](IMPL001-database_schema.md#settings) for the d
 
 ### Validation
 **[XFD-UIX-020]** Validation requirements:
-- **[XFD-VAL-010]** Enforce temporal constraints when user moves markers (Start â‰¤ Fade-In â‰¤ Fade-Out â‰¤ End, Start â‰¤ Lead-In â‰¤ Lead-Out â‰¤ End)
+- **[XFD-VAL-010]** Enforce temporal constraints when user moves markers (Start ≤ Fade-In ≤ Fade-Out ≤ End, Start ≤ Lead-In ≤ Lead-Out ≤ End)
 - **[XFD-VAL-020]** Warn if lead-in or lead-out duration > 50% of passage duration (see [XFD-DEF-062] for warning logic)
 - **[XFD-VAL-030]** Suggest sensible defaults based on passage characteristics
 

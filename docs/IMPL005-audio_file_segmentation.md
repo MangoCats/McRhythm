@@ -1,6 +1,6 @@
 ﻿# Audio File Segmentation
 
-**âœ‚ï¸ TIER 3 - IMPLEMENTATION SPECIFICATION**
+**✂️¸ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
 Defines the workflow for segmenting a single audio file into multiple Passages. See [Document Hierarchy](GOV001-document_hierarchy.md).
 

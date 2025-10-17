@@ -119,7 +119,7 @@ cargo run -p wkmp-ui
 
 # Requirement Traceability
 
-All requirements are enumerated with IDs following the scheme in [docs/ENUM001-requirements_enumeration.md](docs/ENUM001-requirements_enumeration.md):
+All requirements are enumerated with IDs following the scheme in [docs/GOV002-requirements_enumeration.md](docs/GOV002-requirements_enumeration.md):
 
 - Format: `DOC-CAT-NNN` (e.g., `REQ-CF-010`, `ARCH-VOL-010`)
 - Document codes: REQ, ARCH, XFD, FLV, DB, etc.

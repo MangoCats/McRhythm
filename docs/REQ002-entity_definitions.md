@@ -1,10 +1,10 @@
 ﻿# Entity Definitions
 
-**ðŸ“œ TIER 1 - AUTHORITATIVE SOURCE DOCUMENT (Component)**
+**📝œ TIER 1 - AUTHORITATIVE SOURCE DOCUMENT (Component)**
 
 Defines core entity terminology used throughout WKMP documentation. Part of [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-**Update Policy:** âœ… Product terminology decisions | âŒ NOT derived from design/implementation
+**Update Policy:** ✅ Product terminology decisions | âŒ NOT derived from design/implementation
 
 > **Related Documentation:** [Requirements](REQ001-requirements.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Database Schema](IMPL001-database_schema.md)
 
@@ -87,17 +87,17 @@ erDiagram
 
 ## Cardinality Rules
 
-- **[ENT-CARD-010]** Track â†’ Recording: One-to-one (each track references exactly one recording)
-- **[ENT-CARD-020]** Recording â†’ Work: Many-to-zero-or-one (a recording may or may not represent a work; multiple recordings can represent the same work)
-- **[ENT-CARD-030]** Recording â†’ Artist: Many-to-many (recordings can have multiple artists; artists perform multiple recordings)
-- **[ENT-CARD-040]** Song â†’ Recording: One-to-one (each song contains exactly one recording)
-- **[ENT-CARD-045]** Song â†’ Work: Many-to-many (a song may represent zero, one, or multiple works; multiple songs can represent the same work)
+- **[ENT-CARD-010]** Track → Recording: One-to-one (each track references exactly one recording)
+- **[ENT-CARD-020]** Recording → Work: Many-to-zero-or-one (a recording may or may not represent a work; multiple recordings can represent the same work)
+- **[ENT-CARD-030]** Recording → Artist: Many-to-many (recordings can have multiple artists; artists perform multiple recordings)
+- **[ENT-CARD-040]** Song → Recording: One-to-one (each song contains exactly one recording)
+- **[ENT-CARD-045]** Song → Work: Many-to-many (a song may represent zero, one, or multiple works; multiple songs can represent the same work)
   - **Common case**: One work per song (original composition)
   - **Zero works**: Improvisations, sound effects, non-musical passages
   - **Multiple works**: Mashups, medleys combining multiple source works
-- **[ENT-CARD-050]** Song â†’ Artist: One-to-many (each song has one or more artists, each with a weight)
-- **[ENT-CARD-060]** Passage â†’ Song: Many-to-many (passages can contain multiple songs; songs appear in multiple passages)
-- **[ENT-CARD-070]** Passage â†’ Audio File: Many-to-one (multiple passages can be defined within one audio file)
+- **[ENT-CARD-050]** Song → Artist: One-to-many (each song has one or more artists, each with a weight)
+- **[ENT-CARD-060]** Passage → Song: Many-to-many (passages can contain multiple songs; songs appear in multiple passages)
+- **[ENT-CARD-070]** Passage → Audio File: Many-to-one (multiple passages can be defined within one audio file)
 
 ## WKMP-Specific Constraints
 

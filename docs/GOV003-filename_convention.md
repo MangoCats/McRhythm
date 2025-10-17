@@ -1,9 +1,13 @@
 ﻿# WKMP Documentation Filename Convention
 
+---
+
+**⚖️ TIER 0 - GOVERNANCE (META)**
+
+This document defines the systematic filename convention for all WKMP documentation. It governs how documentation files are named to make document type and hierarchy immediately obvious through consistent prefixes and numbering.
+
 **Status:** APPROVED
 **Date Approved:** 2025-10-17
-**Tier:** 0 (Governance)
-**Purpose:** Establish a consistent filename convention that makes document type and hierarchy immediately obvious
 
 ---
 
@@ -59,7 +63,7 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 
 | Prefix | Meaning | When to Use | Examples |
 |--------|---------|-------------|----------|
-| **ENUM** | Enumeration | Requirement ID schemes and traceability frameworks | ENUM001-requirements_enumeration.md |
+| **ENUM** | Enumeration | Requirement ID schemes and traceability frameworks | GOV002-requirements_enumeration.md |
 | **REV** | Review | Documentation reviews, audits, and findings | REV001-review_findings.md |
 | **PLAN** | Plan | Migration plans, proposals, and strategic documents | PLAN001-single_stream_migration_plan.md |
 | **GUIDE** | Guide | Implementation guides, phased build plans for specific modules | GUIDE001-wkmp_ap_implementation_plan.md |
@@ -130,7 +134,7 @@ Move a document from out-of-scope to `docs/` when:
 
 ## Complete Mapping Table
 
-### Current Documentation â†’ Proposed Filenames
+### Current Documentation → Proposed Filenames
 
 #### Tier 0: Governance (GOV)
 
@@ -185,7 +189,7 @@ Move a document from out-of-scope to `docs/` when:
 
 | Current | Proposed | Category | Notes |
 |---------|----------|----------|-------|
-| `requirements_enumeration.md` | `ENUM001-requirements_enumeration.md` | Enumeration | Requirement ID scheme |
+| `requirements_enumeration.md` | `GOV002-requirements_enumeration.md` | Enumeration | Requirement ID scheme |
 | `wkmp_ap_design_review.md` | `REV001-wkmp_ap_design_review.md` | Review | wkmp-ap module design review |
 | `review-findings.md` | `REV002-review_findings.md` | Review | Documentation review findings (if exists) |
 | `review-findings-backup-20251017.md` | `REV002-review_findings-backup-20251017.md` | Review (backup) | Keep date suffix for backups |
@@ -263,42 +267,42 @@ With this convention, `ls` or file explorer sorting naturally groups by type:
 
 ```
 docs/
-â”œâ”€â”€ DATA001-sample_highlevel.json
-â”œâ”€â”€ ENUM001-requirements_enumeration.md
-â”œâ”€â”€ EXEC001-implementation_order.md
-â”œâ”€â”€ GOV001-document_hierarchy.md
-â”œâ”€â”€ GOV003-filename_convention.md
-â”œâ”€â”€ GUIDE001-wkmp_ap_implementation_plan.md
-â”œâ”€â”€ IMPL001-database_schema.md
-â”œâ”€â”€ IMPL002-coding_conventions.md
-â”œâ”€â”€ IMPL003-project_structure.md
-â”œâ”€â”€ IMPL004-deployment.md
-â”œâ”€â”€ IMPL005-audio_file_segmentation.md
-â”œâ”€â”€ REQ001-requirements.md
-â”œâ”€â”€ REQ002-entity_definitions.md
-â”œâ”€â”€ REV001-wkmp_ap_design_review.md
-â”œâ”€â”€ REV002-review_findings.md
-â”œâ”€â”€ SPEC001-architecture.md
-â”œâ”€â”€ SPEC002-crossfade.md
-â”œâ”€â”€ SPEC003-musical_flavor.md
-â”œâ”€â”€ SPEC004-musical_taste.md
-â”œâ”€â”€ SPEC005-program_director.md
-â”œâ”€â”€ SPEC006-like_dislike.md
-â”œâ”€â”€ SPEC007-api_design.md
-â”œâ”€â”€ SPEC008-library_management.md
-â”œâ”€â”€ SPEC009-ui_specification.md
-â”œâ”€â”€ SPEC010-user_identity.md
-â”œâ”€â”€ SPEC011-event_system.md
-â”œâ”€â”€ SPEC012-multi_user_coordination.md
-â”œâ”€â”€ SPEC013-single_stream_playback.md
-â”œâ”€â”€ SPEC014-single_stream_design.md
-â””â”€â”€ STATUS001-single_stream_poc_status.md
+├── DATA001-sample_highlevel.json
+├── GOV002-requirements_enumeration.md
+├── EXEC001-implementation_order.md
+├── GOV001-document_hierarchy.md
+├── GOV003-filename_convention.md
+├── GUIDE001-wkmp_ap_implementation_plan.md
+├── IMPL001-database_schema.md
+├── IMPL002-coding_conventions.md
+├── IMPL003-project_structure.md
+├── IMPL004-deployment.md
+├── IMPL005-audio_file_segmentation.md
+├── REQ001-requirements.md
+├── REQ002-entity_definitions.md
+├── REV001-wkmp_ap_design_review.md
+├── REV002-review_findings.md
+├── SPEC001-architecture.md
+├── SPEC002-crossfade.md
+├── SPEC003-musical_flavor.md
+├── SPEC004-musical_taste.md
+├── SPEC005-program_director.md
+├── SPEC006-like_dislike.md
+├── SPEC007-api_design.md
+├── SPEC008-library_management.md
+├── SPEC009-ui_specification.md
+├── SPEC010-user_identity.md
+├── SPEC011-event_system.md
+├── SPEC012-multi_user_coordination.md
+├── SPEC013-single_stream_playback.md
+├── SPEC014-single_stream_design.md
+└── STATUS001-single_stream_poc_status.md
 
 archive/
-â”œâ”€â”€ ARCH001-dual_pipeline_design.md
-â”œâ”€â”€ ARCH002-gstreamer_design.md
-â”œâ”€â”€ ARCH003-architecture_comparison.md
-â””â”€â”€ ARCH004-single_stream_migration_proposal.md
+├── ARCH001-dual_pipeline_design.md
+├── ARCH002-gstreamer_design.md
+├── ARCH003-architecture_comparison.md
+└── ARCH004-single_stream_migration_proposal.md
 ```
 
 ### Benefits of This Sorting
@@ -372,10 +376,10 @@ DATA002-example_passage_timings.csv
 **Solution:** Use subdirectory with prefix
 ```
 docs/
-â”œâ”€â”€ SPEC001-architecture.md
-â””â”€â”€ assets/
-    â”œâ”€â”€ SPEC001-architecture-diagram.png
-    â””â”€â”€ SPEC002-crossfade-curves.svg
+├── SPEC001-architecture.md
+└── assets/
+    ├── SPEC001-architecture-diagram.png
+    └── SPEC002-crossfade-curves.svg
 ```
 
 ---
@@ -425,7 +429,7 @@ See [Requirements](REQ001-requirements.md) for details.
 grep -r "docs/" *.md
 
 # Update references
-# Example: docs/requirements.md â†’ docs/REQ001-requirements.md
+# Example: docs/requirements.md → docs/REQ001-requirements.md
 ```
 
 ---
@@ -471,7 +475,7 @@ ls docs/SPEC*.md | tail -1
 ### Q5: What if I want to rename a document?
 
 **A:** Renaming requires approval:
-- Minor: Rename descriptive part (e.g., `SPEC005-program_director.md` â†’ `SPEC005-program_director_algorithm.md`) - Seek review
+- Minor: Rename descriptive part (e.g., `SPEC005-program_director.md` → `SPEC005-program_director_algorithm.md`) - Seek review
 - Major: Change prefix or number - Requires technical lead approval
 
 ### Q6: How does this relate to requirement IDs?
@@ -557,7 +561,7 @@ This section documents files that are **intentionally excluded** from the prefix
 ## References
 
 - [GOV001-document_hierarchy.md](GOV001-document_hierarchy.md) - Document tier system and governance
-- [ENUM001-requirements_enumeration.md](ENUM001-requirements_enumeration.md) - Requirement ID scheme (DOC-CAT-NNN format)
+- [GOV002-requirements_enumeration.md](GOV002-requirements_enumeration.md) - Requirement ID scheme (DOC-CAT-NNN format)
 
 ---
 

@@ -209,17 +209,17 @@ log_file = ""
 
 ```
 User Interface
-  â”œâ”€ Depends on: Audio Player to play audio, but has independent non audio playing functionality
-  â””â”€ Optional: Program Director
+  ├─ Depends on: Audio Player to play audio, but has independent non audio playing functionality
+  └─ Optional: Program Director
 
 Audio Player
-  â””â”€ No dependencies (can start and run independently)
+  └─ No dependencies (can start and run independently)
 
 Program Director
-  â””â”€ Depends on: Audio Player, there's no point in selecting passsages for play if there's no audio player to enqueue them to.
+  └─ Depends on: Audio Player, there's no point in selecting passsages for play if there's no audio player to enqueue them to.
 
 Audio Ingest
-  â””â”€ No runtime dependencies (operates independently)
+  └─ No runtime dependencies (operates independently)
 ```
 
 **[DEP-START-020]** Recommended startup order:
@@ -635,7 +635,7 @@ See [Architecture - Configuration Interface Access Control](SPEC001-architecture
 **Key Features:**
 - **On Startup**: Integrity check + conditional backup (throttled to prevent excessive wear)
 - **Periodic**: Automated backup every 3 months (configurable)
-- **Atomic Process**: Temp file â†’ integrity check â†’ atomic rename
+- **Atomic Process**: Temp file → integrity check → atomic rename
 - **Retention**: Keeps 3 timestamped backups (configurable)
 - **Network Support**: Configurable backup location (local or network drive with fallback)
 
@@ -893,15 +893,15 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 **[DEP-HTTP-060]** Example port allocation scenario:
 ```
 Startup attempt 1:
-- wkmp-ui tries 5720 â†’ success, stores 5720 in module_config
-- wkmp-ap tries 5721 â†’ blocked by another process
-- wkmp-ap tries 15721 â†’ success, stores 15721 in module_config
-- wkmp-pd tries 5722 â†’ success, stores 5722 in module_config
+- wkmp-ui tries 5720 → success, stores 5720 in module_config
+- wkmp-ap tries 5721 → blocked by another process
+- wkmp-ap tries 15721 → success, stores 15721 in module_config
+- wkmp-pd tries 5722 → success, stores 5722 in module_config
 
 Startup attempt 2 (after restart):
-- wkmp-ui tries 5720 (last known) â†’ success
-- wkmp-ap tries 15721 (last known) â†’ success
-- wkmp-pd tries 5722 (last known) â†’ success
+- wkmp-ui tries 5720 (last known) → success
+- wkmp-ap tries 15721 (last known) → success
+- wkmp-pd tries 5722 (last known) → success
 (No fallback port search needed)
 ```
 
@@ -920,8 +920,8 @@ Each module's `GET /health` endpoint includes module identity:
 ```
 
 **[DEP-HTTP-080]** When a module finds a port occupied, it sends `GET /health` to determine if it's another instance:
-- If `module` field matches the attempting module's name â†’ duplicate instance detected â†’ exit
-- If no response or different `module` value â†’ port occupied by different service â†’ try next port
+- If `module` field matches the attempting module's name → duplicate instance detected → exit
+- If no response or different `module` value → port occupied by different service → try next port
 
 ### 14.3. Bind Address Configuration
 
@@ -1134,29 +1134,29 @@ chmod 600 ~/.config/wkmp/*.toml
 **[DEP-NET-010]** Typical deployment network diagram:
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                         Host System                          â”‚
-â”‚                                                               â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                                             â”‚
-â”‚  â”‚    User     â”‚ â† External HTTP requests (port 5720)        â”‚
-â”‚  â”‚  Interface  â”‚                                             â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜                                             â”‚
-â”‚         â”‚                                                     â”‚
-â”‚         â”œâ”€â”€â”€â”€â”€â”€â†’ Audio Player (localhost:5721)               â”‚
-â”‚         â”œâ”€â”€â”€â”€â”€â”€â†’ Program Director (localhost:5722)           â”‚
-â”‚         â””â”€â”€â”€â”€â”€â”€â†’ Audio Ingest (localhost:5723)               â”‚
-â”‚                                                               â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                  â”‚
-â”‚  â”‚  Program Director                      â”‚                  â”‚
-â”‚  â”‚      â†“                                  â”‚                  â”‚
-â”‚  â”‚  Audio Player (direct call)            â”‚                  â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                  â”‚
-â”‚                                                               â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
-â”‚  â”‚          Shared SQLite Database                       â”‚    â”‚
-â”‚  â”‚  ~/.local/share/wkmp/wkmp.db                          â”‚    â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─────────────────────────────────────────────────────────────┐
+│                         Host System                          │
+│                                                               │
+│  ┌─────────────┐                                             │
+│  │    User     │ â† External HTTP requests (port 5720)        │
+│  │  Interface  │                                             │
+│  └──────┬──────┘                                             │
+│         │                                                     │
+│         ├──────→ Audio Player (localhost:5721)               │
+│         ├──────→ Program Director (localhost:5722)           │
+│         └──────→ Audio Ingest (localhost:5723)               │
+│                                                               │
+│  ┌────────────────────────────────────────┐                  │
+│  │  Program Director                      │                  │
+│  │      â†“                                  │                  │
+│  │  Audio Player (direct call)            │                  │
+│  └────────────────────────────────────────┘                  │
+│                                                               │
+│  ┌──────────────────────────────────────────────────────┐    │
+│  │          Shared SQLite Database                       │    │
+│  │  ~/.local/share/wkmp/wkmp.db                          │    │
+│  └──────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **[DEP-NET-020]** Port configuration is centralized in the `module_config` database table. All modules read their binding configuration and peer module addresses from this single source of truth.

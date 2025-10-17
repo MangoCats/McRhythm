@@ -67,34 +67,34 @@ WKMP's user interface is a web-based UI accessible via desktop and mobile browse
 **[UI-LAYOUT-010]** The main view is divided into three primary sections:
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚              Top Bar (User, Status)                 â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚                                                     â”‚
-â”‚              Album Artwork (2 images)               â”‚
-â”‚                                                     â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚         Now Playing Information                     â”‚
-â”‚         - Passage Title                             â”‚
-â”‚         - Song Title                                â”‚
-â”‚         - Artist(s)                                 â”‚
-â”‚         - Album                                     â”‚
-â”‚         - Play History                              â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚         Progress Bar                                â”‚
-â”‚         [========>               ]                  â”‚
-â”‚         Current Position / Total Duration           â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚         Playback Controls                           â”‚
-â”‚         [Play/Pause] [Skip] [Volume Slider]         â”‚
-â”‚         [Like] [Dislike] (Full/Lite only)           â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚         Queue ("Next Up")                           â”‚
-â”‚         - Passage 1: Title - Artist                 â”‚
-â”‚         - Passage 2: Title - Artist                 â”‚
-â”‚         - Passage 3: Title - Artist                 â”‚
-â”‚         [Remove buttons]                            â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─────────────────────────────────────────────────────┐
+│              Top Bar (User, Status)                 │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│              Album Artwork (2 images)               │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│         Now Playing Information                     │
+│         - Passage Title                             │
+│         - Song Title                                │
+│         - Artist(s)                                 │
+│         - Album                                     │
+│         - Play History                              │
+├─────────────────────────────────────────────────────┤
+│         Progress Bar                                │
+│         [========>               ]                  │
+│         Current Position / Total Duration           │
+├─────────────────────────────────────────────────────┤
+│         Playback Controls                           │
+│         [Play/Pause] [Skip] [Volume Slider]         │
+│         [Like] [Dislike] (Full/Lite only)           │
+├─────────────────────────────────────────────────────┤
+│         Queue ("Next Up")                           │
+│         - Passage 1: Title - Artist                 │
+│         - Passage 2: Title - Artist                 │
+│         - Passage 3: Title - Artist                 │
+│         [Remove buttons]                            │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -229,8 +229,8 @@ Song appears on 3 albums, each with front and rear art:
 |---------------|------------|-------------|------------------|--------|
 | "Live at Wembley" | "Bohemian Rhapsody" | "Live at Wembley" | âŒ Hide | passage = album |
 | "Bohemian Rhapsody" | "Bohemian Rhapsody" | "A Night at the Opera" | âŒ Hide | passage = song |
-| "Medley" | "Bohemian Rhapsody" | "A Night at the Opera" | âœ… Show | passage â‰  both song and album |
-| "Live at Wembley" | "Bohemian Rhapsody" | "Greatest Hits" | âœ… Show | passage â‰  both song and album |
+| "Medley" | "Bohemian Rhapsody" | "A Night at the Opera" | ✅ Show | passage â‰  both song and album |
+| "Live at Wembley" | "Bohemian Rhapsody" | "Greatest Hits" | ✅ Show | passage â‰  both song and album |
 | "Bohemian Rhapsody" | "Bohemian Rhapsody" | "Bohemian Rhapsody" | âŒ Hide | passage = both song and album |
 
 **Rule:** Display passage title ONLY when it differs from BOTH the song title AND the album title. If passage title matches either one, hide it to avoid redundancy.
@@ -265,7 +265,7 @@ Song appears on 3 albums, each with front and rear art:
 - < 7 days: "X days ago"
 - < 4 weeks: "X weeks ago"
 - < 1 year: "X months ago"
-- â‰¥ 1 year: "X years ago"
+- ≥ 1 year: "X years ago"
 - Never played: "Never"
 
 ### Lyrics Display
@@ -295,8 +295,8 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
    - This indicates no lyrics are available for this work in the database
 
 **Example:** Current song is "Bohemian Rhapsody (Live at Wembley)" with no lyrics:
-- Step 1: Check "Bohemian Rhapsody (Live at Wembley)" lyrics â†’ empty
-- Step 2: Check related_songs[0] "Bohemian Rhapsody (Studio)" lyrics â†’ found! Display these lyrics
+- Step 1: Check "Bohemian Rhapsody (Live at Wembley)" lyrics → empty
+- Step 2: Check related_songs[0] "Bohemian Rhapsody (Studio)" lyrics → found! Display these lyrics
 - Result: Studio version lyrics displayed for live performance (same work, different performance)
 
 > **See:** [Architecture - Lyrics Display Behavior](SPEC001-architecture.md#lyrics-display-behavior) for technical implementation details
@@ -318,8 +318,8 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
 ### Play/Pause Button
 
 **[UI-CTRL-010]** Display state-appropriate icon:
-- **Playing state**: Show "Pause" icon (â¸)
-- **Paused state**: Show "Play" icon (â–¶)
+- **Playing state**: Show "Pause" icon (⸸)
+- **Paused state**: Show "Play" icon (▶)
 
 **[UI-CTRL-020]** Button remains active regardless of queue state:
 - Empty queue + Playing state: Button shows "Pause" (can pause silence)
@@ -447,9 +447,9 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 
 | State | Icon | Text | Description |
 |-------|------|------|-------------|
-| Connected | âœ“ (green) | "Online" | Internet accessible |
-| Retrying | âŸ³ (yellow) | "Connecting (N/20)" | Retry attempt N of 20 |
-| Failed | âš  (red) | "Offline - Retry" | 20 retries exhausted |
+| Connected | ✓ (green) | "Online" | Internet accessible |
+| Retrying | ⟳ (yellow) | "Connecting (N/20)" | Retry attempt N of 20 |
+| Failed | ⚠️ (red) | "Offline - Retry" | 20 retries exhausted |
 
 **[UI-NET-030]** Position:
 - Visible in library/import section (not main playback view)
@@ -646,7 +646,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 
 ### Desktop Layout
 
-**[UI-RESP-010]** Desktop browsers (â‰¥ 1024px width):
+**[UI-RESP-010]** Desktop browsers (≥ 1024px width):
 - Two-column layout: Artwork left, info/controls right
 - Full queue visible (scrollable if > 10 items)
 - Lyrics panel below or side-by-side with artwork
@@ -707,8 +707,8 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 ### Visual Accessibility
 
 **[UI-A11Y-040]** Color contrast meets WCAG AA standards:
-- Text contrast ratio â‰¥ 4.5:1
-- Interactive element contrast ratio â‰¥ 3:1
+- Text contrast ratio ≥ 4.5:1
+- Interactive element contrast ratio ≥ 3:1
 
 **[UI-A11Y-050]** Color is not the only indicator:
 - Connection status uses icon + text + color

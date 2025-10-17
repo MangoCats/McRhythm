@@ -174,7 +174,7 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 6.  [MFL-ALGO-016] **Weighted Random Selection:**
     -   Generate a random number R within the range [0, Î£(all candidate probabilities)).
     -   Iterate through the candidates, subtracting each one's probability from R.
-    -   Select the first candidate that causes R to be â‰¤ 0.
+    -   Select the first candidate that causes R to be ≤ 0.
 
 > [MFL-ALGO-020] **Note:** The candidate pool size (default: 100) is a design parameter that balances performance vs. diversity.
 

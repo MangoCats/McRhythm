@@ -1,9 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell -command:*)",
-      "Bash(Select-String -Pattern \"^Total broken links:\")",
-      "Bash(cargo test:*)"
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

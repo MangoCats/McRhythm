@@ -24,18 +24,18 @@ WKMP implements a **microservices architecture** with 5 independent HTTP servers
 
 ### API Communication Patterns
 
-**End Users â†’ User Interface:**
+**End Users → User Interface:**
 - User Interface serves as the primary API gateway for end users
 - Proxies playback requests to Audio Player
 - Proxies configuration requests to Program Director
 - Handles authentication and session management
 - Aggregates SSE events from Audio Player
 
-**Program Director â†’ Audio Player:**
+**Program Director → Audio Player:**
 - Direct communication for automatic enqueueing
 - No user interface involvement required
 
-**Audio Ingest â†’ Database:**
+**Audio Ingest → Database:**
 - Direct SQLite access for new file insertion
 - Independent operation
 
@@ -1303,7 +1303,7 @@ data: {"old_volume":0.75,"new_volume":0.85,"timestamp":"2025-10-10T14:30:00Z"}
 - `new_volume` (float): New volume level (0.0 = mute, 1.0 = maximum)
 - `timestamp` (string): ISO 8601 timestamp (UTC) when volume changed
 
-**Conversion:** System volume (0.0-1.0) â†’ User display (0-100): `user_volume = ceil(system_volume Ã— 100.0)`
+**Conversion:** System volume (0.0-1.0) → User display (0-100): `user_volume = ceil(system_volume Ã— 100.0)`
 
 ### QueueChanged
 

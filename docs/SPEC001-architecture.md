@@ -2,7 +2,7 @@
 
 **ðŸ—ï¸ TIER 2 - DESIGN SPECIFICATION**
 
-Defines HOW the system is structured. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](ENUM001-requirements_enumeration.md).
+Defines HOW the system is structured. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](GOV002-requirements_enumeration.md).
 
 > **Related Documentation:** [Database Schema](IMPL001-database_schema.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md)| [Event System](SPEC011-event_system.md)
 
@@ -57,34 +57,34 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 ### Process Communication Model
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  User Interface (HTTP + SSE Server)                         â”‚
-â”‚  Port: 5720 (configurable)                                  â”‚
-â”‚  - Polished web UI for end users                            â”‚
-â”‚  - Authentication, playback control, queue management       â”‚
-â”‚  - Album art, lyrics display, likes/dislikes, config        â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-            â”‚ HTTP API calls
-            â”‚ SSE subscriptions
-    â”Œâ”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-    â”‚       â”‚        â”‚                        â”‚               â”‚
-    â–¼       â–¼        â–¼                        â–¼               â–¼
-â”Œâ”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ Audio â”‚ â”‚  Audio Player  â”‚  â”‚  Program Director            â”‚ â”‚Lyric Editor â”‚
-â”‚ File  â”‚ â”‚  Port: 5721    â”‚  â”‚  Port: 5722                  â”‚ â”‚  Port: 5724 â”‚
-â”‚Ingest â”‚ â”‚                â”‚â—„â”€â”¤ (Full and Lite only)         â”‚ â”‚ (Full only) â”‚
-â”‚  UI   â”‚ â”‚  - Minimal     â”‚  â”‚  - Minimal dev UI            â”‚ â”‚  - Split UI â”‚
-â”‚(Full  â”‚ â”‚    dev UI      â”‚  â”‚  - Selection API (for UI)    â”‚ â”‚  - Editor + â”‚
-â”‚ only) â”‚ â”‚  - Control API â”‚  â”‚  - Reads Audio Player status â”‚ â”‚    Browser  â”‚
-â”‚       â”‚ â”‚  - Status API  â”‚  â”‚  - Enqueues via Audio Player â”‚ â”‚  - On-demandâ”‚
-â”‚Port:  â”‚ â”‚  - SSE events  â”‚  â”‚                              â”‚ â”‚    launch   â”‚
-â”‚ 5723  â”‚ â”‚                â”‚  â”‚  SQLite Database (Shared)    â”‚ â”‚             â”‚
-â”‚       â”‚ â”‚                â”‚  â”‚  - Files, Passages, Songs    â”‚ â”‚             â”‚
-â”‚       â”‚ â”‚                â”‚  â”‚  - Play History, Queue       â”‚ â”‚             â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-            â”‚                   â”‚
-            â”‚ Direct HTTP API   â”‚
-            â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─────────────────────────────────────────────────────────────┐
+│  User Interface (HTTP + SSE Server)                         │
+│  Port: 5720 (configurable)                                  │
+│  - Polished web UI for end users                            │
+│  - Authentication, playback control, queue management       │
+│  - Album art, lyrics display, likes/dislikes, config        │
+└───────────┬─────────────────────────────────────────────────┘
+            │ HTTP API calls
+            │ SSE subscriptions
+    ┌───────"¼────────┬────────────────────────┬───────────────┐
+    │       │        │                        │               │
+    ▼       ▼        ▼                        ▼               ▼
+┌───────┐ ┌────────────────┐  ┌──────────────────────────────┐ ┌─────────────┐
+│ Audio │ │  Audio Player  │  │  Program Director            │ │Lyric Editor │
+│ File  │ │  Port: 5721    │  │  Port: 5722                  │ │  Port: 5724 │
+│Ingest │ │                │—„─┤ (Full and Lite only)         │ │ (Full only) │
+│  UI   │ │  - Minimal     │  │  - Minimal dev UI            │ │  - Split UI │
+│(Full  │ │    dev UI      │  │  - Selection API (for UI)    │ │  - Editor + │
+│ only) │ │  - Control API │  │  - Reads Audio Player status │ │    Browser  │
+│       │ │  - Status API  │  │  - Enqueues via Audio Player │ │  - On-demand│
+│Port:  │ │  - SSE events  │  │                              │ │    launch   │
+│ 5723  │ │                │  │  SQLite Database (Shared)    │ │             │
+│       │ │                │  │  - Files, Passages, Songs    │ │             │
+│       │ │                │  │  - Play History, Queue       │ │             │
+└───────┘ └────────────────┘  └──────────────────────────────┘ └─────────────┘
+            │                   │
+            │ Direct HTTP API   │
+            └───────────────────┘
                (No UI required)
 ```
 
@@ -92,9 +92,9 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 
 | Version  | Audio Player | User Interface | Program Director | Audio Ingest | Lyric Editor |
 |----------|--------------|----------------|------------------|--------------|--------------|
-| **Full**     | âœ… Running | âœ… Running | âœ… Running | âœ… On-demand<br/><small><small>(invoked only during<br/>ingest sessions)</small></small>| âœ… On-demand<br/><small><small>(invoked only during<br/>lyric editing)</small></small> |
-| **Lite**     | âœ… Running | âœ… Running | âœ… Running | âŒ Not included | âŒ Not included |
-| **Minimal**  | âœ… Running | âœ… Running | âŒ Not included | âŒ Not included | âŒ Not included |
+| **Full**     | ✅ Running | ✅ Running | ✅ Running | ✅ On-demand<br/><small><small>(invoked only during<br/>ingest sessions)</small></small>| ✅ On-demand<br/><small><small>(invoked only during<br/>lyric editing)</small></small> |
+| **Lite**     | ✅ Running | ✅ Running | ✅ Running | âŒ Not included | âŒ Not included |
+| **Minimal**  | ✅ Running | ✅ Running | âŒ Not included | âŒ Not included | âŒ Not included |
 
 ## Module Specifications
 
@@ -194,7 +194,7 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 1. Run `PRAGMA integrity_check` on wkmp.db
 2. If integrity good:
    - Check time since last automatic backup
-   - If â‰¥ `backup_minimum_interval_ms` (default: 2 weeks): Create backup
+   - If ≥ `backup_minimum_interval_ms` (default: 2 weeks): Create backup
    - If < threshold: Skip backup (prevents excessive wear on frequent restarts)
 3. If integrity bad:
    - Archive corrupted database with timestamp
@@ -204,9 +204,9 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 4. Display minimal UI showing backup/verification progress to connecting users
 
 **Backup Process (Atomic):**
-1. Copy wkmp.db â†’ wkmp_backup_temp.db
+1. Copy wkmp.db → wkmp_backup_temp.db
 2. Run `PRAGMA integrity_check` on temp
-3. If good: Atomic rename â†’ wkmp_backup_YYYY-MM-DD.db (timestamped if keeping multiple)
+3. If good: Atomic rename → wkmp_backup_YYYY-MM-DD.db (timestamped if keeping multiple)
 4. If bad: Delete temp, log error
 5. Maintain `backup_retention_count` backups (default: 3), delete oldest when exceeded
 
@@ -498,8 +498,8 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 - **User-facing** (UI): Integer 0-100 (percentage)
 - **Backend** (API, storage, GStreamer): Double 0.0-1.0
 - **Conversion**:
-  - User â†’ System: `system_volume = user_volume / 100.0`
-  - System â†’ User: `user_volume = ceil(system_volume * 100.0)`
+  - User → System: `system_volume = user_volume / 100.0`
+  - System → User: `user_volume = ceil(system_volume * 100.0)`
 - **Rationale for ceiling**: Ensures non-zero audio never displays as 0%
 
 **Storage:**
@@ -736,7 +736,7 @@ operates independently.
 - Calculate squared Euclidean distance from target flavor
 - Sort by distance, take top 100 candidates
 - Weighted random selection from candidates
-- Handle edge cases (no candidates â†’ return error status)
+- Handle edge cases (no candidates → return error status)
 
 **Key Design Notes:**
 - **Request-based, not polling**: Audio Player initiates refill requests
@@ -853,10 +853,10 @@ These components are used across multiple modules:
 - **Local-only deployment**: All modules must run on same machine (require local SQLite database access)
 
 **Request/Response Patterns:**
-- User Interface â†’ Audio Player: Playback commands, queue management
-- User Interface â†’ Program Director: Configuration updates
-- Program Director â†’ Audio Player: Automatic enqueueing
-- File Ingest â†’ Database: New file/passage insertion
+- User Interface → Audio Player: Playback commands, queue management
+- User Interface → Program Director: Configuration updates
+- Program Director → Audio Player: Automatic enqueueing
+- File Ingest → Database: New file/passage insertion
 
 **Error Handling:**
 - HTTP status codes for success/failure
@@ -875,12 +875,12 @@ These components are used across multiple modules:
 - **Automatic recovery**: SSE reconnects automatically if connection drops
 
 **Event Flows:**
-- Audio Player â†’ User Interface: Playback state, queue changes, position updates, song changes
-- Audio Player â†’ Program Director: passage selection requests
-- User Interface â†’ Audio Player: user passage selections, volume changes, play/pause changes
-- User Interface â†’ Program Director: user program changes
-- Program Director â†’ Audio Player: passage selection events
-- Program Director â†’ User Interface: timed program changes
+- Audio Player → User Interface: Playback state, queue changes, position updates, song changes
+- Audio Player → Program Director: passage selection requests
+- User Interface → Audio Player: user passage selections, volume changes, play/pause changes
+- User Interface → Program Director: user program changes
+- Program Director → Audio Player: passage selection events
+- Program Director → User Interface: timed program changes
 - Each module provides `/events` endpoint for SSE subscriptions
 
 **Benefits:**
@@ -903,7 +903,7 @@ These components are used across multiple modules:
   - Other modules' addresses for HTTP communication
 
 **Consistency Considerations:**
-- UUID primary keys enable database merging (Full â†’ Lite â†’ Minimal)
+- UUID primary keys enable database merging (Full → Lite → Minimal)
 - Foreign key constraints maintain referential integrity
 - Application-level coordination via HTTP APIs prevents conflicts
 - Write serialization through module ownership (e.g., only Audio Player writes queue state)
@@ -913,22 +913,22 @@ These components are used across multiple modules:
 
 ```
 User Interface
-    â”œâ”€â”€ Depends on: Audio Player - optional, degrades gracefully
-    â”œâ”€â”€ Depends on: Program Director - optional (not present in Minimal version)
-    â””â”€â”€ Depends on: SQLite database - required
+    ├── Depends on: Audio Player - optional, degrades gracefully
+    ├── Depends on: Program Director - optional (not present in Minimal version)
+    └── Depends on: SQLite database - required
 
 Program Director
-    â”œâ”€â”€ Depends on: Audio Player - required for enqueueing
-    â””â”€â”€ Depends on: SQLite database - required
+    ├── Depends on: Audio Player - required for enqueueing
+    └── Depends on: SQLite database - required
 
 Audio Player
-    â””â”€â”€ Depends on: SQLite database - required
+    └── Depends on: SQLite database - required
 
 Audio File Ingest (Full only)
-    â””â”€â”€ Depends on: SQLite database - required
+    └── Depends on: SQLite database - required
 
 Lyric Editor (Full only)
-    â””â”€â”€ Depends on: SQLite database - required
+    └── Depends on: SQLite database - required
 ```
 
 **Service Launching:**
@@ -1327,21 +1327,21 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 ### Audio Output
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚  Platform Detector   â”‚
-â”‚  (Runtime detection) â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-           â”‚
-    â”Œâ”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-    â”‚             â”‚          â”‚          â”‚
-â”Œâ”€â”€â”€â–¼â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â–¼â”€â”€â”€â”€â” â”Œâ”€â”€â”€â–¼â”€â”€â”€â”€â” â”Œâ”€â”€â”€â–¼â”€â”€â”€â”€â”
-â”‚ ALSA   â”‚  â”‚PulseAudioâ”‚ â”‚CoreAudioâ”‚ â”‚WASAPI â”‚
-â”‚(Linux) â”‚  â”‚ (Linux) â”‚ â”‚ (macOS) â”‚ â”‚(Windows)â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â””â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌──────────────────────┐
+│  Platform Detector   │
+│  (Runtime detection) │
+└──────────┬───────────┘
+           │
+    ┌──────"´──────┬──────────┬──────────┐
+    │             │          │          │
+┌───▼────┐  ┌────▼────┐ ┌───▼────┐ ┌───▼────┐
+│ ALSA   │  │PulseAudio│ │CoreAudio│ │WASAPI │
+│(Linux) │  │ (Linux) │ │ (macOS) │ │(Windows)│
+└────────┘  └─────────┘ └────────┘ └────────┘
 ```
 
 **Auto-detection Priority:**
-- Linux: PulseAudio â†’ ALSA (Phase 1)
+- Linux: PulseAudio → ALSA (Phase 1)
 - Windows: WASAPI (Phase 1)
 - macOS: CoreAudio (Phase 2)
 
@@ -1451,11 +1451,11 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 ### Categories
 
 **Recoverable Errors:**
-- Network failures â†’ Retry with fixed 5-second delay (see Network Error Handling below)
-- Missing files â†’ Skip, remove from queue, log
-- Database lock â†’ Retry with exponential backoff (see Database Lock Timeout below)
-- Decode errors â†’ Skip to next passage (see Audio Playback Errors below)
-- Program Director timeout â†’ Continue with existing queue, retry on next threshold
+- Network failures → Retry with fixed 5-second delay (see Network Error Handling below)
+- Missing files → Skip, remove from queue, log
+- Database lock → Retry with exponential backoff (see Database Lock Timeout below)
+- Decode errors → Skip to next passage (see Audio Playback Errors below)
+- Program Director timeout → Continue with existing queue, retry on next threshold
 
 ### Error Recovery Strategies
 
@@ -1622,11 +1622,11 @@ Used for:
 - Total duration: 20 retries Ã— 5s = 100 seconds maximum before requiring user intervention
 
 **Example retry sequence:**
-- Attempt 1: Fail â†’ wait 5s
-- Attempt 2: Fail â†’ wait 5s
-- Attempt 3: Fail â†’ wait 5s
+- Attempt 1: Fail → wait 5s
+- Attempt 2: Fail → wait 5s
+- Attempt 3: Fail → wait 5s
 - ...
-- Attempt 20: Fail â†’ stop, display "Connection Failed" message
+- Attempt 20: Fail → stop, display "Connection Failed" message
 
 **[ARCH-ERRH-170]** Playback Impact:
 - No impact on playback: Music continues playing during internet outages
@@ -1661,9 +1661,9 @@ Used for:
 > **See:** [Requirements - Network Error Handling](REQ001-requirements.md#network-error-handling) for complete requirements
 
 **Non-recoverable Errors:**
-- Database corruption â†’ Alert user, attempt repair
-- Configuration errors â†’ Reset to defaults, warn user
-- Critical audio system failures â†’ Restart audio output subsystem
+- Database corruption → Alert user, attempt repair
+- Configuration errors → Reset to defaults, warn user
+- Critical audio system failures → Restart audio output subsystem
 
 ### Logging
 

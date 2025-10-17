@@ -1,6 +1,6 @@
 ﻿# Single Stream Audio Playback Architecture
 
-**Status:** âœ… **Production Implementation** (Replaces GStreamer Dual Pipeline)
+**Status:** ✅ **Production Implementation** (Replaces GStreamer Dual Pipeline)
 **Decision Date:** 2025-10-16
 **Version:** 1.0
 
@@ -21,49 +21,49 @@ The single-stream architecture decodes audio files into memory buffers, applies 
 ### Component Diagram
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                    Audio Playback System                         â”‚
-â”‚                                                                  â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
-â”‚  â”‚              Decoder Thread Pool                        â”‚    â”‚
-â”‚  â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚    â”‚
-â”‚  â”‚  â”‚  Decoder 1   â”‚  â”‚  Decoder 2   â”‚  â”‚  Decoder 3   â”‚ â”‚    â”‚
-â”‚  â”‚  â”‚  (Passage A) â”‚  â”‚  (Passage B) â”‚  â”‚  (Passage C) â”‚ â”‚    â”‚
-â”‚  â”‚  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚    â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
-â”‚            â”‚   symphonia      â”‚  + rubato        â”‚               â”‚
-â”‚            â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜               â”‚
-â”‚                               â†“                                  â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
-â”‚  â”‚           Passage Buffer Manager                        â”‚    â”‚
-â”‚  â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚    â”‚
-â”‚  â”‚  â”‚  Passage A   â”‚  â”‚  Passage B   â”‚  â”‚  Passage C   â”‚ â”‚    â”‚
-â”‚  â”‚  â”‚  PCM Buffer  â”‚  â”‚  PCM Buffer  â”‚  â”‚  PCM Buffer  â”‚ â”‚    â”‚
-â”‚  â”‚  â”‚  (15 sec)    â”‚  â”‚  (15 sec)    â”‚  â”‚  (15 sec)    â”‚ â”‚    â”‚
-â”‚  â”‚  â”‚  + fades     â”‚  â”‚  + fades     â”‚  â”‚  + fades     â”‚ â”‚    â”‚
-â”‚  â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚    â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
-â”‚                            â”‚                                     â”‚
-â”‚                            â†“                                     â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
-â”‚  â”‚              Crossfade Mixer                            â”‚    â”‚
-â”‚  â”‚  â€¢ Reads samples from current & next buffers           â”‚    â”‚
-â”‚  â”‚  â€¢ Fade curves applied automatically per-sample        â”‚    â”‚
-â”‚  â”‚  â€¢ Sums overlapping passages (crossfade)               â”‚    â”‚
-â”‚  â”‚  â€¢ Applies master volume                               â”‚    â”‚
-â”‚  â”‚  â€¢ Sample-accurate timing (~0.02ms precision)          â”‚    â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
-â”‚                            â”‚                                     â”‚
-â”‚                            â†“                                     â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
-â”‚  â”‚              Audio Output Thread                        â”‚    â”‚
-â”‚  â”‚  â€¢ Ring buffer for smooth audio delivery               â”‚    â”‚
-â”‚  â”‚  â€¢ cpal-based cross-platform output                    â”‚    â”‚
-â”‚  â”‚  â€¢ Platform backends: PulseAudio, ALSA, CoreAudio,     â”‚    â”‚
-â”‚  â”‚    WASAPI                                               â”‚    â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
-â”‚                                                                  â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─────────────────────────────────────────────────────────────────┐
+│                    Audio Playback System                         │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │              Decoder Thread Pool                        │    │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │    │
+│  │  │  Decoder 1   │  │  Decoder 2   │  │  Decoder 3   │ │    │
+│  │  │  (Passage A) │  │  (Passage B) │  │  (Passage C) │ │    │
+│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │    │
+│  └─────────"¼──────────────────"¼──────────────────"¼─────────┘    │
+│            │   symphonia      │  + rubato        │               │
+│            └──────────────────"´──────────────────┘               │
+│                               â†“                                  │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │           Passage Buffer Manager                        │    │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │    │
+│  │  │  Passage A   │  │  Passage B   │  │  Passage C   │ │    │
+│  │  │  PCM Buffer  │  │  PCM Buffer  │  │  PCM Buffer  │ │    │
+│  │  │  (15 sec)    │  │  (15 sec)    │  │  (15 sec)    │ │    │
+│  │  │  + fades     │  │  + fades     │  │  + fades     │ │    │
+│  │  └──────────────┘  └──────────────┘  └──────────────┘ │    │
+│  └─────────────────────────┬──────────────────────────────┘    │
+│                            │                                     │
+│                            â†“                                     │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │              Crossfade Mixer                            │    │
+│  │  • Reads samples from current & next buffers           │    │
+│  │  • Fade curves applied automatically per-sample        │    │
+│  │  • Sums overlapping passages (crossfade)               │    │
+│  │  • Applies master volume                               │    │
+│  │  • Sample-accurate timing (~0.02ms precision)          │    │
+│  └─────────────────────────┬──────────────────────────────┘    │
+│                            │                                     │
+│                            â†“                                     │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │              Audio Output Thread                        │    │
+│  │  • Ring buffer for smooth audio delivery               │    │
+│  │  • cpal-based cross-platform output                    │    │
+│  │  • Platform backends: PulseAudio, ALSA, CoreAudio,     │    │
+│  │    WASAPI                                               │    │
+│  └────────────────────────────────────────────────────────┘    │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Components
@@ -101,7 +101,7 @@ The single-stream architecture decodes audio files into memory buffers, applies 
 
 **Purpose:** Store decoded PCM audio with automatic per-sample fade curve application.
 
-**Status:** âœ… **Complete** (351 LOC, 12/12 tests passing)
+**Status:** ✅ **Complete** (351 LOC, 12/12 tests passing)
 
 **Key Features:**
 - PCM audio storage (interleaved stereo f32: [L, R, L, R, ...])
@@ -138,14 +138,14 @@ let (left, right) = buffer.read_sample();
 ```
 
 **File Locations:**
-- Implementation: `wkmp-ap/src/playback/pipeline/single_stream/buffer.rs` âœ…
-- Tests: `wkmp-ap/src/playback/pipeline/single_stream/buffer.rs#tests` âœ…
+- Implementation: `wkmp-ap/src/playback/pipeline/single_stream/buffer.rs` ✅
+- Tests: `wkmp-ap/src/playback/pipeline/single_stream/buffer.rs#tests` ✅
 
 ### 3. Fade Curve Algorithms
 
 **Purpose:** Calculate gain values for smooth audio transitions.
 
-**Status:** âœ… **Complete** (218 LOC, 8/8 tests passing)
+**Status:** ✅ **Complete** (218 LOC, 8/8 tests passing)
 
 **Implemented Curves:**
 1. **Linear** - Simple linear fade (y = x)
@@ -174,14 +174,14 @@ let name = curve.to_str(); // "s_curve"
 ```
 
 **File Locations:**
-- Implementation: `wkmp-ap/src/playback/pipeline/single_stream/curves.rs` âœ…
-- Tests: `wkmp-ap/src/playback/pipeline/single_stream/curves.rs#tests` âœ…
+- Implementation: `wkmp-ap/src/playback/pipeline/single_stream/curves.rs` ✅
+- Tests: `wkmp-ap/src/playback/pipeline/single_stream/curves.rs#tests` ✅
 
 ### 4. Crossfade Mixer
 
 **Purpose:** Mix two passage buffers with sample-accurate crossfading.
 
-**Status:** âœ… **Complete** (307 LOC, 8/8 tests passing)
+**Status:** ✅ **Complete** (307 LOC, 8/8 tests passing)
 
 **Key Features:**
 - Sample-accurate mixing of two passage buffers (current + next)
@@ -223,8 +223,8 @@ let frames_written = mixer.fill_output_buffer(&mut output).await?;
 ```
 
 **File Locations:**
-- Implementation: `wkmp-ap/src/playback/pipeline/single_stream/mixer.rs` âœ…
-- Tests: `wkmp-ap/src/playback/pipeline/single_stream/mixer.rs#tests` âœ…
+- Implementation: `wkmp-ap/src/playback/pipeline/single_stream/mixer.rs` ✅
+- Tests: `wkmp-ap/src/playback/pipeline/single_stream/mixer.rs#tests` ✅
 
 ### 5. Audio Output (cpal)
 
@@ -239,15 +239,15 @@ let frames_written = mixer.fill_output_buffer(&mut output).await?;
 
 **Ring Buffer Design:**
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚            Ring Buffer                      â”‚
-â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
-â”‚  â”‚         Audio Data                  â”‚   â”‚
-â”‚  â”‚  [L R L R L R L R L R L R L R L R]  â”‚   â”‚
-â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
-â”‚       â†‘ write_pos         â†‘ read_pos       â”‚
-â”‚       (mixer thread)      (audio callback) â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+┌─────────────────────────────────────────────┐
+│            Ring Buffer                      │
+│  ┌─────────────────────────────────────┐   │
+│  │         Audio Data                  │   │
+│  │  [L R L R L R L R L R L R L R L R]  │   │
+│  └─────────────────────────────────────┘   │
+│       ← write_pos         ← read_pos       │
+│       (mixer thread)      (audio callback) │
+└─────────────────────────────────────────────┘
 ```
 
 **Threading Model:**
@@ -310,15 +310,15 @@ Passages in WKMP have three timing markers:
 
 **Example Passage Timeline:**
 ```
-Audio File: 0s â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 240s
-               â†‘              â†‘                          â†‘
+Audio File: 0s ──────────────────────────────────────────────── 240s
+               ←              ←                          ←
            Lead-in (5s)   Lead-out (220s)           End (240s)
 
-Playback:      â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+Playback:      ├──────────────────────────────────┤
                5s                                220s
                Playing for 215 seconds
 
-Fade-out:                                         â”œâ”€â”€â”¤
+Fade-out:                                         ├──┤
                                                   220-240s
                                                   3s crossfade
 ```
@@ -416,22 +416,22 @@ The fade curve determines how volume transitions during crossfade:
 
 ### Completed (POC Phase)
 
-âœ… **Fade Curves** (`curves.rs`, 218 LOC, 8/8 tests)
+✅ **Fade Curves** (`curves.rs`, 218 LOC, 8/8 tests)
 - 5 curve types implemented
 - String serialization support
 - Comprehensive unit tests
 
-âœ… **Passage Buffer** (`buffer.rs`, 351 LOC, 12/12 tests)
+✅ **Passage Buffer** (`buffer.rs`, 351 LOC, 12/12 tests)
 - PCM storage with automatic fade application
 - Position tracking and seek
 - Memory usage tracking
 
-âœ… **Crossfade Mixer** (`mixer.rs`, 307 LOC, 8/8 tests)
+✅ **Crossfade Mixer** (`mixer.rs`, 307 LOC, 8/8 tests)
 - Sample-accurate mixing
 - Automatic crossfade detection
 - Master volume control
 
-âœ… **Module Integration** (`mod.rs`, 37 LOC)
+✅ **Module Integration** (`mod.rs`, 37 LOC)
 - Public API exposure
 - Documentation
 
@@ -439,22 +439,22 @@ The fade curve determines how volume transitions during crossfade:
 
 ### Remaining Work
 
-â³ **Audio Decoder** (`decoder.rs`, est. 200 LOC, 4-6 hours)
+⏳ **Audio Decoder** (`decoder.rs`, est. 200 LOC, 4-6 hours)
 - Implement symphonia-based decoding
 - Sample rate conversion with rubato
 - Passage buffer filling
 
-â³ **Audio Output** (`output.rs`, est. 300 LOC, 6-8 hours)
+⏳ **Audio Output** (`output.rs`, est. 300 LOC, 6-8 hours)
 - Ring buffer implementation
 - cpal stream creation
 - Audio callback handling
 
-â³ **Pipeline Integration** (`pipeline.rs`, est. 200 LOC, 4-6 hours)
+⏳ **Pipeline Integration** (`pipeline.rs`, est. 200 LOC, 4-6 hours)
 - Component coordination
 - Play/pause/seek controls
 - Position tracking
 
-â³ **Testing** (est. 100 LOC, 2-3 hours)
+⏳ **Testing** (est. 100 LOC, 2-3 hours)
 - End-to-end playback tests
 - Crossfade quality verification
 - Performance testing
@@ -551,7 +551,7 @@ pub struct PlaybackEngine {
 ### Testing Strategy
 
 1. **Unit Tests**: Verify all single-stream components (already 28/28 passing)
-2. **Integration Tests**: Test decoder â†’ buffer â†’ mixer â†’ output chain
+2. **Integration Tests**: Test decoder → buffer → mixer → output chain
 3. **End-to-End Tests**: Full playback with crossfading
 4. **Performance Tests**: Memory usage, CPU usage, crossfade precision
 5. **Platform Tests**: Verify on Linux, macOS, Windows

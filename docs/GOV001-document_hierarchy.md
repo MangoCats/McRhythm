@@ -490,7 +490,7 @@ These documents translate design into concrete implementation details.
 
 ### Cross-Cutting: Process & Standards
 
-#### ENUM001-requirements_enumeration.md
+#### GOV002-requirements_enumeration.md
 **Purpose:** Defines requirement ID scheme for traceability
 
 **Contains:**
@@ -631,7 +631,7 @@ Cascade: Update implementation_order.md with optimization task
 - [ ] Update design docs (Tier 2): How will this be designed?
 - [ ] Update implementation specs (Tier 3): What concrete details are needed?
 - [ ] Update implementation_order.md (Tier 4): When/where in the plan?
-- [ ] Add requirement IDs following requirements_enumeration.md
+- [ ] Add requirement IDs following GOV002-requirements_enumeration.md
 
 ### When Discovering Issues
 
@@ -646,7 +646,7 @@ Cascade: Update implementation_order.md with optimization task
 - [ ] Verify code satisfies requirements.md
 - [ ] Verify code follows architecture.md design
 - [ ] Verify code follows coding_conventions.md
-- [ ] Verify requirement IDs are present (per requirements_enumeration.md)
+- [ ] Verify requirement IDs are present (per GOV002-requirements_enumeration.md)
 - [ ] Check if implementation_order.md needs updating
 
 ## Common Pitfalls to Avoid
@@ -692,7 +692,7 @@ Cascade: Update implementation_order.md with optimization task
 | project_structure.md | 3 | Workspace structure changes | Tier 4 | Tech lead, build engineer |
 | deployment.md | 3 | Deployment strategy changes | Tier 4 | DevOps lead |
 | implementation_order.md | 4 | Any upstream change | None (downstream only) | Project manager |
-| requirements_enumeration.md | Cross-cutting | ID scheme changes | ID format in all docs | Doc lead |
+| GOV002-requirements_enumeration.md | Cross-cutting | ID scheme changes | ID format in all docs | Doc lead |
 
 ## Quick Reference: "Should I Update This Document?"
 
@@ -718,7 +718,7 @@ Cascade: Update implementation_order.md with optimization task
 → MUST go through formal change control with product owner
 → This is a product decision, not a technical decision
 
-### requirements_enumeration.md needs updating
+### GOV002-requirements_enumeration.md needs updating
 → Update when adding new documents or categories
 → Inform all document maintainers of ID scheme changes
 

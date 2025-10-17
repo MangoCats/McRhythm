@@ -4,7 +4,7 @@
 
 This directory contains comprehensive documentation for the WKMP Audio Player's playback architecture designs.
 
-### ðŸ“š Document Index
+### 📚 Document Index
 
 1. **[architecture-comparison.md](archive/ARCH003-architecture_comparison.md)** - **START HERE**
    - Side-by-side comparison of Dual Pipeline vs Single Stream approaches
@@ -16,9 +16,9 @@ This directory contains comprehensive documentation for the WKMP Audio Player's 
    - Manual buffer management with sample-accurate crossfading
    - Pure Rust implementation using symphonia, rubato, and cpal
    - Detailed component design and implementation phases
-   - Status: ðŸ“‹ Proposed (not yet implemented)
+   - Status: 📋 Proposed (not yet implemented)
 
-### ðŸ“– Reading Guide
+### 📜 Reading Guide
 
 #### For Developers (Implementing Single Stream)
 1. Read: `single-stream-design.md`
@@ -36,14 +36,14 @@ This directory contains comprehensive documentation for the WKMP Audio Player's 
 #### Single Stream (Manual Buffers)
 ```
 Application
-â”œâ”€â”€ Decoder Pool (parallel decoding)
-â”‚   â””â”€â”€ Uses symphonia + rubato
-â”œâ”€â”€ Passage Buffer Manager
-â”‚   â””â”€â”€ 15-second PCM buffers per passage
-â”œâ”€â”€ Crossfade Mixer
-â”‚   â””â”€â”€ Sample-accurate mixing with fade curves
-â””â”€â”€ Audio Output (cpal)
-    â””â”€â”€ Ring buffer â†’ audio device
+├── Decoder Pool (parallel decoding)
+│   └── Uses symphonia + rubato
+├── Passage Buffer Manager
+│   └── 15-second PCM buffers per passage
+├── Crossfade Mixer
+│   └── Sample-accurate mixing with fade curves
+└── Audio Output (cpal)
+    └── Ring buffer → audio device
 ```
 
 
@@ -70,7 +70,7 @@ When updating these documents:
 4. Maintain code examples with actual implementation
 5. Update this README if adding new documents
 
-### ðŸ“§ Questions?
+### 📝§ Questions?
 
 For technical questions about:
 - **Single Stream**: See `single-stream-design.md` "Challenges and Solutions"

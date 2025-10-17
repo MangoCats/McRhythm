@@ -154,7 +154,7 @@ work_probability = product(work[i].base_probability)
 Where all associated works' base probabilities are multiplied together.
 
 - **Rationale**: Song represents all works, so all works' probabilities affect selection
-- **Example**: Mashup with 3 works (prob 1.0, 0.8, 1.2) â†’ work_probability = 1.0 Ã— 0.8 Ã— 1.2 = 0.96
+- **Example**: Mashup with 3 works (prob 1.0, 0.8, 1.2) → work_probability = 1.0 Ã— 0.8 Ã— 1.2 = 0.96
 - **Effect**: Deprioritizing any source work reduces mashup's probability proportionally
 
 **[PD-PROB-040]** **Zero-Song Passages:**
@@ -198,8 +198,8 @@ Summed across all available characteristics (binary and complex elements).
 
 **[PD-SEL-020]** Algorithm:
 1. Calculate total weight: `W_total = sum(candidate[i].final_probability)`
-2. Generate random value: `r âˆˆ [0, W_total)`
-3. Iterate through candidates, accumulating weights until `accumulated_weight â‰¥ r`
+2. Generate random value: `r ∈ [0, W_total)`
+3. Iterate through candidates, accumulating weights until `accumulated_weight ≥ r`
 4. Select the passage where threshold is crossed
 
 **[PD-SEL-030]** This ensures:
