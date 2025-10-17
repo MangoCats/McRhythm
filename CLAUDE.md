@@ -16,6 +16,7 @@
 
 - **docs-specialist:** Use for reviewing and improving project documentation in the `docs/` directory.
 - **project-architect:** Use for architectural planning and resolving discrepancies identified in documentation.
+- **microservice-planner:** User for creating detailed implementation plans for WKMP microservices.
 - **ui-ux-designer:** Use for frontend design tasks, including UI components and SSE data visualization.
 - **code-implementer:** Use for writing, refactoring, and debugging core application code.
 

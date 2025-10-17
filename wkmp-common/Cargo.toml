@@ -3,12 +3,16 @@ name = "wkmp-common"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["sqlx"]
+sqlx = ["dep:sqlx"]
+
 [dependencies]
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true, optional = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }

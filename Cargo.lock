@@ -4130,6 +4130,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "walkdir",
  "wkmp-common",
 ]
 

@@ -1,15 +1,19 @@
 //! Database models
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+
+#[cfg(feature = "sqlx")]
+use sqlx::FromRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(FromRow))]
 pub struct Setting {
     pub key: String,
     pub value: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(FromRow))]
 pub struct ModuleConfig {
     pub module_name: String,
     pub host: String,
@@ -18,6 +22,7 @@ pub struct ModuleConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(FromRow))]
 pub struct QueueEntry {
     pub guid: String,
     pub file_path: String,
@@ -34,6 +39,7 @@ pub struct QueueEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(FromRow))]
 pub struct File {
     pub guid: String,
     pub path: String,

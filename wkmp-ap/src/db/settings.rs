@@ -1,0 +1,268 @@
+//! Settings database access
+//!
+//! Read/write settings from the settings table (key-value store).
+//! All settings are global/system-wide (not user-specific).
+//!
+//! **Traceability:**
+//! - DB-SETTINGS-010 (Settings table schema)
+//! - ARCH-CFG-020 (Database-first configuration)
+
+use crate::error::{Error, Result};
+use sqlx::{Pool, Sqlite};
+use std::str::FromStr;
+
+/// Get volume setting (0.0-1.0)
+///
+/// **Traceability:** DB-SETTINGS-020
+pub async fn get_volume(db: &Pool<Sqlite>) -> Result<f32> {
+    match get_setting::<f32>(db, "volume_level").await? {
+        Some(vol) => Ok(vol.clamp(0.0, 1.0)),
+        None => {
+            // Default volume is 0.5 (50%)
+            set_volume(db, 0.5).await?;
+            Ok(0.5)
+        }
+    }
+}
+
+/// Set volume setting (0.0-1.0)
+///
+/// **Traceability:** DB-SETTINGS-030
+pub async fn set_volume(db: &Pool<Sqlite>, volume: f32) -> Result<()> {
+    let clamped = volume.clamp(0.0, 1.0);
+    set_setting(db, "volume_level", clamped).await
+}
+
+/// Get audio device/sink identifier
+///
+/// **Traceability:** DB-SETTINGS-040
+pub async fn get_audio_device(db: &Pool<Sqlite>) -> Result<String> {
+    match get_setting::<String>(db, "audio_sink").await? {
+        Some(device) => Ok(device),
+        None => {
+            // Default to "default" device
+            let default = "default".to_string();
+            set_audio_device(db, default.clone()).await?;
+            Ok(default)
+        }
+    }
+}
+
+/// Set audio device/sink identifier
+///
+/// **Traceability:** DB-SETTINGS-050
+pub async fn set_audio_device(db: &Pool<Sqlite>, device: String) -> Result<()> {
+    set_setting(db, "audio_sink", device).await
+}
+
+/// Crossfade default configuration
+///
+/// **Traceability:** XFD-IMPL-030
+#[derive(Debug, Clone)]
+pub struct CrossfadeDefaults {
+    /// Global crossfade time in seconds
+    pub crossfade_time_s: f64,
+    /// Global fade curve (combined fade-in/fade-out)
+    pub fade_curve: String,
+}
+
+/// Get crossfade default settings
+///
+/// **Traceability:** DB-SETTINGS-060
+pub async fn get_crossfade_defaults(db: &Pool<Sqlite>) -> Result<CrossfadeDefaults> {
+    let crossfade_time_s = match get_setting::<f64>(db, "global_crossfade_time").await? {
+        Some(time) => time,
+        None => {
+            // Default crossfade time is 2.0 seconds
+            set_setting(db, "global_crossfade_time", 2.0).await?;
+            2.0
+        }
+    };
+
+    let fade_curve = match get_setting::<String>(db, "global_fade_curve").await? {
+        Some(curve) => curve,
+        None => {
+            // Default curve is exponential_logarithmic
+            let default = "exponential_logarithmic".to_string();
+            set_setting(db, "global_fade_curve", default.clone()).await?;
+            default
+        }
+    };
+
+    Ok(CrossfadeDefaults {
+        crossfade_time_s,
+        fade_curve,
+    })
+}
+
+/// Generic setting getter
+///
+/// Returns None if key doesn't exist in database.
+/// Parses value from string using FromStr trait.
+///
+/// **Traceability:** DB-SETTINGS-070
+pub async fn get_setting<T: FromStr>(db: &Pool<Sqlite>, key: &str) -> Result<Option<T>> {
+    let value: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(db)
+        .await?;
+
+    match value {
+        Some(s) => match s.parse::<T>() {
+            Ok(parsed) => Ok(Some(parsed)),
+            Err(_) => Err(Error::Config(format!(
+                "Failed to parse setting '{}' value: {}",
+                key, s
+            ))),
+        },
+        None => Ok(None),
+    }
+}
+
+/// Generic setting setter
+///
+/// Inserts or updates setting in database.
+///
+/// **Traceability:** DB-SETTINGS-080
+pub async fn set_setting<T: ToString>(db: &Pool<Sqlite>, key: &str, value: T) -> Result<()> {
+    let value_str = value.to_string();
+
+    sqlx::query(
+        r#"
+        INSERT INTO settings (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+        "#,
+    )
+    .bind(key)
+    .bind(value_str)
+    .execute(db)
+    .await?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn setup_test_db() -> Pool<Sqlite> {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        // Create settings table
+        sqlx::query(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_volume_get_set() {
+        let db = setup_test_db().await;
+
+        // Default volume should be 0.5
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 0.5);
+
+        // Set new volume
+        set_volume(&db, 0.75).await.unwrap();
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 0.75);
+
+        // Volume should be clamped
+        set_volume(&db, 1.5).await.unwrap();
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 1.0);
+
+        set_volume(&db, -0.5).await.unwrap();
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_audio_device_get_set() {
+        let db = setup_test_db().await;
+
+        // Default should be "default"
+        let device = get_audio_device(&db).await.unwrap();
+        assert_eq!(device, "default");
+
+        // Set new device
+        set_audio_device(&db, "hw:0,0".to_string())
+            .await
+            .unwrap();
+        let device = get_audio_device(&db).await.unwrap();
+        assert_eq!(device, "hw:0,0");
+    }
+
+    #[tokio::test]
+    async fn test_crossfade_defaults() {
+        let db = setup_test_db().await;
+
+        // Get defaults (should initialize if missing)
+        let defaults = get_crossfade_defaults(&db).await.unwrap();
+        assert_eq!(defaults.crossfade_time_s, 2.0);
+        assert_eq!(defaults.fade_curve, "exponential_logarithmic");
+
+        // Modify and re-read
+        set_setting(&db, "global_crossfade_time", 3.5)
+            .await
+            .unwrap();
+        let defaults = get_crossfade_defaults(&db).await.unwrap();
+        assert_eq!(defaults.crossfade_time_s, 3.5);
+    }
+
+    #[tokio::test]
+    async fn test_generic_setting_get_set() {
+        let db = setup_test_db().await;
+
+        // Set an integer setting
+        set_setting(&db, "test_int", 42).await.unwrap();
+        let value: Option<i32> = get_setting(&db, "test_int").await.unwrap();
+        assert_eq!(value, Some(42));
+
+        // Set a string setting
+        set_setting(&db, "test_str", "hello".to_string())
+            .await
+            .unwrap();
+        let value: Option<String> = get_setting(&db, "test_str").await.unwrap();
+        assert_eq!(value, Some("hello".to_string()));
+
+        // Non-existent key should return None
+        let value: Option<String> = get_setting(&db, "nonexistent").await.unwrap();
+        assert_eq!(value, None);
+    }
+
+    #[tokio::test]
+    async fn test_setting_update() {
+        let db = setup_test_db().await;
+
+        // Set initial value
+        set_setting(&db, "test_key", "value1".to_string())
+            .await
+            .unwrap();
+        let value: Option<String> = get_setting(&db, "test_key").await.unwrap();
+        assert_eq!(value, Some("value1".to_string()));
+
+        // Update value (should use UPSERT)
+        set_setting(&db, "test_key", "value2".to_string())
+            .await
+            .unwrap();
+        let value: Option<String> = get_setting(&db, "test_key").await.unwrap();
+        assert_eq!(value, Some("value2".to_string()));
+    }
+}
