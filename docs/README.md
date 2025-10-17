@@ -1,24 +1,24 @@
-# WKMP Audio Player Documentation
+﻿# WKMP Audio Player Documentation
 
 ## Audio Playback Architecture Documentation
 
 This directory contains comprehensive documentation for the WKMP Audio Player's playback architecture designs.
 
-### 📚 Document Index
+### ðŸ“š Document Index
 
-1. **[architecture-comparison.md](architecture-comparison.md)** - **START HERE**
+1. **[architecture-comparison.md](archive/ARCH003-architecture_comparison.md)** - **START HERE**
    - Side-by-side comparison of Dual Pipeline vs Single Stream approaches
    - Detailed analysis of implementation complexity, performance, and deployment
    - Recommendation table with scores
    - Best for: Decision making and understanding trade-offs
 
-2. **[single-stream-design.md](single-stream-design.md)** - **CORE DESIGN DESCRIPTION**
+2. **[single-stream-design.md](SPEC013-single_stream_playback.md)** - **CORE DESIGN DESCRIPTION**
    - Manual buffer management with sample-accurate crossfading
    - Pure Rust implementation using symphonia, rubato, and cpal
    - Detailed component design and implementation phases
-   - Status: 📋 Proposed (not yet implemented)
+   - Status: ðŸ“‹ Proposed (not yet implemented)
 
-### 📖 Reading Guide
+### ðŸ“– Reading Guide
 
 #### For Developers (Implementing Single Stream)
 1. Read: `single-stream-design.md`
@@ -31,23 +31,23 @@ This directory contains comprehensive documentation for the WKMP Audio Player's 
 2. Review: Fade curve algorithms in `single-stream-design.md`
 3. Compare: Timing precision (sample-accurate vs property-based)
 
-### 🏗️ Architecture Diagram
+### ðŸ—ï¸ Architecture Diagram
 
 #### Single Stream (Manual Buffers)
 ```
 Application
-├── Decoder Pool (parallel decoding)
-│   └── Uses symphonia + rubato
-├── Passage Buffer Manager
-│   └── 15-second PCM buffers per passage
-├── Crossfade Mixer
-│   └── Sample-accurate mixing with fade curves
-└── Audio Output (cpal)
-    └── Ring buffer → audio device
+â”œâ”€â”€ Decoder Pool (parallel decoding)
+â”‚   â””â”€â”€ Uses symphonia + rubato
+â”œâ”€â”€ Passage Buffer Manager
+â”‚   â””â”€â”€ 15-second PCM buffers per passage
+â”œâ”€â”€ Crossfade Mixer
+â”‚   â””â”€â”€ Sample-accurate mixing with fade curves
+â””â”€â”€ Audio Output (cpal)
+    â””â”€â”€ Ring buffer â†’ audio device
 ```
 
 
-### 🚀 Getting Started
+### ðŸš€ Getting Started
 
 **To plan Single Stream migration:**
 ```bash
@@ -61,7 +61,7 @@ cat docs/architecture-comparison.md
 grep -A 20 "## Implementation Phases" docs/single-stream-design.md
 ```
 
-### 🤝 Contributing
+### ðŸ¤ Contributing
 
 When updating these documents:
 1. Keep version numbers in sync
@@ -70,7 +70,7 @@ When updating these documents:
 4. Maintain code examples with actual implementation
 5. Update this README if adding new documents
 
-### 📧 Questions?
+### ðŸ“§ Questions?
 
 For technical questions about:
 - **Single Stream**: See `single-stream-design.md` "Challenges and Solutions"

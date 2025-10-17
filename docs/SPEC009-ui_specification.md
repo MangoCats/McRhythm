@@ -1,10 +1,10 @@
-# WKMP User Interface Specification
+﻿# WKMP User Interface Specification
 
-**🎨 TIER 2 - DESIGN SPECIFICATION**
+**ðŸŽ¨ TIER 2 - DESIGN SPECIFICATION**
 
-Defines the Web UI design, layout, and behavior. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines the Web UI design, layout, and behavior. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [API Design](api_design.md) | [Event System](event_system.md) | [User Identity](user_identity.md) | [Multi-User Coordination](multi_user_coordination.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [API Design](SPEC007-api_design.md) | [Event System](SPEC011-event_system.md) | [User Identity](SPEC010-user_identity.md) | [Multi-User Coordination](SPEC012-multi_user_coordination.md)
 
 ---
 
@@ -56,7 +56,7 @@ WKMP's user interface is a web-based UI accessible via desktop and mobile browse
 - Logout button (clears localStorage UUID)
 - Account settings button (registered users only)
 
-> **See:** [User Identity and Authentication](user_identity.md) for complete authentication specification
+> **See:** [User Identity and Authentication](SPEC010-user_identity.md) for complete authentication specification
 
 ---
 
@@ -67,34 +67,34 @@ WKMP's user interface is a web-based UI accessible via desktop and mobile browse
 **[UI-LAYOUT-010]** The main view is divided into three primary sections:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│              Top Bar (User, Status)                 │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│              Album Artwork (2 images)               │
-│                                                     │
-├─────────────────────────────────────────────────────┤
-│         Now Playing Information                     │
-│         - Passage Title                             │
-│         - Song Title                                │
-│         - Artist(s)                                 │
-│         - Album                                     │
-│         - Play History                              │
-├─────────────────────────────────────────────────────┤
-│         Progress Bar                                │
-│         [========>               ]                  │
-│         Current Position / Total Duration           │
-├─────────────────────────────────────────────────────┤
-│         Playback Controls                           │
-│         [Play/Pause] [Skip] [Volume Slider]         │
-│         [Like] [Dislike] (Full/Lite only)           │
-├─────────────────────────────────────────────────────┤
-│         Queue ("Next Up")                           │
-│         - Passage 1: Title - Artist                 │
-│         - Passage 2: Title - Artist                 │
-│         - Passage 3: Title - Artist                 │
-│         [Remove buttons]                            │
-└─────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚              Top Bar (User, Status)                 â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚                                                     â”‚
+â”‚              Album Artwork (2 images)               â”‚
+â”‚                                                     â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚         Now Playing Information                     â”‚
+â”‚         - Passage Title                             â”‚
+â”‚         - Song Title                                â”‚
+â”‚         - Artist(s)                                 â”‚
+â”‚         - Album                                     â”‚
+â”‚         - Play History                              â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚         Progress Bar                                â”‚
+â”‚         [========>               ]                  â”‚
+â”‚         Current Position / Total Duration           â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚         Playback Controls                           â”‚
+â”‚         [Play/Pause] [Skip] [Volume Slider]         â”‚
+â”‚         [Like] [Dislike] (Full/Lite only)           â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚         Queue ("Next Up")                           â”‚
+â”‚         - Passage 1: Title - Artist                 â”‚
+â”‚         - Passage 2: Title - Artist                 â”‚
+â”‚         - Passage 3: Title - Artist                 â”‚
+â”‚         [Remove buttons]                            â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ---
@@ -205,13 +205,13 @@ Song appears on 3 albums, each with front and rear art:
 - Ensures timely updates when crossing song boundaries
 - Rotation timer separate from position updates (15-second intervals)
 
-> **See:** [Event System - CurrentSongChanged](event_system.md) for event-driven artwork updates
+> **See:** [Event System - CurrentSongChanged](SPEC011-event_system.md) for event-driven artwork updates
 
 ---
 
 ## Now Playing Information
 
-> **Terminology Reminder:** A **Passage** is a continuous playable region within an audio file (defined by start/end points and crossfade timings), while a **Song** is a MusicBrainz Recording + Artist(s) + optional Work(s). A passage may contain 0, 1, or multiple songs. The UI displays both passage metadata (title, album art) and current song information (which song within the passage is playing now). See [Entity Definitions](entity_definitions.md) for complete definitions.
+> **Terminology Reminder:** A **Passage** is a continuous playable region within an audio file (defined by start/end points and crossfade timings), while a **Song** is a MusicBrainz Recording + Artist(s) + optional Work(s). A passage may contain 0, 1, or multiple songs. The UI displays both passage metadata (title, album art) and current song information (which song within the passage is playing now). See [Entity Definitions](REQ002-entity_definitions.md) for complete definitions.
 
 ### Passage Title Display
 
@@ -227,11 +227,11 @@ Song appears on 3 albums, each with front and rear art:
 
 | Passage Title | Song Title | Album Title | Display Passage? | Reason |
 |---------------|------------|-------------|------------------|--------|
-| "Live at Wembley" | "Bohemian Rhapsody" | "Live at Wembley" | ❌ Hide | passage = album |
-| "Bohemian Rhapsody" | "Bohemian Rhapsody" | "A Night at the Opera" | ❌ Hide | passage = song |
-| "Medley" | "Bohemian Rhapsody" | "A Night at the Opera" | ✅ Show | passage ≠ both song and album |
-| "Live at Wembley" | "Bohemian Rhapsody" | "Greatest Hits" | ✅ Show | passage ≠ both song and album |
-| "Bohemian Rhapsody" | "Bohemian Rhapsody" | "Bohemian Rhapsody" | ❌ Hide | passage = both song and album |
+| "Live at Wembley" | "Bohemian Rhapsody" | "Live at Wembley" | âŒ Hide | passage = album |
+| "Bohemian Rhapsody" | "Bohemian Rhapsody" | "A Night at the Opera" | âŒ Hide | passage = song |
+| "Medley" | "Bohemian Rhapsody" | "A Night at the Opera" | âœ… Show | passage â‰  both song and album |
+| "Live at Wembley" | "Bohemian Rhapsody" | "Greatest Hits" | âœ… Show | passage â‰  both song and album |
+| "Bohemian Rhapsody" | "Bohemian Rhapsody" | "Bohemian Rhapsody" | âŒ Hide | passage = both song and album |
 
 **Rule:** Display passage title ONLY when it differs from BOTH the song title AND the album title. If passage title matches either one, hide it to avoid redundancy.
 
@@ -265,7 +265,7 @@ Song appears on 3 albums, each with front and rear art:
 - < 7 days: "X days ago"
 - < 4 weeks: "X weeks ago"
 - < 1 year: "X months ago"
-- ≥ 1 year: "X years ago"
+- â‰¥ 1 year: "X years ago"
 - Never played: "Never"
 
 ### Lyrics Display
@@ -295,11 +295,11 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
    - This indicates no lyrics are available for this work in the database
 
 **Example:** Current song is "Bohemian Rhapsody (Live at Wembley)" with no lyrics:
-- Step 1: Check "Bohemian Rhapsody (Live at Wembley)" lyrics → empty
-- Step 2: Check related_songs[0] "Bohemian Rhapsody (Studio)" lyrics → found! Display these lyrics
+- Step 1: Check "Bohemian Rhapsody (Live at Wembley)" lyrics â†’ empty
+- Step 2: Check related_songs[0] "Bohemian Rhapsody (Studio)" lyrics â†’ found! Display these lyrics
 - Result: Studio version lyrics displayed for live performance (same work, different performance)
 
-> **See:** [Architecture - Lyrics Display Behavior](architecture.md#lyrics-display-behavior) for technical implementation details
+> **See:** [Architecture - Lyrics Display Behavior](SPEC001-architecture.md#lyrics-display-behavior) for technical implementation details
 
 **[UI-LYRICS-030]** **(Full version only)** Lyrics editing:
 - "Edit Lyrics" button visible
@@ -308,8 +308,8 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
 - Concurrent editing uses "last write wins" strategy (no conflict resolution)
 - Optional: Display warning if other users are editing simultaneously
 
-> **See:** [API Design - Lyrics Endpoints](api_design.md#lyrics-full-version-only)
-> **See:** [Multi-User Coordination - Concurrent Lyric Editing](multi_user_coordination.md#3-concurrent-lyric-editing) for concurrent editing behavior
+> **See:** [API Design - Lyrics Endpoints](SPEC007-api_design.md#lyrics-full-version-only)
+> **See:** [Multi-User Coordination - Concurrent Lyric Editing](SPEC012-multi_user_coordination.md#3-concurrent-lyric-editing) for concurrent editing behavior
 
 ---
 
@@ -318,8 +318,8 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
 ### Play/Pause Button
 
 **[UI-CTRL-010]** Display state-appropriate icon:
-- **Playing state**: Show "Pause" icon (⏸)
-- **Paused state**: Show "Play" icon (▶)
+- **Playing state**: Show "Pause" icon (â¸)
+- **Paused state**: Show "Play" icon (â–¶)
 
 **[UI-CTRL-020]** Button remains active regardless of queue state:
 - Empty queue + Playing state: Button shows "Pause" (can pause silence)
@@ -334,7 +334,7 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
 - Display temporary message: "Skip throttled, please wait"
 - Button disabled for 5 seconds after successful skip
 
-> **See:** [Multi-User Coordination - Skip Throttling](multi_user_coordination.md#1-skip-throttling) for complete throttling behavior
+> **See:** [Multi-User Coordination - Skip Throttling](SPEC012-multi_user_coordination.md#1-skip-throttling) for complete throttling behavior
 
 ### Volume Control
 
@@ -370,7 +370,7 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
 - Allow manual weight adjustment (text input, 0.0-10.0 range)
 - Show timestamp of last like/dislike
 
-> **See:** [Likes and Dislikes](like_dislike.md) for weight distribution algorithm
+> **See:** [Likes and Dislikes](SPEC006-like_dislike.md) for weight distribution algorithm
 
 ### Seek Control
 
@@ -422,13 +422,13 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 
 ### Queue Management
 
-**[UI-QUEUE-030]** Each queue entry has a "Remove" button (❌ icon).
+**[UI-QUEUE-030]** Each queue entry has a "Remove" button (âŒ icon).
 
 **[UI-QUEUE-040]** Concurrent removal handling:
 - If another user removes same passage, update queue immediately
 - Show brief notification: "Passage removed by another user"
 
-> **See:** [Multi-User Coordination - Concurrent Queue Removal](multi_user_coordination.md#2-concurrent-queue-removal) for idempotent removal behavior
+> **See:** [Multi-User Coordination - Concurrent Queue Removal](SPEC012-multi_user_coordination.md#2-concurrent-queue-removal) for idempotent removal behavior
 
 **[UI-QUEUE-050]** Manual enqueueing:
 - "Add to Queue" button opens passage selector
@@ -447,9 +447,9 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 
 | State | Icon | Text | Description |
 |-------|------|------|-------------|
-| Connected | ✓ (green) | "Online" | Internet accessible |
-| Retrying | ⟳ (yellow) | "Connecting (N/20)" | Retry attempt N of 20 |
-| Failed | ⚠ (red) | "Offline - Retry" | 20 retries exhausted |
+| Connected | âœ“ (green) | "Online" | Internet accessible |
+| Retrying | âŸ³ (yellow) | "Connecting (N/20)" | Retry attempt N of 20 |
+| Failed | âš  (red) | "Offline - Retry" | 20 retries exhausted |
 
 **[UI-NET-030]** Position:
 - Visible in library/import section (not main playback view)
@@ -486,7 +486,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 **[UI-NET-080]** Lite and Minimal versions:
 - Do not display internet status indicator (no internet required)
 
-> **See:** [Requirements - Network Error Handling](requirements.md#network-error-handling)
+> **See:** [Requirements - Network Error Handling](REQ001-requirements.md#network-error-handling)
 
 ---
 
@@ -531,7 +531,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - Album art uploader
 - Lyrics text area
 
-> **See:** [Library Management](library_management.md) for import workflows
+> **See:** [Library Management](SPEC008-library_management.md) for import workflows
 
 ---
 
@@ -566,7 +566,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - Apply same probability adjustment to all
 - "Set all to default" option
 
-> **See:** [Program Director](program_director.md#user-configurable-parameters) for probability usage
+> **See:** [Program Director](SPEC005-program_director.md#user-configurable-parameters) for probability usage
 
 ---
 
@@ -600,7 +600,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - Countdown timer showing time remaining
 - "Cancel Override" button
 
-> **See:** [Requirements - Musical Flavor Target](requirements.md#musical-flavor-target-by-time-of-day)
+> **See:** [Requirements - Musical Flavor Target](REQ001-requirements.md#musical-flavor-target-by-time-of-day)
 
 ---
 
@@ -637,8 +637,8 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 - Optimistic updates for local user actions (instant feedback)
 - Server events confirm/correct optimistic updates
 
-> **See:** [API Design - Server-Sent Events](api_design.md#server-sent-events-sse)
-> **See:** [Event System](event_system.md) for complete event specifications
+> **See:** [API Design - Server-Sent Events](SPEC007-api_design.md#server-sent-events-sse)
+> **See:** [Event System](SPEC011-event_system.md) for complete event specifications
 
 ---
 
@@ -646,7 +646,7 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 
 ### Desktop Layout
 
-**[UI-RESP-010]** Desktop browsers (≥ 1024px width):
+**[UI-RESP-010]** Desktop browsers (â‰¥ 1024px width):
 - Two-column layout: Artwork left, info/controls right
 - Full queue visible (scrollable if > 10 items)
 - Lyrics panel below or side-by-side with artwork
@@ -707,8 +707,8 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 ### Visual Accessibility
 
 **[UI-A11Y-040]** Color contrast meets WCAG AA standards:
-- Text contrast ratio ≥ 4.5:1
-- Interactive element contrast ratio ≥ 3:1
+- Text contrast ratio â‰¥ 4.5:1
+- Interactive element contrast ratio â‰¥ 3:1
 
 **[UI-A11Y-050]** Color is not the only indicator:
 - Connection status uses icon + text + color

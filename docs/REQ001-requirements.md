@@ -1,22 +1,22 @@
-# WKMP Requirements
+﻿# WKMP Requirements
 
-**📜 TIER 1 - AUTHORITATIVE SOURCE DOCUMENT**
+**ðŸ“œ TIER 1 - AUTHORITATIVE SOURCE DOCUMENT**
 
 This document is the **top-level specification** defining WHAT WKMP must do. Other documents are designed to satisfy these requirements.
 
-**Update Policy:** ✅ Product decisions only | ❌ NOT derived from design/implementation
+**Update Policy:** âœ… Product decisions only | âŒ NOT derived from design/implementation
 
-> See [Document Hierarchy](document_hierarchy.md) for complete update policies and change control process.
+> See [Document Hierarchy](GOV001-document_hierarchy.md) for complete update policies and change control process.
 
-> **Related Documentation:** [Architecture](architecture.md) | [API Design](api_design.md) | [UI Specification](ui_specification.md) | [Library Management](library_management.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Program Director](program_director.md) | [Event System](event_system.md) | [Requirements Enumeration](requirements_enumeration.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [API Design](SPEC007-api_design.md) | [UI Specification](SPEC009-ui_specification.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Program Director](SPEC005-program_director.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](ENUM001-requirements_enumeration.md)
 
 ---
 
 ## Overview
 
-**[REQ-OV-010]** WKMP is a music player that selects passages to play based on user preferences for [musical flavor](musical_flavor.md#quantitative-definition) at various times of day.
+**[REQ-OV-010]** WKMP is a music player that selects passages to play based on user preferences for [musical flavor](SPEC003-musical_flavor.md#quantitative-definition) at various times of day.
 
-**Architectural Note:** WKMP is implemented as a microservices architecture with **5 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, and Audio Ingest. See [Architecture](architecture.md) for complete design.
+**Architectural Note:** WKMP is implemented as a microservices architecture with **5 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, and Audio Ingest. See [Architecture](SPEC001-architecture.md) for complete design.
 
 ## Core Features
 
@@ -37,7 +37,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
   - Contains musical analysis data for millions of recordings submitted before discontinuation
   - WKMP uses AcousticBrainz data when available, falls back to local Essentia analysis when not
 
-> **See [Library Management - AcousticBrainz Integration](library_management.md#acousticbrainz-integration) for fallback behavior.**
+> **See [Library Management - AcousticBrainz Integration](SPEC008-library_management.md#acousticbrainz-integration) for fallback behavior.**
 
 **[REQ-CF-050]** Local copies of all relevant subsets of online database information enabling offline operation
 
@@ -71,7 +71,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
   - **[REQ-CF-084]** User-specific data (likes, dislikes, taste profiles) tracked per user UUID
   - **[REQ-CF-085]** Concurrent user actions handled via specific strategies: skip throttling, idempotent queue removal, "last write wins" for lyrics
 
-> **See [Multi-User Coordination](multi_user_coordination.md) for complete specifications on handling concurrent user actions.**
+> **See [Multi-User Coordination](SPEC012-multi_user_coordination.md) for complete specifications on handling concurrent user actions.**
 
 **[REQ-CF-090]** Passages play continuously, indefinitely (when not paused by user)
     
@@ -148,7 +148,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - No internet access
 - Authentication: Always operates as Anonymous user
   - No login or account creation UI elements shown
-  - See [architecture.md#version-differences](architecture.md#version-differences)
+  - See [architecture.md#version-differences](SPEC001-architecture.md#version-differences)
 
 **[REQ-VER-042]** Resource Profile:
 - CPU: Minimal (playback + basic selection)
@@ -160,7 +160,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 ### Build Strategy
 
-**[REQ-VER-050]** See [Implementation Order - Version Builds](implementation_order.md#27-version-builds-fulliteminimal) for compilation approach.
+**[REQ-VER-050]** See [Implementation Order - Version Builds](EXEC001-implementation_order.md#27-version-builds-fulliteminimal) for compilation approach.
 
 **[REQ-VER-051]** Database Deployment:
 - Full version exports complete database snapshot, records passage play history, likes and dislikes, configure preference parameters, edit lyrics.
@@ -187,11 +187,11 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
   
 ## Definitions
 
-**[REQ-DEF-010]** The terms track, recording, work, artist, song and passage have specific definitions found in [Entity Definitions](entity_definitions.md).
+**[REQ-DEF-010]** The terms track, recording, work, artist, song and passage have specific definitions found in [Entity Definitions](REQ002-entity_definitions.md).
 
 ### Musical Flavor
 
-**[REQ-FLV-010]** Each passage is characterized to quantify its musical flavor. Details of how musical flavor is determined and used are found in [Musical Flavor](musical_flavor.md).
+**[REQ-FLV-010]** Each passage is characterized to quantify its musical flavor. Details of how musical flavor is determined and used are found in [Musical Flavor](SPEC003-musical_flavor.md).
 
 #### Musical Flavor Target by time of day
 
@@ -210,7 +210,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 ## Non-functional Requirements
 
-**[REQ-NF-010]** Follow defined [coding conventions](coding_conventions.md).
+**[REQ-NF-010]** Follow defined [coding conventions](IMPL002-coding_conventions.md).
 
 **[REQ-NF-020]** Errors logged to developer interface, otherwise gracefully ignored and continue playing as best as able
   - developer interface is stdout/stderr
@@ -231,7 +231,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-PI-053]** Add or delete passage definitions
 - **[REQ-PI-054]** Associate each passage with MusicBrainz entities (tracks, recordings, artists, works)
 
-**[REQ-PI-060]** On initial import, the system must assist users by offering automatic passage boundary detection. The detailed workflow for this is specified in [Audio File Segmentation](audio_file_segmentation.md).
+**[REQ-PI-060]** On initial import, the system must assist users by offering automatic passage boundary detection. The detailed workflow for this is specified in [Audio File Segmentation](IMPL005-audio_file_segmentation.md).
 
 **[REQ-PI-070]** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 
@@ -239,10 +239,10 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-PI-081]** Concurrent lyric editing uses "last write wins" strategy (no conflict resolution)
 - **[REQ-PI-082]** Multiple users may edit lyrics simultaneously; last submitted text persists
 
-> **See [Multi-User Coordination - Concurrent Lyric Editing](multi_user_coordination.md#3-concurrent-lyric-editing) for concurrent editing behavior.**
+> **See [Multi-User Coordination - Concurrent Lyric Editing](SPEC012-multi_user_coordination.md#3-concurrent-lyric-editing) for concurrent editing behavior.**
 
-> **See [Library Management](library_management.md) for file scanning workflows, metadata extraction details, and MusicBrainz integration process.**
-> **See [Crossfade Design](crossfade.md#default-configuration) for default passage timing point values.**
+> **See [Library Management](SPEC008-library_management.md) for file scanning workflows, metadata extraction details, and MusicBrainz integration process.**
+> **See [Crossfade Design](SPEC002-crossfade.md#default-configuration) for default passage timing point values.**
 
 ### Library Edge Cases
 
@@ -272,7 +272,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-XFD-030]** When resuming from Pause, audio must fade in smoothly to prevent audible "pops" or jarring transitions.
 
-> **See [Crossfade Design](crossfade.md) for complete crossfade timing system, fade curves, timing points, and implementation details.**
+> **See [Crossfade Design](SPEC002-crossfade.md) for complete crossfade timing system, fade curves, timing points, and implementation details.**
 
 ### Automatic Passage Selection
 
@@ -294,8 +294,8 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-SEL-032]** Valid range: 0.0 to 1000.0
 - **[REQ-SEL-033]** Default values: All songs, artists, and works start at 1.0
 
-> **See [Program Director](program_director.md) for complete selection algorithm, cooldown system, probability calculations, default cooldown periods, and multi-entity handling.**
-> **See [UI Specification - Base Probability Editor](ui_specification.md#base-probability-editor) for user interface design.**
+> **See [Program Director](SPEC005-program_director.md) for complete selection algorithm, cooldown system, probability calculations, default cooldown periods, and multi-entity handling.**
+> **See [UI Specification - Base Probability Editor](SPEC009-ui_specification.md#base-probability-editor) for user interface design.**
 
 ### User Queue additions
 
@@ -347,9 +347,9 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-ART-030]** Images are stored as files and referenced by database (not stored as binary data in database).
 
-> **See [Library Management - Image Management](library_management.md#additional-image-types) for image storage, sizing, and extraction workflow.**
-> **See [Database Schema - images](database_schema.md#images) for image storage schema.**
-> **See [UI Specification - Album Artwork Display](ui_specification.md#album-artwork-display) for display and rotation behavior.**
+> **See [Library Management - Image Management](SPEC008-library_management.md#additional-image-types) for image storage, sizing, and extraction workflow.**
+> **See [Database Schema - images](IMPL001-database_schema.md#images) for image storage schema.**
+> **See [UI Specification - Album Artwork Display](SPEC009-ui_specification.md#album-artwork-display) for display and rotation behavior.**
 
 ## Player Functionality
 
@@ -393,12 +393,12 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **Note:** Lite and Minimal versions do not require internet access and do not display internet status indicators.
 
-> **See [UI Specification - Network Status Indicators](ui_specification.md#network-status-indicators) for complete status display design.**
-> **See [Architecture - Network Error Handling](architecture.md#network-error-handling) for retry algorithm and connection handling.**
+> **See [UI Specification - Network Status Indicators](SPEC009-ui_specification.md#network-status-indicators) for complete status display design.**
+> **See [Architecture - Network Error Handling](SPEC001-architecture.md#network-error-handling) for retry algorithm and connection handling.**
 
 ### Playback State
 
-> **Technical Specification**: See [Event System - PlaybackState Enum](event_system.md#playbackstate-enum) for complete technical definition and event handling details.
+> **Technical Specification**: See [Event System - PlaybackState Enum](SPEC011-event_system.md#playbackstate-enum) for complete technical definition and event handling details.
 
 **[REQ-PB-010]** System has exactly two playback states:
 - **[REQ-PB-011]** **Playing**: Audio plays when passages are available in queue
@@ -449,7 +449,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-AUTH-041]** Single user UUID may be authenticated from multiple browsers/devices simultaneously
 - **[REQ-AUTH-042]** All sessions for all users receive same real-time event stream
 
-> **See [User Identity and Authentication](user_identity.md) for complete authentication flow, password requirements, hashing algorithm, session management, and account management specifications.**
+> **See [User Identity and Authentication](SPEC010-user_identity.md) for complete authentication flow, password requirements, hashing algorithm, session management, and account management specifications.**
 
 ### Web UI
 
@@ -479,9 +479,9 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-UI-061]** REST API for all manual controls and status queries
 - **[REQ-UI-062]** Server-Sent Events (SSE) for real-time UI updates across all connected clients
 
-> **See [UI Specification](ui_specification.md) for complete web UI design, layout, status display logic, artwork rotation, and responsive behavior.**
-> **See [API Design](api_design.md) for complete endpoint specifications, request/response formats, and error handling.**
-> **See [Database Schema - song_play_counts](database_schema.md#song_play_counts-view) for play count data storage.**
+> **See [UI Specification](SPEC009-ui_specification.md) for complete web UI design, layout, status display logic, artwork rotation, and responsive behavior.**
+> **See [API Design](SPEC007-api_design.md) for complete endpoint specifications, request/response formats, and error handling.**
+> **See [Database Schema - song_play_counts](IMPL001-database_schema.md#song_play_counts-view) for play count data storage.**
 
 ### State Persistence
 
@@ -534,8 +534,8 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-NET-100]** Automatic playback works without any network access (no WebUI needed for basic operation)
 
-> **See [Architecture - Network Error Handling](architecture.md#network-error-handling) for complete retry algorithm and connection handling.**
-> **See [UI Specification - Network Status Indicators](ui_specification.md#network-status-indicators) for status display and user feedback.**
+> **See [Architecture - Network Error Handling](SPEC001-architecture.md#network-error-handling) for complete retry algorithm and connection handling.**
+> **See [UI Specification - Network Status Indicators](SPEC009-ui_specification.md#network-status-indicators) for status display and user feedback.**
 
 ### Offline Operation
 

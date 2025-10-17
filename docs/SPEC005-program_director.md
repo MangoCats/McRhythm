@@ -1,10 +1,10 @@
-# WKMP Program Director
+﻿# WKMP Program Director
 
-**🎯 TIER 2 - DESIGN SPECIFICATION**
+**ðŸŽ¯ TIER 2 - DESIGN SPECIFICATION**
 
-Defines the Program Director component responsible for automatic passage selection. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines the Program Director component responsible for automatic passage selection. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Musical Flavor](musical_flavor.md) | [Musical Taste](musical_taste.md) | [Cooldown System](cooldown_system.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Musical Taste](SPEC004-musical_taste.md) | [Cooldown System](SPEC005-program_director.md#cooldown-system)
 
 ---
 
@@ -67,7 +67,7 @@ Where `ending_time_of_last_passage_in_queue` is the anticipated completion time 
 
 **[PD-FLAV-030]** When multiple reference passages are defined for a timeslot:
 - Each passage's flavor vector contributes equally (unweighted centroid)
-- Missing characteristics handled as per [Musical Flavor - Weighted Taste](musical_flavor.md#mfl-mult-010)
+- Missing characteristics handled as per [Musical Flavor - Weighted Taste](SPEC003-musical_flavor.md#mfl-mult-010)
 - Result is a single flavor vector representing the timeslot's target
 
 **[PD-FLAV-040]** The Program Director queries the current timeslot based on `target_time` (not current time) to determine which flavor target to use.
@@ -92,7 +92,7 @@ Where `ending_time_of_last_passage_in_queue` is the anticipated completion time 
 - Already queued passages remain (not removed)
 - Natural queue replenishment uses timeslot-based target
 
-> **See:** [Requirements - Musical Flavor Target by time of day](requirements.md#musical-flavor-target-by-time-of-day) for user-facing behavior
+> **See:** [Requirements - Musical Flavor Target by time of day](REQ001-requirements.md#musical-flavor-target-by-time-of-day) for user-facing behavior
 
 ## Selection Algorithm
 
@@ -111,18 +111,18 @@ Where `ending_time_of_last_passage_in_queue` is the anticipated completion time 
 **[PD-PROB-010]** For each passage in the library, calculate the **final probability** as:
 
 ```
-final_probability = base_probability × cooldown_multiplier
+final_probability = base_probability Ã— cooldown_multiplier
 ```
 
 Where:
-- `base_probability` = song_prob × artist_prob × work_prob (see below)
-- `cooldown_multiplier` = song_cooldown × artist_cooldown × work_cooldown (see Cooldown System)
+- `base_probability` = song_prob Ã— artist_prob Ã— work_prob (see below)
+- `cooldown_multiplier` = song_cooldown Ã— artist_cooldown Ã— work_cooldown (see Cooldown System)
 
 **[PD-PROB-020]** **Base Probability Calculation:**
 
 For passages with a single song:
 ```
-base_probability = song.base_probability × artist.base_probability × work.base_probability
+base_probability = song.base_probability Ã— artist.base_probability Ã— work.base_probability
 ```
 
 For passages with multiple songs:
@@ -133,13 +133,13 @@ base_probability = weighted_average(
 )
 ```
 
-Where each `song_probability = song.base_probability × artist_avg.base_probability × work.base_probability`
+Where each `song_probability = song.base_probability Ã— artist_avg.base_probability Ã— work.base_probability`
 
 **[PD-PROB-030]** **Artist Probability for Multi-Artist Songs:**
 
 When a song has multiple artists with assigned weights:
 ```
-artist_probability = sum(artist[i].base_probability × artist[i].weight)
+artist_probability = sum(artist[i].base_probability Ã— artist[i].weight)
 ```
 
 Where `sum(artist[i].weight) = 1.0` for all artists of the song.
@@ -154,7 +154,7 @@ work_probability = product(work[i].base_probability)
 Where all associated works' base probabilities are multiplied together.
 
 - **Rationale**: Song represents all works, so all works' probabilities affect selection
-- **Example**: Mashup with 3 works (prob 1.0, 0.8, 1.2) → work_probability = 1.0 × 0.8 × 1.2 = 0.96
+- **Example**: Mashup with 3 works (prob 1.0, 0.8, 1.2) â†’ work_probability = 1.0 Ã— 0.8 Ã— 1.2 = 0.96
 - **Effect**: Deprioritizing any source work reduces mashup's probability proportionally
 
 **[PD-PROB-040]** **Zero-Song Passages:**
@@ -173,7 +173,7 @@ Passages containing zero songs are excluded from automatic selection:
 **[PD-DIST-020]** Flavor distance is calculated as **squared Euclidean distance**:
 
 ```
-distance² = Σ(target[i] - passage[i])²
+distanceÂ² = Î£(target[i] - passage[i])Â²
 ```
 
 Summed across all available characteristics (binary and complex elements).
@@ -182,7 +182,7 @@ Summed across all available characteristics (binary and complex elements).
 - Flavor distance = 1.0 (maximum distance)
 - Effectively deprioritized but not excluded
 
-> **See:** [Musical Flavor - Distance Calculation](musical_flavor.md#distance-calculation) for complete algorithm
+> **See:** [Musical Flavor - Distance Calculation](SPEC003-musical_flavor.md#distance-calculation) for complete algorithm
 
 ### Stage 3: Candidate Ranking
 
@@ -198,8 +198,8 @@ Summed across all available characteristics (binary and complex elements).
 
 **[PD-SEL-020]** Algorithm:
 1. Calculate total weight: `W_total = sum(candidate[i].final_probability)`
-2. Generate random value: `r ∈ [0, W_total)`
-3. Iterate through candidates, accumulating weights until `accumulated_weight ≥ r`
+2. Generate random value: `r âˆˆ [0, W_total)`
+3. Iterate through candidates, accumulating weights until `accumulated_weight â‰¥ r`
 4. Select the passage where threshold is crossed
 
 **[PD-SEL-030]** This ensures:
@@ -276,8 +276,8 @@ The following items will be addressed when Program Director is fully specified:
 }
 ```
 
-> **See:** [UI Specification - Automatic Selection Unavailable](ui_specification.md#ui-queue-025) for user-facing message display
-> **See:** [Musical Flavor - Edge Cases](musical_flavor.md#edge-cases) for additional scenarios
+> **See:** [UI Specification - Automatic Selection Unavailable](SPEC009-ui_specification.md#ui-queue-025) for user-facing message display
+> **See:** [Musical Flavor - Edge Cases](SPEC003-musical_flavor.md#edge-cases) for additional scenarios
 
 ## Cooldown System
 <a name="cooldown-system"></a>
@@ -320,17 +320,17 @@ else:
 - Each work has its own cooldown multiplier
 - Song's work cooldown = product of all work cooldowns (all works must be out of cooldown)
 - Example: Song with 2 works, work A cooldown = 0.5, work B cooldown = 0.8
-  - Song's work cooldown = 0.5 × 0.8 = 0.4
+  - Song's work cooldown = 0.5 Ã— 0.8 = 0.4
 - **Rationale**: Mashups and medleys should respect cooldown of all source works
 
 **[PD-COOL-070]** Final cooldown multiplier for a passage:
 ```
-passage_cooldown = song_cooldown × artist_cooldown × work_cooldown
+passage_cooldown = song_cooldown Ã— artist_cooldown Ã— work_cooldown
 ```
 
 Where each factor is the weighted average across multiple songs/artists if applicable, and product across multiple works.
 
-> **See:** [Requirements - Cooldown System](requirements.md#automatic-passage-selection) for user-facing specification
+> **See:** [Requirements - Cooldown System](REQ001-requirements.md#automatic-passage-selection) for user-facing specification
 
 ## User-Configurable Parameters
 
@@ -384,8 +384,8 @@ Where each factor is the weighted average across multiple songs/artists if appli
 - Modified distance calculation incorporating both flavor target and taste vectors
 - Exclusion filtering based on dislike similarity
 
-> **See:** [Likes and Dislikes](like_dislike.md) for data collection specification
-> **See:** [Musical Taste](musical_taste.md) for taste calculation algorithms
+> **See:** [Likes and Dislikes](SPEC006-like_dislike.md) for data collection specification
+> **See:** [Musical Taste](SPEC004-musical_taste.md) for taste calculation algorithms
 
 **Note:** The final algorithm for how Like-Taste and Dislike-Taste influence passage selection will be specified in a future update to this document.
 
@@ -443,7 +443,7 @@ Where each factor is the weighted average across multiple songs/artists if appli
 - When temporary override expires
 - When selection fails due to no candidates
 
-> **See:** [Event System](event_system.md) for complete event specifications
+> **See:** [Event System](SPEC011-event_system.md) for complete event specifications
 
 ## Testing Requirements
 

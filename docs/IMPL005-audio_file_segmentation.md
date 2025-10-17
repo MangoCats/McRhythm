@@ -1,10 +1,10 @@
-# Audio File Segmentation
+﻿# Audio File Segmentation
 
-**✂️ TIER 3 - IMPLEMENTATION SPECIFICATION**
+**âœ‚ï¸ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines the workflow for segmenting a single audio file into multiple Passages. See [Document Hierarchy](document_hierarchy.md).
+Defines the workflow for segmenting a single audio file into multiple Passages. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Library Management](library_management.md) | [Requirements](requirements.md) | [Database Schema](database_schema.md)
+> **Related Documentation:** [Library Management](SPEC008-library_management.md) | [Requirements](REQ001-requirements.md) | [Database Schema](IMPL001-database_schema.md)
 
 ---
 

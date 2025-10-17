@@ -6,9 +6,9 @@ This document aggregates all specifications to define the order in which feature
 
 **Update Policy:** ✅ Always update when upstream docs change | ❌ NEVER update upstream docs from this
 
-> **Architecture Note:** WKMP uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](architecture.md) for complete details.
+> **Architecture Note:** WKMP uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](SPEC001-architecture.md) for complete details.
 
-> **Related Documentation:** [Database Schema](database_schema.md) | [API Design](api_design.md) | [Event System](event_system.md) | [Coding Conventions](coding_conventions.md)
+> **Related Documentation:** [Database Schema](IMPL001-database_schema.md) | [API Design](SPEC007-api_design.md) | [Event System](SPEC011-event_system.md) | [Coding Conventions](IMPL002-coding_conventions.md)
 
 ---
 
@@ -640,7 +640,7 @@ This document aggregates all specifications to define the order in which feature
     - Songs weighted by duration within passage (not total song duration)
     - For multi-song passages: weight = (song's time span in passage) / (total passage duration)
     - For single-song passages: weight = 1.0
-    - See [musical_flavor.md](musical_flavor.md) for complete algorithm details
+    - See [musical_flavor.md](SPEC003-musical_flavor.md) for complete algorithm details
   - Handle `CurrentSongChanged` events during playback
   - Display current song within passage in UI
 
@@ -651,12 +651,12 @@ This document aggregates all specifications to define the order in which feature
     - Naming convention: Same filename as source file art is extracted from
     - Conflict resolution: Append ISO8601 timestamp before extension (e.g., `cover_2025-10-09T12:34:56Z.jpg`)
     - For artwork related to multiple audio files in different folders, store with first related audio file (rare)
-  - Store relative file paths in `images` table (relative to root folder) (see [Database Schema](database_schema.md#images))
+  - Store relative file paths in `images` table (relative to root folder) (see [Database Schema](IMPL001-database_schema.md#images))
   - Support multiple image types (front, back, liner, artist, work)
   - Priority-based selection for display
   - UI displays art based on currently playing song
   - Rotate multiple albums every 15 seconds
-  - See [Library Management](library_management.md) for complete artwork extraction workflows
+  - See [Library Management](SPEC008-library_management.md) for complete artwork extraction workflows
 
 - **7.3. Multi-Album Passage Support:**
   - Handle passages spanning multiple albums (compilations)

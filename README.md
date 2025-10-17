@@ -11,24 +11,24 @@ Built with Rust and SQLite using a **5-microservice architecture** for modularit
 
 ## Documentation
 
-**📋 Start Here:** [Document Hierarchy](docs/document_hierarchy.md) - Documentation framework and governance (Tier 0)
+**📋 Start Here:** [Document Hierarchy](docs/GOV001-document_hierarchy.md) - Documentation framework and governance (Tier 0)
 
 ### Core Documentation
 
-- **[Requirements](docs/requirements.md)** - Complete feature specifications and requirements (Tier 1 - Authoritative)
-- **[Entity Definitions](docs/entity_definitions.md)** - Core entity terminology (Track, Recording, Song, Passage) (Tier 1 - Authoritative)
-- **[Architecture](docs/architecture.md)** - High-level system architecture and component design (Tier 2 - Design)
-- **[Event System](docs/event_system.md)** - Event-driven architecture and communication patterns (Tier 2 - Design)
-- **[Crossfade Design](docs/crossfade.md)** - Crossfade timing and behavior specifications (Tier 2 - Design)
-- **[Musical Flavor](docs/musical_flavor.md)** - Musical flavor characterization system (Tier 2 - Design)
-- **[Database Schema](docs/database_schema.md)** - Complete SQLite database schema (Tier 3 - Implementation)
-- **[Coding Conventions](docs/coding_conventions.md)** - Code organization and style guidelines (Tier 3 - Implementation)
-- **[Implementation Order](docs/implementation_order.md)** - Phased development plan (Tier 4 - Execution)
+- **[Requirements](docs/REQ001-requirements.md)** - Complete feature specifications and requirements (Tier 1 - Authoritative)
+- **[Entity Definitions](docs/REQ002-entity_definitions.md)** - Core entity terminology (Track, Recording, Song, Passage) (Tier 1 - Authoritative)
+- **[Architecture](docs/SPEC001-architecture.md)** - High-level system architecture and component design (Tier 2 - Design)
+- **[Event System](docs/SPEC011-event_system.md)** - Event-driven architecture and communication patterns (Tier 2 - Design)
+- **[Crossfade Design](docs/SPEC002-crossfade.md)** - Crossfade timing and behavior specifications (Tier 2 - Design)
+- **[Musical Flavor](docs/SPEC003-musical_flavor.md)** - Musical flavor characterization system (Tier 2 - Design)
+- **[Database Schema](docs/IMPL001-database_schema.md)** - Complete SQLite database schema (Tier 3 - Implementation)
+- **[Coding Conventions](docs/IMPL002-coding_conventions.md)** - Code organization and style guidelines (Tier 3 - Implementation)
+- **[Implementation Order](docs/EXEC001-implementation_order.md)** - Phased development plan (Tier 4 - Execution)
 
 ### Process & Standards
 
-- **[Document Hierarchy](docs/document_hierarchy.md)** - Documentation framework, relationships, and change control (Tier 0 - Governance)
-- **[Requirements Enumeration](docs/requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
+- **[Document Hierarchy](docs/GOV001-document_hierarchy.md)** - Documentation framework, relationships, and change control (Tier 0 - Governance)
+- **[Requirements Enumeration](docs/ENUM001-requirements_enumeration.md)** - Requirement ID scheme specification (Cross-cutting)
 
 ## Future Features & Extensibility
 
@@ -50,4 +50,4 @@ WKMP's microservices architecture currently consists of **5 core modules**, but 
 - **Streaming Service Integration**: Supplementing local library with streaming sources
 - **ListenBrainz Integration**: Social sharing of listening data
 
-The architecture's HTTP/SSE-based communication and shared database design enable new modules to be added without modifying existing services. See [Architecture - Extensibility Principle](docs/architecture.md#extensibility-principle) for technical details. 
+The architecture's HTTP/SSE-based communication and shared database design enable new modules to be added without modifying existing services. See [Architecture - Extensibility Principle](docs/SPEC001-architecture.md#extensibility-principle) for technical details. 

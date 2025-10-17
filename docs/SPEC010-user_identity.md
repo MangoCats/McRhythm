@@ -2,9 +2,9 @@
 
 **🤝 TIER 2 - DESIGN SPECIFICATION**
 
-Defines user identity, authentication, and account management. See [Document Hierarchy](document_hierarchy.md).
+Defines user identity, authentication, and account management. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [API Design](api_design.md) | [Database Schema](database_schema.md)
+> **Related Documentation:** [API Design](SPEC007-api_design.md) | [Database Schema](IMPL001-database_schema.md)
 
 ---
 
@@ -225,7 +225,7 @@ User identity is required for:
 
 ## 7. Concurrent Sessions
 
-**[UID-SESS-010]** A single user account (identified by its UUID) may be authenticated from multiple clients or browsers simultaneously. The server will not invalidate previous sessions upon a new login. All authenticated clients for all users will receive the same real-time event stream as described in [event_system.md](event_system.md).
+**[UID-SESS-010]** A single user account (identified by its UUID) may be authenticated from multiple clients or browsers simultaneously. The server will not invalidate previous sessions upon a new login. All authenticated clients for all users will receive the same real-time event stream as described in [event_system.md](SPEC011-event_system.md).
 
 ### 8.1. Account Maintenance Tool
 

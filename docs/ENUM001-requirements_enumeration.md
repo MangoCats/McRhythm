@@ -1,12 +1,12 @@
 # WKMP Requirements Enumeration Scheme
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Crossfade Design](crossfade.md) | [Musical Flavor](musical_flavor.md) | [Implementation Order](implementation_order.md) | [Document Hierarchy](document_hierarchy.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Database Schema](IMPL001-database_schema.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Implementation Order](EXEC001-implementation_order.md) | [Document Hierarchy](GOV001-document_hierarchy.md)
 
 ---
 
 **🔢 CROSS-CUTTING - PROCESS & STANDARDS**
 
-Defines requirement ID scheme for traceability. Applied TO all documents. See [Document Hierarchy](document_hierarchy.md).
+Defines requirement ID scheme for traceability. Applied TO all documents. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
 ---
 

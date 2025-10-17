@@ -2,9 +2,9 @@
 
 **🗄️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines data structures and schema. Derived from Tier 2 design documents. See [Document Hierarchy](document_hierarchy.md).
+Defines data structures and schema. Derived from Tier 2 design documents. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md)
 
 ---
 
@@ -66,7 +66,7 @@ WKMP uses SQLite as its database engine. The schema is designed to support:
 **Database Location:**
 - Database file: `wkmp.db` (or user-specified name) in the root folder
 - Application reads root folder location from configuration file or environment variable
-- See [Deployment](deployment.md) for configuration details
+- See [Deployment](IMPL004-deployment.md) for configuration details
 
 ## Schema Versioning
 
@@ -108,11 +108,11 @@ Stores user account information for both Anonymous and registered users.
 - **New user accounts**: Inherit the Anonymous user's current `config_interface_access` value at account creation time
 - **NULL handling**: If value is NULL when read, it is reset to `1` (enabled) and stored
 - **Rationale**: Accessibility-first design; prevents accidental lockouts; command-line password reset tool provides recovery path
-- See [Architecture - Configuration Interface Access Control](architecture.md) for complete access control specification
+- See [Architecture - Configuration Interface Access Control](SPEC001-architecture.md) for complete access control specification
 
 **Notes:**
 - All users (anonymous and registered) must have a record in this table
-- See [User Identity and Authentication](user_identity.md) for password hashing and account management
+- See [User Identity and Authentication](SPEC010-user_identity.md) for password hashing and account management
 - The Anonymous user record is created during database initialization and cannot be deleted
 
 ## Core Entities
@@ -184,7 +184,7 @@ Audio passages (playable segments) extracted from files.
 - Source of truth is `passage_songs` and `passage_albums` relationships
 - These fields may become stale if MusicBrainz data is updated
 - `user_title` always takes precedence over `title` when set for display purposes
-- Both `user_title` and `title` are subject to the "only when different" display logic (see [UI Specification](ui_specification.md#passage-title-display))
+- Both `user_title` and `title` are subject to the "only when different" display logic (see [UI Specification](SPEC009-ui_specification.md#passage-title-display))
 
 ### `songs`
 
@@ -343,7 +343,7 @@ Images associated with various entities (songs, passages, albums, artists, works
   - Example: `cover.jpg` → `cover_2025-10-09T12:34:56Z.jpg`
 - The `file_path` column stores the path relative to the root folder
   - Example: If audio file is `albums/artist/song.mp3`, artwork might be stored as `albums/artist/song.jpg`
-- See [Library Management](library_management.md) for complete artwork extraction and storage workflows
+- See [Library Management](SPEC008-library_management.md) for complete artwork extraction and storage workflows
 
 ## Relationship Tables (Many-to-Many)
 
@@ -421,7 +421,7 @@ Associates passages with albums.
   - UI displays artwork based on the currently playing song within the passage
   - When playback position is between songs (in a gap), nearest song determines artwork
   - If a song is associated with multiple albums, all albums' art rotates every 15 seconds
-  - See [UI Specification - Album Artwork Display](ui_specification.md#album-artwork-display) for complete display logic
+  - See [UI Specification - Album Artwork Display](SPEC009-ui_specification.md#album-artwork-display) for complete display logic
 
 ### `song_works`
 
@@ -441,7 +441,7 @@ Associates songs with the works they are recordings of. Many-to-many relationshi
 - `idx_song_works_work` on `work_id`
 
 **Notes:**
-- **Cardinality**: Song → Work is many-to-many (see [ENT-CARD-045](entity_definitions.md#ent-card-045))
+- **Cardinality**: Song → Work is many-to-many (see [ENT-CARD-045](REQ002-entity_definitions.md#ent-card-045))
 - **Common cases**:
   - **One work per song**: Standard case for original compositions
   - **Zero works**: Song has no entries in this table (improvisations, sound effects, non-musical passages)
@@ -582,8 +582,8 @@ Records each time a song is played. Used primarily for cooldown calculations by 
 - Registered users have individual taste profiles based on their unique `user_id`
 - **User-scoped vs Global**: Likes/Dislikes are user-specific because they represent individual taste preferences. In contrast, playback settings (volume, audio sink, etc.) are global because WKMP functions like a shared hi-fi system where multiple users may be listening simultaneously.
 - **Program Director integration**: The Program Director may (or may not) incorporate user taste profiles into passage selection, depending on configuration and future development
-- See [Likes and Dislikes](like_dislike.md) for weight distribution algorithm
-- See [Musical Taste](musical_taste.md) for how likes/dislikes build taste profiles
+- See [Likes and Dislikes](SPEC006-like_dislike.md) for weight distribution algorithm
+- See [Musical Taste](SPEC004-musical_taste.md) for how likes/dislikes build taste profiles
 
 ### `queue`
 
@@ -707,7 +707,7 @@ The database is initialized with default module configurations on first run:
   - User-facing web UIs (user_interface, audio_ingest, lyric_editor): `0.0.0.0` for network access, but user_interface defaults to `127.0.0.1` for security (user can change to `0.0.0.0` if needed)
 - For distributed deployments, update `host` values to actual IP addresses or hostnames
 - Each module binds to its own configured port and uses other modules' configurations to make HTTP requests
-- See [Deployment - Module Discovery](deployment.md#module-discovery-via-database) for startup sequence
+- See [Deployment - Module Discovery](IMPL004-deployment.md#module-discovery-via-database) for startup sequence
 
 ### `settings`
 
@@ -792,9 +792,9 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 - All settings are stored as TEXT in the database but represent different types in application code
 - NULL or missing values are automatically initialized with built-in defaults and written to the database
 - Version column indicates which WKMP versions use each setting (All = Full, Lite, Minimal)
-- See [Requirements](requirements.md) for requirement references (e.g., [REQ-PB-050] for `initial_play_state`)
-- See [Crossfade Design](crossfade.md) for complete crossfade system specifications
-- See [Architecture](architecture.md) for module responsibilities and configuration patterns
+- See [Requirements](REQ001-requirements.md) for requirement references (e.g., [REQ-PB-050] for `initial_play_state`)
+- See [Crossfade Design](SPEC002-crossfade.md) for complete crossfade system specifications
+- See [Architecture](SPEC001-architecture.md) for module responsibilities and configuration patterns
 
 **Queue Entry Timing Overrides JSON Schema:**
 
@@ -836,9 +836,9 @@ The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrid
 - Partial overrides are supported (e.g., override only `end_time_ms` and `fade_in_curve`)
 - When queue entry is removed, its override entry should be deleted from this JSON object
 - Timing points relative to passage start (not file start), except `start_time_ms` and `end_time_ms`
-- See [api_design.md - POST /playback/enqueue](api_design.md#post-playbackenqueue) for override semantics during enqueue
+- See [api_design.md - POST /playback/enqueue](SPEC007-api_design.md#post-playbackenqueue) for override semantics during enqueue
 
-> See [Deployment - HTTP Server Configuration](deployment.md#13-http-server-configuration) for details on port selection algorithm, duplicate instance detection, and bind address configuration.
+> See [Deployment - HTTP Server Configuration](IMPL004-deployment.md#13-http-server-configuration) for details on port selection algorithm, duplicate instance detection, and bind address configuration.
 
 ## External API Caching
 
@@ -1068,7 +1068,7 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 - Minimal, Lite, and Full versions are implemented by launching different subsets of the modules (microservices)
 - Each module creates database tables it requires if they are missing
 - Each module initializes missing values it requires with default values encoded in the module
-- See [architecture.md#module-launching-process](architecture.md#module-launching-process) for module initialization details
+- See [architecture.md#module-launching-process](SPEC001-architecture.md#module-launching-process) for module initialization details
 
 **Database Downgrades:**
 - **Important:** Databases cannot be downgraded

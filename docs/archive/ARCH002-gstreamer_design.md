@@ -4,7 +4,7 @@
 
 **Archive Date:** 2025-10-16
 **Reason:** Project switched to single-stream audio architecture with sample-accurate mixing instead of GStreamer dual pipeline approach.
-**Replacement Document:** See [single-stream-playback.md](single-stream-playback.md) for the implemented architecture.
+**Replacement Document:** See [single-stream-playback.md](../SPEC013-single_stream_playback.md) for the implemented architecture.
 
 **Decision Rationale:**
 - Single stream provides 500-2500x better crossfade precision (0.02ms vs 10-50ms)
@@ -18,9 +18,9 @@ This document is preserved for historical reference.
 
 **🔧 TIER 3 - IMPLEMENTATION SPECIFICATION (HISTORICAL)**
 
-Technical design for wkmp-ap audio playback engine using GStreamer. See [Document Hierarchy](document_hierarchy.md).
+Technical design for wkmp-ap audio playback engine using GStreamer. See [Document Hierarchy](../GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Architecture](architecture.md) | [Crossfade Design](crossfade.md) | [API Design](api_design.md)
+> **Related Documentation:** [Architecture](../SPEC001-architecture.md) | [Crossfade Design](../SPEC002-crossfade.md) | [API Design](../SPEC007-api_design.md)
 
 ---
 
@@ -154,7 +154,7 @@ let decodebin = gst::ElementFactory::make("decodebin")
 - **ALAC**: alacdec
 - **WavPack**: wavpackdec
 
-> See [Deployment - GStreamer Bundling](deployment.md#12a1-gstreamer-bundling-audio-player) for required plugins.
+> See [Deployment - GStreamer Bundling](../IMPL004-deployment.md#12a1-gstreamer-bundling-audio-player) for required plugins.
 
 ### 2.3. Format Conversion Elements
 
@@ -726,7 +726,7 @@ fn apply_fade_curve(t: f64, curve: FadeCurve) -> f64 {
 }
 ```
 
-> See [Crossfade Design](crossfade.md#implementation-algorithm) for fade curve mathematical specifications.
+> See [Crossfade Design](../SPEC002-crossfade.md#implementation-algorithm) for fade curve mathematical specifications.
 
 ### 5.3. Crossfade Completion
 
@@ -833,7 +833,7 @@ wkmp-ap uses **two separate position query timers** for different purposes:
    - Query purpose: Update UI progress bars and position displays
    - Low frequency acceptable for user-visible progress updates
 
-2. **Song boundary detection**: Every 500ms (see [architecture.md - Song Boundary Detection](architecture.md#song-boundary-detection))
+2. **Song boundary detection**: Every 500ms (see [architecture.md - Song Boundary Detection](../SPEC001-architecture.md#song-boundary-detection))
    - Timer: 500ms periodic task (separate from PlaybackProgress timer)
    - Query purpose: Detect song start/end events for UI updates (album art, lyrics, song info)
    - Higher frequency needed for responsive song transitions

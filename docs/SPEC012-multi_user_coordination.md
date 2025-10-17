@@ -2,9 +2,9 @@
 
 **🤝 TIER 2 - DESIGN SPECIFICATION**
 
-Defines the mechanism for coordinating actions from multiple users to ensure a consistent and predictable experience. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines the mechanism for coordinating actions from multiple users to ensure a consistent and predictable experience. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [API Design](api_design.md) | [Event System](event_system.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [API Design](SPEC007-api_design.md) | [Event System](SPEC011-event_system.md)
 
 ---
 
@@ -16,7 +16,7 @@ Defines the mechanism for coordinating actions from multiple users to ensure a c
 
 ## The `UserAction` Event
 
-**[MUC-EVT-010]** As defined in the [Event System](event_system.md), the `UserAction` event is central to multi-user coordination.
+**[MUC-EVT-010]** As defined in the [Event System](SPEC011-event_system.md), the `UserAction` event is central to multi-user coordination.
 
 ```rust
 /// Emitted when user performs an action
@@ -42,7 +42,7 @@ pub enum UserActionType {
 }
 ```
 
-**[MUC-EVT-020]** - `user_id`: The persistent, unique identifier (UUID) for each user, as defined in [User Identity and Authentication](user_identity.md). This allows components to reliably identify which user performed an action.
+**[MUC-EVT-020]** - `user_id`: The persistent, unique identifier (UUID) for each user, as defined in [User Identity and Authentication](SPEC010-user_identity.md). This allows components to reliably identify which user performed an action.
 
 ## Edge Case Specifications
 

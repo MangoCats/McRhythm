@@ -2,15 +2,15 @@
 
 **🎼 TIER 2 - DESIGN SPECIFICATION**
 
-[MTA-DESC-010] Defines musical taste definition and usage. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+[MTA-DESC-010] Defines musical taste definition and usage. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Architecture](architecture.md), [Musical Flavor](musical_flavor.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md), [Musical Flavor](SPEC003-musical_flavor.md)
 
 ---
 
 ## Description
 
-[MTA-DESC-020] Musical Taste is a quantifiable measure of what [Musical Flavor](musical_flavor.md) is preferred. The [Program Director](program_director.md) uses Musical Taste (or more simply: Taste) as one input to decide which passages to enqueue for play.
+[MTA-DESC-020] Musical Taste is a quantifiable measure of what [Musical Flavor](SPEC003-musical_flavor.md) is preferred. The [Program Director](SPEC005-program_director.md) uses Musical Taste (or more simply: Taste) as one input to decide which passages to enqueue for play.
 
 [MTA-DESC-030] Taste is determined by Likes and Dislikes.  At least one Like or Dislike must be registered with at least one Song in order for Taste
 to be computed.  The time at which a Like or Dislike is registered also has impact on Taste, because Taste can vary over time: time of day,
@@ -22,7 +22,7 @@ day of the week, time of the year.
 
 ### Likes and Dislikes
 
-[MTA-LIKE-010] See [Likes and Dislikes](like_dislike.md) for a complete specification of this functionality.
+[MTA-LIKE-010] See [Likes and Dislikes](SPEC006-like_dislike.md) for a complete specification of this functionality.
 
 
 ## Simple Taste

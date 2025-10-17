@@ -1,10 +1,10 @@
-# Deployment and Process Management
+﻿# Deployment and Process Management
 
-**🚀 TIER 3 - IMPLEMENTATION SPECIFICATION**
+**ðŸš€ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines deployment, process management, and operational configuration for WKMP's microservices architecture. See [Document Hierarchy](document_hierarchy.md).
+Defines deployment, process management, and operational configuration for WKMP's microservices architecture. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Architecture](architecture.md) | [API Design](api_design.md) | [Requirements](requirements.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [API Design](SPEC007-api_design.md) | [Requirements](REQ001-requirements.md)
 
 ---
 
@@ -75,9 +75,9 @@ Defines deployment, process management, and operational configuration for WKMP's
 - All audio files and artwork stored within root folder tree
 
 > **See Also:**
-> - [Database Schema - module_config Table](database_schema.md#module_config) - Complete table definition, constraints, initialization behavior
+> - [Database Schema - module_config Table](IMPL001-database_schema.md#module_config) - Complete table definition, constraints, initialization behavior
 > - [Section 13: HTTP Server Configuration](#13-http-server-configuration) - Port selection algorithm, fallback ports, duplicate instance detection
-> - [Database Schema - File System Organization](database_schema.md#file-system-organization) - Root folder structure
+> - [Database Schema - File System Organization](IMPL001-database_schema.md#file-system-organization) - Root folder structure
 
 ### 2.2. Audio Player Configuration
 
@@ -104,7 +104,7 @@ log_file = ""
 
 **Runtime settings in database:**
 - `queue_max_size`: Maximum queue size (default: 100)
-- See [database_schema.md - settings table](database_schema.md#settings) for complete list
+- See [database_schema.md - settings table](IMPL001-database_schema.md#settings) for complete list
 
 **Precedence:** Database is the source of truth for ALL runtime settings. TOML files MUST NOT provide any values which are stored in database. TOML provides only bootstrap configuration (root folder path, logging, static asset paths). When database settings are missing, NULL, or the database does not exist, the application SHALL initialize them with built-in default values and write those defaults to the database.
 
@@ -133,7 +133,7 @@ log_file = ""
 
 **Runtime settings in database:**
 - `session_timeout_seconds`: Session timeout duration (default: 31536000 = 1 year)
-- See [database_schema.md - settings table](database_schema.md#settings) for complete list
+- See [database_schema.md - settings table](IMPL001-database_schema.md#settings) for complete list
 
 **Note:** Server port and bind address are read from the `module_config` table in the database. Other module URLs are also read from the database, eliminating the need for `[server]` and `[modules]` sections in the config file.
 
@@ -157,7 +157,7 @@ log_file = ""
 - `queue_refill_threshold_seconds`: Min seconds before refill (default: 900)
 - `queue_refill_request_throttle_seconds`: Min interval between requests (default: 10)
 - `queue_max_enqueue_batch`: Maximum passages to enqueue at once (default: 5)
-- See [database_schema.md - settings table](database_schema.md#settings) for complete list
+- See [database_schema.md - settings table](IMPL001-database_schema.md#settings) for complete list
 
 **Note:** Server port, bind address, and Audio Player URL are read from the `module_config` table in the database. All queue management and refill behavior is configured via database settings table, not TOML.
 
@@ -186,7 +186,7 @@ log_file = ""
 
 **Runtime settings in database:**
 - `ingest_max_concurrent_jobs`: Maximum concurrent file processing jobs (default: 4)
-- See [database_schema.md - settings table](database_schema.md#settings) for complete list
+- See [database_schema.md - settings table](IMPL001-database_schema.md#settings) for complete list
 
 **Note:** Server port and bind address are read from the `module_config` table in the database.
 
@@ -209,17 +209,17 @@ log_file = ""
 
 ```
 User Interface
-  ├─ Depends on: Audio Player to play audio, but has independent non audio playing functionality
-  └─ Optional: Program Director
+  â”œâ”€ Depends on: Audio Player to play audio, but has independent non audio playing functionality
+  â””â”€ Optional: Program Director
 
 Audio Player
-  └─ No dependencies (can start and run independently)
+  â””â”€ No dependencies (can start and run independently)
 
 Program Director
-  └─ Depends on: Audio Player, there's no point in selecting passsages for play if there's no audio player to enqueue them to.
+  â””â”€ Depends on: Audio Player, there's no point in selecting passsages for play if there's no audio player to enqueue them to.
 
 Audio Ingest
-  └─ No runtime dependencies (operates independently)
+  â””â”€ No runtime dependencies (operates independently)
 ```
 
 **[DEP-START-020]** Recommended startup order:
@@ -552,7 +552,7 @@ The database is located at `{root_folder}/wkmp.db`.
 - Validates that user exists before prompting for password
 - Returns appropriate exit codes for scripting (0 = success, non-zero = error)
 
-See [Architecture - Configuration Interface Access Control](architecture.md#configuration-interface-access-control) for complete access control specification.
+See [Architecture - Configuration Interface Access Control](SPEC001-architecture.md#configuration-interface-access-control) for complete access control specification.
 
 ## 10. Health Checks and Monitoring
 
@@ -630,12 +630,12 @@ See [Architecture - Configuration Interface Access Control](architecture.md#conf
 
 ### 12.1. Automatic Backup Strategy
 
-**[DEP-BACKUP-010]** WKMP implements an **automatic database backup system** managed by wkmp-ui. See [Architecture - Database Backup Strategy](architecture.md#arch-queue-persist-030) for complete specification.
+**[DEP-BACKUP-010]** WKMP implements an **automatic database backup system** managed by wkmp-ui. See [Architecture - Database Backup Strategy](SPEC001-architecture.md#arch-queue-persist-030) for complete specification.
 
 **Key Features:**
 - **On Startup**: Integrity check + conditional backup (throttled to prevent excessive wear)
 - **Periodic**: Automated backup every 3 months (configurable)
-- **Atomic Process**: Temp file → integrity check → atomic rename
+- **Atomic Process**: Temp file â†’ integrity check â†’ atomic rename
 - **Retention**: Keeps 3 timestamped backups (configurable)
 - **Network Support**: Configurable backup location (local or network drive with fallback)
 
@@ -646,7 +646,7 @@ See [Architecture - Configuration Interface Access Control](architecture.md#conf
 - `backup_retention_count`: Number of backups to keep (default: 3)
 - `last_backup_timestamp_ms`: Last successful backup timestamp
 
-> See [Architecture - ARCH-QUEUE-PERSIST-030](architecture.md#arch-queue-persist-030) for detailed backup algorithm, integrity checking, and failure handling.
+> See [Architecture - ARCH-QUEUE-PERSIST-030](SPEC001-architecture.md#arch-queue-persist-030) for detailed backup algorithm, integrity checking, and failure handling.
 
 ### 12.2. Manual Backup
 
@@ -692,7 +692,7 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 4. Displays progress UI to connecting users during recovery
 5. Once good database verified, proceeds with normal startup
 
-> See [Architecture - ARCH-QUEUE-PERSIST-030](architecture.md#arch-queue-persist-030) for automatic recovery details.
+> See [Architecture - ARCH-QUEUE-PERSIST-030](SPEC001-architecture.md#arch-queue-persist-030) for automatic recovery details.
 
 **[DEP-RECOVERY-020]** Manual recovery procedure:
 1. Stop all WKMP modules
@@ -893,15 +893,15 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 **[DEP-HTTP-060]** Example port allocation scenario:
 ```
 Startup attempt 1:
-- wkmp-ui tries 5720 → success, stores 5720 in module_config
-- wkmp-ap tries 5721 → blocked by another process
-- wkmp-ap tries 15721 → success, stores 15721 in module_config
-- wkmp-pd tries 5722 → success, stores 5722 in module_config
+- wkmp-ui tries 5720 â†’ success, stores 5720 in module_config
+- wkmp-ap tries 5721 â†’ blocked by another process
+- wkmp-ap tries 15721 â†’ success, stores 15721 in module_config
+- wkmp-pd tries 5722 â†’ success, stores 5722 in module_config
 
 Startup attempt 2 (after restart):
-- wkmp-ui tries 5720 (last known) → success
-- wkmp-ap tries 15721 (last known) → success
-- wkmp-pd tries 5722 (last known) → success
+- wkmp-ui tries 5720 (last known) â†’ success
+- wkmp-ap tries 15721 (last known) â†’ success
+- wkmp-pd tries 5722 (last known) â†’ success
 (No fallback port search needed)
 ```
 
@@ -920,8 +920,8 @@ Each module's `GET /health` endpoint includes module identity:
 ```
 
 **[DEP-HTTP-080]** When a module finds a port occupied, it sends `GET /health` to determine if it's another instance:
-- If `module` field matches the attempting module's name → duplicate instance detected → exit
-- If no response or different `module` value → port occupied by different service → try next port
+- If `module` field matches the attempting module's name â†’ duplicate instance detected â†’ exit
+- If no response or different `module` value â†’ port occupied by different service â†’ try next port
 
 ### 14.3. Bind Address Configuration
 
@@ -1088,7 +1088,7 @@ UPDATE settings SET value = '[8080, 8090, 8100, 8110, 8120]'
 - Single-use challenges with 60-second expiration (prevents replay attacks)
 - Server never sees actual password, only `client_hash`
 
-> See [User Identity - Password Transmission Protection](user_identity.md#43-password-transmission-protection) for complete protocol specification.
+> See [User Identity - Password Transmission Protection](SPEC010-user_identity.md#43-password-transmission-protection) for complete protocol specification.
 
 **[DEP-SEC-031]** Removed.
 
@@ -1134,29 +1134,29 @@ chmod 600 ~/.config/wkmp/*.toml
 **[DEP-NET-010]** Typical deployment network diagram:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Host System                          │
-│                                                               │
-│  ┌─────────────┐                                             │
-│  │    User     │ ← External HTTP requests (port 5720)        │
-│  │  Interface  │                                             │
-│  └──────┬──────┘                                             │
-│         │                                                     │
-│         ├──────→ Audio Player (localhost:5721)               │
-│         ├──────→ Program Director (localhost:5722)           │
-│         └──────→ Audio Ingest (localhost:5723)               │
-│                                                               │
-│  ┌────────────────────────────────────────┐                  │
-│  │  Program Director                      │                  │
-│  │      ↓                                  │                  │
-│  │  Audio Player (direct call)            │                  │
-│  └────────────────────────────────────────┘                  │
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │          Shared SQLite Database                       │    │
-│  │  ~/.local/share/wkmp/wkmp.db                          │    │
-│  └──────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                         Host System                          â”‚
+â”‚                                                               â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                                             â”‚
+â”‚  â”‚    User     â”‚ â† External HTTP requests (port 5720)        â”‚
+â”‚  â”‚  Interface  â”‚                                             â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”˜                                             â”‚
+â”‚         â”‚                                                     â”‚
+â”‚         â”œâ”€â”€â”€â”€â”€â”€â†’ Audio Player (localhost:5721)               â”‚
+â”‚         â”œâ”€â”€â”€â”€â”€â”€â†’ Program Director (localhost:5722)           â”‚
+â”‚         â””â”€â”€â”€â”€â”€â”€â†’ Audio Ingest (localhost:5723)               â”‚
+â”‚                                                               â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”                  â”‚
+â”‚  â”‚  Program Director                      â”‚                  â”‚
+â”‚  â”‚      â†“                                  â”‚                  â”‚
+â”‚  â”‚  Audio Player (direct call)            â”‚                  â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                  â”‚
+â”‚                                                               â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”    â”‚
+â”‚  â”‚          Shared SQLite Database                       â”‚    â”‚
+â”‚  â”‚  ~/.local/share/wkmp/wkmp.db                          â”‚    â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜    â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 **[DEP-NET-020]** Port configuration is centralized in the `module_config` database table. All modules read their binding configuration and peer module addresses from this single source of truth.

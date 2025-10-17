@@ -1,12 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/Users/Mango Cat/Dev/McRhythm/**)",
-      "Bash(dir:*)",
-      "Bash(findstr:*)",
-      "Bash(cat:*)",
-      "Bash(test:*)",
-      "Read(//c/Users/**)"
+      "Bash(powershell -command:*)",
+      "Bash(Select-String -Pattern \"^Total broken links:\")"
     ],
     "deny": [],
     "ask": []

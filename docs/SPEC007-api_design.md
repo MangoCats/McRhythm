@@ -1,10 +1,10 @@
-# WKMP API Design
+﻿# WKMP API Design
 
-**🌐 TIER 2 - DESIGN SPECIFICATION**
+**ðŸŒ TIER 2 - DESIGN SPECIFICATION**
 
-Defines REST API structure and Server-Sent Events interface. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines REST API structure and Server-Sent Events interface. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Event System](event_system.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Event System](SPEC011-event_system.md)
 
 ---
 
@@ -24,18 +24,18 @@ WKMP implements a **microservices architecture** with 5 independent HTTP servers
 
 ### API Communication Patterns
 
-**End Users → User Interface:**
+**End Users â†’ User Interface:**
 - User Interface serves as the primary API gateway for end users
 - Proxies playback requests to Audio Player
 - Proxies configuration requests to Program Director
 - Handles authentication and session management
 - Aggregates SSE events from Audio Player
 
-**Program Director → Audio Player:**
+**Program Director â†’ Audio Player:**
 - Direct communication for automatic enqueueing
 - No user interface involvement required
 
-**Audio Ingest → Database:**
+**Audio Ingest â†’ Database:**
 - Direct SQLite access for new file insertion
 - Independent operation
 
@@ -46,7 +46,7 @@ WKMP implements a **microservices architecture** with 5 independent HTTP servers
 2. Create new account (generates unique UUID, requires username/password)
 3. Login to existing account (retrieves UUID, requires username/password)
 
-Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. See [User Identity and Authentication](user_identity.md) for complete flow.
+Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. See [User Identity and Authentication](SPEC010-user_identity.md) for complete flow.
 
 **Internal Module APIs** (Audio Player, Program Director, Audio Ingest, Lyric Editor):
 - No authentication required (assumed to be on trusted local network)
@@ -160,7 +160,7 @@ Retrieve information about the currently authenticated user.
   "is_anonymous": true
 }
 ```
-*Note: The Anonymous user GUID is fixed as defined in [Database Schema](database_schema.md#users)*
+*Note: The Anonymous user GUID is fixed as defined in [Database Schema](IMPL001-database_schema.md#users)*
 
 ### Playback Control Endpoints (Proxied to Audio Player)
 
@@ -206,7 +206,7 @@ Get current playback state.
 - System in "playing" state with empty queue produces no audio output
 - Enqueueing a passage while in "playing" state begins playback immediately
 - Enqueueing a passage while in "paused" state queues it without starting playback
-- State NOT persisted across app restarts - see [Architecture](architecture.md#state-persistence) for details
+- State NOT persisted across app restarts - see [Architecture](SPEC001-architecture.md#state-persistence) for details
 
 #### `POST /api/play`
 
@@ -247,7 +247,7 @@ Skip to next passage in queue.
 }
 ```
 
-**Edge Case:** Skip requests within 5 seconds of a previous skip are ignored. See [Multi-User Coordination](multi_user_coordination.md#1-skip-throttling) for details.
+**Edge Case:** Skip requests within 5 seconds of a previous skip are ignored. See [Multi-User Coordination](SPEC012-multi_user_coordination.md#1-skip-throttling) for details.
 
 #### `POST /api/volume`
 
@@ -362,7 +362,7 @@ Remove passage from queue.
 }
 ```
 
-**Edge Case:** Multiple concurrent remove requests for the same passage are handled gracefully. See [Multi-User Coordination](multi_user_coordination.md#2-concurrent-queue-removal) for details.
+**Edge Case:** Multiple concurrent remove requests for the same passage are handled gracefully. See [Multi-User Coordination](SPEC012-multi_user_coordination.md#2-concurrent-queue-removal) for details.
 
 ### User Feedback (Full and Lite versions only)
 
@@ -476,7 +476,7 @@ Launch the Lyric Editor for a specific song (Full version only).
 - Forwards song_guid, recording_mbid, title, and artist to `POST /lyric_editor/open`
 - Returns success/failure status
 
-**Edge Case:** Concurrent lyric submissions are handled via a "last write wins" strategy in the Lyric Editor. See [Multi-User Coordination](multi_user_coordination.md#3-concurrent-lyric-editing) for details.
+**Edge Case:** Concurrent lyric submissions are handled via a "last write wins" strategy in the Lyric Editor. See [Multi-User Coordination](SPEC012-multi_user_coordination.md#3-concurrent-lyric-editing) for details.
 
 ### Library Management (Full version only)
 
@@ -687,7 +687,7 @@ List available audio output devices.
 **Notes:**
 - Device list is queried dynamically from the audio subsystem at request time
 - Device availability may change (headphones plugged/unplugged, USB devices connected/disconnected)
-- See [single-stream-design.md](single-stream-design.md) for audio architecture implementation details
+- See [single-stream-design.md](SPEC014-single_stream_design.md) for audio architecture implementation details
 
 #### `POST /audio/device`
 Set audio output device.
@@ -720,7 +720,7 @@ Set audio output device.
 
 **Notes:**
 - Device must be one of the IDs returned by `GET /audio/devices`
-- See [single-stream-design.md](single-stream-design.md) for audio device configuration details
+- See [single-stream-design.md](SPEC014-single_stream_design.md) for audio device configuration details
 
 #### `POST /audio/volume`
 Set volume level (0-100 integer, user-facing scale).
@@ -774,7 +774,7 @@ Enqueue a passage for playback.
 **Field Details:**
 - `file_path` (required): Path relative to root folder (not including root folder path itself)
   - Example: If root_folder is `/home/user/wkmp` and audio file is at `/home/user/wkmp/music/albums/track.mp3`, use `file_path: "music/albums/track.mp3"`
-  - Must match a path in the `files` table (see [database_schema.md - File System Organization](database_schema.md#file-system-organization))
+  - Must match a path in the `files` table (see [database_schema.md - File System Organization](IMPL001-database_schema.md#file-system-organization))
   - Forward slashes (`/`) used as path separator on all platforms
 - `start_time_ms` (optional): Passage start time in milliseconds
 - `end_time_ms` (optional): Passage end time in milliseconds
@@ -869,12 +869,12 @@ See entity_definitions.md REQ-DEF-035 for ephemeral passage specification.
 - Override applied when passage plays; passage defaults used if no override
 - Override deleted when queue entry removed from queue
 - Partial overrides supported (e.g., override only `end_time_ms` while using passage defaults for other fields)
-- See [database_schema.md - Queue Entry Timing Overrides](database_schema.md#queue-entry-timing-overrides-json-schema) for complete JSON schema
+- See [database_schema.md - Queue Entry Timing Overrides](IMPL001-database_schema.md#queue-entry-timing-overrides-json-schema) for complete JSON schema
 
 **Notes:**
 - All timing values are unsigned integer milliseconds
 - When timing points omitted in request, values from passage definition or global settings are used
-- See [Crossfade Design](crossfade.md) for timing point semantics
+- See [Crossfade Design](SPEC002-crossfade.md) for timing point semantics
 - `passage_guid` parameter is optional and used for song identification features (CurrentSongChanged events)
 
 #### `DELETE /playback/queue/{passage_id}`
@@ -934,9 +934,9 @@ Resume playback (transition to Playing state).
 **Resume Fade-In Details:**
 - Duration: `resume_from_pause_fade_in_duration` setting (default: 0.5 seconds)
 - Curve: `resume_from_pause_fade_in_curve` setting (default: "exponential")
-- Available curves: "linear", "exponential" (v(t) = t²), "cosine"
+- Available curves: "linear", "exponential" (v(t) = tÂ²), "cosine"
 - Applies multiplicatively with any active crossfade curves
-- See [crossfade.md - Pause and Resume Behavior](crossfade.md#pause-and-resume-behavior) for complete specification
+- See [crossfade.md - Pause and Resume Behavior](SPEC002-crossfade.md#pause-and-resume-behavior) for complete specification
 
 **Notes:**
 - Idempotent operation (safe to call multiple times)
@@ -966,7 +966,7 @@ Pause playback (transition to Paused state).
 - No fade-out: Immediate stop (volume set to 0.0 instantly)
 - Audio stream continues internally (muted) to maintain position accuracy
 - Rationale: Pause is an immediate stop; users expect instant response
-- See [crossfade.md - Pause and Resume Behavior](crossfade.md#pause-and-resume-behavior) for complete specification
+- See [crossfade.md - Pause and Resume Behavior](SPEC002-crossfade.md#pause-and-resume-behavior) for complete specification
 
 **Notes:**
 - Idempotent operation (safe to call multiple times)
@@ -1164,7 +1164,7 @@ Retrieve current buffer decode/playback status for all passages in queue.
 #### `GET /health`
 Health check endpoint for monitoring and duplicate instance detection. **Required for all modules** (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-le, wkmp-ai).
 
-See [architecture.md - Health check and respawning](architecture.md#launch-procedure) for detailed subprocess health monitoring behavior.
+See [architecture.md - Health check and respawning](SPEC001-architecture.md#launch-procedure) for detailed subprocess health monitoring behavior.
 
 **Request Format:**
 - Method: `GET`
@@ -1251,7 +1251,7 @@ Server-Sent Events stream for real-time playback updates.
 
 This section defines the JSON wire format for Server-Sent Events transmitted by the Audio Player (`GET /events` endpoint).
 
-**Note on Volume Scale:** SSE events use the system-level volume scale (0.0-1.0 floating-point) rather than the user-facing scale (0-100 integer). This allows for precise volume representation in real-time event streams. User interface components should convert to 0-100 integer scale for display (see [architecture.md - Volume Handling](architecture.md#volume-handling) for conversion formulas).
+**Note on Volume Scale:** SSE events use the system-level volume scale (0.0-1.0 floating-point) rather than the user-facing scale (0-100 integer). This allows for precise volume representation in real-time event streams. User interface components should convert to 0-100 integer scale for display (see [architecture.md - Volume Handling](SPEC001-architecture.md#volume-handling) for conversion formulas).
 
 ### PlaybackProgress
 
@@ -1303,7 +1303,7 @@ data: {"old_volume":0.75,"new_volume":0.85,"timestamp":"2025-10-10T14:30:00Z"}
 - `new_volume` (float): New volume level (0.0 = mute, 1.0 = maximum)
 - `timestamp` (string): ISO 8601 timestamp (UTC) when volume changed
 
-**Conversion:** System volume (0.0-1.0) → User display (0-100): `user_volume = ceil(system_volume × 100.0)`
+**Conversion:** System volume (0.0-1.0) â†’ User display (0-100): `user_volume = ceil(system_volume Ã— 100.0)`
 
 ### QueueChanged
 
@@ -1384,7 +1384,7 @@ data: {"passage_id":"uuid-string","file_path":"music/albums/album_name/track.mp3
 
 **Fields:**
 - `passage_id` (string): UUID of passage that started
-- `file_path` (string): Audio file path relative to root folder (see [database_schema.md - File System Organization](database_schema.md#file-system-organization))
+- `file_path` (string): Audio file path relative to root folder (see [database_schema.md - File System Organization](IMPL001-database_schema.md#file-system-organization))
 - `start_time_ms` (integer): Passage start time in milliseconds
 - `end_time_ms` (integer): Passage end time in milliseconds
 - `timestamp` (string): ISO 8601 timestamp (UTC) when passage started
@@ -1619,7 +1619,7 @@ data: <json_payload>
 
 **Event Types:**
 
-See [Event System](event_system.md) for complete event enumeration and payloads.
+See [Event System](SPEC011-event_system.md) for complete event enumeration and payloads.
 
 **Key Events for UI:**
 - `passage_started` - New passage began playing
@@ -1646,7 +1646,7 @@ data: {"passage_id": "550e8400-e29b-41d4-a716-446655440000", "timestamp": "2025-
 
 All connected clients receive the same event stream, ensuring synchronized UI state across desktop and mobile browsers.
 
-> **Implements:** [Requirements - Real-time UI Updates](requirements.md#core-features)
+> **Implements:** [Requirements - Real-time UI Updates](REQ001-requirements.md#core-features)
 
 ## Error Responses
 
@@ -1707,7 +1707,7 @@ No rate limiting on local API endpoints.
 
 ### API Layer Architecture
 
-See [Architecture - API Layer](architecture.md#layered-architecture) for component structure.
+See [Architecture - API Layer](SPEC001-architecture.md#layered-architecture) for component structure.
 
 **Request Flow:**
 1. HTTP request received by Tauri/Axum web server
@@ -1718,7 +1718,7 @@ See [Architecture - API Layer](architecture.md#layered-architecture) for compone
 
 **SSE Broadcasting:**
 
-SSE endpoint subscribes to EventBus (see [Event System](event_system.md)) and forwards all events to connected clients.
+SSE endpoint subscribes to EventBus (see [Event System](SPEC011-event_system.md)) and forwards all events to connected clients.
 
 ### Testing
 

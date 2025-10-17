@@ -45,7 +45,7 @@ WKMP project documentation is organized into a strict hierarchy that governs how
 
 ### Tier 0: Governance (Meta)
 
-#### document_hierarchy.md
+#### GOV001-document_hierarchy.md
 **Purpose:** Defines the documentation framework and governance rules
 
 **Contains:**
@@ -72,7 +72,7 @@ WKMP project documentation is organized into a strict hierarchy that governs how
 
 ### Tier 1: Authoritative Requirements
 
-#### requirements.md
+#### REQ001-requirements.md
 **Purpose:** Defines WHAT WKMP must do from a product/user perspective
 
 **Contains:**
@@ -94,7 +94,7 @@ WKMP project documentation is organized into a strict hierarchy that governs how
 
 **Maintained By:** Product owner, stakeholders, with technical input
 
-#### entity_definitions.md
+#### REQ002-entity_definitions.md
 **Purpose:** Defines core entity terminology used across all WKMP documentation
 
 **Contains:**
@@ -128,7 +128,7 @@ WKMP project documentation is organized into a strict hierarchy that governs how
 
 These documents define HOW requirements are satisfied through design decisions.
 
-#### architecture.md
+#### SPEC001-architecture.md
 **Purpose:** Defines system structure, components, and interactions
 
 **Contains:**
@@ -146,7 +146,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Technical lead, architects
 
-#### api_design.md
+#### SPEC007-api_design.md
 **Purpose:** Defines REST API structure and Server-Sent Events interface
 
 **Contains:**
@@ -164,7 +164,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** API designer, technical lead
 
-#### library_management.md
+#### SPEC008-library_management.md
 **Purpose:** Defines file scanning, metadata extraction, and MusicBrainz integration workflows
 
 **Contains:**
@@ -183,7 +183,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Library subsystem lead, technical lead
 
-#### crossfade.md
+#### SPEC002-crossfade.md
 **Purpose:** Defines crossfade timing system and behavior
 
 **Contains:**
@@ -200,7 +200,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Audio engineer, technical lead
 
-#### musical_flavor.md
+#### SPEC003-musical_flavor.md
 **Purpose:** Defines musical flavor characterization and distance calculation system
 
 **Contains:**
@@ -217,7 +217,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Algorithm designer, technical lead
 
-#### musical_taste.md
+#### SPEC004-musical_taste.md
 **Purpose:** Defines musical taste calculation from likes and dislikes
 
 **Contains:**
@@ -234,7 +234,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Algorithm designer, technical lead
 
-#### program_director.md
+#### SPEC005-program_director.md
 **Purpose:** Defines automatic passage selection algorithm (the "Program Director")
 
 **Contains:**
@@ -254,7 +254,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Algorithm designer, technical lead
 
-#### like_dislike.md
+#### SPEC006-like_dislike.md
 **Purpose:** Defines like and dislike functionality and data collection
 
 **Contains:**
@@ -271,7 +271,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** UX designer, technical lead
 
-#### ui_specification.md
+#### SPEC009-ui_specification.md
 **Purpose:** Defines Web UI design, layout, and behavior
 
 **Contains:**
@@ -290,7 +290,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** UX designer, frontend lead, technical lead
 
-#### user_identity.md
+#### SPEC010-user_identity.md
 **Purpose:** Defines user identity, authentication, and account management
 
 **Contains:**
@@ -308,7 +308,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Security lead, backend lead, technical lead
 
-#### event_system.md
+#### SPEC011-event_system.md
 **Purpose:** Defines event-driven communication architecture
 
 **Contains:**
@@ -326,7 +326,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Software architect, technical lead
 
-#### multi_user_coordination.md
+#### SPEC012-multi_user_coordination.md
 **Purpose:** Defines the mechanism for coordinating actions from multiple users
 
 **Contains:**
@@ -347,7 +347,7 @@ These documents define HOW requirements are satisfied through design decisions.
 
 These documents translate design into concrete implementation details.
 
-#### database_schema.md
+#### IMPL001-database_schema.md
 **Purpose:** Defines data structures and database schema
 
 **Contains:**
@@ -365,7 +365,7 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Database engineer, backend developers
 
-#### coding_conventions.md
+#### IMPL002-coding_conventions.md
 **Purpose:** Defines code organization, style, and quality standards
 
 **Contains:**
@@ -383,7 +383,7 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Technical lead, development team
 
-#### audio_file_segmentation.md
+#### IMPL005-audio_file_segmentation.md
 **Purpose:** Defines workflow for segmenting a single audio file into multiple passages
 
 **Contains:**
@@ -401,7 +401,7 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Library subsystem lead, UX designer, technical lead
 
-#### gstreamer_design.md
+#### ARCH002-gstreamer_design.md
 **Purpose:** Defines GStreamer pipeline architecture and implementation details
 
 **Contains:**
@@ -420,7 +420,7 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Audio engineer, backend developers
 
-#### project_structure.md
+#### IMPL003-project_structure.md
 **Purpose:** Defines Rust workspace structure and project organization
 
 **Contains:**
@@ -439,7 +439,7 @@ These documents translate design into concrete implementation details.
 
 **Maintained By:** Technical lead, build engineer
 
-#### deployment.md
+#### IMPL004-deployment.md
 **Purpose:** Defines deployment, process management, and operational configuration
 
 **Contains:**
@@ -467,7 +467,7 @@ These documents translate design into concrete implementation details.
 
 ### Tier 4: Execution Plan
 
-#### implementation_order.md
+#### EXEC001-implementation_order.md
 **Purpose:** Defines WHEN features are built and in what sequence
 
 **Contains:**
@@ -490,7 +490,7 @@ These documents translate design into concrete implementation details.
 
 ### Cross-Cutting: Process & Standards
 
-#### requirements_enumeration.md
+#### ENUM001-requirements_enumeration.md
 **Purpose:** Defines requirement ID scheme for traceability
 
 **Contains:**

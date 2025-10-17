@@ -4,14 +4,14 @@
 
 **Archive Date:** 2025-10-16
 **Status:** Partially implemented but being abandoned in favor of single-stream architecture.
-**Replacement Document:** See [single-stream-playback.md](single-stream-playback.md) for the new architecture.
+**Replacement Document:** See [single-stream-playback.md](../SPEC013-single_stream_playback.md) for the new architecture.
 
 **Decision Rationale:**
 - Single stream provides 500-2500x better crossfade precision (0.02ms vs 10-50ms)
 - 6x lower memory usage (27 MB vs 170 MB for 5 buffered passages)
 - Simpler architecture with direct per-sample control
 - Pure Rust implementation reduces external dependencies
-- See [single-stream-migration-proposal.md](single-stream-migration-proposal.md) for complete migration details
+- See [single-stream-migration-proposal.md](ARCH004-single_stream_migration_proposal.md) for complete migration details
 
 This document is preserved for historical reference and to document the partially-implemented dual pipeline code.
 

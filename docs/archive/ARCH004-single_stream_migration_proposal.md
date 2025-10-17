@@ -5,7 +5,7 @@
 **Decision Date:** 2025-10-16
 **Status:** Single stream architecture approved for production implementation.
 **Rationale:** Sample-accurate crossfading, 6x lower memory usage, simpler architecture.
-**See:** [single-stream-migration-proposal.md](single-stream-migration-proposal.md) for complete migration plan.
+**See:** [single-stream-migration-proposal.md](../archive/ARCH004-single_stream_migration_proposal.md) for complete migration plan.
 
 This document is preserved for historical reference to document the decision-making process.
 
@@ -202,7 +202,7 @@ Create comprehensive playback architecture document covering:
 
 **[XFD-IMPL-090]** During crossfade, each passage's volume is controlled by applying a fade curve. The fade curve maps normalized time `t` (where 0.0 = fade start, 1.0 = fade end) to volume multiplier `v` (where 0.0 = silence, 1.0 = full volume).
 
-> **Implementation:** See [Single Stream Playback Architecture](single-stream-playback.md#fade-curve-implementation) for complete details on how these formulas are applied in the single stream mixing engine.
+> **Implementation:** See [Single Stream Playback Architecture](../SPEC013-single_stream_playback.md#fade-curve-implementation) for complete details on how these formulas are applied in the single stream mixing engine.
 ```
 
 #### Section: Implementation Notes (XFD-IMPL-140)
@@ -211,12 +211,12 @@ Create comprehensive playback architecture document covering:
 
 Replace:
 ```markdown
-> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](gstreamer_design.md#5-crossfade-implementation)
+> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](ARCH002-gstreamer_design.md#5-crossfade-implementation)
 ```
 
 With:
 ```markdown
-> Complete implementation details in [Single Stream Playback Architecture](single-stream-playback.md#crossfade-execution)
+> Complete implementation details in [Single Stream Playback Architecture](../SPEC013-single_stream_playback.md#crossfade-execution)
 ```
 
 ---
@@ -412,7 +412,7 @@ This document describes the GStreamer dual pipeline approach which was **abandon
 
 **Reason for change:** Single stream provides 500-2500x better crossfade precision (0.02ms vs 10-50ms), 6x lower memory usage, and simpler architecture without GStreamer framework dependency.
 
-**Current approach:** See [Single Stream Playback Architecture](single-stream-playback.md) for the implemented solution.
+**Current approach:** See [Single Stream Playback Architecture](../SPEC013-single_stream_playback.md) for the implemented solution.
 
 **Historical value:** This document is preserved for reference to understand the design alternatives that were evaluated.
 

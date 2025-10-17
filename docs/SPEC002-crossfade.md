@@ -1,10 +1,10 @@
-# Crossfade Design
+﻿# Crossfade Design
 
-**🏗️ TIER 2 - DESIGN SPECIFICATION**
+**ðŸ—ï¸ TIER 2 - DESIGN SPECIFICATION**
 
-Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md), and [Requirements Enumeration](requirements_enumeration.md).
+Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](ENUM001-requirements_enumeration.md).
 
-> **Related Documentation:** [Architecture](architecture.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md)
 
 ---
 
@@ -71,10 +71,10 @@ operation to take place.
 **[XFD-CONS-010]** Timing points must satisfy two independent constraint chains:
 
   **[XFD-CONS-011] Fade Point Constraints:**
-  - Start ≤ Fade-In ≤ Fade-Out ≤ End
+  - Start â‰¤ Fade-In â‰¤ Fade-Out â‰¤ End
 
   **[XFD-CONS-012] Lead Point Constraints:**
-  - Start ≤ Lead-In ≤ Lead-Out ≤ End
+  - Start â‰¤ Lead-In â‰¤ Lead-Out â‰¤ End
 
   **[XFD-CONS-020] Cross-Chain Independence:**
   - Fade-In and Lead-In points are independent (either may come first, or may be equal)
@@ -103,10 +103,10 @@ operation to take place.
 
   While any ordering satisfying the constraints is valid, typical usage patterns include:
 
-  - **Fade-In after Lead-In** (Fade-In ≥ Lead-In): Use when passage starts with quiet intro that needs gentle fade-in even after crossfade completes
-  - **Lead-In after Fade-In** (Lead-In ≥ Fade-In): Use when passage has abrupt start that benefits from fade-in, but crossfade should end before full volume
-  - **Fade-Out before Lead-Out** (Fade-Out ≤ Lead-Out): Use when passage should start fading out before next passage begins crossfading in
-  - **Lead-Out before Fade-Out** (Lead-Out ≤ Fade-Out): Use when next passage should start while current passage is still at full volume
+  - **Fade-In after Lead-In** (Fade-In â‰¥ Lead-In): Use when passage starts with quiet intro that needs gentle fade-in even after crossfade completes
+  - **Lead-In after Fade-In** (Lead-In â‰¥ Fade-In): Use when passage has abrupt start that benefits from fade-in, but crossfade should end before full volume
+  - **Fade-Out before Lead-Out** (Fade-Out â‰¤ Lead-Out): Use when passage should start fading out before next passage begins crossfading in
+  - **Lead-Out before Fade-Out** (Lead-Out â‰¤ Fade-Out): Use when next passage should start while current passage is still at full volume
 
 ## Fade Curves
 
@@ -130,14 +130,14 @@ operation to take place.
 
 ### Case 1: Following Passage Has Longer Lead-In Duration
 
-**[XFD-BEH-C1-010]** When `Lead-Out Duration of Passage A ≤ Lead-In Duration of Passage B`:
+**[XFD-BEH-C1-010]** When `Lead-Out Duration of Passage A â‰¤ Lead-In Duration of Passage B`:
 
 ```
 Passage A: |---------------------------|******|
-                         Lead-Out Point↑   End↑
+                         Lead-Out Pointâ†‘   Endâ†‘
 
 Passage B:                             |*********|-------------------|
-                                       ↑Start    ↑Lead-In Point
+                                       â†‘Start    â†‘Lead-In Point
 
 Timeline:  |---------------------------|------|------------------------|
            A playing alone             Both playing
@@ -157,10 +157,10 @@ Timeline:  |---------------------------|------|------------------------|
 
 ```
 Passage A: |---------------------------|*************|
-                         Lead-Out Point↑          End↑
+                         Lead-Out Pointâ†‘          Endâ†‘
 
 Passage B:                                   |*******|-----------------|
-                                             ↑Start  ↑Lead-In Point
+                                             â†‘Start  â†‘Lead-In Point
 
 Timeline:  |---------------------------------|-------|-----------------|
            A playing alone                   Both playing
@@ -180,10 +180,10 @@ Timeline:  |---------------------------------|-------|-----------------|
 
 ```
 Passage A: |---------------------------|
-                                       ↑End
+                                       â†‘End
 
 Passage B:                             |-----------------|
-                                       ↑Start
+                                       â†‘Start
 
 Timeline:  |---------------------------|------------------|
            A playing                   B playing
@@ -193,7 +193,7 @@ Timeline:  |---------------------------|------------------|
 
 ## Implementation Algorithm
 
-This section provides the complete algorithm for calculating crossfade timing and volume curves. See [gstreamer_design.md](gstreamer_design.md) for details on how this algorithm is executed within the GStreamer pipeline architecture.
+This section provides the complete algorithm for calculating crossfade timing and volume curves. See [gstreamer_design.md](archive/ARCH002-gstreamer_design.md) for details on how this algorithm is executed within the GStreamer pipeline architecture.
 
 ### Crossfade Start Calculation
 
@@ -376,7 +376,7 @@ function validate_and_correct_passage_timing(passage) -> ValidatedPassage:
 
 **[XFD-IMPL-043]** Edge cases handled:
 - **Both lead durations = 0**: Results in `crossfade_duration = 0` (Case 3, no overlap)
-- **Negative durations from bad data**: Corrected by validation to produce duration ≥ 0
+- **Negative durations from bad data**: Corrected by validation to produce duration â‰¥ 0
 - **NULL timing points**: Handled by computing from global crossfade time (no validation needed)
 
 ## Validation Responsibility
@@ -444,7 +444,7 @@ The timing validation algorithm ([XFD-IMPL-040] through [XFD-IMPL-043]) is execu
 **[XFD-IMPL-050]** Case Detection:
 
 The algorithm automatically handles all three cases:
-- **Case 1** (passage_a_lead_out_duration ≤ passage_b_lead_in_duration): `crossfade_duration = passage_a_lead_out_duration`
+- **Case 1** (passage_a_lead_out_duration â‰¤ passage_b_lead_in_duration): `crossfade_duration = passage_a_lead_out_duration`
 - **Case 2** (passage_a_lead_out_duration > passage_b_lead_in_duration): `crossfade_duration = passage_b_lead_in_duration`
 - **Case 3** (both durations = 0): `crossfade_duration = 0` (no overlap, passages play sequentially)
 
@@ -467,76 +467,76 @@ if current_position_a >= preload_trigger_point:
 
 **[XFD-IMPL-080]** Pre-loading ensures the idle pipeline is in PAUSED state (buffered and ready) before crossfade begins, preventing audio glitches.
 
-> See [gstreamer_design.md - Section 5: Crossfade Implementation](gstreamer_design.md#5-crossfade-implementation) for complete pre-loading and pipeline management details.
+> See [gstreamer_design.md - Section 5: Crossfade Implementation](archive/ARCH002-gstreamer_design.md#5-crossfade-implementation) for complete pre-loading and pipeline management details.
 
 ### Volume Fade Curve Formulas
 
 **[XFD-IMPL-090]** During crossfade, each passage's volume is controlled by applying a fade curve. The fade curve maps normalized time `t` (where 0.0 = fade start, 1.0 = fade end) to volume multiplier `v` (where 0.0 = silence, 1.0 = full volume).
 
-#### Fade-In Curves (0.0 → 1.0 volume)
+#### Fade-In Curves (0.0 â†’ 1.0 volume)
 
 **[XFD-IMPL-091] Linear Fade-In:**
 ```
 v(t) = t
 
 where:
-  t ∈ [0.0, 1.0] (normalized time through fade)
-  v ∈ [0.0, 1.0] (output volume multiplier)
+  t âˆˆ [0.0, 1.0] (normalized time through fade)
+  v âˆˆ [0.0, 1.0] (output volume multiplier)
 ```
 
 **[XFD-IMPL-092] Exponential Fade-In:**
 ```
-v(t) = t²
+v(t) = tÂ²
 
 where:
-  t ∈ [0.0, 1.0]
-  v ∈ [0.0, 1.0]
+  t âˆˆ [0.0, 1.0]
+  v âˆˆ [0.0, 1.0]
 
 Characteristic: Slow start, fast finish (perceived as "natural" swell)
 ```
 
 **[XFD-IMPL-093] Cosine Fade-In (S-Curve):**
 ```
-v(t) = 0.5 × (1 - cos(π × t))
+v(t) = 0.5 Ã— (1 - cos(Ï€ Ã— t))
 
 where:
-  t ∈ [0.0, 1.0]
-  v ∈ [0.0, 1.0]
-  π ≈ 3.14159265359
+  t âˆˆ [0.0, 1.0]
+  v âˆˆ [0.0, 1.0]
+  Ï€ â‰ˆ 3.14159265359
 
 Characteristic: Smooth acceleration and deceleration
 ```
 
-#### Fade-Out Curves (1.0 → 0.0 volume)
+#### Fade-Out Curves (1.0 â†’ 0.0 volume)
 
 **[XFD-IMPL-094] Linear Fade-Out:**
 ```
 v(t) = 1.0 - t
 
 where:
-  t ∈ [0.0, 1.0] (normalized time through fade)
-  v ∈ [1.0, 0.0] (output volume multiplier)
+  t âˆˆ [0.0, 1.0] (normalized time through fade)
+  v âˆˆ [1.0, 0.0] (output volume multiplier)
 ```
 
 **[XFD-IMPL-095] Logarithmic Fade-Out:**
 ```
-v(t) = (1.0 - t)²
+v(t) = (1.0 - t)Â²
 
 where:
-  t ∈ [0.0, 1.0]
-  v ∈ [1.0, 0.0]
+  t âˆˆ [0.0, 1.0]
+  v âˆˆ [1.0, 0.0]
 
 Characteristic: Fast start, slow finish (perceived as "natural" decay)
 ```
 
 **[XFD-IMPL-096] Cosine Fade-Out (S-Curve):**
 ```
-v(t) = 0.5 × (1 + cos(π × t))
+v(t) = 0.5 Ã— (1 + cos(Ï€ Ã— t))
 
 where:
-  t ∈ [0.0, 1.0]
-  v ∈ [1.0, 0.0]
-  π ≈ 3.14159265359
+  t âˆˆ [0.0, 1.0]
+  v âˆˆ [1.0, 0.0]
+  Ï€ â‰ˆ 3.14159265359
 
 Characteristic: Smooth acceleration and deceleration
 ```
@@ -587,13 +587,13 @@ function apply_fade_in_curve(t, curve_type) -> f64:
     switch curve_type:
         case "linear":      return t
         case "exponential": return t * t
-        case "cosine":      return 0.5 * (1.0 - cos(π * t))
+        case "cosine":      return 0.5 * (1.0 - cos(Ï€ * t))
 
 function apply_fade_out_curve(t, curve_type) -> f64:
     switch curve_type:
         case "linear":      return 1.0 - t
         case "logarithmic": return (1.0 - t) * (1.0 - t)
-        case "cosine":      return 0.5 * (1.0 + cos(π * t))
+        case "cosine":      return 0.5 * (1.0 + cos(Ï€ * t))
 ```
 
 **[XFD-IMPL-120]** During crossfade overlap, both passages have their volumes calculated independently, then mixed:
@@ -660,7 +660,7 @@ function volume_update_loop():
 - Update timer runs continuously during playback (even when not crossfading)
 - When not in crossfade or resume fade-in, volumes remain constant (no calculations needed)
 - Timer precision affects fade smoothness; use high-resolution timer if available
-- See [gstreamer_design.md - Section 14: Performance Optimization](gstreamer_design.md#14-performance-optimization) for GStreamer-specific implementation details
+- See [gstreamer_design.md - Section 14: Performance Optimization](archive/ARCH002-gstreamer_design.md#14-performance-optimization) for GStreamer-specific implementation details
 
 ---
 
@@ -689,8 +689,8 @@ This section specifies how pause and resume operations affect audio playback, di
 - **Fade-in curve**: `resume_from_pause_fade_in_curve` (configurable, default: "exponential")
 - **Available curves**: All fade-in curves used for crossfades:
   - `"linear"`: v(t) = t
-  - `"exponential"`: v(t) = t²
-  - `"cosine"`: v(t) = 0.5 × (1 - cos(π × t))
+  - `"exponential"`: v(t) = tÂ²
+  - `"cosine"`: v(t) = 0.5 Ã— (1 - cos(Ï€ Ã— t))
 
 **[XFD-PAUS-030]** Resume fade-in calculation:
 
@@ -736,9 +736,9 @@ final_output = mixed_audio * master_volume
 1. Passage A is fading out (volume_a = 0.3 from fade-out curve)
 2. Passage B is fading in (volume_b = 0.7 from fade-in curve)
 3. Resume fade-in active (resume_level = 0.5 at 0.25s into 0.5s fade-in)
-4. Mixed audio = (audio_a × 0.3) + (audio_b × 0.7)
-5. With resume fade-in: mixed_audio × 0.5
-6. With master volume (e.g., 0.8): mixed_audio × 0.5 × 0.8 = final output
+4. Mixed audio = (audio_a Ã— 0.3) + (audio_b Ã— 0.7)
+5. With resume fade-in: mixed_audio Ã— 0.5
+6. With master volume (e.g., 0.8): mixed_audio Ã— 0.5 Ã— 0.8 = final output
 
 ### Configuration
 
@@ -755,7 +755,7 @@ final_output = mixed_audio * master_volume
   - **Default**: "exponential"
   - **Valid values**: "linear", "exponential", "cosine"
 
-See [database_schema.md - settings table](database_schema.md#settings) for complete settings documentation.
+See [database_schema.md - settings table](IMPL001-database_schema.md#settings) for complete settings documentation.
 
 ### Implementation Notes
 
@@ -766,7 +766,7 @@ See [database_schema.md - settings table](database_schema.md#settings) for compl
 3. **Edge case handling**: Zero-duration fades (instant transitions) handled by setting volume directly without interpolation
 4. **Fade curve symmetry**: Exponential fade-in pairs with logarithmic fade-out for perceptually balanced crossfades
 
-> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](gstreamer_design.md#5-crossfade-implementation)
+> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](archive/ARCH002-gstreamer_design.md#5-crossfade-implementation)
 
 ## Fade Behavior During Crossfade
 
@@ -777,7 +777,7 @@ See [database_schema.md - settings table](database_schema.md#settings) for compl
 **[XFD-VOL-010]** During crossfade overlap, audio streams are mixed:
 
 ```
-Final Output = (Passage A Audio × A Volume) + (Passage B Audio × B Volume)
+Final Output = (Passage A Audio Ã— A Volume) + (Passage B Audio Ã— B Volume)
 ```
 
 **[XFD-VOL-020]** Where volume at any time `t` is determined by:
@@ -805,10 +805,10 @@ corresponding fade-in or fade-out time windows. This warning indicates potential
 - **[XFD-PAUS-011]** 0.5 second exponential volume ramp from 0% to 100%
 - **[XFD-PAUS-012]** Applied AFTER any crossfade calculations
   - all crossfade calculations complete, then multiply the result by the resume from pause ramp value
-  - ((A_audio × A_fade) + (B_audio × B_fade)) × resume_ramp × master
+  - ((A_audio Ã— A_fade) + (B_audio Ã— B_fade)) Ã— resume_ramp Ã— master
 - **[XFD-PAUS-013]** Affects all playing passages simultaneously
 
-> Implements requirement: [Crossfade Handling](requirements.md#crossfade-handling)
+> Implements requirement: [Crossfade Handling](REQ001-requirements.md#crossfade-handling)
   
 ## Default Configuration
 
@@ -866,8 +866,8 @@ This intentional asymmetry between user-defined and NULL timing points serves sp
 **Use case example:** A 10-second intro passage might have a user-defined 8-second lead-out (80% of duration) to ensure it crossfades smoothly into the main track. This is intentional and should not be overridden by automatic clamping.
 
 **[XFD-DEF-062] Warning Logic:**
-- The UI warns when user sets **lead-in point** > (0.5 × passage duration)
-- The UI warns when user sets **lead-out point** < (0.5 × passage duration) [i.e., lead-out duration > 50%]
+- The UI warns when user sets **lead-in point** > (0.5 Ã— passage duration)
+- The UI warns when user sets **lead-out point** < (0.5 Ã— passage duration) [i.e., lead-out duration > 50%]
 - Warnings are **informational only**; values are still accepted
 - Warning message: "Lead time exceeds 50% of passage duration. This may cause excessive overlap during crossfades."
 - **Rationale:** Warns about individual passage configuration that *could* create long overlaps, but doesn't predict actual crossfade duration (which depends on both passages)
@@ -935,8 +935,8 @@ Example:
     - Crossfade begins at 18.0s in Passage A
     - Crossfade ends at 14.0s in Passage B (when B reaches its lead-in point)
     - The `min()` function naturally constrains crossfade to valid range
-    - Passage A plays from 18.0s → 20.0s (2 seconds) while B plays from 0.0s → 2.0s
-    - At 2.0s into crossfade, A completes and B continues solo from 2.0s → 14.0s
+    - Passage A plays from 18.0s â†’ 20.0s (2 seconds) while B plays from 0.0s â†’ 2.0s
+    - At 2.0s into crossfade, A completes and B continues solo from 2.0s â†’ 14.0s
     - Even extreme user-defined values cannot cause >100% overlap or invalid states
   - **Key Insight:** The crossfade system is self-constraining. User-defined lead times that seem "extreme" (e.g., lead-out at 90% of passage) are perfectly valid because:
     1. Lead-in must be < lead-out within each passage (enforced at input time)
@@ -975,7 +975,7 @@ When passages are enqueued via `/playback/enqueue` API endpoint, timing points m
 - When converting from database (seconds) to API (milliseconds): multiply by 1000
 - When converting from API (milliseconds) to GStreamer (nanoseconds): multiply by 1,000,000
 
-> See [API Design - POST /playback/enqueue](api_design.md#post-playbackenqueue) for complete endpoint specification.
+> See [API Design - POST /playback/enqueue](SPEC007-api_design.md#post-playbackenqueue) for complete endpoint specification.
 
 ### Global Fade Curve Selection
 
@@ -985,8 +985,8 @@ When passages are enqueued via `/playback/enqueue` API endpoint, timing points m
 
 1. **Exponential In / Logarithmic Out** (default, recommended for smooth natural crossfades)
    - Database value: `'exponential_logarithmic'`
-   - Fade-In: Exponential (v(t) = t²)
-   - Fade-Out: Logarithmic (v(t) = (1-t)²)
+   - Fade-In: Exponential (v(t) = tÂ²)
+   - Fade-Out: Logarithmic (v(t) = (1-t)Â²)
 
 2. **Linear In / Linear Out**
    - Database value: `'linear_linear'`
@@ -995,8 +995,8 @@ When passages are enqueued via `/playback/enqueue` API endpoint, timing points m
 
 3. **Cosine In / Cosine Out (S-Curve)**
    - Database value: `'cosine_cosine'`
-   - Fade-In: Cosine (v(t) = 0.5 × (1 - cos(π × t)))
-   - Fade-Out: Cosine (v(t) = 0.5 × (1 + cos(π × t)))
+   - Fade-In: Cosine (v(t) = 0.5 Ã— (1 - cos(Ï€ Ã— t)))
+   - Fade-Out: Cosine (v(t) = 0.5 Ã— (1 + cos(Ï€ Ã— t)))
 
 **[XFD-DEF-072] Application:**
 - When passage `fade_in_curve` is NULL: Use fade-in component of global setting
@@ -1034,7 +1034,7 @@ The Global Crossfade Time and Fade Curve Selection should be good for most passa
 
 **[XFD-DB-030]** Global settings are persisted in a key-value settings table.
 
-See [database_schema.md#settings](database_schema.md#settings) for the definition of the settings table.
+See [database_schema.md#settings](IMPL001-database_schema.md#settings) for the definition of the settings table.
 
 ## User Interface Considerations
 
@@ -1046,7 +1046,7 @@ See [database_schema.md#settings](database_schema.md#settings) for the definitio
 
 ### Validation
 **[XFD-UIX-020]** Validation requirements:
-- **[XFD-VAL-010]** Enforce temporal constraints when user moves markers (Start ≤ Fade-In ≤ Fade-Out ≤ End, Start ≤ Lead-In ≤ Lead-Out ≤ End)
+- **[XFD-VAL-010]** Enforce temporal constraints when user moves markers (Start â‰¤ Fade-In â‰¤ Fade-Out â‰¤ End, Start â‰¤ Lead-In â‰¤ Lead-Out â‰¤ End)
 - **[XFD-VAL-020]** Warn if lead-in or lead-out duration > 50% of passage duration (see [XFD-DEF-062] for warning logic)
 - **[XFD-VAL-030]** Suggest sensible defaults based on passage characteristics
 

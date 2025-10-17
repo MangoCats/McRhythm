@@ -25,8 +25,8 @@
 # Key Directories
 
 - **`docs/`**: All technical documentation (requirements, architecture, design specs)
-  - Start with [Document Hierarchy](docs/document_hierarchy.md) for documentation governance
-  - See [Requirements](docs/requirements.md) for complete feature specifications
+  - Start with [Document Hierarchy](docs/GOV001-document_hierarchy.md) for documentation governance
+  - See [Requirements](docs/REQ001-requirements.md) for complete feature specifications
 - **`common/`**: Shared library crate (`wkmp-common`) for database models, events, utilities
 - **`wkmp-ap/`**: Audio Player microservice (playback engine, queue, crossfading)
 - **`wkmp-ui/`**: User Interface microservice (web UI, authentication, proxying)
@@ -56,7 +56,7 @@ WKMP consists of **5 independent HTTP-based microservices**:
 
 # Core Concepts
 
-**Entity Definitions** (see [docs/entity_definitions.md](docs/entity_definitions.md)):
+**Entity Definitions** (see [docs/REQ002-entity_definitions.md](docs/REQ002-entity_definitions.md)):
 - **Passage:** Continuous playable region within an audio file (start/end points, crossfade timing)
 - **Song:** MusicBrainz Recording + Artist(s) (used for selection and cooldowns)
 - **Musical Flavor:** AcousticBrainz vector characterizing passage's musical properties
@@ -75,13 +75,13 @@ WKMP consists of **5 independent HTTP-based microservices**:
 
 # Documentation Hierarchy
 
-WKMP uses a strict 5-tier documentation framework (see [docs/document_hierarchy.md](docs/document_hierarchy.md)):
+WKMP uses a strict 5-tier documentation framework (see [docs/GOV001-document_hierarchy.md](docs/GOV001-document_hierarchy.md)):
 
-- **Tier 0 (Governance):** document_hierarchy.md - Documentation framework itself
-- **Tier 1 (Authoritative):** requirements.md, entity_definitions.md - WHAT the system must do
-- **Tier 2 (Design):** architecture.md, api_design.md, crossfade.md, etc. - HOW requirements are satisfied
-- **Tier 3 (Implementation):** database_schema.md, coding_conventions.md, project_structure.md - Concrete implementation specs
-- **Tier 4 (Execution):** implementation_order.md - WHEN features are built (aggregates all upstream specs)
+- **Tier 0 (Governance):** GOV001-document_hierarchy.md - Documentation framework itself
+- **Tier 1 (Authoritative):** REQ001-requirements.md, REQ002-entity_definitions.md - WHAT the system must do
+- **Tier 2 (Design):** SPEC001-architecture.md, SPEC007-api_design.md, SPEC002-crossfade.md, etc. - HOW requirements are satisfied
+- **Tier 3 (Implementation):** IMPL001-database_schema.md, IMPL002-coding_conventions.md, IMPL003-project_structure.md - Concrete implementation specs
+- **Tier 4 (Execution):** EXEC001-implementation_order.md - WHEN features are built (aggregates all upstream specs)
 
 **Information Flow:**
 - **Downward (normal):** Requirements → Design → Implementation → Execution
@@ -119,7 +119,7 @@ cargo run -p wkmp-ui
 
 # Requirement Traceability
 
-All requirements are enumerated with IDs following the scheme in [docs/requirements_enumeration.md](docs/requirements_enumeration.md):
+All requirements are enumerated with IDs following the scheme in [docs/ENUM001-requirements_enumeration.md](docs/ENUM001-requirements_enumeration.md):
 
 - Format: `DOC-CAT-NNN` (e.g., `REQ-CF-010`, `ARCH-VOL-010`)
 - Document codes: REQ, ARCH, XFD, FLV, DB, etc.
@@ -155,11 +155,11 @@ All requirements are enumerated with IDs following the scheme in [docs/requireme
 
 # Common Pitfalls to Avoid
 
-❌ **Don't:** Update requirements.md because implementation is easier a different way<br/>
+❌ **Don't:** Update REQ001-requirements.md because implementation is easier a different way<br/>
 ✅ **Do:** Update design/implementation to satisfy requirements as written, or formally propose requirement change
 
-❌ **Don't:** Let implementation_order.md define new requirements<br/>
-✅ **Do:** Use implementation_order.md to discover requirement gaps, then update requirements.md via change control
+❌ **Don't:** Let EXEC001-implementation_order.md define new requirements<br/>
+✅ **Do:** Use EXEC001-implementation_order.md to discover requirement gaps, then update REQ001-requirements.md via change control
 
 ❌ **Don't:** Create circular references between documents<br/>
 ✅ **Do:** Follow strict hierarchy: higher tiers inform lower tiers, never reverse
@@ -171,11 +171,11 @@ All requirements are enumerated with IDs following the scheme in [docs/requireme
 
 # Getting Help
 
-- **Documentation Structure:** See [docs/document_hierarchy.md](docs/document_hierarchy.md)
-- **Requirements:** See [docs/requirements.md](docs/requirements.md)
-- **Architecture:** See [docs/architecture.md](docs/architecture.md)
-- **API Design:** See [docs/api_design.md](docs/api_design.md)
-- **Database Schema:** See [docs/database_schema.md](docs/database_schema.md)
-- **Implementation Plan:** See [docs/implementation_order.md](docs/implementation_order.md)
+- **Documentation Structure:** See [docs/GOV001-document_hierarchy.md](docs/GOV001-document_hierarchy.md)
+- **Requirements:** See [docs/REQ001-requirements.md](docs/REQ001-requirements.md)
+- **Architecture:** See [docs/SPEC001-architecture.md](docs/SPEC001-architecture.md)
+- **API Design:** See [docs/SPEC007-api_design.md](docs/SPEC007-api_design.md)
+- **Database Schema:** See [docs/IMPL001-database_schema.md](docs/IMPL001-database_schema.md)
+- **Implementation Plan:** See [docs/EXEC001-implementation_order.md](docs/EXEC001-implementation_order.md)
 
 For questions about the project, consult the documentation hierarchy or ask the technical lead.

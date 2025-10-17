@@ -5,7 +5,7 @@
 **Decision Date:** 2025-10-16
 **Status:** Single stream architecture approved for production implementation.
 **Rationale:** Sample-accurate crossfading, 6x lower memory usage, simpler architecture.
-**See:** [single-stream-migration-proposal.md](single-stream-migration-proposal.md) for complete migration plan.
+**See:** [single-stream-migration-proposal.md](ARCH004-single_stream_migration_proposal.md) for complete migration plan.
 
 This document is preserved for historical reference to document the decision-making process.
 

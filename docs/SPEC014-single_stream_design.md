@@ -1224,7 +1224,7 @@ This section provides a comprehensive index of all traceability IDs assigned to 
 **Created:** 2025-10-16
 **Last Updated:** 2025-10-17
 **Status:** Current Architecture (Selected for Implementation)
-**Note:** This single-stream architecture has been selected as the current implementation approach. See [architecture.md](architecture.md) for integration details.
+**Note:** This single-stream architecture has been selected as the current implementation approach. See [architecture.md](SPEC001-architecture.md) for integration details.
 **Related:** `dual-pipeline-design.md` (archived), `architecture-comparison.md`, `single-stream-playback.md`
 
 **Change Log:**

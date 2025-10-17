@@ -1,10 +1,10 @@
-# WKMP Library Management
+﻿# WKMP Library Management
 
-**📚 TIER 2 - DESIGN SPECIFICATION**
+**ðŸ“š TIER 2 - DESIGN SPECIFICATION**
 
-Defines file scanning, metadata extraction, and MusicBrainz integration workflows. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+Defines file scanning, metadata extraction, and MusicBrainz integration workflows. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Database Schema](database_schema.md) | [Entity Definitions](entity_definitions.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Database Schema](IMPL001-database_schema.md) | [Entity Definitions](REQ002-entity_definitions.md)
 
 ---
 
@@ -19,7 +19,7 @@ Library Management encompasses the full workflow from discovering audio files on
 - The SQLite database file (`wkmp.db`) is located in the root folder
 - All file paths stored in the database are **relative to the root folder**
 - This design enables easy migration: move the root folder to relocate the entire library
-- See [Database Schema - File System Organization](database_schema.md#file-system-organization) for details
+- See [Database Schema - File System Organization](IMPL001-database_schema.md#file-system-organization) for details
 
 **Components:**
 - File Scanner: Discovers audio files on disk (within root folder tree)
@@ -120,9 +120,9 @@ Library Management encompasses the full workflow from discovering audio files on
 If tags are completely missing:
 
 ```
-Artist - Album - 01 - Title.mp3  →  Artist: "Artist", Album: "Album", Title: "Title"
-01 - Title.mp3                   →  Artist: "Unknown Artist", Title: "Title"
-Title.mp3                        →  Artist: "Unknown Artist", Title: "Title"
+Artist - Album - 01 - Title.mp3  â†’  Artist: "Artist", Album: "Album", Title: "Title"
+01 - Title.mp3                   â†’  Artist: "Unknown Artist", Title: "Title"
+Title.mp3                        â†’  Artist: "Unknown Artist", Title: "Title"
 ```
 
 Regex patterns for common naming conventions (flexible, best-effort)
@@ -143,10 +143,10 @@ Regex patterns for common naming conventions (flexible, best-effort)
 3. **Save to disk**
    - Storage location: Same folder as the audio file the artwork relates to
    - Naming convention: Same filename as the source file the art is extracted from
-     - Example: `song.mp3` → `song.jpg` (assuming embedded art is JPEG)
+     - Example: `song.mp3` â†’ `song.jpg` (assuming embedded art is JPEG)
    - Filename conflict resolution:
      - If file already exists with that name, append current time in ISO8601 format before extension
-     - Example: `song.jpg` exists → save as `song_2025-10-09T12:34:56Z.jpg`
+     - Example: `song.jpg` exists â†’ save as `song_2025-10-09T12:34:56Z.jpg`
    - For artwork related to multiple audio files in different folders, store in folder of first related audio file (rare case)
 
 4. **Resize if needed**
@@ -156,7 +156,7 @@ Regex patterns for common naming conventions (flexible, best-effort)
    - Library: `image` crate
 
 5. **Record in database**
-   - Insert into `images` table (see [Database Schema](database_schema.md#images))
+   - Insert into `images` table (see [Database Schema](IMPL001-database_schema.md#images))
    - `image_type` = 'album_front' (assumption for embedded art)
    - `entity_id` = album guid (if album identified, else passage guid)
    - `file_path` = path relative to root folder (e.g., `albums/artist/song.jpg`)
@@ -205,7 +205,7 @@ When an entity (song, work, artist) is associated with multiple audio files in d
 
 - Song with multiple passages across folders uses the first passage's folder encountered during scan
 
-> **See:** [Database Schema - images](database_schema.md#images) for complete image storage schema
+> **See:** [Database Schema - images](IMPL001-database_schema.md#images) for complete image storage schema
 
 ## Audio Fingerprinting
 
@@ -216,7 +216,7 @@ When an entity (song, work, artist) is associated with multiple audio files in d
 **Process:**
 
 1. **Decode audio to PCM**
-   - Use GStreamer pipeline: `filesrc → decodebin → audioconvert → audioresample`
+   - Use GStreamer pipeline: `filesrc â†’ decodebin â†’ audioconvert â†’ audioresample`
    - Target format: 16-bit signed integer, mono, 11025 Hz (Chromaprint requirement)
    - Duration: Full passage (or first 120 seconds for very long passages)
 
@@ -281,7 +281,7 @@ client=<API_KEY>&duration=<seconds>&fingerprint=<base64>&meta=recordings+release
 
 **Error Handling:**
 - No match (empty results): User must manually identify passage
-- Network error: Retry with exponential backoff (see [Requirements - Network Error Handling](requirements.md#network-error-handling))
+- Network error: Retry with exponential backoff (see [Requirements - Network Error Handling](REQ001-requirements.md#network-error-handling))
 - Rate limit error: Wait and retry
 
 ## MusicBrainz Integration
@@ -398,13 +398,13 @@ User-Agent: WKMP/1.0.0 ( contact@example.com )
    - Naming convention: Derive from MusicBrainz Release MBID or source URL filename
      - Example: `{album_mbid}.front.jpg`, `{album_mbid}.back.jpg`, `{album_mbid}.liner.{ext}`
    - Filename conflict resolution: Append ISO8601 timestamp before extension if file exists
-     - Example: `album.front.jpg` → `album.front_2025-10-09T12:34:56Z.jpg`
+     - Example: `album.front.jpg` â†’ `album.front_2025-10-09T12:34:56Z.jpg`
    - For artwork related to multiple audio files in different folders, store in folder of first related audio file (rare case)
 4. **Resize** if > 1024x1024 (same as embedded art)
 5. **Record in database:**
    - `images` table with `image_type` = 'album_front', 'album_back', 'album_liner'
    - `entity_id` = album guid
-   - `file_path` = path relative to root folder (see [Database Schema](database_schema.md#images))
+   - `file_path` = path relative to root folder (see [Database Schema](IMPL001-database_schema.md#images))
 
 **Caching:**
 - Store fetched art URLs in `musicbrainz_cache`
@@ -430,7 +430,7 @@ User-Agent: WKMP/1.0.0 ( contact@example.com )
 
 ## Multi-Passage Files
 
-**[LIB-MPF-010]** WKMP supports the segmentation of a single audio file (e.g., a full album rip) into multiple, distinct Passages. The detailed workflow for this process, including automatic silence detection, MusicBrainz release matching, and manual user review, is specified in the [Audio File Segmentation](audio_file_segmentation.md) document.
+**[LIB-MPF-010]** WKMP supports the segmentation of a single audio file (e.g., a full album rip) into multiple, distinct Passages. The detailed workflow for this process, including automatic silence detection, MusicBrainz release matching, and manual user review, is specified in the [Audio File Segmentation](IMPL005-audio_file_segmentation.md) document.
 
 ## AcousticBrainz Integration
 
@@ -482,7 +482,7 @@ Accept: application/json
 2. **Extract flavor vector**
    - Parse all `highlevel.*` dimensions
    - Store in `passages.musical_flavor_vector` (JSON column)
-   - Format: See [Musical Flavor](musical_flavor.md#quantitative-definition)
+   - Format: See [Musical Flavor](SPEC003-musical_flavor.md#quantitative-definition)
 
 **Error Handling:**
 - 404 Not Found: Recording has no AcousticBrainz data
@@ -523,23 +523,23 @@ Accept: application/json
 **Layout:**
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Editing Lyrics for: {Passage Title}            │
-├─────────────────────────────────────────────────┤
-│                                                  │
-│  ┌──────────────────┐  ┌──────────────────────┐ │
-│  │ Lyrics Editor    │  │ Web Search Helper    │ │
-│  │                  │  │                      │ │
-│  │ ┌──────────────┐ │  │ Search: [        ] │ │
-│  │ │              │ │  │                      │ │
-│  │ │  [textarea]  │ │  │ <iframe with search  │ │
-│  │ │              │ │  │  results from        │ │
-│  │ │              │ │  │  lyrics site>        │ │
-│  │ └──────────────┘ │  │                      │ │
-│  │                  │  │                      │ │
-│  │  [Submit] [Cancel]  │                      │ │
-│  └──────────────────┘  └──────────────────────┘ │
-└─────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚  Editing Lyrics for: {Passage Title}            â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚                                                  â”‚
+â”‚  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚
+â”‚  â”‚ Lyrics Editor    â”‚  â”‚ Web Search Helper    â”‚ â”‚
+â”‚  â”‚                  â”‚  â”‚                      â”‚ â”‚
+â”‚  â”‚ â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â” â”‚  â”‚ Search: [        ] â”‚ â”‚
+â”‚  â”‚ â”‚              â”‚ â”‚  â”‚                      â”‚ â”‚
+â”‚  â”‚ â”‚  [textarea]  â”‚ â”‚  â”‚ <iframe with search  â”‚ â”‚
+â”‚  â”‚ â”‚              â”‚ â”‚  â”‚  results from        â”‚ â”‚
+â”‚  â”‚ â”‚              â”‚ â”‚  â”‚  lyrics site>        â”‚ â”‚
+â”‚  â”‚ â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚  â”‚                      â”‚ â”‚
+â”‚  â”‚                  â”‚  â”‚                      â”‚ â”‚
+â”‚  â”‚  [Submit] [Cancel]  â”‚                      â”‚ â”‚
+â”‚  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜ â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 **Features:**
@@ -576,7 +576,7 @@ Content-Type: application/json
   - Errors encountered: 3
 
 **On Completion:**
-- Emit `LibraryScanCompleted` event (see [Event System](event_system.md))
+- Emit `LibraryScanCompleted` event (see [Event System](SPEC011-event_system.md))
   - `files_added`: 127
   - `files_updated`: 15
   - `files_removed`: 3
@@ -588,7 +588,7 @@ Content-Type: application/json
 
 ## Database Schema Integration
 
-See [Database Schema](database_schema.md) for complete table definitions:
+See [Database Schema](IMPL001-database_schema.md) for complete table definitions:
 - `files` table: File paths, hashes, modification times
 - `passages` table: Passage boundaries, metadata
 - `songs`, `artists`, `works`, `albums` tables: MusicBrainz entities

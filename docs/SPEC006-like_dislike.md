@@ -2,13 +2,13 @@
 
 **🎼 TIER 2 - DESIGN SPECIFICATION**
 
-[LD-DESC-010] Defines Like and Dislike functionality and their impact on Musical Taste. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+[LD-DESC-010] Defines Like and Dislike functionality and their impact on Musical Taste. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
 > **Note:** This feature is available in the **Full** and **Lite** versions of WKMP only.
 
-> **Authentication Context:** Likes and Dislikes are recorded per user UUID. Anonymous users share a common UUID and therefore a shared taste profile. Registered users have individual UUIDs and separate taste profiles. See [User Identity and Authentication](user_identity.md) for authentication details.
+> **Authentication Context:** Likes and Dislikes are recorded per user UUID. Anonymous users share a common UUID and therefore a shared taste profile. Registered users have individual UUIDs and separate taste profiles. See [User Identity and Authentication](SPEC010-user_identity.md) for authentication details.
 
-> **Related Documentation:** [Musical Taste](musical_taste.md), [Musical Flavor](musical_flavor.md)
+> **Related Documentation:** [Musical Taste](SPEC004-musical_taste.md), [Musical Flavor](SPEC003-musical_flavor.md)
 
 ---
 
@@ -42,7 +42,7 @@ The user interface for registering Likes and Dislikes provides both simple, imme
 
 [LD-LIKE-021] These two lists can be used together to refine passage selection. For example, one possible algorithm is to use the "Most Disliked" list as an exclusion filter. Passages appearing at the top of the "Most Disliked" list can be removed from the "Most Liked" list to create a final candidate pool. This process helps ensure the selection of a well-liked, yet potentially unexpected, passage.
 
-**Note:** The final algorithm for how the "Like-Taste" and "Dislike-Taste" vectors influence the Program Director's passage selection is yet to be defined. This will be specified in a future update to the [Program Director](program_director.md) specification.
+**Note:** The final algorithm for how the "Like-Taste" and "Dislike-Taste" vectors influence the Program Director's passage selection is yet to be defined. This will be specified in a future update to the [Program Director](SPEC005-program_director.md) specification.
 
 [LD-LIKE-030] When a single Passage with a single associated Song is Liked, the resulting Like-Taste is equal to the Flavor of that Song.
 

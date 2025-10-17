@@ -2,9 +2,9 @@
 
 **📝 TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines code organization and quality standards. Supports Tier 2 design documents. See [Document Hierarchy](document_hierarchy.md).
+Defines code organization and quality standards. Supports Tier 2 design documents. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](requirements.md) | [Architecture](architecture.md) | [Requirements Enumeration](requirements_enumeration.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Requirements Enumeration](ENUM001-requirements_enumeration.md)
 
 ---
 
@@ -17,7 +17,7 @@ These conventions ensure maintainability, testability, and consistency across th
 
 **CO-005: Cargo Workspace Organization**
 
-WKMP uses a Cargo workspace with multiple binary crates and a shared common library. See [Project Structure](project_structure.md) for complete details.
+WKMP uses a Cargo workspace with multiple binary crates and a shared common library. See [Project Structure](IMPL003-project_structure.md) for complete details.
 
 - **CO-006:** The workspace shall contain:
   - `common/` - Shared library crate (`wkmp-common`)
@@ -202,7 +202,7 @@ The `common/` library crate shall be organized as follows:
 **CO-120: Logical Grouping**
 
 - **CO-121:** Related functionality shall be grouped in the same module or directory
-- **CO-122:** Directory structure shall reflect workspace organization (see [Project Structure](project_structure.md)):
+- **CO-122:** Directory structure shall reflect workspace organization (see [Project Structure](IMPL003-project_structure.md)):
   ```
   /
   ├── common/            # Shared library (wkmp-common)

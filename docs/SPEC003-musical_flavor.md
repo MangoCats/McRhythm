@@ -1,10 +1,10 @@
-# Musical Flavor
+﻿# Musical Flavor
 
-**🎼 TIER 2 - DESIGN SPECIFICATION**
+**ðŸŽ¼ TIER 2 - DESIGN SPECIFICATION**
 
-[MFL-DEF-010] Defines musical flavor system and distance calculations. Derived from [requirements.md](requirements.md). See [Document Hierarchy](document_hierarchy.md).
+[MFL-DEF-010] Defines musical flavor system and distance calculations. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Architecture](architecture.md), [Musical Taste](musical_taste.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md), [Musical Taste](SPEC004-musical_taste.md)
 
 ---
 
@@ -12,7 +12,7 @@
 
 [MFL-DEF-020] Musical flavor is a quantitative definition of a passage's musical characteristics in many dimensions. It is derived from
 the [AcousticBrainz high level](https://acousticbrainz.org/data#highlevel-data) characterization of [recording(s)](https://musicbrainz.org/doc/Recording) 
-contained in a [passage](entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
+contained in a [passage](REQ002-entity_definitions.md#entities).  See: [Sample AcousticBrainz highlevel json object](sample_highlevel.json).
 
 [MFL-DEF-030] These characteristic values break down into two categories:
 - [MFL-DEF-031] binary characteristics with two dimensions whose values add up to 1.0 such as: 
@@ -120,12 +120,12 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 
 [MFL-EDGE-033] If a library contains only passages with zero songs:
 - Automatic selection cannot operate (no valid candidates)
-- The [Program Director](program_director.md) returns error code `NO_SONGS_WITH_FLAVOR`
+- The [Program Director](SPEC005-program_director.md) returns error code `NO_SONGS_WITH_FLAVOR`
 - Users must manually enqueue passages to populate the queue
 - The queue may become empty if all passages finish playing and no new passages are manually enqueued
 
-> **See:** [Program Director - Selection Failure Communication](program_director.md#selection-failure-communication) for error codes and API response format
-> **See:** [UI Specification - Automatic Selection Unavailable](ui_specification.md#ui-queue-025) for user-facing error messages
+> **See:** [Program Director - Selection Failure Communication](SPEC005-program_director.md#selection-failure-communication) for error codes and API response format
+> **See:** [UI Specification - Automatic Selection Unavailable](SPEC009-ui_specification.md#ui-queue-025) for user-facing error messages
 
 ### More than one Recording per Passage Calculation
 <a name="more-than-one-recording-per-passage-calculation"></a>
@@ -158,11 +158,11 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 
 ## Usage of Musical Flavor
 
-[MFL-USE-010] **Taste as Selection Target:** The target for the passage selection algorithm is a flavor vector representing the user's current musical **Taste**. This target Taste is calculated as described in the [musical_taste.md](musical_taste.md) document.
+[MFL-USE-010] **Taste as Selection Target:** The target for the passage selection algorithm is a flavor vector representing the user's current musical **Taste**. This target Taste is calculated as described in the [musical_taste.md](SPEC004-musical_taste.md) document.
 
 [MFL-TARG-010] A Taste can be generated in multiple ways:
 -   [MFL-TARG-011] **From Reference Passages:** A user can select one or more "seed" passages to define an immediate listening target. The target Taste is the centroid of these passages' flavor vectors.
--   [MFL-TARG-012] **From Likes/Dislikes:** A more complex, long-term Taste can be computed from the user's history of Liked and Disliked Songs, potentially weighted by time of day, week, or season. See [Likes and Dislikes](like_dislike.md).
+-   [MFL-TARG-012] **From Likes/Dislikes:** A more complex, long-term Taste can be computed from the user's history of Liked and Disliked Songs, potentially weighted by time of day, week, or season. See [Likes and Dislikes](SPEC006-like_dislike.md).
 
 [MFL-ALGO-010] **Selection Algorithm:**
 
@@ -170,15 +170,15 @@ reported flavor distance will be 1.0 when compared with any other recording / pa
 2.  [MFL-ALGO-012] **Distance Calculation:** Compute the flavor distance from the target **Taste** to every non-zero probability passage.
 3.  [MFL-ALGO-013] **Ranking:** Sort the passages by distance (closest first).
 4.  [MFL-ALGO-014] **Candidate Pool:** Select the top 100 closest passages (or all available if fewer than 100).
-5.  [MFL-ALGO-015] **Probability Weighting:** Each candidate's effective probability = base probability × cooldown multipliers.
+5.  [MFL-ALGO-015] **Probability Weighting:** Each candidate's effective probability = base probability Ã— cooldown multipliers.
 6.  [MFL-ALGO-016] **Weighted Random Selection:**
-    -   Generate a random number R within the range [0, Σ(all candidate probabilities)).
+    -   Generate a random number R within the range [0, Î£(all candidate probabilities)).
     -   Iterate through the candidates, subtracting each one's probability from R.
-    -   Select the first candidate that causes R to be ≤ 0.
+    -   Select the first candidate that causes R to be â‰¤ 0.
 
 > [MFL-ALGO-020] **Note:** The candidate pool size (default: 100) is a design parameter that balances performance vs. diversity.
 
-> [MFL-USE-020] Implements requirement: [Automatic Passage Selection](requirements.md#automatic-passage-selection)
+> [MFL-USE-020] Implements requirement: [Automatic Passage Selection](REQ001-requirements.md#automatic-passage-selection)
    
 ----
 End of document - Musical Flavor
