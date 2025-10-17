@@ -65,6 +65,18 @@ impl FadeCurve {
             FadeCurve::Cosine => "cosine",
         }
     }
+
+    /// Convert to playback mixer FadeCurve type
+    /// Maps database fade curve enum to the playback pipeline fade curve enum
+    pub fn to_playback_curve(&self) -> crate::playback::pipeline::fade_curves::FadeCurve {
+        use crate::playback::pipeline::fade_curves::FadeCurve as PlaybackCurve;
+        match self {
+            FadeCurve::Linear => PlaybackCurve::Linear,
+            FadeCurve::Exponential => PlaybackCurve::Exponential,
+            FadeCurve::Logarithmic => PlaybackCurve::Logarithmic,
+            FadeCurve::Cosine => PlaybackCurve::SCurve, // Cosine → SCurve (similar smooth transition)
+        }
+    }
 }
 
 /// Get passage by ID with timing information
