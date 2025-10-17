@@ -4,16 +4,22 @@
 //! with crossfades so the user can hear the quality of the mixing.
 //!
 //! Features:
-//! - Plays 3 passages with crossfades
-//! - Adds fade-out to final passage (no abrupt cutoff)
+//! - Plays 3 passages in 4 consecutive cycles (195 seconds total)
+//! - Each cycle uses different crossfade curves:
+//!   * Cycle 1: Exponential/Logarithmic
+//!   * Cycle 2: Linear/Linear
+//!   * Cycle 3: S-Curve/S-Curve
+//!   * Cycle 4: Equal-Power/Equal-Power
+//! - Adds fade-in to first passage and fade-out to final passage
 //! - Tracks RMS audio levels to detect clipping/issues
-//! - Verifies timing expectations
+//! - Verifies timing expectations across all cycles
 //! - Logs all key playback events
 //!
 //! Run with: cargo test --test audible_crossfade_test -- --ignored --nocapture
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::env;
 use uuid::Uuid;
 use walkdir::WalkDir;
 use wkmp_ap::audio::{AudioFrame, AudioOutput, PassageBuffer, Resampler, SimpleDecoder};
@@ -22,29 +28,55 @@ use wkmp_ap::playback::pipeline::{CrossfadeMixer, FadeCurve};
 /// Playback events for tracking test timeline
 #[derive(Debug, Clone)]
 enum PlaybackEvent {
-    Passage1Started { time: f32 },
-    Passage1FadeInComplete { time: f32 },
-    Crossfade1To2Started { time: f32 },
-    Crossfade1To2Complete { time: f32 },
-    Passage2FullVolume { time: f32 },
-    Crossfade2To3Started { time: f32 },
-    Crossfade2To3Complete { time: f32 },
-    Passage3FullVolume { time: f32 },
-    Passage3FadeOutStarted { time: f32 },
-    Passage3FadeOutComplete { time: f32 },
+    CycleStarted { cycle: u8, curve_name: String, time: f32 },
+    Passage1Started { cycle: u8, time: f32 },
+    Passage1FadeInComplete { cycle: u8, time: f32 },
+    Crossfade1To2Started { cycle: u8, time: f32 },
+    Crossfade1To2Complete { cycle: u8, time: f32 },
+    Passage2FullVolume { cycle: u8, time: f32 },
+    Crossfade2To3Started { cycle: u8, time: f32 },
+    Crossfade2To3Complete { cycle: u8, time: f32 },
+    Passage3FullVolume { cycle: u8, time: f32 },
+    Crossfade3To1Started { cycle: u8, time: f32 },
+    Crossfade3To1Complete { cycle: u8, time: f32 },
+    Passage3FadeOutStarted { cycle: u8, time: f32 },
+    Passage3FadeOutComplete { cycle: u8, time: f32 },
     PlaybackComplete { time: f32 },
 }
 
-/// Expected timing for playback events
-struct ExpectedTimeline {
-    passage1_start: f32,
-    passage1_fade_in_complete: f32,
+/// Crossfade configuration for each cycle
+#[derive(Debug, Clone)]
+struct CrossfadeConfig {
+    name: &'static str,
+    fade_in_curve: FadeCurve,
+    fade_out_curve: FadeCurve,
+}
+
+/// Expected timing for playback events across all cycles
+struct CycleTimeline {
+    cycle: u8,
+    start_time: f32,
     crossfade1_start: f32,
     crossfade1_complete: f32,
     crossfade2_start: f32,
     crossfade2_complete: f32,
-    passage3_fade_out_start: f32,
-    passage3_fade_out_complete: f32,
+    crossfade3_start: f32, // 3→1 for cycles 2-4, fade-out for cycle 4
+    crossfade3_complete: f32,
+}
+
+impl CycleTimeline {
+    fn new(cycle: u8, start_time: f32, passage_dur: f32, crossfade_sec: f32) -> Self {
+        Self {
+            cycle,
+            start_time,
+            crossfade1_start: start_time + passage_dur - crossfade_sec,
+            crossfade1_complete: start_time + passage_dur,
+            crossfade2_start: start_time + 2.0 * passage_dur - 2.0 * crossfade_sec,
+            crossfade2_complete: start_time + 2.0 * passage_dur - crossfade_sec,
+            crossfade3_start: start_time + 3.0 * passage_dur - 3.0 * crossfade_sec,
+            crossfade3_complete: start_time + 3.0 * passage_dur - 2.0 * crossfade_sec,
+        }
+    }
 }
 
 /// Audio level tracker for detecting volume issues
@@ -83,80 +115,92 @@ impl AudioLevelTracker {
     }
 }
 
-/// Verify timeline against expected values
-fn verify_timeline(events: &[PlaybackEvent], expected: &ExpectedTimeline) -> Vec<String> {
+/// Verify timeline against expected values for all cycles
+fn verify_timeline(events: &[PlaybackEvent], timelines: &[CycleTimeline]) -> Vec<String> {
     let mut errors = Vec::new();
     let tolerance = 0.5; // 500ms tolerance
 
     for event in events {
         match event {
-            PlaybackEvent::Passage1FadeInComplete { time } => {
-                if (*time - expected.passage1_fade_in_complete).abs() > tolerance {
+            PlaybackEvent::Passage1FadeInComplete { cycle, time } if *cycle == 1 => {
+                // Only cycle 1 has initial fade-in
+                let expected = timelines[0].start_time + 10.0; // 10s fade-in
+                if (*time - expected).abs() > tolerance {
                     errors.push(format!(
-                        "Passage 1 fade-in completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.passage1_fade_in_complete,
-                        time - expected.passage1_fade_in_complete
+                        "Cycle 1 Passage 1 fade-in completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        time, expected, time - expected
                     ));
                 }
             }
-            PlaybackEvent::Crossfade1To2Started { time } => {
-                if (*time - expected.crossfade1_start).abs() > tolerance {
+            PlaybackEvent::Crossfade1To2Started { cycle, time } => {
+                let timeline = &timelines[(*cycle - 1) as usize];
+                if (*time - timeline.crossfade1_start).abs() > tolerance {
                     errors.push(format!(
-                        "Crossfade 1→2 started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.crossfade1_start,
-                        time - expected.crossfade1_start
+                        "Cycle {} Crossfade 1→2 started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        cycle, time, timeline.crossfade1_start, time - timeline.crossfade1_start
                     ));
                 }
             }
-            PlaybackEvent::Crossfade1To2Complete { time } => {
-                if (*time - expected.crossfade1_complete).abs() > tolerance {
+            PlaybackEvent::Crossfade1To2Complete { cycle, time } => {
+                let timeline = &timelines[(*cycle - 1) as usize];
+                if (*time - timeline.crossfade1_complete).abs() > tolerance {
                     errors.push(format!(
-                        "Crossfade 1→2 completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.crossfade1_complete,
-                        time - expected.crossfade1_complete
+                        "Cycle {} Crossfade 1→2 completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        cycle, time, timeline.crossfade1_complete, time - timeline.crossfade1_complete
                     ));
                 }
             }
-            PlaybackEvent::Crossfade2To3Started { time } => {
-                if (*time - expected.crossfade2_start).abs() > tolerance {
+            PlaybackEvent::Crossfade2To3Started { cycle, time } => {
+                let timeline = &timelines[(*cycle - 1) as usize];
+                if (*time - timeline.crossfade2_start).abs() > tolerance {
                     errors.push(format!(
-                        "Crossfade 2→3 started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.crossfade2_start,
-                        time - expected.crossfade2_start
+                        "Cycle {} Crossfade 2→3 started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        cycle, time, timeline.crossfade2_start, time - timeline.crossfade2_start
                     ));
                 }
             }
-            PlaybackEvent::Crossfade2To3Complete { time } => {
-                if (*time - expected.crossfade2_complete).abs() > tolerance {
+            PlaybackEvent::Crossfade2To3Complete { cycle, time } => {
+                let timeline = &timelines[(*cycle - 1) as usize];
+                if (*time - timeline.crossfade2_complete).abs() > tolerance {
                     errors.push(format!(
-                        "Crossfade 2→3 completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.crossfade2_complete,
-                        time - expected.crossfade2_complete
+                        "Cycle {} Crossfade 2→3 completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        cycle, time, timeline.crossfade2_complete, time - timeline.crossfade2_complete
                     ));
                 }
             }
-            PlaybackEvent::Passage3FadeOutStarted { time } => {
-                if (*time - expected.passage3_fade_out_start).abs() > tolerance {
+            PlaybackEvent::Crossfade3To1Started { cycle, time } if *cycle < 4 => {
+                let timeline = &timelines[(*cycle - 1) as usize];
+                if (*time - timeline.crossfade3_start).abs() > tolerance {
                     errors.push(format!(
-                        "Passage 3 fade-out started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.passage3_fade_out_start,
-                        time - expected.passage3_fade_out_start
+                        "Cycle {} Crossfade 3→1 started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        cycle, time, timeline.crossfade3_start, time - timeline.crossfade3_start
                     ));
                 }
             }
-            PlaybackEvent::Passage3FadeOutComplete { time } => {
-                if (*time - expected.passage3_fade_out_complete).abs() > tolerance {
+            PlaybackEvent::Crossfade3To1Complete { cycle, time } if *cycle < 4 => {
+                let timeline = &timelines[(*cycle - 1) as usize];
+                if (*time - timeline.crossfade3_complete).abs() > tolerance {
                     errors.push(format!(
-                        "Passage 3 fade-out completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
-                        time,
-                        expected.passage3_fade_out_complete,
-                        time - expected.passage3_fade_out_complete
+                        "Cycle {} Crossfade 3→1 completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        cycle, time, timeline.crossfade3_complete, time - timeline.crossfade3_complete
+                    ));
+                }
+            }
+            PlaybackEvent::Passage3FadeOutStarted { cycle, time } if *cycle == 4 => {
+                let timeline = &timelines[3];
+                if (*time - timeline.crossfade3_start).abs() > tolerance {
+                    errors.push(format!(
+                        "Cycle 4 Passage 3 fade-out started at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        time, timeline.crossfade3_start, time - timeline.crossfade3_start
+                    ));
+                }
+            }
+            PlaybackEvent::Passage3FadeOutComplete { cycle, time } if *cycle == 4 => {
+                let timeline = &timelines[3];
+                if (*time - timeline.crossfade3_complete).abs() > tolerance {
+                    errors.push(format!(
+                        "Cycle 4 Passage 3 fade-out completed at {:.2}s, expected {:.2}s (diff: {:.2}s)",
+                        time, timeline.crossfade3_complete, time - timeline.crossfade3_complete
                     ));
                 }
             }
@@ -167,8 +211,22 @@ fn verify_timeline(events: &[PlaybackEvent], expected: &ExpectedTimeline) -> Vec
     errors
 }
 
+/// Get the Music folder path for the current platform
+///
+/// Returns:
+/// - Windows: `C:\Users\<username>\Music`
+/// - Linux/Mac: `/home/<username>/Music` or `$HOME/Music`
+fn get_music_folder() -> PathBuf {
+    // Try USERPROFILE first (Windows), then HOME (Linux/Mac)
+    let home = env::var("USERPROFILE")
+        .or_else(|_| env::var("HOME"))
+        .expect("Could not determine home directory. Please set USERPROFILE (Windows) or HOME (Linux/Mac) environment variable.");
+
+    PathBuf::from(home).join("Music")
+}
+
 /// Find MP3 files in a directory (recursive)
-fn find_mp3_files(root: &str, count: usize) -> Vec<PathBuf> {
+fn find_mp3_files(root: &PathBuf, count: usize) -> Vec<PathBuf> {
     WalkDir::new(root)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -245,25 +303,42 @@ impl BlockingMixer {
 #[test]
 #[ignore] // Run manually with: cargo test --test audible_crossfade_test -- --ignored --nocapture
 fn test_audible_crossfade() {
-    println!("\n=== ENHANCED AUDIBLE CROSSFADE TEST ===");
-    println!("This test will play 3 MP3 files with crossfades through your speakers.");
-    println!("Features:");
-    println!("  - Fade-in on passage 1");
-    println!("  - Crossfades between passages 1→2 and 2→3");
-    println!("  - Fade-out on passage 3 (no abrupt cutoff)");
+    println!("\n=== MULTI-CYCLE AUDIBLE CROSSFADE TEST ===");
+    println!("This test will play 3 MP3 files in 4 consecutive cycles with different crossfade curves.");
+    println!("\nFeatures:");
+    println!("  - 4 cycles, each using different crossfade curves:");
+    println!("    * Cycle 1 (0-55s): Exponential/Logarithmic");
+    println!("    * Cycle 2 (55-100s): Linear/Linear");
+    println!("    * Cycle 3 (100-145s): S-Curve/S-Curve");
+    println!("    * Cycle 4 (145-190s): Equal-Power/Equal-Power");
+    println!("  - Seamless transitions between cycles (no silence)");
+    println!("  - Initial fade-in and final fade-out");
     println!("  - RMS level tracking to detect clipping");
-    println!("  - Timing verification against expected timeline\n");
+    println!("  - Timing verification against expected timeline");
+    println!("\nTotal duration: ~195 seconds (3 minutes 15 seconds)\n");
+
+    // Get platform-appropriate Music folder
+    let music_folder = get_music_folder();
+    println!("Platform detected: {}", env::consts::OS);
+    println!("Searching for MP3 files in: {}", music_folder.display());
+
+    // Check if Music folder exists
+    if !music_folder.exists() {
+        println!("\nERROR: Music folder does not exist: {}", music_folder.display());
+        println!("Please create the folder and add at least 3 MP3 files to it.");
+        return;
+    }
 
     // Find MP3 files
-    println!("Finding MP3 files in /home/sw/Music...");
-    let mp3_files = find_mp3_files("/home/sw/Music", 3);
+    println!("Scanning for MP3 files...");
+    let mp3_files = find_mp3_files(&music_folder, 3);
 
     if mp3_files.len() < 3 {
         println!(
-            "ERROR: Not enough MP3 files found. Need 3, found {}.",
+            "\nERROR: Not enough MP3 files found. Need 3, found {}.",
             mp3_files.len()
         );
-        println!("Please ensure /home/sw/Music contains at least 3 MP3 files.");
+        println!("Please ensure {} contains at least 3 MP3 files.", music_folder.display());
         return;
     }
 
@@ -311,10 +386,10 @@ fn test_audible_crossfade() {
             samples
         };
 
-        // Limit to 30 seconds to keep test reasonable
-        let max_samples = 44100 * 2 * 30; // 30 seconds stereo
+        // Limit to 25 seconds to keep test reasonable
+        let max_samples = 44100 * 2 * 25; // 25 seconds stereo
         let limited_samples = if resampled.len() > max_samples {
-            println!("  Limiting to 30 seconds...");
+            println!("  Limiting to 25 seconds...");
             resampled[..max_samples].to_vec()
         } else {
             resampled
@@ -342,49 +417,92 @@ fn test_audible_crossfade() {
     let mixer = Arc::new(Mutex::new(BlockingMixer::new()));
 
     // Crossfade configuration
-    let crossfade_duration_ms = 5000;
-    let fade_out_duration_ms = 5000;
+    let crossfade_duration_ms = 10000;
+    let fade_out_duration_ms = 10000;
 
     println!("Crossfade duration: {}ms", crossfade_duration_ms);
     println!("Fade-out duration: {}ms", fade_out_duration_ms);
-    println!("Fade curves: Exponential (in) / Logarithmic (out)\n");
 
-    // Calculate durations
-    let passage_durations = runtime.block_on(async {
-        let b1 = buffers[0].read().await;
-        let b2 = buffers[1].read().await;
-        let b3 = buffers[2].read().await;
-        (
-            b1.duration_seconds(),
-            b2.duration_seconds(),
-            b3.duration_seconds(),
-        )
-    });
+    // Define crossfade configurations for each cycle
+    let configs = [
+        CrossfadeConfig {
+            name: "Exponential/Logarithmic",
+            fade_in_curve: FadeCurve::Exponential,
+            fade_out_curve: FadeCurve::Logarithmic,
+        },
+        CrossfadeConfig {
+            name: "Linear",
+            fade_in_curve: FadeCurve::Linear,
+            fade_out_curve: FadeCurve::Linear,
+        },
+        CrossfadeConfig {
+            name: "S-Curve",
+            fade_in_curve: FadeCurve::SCurve,
+            fade_out_curve: FadeCurve::SCurve,
+        },
+        CrossfadeConfig {
+            name: "Equal-Power",
+            fade_in_curve: FadeCurve::EqualPower,
+            fade_out_curve: FadeCurve::EqualPower,
+        },
+    ];
 
-    let (p1_dur, p2_dur, p3_dur) = passage_durations;
+    println!("\nCycle configurations:");
+    for (i, config) in configs.iter().enumerate() {
+        println!("  Cycle {}: {}", i + 1, config.name);
+    }
+    println!();
 
-    // Calculate expected timeline
-    let crossfade_sec = crossfade_duration_ms as f32 / 1000.0;
-    let fade_out_sec = fade_out_duration_ms as f32 / 1000.0;
+    // Calculate durations (all passages should be 25s)
+    let passage_dur = 25.0_f32;
+    let crossfade_sec = crossfade_duration_ms as f32 / 1000.0; // 10.0s
 
-    let expected = ExpectedTimeline {
-        passage1_start: 0.0,
-        passage1_fade_in_complete: crossfade_sec,
-        crossfade1_start: p1_dur - crossfade_sec,
-        crossfade1_complete: p1_dur,
-        crossfade2_start: p1_dur + p2_dur - crossfade_sec * 2.0,
-        crossfade2_complete: p1_dur + p2_dur - crossfade_sec,
-        passage3_fade_out_start: p1_dur + p2_dur + p3_dur - crossfade_sec * 2.0 - fade_out_sec,
-        passage3_fade_out_complete: p1_dur + p2_dur + p3_dur - crossfade_sec * 2.0,
-    };
+    // Calculate expected timeline for all 4 cycles
+    // Each cycle: 3 passages × 25s - 2 crossfades × 10s = 55s net per cycle
+    // Cycles 2-4 start 10s earlier because they continue from previous cycle's crossfade
+    let timelines = vec![
+        CycleTimeline::new(1, 0.0, passage_dur, crossfade_sec),           // Cycle 1: 0-55s
+        CycleTimeline::new(2, 45.0, passage_dur, crossfade_sec),          // Cycle 2: 45-100s (overlaps at 45-55s)
+        CycleTimeline::new(3, 90.0, passage_dur, crossfade_sec),          // Cycle 3: 90-145s (overlaps at 90-100s)
+        CycleTimeline::new(4, 135.0, passage_dur, crossfade_sec),         // Cycle 4: 135-190s (overlaps at 135-145s)
+    ];
 
-    println!("=== Expected Timeline ===");
-    println!("  Passage 1 starts: {:.1}s", expected.passage1_start);
-    println!("  Passage 1 fade-in complete: {:.1}s", expected.passage1_fade_in_complete);
-    println!("  Crossfade 1→2: {:.1}s - {:.1}s", expected.crossfade1_start, expected.crossfade1_complete);
-    println!("  Crossfade 2→3: {:.1}s - {:.1}s", expected.crossfade2_start, expected.crossfade2_complete);
-    println!("  Passage 3 fade-out: {:.1}s - {:.1}s", expected.passage3_fade_out_start, expected.passage3_fade_out_complete);
-    println!("  Total duration: {:.1}s\n", expected.passage3_fade_out_complete);
+    println!("=== Expected Timeline (All 4 Cycles) ===");
+    println!("\nCycle 1 (Exponential/Logarithmic): 0-55s");
+    println!("  0-10s: Passage 1 fade-in");
+    println!("  10-15s: Passage 1 at 100%");
+    println!("  15-25s: Crossfade 1→2");
+    println!("  25-30s: Passage 2 at 100%");
+    println!("  30-40s: Crossfade 2→3");
+    println!("  40-45s: Passage 3 at 100%");
+    println!("  45-55s: Crossfade 3→1 (starts Cycle 2)");
+
+    println!("\nCycle 2 (Linear): 55-100s");
+    println!("  55-65s: P1 at 100%");
+    println!("  65-75s: Crossfade 1→2");
+    println!("  75-80s: Passage 2 at 100%");
+    println!("  80-90s: Crossfade 2→3");
+    println!("  90-95s: Passage 3 at 100%");
+    println!("  95-105s: Crossfade 3→1 (starts Cycle 3)");
+
+    println!("\nCycle 3 (S-Curve): 100-145s");
+    println!("  100-110s: P1 at 100%");
+    println!("  110-120s: Crossfade 1→2");
+    println!("  120-125s: Passage 2 at 100%");
+    println!("  125-135s: Crossfade 2→3");
+    println!("  135-140s: Passage 3 at 100%");
+    println!("  140-150s: Crossfade 3→1 (starts Cycle 4)");
+
+    println!("\nCycle 4 (Equal-Power): 145-190s");
+    println!("  145-155s: P1 at 100%");
+    println!("  155-165s: Crossfade 1→2");
+    println!("  165-170s: Passage 2 at 100%");
+    println!("  170-180s: Crossfade 2→3");
+    println!("  180-185s: Passage 3 at 100%");
+    println!("  185-195s: Passage 3 fade-out");
+
+    let total_duration = timelines[3].crossfade3_complete + 10.0; // Last cycle + final fade-out
+    println!("\nTotal duration: {:.1}s (~{:.1} minutes)\n", total_duration, total_duration / 60.0);
 
     // Event tracking
     let events = Arc::new(Mutex::new(Vec::new()));
@@ -394,22 +512,28 @@ fn test_audible_crossfade() {
     let level_tracker = Arc::new(Mutex::new(AudioLevelTracker::new(4410))); // 100ms window at 44.1kHz
     let level_tracker_clone = level_tracker.clone();
 
-    // Start first passage with fade-in
+    // Start first passage with fade-in (Cycle 1)
+    println!("Starting Cycle 1 with Exponential/Logarithmic curves...");
     println!("Starting passage 1 with fade-in...");
     {
         let passage_id = runtime.block_on(async { buffers[0].read().await.passage_id });
         mixer.lock().unwrap().start_passage(
             buffers[0].clone(),
             passage_id,
-            Some(FadeCurve::Exponential),
+            Some(configs[0].fade_in_curve), // Exponential for Cycle 1
             crossfade_duration_ms,
         );
     }
 
-    events_clone.lock().unwrap().push(PlaybackEvent::Passage1Started { time: 0.0 });
+    events_clone.lock().unwrap().push(PlaybackEvent::CycleStarted {
+        cycle: 1,
+        curve_name: configs[0].name.to_string(),
+        time: 0.0,
+    });
+    events_clone.lock().unwrap().push(PlaybackEvent::Passage1Started { cycle: 1, time: 0.0 });
 
     println!("\n=== Playing audio ===");
-    println!("Listen for smooth crossfades and clean fade-out!\n");
+    println!("Listen for smooth crossfades and curve differences!\n");
 
     // Open audio output
     let mut output = match AudioOutput::new(None) {
@@ -446,16 +570,16 @@ fn test_audible_crossfade() {
         return;
     }
 
-    // Track timing for crossfades and fade-out
+    // Track timing for all 4 cycles
     let start_time = std::time::Instant::now();
-    let mut crossfade_triggered = [false, false, false]; // 3rd is fade-out
     let mut last_progress = 0.0;
     let mut last_rms = 0.0;
-    let mut fade_in_complete_logged = false;
-    let mut crossfade1_complete_logged = false;
-    let mut crossfade2_complete_logged = false;
 
-    let total_duration = expected.passage3_fade_out_complete;
+    // Track which events have been triggered (per cycle)
+    // Each cycle has: [crossfade1, crossfade1_complete, crossfade2, crossfade2_complete, crossfade3, crossfade3_complete]
+    let mut cycle_events_triggered = [[false; 6]; 4];
+    let mut fade_in_complete_logged = false;
+    let mut current_cycle: u8 = 1;
 
     println!("Total playback duration: {:.1}s", total_duration);
     println!("----------------------------------------\n");
@@ -469,9 +593,18 @@ fn test_audible_crossfade() {
         // Get current RMS level
         let rms = level_tracker.lock().unwrap().rms();
 
+        // Update current cycle based on elapsed time
+        if elapsed >= 135.0 && current_cycle < 4 {
+            current_cycle = 4;
+        } else if elapsed >= 90.0 && current_cycle < 3 {
+            current_cycle = 3;
+        } else if elapsed >= 45.0 && current_cycle < 2 {
+            current_cycle = 2;
+        }
+
         // Log level changes
         if (rms - last_rms).abs() > 0.1 {
-            println!("  Level at {:.1}s: RMS={:.3}", elapsed, rms);
+            println!("  Level at {:.1}s (Cycle {}): RMS={:.3}", elapsed, current_cycle, rms);
             last_rms = rms;
         }
 
@@ -484,111 +617,176 @@ fn test_audible_crossfade() {
         let progress = (elapsed / total_duration * 100.0).min(100.0);
         if (progress / 5.0).floor() > (last_progress / 5.0_f32).floor() {
             println!(
-                "Progress: {:.0}% ({:.1}s / {:.1}s) [RMS: {:.3}]",
-                progress, elapsed, total_duration, rms
+                "Progress: {:.0}% ({:.1}s / {:.1}s) [Cycle {} - {}] [RMS: {:.3}]",
+                progress, elapsed, total_duration, current_cycle, configs[(current_cycle - 1) as usize].name, rms
             );
             last_progress = progress;
         }
 
-        // Log fade-in complete
-        if !fade_in_complete_logged && elapsed >= expected.passage1_fade_in_complete {
-            println!("\n>>> Passage 1 fade-in complete at {:.2}s <<<", elapsed);
-            events.lock().unwrap().push(PlaybackEvent::Passage1FadeInComplete { time: elapsed });
+        // Log fade-in complete (Cycle 1 only)
+        if !fade_in_complete_logged && elapsed >= 10.0 {
+            println!("\n>>> Cycle 1: Passage 1 fade-in complete at {:.2}s <<<", elapsed);
+            events.lock().unwrap().push(PlaybackEvent::Passage1FadeInComplete { cycle: 1, time: elapsed });
             fade_in_complete_logged = true;
         }
 
-        // Trigger crossfade 1→2
-        if !crossfade_triggered[0] && elapsed >= expected.crossfade1_start {
-            println!("\n>>> Triggering crossfade 1→2 at {:.2}s <<<", elapsed);
-            events.lock().unwrap().push(PlaybackEvent::Crossfade1To2Started { time: elapsed });
+        // Process events for all 4 cycles
+        for cycle_idx in 0..4 {
+            let cycle = (cycle_idx + 1) as u8;
+            let timeline = &timelines[cycle_idx];
+            let config = &configs[cycle_idx];
+            let events_flags = &mut cycle_events_triggered[cycle_idx];
 
-            let next_passage_id = runtime.block_on(async { buffers[1].read().await.passage_id });
+            // Trigger crossfade 1→2
+            if !events_flags[0] && elapsed >= timeline.crossfade1_start {
+                println!("\n>>> Cycle {}: Triggering crossfade 1→2 at {:.2}s ({}) <<<",
+                    cycle, elapsed, config.name);
+                events.lock().unwrap().push(PlaybackEvent::Crossfade1To2Started {
+                    cycle, time: elapsed
+                });
 
-            if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                buffers[1].clone(),
-                next_passage_id,
-                FadeCurve::Logarithmic,
-                crossfade_duration_ms,
-                FadeCurve::Exponential,
-                crossfade_duration_ms,
-            ) {
-                println!("ERROR: Failed to start crossfade: {}", e);
+                let next_passage_id = runtime.block_on(async { buffers[1].read().await.passage_id });
+
+                if let Err(e) = mixer.lock().unwrap().start_crossfade(
+                    buffers[1].clone(),
+                    next_passage_id,
+                    config.fade_out_curve,
+                    crossfade_duration_ms,
+                    config.fade_in_curve,
+                    crossfade_duration_ms,
+                ) {
+                    println!("ERROR: Failed to start crossfade: {}", e);
+                }
+
+                events_flags[0] = true;
             }
 
-            crossfade_triggered[0] = true;
-        }
-
-        // Log crossfade 1→2 complete
-        if !crossfade1_complete_logged && crossfade_triggered[0] && elapsed >= expected.crossfade1_complete {
-            println!(">>> Crossfade 1→2 complete at {:.2}s <<<\n", elapsed);
-            events.lock().unwrap().push(PlaybackEvent::Crossfade1To2Complete { time: elapsed });
-            crossfade1_complete_logged = true;
-        }
-
-        // Trigger crossfade 2→3
-        if !crossfade_triggered[1] && elapsed >= expected.crossfade2_start {
-            println!("\n>>> Triggering crossfade 2→3 at {:.2}s <<<", elapsed);
-            events.lock().unwrap().push(PlaybackEvent::Crossfade2To3Started { time: elapsed });
-
-            let next_passage_id = runtime.block_on(async { buffers[2].read().await.passage_id });
-
-            if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                buffers[2].clone(),
-                next_passage_id,
-                FadeCurve::Logarithmic,
-                crossfade_duration_ms,
-                FadeCurve::Exponential,
-                crossfade_duration_ms,
-            ) {
-                println!("ERROR: Failed to start crossfade: {}", e);
+            // Log crossfade 1→2 complete
+            if !events_flags[1] && events_flags[0] && elapsed >= timeline.crossfade1_complete {
+                println!(">>> Cycle {}: Crossfade 1→2 complete at {:.2}s <<<\n", cycle, elapsed);
+                events.lock().unwrap().push(PlaybackEvent::Crossfade1To2Complete {
+                    cycle, time: elapsed
+                });
+                events_flags[1] = true;
             }
 
-            crossfade_triggered[1] = true;
-        }
+            // Trigger crossfade 2→3
+            if !events_flags[2] && elapsed >= timeline.crossfade2_start {
+                println!("\n>>> Cycle {}: Triggering crossfade 2→3 at {:.2}s ({}) <<<",
+                    cycle, elapsed, config.name);
+                events.lock().unwrap().push(PlaybackEvent::Crossfade2To3Started {
+                    cycle, time: elapsed
+                });
 
-        // Log crossfade 2→3 complete
-        if !crossfade2_complete_logged && crossfade_triggered[1] && elapsed >= expected.crossfade2_complete {
-            println!(">>> Crossfade 2→3 complete at {:.2}s <<<\n", elapsed);
-            events.lock().unwrap().push(PlaybackEvent::Crossfade2To3Complete { time: elapsed });
-            crossfade2_complete_logged = true;
-        }
+                let next_passage_id = runtime.block_on(async { buffers[2].read().await.passage_id });
 
-        // Trigger fade-out of passage 3
-        if !crossfade_triggered[2] && elapsed >= expected.passage3_fade_out_start {
-            println!("\n>>> Triggering passage 3 fade-out at {:.2}s <<<", elapsed);
-            events.lock().unwrap().push(PlaybackEvent::Passage3FadeOutStarted { time: elapsed });
+                if let Err(e) = mixer.lock().unwrap().start_crossfade(
+                    buffers[2].clone(),
+                    next_passage_id,
+                    config.fade_out_curve,
+                    crossfade_duration_ms,
+                    config.fade_in_curve,
+                    crossfade_duration_ms,
+                ) {
+                    println!("ERROR: Failed to start crossfade: {}", e);
+                }
 
-            // Create silent buffer for fade-out
-            // We crossfade to silence, effectively fading out the current passage
-            let silent_buffer = Arc::new(tokio::sync::RwLock::new(PassageBuffer::new(
-                Uuid::new_v4(),
-                vec![0.0; 44100 * 2 * 10], // 10s silence
-                44100,
-                2,
-            )));
-
-            if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                silent_buffer,
-                Uuid::new_v4(),
-                FadeCurve::Logarithmic, // Fade out passage 3
-                fade_out_duration_ms,
-                FadeCurve::Linear, // Fade in silence (doesn't matter)
-                fade_out_duration_ms,
-            ) {
-                println!("ERROR: Failed to start fade-out: {}", e);
+                events_flags[2] = true;
             }
 
-            crossfade_triggered[2] = true;
-        }
+            // Log crossfade 2→3 complete
+            if !events_flags[3] && events_flags[2] && elapsed >= timeline.crossfade2_complete {
+                println!(">>> Cycle {}: Crossfade 2→3 complete at {:.2}s <<<\n", cycle, elapsed);
+                events.lock().unwrap().push(PlaybackEvent::Crossfade2To3Complete {
+                    cycle, time: elapsed
+                });
+                events_flags[3] = true;
+            }
 
-        // Check if fade-out complete (when RMS drops very low)
-        if crossfade_triggered[2] && elapsed >= expected.passage3_fade_out_complete {
-            println!(">>> Fade-out complete at {:.2}s (RMS={:.3}) <<<\n", elapsed, rms);
-            events.lock().unwrap().push(PlaybackEvent::Passage3FadeOutComplete { time: elapsed });
+            // Trigger crossfade 3→1 (cycles 1-3) or fade-out (cycle 4)
+            if !events_flags[4] && elapsed >= timeline.crossfade3_start {
+                if cycle < 4 {
+                    // Cycles 1-3: crossfade back to passage 1 to start next cycle
+                    println!("\n>>> Cycle {}: Triggering crossfade 3→1 at {:.2}s ({}) <<<",
+                        cycle, elapsed, config.name);
+                    println!("    (Starting Cycle {} with {})", cycle + 1, configs[cycle_idx + 1].name);
 
-            // Wait a bit more to ensure silence
-            std::thread::sleep(std::time::Duration::from_millis(500));
-            break;
+                    events.lock().unwrap().push(PlaybackEvent::Crossfade3To1Started {
+                        cycle, time: elapsed
+                    });
+                    events.lock().unwrap().push(PlaybackEvent::CycleStarted {
+                        cycle: cycle + 1,
+                        curve_name: configs[cycle_idx + 1].name.to_string(),
+                        time: elapsed,
+                    });
+
+                    let next_passage_id = runtime.block_on(async { buffers[0].read().await.passage_id });
+                    let next_config = &configs[cycle_idx + 1];
+
+                    if let Err(e) = mixer.lock().unwrap().start_crossfade(
+                        buffers[0].clone(),
+                        next_passage_id,
+                        config.fade_out_curve,
+                        crossfade_duration_ms,
+                        next_config.fade_in_curve,
+                        crossfade_duration_ms,
+                    ) {
+                        println!("ERROR: Failed to start crossfade: {}", e);
+                    }
+                } else {
+                    // Cycle 4: fade out to silence
+                    println!("\n>>> Cycle 4: Triggering passage 3 fade-out at {:.2}s ({}) <<<",
+                        elapsed, config.name);
+                    events.lock().unwrap().push(PlaybackEvent::Passage3FadeOutStarted {
+                        cycle: 4, time: elapsed
+                    });
+
+                    // Create silent buffer for fade-out
+                    let silent_buffer = Arc::new(tokio::sync::RwLock::new(PassageBuffer::new(
+                        Uuid::new_v4(),
+                        vec![0.0; 44100 * 2 * 10], // 10s silence
+                        44100,
+                        2,
+                    )));
+
+                    if let Err(e) = mixer.lock().unwrap().start_crossfade(
+                        silent_buffer,
+                        Uuid::new_v4(),
+                        config.fade_out_curve,
+                        fade_out_duration_ms,
+                        FadeCurve::Linear, // Fade in silence (doesn't matter)
+                        fade_out_duration_ms,
+                    ) {
+                        println!("ERROR: Failed to start fade-out: {}", e);
+                    }
+                }
+
+                events_flags[4] = true;
+            }
+
+            // Log crossfade 3→1 complete (cycles 1-3) or fade-out complete (cycle 4)
+            if !events_flags[5] && events_flags[4] && elapsed >= timeline.crossfade3_complete {
+                if cycle < 4 {
+                    println!(">>> Cycle {}: Crossfade 3→1 complete at {:.2}s <<<", cycle, elapsed);
+                    println!("    Cycle {} now playing\n", cycle + 1);
+                    events.lock().unwrap().push(PlaybackEvent::Crossfade3To1Complete {
+                        cycle, time: elapsed
+                    });
+                    events.lock().unwrap().push(PlaybackEvent::Passage1Started {
+                        cycle: cycle + 1, time: elapsed
+                    });
+                } else {
+                    println!(">>> Cycle 4: Fade-out complete at {:.2}s (RMS={:.3}) <<<\n", elapsed, rms);
+                    events.lock().unwrap().push(PlaybackEvent::Passage3FadeOutComplete {
+                        cycle: 4, time: elapsed
+                    });
+
+                    // Wait a bit more to ensure silence
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    break;
+                }
+                events_flags[5] = true;
+            }
         }
 
         // Safety timeout
@@ -603,12 +801,12 @@ fn test_audible_crossfade() {
     // Verify timeline
     println!("\n=== Verifying Timeline ===");
     let events = events.lock().unwrap();
-    let errors = verify_timeline(&events, &expected);
+    let errors = verify_timeline(&events, &timelines);
 
     if errors.is_empty() {
-        println!("✓ All timing checks PASSED!");
+        println!("All timing checks PASSED!");
     } else {
-        println!("⚠ Timing issues detected:");
+        println!("Timing issues detected:");
         for error in &errors {
             println!("  - {}", error);
         }
@@ -617,9 +815,9 @@ fn test_audible_crossfade() {
     // Final check
     let final_rms = level_tracker.lock().unwrap().rms();
     if final_rms < 0.01 {
-        println!("✓ Final fade-out successful (RMS={:.3})", final_rms);
+        println!("Final fade-out successful (RMS={:.3})", final_rms);
     } else {
-        println!("⚠ Final fade-out incomplete (RMS={:.3}, expected < 0.01)", final_rms);
+        println!("Final fade-out incomplete (RMS={:.3}, expected < 0.01)", final_rms);
     }
 
     println!("\n=== Event Log ===");
@@ -630,9 +828,16 @@ fn test_audible_crossfade() {
     println!("\n=== Test Summary ===");
     println!("Test finished successfully!");
     println!("\nListening feedback:");
-    println!("  - Did you hear smooth fade-in at the start?");
-    println!("  - Were the crossfades between passages smooth?");
-    println!("  - Did passage 3 fade out smoothly to silence (no abrupt cutoff)?");
+    println!("  - Did you hear smooth fade-in at the start (Cycle 1)?");
+    println!("  - Were all 4 cycles with different curves audibly distinct?");
+    println!("  - Were the crossfades between passages smooth in all cycles?");
+    println!("  - Were the transitions between cycles seamless (no silence)?");
+    println!("  - Did passage 3 fade out smoothly to silence at the end (no abrupt cutoff)?");
     println!("  - Were there any clicks, pops, or distortion?");
-    println!("  - Did the volume remain consistent during crossfades?\n");
+    println!("  - Did the volume remain consistent during crossfades?");
+    println!("\nCurve characteristics to listen for:");
+    println!("  - Exponential/Logarithmic (Cycle 1): Quick start, smooth middle, gradual end");
+    println!("  - Linear (Cycle 2): Constant rate throughout");
+    println!("  - S-Curve (Cycle 3): Slow start, fast middle, slow end");
+    println!("  - Equal-Power (Cycle 4): Constant perceived loudness\n");
 }
