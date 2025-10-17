@@ -166,6 +166,20 @@ impl PassageBuffer {
         self.pcm_data.clear();
         self.pcm_data.shrink_to_fit(); // Free memory
     }
+
+    /// Set fade parameters for this buffer
+    pub fn set_fade_parameters(
+        &mut self,
+        fade_in_samples: u64,
+        fade_out_samples: u64,
+        fade_in_curve: FadeCurve,
+        fade_out_curve: FadeCurve,
+    ) {
+        self.fade_in_samples = fade_in_samples;
+        self.fade_out_samples = fade_out_samples;
+        self.fade_in_curve = fade_in_curve;
+        self.fade_out_curve = fade_out_curve;
+    }
 }
 
 /// Manages PCM buffers for all queued passages
@@ -310,6 +324,27 @@ impl PassageBufferManager {
         if let Some(mut buffers) = self.get_buffer_mut(passage_id).await {
             if let Some(buffer) = buffers.get_mut(passage_id) {
                 buffer.mark_exhausted();
+                Ok(())
+            } else {
+                Err(anyhow::anyhow!("Buffer not found for passage {}", passage_id))
+            }
+        } else {
+            Err(anyhow::anyhow!("Buffer not found for passage {}", passage_id))
+        }
+    }
+
+    /// Set fade parameters for a buffer
+    pub async fn set_fade_parameters(
+        &self,
+        passage_id: &Uuid,
+        fade_in_samples: u64,
+        fade_out_samples: u64,
+        fade_in_curve: FadeCurve,
+        fade_out_curve: FadeCurve,
+    ) -> Result<()> {
+        if let Some(mut buffers) = self.get_buffer_mut(passage_id).await {
+            if let Some(buffer) = buffers.get_mut(passage_id) {
+                buffer.set_fade_parameters(fade_in_samples, fade_out_samples, fade_in_curve, fade_out_curve);
                 Ok(())
             } else {
                 Err(anyhow::anyhow!("Buffer not found for passage {}", passage_id))

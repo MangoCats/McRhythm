@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use anyhow::{Result, anyhow};
-use tracing::{info, warn};
+use tracing::{debug, error, info, warn};
 
 use super::buffer::{PassageBufferManager, FadeCurve, BufferStatus};
 
@@ -140,6 +140,9 @@ pub struct CrossfadeMixer {
 
     /// Position within next passage buffer (samples, not interleaved)
     next_passage_position: Arc<RwLock<u64>>,
+
+    /// Sample position at which to start crossfade (None if no crossfade scheduled)
+    crossfade_start_sample: Arc<RwLock<Option<u64>>>,
 }
 
 impl CrossfadeMixer {
@@ -159,6 +162,7 @@ impl CrossfadeMixer {
             playback_position: Arc::new(RwLock::new(0)),
             current_passage_position: Arc::new(RwLock::new(0)),
             next_passage_position: Arc::new(RwLock::new(0)),
+            crossfade_start_sample: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -216,10 +220,38 @@ impl CrossfadeMixer {
         // Calculate crossfade points
         let points = CrossfadePoints::calculate(fade_in_ms, fade_out_ms, overlap_ms)?;
 
+        // Calculate when to start crossfade based on current passage duration
+        let current_id = self.current_passage.read().await;
+        let crossfade_start = if let Some(current_id) = *current_id {
+            if let Some(buffers) = self.buffer_manager.get_buffer(&current_id).await {
+                if let Some(buffer) = buffers.get(&current_id) {
+                    let passage_duration_samples = buffer.sample_count();
+                    let overlap_samples = (overlap_ms * STANDARD_SAMPLE_RATE as f64 / 1000.0) as u64;
+                    let start_sample = passage_duration_samples.saturating_sub(overlap_samples);
+
+                    info!(
+                        passage_duration_samples,
+                        overlap_samples,
+                        crossfade_start_sample = start_sample,
+                        "Calculated crossfade start position"
+                    );
+
+                    Some(start_sample)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         // Set up for crossfade
         *self.next_passage.write().await = Some(passage_id);
         *self.next_passage_position.write().await = 0;  // Reset to beginning of next passage's buffer
         *self.crossfade_points.write().await = Some(points);
+        *self.crossfade_start_sample.write().await = crossfade_start;
 
         Ok(())
     }
@@ -237,6 +269,30 @@ impl CrossfadeMixer {
         let state = *self.state.read().await;
         let current_id = *self.current_passage.read().await;
         let next_id = *self.next_passage.read().await;
+
+        // Check if we should auto-start crossfade based on sample position
+        if matches!(state, CrossfadeState::SinglePassage) && next_id.is_some() {
+            let crossfade_start = *self.crossfade_start_sample.read().await;
+            let current_pos = *self.current_passage_position.read().await;
+
+            if let Some(start_sample) = crossfade_start {
+                if current_pos >= start_sample {
+                    info!(
+                        current_position = current_pos,
+                        crossfade_start = start_sample,
+                        "Auto-starting crossfade at sample-accurate position"
+                    );
+
+                    // Start crossfade automatically
+                    if let Err(e) = self.start_crossfade().await {
+                        error!(error = %e, "Failed to auto-start crossfade");
+                    }
+                }
+            }
+        }
+
+        // Re-read state after potential auto-start
+        let state = *self.state.read().await;
 
         match state {
             CrossfadeState::SinglePassage => {
@@ -293,11 +349,44 @@ impl CrossfadeMixer {
                 let end_idx = (start_idx + num_samples).min(buffer.pcm_data.len());
 
                 if start_idx < buffer.pcm_data.len() {
-                    output.extend_from_slice(&buffer.pcm_data[start_idx..end_idx]);
+                    let total_samples = buffer.sample_count();
+                    let fade_in_samples = buffer.fade_in_samples;
+                    let fade_out_samples = buffer.fade_out_samples;
+
+                    // Process each frame and apply fades
+                    let num_frames = (end_idx - start_idx) / CHANNELS as usize;
+                    for frame_idx in 0..num_frames {
+                        let current_sample = position + frame_idx as u64;
+                        let mut gain = 1.0;
+
+                        // Apply fade-in if we're in the fade-in region
+                        if fade_in_samples > 0 && current_sample < fade_in_samples {
+                            let fade_progress = current_sample as f32 / fade_in_samples as f32;
+                            gain *= calculate_fade_gain(buffer.fade_in_curve, fade_progress, true);
+                        }
+
+                        // Apply fade-out if we're in the fade-out region
+                        if fade_out_samples > 0 && current_sample >= total_samples.saturating_sub(fade_out_samples) {
+                            // Calculate progress from start of fade-out region (0.0) to end (1.0)
+                            let fade_out_start = total_samples.saturating_sub(fade_out_samples);
+                            let samples_into_fadeout = current_sample - fade_out_start;
+                            let fade_progress = samples_into_fadeout as f32 / fade_out_samples as f32;
+                            gain *= calculate_fade_gain(buffer.fade_out_curve, fade_progress, false);
+                        }
+
+                        // Read and apply gain to all channels in this frame
+                        let pcm_idx = start_idx + (frame_idx * CHANNELS as usize);
+                        for ch in 0..CHANNELS as usize {
+                            if pcm_idx + ch < buffer.pcm_data.len() {
+                                let sample = buffer.pcm_data[pcm_idx + ch] * gain;
+                                output.push(sample.clamp(-1.0, 1.0));
+                            }
+                        }
+                    }
 
                     // Update current passage position
-                    let samples_read = (end_idx - start_idx) / CHANNELS as usize;
-                    *self.current_passage_position.write().await += samples_read as u64;
+                    let samples_read = num_frames as u64;
+                    *self.current_passage_position.write().await += samples_read;
 
                     // Check if we've reached the end of the buffer
                     if end_idx >= buffer.pcm_data.len() {
@@ -336,6 +425,15 @@ impl CrossfadeMixer {
         total_samples: u64,
         current_sample: u64,
     ) -> Result<()> {
+        debug!(
+            current_id = %current_id,
+            next_id = %next_id,
+            progress,
+            current_sample,
+            total_samples,
+            "Processing crossfade audio"
+        );
+
         // Get both buffers
         let current_buffer = self.buffer_manager.get_buffer(current_id).await;
         let next_buffer = self.buffer_manager.get_buffer(next_id).await;
@@ -355,21 +453,47 @@ impl CrossfadeMixer {
                     let frame_progress = sample_idx as f32 / total_samples as f32;
 
                     // Calculate fade gains
+                    // For fade-out: progress 0.0→1.0 gives gain 1.0→0.0 (full to silence)
                     let current_gain = calculate_fade_gain(
                         current.fade_out_curve,
-                        1.0 - frame_progress,
+                        frame_progress,
                         false // fade out
                     );
 
+                    // For fade-in: progress 0.0→1.0 gives gain 0.0→1.0 (silence to full)
                     let next_gain = calculate_fade_gain(
                         next.fade_in_curve,
                         frame_progress,
                         true // fade in
                     );
 
+                    // Debug: Log first few frames to understand gain behavior
+                    if current_sample < 5 && frame < 3 {
+                        debug!(
+                            sample_idx,
+                            frame_progress,
+                            current_gain,
+                            next_gain,
+                            "Crossfade gains"
+                        );
+                    }
+
                     // Mix samples for each channel using per-passage positions
                     let current_idx = ((current_pos + frame as u64) * CHANNELS as u64) as usize;
                     let next_idx = ((next_pos + frame as u64) * CHANNELS as u64) as usize;
+
+                    // Debug: Log first frame indices and buffer info
+                    if current_sample == 0 && frame == 0 {
+                        debug!(
+                            current_pos,
+                            next_pos,
+                            current_idx,
+                            next_idx,
+                            current_buffer_len = current.pcm_data.len(),
+                            next_buffer_len = next.pcm_data.len(),
+                            "Crossfade buffer positions"
+                        );
+                    }
 
                     for ch in 0..samples_per_frame {
                         let current_sample = if current_idx + ch < current.pcm_data.len() {
@@ -433,6 +557,7 @@ impl CrossfadeMixer {
 
             *self.state.write().await = CrossfadeState::SinglePassage;
             *self.crossfade_points.write().await = None;
+            *self.crossfade_start_sample.write().await = None;
 
             info!(passage_id = %new_id, "Crossfade completed, now playing single passage");
         }
@@ -479,6 +604,11 @@ impl CrossfadeMixer {
     pub async fn get_state(&self) -> CrossfadeState {
         *self.state.read().await
     }
+
+    /// Get the current passage playback position (in samples)
+    pub async fn get_current_passage_position(&self) -> u64 {
+        *self.current_passage_position.read().await
+    }
 }
 
 /// Calculate fade gain for a given progress and curve type
@@ -507,7 +637,9 @@ pub fn calculate_fade_gain(curve: FadeCurve, progress: f32, is_fade_in: bool) ->
                 1.0 - (-10.0 * clamped_progress).exp()
             } else {
                 // For fade-out, standard logarithmic
-                (-10.0 * (1.0 - clamped_progress)).exp()
+                // At progress=0: e^0 = 1.0 (full volume)
+                // At progress=1: e^(-10) ≈ 0.00005 (silence)
+                (-10.0 * clamped_progress).exp()
             }
         }
         FadeCurve::Exponential => {

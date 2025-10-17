@@ -12,7 +12,7 @@ use std::time::Duration;
 use tokio::sync::{RwLock, mpsc};
 use anyhow::{Result, anyhow, Context};
 use uuid::Uuid;
-use tracing::{info, debug, error};
+use tracing::{info, debug, error, warn};
 use serde::{Serialize, Deserialize};
 
 use crate::playback::pipeline::{
@@ -248,12 +248,12 @@ impl PlaybackEngine {
                         let timing_override = request.start_time_ms.or(request.end_time_ms).map(|_| TimingOverride {
                             start_time_ms: request.start_time_ms,
                             end_time_ms: request.end_time_ms,
-                            lead_in_point_ms: None,
-                            lead_out_point_ms: None,
-                            fade_in_point_ms: None,
-                            fade_out_point_ms: None,
-                            fade_in_curve: None,
-                            fade_out_curve: None,
+                            lead_in_point_ms: request.lead_in_point_ms,
+                            lead_out_point_ms: request.lead_out_point_ms,
+                            fade_in_point_ms: request.fade_in_point_ms,
+                            fade_out_point_ms: request.fade_out_point_ms,
+                            fade_in_curve: request.fade_in_curve.clone(),
+                            fade_out_curve: request.fade_out_curve.clone(),
                         });
 
                         let entry = QueueEntry {
@@ -534,6 +534,72 @@ async fn playback_loop(
                     }
                 }
 
+                // Set fade parameters from timing_override
+                if let Some(ref timing) = entry.timing_override {
+                    use crate::playback::pipeline::single_stream::buffer::FadeCurve;
+
+                    // Calculate fade durations in samples (44.1kHz sample rate)
+                    let sample_rate = 44100u64;
+
+                    let fade_in_samples = if let (Some(start_ms), Some(fade_in_ms)) = (timing.start_time_ms, timing.fade_in_point_ms) {
+                        ((fade_in_ms.saturating_sub(start_ms) as u64 * sample_rate) / 1000).max(0)
+                    } else {
+                        0
+                    };
+
+                    let fade_out_samples = if let (Some(end_ms), Some(fade_out_ms)) = (timing.end_time_ms, timing.fade_out_point_ms) {
+                        ((end_ms.saturating_sub(fade_out_ms) as u64 * sample_rate) / 1000).max(0)
+                    } else {
+                        0
+                    };
+
+                    // Parse fade curve types
+                    let fade_in_curve = timing.fade_in_curve.as_ref()
+                        .and_then(|s| match s.to_lowercase().as_str() {
+                            "exponential" => Some(FadeCurve::Exponential),
+                            "logarithmic" => Some(FadeCurve::Logarithmic),
+                            "linear" => Some(FadeCurve::Linear),
+                            "scurve" | "s-curve" => Some(FadeCurve::SCurve),
+                            _ => None,
+                        })
+                        .unwrap_or(FadeCurve::Exponential);
+
+                    let fade_out_curve = timing.fade_out_curve.as_ref()
+                        .and_then(|s| match s.to_lowercase().as_str() {
+                            "exponential" => Some(FadeCurve::Exponential),
+                            "logarithmic" => Some(FadeCurve::Logarithmic),
+                            "linear" => Some(FadeCurve::Linear),
+                            "scurve" | "s-curve" => Some(FadeCurve::SCurve),
+                            _ => None,
+                        })
+                        .unwrap_or(FadeCurve::Logarithmic);
+
+                    if fade_in_samples > 0 || fade_out_samples > 0 {
+                        info!(
+                            passage_id = %passage_id,
+                            fade_in_samples,
+                            fade_out_samples,
+                            fade_in_curve = ?fade_in_curve,
+                            fade_out_curve = ?fade_out_curve,
+                            "Setting fade parameters for passage"
+                        );
+
+                        if let Err(e) = buffer_manager.set_fade_parameters(
+                            &passage_id,
+                            fade_in_samples,
+                            fade_out_samples,
+                            fade_in_curve,
+                            fade_out_curve,
+                        ).await {
+                            error!(
+                                passage_id = %passage_id,
+                                error = %e,
+                                "Failed to set fade parameters"
+                            );
+                        }
+                    }
+                }
+
                 // Start passage in mixer
                 if let Err(e) = mixer.start_passage(passage_id).await {
                     error!(
@@ -574,81 +640,185 @@ async fn playback_loop(
 
                     if let Some(next_entry) = next_in_queue {
                         if let Some(next_id) = next_entry.passage_id {
-                            // Queue next passage for crossfade
-                            let fade_in_ms = 3000.0;
-                            let fade_out_ms = 3000.0;
-                            let overlap_ms = 3000.0;
+                            // Extract fade-out duration from current passage
+                            let current_fade_out_ms = if let Some(ref timing) = entry.timing_override {
+                                if let (Some(end_ms), Some(fade_out_ms)) = (timing.end_time_ms, timing.fade_out_point_ms) {
+                                    end_ms.saturating_sub(fade_out_ms)
+                                } else {
+                                    0
+                                }
+                            } else {
+                                0
+                            };
+
+                            // Extract fade-in duration from next passage
+                            let next_fade_in_ms = if let Some(ref timing) = next_entry.timing_override {
+                                if let (Some(start_ms), Some(fade_in_ms)) = (timing.start_time_ms, timing.fade_in_point_ms) {
+                                    fade_in_ms.saturating_sub(start_ms)
+                                } else {
+                                    0
+                                }
+                            } else {
+                                0
+                            };
+
+                            // Calculate overlap as minimum of fade-out and fade-in durations
+                            // Default to 3 seconds if no fade parameters specified
+                            let fade_in_ms = if next_fade_in_ms > 0 { next_fade_in_ms as f64 } else { 3000.0 };
+                            let fade_out_ms = if current_fade_out_ms > 0 { current_fade_out_ms as f64 } else { 3000.0 };
+                            let overlap_ms = if current_fade_out_ms > 0 && next_fade_in_ms > 0 {
+                                current_fade_out_ms.min(next_fade_in_ms) as f64
+                            } else {
+                                3000.0
+                            };
 
                             info!(
                                 next_passage_id = %next_id,
+                                current_fade_out_ms,
+                                next_fade_in_ms,
                                 fade_in_ms,
                                 fade_out_ms,
                                 overlap_ms,
-                                "Queueing next passage for crossfade"
+                                "Attempting to queue next passage"
                             );
 
-                            if mixer.queue_next_passage(next_id, fade_in_ms, fade_out_ms, overlap_ms).await.is_ok() {
-                                // Calculate when to start crossfade (3 seconds before end)
-                                let crossfade_duration_ms = 3000;
-                                let wait_before_crossfade_ms = passage_duration_ms.saturating_sub(crossfade_duration_ms);
+                            // Calculate crossfade trigger point (when crossfade should start)
+                            let crossfade_trigger_ms = passage_duration_ms.saturating_sub(overlap_ms as u64);
 
-                                info!(
-                                    passage_id = %passage_id,
-                                    wait_ms = wait_before_crossfade_ms,
-                                    "Waiting before starting crossfade"
-                                );
+                            // Poll for buffer readiness with timeout
+                            let poll_interval = Duration::from_millis(100);
+                            let max_wait_time = Duration::from_millis(crossfade_trigger_ms.saturating_sub(500)); // 500ms safety margin
+                            let poll_start = std::time::Instant::now();
+                            let mut buffer_ready = false;
 
-                                // Wait until it's time to start crossfade
-                                tokio::time::sleep(Duration::from_millis(wait_before_crossfade_ms)).await;
-
-                                // Start the crossfade
-                                info!(passage_id = %passage_id, "Starting crossfade");
-                                if let Err(e) = mixer.start_crossfade().await {
-                                    error!(
-                                        passage_id = %passage_id,
-                                        error = %e,
-                                        "Failed to start crossfade"
-                                    );
-                                    break;
-                                }
-
-                                // Wait for crossfade to complete
-                                tokio::time::sleep(Duration::from_millis(crossfade_duration_ms)).await;
-                                info!(passage_id = %passage_id, "Crossfade completed");
-
-                                // Remove from queue and transition
-                                queue.write().await.pop_front();
-                                *current_entry.write().await = Some(next_entry.clone());
-
-                                // Update for next iteration
-                                passage_id = next_id;
-                                passage_duration_ms = if let Some(buffers) = buffer_manager.get_buffer(&next_id).await {
-                                    if let Some(buffer) = buffers.get(&next_id) {
-                                        let samples = buffer.pcm_data.len() / 2; // stereo
-                                        (samples as f64 / 44100.0 * 1000.0) as u64
-                                    } else {
-                                        10000
+                            loop {
+                                // Check buffer status
+                                match buffer_manager.get_status(&next_id).await {
+                                    Some(BufferStatus::Ready) => {
+                                        info!(
+                                            next_passage_id = %next_id,
+                                            elapsed_ms = poll_start.elapsed().as_millis(),
+                                            "Next passage buffer is ready"
+                                        );
+                                        buffer_ready = true;
+                                        break;
                                     }
-                                } else {
-                                    10000
-                                };
+                                    Some(BufferStatus::Decoding) => {
+                                        // Still decoding, check if we have time to wait
+                                        if poll_start.elapsed() >= max_wait_time {
+                                            warn!(
+                                                next_passage_id = %next_id,
+                                                elapsed_ms = poll_start.elapsed().as_millis(),
+                                                max_wait_ms = max_wait_time.as_millis(),
+                                                "Buffer not ready before crossfade deadline, will play without crossfade"
+                                            );
+                                            break;
+                                        }
 
-                                info!(
-                                    passage_id = %passage_id,
-                                    duration_ms = passage_duration_ms,
-                                    "Transitioned to next passage, continuing playback loop"
-                                );
+                                        // Wait and retry
+                                        debug!(
+                                            next_passage_id = %next_id,
+                                            elapsed_ms = poll_start.elapsed().as_millis(),
+                                            "Buffer still decoding, waiting..."
+                                        );
+                                        tokio::time::sleep(poll_interval).await;
+                                    }
+                                    Some(status) => {
+                                        error!(
+                                            next_passage_id = %next_id,
+                                            status = ?status,
+                                            "Buffer in unexpected state"
+                                        );
+                                        break;
+                                    }
+                                    None => {
+                                        error!(next_passage_id = %next_id, "Buffer not found");
+                                        break;
+                                    }
+                                }
+                            }
 
-                                // Continue loop to process this passage
-                                continue;
+                            // Attempt to queue if buffer is ready
+                            if buffer_ready {
+                                match mixer.queue_next_passage(next_id, fade_in_ms, fade_out_ms, overlap_ms).await {
+                                    Ok(_) => {
+                                        info!(
+                                            next_passage_id = %next_id,
+                                            crossfade_trigger_ms,
+                                            "Next passage queued successfully, waiting for crossfade to complete"
+                                        );
+
+                                        // Wait for crossfade to complete
+                                        // The mixer will auto-trigger the crossfade at sample-accurate position
+                                        // We just need to wait for the total time (trigger + duration)
+                                        let total_wait_ms = crossfade_trigger_ms + overlap_ms as u64;
+                                        info!(
+                                            passage_id = %passage_id,
+                                            total_wait_ms,
+                                            "Waiting for crossfade to complete (mixer will auto-trigger)"
+                                        );
+                                        tokio::time::sleep(Duration::from_millis(total_wait_ms)).await;
+                                        info!(passage_id = %passage_id, "Crossfade should be completed");
+
+                                        // Remove from queue and transition to next passage
+                                        queue.write().await.pop_front();
+                                        *current_entry.write().await = Some(next_entry.clone());
+
+                                        // Update loop variables for next iteration
+                                        passage_id = next_id;
+                                        passage_duration_ms = if let Some(buffers) = buffer_manager.get_buffer(&next_id).await {
+                                            if let Some(buffer) = buffers.get(&next_id) {
+                                                let samples = buffer.pcm_data.len() / 2;
+                                                (samples as f64 / 44100.0 * 1000.0) as u64
+                                            } else {
+                                                10000
+                                            }
+                                        } else {
+                                            10000
+                                        };
+
+                                        info!(
+                                            passage_id = %passage_id,
+                                            duration_ms = passage_duration_ms,
+                                            "Transitioned to next passage"
+                                        );
+
+                                        // Continue loop to process this passage
+                                        continue;
+                                    }
+                                    Err(e) => {
+                                        error!(
+                                            next_passage_id = %next_id,
+                                            error = %e,
+                                            "Failed to queue next passage despite buffer being ready"
+                                        );
+                                    }
+                                }
                             }
                         }
                     }
 
                     // No next passage or queueing failed - play remainder and exit loop
-                    info!(passage_id = %passage_id, "No more passages to crossfade, playing full duration");
-                    tokio::time::sleep(Duration::from_millis(passage_duration_ms)).await;
-                    info!(passage_id = %passage_id, "Passage playback completed");
+                    // Calculate remaining duration based on current mixer position
+                    if let Some(buffers) = buffer_manager.get_buffer(&passage_id).await {
+                        if let Some(buffer) = buffers.get(&passage_id) {
+                            // Get current position from mixer (this passage may have been playing during a crossfade)
+                            let current_position = mixer.get_current_passage_position().await;
+                            let total_samples = buffer.sample_count();
+                            let remaining_samples = total_samples.saturating_sub(current_position);
+                            let remaining_ms = (remaining_samples as f64 / 44100.0 * 1000.0) as u64;
+
+                            info!(
+                                passage_id = %passage_id,
+                                current_position,
+                                total_samples,
+                                remaining_ms,
+                                "No more passages to crossfade, playing remaining duration"
+                            );
+                            tokio::time::sleep(Duration::from_millis(remaining_ms)).await;
+                            info!(passage_id = %passage_id, "Passage playback completed");
+                        }
+                    }
                     break;
                 }
             } else {
