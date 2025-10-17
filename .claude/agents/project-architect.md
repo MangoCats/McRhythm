@@ -17,6 +17,8 @@
 
 ## Procedure
 
+When you are invoked for a task, you MUST **ultrathink** about the problem before taking any action.
+
 ### Step 1: Analyze the Findings
 - Begin by reading the report from the `docs-specialist` agent
 - Identify specific documentation files and nature of findings:
