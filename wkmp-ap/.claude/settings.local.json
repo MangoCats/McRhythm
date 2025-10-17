@@ -3,7 +3,9 @@
     "allow": [
       "Read(//c/Users/Mango Cat/Dev/McRhythm/**)",
       "Bash(dir:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(cat:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
