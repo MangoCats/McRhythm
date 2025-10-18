@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WKMP Audio Player - Developer UI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #4a9eff; margin-bottom: 10px; font-size: 28px; }
+        .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .panel {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        h2 {
+            color: #4a9eff;
+            font-size: 18px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #3a3a3a;
+            padding-bottom: 8px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+        }
+        .status-item:last-child { border-bottom: none; }
+        .status-label { color: #888; font-size: 14px; }
+        .status-value { color: #e0e0e0; font-weight: 500; font-size: 14px; }
+        .state-playing { color: #4ade80; }
+        .state-paused { color: #fbbf24; }
+        .queue-item {
+            background: #333;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .queue-item-id { color: #888; font-size: 11px; }
+        .queue-empty { color: #666; font-style: italic; padding: 10px 0; }
+        .control-group { margin-bottom: 15px; }
+        .control-group label {
+            display: block;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            background: #333;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+        button {
+            cursor: pointer;
+            background: #4a9eff;
+            border: none;
+            font-weight: 600;
+            transition: background 0.2s;
+            margin-top: 5px;
+        }
+        button:hover { background: #3a8eef; }
+        button:active { background: #2a7edf; }
+        .button-group { display: flex; gap: 10px; }
+        .button-group button { flex: 1; }
+        .btn-play { background: #4ade80; }
+        .btn-play:hover { background: #3ace70; }
+        .btn-pause { background: #fbbf24; }
+        .btn-pause:hover { background: #eaaf14; }
+        .event-log {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .event-item {
+            padding: 5px;
+            border-bottom: 1px solid #2a2a2a;
+            word-break: break-all;
+        }
+        .event-item:last-child { border-bottom: none; }
+        .event-time { color: #666; }
+        .event-type { color: #4a9eff; font-weight: 600; }
+        .event-data { color: #888; }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #4a9eff;
+            transition: width 0.3s;
+        }
+        .error { color: #f87171; font-size: 12px; margin-top: 5px; }
+        .success { color: #4ade80; font-size: 12px; margin-top: 5px; }
+
+        /* File Browser Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 {
+            color: #4a9eff;
+            margin: 0;
+            font-size: 16px;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: auto;
+            margin: 0;
+        }
+        .modal-close:hover { color: #e0e0e0; }
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .current-path {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #888;
+            word-break: break-all;
+        }
+        .file-list {
+            border: 1px solid #333;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+        .file-item:last-child { border-bottom: none; }
+        .file-item:hover { background: #333; }
+        .file-item.selected { background: #4a9eff; color: #fff; }
+        .file-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+        .file-name { flex: 1; font-size: 14px; }
+        .btn-browse {
+            background: #666;
+            margin-top: 0;
+            margin-left: 10px;
+            width: auto;
+            padding: 10px 15px;
+        }
+        .btn-browse:hover { background: #777; }
+        .input-with-browse {
+            display: flex;
+            align-items: center;
+        }
+        .input-with-browse input { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WKMP Audio Player</h1>
+        <p class="subtitle">Developer Interface - Module Status and API Testing</p>
+
+        <div class="grid">
+            <!-- Status Display -->
+            <div class="panel">
+                <h2>Module Status</h2>
+                <div class="status-item">
+                    <span class="status-label">Playback State</span>
+                    <span class="status-value" id="playback-state">Loading...</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Position</span>
+                    <span class="status-value" id="position">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Volume</span>
+                    <span class="status-value" id="volume">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Audio Device</span>
+                    <span class="status-value" id="audio-device">-</span>
+                </div>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="panel">
+                <h2>Playback Controls</h2>
+                <div class="button-group">
+                    <button class="btn-play" onclick="controlPlayback('play')">▶ Play</button>
+                    <button class="btn-pause" onclick="controlPlayback('pause')">⏸ Pause</button>
+                </div>
+                <div class="control-group" style="margin-top: 15px;">
+                    <label>Volume (0 - 100)</label>
+                    <input type="number" id="volume-input" min="0" max="100" step="5" value="75">
+                    <button onclick="setVolume()">Set Volume</button>
+                    <div id="volume-result"></div>
+                </div>
+            </div>
+
+            <!-- Queue Display -->
+            <div class="panel">
+                <h2>Queue Contents</h2>
+                <div id="queue-display">Loading...</div>
+            </div>
+
+            <!-- Enqueue Controls -->
+            <div class="panel">
+                <h2>Enqueue Passage</h2>
+                <div class="control-group">
+                    <label>File Path</label>
+                    <div class="input-with-browse">
+                        <input type="text" id="file-path" placeholder="/path/to/audio/file.mp3">
+                        <button class="btn-browse" onclick="openFileBrowser()">Browse</button>
+                    </div>
+                    <button onclick="enqueuePassage()">Enqueue</button>
+                    <div id="enqueue-result"></div>
+                </div>
+                <div class="control-group" style="margin-top: 15px;">
+                    <label>Audio Device</label>
+                    <input type="text" id="device-input" placeholder="default">
+                    <button onclick="setAudioDevice()">Set Device</button>
+                    <div id="device-result"></div>
+                </div>
+            </div>
+
+            <!-- Event Stream Monitor -->
+            <div class="panel" style="grid-column: 1 / -1;">
+                <h2>Event Stream Monitor (SSE)</h2>
+                <div class="event-log" id="event-log">
+                    <div class="event-item">Connecting to event stream...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Browser Modal -->
+    <div class="modal" id="file-browser-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Browse Audio Files</h3>
+                <button class="modal-close" onclick="closeFileBrowser()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="current-path" id="current-path-display">Loading...</div>
+                <div class="file-list" id="file-list">
+                    <div class="file-item">Loading files...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let eventSource = null;
+        const maxEvents = 50;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStatus();
+            loadQueue();
+            connectEventStream();
+            setInterval(() => {
+                loadStatus();
+                loadQueue();
+            }, 2000);
+        });
+
+        // Load status
+        async function loadStatus() {
+            try {
+                const [state, position, volume, device] = await Promise.all([
+                    fetch(`${API_BASE}/playback/state`).then(r => r.json()),
+                    fetch(`${API_BASE}/playback/position`).then(r => r.json()),
+                    fetch(`${API_BASE}/audio/volume`).then(r => r.json()),
+                    fetch(`${API_BASE}/audio/device`).then(r => r.json())
+                ]);
+
+                const stateEl = document.getElementById('playback-state');
+                stateEl.textContent = state.state;
+                stateEl.className = 'status-value ' + (state.state === 'Playing' ? 'state-playing' : 'state-paused');
+
+                const posMs = position.position_ms || 0;
+                const durMs = position.duration_ms || 1;
+                const posSec = Math.floor(posMs / 1000);
+                const durSec = Math.floor(durMs / 1000);
+                document.getElementById('position').textContent = `${formatTime(posSec)} / ${formatTime(durSec)}`;
+
+                const progress = durMs > 0 ? (posMs / durMs * 100) : 0;
+                document.getElementById('progress-fill').style.width = progress + '%';
+
+                document.getElementById('volume').textContent = (volume.volume * 100).toFixed(0) + '%';
+                document.getElementById('audio-device').textContent = device.device || 'default';
+            } catch (err) {
+                console.error('Failed to load status:', err);
+            }
+        }
+
+        // Load queue
+        async function loadQueue() {
+            try {
+                const response = await fetch(`${API_BASE}/playback/queue`);
+                const data = await response.json();
+                const queueEl = document.getElementById('queue-display');
+
+                if (!data.queue || data.queue.length === 0) {
+                    queueEl.innerHTML = '<div class="queue-empty">Queue is empty</div>';
+                    return;
+                }
+
+                queueEl.innerHTML = data.queue.map(item => `
+                    <div class="queue-item">
+                        <div>${item.file_path || 'Unknown'}</div>
+                        <div class="queue-item-id">ID: ${item.queue_entry_id || 'N/A'}</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('queue-display').innerHTML = '<div class="queue-empty">Failed to load queue</div>';
+            }
+        }
+
+        // Playback control
+        async function controlPlayback(action) {
+            try {
+                const response = await fetch(`${API_BASE}/playback/${action}`, { method: 'POST' });
+                if (response.ok) {
+                    loadStatus();
+                }
+            } catch (err) {
+                console.error(`Failed to ${action}:`, err);
+            }
+        }
+
+        // Set volume
+        async function setVolume() {
+            const resultEl = document.getElementById('volume-result');
+            try {
+                const volume = parseInt(document.getElementById('volume-input').value);
+                const response = await fetch(`${API_BASE}/audio/volume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume })
+                });
+                if (response.ok) {
+                    resultEl.innerHTML = '<div class="success">✓ Volume set</div>';
+                    loadStatus();
+                } else {
+                    resultEl.innerHTML = '<div class="error">✗ Failed</div>';
+                }
+            } catch (err) {
+                resultEl.innerHTML = '<div class="error">✗ Error: ' + err.message + '</div>';
+            }
+            setTimeout(() => resultEl.innerHTML = '', 3000);
+        }
+
+        // Set audio device
+        async function setAudioDevice() {
+            const resultEl = document.getElementById('device-result');
+            try {
+                const device = document.getElementById('device-input').value;
+                const response = await fetch(`${API_BASE}/audio/device`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device })
+                });
+                if (response.ok) {
+                    resultEl.innerHTML = '<div class="success">✓ Device set</div>';
+                    loadStatus();
+                } else {
+                    resultEl.innerHTML = '<div class="error">✗ Failed</div>';
+                }
+            } catch (err) {
+                resultEl.innerHTML = '<div class="error">✗ Error: ' + err.message + '</div>';
+            }
+            setTimeout(() => resultEl.innerHTML = '', 3000);
+        }
+
+        // Enqueue passage
+        async function enqueuePassage() {
+            const resultEl = document.getElementById('enqueue-result');
+            try {
+                const filePath = document.getElementById('file-path').value;
+                if (!filePath) {
+                    resultEl.innerHTML = '<div class="error">✗ Enter a file path</div>';
+                    return;
+                }
+                const response = await fetch(`${API_BASE}/playback/enqueue`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: filePath })
+                });
+                if (response.ok) {
+                    resultEl.innerHTML = '<div class="success">✓ Enqueued</div>';
+                    loadQueue();
+                } else {
+                    const error = await response.text();
+                    resultEl.innerHTML = '<div class="error">✗ ' + error + '</div>';
+                }
+            } catch (err) {
+                resultEl.innerHTML = '<div class="error">✗ Error: ' + err.message + '</div>';
+            }
+            setTimeout(() => resultEl.innerHTML = '', 3000);
+        }
+
+        // Connect to SSE event stream
+        function connectEventStream() {
+            const logEl = document.getElementById('event-log');
+
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(`${API_BASE}/events`);
+
+            eventSource.onopen = () => {
+                addEvent('system', 'Connected to event stream');
+            };
+
+            eventSource.onerror = () => {
+                addEvent('system', 'Event stream error, reconnecting...');
+            };
+
+            eventSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    addEvent(data.event_type || 'unknown', JSON.stringify(data, null, 2));
+                } catch (err) {
+                    addEvent('raw', e.data);
+                }
+            };
+        }
+
+        function addEvent(type, data) {
+            const logEl = document.getElementById('event-log');
+            const time = new Date().toLocaleTimeString();
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            eventDiv.innerHTML = `
+                <span class="event-time">[${time}]</span>
+                <span class="event-type">${type}</span>:
+                <span class="event-data">${data}</span>
+            `;
+            logEl.insertBefore(eventDiv, logEl.firstChild);
+
+            // Keep only last N events
+            while (logEl.children.length > maxEvents) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // File Browser Functions
+        let currentBrowserPath = null;
+        let selectedFilePath = null;
+
+        async function openFileBrowser() {
+            const modal = document.getElementById('file-browser-modal');
+            modal.classList.add('open');
+            await loadDirectory(); // Load root directory
+        }
+
+        function closeFileBrowser() {
+            const modal = document.getElementById('file-browser-modal');
+            modal.classList.remove('open');
+            selectedFilePath = null;
+        }
+
+        async function loadDirectory(path = null) {
+            const pathDisplay = document.getElementById('current-path-display');
+            const fileList = document.getElementById('file-list');
+
+            try {
+                const url = path
+                    ? `${API_BASE}/files/browse?path=${encodeURIComponent(path)}`
+                    : `${API_BASE}/files/browse`;
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const error = await response.json();
+                    fileList.innerHTML = `<div class="file-item" style="color: #f87171;">Error: ${error.status || 'Failed to load directory'}</div>`;
+                    return;
+                }
+
+                const data = await response.json();
+                currentBrowserPath = data.current_path;
+                pathDisplay.textContent = data.current_path;
+
+                if (data.entries.length === 0) {
+                    fileList.innerHTML = '<div class="file-item" style="color: #888;">No files or directories found</div>';
+                    return;
+                }
+
+                // Build file list HTML
+                let html = '';
+
+                // Add parent directory link if available
+                if (data.parent_path) {
+                    html += `
+                        <div class="file-item" onclick="loadDirectory('${escapeHtml(data.parent_path)}')">
+                            <span class="file-icon">📁</span>
+                            <span class="file-name">..</span>
+                        </div>
+                    `;
+                }
+
+                // Add entries
+                data.entries.forEach(entry => {
+                    const icon = entry.is_directory ? '📁' : '🎵';
+                    const onclick = entry.is_directory
+                        ? `loadDirectory('${escapeHtml(entry.path)}')`
+                        : `selectFile('${escapeHtml(entry.path)}')`;
+                    const color = entry.is_audio_file ? '#4ade80' : '#e0e0e0';
+
+                    html += `
+                        <div class="file-item" onclick="${onclick}">
+                            <span class="file-icon">${icon}</span>
+                            <span class="file-name" style="color: ${color};">${escapeHtml(entry.name)}</span>
+                        </div>
+                    `;
+                });
+
+                fileList.innerHTML = html;
+            } catch (err) {
+                fileList.innerHTML = `<div class="file-item" style="color: #f87171;">Error: ${err.message}</div>`;
+            }
+        }
+
+        function selectFile(path) {
+            // Populate the input field and close modal
+            document.getElementById('file-path').value = path;
+            selectedFilePath = path;
+            closeFileBrowser();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
