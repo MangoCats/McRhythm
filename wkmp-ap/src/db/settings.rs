@@ -203,6 +203,26 @@ pub async fn load_progress_interval(db: &Pool<Sqlite>) -> Result<u64> {
     }
 }
 
+/// Load audio_ring_buffer_grace_period_ms from settings table
+///
+/// **[SSD-RBUF-014]** Ring buffer startup grace period
+///
+/// # Returns
+/// Grace period in milliseconds (default: 2000ms if not set)
+pub async fn load_ring_buffer_grace_period(db: &Pool<Sqlite>) -> Result<u64> {
+    match get_setting::<u64>(db, "audio_ring_buffer_grace_period_ms").await? {
+        Some(grace_ms) => {
+            // Clamp to valid range: 0-10000ms (0-10 seconds)
+            // 0 = no grace period, 10s = maximum
+            Ok(grace_ms.clamp(0, 10000))
+        }
+        None => {
+            // Default: 2000ms (2 seconds)
+            Ok(2000)
+        }
+    }
+}
+
 /// Generic setting getter
 ///
 /// Returns None if key doesn't exist in database.

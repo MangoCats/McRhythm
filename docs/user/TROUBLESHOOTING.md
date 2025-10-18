@@ -445,21 +445,36 @@ curl -X POST http://localhost:5721/api/v1/playback/volume \
 **Symptom:**
 ```
 TRACE: Audio ring buffer underrun during startup (total: 1000)
+TRACE: Audio ring buffer underrun during startup stabilization (total: 2000)
 ```
-**Appears once during wkmp-ap startup, then stops.**
+**Appears during wkmp-ap startup for the first ~2 seconds, then stops.**
 
 **Explanation:**
-This TRACE message is **expected and harmless** during wkmp-ap startup. It occurs because:
+These TRACE messages are **expected and harmless** during wkmp-ap startup. They occur because:
 1. The audio output callback starts immediately when the audio device initializes
 2. The mixer thread hasn't filled the buffer with audio frames yet (~50-100ms delay)
 3. The audio callback outputs silence until frames are available
-4. Once the mixer catches up, underruns stop
+4. Even after the buffer is initially filled, there's a **startup grace period** for system stabilization
+5. During this grace period, underruns are logged as TRACE (expected) rather than WARN (concerning)
+6. After the last passage finishes and queue is empty, underruns also log as TRACE "while paused/idle"
+
+**Grace Period Configuration:**
+The grace period is configurable via the `audio_ring_buffer_grace_period_ms` database setting:
+```bash
+# Check current grace period (default: 2000ms = 2 seconds)
+sqlite3 ~/Music/wkmp.db "SELECT value FROM settings WHERE key = 'audio_ring_buffer_grace_period_ms'"
+
+# Set grace period to 3 seconds (useful for slower systems)
+sqlite3 ~/Music/wkmp.db "INSERT OR REPLACE INTO settings (key, value) VALUES ('audio_ring_buffer_grace_period_ms', '3000')"
+
+# Valid range: 0-10000ms (0 = no grace period, 10s = maximum)
+```
 
 **Action Required:** None - this is normal startup behavior.
 
 **When to Investigate:**
-- If you see WARN level underrun messages (not TRACE)
-- If warnings continue appearing after startup
+- If you see WARN level underrun messages (not TRACE) appearing **after the grace period expires**
+- If warnings continue appearing during active playback with passages in queue
 - If you hear audio stuttering or dropouts during playback
 
 ---

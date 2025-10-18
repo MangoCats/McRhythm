@@ -192,8 +192,10 @@ impl PlaybackEngine {
         // Create lock-free ring buffer for audio frames
         // [SSD-OUT-012] Real-time audio callback requires lock-free operation
         // [ISSUE-1] Replaces try_write() pattern with lock-free ring buffer
+        // [SSD-RBUF-014] Load grace period from database settings
         info!("Creating lock-free audio ring buffer");
-        let ring_buffer = AudioRingBuffer::new(None, Arc::clone(&self.audio_expected)); // Use default size (2048 frames = ~46ms @ 44.1kHz)
+        let grace_period_ms = crate::db::settings::load_ring_buffer_grace_period(&self.db_pool).await?;
+        let ring_buffer = AudioRingBuffer::new(None, grace_period_ms, Arc::clone(&self.audio_expected)); // Use default size (2048 frames = ~46ms @ 44.1kHz)
         let (mut producer, mut consumer) = ring_buffer.split();
 
         // Set initial audio_expected flag based on current state
@@ -203,6 +205,7 @@ impl PlaybackEngine {
         // This thread continuously calls mixer.get_next_frame() and pushes to ring buffer
         let mixer_clone = Arc::clone(&self.mixer);
         let running_clone = Arc::clone(&self.running);
+        let audio_expected_clone = Arc::clone(&self.audio_expected);
         tokio::spawn(async move {
             info!("Mixer thread started");
             let mut fill_interval = interval(Duration::from_micros(100)); // Check fill level every 100μs
@@ -216,8 +219,34 @@ impl PlaybackEngine {
                     break;
                 }
 
-                // Keep buffer filled to target level (50-75%)
-                // Fill more aggressively when below minimum target
+                // Check if audio output is expected (queue has passages to play)
+                let audio_expected = audio_expected_clone.load(std::sync::atomic::Ordering::Acquire);
+
+                if !audio_expected {
+                    // Queue is empty or paused - produce frames minimally to prevent underruns
+                    // Only fill if buffer is nearly empty (< 10% full)
+                    let occupied = producer.occupied_len();
+                    let capacity = producer.capacity();
+                    let fill_percent = occupied as f32 / capacity as f32;
+
+                    if fill_percent < 0.10 {
+                        // Buffer nearly empty - add a small amount of silence
+                        for _ in 0..4 {
+                            let frame = {
+                                let mut mixer = mixer_clone.write().await;
+                                mixer.get_next_frame().await
+                            };
+
+                            if !producer.push(frame) {
+                                break; // Buffer full (shouldn't happen)
+                            }
+                        }
+                    }
+                    // Otherwise let buffer drain naturally (prevents overruns)
+                    continue;
+                }
+
+                // Audio IS expected - fill aggressively to target level (50-75%)
                 let needs_filling = producer.needs_frames();
 
                 if needs_filling {
@@ -255,6 +284,9 @@ impl PlaybackEngine {
         info!("Initializing audio output with lock-free callback");
         let running_clone2 = Arc::clone(&self.running);
 
+        // Capture runtime handle while we're still in async context
+        let rt_handle = tokio::runtime::Handle::current();
+
         std::thread::spawn(move || {
             // Create audio output (must be done on non-async thread for cpal)
             let mut audio_output = match AudioOutput::new(None) {
@@ -290,8 +322,8 @@ impl PlaybackEngine {
                 std::thread::sleep(std::time::Duration::from_millis(500));
 
                 // Check if engine stopped (blocking check is ok on this thread)
-                let rt = tokio::runtime::Handle::current();
-                let should_stop = rt.block_on(async {
+                // Use captured runtime handle from async context
+                let should_stop = rt_handle.block_on(async {
                     !*running_clone2.read().await
                 });
 
@@ -728,10 +760,12 @@ impl PlaybackEngine {
         drop(queue);
 
         let expected = state == PlaybackState::Playing && has_passages;
-        self.audio_expected.store(expected, Ordering::Relaxed);
 
-        debug!("Audio expected flag updated: {} (state={:?}, has_passages={})",
-               expected, state, has_passages);
+        // Use Release ordering to ensure visibility across threads
+        self.audio_expected.store(expected, Ordering::Release);
+
+        debug!("Audio expected flag updated: {} (state={:?}, queue_len={})",
+               expected, state, if has_passages { "non-empty" } else { "empty" });
     }
 
     /// Get buffer statuses for all managed buffers
@@ -1197,6 +1231,10 @@ impl PlaybackEngine {
                 } else {
                     info!("Queue advanced to next passage");
                 }
+
+                // Update audio_expected flag for ring buffer underrun classification
+                // This ensures TRACE logging when queue becomes empty after passage finishes
+                self.update_audio_expected_flag().await;
 
                 // Clean up the exhausted buffer (free memory)
                 self.buffer_manager.remove(passage_id).await;

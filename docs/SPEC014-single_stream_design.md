@@ -988,19 +988,28 @@ Skip latency:           <100 ms (if buffer ready)
 
 **[SSD-RBUF-011] Expected Underruns (TRACE level):**
 - **Startup underruns:** First ~50-100ms after audio output initialization, before mixer fills buffer
+- **Startup stabilization underruns:** Within 2-second grace period after buffer first filled to optimal level
 - **Paused state underruns:** When PlaybackState is Paused, no audio output expected
 - **Empty queue underruns:** When queue has no passages to play
 
 **[SSD-RBUF-012] Concerning Underruns (WARN level):**
-- **Active playback underruns:** When PlaybackState is Playing AND queue has passages
+- **Active playback underruns:** When PlaybackState is Playing AND queue has passages AND past grace period
 - Indicates CPU cannot keep up with decoding, or mixer thread is blocked
 
 **[SSD-RBUF-013] Context Tracking:**
 - `buffer_has_been_filled` flag: Set when buffer reaches 50-75% fill (startup complete)
+- `buffer_filled_timestamp_ms` timestamp: Records Unix milliseconds when buffer first filled
 - `audio_expected` flag: Updated by PlaybackEngine based on state + queue status
-- Both flags use lock-free atomics for real-time audio thread safety
+- All flags/timestamps use lock-free atomics for real-time audio thread safety
 
-**[SSD-RBUF-014] Log Frequency:**
+**[SSD-RBUF-014] Grace Period:**
+- **Duration:** Configurable via `audio_ring_buffer_grace_period_ms` database setting (default: 2000ms)
+- **Valid range:** 0-10000ms (0 = no grace period, 10000 = 10 seconds maximum)
+- **Purpose:** Allow system stabilization before treating underruns as concerning
+- **Implementation:** Check current time vs `buffer_filled_timestamp_ms + grace_period_ms`
+- **Configuration:** Users can adjust grace period for slower/faster systems
+
+**[SSD-RBUF-015] Log Frequency:**
 - Underruns logged every 1000th occurrence to avoid log spam
 - Each message includes cumulative total for trend tracking
 
@@ -1244,10 +1253,11 @@ This section provides a comprehensive index of all traceability IDs assigned to 
 | ID | Description |
 |----|-------------|
 | SSD-RBUF-010 | Context-aware logging to distinguish expected vs concerning underruns |
-| SSD-RBUF-011 | Expected underruns: Startup, paused state, empty queue (TRACE level) |
-| SSD-RBUF-012 | Concerning underruns: Active playback with queue (WARN level) |
-| SSD-RBUF-013 | Context tracking using lock-free atomics (buffer_has_been_filled, audio_expected) |
-| SSD-RBUF-014 | Log frequency: Every 1000th underrun with cumulative total |
+| SSD-RBUF-011 | Expected underruns: Startup, stabilization, paused state, empty queue (TRACE level) |
+| SSD-RBUF-012 | Concerning underruns: Active playback with queue past grace period (WARN level) |
+| SSD-RBUF-013 | Context tracking using lock-free atomics (buffer_has_been_filled, buffer_filled_timestamp_ms, audio_expected) |
+| SSD-RBUF-014 | Grace period: Configurable via database setting (default 2s, range 0-10s) |
+| SSD-RBUF-015 | Log frequency: Every 1000th underrun with cumulative total |
 
 ---
 
@@ -1259,11 +1269,13 @@ This section provides a comprehensive index of all traceability IDs assigned to 
 **Related:** `dual-pipeline-design.md` (archived), `architecture-comparison.md`, `single-stream-playback.md`
 
 **Change Log:**
-- v1.4 (2025-10-18): Added Ring Buffer Underrun Logging Classification
+- v1.4 (2025-10-18): Added Ring Buffer Underrun Logging Classification with Runtime-Configurable Grace Period
   - Added subsection "Ring Buffer Underrun Logging Classification" after Challenge 7
-  - Added 5 new requirement IDs (SSD-RBUF-010 through SSD-RBUF-014)
+  - Added 6 new requirement IDs (SSD-RBUF-010 through SSD-RBUF-015)
   - Documents context-aware logging: TRACE for expected underruns, WARN for concerning ones
-  - Specifies lock-free atomic flags for real-time audio thread safety
+  - Specifies runtime-configurable grace period via `audio_ring_buffer_grace_period_ms` setting (default 2s, range 0-10s)
+  - Specifies `audio_expected` flag updates when passages finish or queue changes
+  - Specifies lock-free atomic flags and timestamp for real-time audio thread safety
 - v1.2 (2025-10-17): Added requirement traceability IDs
   - Added document code `SSD` (Single Stream Design) to requirements_enumeration.md
   - Added category codes: DEC, BUF, FBUF, PBUF, UND, FADE, CLIP, and others

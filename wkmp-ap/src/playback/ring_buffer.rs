@@ -16,6 +16,7 @@ use crate::audio::types::AudioFrame;
 use ringbuf::{traits::*, HeapRb};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{warn, debug, trace};
 
 /// Ring buffer configuration
@@ -41,6 +42,14 @@ pub struct AudioRingBuffer {
     /// Used to distinguish startup underruns (expected) from steady-state underruns (concerning)
     buffer_has_been_filled: Arc<AtomicBool>,
 
+    /// Timestamp (Unix milliseconds) when buffer was first filled to optimal level
+    /// Used with grace period to allow system stabilization before warning about underruns
+    buffer_filled_timestamp_ms: Arc<AtomicU64>,
+
+    /// Startup grace period in milliseconds (runtime setting from database)
+    /// [SSD-RBUF-014] Configurable grace period
+    grace_period_ms: u64,
+
     /// Flag indicating audio output is expected
     /// Set by PlaybackEngine based on playback state (Playing vs Paused) and queue state
     /// Used to classify underruns: TRACE (expected) vs WARN (concerning)
@@ -52,17 +61,23 @@ impl AudioRingBuffer {
     ///
     /// # Arguments
     /// * `capacity` - Buffer size in frames (default: 2048 frames = ~46ms @ 44.1kHz)
+    /// * `grace_period_ms` - Startup grace period in milliseconds (from database setting)
     /// * `audio_expected` - Shared flag indicating if audio output is expected (managed by PlaybackEngine)
-    pub fn new(capacity: Option<usize>, audio_expected: Arc<AtomicBool>) -> Self {
+    pub fn new(capacity: Option<usize>, grace_period_ms: u64, audio_expected: Arc<AtomicBool>) -> Self {
         let capacity = capacity.unwrap_or(DEFAULT_BUFFER_SIZE);
 
-        debug!("Creating audio ring buffer with capacity: {} frames", capacity);
+        debug!(
+            "Creating audio ring buffer with capacity: {} frames, grace period: {}ms",
+            capacity, grace_period_ms
+        );
 
         Self {
             buffer: HeapRb::new(capacity),
             underruns: Arc::new(AtomicU64::new(0)),
             overruns: Arc::new(AtomicU64::new(0)),
             buffer_has_been_filled: Arc::new(AtomicBool::new(false)),
+            buffer_filled_timestamp_ms: Arc::new(AtomicU64::new(0)),
+            grace_period_ms,
             audio_expected,
         }
     }
@@ -78,12 +93,15 @@ impl AudioRingBuffer {
             producer: prod,
             overruns: Arc::clone(&self.overruns),
             buffer_has_been_filled: Arc::clone(&self.buffer_has_been_filled),
+            buffer_filled_timestamp_ms: Arc::clone(&self.buffer_filled_timestamp_ms),
         };
 
         let consumer = AudioConsumer {
             consumer: cons,
             underruns: Arc::clone(&self.underruns),
             buffer_has_been_filled: Arc::clone(&self.buffer_has_been_filled),
+            buffer_filled_timestamp_ms: Arc::clone(&self.buffer_filled_timestamp_ms),
+            grace_period_ms: self.grace_period_ms,
             audio_expected: Arc::clone(&self.audio_expected),
         };
 
@@ -106,6 +124,7 @@ pub struct AudioProducer {
     producer: ringbuf::HeapProd<AudioFrame>,
     overruns: Arc<AtomicU64>,
     buffer_has_been_filled: Arc<AtomicBool>,
+    buffer_filled_timestamp_ms: Arc<AtomicU64>,
 }
 
 impl AudioProducer {
@@ -120,7 +139,15 @@ impl AudioProducer {
                 // This flag helps distinguish startup underruns from steady-state underruns
                 if !self.buffer_has_been_filled.load(Ordering::Relaxed) && self.is_fill_optimal() {
                     self.buffer_has_been_filled.store(true, Ordering::Relaxed);
-                    debug!("Audio ring buffer filled to optimal level (startup complete)");
+
+                    // Record timestamp for grace period calculation
+                    let now_ms = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+                    self.buffer_filled_timestamp_ms.store(now_ms, Ordering::Relaxed);
+
+                    debug!("Audio ring buffer filled to optimal level at {}ms (startup grace period active)", now_ms);
                 }
                 true
             }
@@ -170,6 +197,8 @@ pub struct AudioConsumer {
     consumer: ringbuf::HeapCons<AudioFrame>,
     underruns: Arc<AtomicU64>,
     buffer_has_been_filled: Arc<AtomicBool>,
+    buffer_filled_timestamp_ms: Arc<AtomicU64>,
+    grace_period_ms: u64,
     audio_expected: Arc<AtomicBool>,
 }
 
@@ -195,21 +224,35 @@ impl AudioConsumer {
                 // Log every 1000th underrun to avoid spam
                 if count % 1000 == 0 {
                     let buffer_filled = self.buffer_has_been_filled.load(Ordering::Relaxed);
-                    let audio_expected = self.audio_expected.load(Ordering::Relaxed);
+                    // Use Acquire ordering to ensure we see the latest value from other threads
+                    let audio_expected = self.audio_expected.load(Ordering::Acquire);
 
                     if !buffer_filled {
-                        // Startup underruns - expected behavior
+                        // Startup underruns - expected behavior (buffer not yet filled)
                         trace!("Audio ring buffer underrun during startup (total: {})", count);
                     } else if !audio_expected {
                         // Paused or empty queue - expected behavior
                         trace!("Audio ring buffer underrun while paused/idle (total: {})", count);
                     } else {
-                        // Active playback underrun - concerning!
-                        warn!(
-                            "Audio ring buffer underrun during active playback (total: {}) - \
-                             CPU may not be keeping up with decoding",
-                            count
-                        );
+                        // Check if we're still in the startup grace period
+                        let filled_timestamp = self.buffer_filled_timestamp_ms.load(Ordering::Relaxed);
+                        let now_ms = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64;
+
+                        if filled_timestamp == 0 || now_ms < filled_timestamp + self.grace_period_ms {
+                            // Still in startup grace period - expected behavior
+                            trace!("Audio ring buffer underrun during startup stabilization (total: {})", count);
+                        } else {
+                            // Past grace period - active playback underrun is concerning!
+                            // DEBUG: Log flag value to diagnose issue
+                            warn!(
+                                "Audio ring buffer underrun during active playback (total: {}, audio_expected={}) - \
+                                 CPU may not be keeping up with decoding",
+                                count, audio_expected
+                            );
+                        }
                     }
                 }
                 None
@@ -259,7 +302,7 @@ mod tests {
     #[test]
     fn test_ring_buffer_basic() {
         let audio_expected = Arc::new(AtomicBool::new(false));
-        let rb = AudioRingBuffer::new(Some(128), audio_expected);
+        let rb = AudioRingBuffer::new(Some(128), 2000, audio_expected);
         let (mut prod, mut cons) = rb.split();
 
         // Push some frames
@@ -285,7 +328,7 @@ mod tests {
     #[test]
     fn test_ring_buffer_overrun() {
         let audio_expected = Arc::new(AtomicBool::new(false));
-        let rb = AudioRingBuffer::new(Some(4), audio_expected); // Small buffer
+        let rb = AudioRingBuffer::new(Some(4), 2000, audio_expected); // Small buffer
         let (mut prod, mut _cons) = rb.split();
 
         let frame = AudioFrame::zero();
@@ -303,7 +346,7 @@ mod tests {
     #[test]
     fn test_ring_buffer_underrun() {
         let audio_expected = Arc::new(AtomicBool::new(false));
-        let rb = AudioRingBuffer::new(Some(128), audio_expected);
+        let rb = AudioRingBuffer::new(Some(128), 2000, audio_expected);
         let (_prod, mut cons) = rb.split();
 
         // Pop from empty buffer (underrun)
@@ -313,7 +356,7 @@ mod tests {
     #[test]
     fn test_fill_level_check() {
         let audio_expected = Arc::new(AtomicBool::new(false));
-        let rb = AudioRingBuffer::new(Some(100), audio_expected);
+        let rb = AudioRingBuffer::new(Some(100), 2000, audio_expected);
         let (mut prod, _cons) = rb.split();
 
         // Initially needs frames
