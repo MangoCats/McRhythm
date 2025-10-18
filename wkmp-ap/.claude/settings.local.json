@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(python3:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Read(//c/Users/Mango Cat/Dev/McRhythm/**)",
+      "Bash(echo \"New enumerations added:\nARCH-SYS (2)\nARCH-VER (1)\nARCH-COMP (8)\nARCH-PC (2)\nARCH-BM (2 new, 1 existed)\nARCH-QM (1 new, 1 existed)\nARCH-PD (4)\nARCH-LM (2)\nARCH-COM (4)\nARCH-DATA (3)\nARCH-INT (4)\nARCH-CONC (2)\nARCH-DES (1)\nARCH-PLAT (1)\nARCH-AUDV (2 new, 1 existed)\nARCH-SEC (4)\nARCH-PERF (2)\nARCH-CAT (2)\nARCH-LOG (2)\nARCH-MIG (1)\nARCH-CONF (1)\nARCH-DIST (1)\nARCH-FUT (3)\")",
+      "Bash(awk '{s+=$1} END {print \"\"\"\"Total new:\"\"\"\", s}')"
     ],
     "deny": [],
     "ask": []

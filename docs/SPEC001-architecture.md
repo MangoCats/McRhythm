@@ -40,7 +40,7 @@ WKMP implements a **microservices architecture with 5 core processes** communica
 
 ## Process Architecture
 
-WKMP consists of **5 independent processes** (depending on version, Full deployments run all 5), each with defined HTTP/SSE interfaces:
+**[ARCH-SYS-010]** WKMP consists of **5 independent processes** (depending on version, Full deployments run all 5), each with defined HTTP/SSE interfaces:
 
 - **Audio Player** - Core playback engine with queue management
 - **User Interface** - Polished web UI for end users
@@ -48,7 +48,7 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 - **Program Director** - Automatic passage selection (Full and Lite versions only)
 - **Audio File Ingest** - New file import workflow (launched on-demand, Full version only)
 
-**Design Benefits:**
+**[ARCH-SYS-020]** Design Benefits:
 - **Simplifies maintenance**: Each module focuses on a single concern
 - **Enables version flexibility**: Run more/fewer processes for Full/Lite/Minimal versions
 - **Provides modularity**: Update one module without affecting others
@@ -90,6 +90,8 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 
 ### Version-Specific Process Configuration
 
+**[ARCH-VER-010]** Process deployment by version:
+
 | Version  | Audio Player | User Interface | Program Director | Audio Ingest | Lyric Editor |
 |----------|--------------|----------------|------------------|--------------|--------------|
 | **Full**     | ✅ Running | ✅ Running | ✅ Running | ✅ On-demand<br/><small><small>(invoked only during<br/>ingest sessions)</small></small>| ✅ On-demand<br/><small><small>(invoked only during<br/>lyric editing)</small></small> |
@@ -100,11 +102,13 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 
 ### Audio Player
 
+**[ARCH-COMP-010]** Audio Player Module Specification:
+
 **Process Type**: Independent HTTP server with minimal HTML developer UI (served via HTTP)
 **Port**: 5721 (configurable)
 **Versions**: Full, Lite, Minimal
 
-**Responsibilities:**
+**[ARCH-PC-010]** Responsibilities:
 - Implements single-stream audio architecture with sample-accurate crossfading (~0.02ms precision)
 - Decodes audio files using symphonia (MP3, FLAC, AAC, Vorbis in pure Rust; Opus via C library FFI)
 - Buffers decoded PCM audio in memory with automatic fade application
@@ -162,7 +166,7 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 - Playback state (Playing/Paused only - no "stopped" state)
 - Initial state on app launch: Determined by `initial_play_state` setting (default: "playing")
 
-**Key Design Notes:**
+**[ARCH-PC-020]** Key Design Notes:
 - **Operates independently**: Does not require User Interface or Program Director to be running
   - Any application capable of communicating to the Control API can enqueue passages and control
     playback state, volume, output device, etc.  wkmp-ap otherwise plays these enqueued passages
@@ -217,14 +221,14 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 - Triggered by wkmp-ui background timer
 - Same atomic process as startup backup
 
-**Backup Configuration (settings table):**
+**[ARCH-BM-020]** Backup Configuration (settings table):
 - `backup_location`: Path to backup directory (default: same folder as wkmp.db)
 - `backup_interval_ms`: Time between periodic backups (default: 90 days)
 - `backup_minimum_interval_ms`: Minimum time between startup backups (default: 14 days)
 - `backup_retention_count`: Number of timestamped backups to keep (default: 3)
 - `last_backup_timestamp_ms`: Unix milliseconds of last successful backup
 
-**Backup Failure Handling:**
+**[ARCH-BM-030]** Backup Failure Handling:
 - Network backup location unreachable: Fall back to local backup path, log warning
 - Timeout: 30 seconds for network writes
 - Startup never blocked by backup failure (only by integrity check and restore if needed)
@@ -313,7 +317,7 @@ On module startup, wkmp-ap must initialize an audio output device before playbac
 - When inserting and no gap available (e.g., 128, 129), renumber tail: `UPDATE queue SET play_order = play_order + 8 WHERE play_order >= 128`
 - Typical queue depth: 5-10 passages (graceful degradation up to 1000+, but performance not priority concern beyond that)
 
-**Play Order Overflow Protection:**
+**[ARCH-QM-020]** Play Order Overflow Protection:
 - `play_order` stored as signed 32-bit integer (max: 2,147,483,647)
 - At typical usage (3 min/passage, +64 increment): 191 years until overflow
 - If `play_order` exceeds 2,100,000,000: Trigger automatic renumbering
@@ -394,7 +398,7 @@ Do not emit `CurrentSongChanged` when passage starts or ends in a gap.
    }
    ```
 
-**[ARCH-SNGC-030]** CurrentSongChanged Event - Passage Identity:
+**[ARCH-SNGC-031]** CurrentSongChanged Event - Passage Identity:
 - `passage_id` (PassageId): ALWAYS present during passage playback
 - For persistent passages: References `passages` table entry
 - For ephemeral passages: Transient UUID for current session only
@@ -530,6 +534,8 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 
 ### User Interface
 
+**[ARCH-COMP-020]** User Interface Module Specification:
+
 **Process Type**: Polished HTTP server with full web UI
 **Port**: 5720 (configurable)
 **Versions**: Full, Lite, Minimal
@@ -567,7 +573,7 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 - Network status indicators (local network)
 - Responsive design for desktop and mobile
 
-**Lyrics Display Behavior:**
+**[ARCH-COMP-021]** Lyrics Display Behavior:
 - Implements fallback chain when displaying lyrics for currently playing Song:
   1. Check current Song's `lyrics` field - if non-empty, display these lyrics
   2. If empty, iterate through Song's `related_songs` array (most to least closely related)
@@ -583,7 +589,7 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
   - No authentication system present (hardcoded to Anonymous user)
   - No Like/Dislike features (Full and Lite only per [requirements.md#like-dislike](REQ001-requirements.md#like-dislike))
 
-**Key Design Notes:**
+**[ARCH-COMP-022]** Key Design Notes:
 - **Most users interact here**: Primary interface for controlling WKMP
 - **Orchestration layer**: Coordinates between Audio Player and Program Director
 - **Database access**: Direct SQLite access for user data, likes/dislikes, library browsing
@@ -649,6 +655,8 @@ Configuration interface access restriction is provided to prevent inexperienced 
 
 ### Lyric Editor
 
+**[ARCH-COMP-030]** Lyric Editor Module Specification:
+
 **Process Type**: Independent HTTP server with split-window UI (launched on-demand)
 **Port**: 5724 (configurable)
 **Versions**: Full only
@@ -679,7 +687,7 @@ Configuration interface access restriction is provided to prevent inexperienced 
 - **Cancel/Exit button**: Closes editor without saving changes
   (Configuration settings editor available only to authorized users.)
 
-**Key Design Notes:**
+**[ARCH-COMP-031]** Key Design Notes:
 - **On-demand launching**: Typically started by the User Interface when a user requests lyric editing,
 but may also be launched manually or by external tools if desired.
 - **Standalone operation**: Fully independent process that can run and edit lyrics without any other
@@ -693,11 +701,13 @@ operates independently.
 
 ### Program Director
 
+**[ARCH-COMP-040]** Program Director Module Specification:
+
 **Process Type**: Independent HTTP server with minimal HTML developer UI (served via HTTP)
 **Port**: 5722 (configurable)
 **Versions**: Full, Lite (Minimal does not include automatic selection)
 
-**Responsibilities:**
+**[ARCH-PD-010]** Responsibilities:
 - Calculate passage selection probabilities based on multiple factors
 - Implement weighted random selection algorithm
 - Maintain time-of-day flavor targets
@@ -734,7 +744,7 @@ operates independently.
 - Last selection results
   (Configuration settings editor available only to authorized users.)
 
-**Automatic Queue Management:**
+**[ARCH-PD-020]** Automatic Queue Management:
 - Receives queue refill requests from Audio Player via `POST /selection/request`
 - Audio Player sends requests when queue drops below configurable thresholds:
   - Default: < 2 passages OR < 15 minutes remaining
@@ -751,7 +761,7 @@ operates independently.
 - Audio Player throttles requests while queue is underfilled:
   - Interval configured in settings table: `queue_refill_request_throttle_seconds` (default: 10 seconds)
 
-**Key Operations:**
+**[ARCH-PD-030]** Key Operations:
 - Determine target time for selection (provided in request from Audio Player)
 - Filter to non-zero probability passages (passages with one or more songs only)
 - Calculate squared Euclidean distance from target flavor
@@ -759,7 +769,7 @@ operates independently.
 - Weighted random selection from candidates
 - Handle edge cases (no candidates → return error status)
 
-**Key Design Notes:**
+**[ARCH-PD-040]** Key Design Notes:
 - **Request-based, not polling**: Audio Player initiates refill requests
 - **Operates independently**: Does not require User Interface to be running
 - **May enqueue proactively**: Free to enqueue passages without requests (like users via UI)
@@ -771,11 +781,13 @@ operates independently.
 
 ### Audio File Ingest
 
+**[ARCH-COMP-050]** Audio File Ingest Module Specification:
+
 **Process Type**: Polished HTTP server with guided workflow UI
 **Port**: 5723 (configurable)
 **Versions**: Full only
 
-**Responsibilities:**
+**[ARCH-LM-010]** Responsibilities:
 - Present user-friendly interface for adding new audio files
 - Guide user through ingest and characterization workflow
 - Coordinate MusicBrainz/AcousticBrainz lookups
@@ -801,9 +813,9 @@ operates independently.
 6. **Passage Definition**: Define passage boundaries, timing points, metadata
 7. **Finalization**: Review and commit to library
 
-**Key Design Notes:**
+**[ARCH-LM-020]** Key Design Notes:
 - **Full version only**: Not included in Lite or Minimal
-**On-demand invocation**: The module is launched only during ingest sessions, typically when a user initiates a new audio import via the User Interface.
+- **On-demand invocation**: The module is launched only during ingest sessions, typically when a user initiates a new audio import via the User Interface.
 - **Database access**: Direct SQLite access for file/passage/song insertion
 - **External API integration**: MusicBrainz, AcousticBrainz, Chromaprint+AcoustID
 - **Local analysis**: Essentia integration for offline flavor characterization
@@ -864,9 +876,9 @@ These components are used across multiple modules:
 
 ### HTTP/REST APIs
 
-**Primary communication method** between modules.
+**[ARCH-COM-010]** Primary communication method between modules.
 
-**Benefits:**
+**[ARCH-COM-020]** Benefits:
 - **Platform-independent**: Language-agnostic interfaces
 - **Well-defined contracts**: Clear API boundaries between modules
 - **Easy debugging**: Standard HTTP tools (curl, Postman) for testing
@@ -887,9 +899,9 @@ These components are used across multiple modules:
 
 ### Server-Sent Events (SSE)
 
-**Real-time notification method** from modules to clients for inter-process state synchronization.
+**[ARCH-COM-030]** Real-time notification method from modules to clients for inter-process state synchronization.
 
-**State Synchronization Role:**
+**[ARCH-COM-040]** State Synchronization Role:
 - **Primary mechanism** for keeping process state synchronized beyond database
 - **Real-time updates** ensure all processes have current state without polling
 - **Event-driven architecture** reduces coupling between processes
@@ -912,9 +924,9 @@ These components are used across multiple modules:
 
 ### Database as Shared State
 
-**SQLite database** serves as persistent shared state across all modules.
+**[ARCH-DATA-010]** SQLite database serves as persistent shared state across all modules.
 
-**Access Patterns:**
+**[ARCH-DATA-020]** Access Patterns:
 - Each module has direct SQLite access (embedded database, same file)
 - Coordinated writes via HTTP API boundaries
 - Read-heavy access for passage metadata, library browsing
@@ -923,7 +935,7 @@ These components are used across multiple modules:
   - Its own binding address and port
   - Other modules' addresses for HTTP communication
 
-**Consistency Considerations:**
+**[ARCH-DATA-030]** Consistency Considerations:
 - UUID primary keys enable database merging (Full → Lite → Minimal)
 - Foreign key constraints maintain referential integrity
 - Application-level coordination via HTTP APIs prevents conflicts
@@ -952,7 +964,7 @@ Lyric Editor (Full only)
     └── Depends on: SQLite database - required
 ```
 
-**Service Launching:**
+**[ARCH-INT-010]** Service Launching:
 - **Only wkmp-ui has a system service file**: Users configure their OS to auto-start wkmp-ui (systemd, launchd, Windows Service)
 - **wkmp-ui is the primary entry point**: Launches other modules as needed (wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le)
 - **Modules can launch other modules**: Any module can launch peer modules if it detects they're not running
@@ -991,7 +1003,7 @@ Lyric Editor (Full only)
       - Retry count limit: Configurable via settings table `relaunch_attempts` (default: 20)
       - Respawn retries are equal-time spaced (wait `relaunch_delay` between each attempt)
       - When retries exhausted: User notification displayed with manual retry option
-    - **Duplicate instance detection**:
+    - **[ARCH-INT-020]** Duplicate instance detection:
       - **Lock-file based IPC strategy**: Each module creates a lock file on startup
       - Lock file location: `{root_folder}/.wkmp/locks/{module_name}.lock` (e.g., `wkmp-ap.lock`)
       - Lock file contains: PID, port number, start timestamp
@@ -1125,7 +1137,7 @@ Lyric Editor (Full only)
 - `session_timeout_seconds`: 31536000 (1 year)
 - `config_interface_access` (users table): 1 (enabled)
 
-**Module Launch Responsibilities:**
+**[ARCH-INT-030]** Module Launch Responsibilities:
 - **User Interface (wkmp-ui)**:
   - Launched by: OS service manager (systemd/launchd/Windows Service)
   - Launches: wkmp-ap (on startup), wkmp-pd (Lite/Full only), wkmp-ai (on-demand, Full only), wkmp-le (on-demand, Full only)
@@ -1160,7 +1172,7 @@ Detailed design specifications for each subsystem:
 
 ### Per-Module Threading
 
-Each module is an independent process with its own threading model:
+**[ARCH-CONC-010]** Each module is an independent process with its own threading model:
 
 **Audio Player:**
 ```
@@ -1243,7 +1255,7 @@ External API Pool (tokio async):
 
 ### Internal Communication Patterns
 
-Within each module, components use standard Rust async patterns:
+**[ARCH-CONC-020]** Within each module, components use standard Rust async patterns:
 
 **Event Broadcasting (tokio::broadcast):**
 - One-to-many notification pattern within a module
@@ -1277,6 +1289,8 @@ WKMP uses SQLite with UUID-based primary keys for all entities. The complete sch
 See [Database Schema](IMPL001-database_schema.md) for complete table definitions, constraints, indexes, and triggers.
 
 ### Key Design Decisions
+
+**[ARCH-DES-010]** Key architectural decisions:
 
 - **UUID primary keys**: Enable database merging across Full/Lite/Minimal versions
 - **Musical flavor vectors**: Stored as JSON in `passages.musical_flavor_vector` for flexibility and SQLite JSON1 integration
@@ -1377,6 +1391,8 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 ## Platform Abstraction
 
 ### Audio Output
+
+**[ARCH-PLAT-010]** Audio output platform abstraction:
 ```
 ┌──────────────────────┐
 │  Platform Detector   │
@@ -1391,19 +1407,19 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 └────────┘  └─────────┘ └────────┘ └────────┘
 ```
 
-**Auto-detection Priority:**
+**[ARCH-AUDV-020]** Auto-detection Priority:
 - Linux: PulseAudio → ALSA (Phase 1)
 - Windows: WASAPI (Phase 1)
 - macOS: CoreAudio (Phase 2)
 
-**Manual Override:**
+**[ARCH-AUDV-030]** Manual Override:
 - User can select specific sink
 - User can choose specific output device
 - Settings persisted in database
 
 ### System Integration
 
-**Auto-start:**
+**[ARCH-INT-040]** Auto-start:
 - Linux: systemd service unit (Phase 1)
 - Windows: Task Scheduler XML (Phase 1)
 - macOS: launchd plist (Phase 2)
@@ -1419,7 +1435,7 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 ### Web UI
 
-**Local Network Access:**
+**[ARCH-SEC-010]** Local Network Access:
 - HTTP only on `localhost:5720`
 - Binds to localhost on startup (critical failure if port unavailable)
 - Accessible via:
@@ -1427,20 +1443,22 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
   - Local network: `http://<machine-ip>:5720` (requires local network)
   - Remote: User must configure port forwarding (not recommended)
 
-**Authentication:**
+**[ARCH-SEC-020]** Authentication:
 - User authentication system with three modes:
   - Anonymous access (shared UUID, no password)
   - Account creation (unique UUID, username/password)
   - Account login (existing credentials)
 - Session persistence via browser localStorage (one-year rolling expiration)
 
-**Security:**
+**[ARCH-SEC-030]** Security:
 - CORS restricted to localhost (except Lyric Editor)
 - No external network exposure by default
 - User responsible for network security if exposing to local network
 - No internet access required for WebUI operation (local network only)
 
 ### Database
+
+**[ARCH-SEC-040]** Database security:
 - SQLite with file permissions (user-only read/write)
 - Passwords stored as salted hashes (never plaintext)
 - Salt incorporates user UUID for additional security
@@ -1483,14 +1501,14 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 ## Performance Targets
 
-### Raspberry Pi Zero2W (Lite/Minimal)
+**[ARCH-PERF-010]** Raspberry Pi Zero2W (Lite/Minimal):
 - Startup time: < 5 seconds
 - Memory usage: < 256MB
 - Selection time: < 500ms for 10k passage library
 - Crossfade latency: < 50ms gap
 - UI responsiveness: < 100ms for user actions
 
-### Desktop (Full)
+**[ARCH-PERF-020]** Desktop (Full):
 - Startup time: < 3 seconds
 - Memory usage: < 512MB
 - Essentia analysis: < 30 seconds per passage
@@ -1501,7 +1519,7 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 
 ### Categories
 
-**Recoverable Errors:**
+**[ARCH-CAT-010]** Recoverable Errors:
 - Network failures → Retry with fixed 5-second delay (see Network Error Handling below)
 - Missing files → Skip, remove from queue, log
 - Database lock → Retry with exponential backoff (see Database Lock Timeout below)
@@ -1711,21 +1729,21 @@ Used for:
 > **See:** [UI Specification - Network Status Indicators](SPEC009-ui_specification.md#network-status-indicators) for user-facing status display
 > **See:** [Requirements - Network Error Handling](REQ001-requirements.md#network-error-handling) for complete requirements
 
-**Non-recoverable Errors:**
+**[ARCH-CAT-020]** Non-recoverable Errors:
 - Database corruption → Alert user, attempt repair
 - Configuration errors → Reset to defaults, warn user
 - Critical audio system failures → Restart audio output subsystem
 
 ### Logging
 
-**Levels:**
+**[ARCH-LOG-010]** Levels:
 - ERROR: System failures, data corruption
 - WARN: Recoverable issues, missing data
 - INFO: State changes, significant events
 - DEBUG: Detailed operation info
 - TRACE: Fine-grained execution flow
 
-**Output:**
+**[ARCH-LOG-020]** Output:
 - stdout/stderr with timestamps
 - File rotation (max 10MB per file, keep 5)
 - Structured logging with `tracing` crate
@@ -1734,12 +1752,16 @@ Used for:
 ## Deployment
 
 ### Database Migrations
+
+**[ARCH-MIG-010]** Migration strategy:
 - Version tracking in `schema_version` table
 - Forward-only migrations
 - Automatic on startup (with backup)
 - Rollback support for critical failures
 
 ### Configuration
+
+**[ARCH-CONF-010]** Configuration sources:
 - Environment variables for system paths
 - SQLite `module_config` table for network configuration (host/port for each module)
 - SQLite `settings` table for user preferences
@@ -1748,6 +1770,8 @@ Used for:
 - Centralized network configuration eliminates the need to duplicate module URLs across config files
 
 ### Distribution
+
+**[ARCH-DIST-010]** Distribution packaging:
 - **Multiple binaries per version**: Each module is a separate binary
 - **Version-specific packaging**:
   - Full: 5 binaries (Audio Player, User Interface, Lyric Editor, Program Director, Audio File Ingest)
@@ -1760,20 +1784,20 @@ Used for:
 
 ## Future Architecture Considerations
 
-### Scalability
+**[ARCH-FUT-010]** Scalability:
 - Current design: single-user, local database
 - Future: Multi-user with centralized database
 - Future: Cloud sync for preferences/history
 - Future: Collaborative playlists and flavor sharing
 
-### Mobile (Flutter Rewrite)
+**[ARCH-FUT-020]** Mobile (Flutter Rewrite):
 - Shared Rust core via FFI
 - Flutter UI layer
 - Platform-specific audio engines
 - Background playback support
 - Offline-first architecture
 
-### Advanced Features
+**[ARCH-FUT-030]** Advanced Features:
 - Machine learning for preference inference
 - Real-time collaborative listening
 - Plugin system for custom selectors
