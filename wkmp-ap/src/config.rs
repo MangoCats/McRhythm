@@ -150,11 +150,12 @@ impl Config {
     /// Returns platform-appropriate default locations for music files:
     /// - **Linux**: `~/Music` (user's Music folder)
     /// - **macOS**: `~/Music` (user's Music folder)
-    /// - **Windows**: `%USERPROFILE%\Music\wkmp` (user's Music folder with WKMP subfolder)
+    /// - **Windows**: `%USERPROFILE%\Music` (user's Music folder)
     /// - **Other**: `/tmp/wkmp` (fallback for unsupported platforms)
     ///
     /// **Rationale:** WKMP is a music player, so the default location should be
-    /// where users typically store their music files, not application data folders.
+    /// where users typically store their music files. All platforms use the standard
+    /// Music folder without a WKMP-specific subdirectory for consistency.
     pub fn get_os_default_root_folder() -> PathBuf {
         #[cfg(target_os = "linux")]
         {
@@ -172,9 +173,9 @@ impl Config {
 
         #[cfg(target_os = "windows")]
         {
-            // [REQ-NF-033] Windows default: %USERPROFILE%\Music\wkmp
+            // [REQ-NF-033] Windows default: %USERPROFILE%\Music
             let userprofile = std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\".to_string());
-            PathBuf::from(userprofile).join("Music").join("wkmp")
+            PathBuf::from(userprofile).join("Music")
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
