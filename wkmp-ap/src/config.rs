@@ -145,7 +145,13 @@ impl Config {
     /// Get OS-specific default root folder
     ///
     /// [ARCH-INIT-005] OS default root folder location
-    fn get_os_default_root_folder() -> PathBuf {
+    ///
+    /// Returns platform-appropriate default locations:
+    /// - **Windows**: `%APPDATA%\wkmp` (e.g., `C:\Users\username\AppData\Roaming\wkmp`)
+    /// - **macOS**: `~/Library/Application Support/wkmp`
+    /// - **Linux**: `~/.local/share/wkmp`
+    /// - **Other**: `/tmp/wkmp`
+    pub fn get_os_default_root_folder() -> PathBuf {
         #[cfg(target_os = "linux")]
         {
             let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());

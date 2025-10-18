@@ -650,19 +650,11 @@ pub async fn browse_files(
         )
     })?;
 
-    let root_folder = match root_folder_str {
+    let configured_root = match root_folder_str {
         Some(folder) => PathBuf::from(folder),
         None => {
-            // Use OS default if not configured
-            #[cfg(target_os = "linux")]
-            {
-                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-                PathBuf::from(home).join(".local/share/wkmp")
-            }
-            #[cfg(not(target_os = "linux"))]
-            {
-                PathBuf::from("/tmp/wkmp")
-            }
+            // Use OS default if not configured in database
+            crate::config::Config::get_os_default_root_folder()
         }
     };
 
@@ -670,19 +662,58 @@ pub async fn browse_files(
     let target_path = if let Some(path_str) = req.path {
         PathBuf::from(&path_str)
     } else {
-        root_folder.clone()
+        configured_root.clone()
     };
 
     // Security: Canonicalize paths and ensure target is within root folder
-    let canonical_root = match fs::canonicalize(&root_folder) {
+    // [CROSS-PLATFORM] Try configured folder, fall back to OS default if it doesn't exist
+    let canonical_root = match fs::canonicalize(&configured_root) {
         Ok(p) => p,
         Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(StatusResponse {
-                    status: format!("Failed to access root folder: {}", e),
-                }),
-            ))
+            // Configured folder doesn't exist - try OS default
+            let os_default = crate::config::Config::get_os_default_root_folder();
+
+            match fs::canonicalize(&os_default) {
+                Ok(p) => {
+                    use tracing::warn;
+                    warn!(
+                        "Configured root folder {:?} not found ({}), using OS default: {:?}",
+                        configured_root, e, os_default
+                    );
+                    p
+                }
+                Err(e2) => {
+                    // OS default also doesn't exist - try to create it
+                    if let Err(create_err) = fs::create_dir_all(&os_default) {
+                        return Err((
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(StatusResponse {
+                                status: format!(
+                                    "Failed to access root folder {:?} ({}) and OS default {:?} ({}) and failed to create default ({})",
+                                    configured_root, e, os_default, e2, create_err
+                                ),
+                            }),
+                        ));
+                    }
+
+                    // Try to canonicalize after creating
+                    match fs::canonicalize(&os_default) {
+                        Ok(p) => {
+                            use tracing::info;
+                            info!("Created and using OS default root folder: {:?}", os_default);
+                            p
+                        }
+                        Err(e3) => {
+                            return Err((
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                Json(StatusResponse {
+                                    status: format!("Failed to canonicalize created folder: {}", e3),
+                                }),
+                            ))
+                        }
+                    }
+                }
+            }
         }
     };
 
