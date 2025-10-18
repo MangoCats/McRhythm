@@ -17,7 +17,7 @@ WKMP uses a hybrid event-driven communication architecture combining event broad
 **Why Event-Driven Architecture?**
 
 WKMP requires coordinated responses to state changes across multiple components:
-- Multiple UI clients need real-time synchronization (`REQ-CF-042`)
+- Multiple UI clients need real-time synchronization (`REQ-CF-082`, `REQ-CF-082A`)
 - Play events trigger actions in Historian, Queue Manager, and SSE Broadcaster
 - User actions must propagate to all connected clients
 - Components should be loosely coupled for testability and maintainability
@@ -291,10 +291,10 @@ pub enum WkmpEvent {
     // User Interaction Events
     // ┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐┐â•
 
-    /// Emitted when user performs an action (satisfies REQ-CF-042)
+    /// Emitted when user performs an action (satisfies REQ-CF-082, REQ-CF-082A)
     ///
     /// Used for multi-user synchronization and edge case handling:
-    /// - Skip throttling (5-second window, REQ-CF-044)
+    /// - Skip throttling (5-second window, REQ-CF-085A, REQ-CF-085B, REQ-CF-085C)
     /// - Concurrent operation handling
     ///
     /// Triggers:

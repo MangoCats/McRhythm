@@ -10,7 +10,7 @@ This directory contains all user-facing documentation for installing, configurin
 
 ### Getting Started
 
-- **[QUICKSTART.md](QUICKSTART.md)** - Get WKMP running in under 5 minutes with zero configuration
+- **[QUICKSTART.md](./QUICKSTART.md)** - Get WKMP running in under 5 minutes with zero configuration
   - Installation instructions (pre-built binaries and from source)
   - First run walkthrough
   - Basic usage and operations
@@ -18,7 +18,7 @@ This directory contains all user-facing documentation for installing, configurin
 
 ### Problem Solving
 
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Comprehensive guide for diagnosing and resolving issues
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Comprehensive guide for diagnosing and resolving issues
   - Configuration and startup issues
   - Database issues (corruption, NULL values, missing settings)
   - Audio playback problems
@@ -46,7 +46,7 @@ WKMP is an automatic DJ music player with sample-accurate crossfading. It:
 
 ### End Users
 
-**Start here:** [QUICKSTART.md](QUICKSTART.md)
+**Start here:** [QUICKSTART.md](./QUICKSTART.md)
 
 You just want to:
 - ✅ Install WKMP and start listening to music
@@ -56,7 +56,7 @@ You just want to:
 
 ### System Administrators
 
-**Start here:** [QUICKSTART.md](QUICKSTART.md) → Configuration section
+**Start here:** [QUICKSTART.md](./QUICKSTART.md) → Configuration section
 
 You need to:
 - ✅ Deploy WKMP on a server
@@ -65,7 +65,7 @@ You need to:
 - ✅ Troubleshoot deployment issues
 - ✅ Manage backups and recovery
 
-→ Also see: [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for diagnostic procedures
+→ Also see: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for diagnostic procedures
 
 ### Developers/Contributors
 
@@ -96,7 +96,7 @@ All versions support:
 - Web user interface
 - Configuration via database, TOML files, or environment variables
 
-See [QUICKSTART.md](QUICKSTART.md) for detailed version comparisons.
+See [QUICKSTART.md](./QUICKSTART.md) for detailed version comparisons.
 
 ---
 
@@ -138,7 +138,7 @@ Configure WKMP your way:
 
 Priority order: CLI args > env vars > config file > database > compiled defaults
 
-See [QUICKSTART.md](QUICKSTART.md) for configuration examples.
+See [QUICKSTART.md](./QUICKSTART.md) for configuration examples.
 
 ---
 
@@ -146,7 +146,7 @@ See [QUICKSTART.md](QUICKSTART.md) for configuration examples.
 
 ### First-Time Setup
 
-1. Install WKMP (see [QUICKSTART.md](QUICKSTART.md))
+1. Install WKMP (see [QUICKSTART.md](./QUICKSTART.md))
 2. Run `wkmp-ap` (creates database and starts server)
 3. Run `wkmp-ui` (starts web interface)
 4. Open browser to http://localhost:5720
@@ -169,7 +169,7 @@ See [QUICKSTART.md](QUICKSTART.md) for configuration examples.
 
 **Solution:**
 1. Check logs for error messages
-2. Consult [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for your specific issue
+2. Consult [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for your specific issue
 3. Run diagnostic script (included in troubleshooting guide)
 4. Report issue with logs if not resolved
 
@@ -200,7 +200,7 @@ When reporting a problem, please include:
 4. Steps to reproduce
 5. Expected vs actual behavior
 
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for instructions on collecting diagnostic information.
+See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for instructions on collecting diagnostic information.
 
 ---
 
@@ -218,9 +218,9 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for instructions on collecting diag
 
 ## Next Steps
 
-**New users:** Read [QUICKSTART.md](QUICKSTART.md) to get WKMP running in under 5 minutes.
+**New users:** Read [QUICKSTART.md](./QUICKSTART.md) to get WKMP running in under 5 minutes.
 
-**Existing users:** Bookmark [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for quick problem resolution.
+**Existing users:** Bookmark [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for quick problem resolution.
 
 **Contributors:** See [../README.md](../README.md) for technical documentation and contribution guidelines.
 

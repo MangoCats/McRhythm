@@ -2,15 +2,15 @@
 
 **📋 TIER R - REVIEW & CHANGE CONTROL**
 
-Temporary cross-document clarification enhancing event timing interval configuration documentation. Updatable until integrated into Tier 2-3 documents. See [Document Hierarchy](GOV001-document_hierarchy.md) for Tier R classification details.
+Temporary cross-document clarification enhancing event timing interval configuration documentation. Updatable until integrated into Tier 2-3 documents. See [Document Hierarchy](../GOV001-document_hierarchy.md) for Tier R classification details.
 
 **Authority:** Temporary authoritative - valid until content integrated into SPEC/IMPL documents
 
 **Status:** Active (pending integration)
 **Date:** 2025-10-18 (Revision 2)
 **Related Documents:**
-- CHANGELOG-event_driven_architecture.md
-- REV002-event_driven_architecture_update.md
+- [CHANGELOG-event_driven_architecture.md](CHANGELOG-event_driven_architecture.md) (archived)
+- [REV002-event_driven_architecture_update.md](../REV002-event_driven_architecture_update.md)
 **Type:** Configuration Enhancement
 
 **Integration Target:** Content should be merged into SPEC001-architecture.md, SPEC011-event_system.md, and IMPL001-database_schema.md

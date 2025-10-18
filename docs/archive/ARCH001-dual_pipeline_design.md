@@ -11,7 +11,7 @@
 - 6x lower memory usage (27 MB vs 170 MB for 5 buffered passages)
 - Simpler architecture with direct per-sample control
 - Pure Rust implementation reduces external dependencies
-- See [single-stream-migration-proposal.md](ARCH004-single_stream_migration_proposal.md) for complete migration details
+- See [single-stream-migration-proposal.md](./ARCH004-single_stream_migration_proposal.md) for complete migration details
 
 This document is preserved for historical reference and to document the partially-implemented dual pipeline code.
 

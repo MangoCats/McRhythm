@@ -141,7 +141,7 @@ These documents track the evolution of WKMP documentation and identify gaps requ
 - Cross-references to related REV documents
 
 **Examples:**
-- CHANGELOG-event_driven_architecture.md - Documents all changes made for REV002
+- [CHANGELOG-event_driven_architecture.md](archive/CHANGELOG-event_driven_architecture.md) - Documents all changes made for REV002 (archived)
 
 **Update Policy:**
 - ✅ Created alongside REV documents when changes are extensive
@@ -164,7 +164,7 @@ These documents track the evolution of WKMP documentation and identify gaps requ
 - Integration notes
 
 **Examples:**
-- ADDENDUM-interval_configurability.md - Enhances event timing configuration documentation
+- [ADDENDUM-interval_configurability.md](archive/ADDENDUM-interval_configurability.md) - Enhances event timing configuration documentation (archived)
 
 **Update Policy:**
 - ✅ Created when clarification spans multiple documents

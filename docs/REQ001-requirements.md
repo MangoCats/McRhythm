@@ -67,9 +67,13 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 **[REQ-CF-080]** Multiple users may interact with the WebUI
   - **[REQ-CF-081]** Each user has a persistent identity (UUID) established through authentication or anonymous access
   - **[REQ-CF-082]** Real-time UI updates via Server Sent Events keep all users' views in sync
+    - **[REQ-CF-082A]** All connected clients receive state change broadcasts within 100ms
   - **[REQ-CF-083]** Single shared passage queue for all users
   - **[REQ-CF-084]** User-specific data (likes, dislikes, taste profiles) tracked per user UUID
   - **[REQ-CF-085]** Concurrent user actions handled via specific strategies: skip throttling, idempotent queue removal, "last write wins" for lyrics
+    - **[REQ-CF-085A]** Skip throttling: Only one skip per 5-second window honored across all users
+    - **[REQ-CF-085B]** Subsequent skip attempts within throttle window are logged but ignored
+    - **[REQ-CF-085C]** Throttle resets 5 seconds after last successful skip
 
 > **See [Multi-User Coordination](SPEC012-multi_user_coordination.md) for complete specifications on handling concurrent user actions.**
 
@@ -247,6 +251,14 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
     - System SHALL remain operational and log informational messages about initialization
 
 > **See [Architecture - Initialization](SPEC001-architecture.md#module-initialization) for detailed startup sequence and default value handling.**
+
+**[REQ-NF-040]** Operational Monitoring
+  - **[REQ-NF-041]** Each microservice exposes `/health` HTTP endpoint returning HTTP 200 when operational
+  - **[REQ-NF-042]** Health check responses complete within 2 seconds
+  - **[REQ-NF-043]** Health endpoint returns JSON with service status: `{"status": "healthy", "module": "<module-name>"}`
+  - **[REQ-NF-044]** Future enhancement: Detailed diagnostics (database connectivity, audio device availability, subsystem status)
+
+> **See [Architecture - Module Health Checks](SPEC001-architecture.md#module-initialization) and [API Design - Health Endpoint](SPEC007-api_design.md) for implementation details.**
 
 ## Passage Identification & Library Management
 

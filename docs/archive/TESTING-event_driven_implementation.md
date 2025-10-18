@@ -10,7 +10,7 @@ Comprehensive testing guide for validating the event-driven position tracking im
 **Date:** 2025-10-18
 **Type:** Testing Plan
 **Related Documents:**
-- [MIGRATION-event_driven_architecture.md](MIGRATION-event_driven_architecture.md) - Implementation plan (historical - archived)
+- [MIGRATION-event_driven_architecture.md](./MIGRATION-event_driven_architecture.md) - Implementation plan (historical - archived)
 - [REV002-event_driven_architecture_update.md](../REV002-event_driven_architecture_update.md) - Architecture change
 - [SPEC001-architecture.md](../SPEC001-architecture.md) - Architecture specification
 

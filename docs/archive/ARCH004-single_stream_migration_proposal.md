@@ -211,7 +211,7 @@ Create comprehensive playback architecture document covering:
 
 Replace:
 ```markdown
-> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](ARCH002-gstreamer_design.md#5-crossfade-implementation)
+> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](./ARCH002-gstreamer_design.md#5-crossfade-implementation)
 ```
 
 With:

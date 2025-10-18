@@ -975,7 +975,7 @@ Lyric Editor (Full only)
       - Launch detection: Service considered ready when HTTP server responds
       - Future enhancement: Detailed health checks (database connectivity, audio device availability, audio subsystem status)
       - API structure: See api_design.md `/health` endpoint (reserves fields for future detailed diagnostics)
-      - Traceability: REQ-OPS-010 (operational monitoring)
+      - Traceability: REQ-NF-041, REQ-NF-042, REQ-NF-043, REQ-NF-044 (operational monitoring)
     - **Health check**: Send HTTP GET request to module's `/health` endpoint
       - Expected response: HTTP 200 with JSON `{"status": "healthy", "module": "<module-name>"}`
       - Timeout: 2 seconds for health check response
