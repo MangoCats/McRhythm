@@ -41,6 +41,9 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
     let ctx = AppContext { state, engine, db_pool };
     // Build router with all endpoints
     let app = Router::new()
+        // Developer UI (served at root)
+        .route("/", get(super::handlers::developer_ui))
+
         // Health endpoint (required for all modules)
         .route("/health", get(super::handlers::health))
 
@@ -68,6 +71,9 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
 
         // SSE event stream
         .route("/events", get(super::sse::event_stream))
+
+        // File browser
+        .route("/files/browse", get(super::handlers::browse_files))
 
         // Enable CORS for local access
         .layer(CorsLayer::permissive())

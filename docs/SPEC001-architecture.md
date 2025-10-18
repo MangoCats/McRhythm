@@ -133,6 +133,7 @@ WKMP implements a **microservices architecture with 5 core processes** communica
 - `GET /playback/queue` - Queue contents
 - `GET /playback/state` - Playing/Paused state
 - `GET /playback/position` - Current playback position in passage
+- `GET /files/browse?path=<dir>` - Browse filesystem for audio files (developer UI support)
 
 **SSE Events** (Endpoint: `GET /events`):
 - `VolumeChanged` - Volume level updated
@@ -153,8 +154,14 @@ WKMP implements a **microservices architecture with 5 core processes** communica
 - Direct API testing interface
   - set audio device
   - set volume level
-  - enqueue an audio file
+  - enqueue an audio file (with file browser modal for selecting files)
   - remove passage from queue
+- File browser modal
+  - browse directories within configured root folder
+  - navigate subdirectories and parent directories
+  - filter display to show only audio files (mp3, flac, ogg, wav, m4a, aac, opus, wma)
+  - security: path traversal prevention (canonicalization + root folder constraint)
+  - click file to auto-populate enqueue input field
 - Event stream monitor
   (Configuration settings editor available only to authorized users.)
 

@@ -100,14 +100,19 @@ impl DecoderPool {
             stop_flag: AtomicBool::new(false),
         });
 
+        // Capture Tokio runtime handle before spawning std::threads
+        // Workers need this to call async buffer_manager methods
+        let rt_handle = tokio::runtime::Handle::current();
+
         // Spawn 2 worker threads
         let mut threads = Vec::new();
         for worker_id in 0..2 {
             let state_clone = Arc::clone(&state);
             let buffer_manager_clone = Arc::clone(&buffer_manager);
+            let rt_handle_clone = rt_handle.clone();
 
             let handle = thread::spawn(move || {
-                Self::worker_loop(worker_id, state_clone, buffer_manager_clone);
+                Self::worker_loop(worker_id, state_clone, buffer_manager_clone, rt_handle_clone);
             });
 
             threads.push(handle);
@@ -165,6 +170,7 @@ impl DecoderPool {
         worker_id: usize,
         state: Arc<SharedPoolState>,
         buffer_manager: Arc<BufferManager>,
+        rt_handle: tokio::runtime::Handle,
     ) {
         debug!("Worker {} started", worker_id);
 
@@ -196,15 +202,15 @@ impl DecoderPool {
 
                 // Register with buffer manager
                 let passage_id = request.passage_id;
-                tokio::runtime::Handle::current().block_on(async {
+                rt_handle.block_on(async {
                     buffer_manager.register_decoding(passage_id).await;
                 });
 
                 // Perform decode
-                match Self::decode_passage(&request, Arc::clone(&buffer_manager)) {
+                match Self::decode_passage(&request, Arc::clone(&buffer_manager), &rt_handle) {
                     Ok(buffer) => {
                         // Mark buffer as ready
-                        tokio::runtime::Handle::current().block_on(async {
+                        rt_handle.block_on(async {
                             buffer_manager.mark_ready(passage_id, buffer).await;
                         });
 
@@ -217,7 +223,7 @@ impl DecoderPool {
                         );
 
                         // Remove from buffer manager on failure
-                        tokio::runtime::Handle::current().block_on(async {
+                        rt_handle.block_on(async {
                             buffer_manager.remove(passage_id).await;
                         });
                     }
@@ -237,6 +243,7 @@ impl DecoderPool {
     fn decode_passage(
         request: &DecodeRequest,
         buffer_manager: Arc<BufferManager>,
+        rt_handle: &tokio::runtime::Handle,
     ) -> Result<PassageBuffer> {
         let passage = &request.passage;
         let passage_id = request.passage_id;
@@ -263,7 +270,7 @@ impl DecoderPool {
 
         // Update progress periodically during decode
         // (For simplicity, we update at decode completion)
-        tokio::runtime::Handle::current().block_on(async {
+        rt_handle.block_on(async {
             buffer_manager.update_decode_progress(passage_id, 50).await;
         });
 
@@ -327,7 +334,7 @@ impl DecoderPool {
         };
 
         // Update progress to 100%
-        tokio::runtime::Handle::current().block_on(async {
+        rt_handle.block_on(async {
             buffer_manager.update_decode_progress(passage_id, 100).await;
         });
 

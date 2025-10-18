@@ -52,21 +52,28 @@ impl BufferManager {
     ///
     /// [SSD-BUF-020] Buffer state: None → Decoding
     pub async fn register_decoding(&self, passage_id: Uuid) {
+        use tracing::debug;
         let mut buffers = self.buffers.write().await;
 
-        buffers.insert(
-            passage_id,
-            ManagedBuffer {
-                buffer: Arc::new(RwLock::new(PassageBuffer::new(
-                    passage_id,
-                    Vec::new(), // Empty until decode completes
-                    44100,
-                    2,
-                ))),
-                status: BufferStatus::Decoding { progress_percent: 0 },
-                decode_started: Instant::now(),
-            },
-        );
+        // Only insert if not already present (avoid overwriting in-progress or completed buffers)
+        if !buffers.contains_key(&passage_id) {
+            debug!("Registering new buffer for decoding: passage_id={}", passage_id);
+            buffers.insert(
+                passage_id,
+                ManagedBuffer {
+                    buffer: Arc::new(RwLock::new(PassageBuffer::new(
+                        passage_id,
+                        Vec::new(), // Empty until decode completes
+                        44100,
+                        2,
+                    ))),
+                    status: BufferStatus::Decoding { progress_percent: 0 },
+                    decode_started: Instant::now(),
+                },
+            );
+        } else {
+            debug!("Buffer already exists for passage_id={}, skipping registration", passage_id);
+        }
     }
 
     /// Update decode progress
@@ -88,12 +95,27 @@ impl BufferManager {
     ///
     /// [SSD-BUF-020] Buffer state: Decoding → Ready
     pub async fn mark_ready(&self, passage_id: Uuid, buffer: PassageBuffer) {
-        let mut buffers = self.buffers.write().await;
+        use tracing::debug;
 
-        if let Some(managed) = buffers.get_mut(&passage_id) {
-            *managed.buffer.write().await = buffer;
-            managed.status = BufferStatus::Ready;
-        }
+        // Get the Arc to the buffer while holding the HashMap lock
+        let buffer_arc = {
+            let mut buffers = self.buffers.write().await;
+
+            if let Some(managed) = buffers.get_mut(&passage_id) {
+                debug!("Marking buffer ready for passage_id={}, samples={}", passage_id, buffer.samples.len());
+                // Update status while we have the lock
+                managed.status = BufferStatus::Ready;
+                // Clone the Arc to the buffer
+                Arc::clone(&managed.buffer)
+            } else {
+                debug!("mark_ready called but passage_id={} not found in buffers", passage_id);
+                return;
+            }
+        }; // HashMap lock released here
+
+        // Now write to the buffer without holding the HashMap lock
+        *buffer_arc.write().await = buffer;
+        debug!("Buffer ready: passage_id={}", passage_id);
     }
 
     /// Get buffer for playback

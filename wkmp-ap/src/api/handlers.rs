@@ -9,6 +9,7 @@ use crate::state::PlaybackState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
+    response::Html,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -109,6 +110,26 @@ pub struct SeekRequest {
 pub struct ReorderQueueRequest {
     queue_entry_id: Uuid,
     new_position: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BrowseFilesRequest {
+    path: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BrowseFilesResponse {
+    current_path: String,
+    parent_path: Option<String>,
+    entries: Vec<FileEntry>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FileEntry {
+    name: String,
+    path: String,
+    is_directory: bool,
+    is_audio_file: bool,
 }
 
 // ============================================================================
@@ -597,4 +618,177 @@ pub async fn reorder_queue_entry(
             ))
         }
     }
+}
+
+// ============================================================================
+// File Browser
+// ============================================================================
+
+/// GET /files/browse - Browse filesystem for audio files
+///
+/// **[ARCH-FB-010]** File browser for developer UI
+/// Allows browsing directories and selecting audio files to enqueue.
+/// Security: Only allows browsing within configured root folder.
+pub async fn browse_files(
+    State(ctx): State<AppContext>,
+    axum::extract::Query(req): axum::extract::Query<BrowseFilesRequest>,
+) -> Result<Json<BrowseFilesResponse>, (StatusCode, Json<StatusResponse>)> {
+    use std::fs;
+
+    // Get configured root folder from database settings
+    let root_folder_str: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM settings WHERE key = 'root_folder'"
+    )
+    .fetch_optional(&ctx.db_pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(StatusResponse {
+                status: format!("Database error: {}", e),
+            }),
+        )
+    })?;
+
+    let root_folder = match root_folder_str {
+        Some(folder) => PathBuf::from(folder),
+        None => {
+            // Use OS default if not configured
+            #[cfg(target_os = "linux")]
+            {
+                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+                PathBuf::from(home).join(".local/share/wkmp")
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                PathBuf::from("/tmp/wkmp")
+            }
+        }
+    };
+
+    // Determine target path (default to root folder)
+    let target_path = if let Some(path_str) = req.path {
+        PathBuf::from(&path_str)
+    } else {
+        root_folder.clone()
+    };
+
+    // Security: Canonicalize paths and ensure target is within root folder
+    let canonical_root = match fs::canonicalize(&root_folder) {
+        Ok(p) => p,
+        Err(e) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(StatusResponse {
+                    status: format!("Failed to access root folder: {}", e),
+                }),
+            ))
+        }
+    };
+
+    let canonical_target = match fs::canonicalize(&target_path) {
+        Ok(p) => p,
+        Err(_) => {
+            // Path doesn't exist, fall back to root
+            canonical_root.clone()
+        }
+    };
+
+    // Prevent path traversal attacks
+    if !canonical_target.starts_with(&canonical_root) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(StatusResponse {
+                status: "Access denied: path outside root folder".to_string(),
+            }),
+        ));
+    }
+
+    // Read directory contents
+    let entries = match fs::read_dir(&canonical_target) {
+        Ok(entries) => entries,
+        Err(e) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(StatusResponse {
+                    status: format!("Cannot read directory: {}", e),
+                }),
+            ))
+        }
+    };
+
+    // Supported audio file extensions
+    let audio_extensions = vec!["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
+
+    // Build file list
+    let mut file_entries = Vec::new();
+    for entry in entries.flatten() {
+        if let Ok(metadata) = entry.metadata() {
+            let is_directory = metadata.is_dir();
+            let path = entry.path();
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?")
+                .to_string();
+
+            // Skip hidden files/directories (starting with .)
+            if name.starts_with('.') {
+                continue;
+            }
+
+            let extension = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+
+            let is_audio_file = !is_directory && audio_extensions.contains(&extension.as_str());
+
+            // Only include directories and audio files
+            if is_directory || is_audio_file {
+                file_entries.push(FileEntry {
+                    name,
+                    path: path.to_string_lossy().to_string(),
+                    is_directory,
+                    is_audio_file,
+                });
+            }
+        }
+    }
+
+    // Sort: directories first, then files, alphabetically
+    file_entries.sort_by(|a, b| {
+        match (a.is_directory, b.is_directory) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
+
+    // Determine parent path
+    let parent_path = if canonical_target == canonical_root {
+        None
+    } else {
+        canonical_target
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+    };
+
+    Ok(Json(BrowseFilesResponse {
+        current_path: canonical_target.to_string_lossy().to_string(),
+        parent_path,
+        entries: file_entries,
+    }))
+}
+
+// ============================================================================
+// Developer UI
+// ============================================================================
+
+/// Serve developer UI HTML (bundled at compile time)
+///
+/// **[ARCH-PC-010]** Developer UI with status display, API testing, and event monitoring
+pub async fn developer_ui() -> Html<&'static str> {
+    Html(include_str!("developer_ui.html"))
 }

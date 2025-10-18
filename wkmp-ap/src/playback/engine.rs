@@ -987,6 +987,7 @@ impl PlaybackEngine {
     ///
     /// [SSD-FLOW-010] Core orchestration logic
     async fn playback_loop(&self) -> Result<()> {
+        info!("Playback loop started");
         let mut tick = interval(Duration::from_millis(100)); // Check every 100ms
 
         loop {
@@ -1001,6 +1002,7 @@ impl PlaybackEngine {
             // Check playback state
             let playback_state = self.state.get_playback_state().await;
             if playback_state != PlaybackState::Playing {
+                debug!("Playback loop: State is {:?}, skipping", playback_state);
                 continue; // Paused, skip processing
             }
 
@@ -1008,6 +1010,7 @@ impl PlaybackEngine {
             self.process_queue().await?;
         }
 
+        info!("Playback loop stopped");
         Ok(())
     }
 
@@ -1027,11 +1030,18 @@ impl PlaybackEngine {
         // Start mixer if current passage is ready and not playing
         // [SSD-MIX-030] Single passage playback initiation
         if let Some(current) = queue.current() {
+            debug!("process_queue: Found current passage: {}", current.queue_entry_id);
             // Check if buffer is ready
-            if self.buffer_manager.is_ready(current.queue_entry_id).await {
+            let buffer_is_ready = self.buffer_manager.is_ready(current.queue_entry_id).await;
+            debug!("process_queue: Buffer ready for {}: {}", current.queue_entry_id, buffer_is_ready);
+
+            if buffer_is_ready {
                 // Check if mixer is currently idle
                 let mixer = self.mixer.read().await;
-                if mixer.get_current_passage_id().is_none() {
+                let mixer_idle = mixer.get_current_passage_id().is_none();
+                debug!("process_queue: Mixer idle: {}", mixer_idle);
+
+                if mixer_idle {
                     // Mixer is idle and buffer is ready - start playback!
                     drop(mixer); // Release read lock before acquiring write lock
 
