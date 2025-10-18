@@ -47,16 +47,30 @@ Defines deployment, process management, and operational configuration for WKMP's
 
 **[DEP-CFG-030]** User-specific configuration files override system-wide defaults.
 
+**[DEP-CFG-031]** Graceful degradation for missing configuration files [REQ-NF-031, REQ-NF-032]:
+- **Behavior**: If TOML configuration file does not exist, module SHALL NOT terminate with error
+- **Action**: Log warning message indicating missing file, proceed with compiled default values
+- **Example warning**: `WARN: Config file not found at ~/.config/wkmp/audio-player.toml, using default configuration`
+- **Result**: Module starts successfully using compiled defaults (see [DEP-CFG-040] below)
+
 ### 2.1a. Module Discovery via Database
 
 **[DEP-CFG-035]** Modules discover each other's network addresses through the shared SQLite database `module_config` table.
 
 **On startup, each module:**
-1. Reads root folder path from config file or environment variable
-2. Opens database (`wkmp.db`) in root folder
-3. Queries `module_config` for its own host/port and other modules' addresses
-4. Inserts defaults if entries missing (auto-initialization)
-5. Binds to configured port and begins accepting connections
+1. Resolves root folder path using priority order (CLI args > env vars > config file > compiled defaults) [REQ-NF-035]
+2. Creates root folder directory if missing [REQ-NF-036]
+3. Opens database (`wkmp.db`) in root folder, creating empty database if necessary [REQ-NF-036]
+4. Queries `module_config` for its own host/port and other modules' addresses
+5. Inserts defaults if entries missing (auto-initialization)
+6. Binds to configured port and begins accepting connections
+
+**Graceful first-run behavior** [REQ-NF-032, REQ-NF-036]:
+- Missing config file → Log warning, use defaults
+- Missing root folder → Create directory automatically
+- Missing database → Initialize with default schema
+- Missing tables/settings → Auto-create via idempotent initialization
+- **Result**: Module starts successfully with zero manual configuration required
 
 **Default module configuration (using first base port 5720):**
 
@@ -83,24 +97,48 @@ Defines deployment, process management, and operational configuration for WKMP's
 
 **[DEP-CFG-100]** Configuration file: `audio-player.toml`
 
+**Note:** This file is optional [REQ-NF-031]. If missing, module uses compiled defaults.
+
 ```toml
 [root_folder]
 # Path to the root folder containing the database and all audio/artwork files
-path = "~/.local/share/wkmp"
+# Default (if this file is missing): ~/Music (Linux/macOS), %USERPROFILE%\Music\wkmp (Windows)
+path = "~/Music"
 # Database file is located at: {root_folder}/wkmp.db
 
 [logging]
 # Log level: trace, debug, info, warn, error
+# Default (if this file is missing): info
 level = "info"
 
 # Log file path (empty = stdout only)
+# Default (if this file is missing): "" (stdout only)
 log_file = ""
 ```
+
+**[DEP-CFG-040]** Compiled default configuration values [REQ-NF-033, REQ-NF-034]:
+
+When TOML config file is missing, modules use these compiled defaults:
+
+**Root folder location** [REQ-NF-033]:
+- Linux: `~/Music`
+- macOS: `~/Music`
+- Windows: `%USERPROFILE%\Music\wkmp`
+
+**Logging configuration** [REQ-NF-034]:
+- Log level: `info`
+- Log file: stdout only (no file logging)
+
+**Static assets** [REQ-NF-034]:
+- Linux: `/usr/local/share/wkmp/<module-name>/`
+- macOS: `/Applications/WKMP.app/Contents/Resources/<module-name>/`
+- Windows: `C:\Program Files\WKMP\share\<module-name>\`
 
 **Configuration Source of Truth:**
 - **Database `settings` table**: Volume level, audio output device, crossfade time, all playback and fade settings, queue limits, and ALL runtime configuration
 - **Database `module_config` table**: Server port and bind address for all modules
 - **TOML config file**: Root folder path, logging, static asset paths ONLY (NEVER runtime settings that belong in database)
+- **Compiled defaults**: Used when TOML config file is missing [REQ-NF-032]
 
 **Runtime settings in database:**
 - `queue_max_size`: Maximum queue size (default: 100)
@@ -112,10 +150,13 @@ log_file = ""
 
 **[DEP-CFG-200]** Configuration file: `ui.toml`
 
+**Note:** This file is optional [REQ-NF-031]. If missing, module uses compiled defaults.
+
 ```toml
 [root_folder]
 # Path to the root folder containing the database and all audio/artwork files
-path = "~/.local/share/wkmp"
+# Default (if this file is missing): ~/Music (Linux/macOS), %USERPROFILE%\Music\wkmp (Windows)
+path = "~/Music"
 # Database file is located at: {root_folder}/wkmp.db
 
 [session]
@@ -124,10 +165,13 @@ secret_key = ""
 
 [static]
 # Path to static web assets (HTML, CSS, JS)
+# Default (if this file is missing): /usr/local/share/wkmp/ui/ (Linux)
 assets_path = "/usr/local/share/wkmp/ui/"
 
 [logging]
+# Default (if this file is missing): info
 level = "info"
+# Default (if this file is missing): "" (stdout only)
 log_file = ""
 ```
 
@@ -141,14 +185,19 @@ log_file = ""
 
 **[DEP-CFG-300]** Configuration file: `program-director.toml`
 
+**Note:** This file is optional [REQ-NF-031]. If missing, module uses compiled defaults.
+
 ```toml
 [root_folder]
 # Path to the root folder containing the database and all audio/artwork files
-path = "~/.local/share/wkmp"
+# Default (if this file is missing): ~/Music (Linux/macOS), %USERPROFILE%\Music\wkmp (Windows)
+path = "~/Music"
 # Database file is located at: {root_folder}/wkmp.db
 
 [logging]
+# Default (if this file is missing): info
 level = "info"
+# Default (if this file is missing): "" (stdout only)
 log_file = ""
 ```
 
@@ -165,22 +214,29 @@ log_file = ""
 
 **[DEP-CFG-400]** Configuration file: `file-ingest.toml`
 
+**Note:** This file is optional [REQ-NF-031]. If missing, module uses compiled defaults.
+
 ```toml
 [root_folder]
 # Path to the root folder containing the database and all audio/artwork files
-path = "~/.local/share/wkmp"
+# Default (if this file is missing): ~/Music (Linux/macOS), %USERPROFILE%\Music\wkmp (Windows)
+path = "~/Music"
 # Database file is located at: {root_folder}/wkmp.db
 
 [ingest]
 # Temporary directory for file processing (within root folder)
+# Default (if this file is missing): "temp/"
 temp_path = "temp/"
 
 [essentia]
 # Path to Essentia extractor binary
+# Default (if this file is missing): /usr/local/bin/essentia_streaming_extractor_music
 extractor_path = "/usr/local/bin/essentia_streaming_extractor_music"
 
 [logging]
+# Default (if this file is missing): info
 level = "info"
+# Default (if this file is missing): "" (stdout only)
 log_file = ""
 ```
 
@@ -192,10 +248,23 @@ log_file = ""
 
 ## 3. Database Location
 
-**[DEP-DB-010]** The SQLite database file is shared by all modules and shall be located at:
-- **Linux**: `~/.local/share/wkmp/wkmp.db`
-- **macOS**: `~/Library/Application Support/WKMP/wkmp.db`
-- **Windows**: `%APPDATA%\WKMP\wkmp.db`
+**[DEP-DB-010]** The SQLite database file is shared by all modules and shall be located at `{root_folder}/wkmp.db`.
+
+**Default root folder locations** [REQ-NF-033]:
+- **Linux**: `~/Music/wkmp.db`
+- **macOS**: `~/Music/wkmp.db`
+- **Windows**: `%USERPROFILE%\Music\wkmp.db`
+
+**Alternative deployment locations** (via config file or environment variable):
+- **Linux system-wide**: `/var/lib/wkmp/wkmp.db`
+- **Linux user XDG**: `~/.local/share/wkmp/wkmp.db`
+- **macOS user**: `~/Library/Application Support/WKMP/wkmp.db`
+- **Windows user AppData**: `%APPDATA%\WKMP\wkmp.db`
+
+**[DEP-DB-011]** Database initialization [REQ-NF-036]:
+- If database file does not exist, module creates it automatically with default schema
+- All modules use idempotent table initialization (safe to run multiple times)
+- First module to start creates initial tables, subsequent modules verify/add their tables
 
 **Note:** These paths represent the default root folder locations. The database file `wkmp.db` is always located in the root folder, and all audio/artwork files are organized under the root folder tree.
 
@@ -467,15 +536,55 @@ wkmp-ap
 1. Database settings table (source of truth)
 2. Built-in defaults (if database value missing)
 
-**Bootstrap Configuration** (root folder, logging, module discovery):
-1. Command-line arguments
+**Bootstrap Configuration** (root folder, logging, module discovery) [REQ-NF-035]:
+1. Command-line arguments (highest priority)
 2. Environment variables
 3. User TOML configuration file
-4. Built-in defaults
+4. Built-in compiled defaults (lowest priority, graceful fallback) [REQ-NF-032]
 
 **Module Network Configuration** (ports, bind addresses):
 1. Database module_config table (source of truth)
 2. Built-in defaults (auto-inserted if missing)
+
+**[DEP-MANUAL-061]** Graceful degradation examples [REQ-NF-031, REQ-NF-032]:
+
+**Example 1: Missing config file, no overrides**
+```bash
+# No config file at ~/.config/wkmp/audio-player.toml
+# No environment variables set
+# No command-line arguments
+
+wkmp-ap
+
+# Output:
+# WARN: Config file not found at ~/.config/wkmp/audio-player.toml, using defaults
+# INFO: Root folder: ~/Music
+# INFO: Initialized new database: /home/user/Music/wkmp.db
+# INFO: Audio Player listening on 127.0.0.1:5721
+```
+
+**Example 2: Environment variable override**
+```bash
+export WKMP_ROOT_FOLDER=/mnt/music
+wkmp-ap
+
+# Output:
+# WARN: Config file not found at ~/.config/wkmp/audio-player.toml, using defaults
+# INFO: Root folder: /mnt/music (from environment variable)
+# INFO: Opened database: /mnt/music/wkmp.db
+# INFO: Audio Player listening on 127.0.0.1:5721
+```
+
+**Example 3: Command-line override (highest priority)**
+```bash
+wkmp-ap --root-folder /opt/wkmp
+
+# Output:
+# WARN: Config file not found at ~/.config/wkmp/audio-player.toml, using defaults
+# INFO: Root folder: /opt/wkmp (from command-line argument)
+# INFO: Opened database: /opt/wkmp/wkmp.db
+# INFO: Audio Player listening on 127.0.0.1:5721
+```
 
 **Design Philosophy:** Database is the persistent source of truth for all user-configurable runtime settings. TOML files only configure bootstrap parameters (paths, logging) and cannot override database settings.
 

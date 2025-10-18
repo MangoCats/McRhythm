@@ -1,11 +1,20 @@
 //! Database initialization
+//!
+//! Implements graceful degradation for database initialization as specified in:
+//! - [REQ-NF-036]: Automatic database creation with default schema
+//! - [ARCH-INIT-010]: Module startup sequence
+//! - [ARCH-INIT-020]: Default value initialization behavior
+//! - [DEP-DB-011]: Database initialization on first run
 
 use crate::Result;
 use sqlx::SqlitePool;
 use std::path::Path;
+use tracing::{info, warn};
 
-/// Initialize database connection and create tables if needed
+/// Initialize database connection and create tables if needed [REQ-NF-036]
 pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
+    let newly_created = !db_path.exists();
+
     // Create parent directory if it doesn't exist
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -15,13 +24,32 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
     let pool = SqlitePool::connect(&db_url).await?;
 
-    // Run migrations
+    if newly_created {
+        info!("Initialized new database: {}", db_path.display());
+    } else {
+        info!("Opened existing database: {}", db_path.display());
+    }
+
+    // Enable foreign keys
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await?;
+
+    // Set busy timeout to 5 seconds [ARCH-ERRH-070]
+    sqlx::query("PRAGMA busy_timeout = 5000")
+        .execute(&pool)
+        .await?;
+
+    // Run migrations (idempotent - safe to call multiple times)
     create_schema_version_table(&pool).await?;
     create_users_table(&pool).await?;
     create_settings_table(&pool).await?;
     create_module_config_table(&pool).await?;
     create_files_table(&pool).await?;
     create_queue_table(&pool).await?;
+
+    // Initialize default settings [ARCH-INIT-020]
+    init_default_settings(&pool).await?;
 
     Ok(pool)
 }
@@ -76,7 +104,7 @@ async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
         r#"
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
-            value TEXT NOT NULL,
+            value TEXT,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         "#,
@@ -84,26 +112,110 @@ async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
     .execute(pool)
     .await?;
 
-    // Initialize default settings
-    let defaults = vec![
-        ("initial_play_state", "playing"),
-        ("volume_level", "0.75"),
-        ("global_crossfade_time", "2.0"),
-        ("volume_fade_update_period", "10"),
-        ("playback_progress_interval_ms", "5000"),
-    ];
+    Ok(())
+}
 
-    for (key, value) in defaults {
+/// Initialize or update default settings [ARCH-INIT-020]
+///
+/// This function ensures all required settings exist with default values.
+/// It also handles NULL values by resetting them to defaults.
+async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
+    // Core playback settings
+    ensure_setting(pool, "initial_play_state", "playing").await?;
+    ensure_setting(pool, "volume_level", "0.5").await?;
+    ensure_setting(pool, "global_crossfade_time", "2.0").await?;
+    ensure_setting(pool, "volume_fade_update_period", "10").await?;
+
+    // Audio Player settings
+    ensure_setting(pool, "audio_sink", "default").await?;
+    ensure_setting(pool, "position_event_interval_ms", "1000").await?;
+    ensure_setting(pool, "playback_progress_interval_ms", "5000").await?;
+
+    // Queue management settings
+    ensure_setting(pool, "queue_max_size", "100").await?;
+    ensure_setting(pool, "queue_refill_threshold_passages", "2").await?;
+    ensure_setting(pool, "queue_refill_threshold_seconds", "900").await?;  // 15 minutes
+    ensure_setting(pool, "queue_refill_request_throttle_seconds", "10").await?;
+    ensure_setting(pool, "queue_refill_acknowledgment_timeout_seconds", "5").await?;
+    ensure_setting(pool, "queue_max_enqueue_batch", "5").await?;
+
+    // Session and authentication settings
+    ensure_setting(pool, "session_timeout_seconds", "31536000").await?;  // 1 year
+
+    // Backup settings
+    ensure_setting(pool, "backup_interval_ms", "7776000000").await?;  // 90 days
+    ensure_setting(pool, "backup_minimum_interval_ms", "1209600000").await?;  // 14 days
+    ensure_setting(pool, "backup_retention_count", "3").await?;
+    ensure_setting(pool, "backup_location", "").await?;  // Empty = same folder as db
+    ensure_setting(pool, "last_backup_timestamp_ms", "0").await?;
+
+    // HTTP server settings
+    ensure_setting(pool, "http_base_ports", "[5720, 15720, 25720, 17200, 23400]").await?;
+    ensure_setting(pool, "http_request_timeout_ms", "30000").await?;
+    ensure_setting(pool, "http_keepalive_timeout_ms", "60000").await?;
+    ensure_setting(pool, "http_max_body_size_bytes", "1048576").await?;
+
+    // Module launch/relaunch settings
+    ensure_setting(pool, "relaunch_delay", "5000").await?;  // 5 seconds
+    ensure_setting(pool, "relaunch_attempts", "20").await?;
+
+    // Error handling settings
+    ensure_setting(pool, "playback_failure_threshold", "3").await?;
+    ensure_setting(pool, "playback_failure_window_seconds", "60").await?;
+
+    // Audio Ingest settings (Full version)
+    ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
+
+    info!("Default settings initialized");
+    Ok(())
+}
+
+/// Ensure a setting exists with the specified default value [ARCH-INIT-020]
+///
+/// If the setting doesn't exist, it will be created with the default.
+/// If the setting exists but has a NULL value, it will be reset to the default.
+async fn ensure_setting(pool: &SqlitePool, key: &str, default_value: &str) -> Result<()> {
+    // Check if setting exists
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM settings WHERE key = ?)"
+    )
+    .bind(key)
+    .fetch_one(pool)
+    .await?;
+
+    if !exists {
+        // Setting doesn't exist - create it
         sqlx::query(
-            r#"
-            INSERT OR IGNORE INTO settings (key, value)
-            VALUES (?, ?)
-            "#,
+            "INSERT INTO settings (key, value) VALUES (?, ?)"
         )
         .bind(key)
-        .bind(value)
+        .bind(default_value)
         .execute(pool)
         .await?;
+
+        info!("Initialized setting '{}' with default value: {}", key, default_value);
+        return Ok(());
+    }
+
+    // Check if value is NULL [ARCH-INIT-020 rule 4]
+    let value: Option<String> = sqlx::query_scalar(
+        "SELECT value FROM settings WHERE key = ?"
+    )
+    .bind(key)
+    .fetch_one(pool)
+    .await?;
+
+    if value.is_none() {
+        // Value is NULL - reset to default
+        sqlx::query(
+            "UPDATE settings SET value = ? WHERE key = ?"
+        )
+        .bind(default_value)
+        .bind(key)
+        .execute(pool)
+        .await?;
+
+        warn!("Setting '{}' was NULL, reset to default: {}", key, default_value);
     }
 
     Ok(())

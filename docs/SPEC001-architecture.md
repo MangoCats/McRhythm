@@ -106,7 +106,7 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 
 **Responsibilities:**
 - Implements single-stream audio architecture with sample-accurate crossfading (~0.02ms precision)
-- Decodes audio files using symphonia (MP3, FLAC, AAC, Vorbis, Opus support)
+- Decodes audio files using symphonia (MP3, FLAC, AAC, Vorbis in pure Rust; Opus via C library FFI)
 - Buffers decoded PCM audio in memory with automatic fade application
 - Coordinates passage transitions based on lead-in/lead-out timing
 - Implements five fade curves (Linear, Logarithmic, Exponential, S-Curve, Equal-Power)
@@ -1024,33 +1024,60 @@ Lyric Editor (Full only)
    - Enables deployment-specific configuration without code changes
 3. **TOML config file** (third priority): `root_folder` key in config file
    - Default config file locations:
-     - Linux: `~/.config/wkmp/config.toml` or `/etc/wkmp/config.toml`
-     - macOS: `~/Library/Application Support/wkmp/config.toml`
-     - Windows: `%APPDATA%\wkmp\config.toml`
+     - Linux: `~/.config/wkmp/<module-name>.toml` or `/etc/wkmp/<module-name>.toml`
+     - macOS: `~/Library/Application Support/WKMP/<module-name>.toml`
+     - Windows: `%APPDATA%\WKMP\<module-name>.toml`
    - When present and higher-priority sources are absent, this value is used
-4. **OS-dependent compiled default** (lowest priority, fallback):
-   - Linux: `~/.local/share/wkmp` (or `/var/lib/wkmp` for system-wide installation)
-   - macOS: `~/Library/Application Support/wkmp`
-   - Windows: `%LOCALAPPDATA%\wkmp`
+   - **[REQ-NF-031]** If config file is missing, module SHALL NOT error - proceeds to compiled default
+4. **OS-dependent compiled default** (lowest priority, graceful fallback):
+   - **[REQ-NF-033]** Default locations in user's Music folder:
+     - Linux: `~/Music`
+     - macOS: `~/Music`
+     - Windows: `%USERPROFILE%\Music\wkmp`
    - Used when no other source provides a value
    - Ensures module can always start with a valid root folder path
+   - **[REQ-NF-036]** System automatically creates directory if missing
 
 **Module Startup Sequence:**
-1. Module determines root folder path using resolution priority order above
-2. Module opens database file (`wkmp.db`) in root folder
-3. Module initializes its required database tables using shared initialization functions from `wkmp-common`:
+
+**[ARCH-INIT-010]** Each module follows this initialization sequence:
+
+1. **Resolve root folder path** using resolution priority order above [ARCH-INIT-005]
+   - **[REQ-NF-032]** If TOML config file is missing: Log warning, use compiled default
+   - No error termination for missing config files
+2. **Verify/create root folder directory** [REQ-NF-036]
+   - If directory does not exist, create it automatically
+   - Log informational message about directory creation
+3. **Open database file** (`wkmp.db`) in root folder
+   - **[REQ-NF-036]** If database does not exist, create empty database with default schema
+   - Log informational message about database initialization
+4. **Initialize database tables** using shared initialization functions from `wkmp-common`:
    - Commonly used tables: `module_config`, `settings`, `users` (via shared functions in `wkmp-common/src/db/init.rs`)
    - Module-specific tables: Created directly by each module (e.g., `queue` for Audio Player, `timeslots` for Program Director)
    - All initialization is idempotent (safe to call multiple times, checks if table exists before creating)
-4. Module reads `module_config` table using shared config loader from `wkmp-common`:
+5. **Read module configuration** from `module_config` table using shared config loader from `wkmp-common`:
    - Shared config loader calls `init_module_config_table()` if table missing
    - If own module's config is missing, inserts default host/port and logs warning
    - If other required modules' configs are missing, inserts defaults and logs warnings
-   - Default configurations: user_interface (127.0.0.1:5720), audio_player (127.0.0.1:5721), program_director (127.0.0.1:5722), audio_ingest (127.0.0.1:5723), lyric_editor (127.0.0.1:5724)
-5. Module retrieves its own `host` and `port` configuration
-6. Module binds to configured address/port
-7. Module retrieves other modules' configurations for HTTP client setup (if needed for making requests to peer modules)
-8. Module begins accepting connections and making requests to peer modules
+   - Default configurations: user_interface (127.0.0.1:5720), audio_player (127.0.0.1:5721), program_director (127.0.0.1:5722), audio_ingest (0.0.0.0:5723), lyric_editor (0.0.0.0:5724)
+6. **Retrieve own host and port** configuration
+7. **Bind to configured address/port**
+8. **Retrieve other modules' configurations** for HTTP client setup (if needed for making requests to peer modules)
+9. **Begin accepting connections** and making requests to peer modules
+
+**Graceful Degradation Behavior:**
+
+**[ARCH-INIT-015]** Missing configuration handling [REQ-NF-031, REQ-NF-032]:
+
+- **Missing TOML config file**: Log warning, use compiled defaults, proceed with startup
+  - Example: `WARN: Config file not found at ~/.config/wkmp/audio-player.toml, using defaults`
+- **Missing root folder directory**: Create directory automatically, log info message
+  - Example: `INFO: Created root folder directory: ~/Music`
+- **Missing database file**: Create new database with default schema, log info message
+  - Example: `INFO: Initialized new database: ~/Music/wkmp.db`
+- **Missing database tables**: Create tables automatically via idempotent initialization functions
+- **Missing settings values**: Insert compiled defaults into database
+- **Result**: Module starts successfully with default configuration, no user intervention required
 
 **Default Value Initialization Behavior:**
 
@@ -1298,7 +1325,10 @@ WKMP is built in three versions (Full, Lite, Minimal) by **packaging different c
 - JSON request/response handling
 
 **Audio Processing (Audio Player only):**
-- Audio decoding: symphonia 0.5.x (pure Rust, supports MP3, FLAC, AAC, Vorbis, Opus, etc.)
+- Audio decoding: symphonia 0.5.x (primarily pure Rust)
+  - Pure Rust codecs: MP3, FLAC, AAC (M4A), Vorbis (OGG), WAV (PCM), ADPCM
+  - FFI-based codecs: Opus (via symphonia-adapter-libopus + libopus C library)
+  - [REQ-TECH-022A]: Opus exception approved for C library integration (see REV003)
 - Sample rate conversion: rubato 0.15.x (high-quality resampling)
 - Audio output: cpal 0.15.x (cross-platform, supports PulseAudio, ALSA, CoreAudio, WASAPI)
 - Crossfading: Custom single-stream implementation with sample-accurate mixing

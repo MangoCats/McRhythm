@@ -40,6 +40,26 @@ See [GOV003-filename_convention.md](GOV003-filename_convention.md) for complete 
 
 WKMP project documentation is organized into a strict hierarchy that governs how information flows between documents and when each document should be updated.
 
+### User Documentation vs Technical Documentation
+
+WKMP distinguishes between two major categories of documentation:
+
+**Technical Documentation** (docs/ root level):
+- Intended for developers, architects, and contributors
+- Follows the 5-tier hierarchy (Tier 0-4 + Tier R)
+- Uses formal document naming conventions (GOV###, REQ###, SPEC###, etc.)
+- Contains requirements, architecture, implementation specs, and execution plans
+- Stored directly in `docs/` directory
+
+**User Documentation** (docs/user/):
+- Intended for end users and system administrators
+- Focuses on installation, operation, configuration, and troubleshooting
+- Uses descriptive filenames (QUICKSTART.md, TROUBLESHOOTING.md, etc.)
+- Written in plain language with step-by-step instructions
+- Stored in `docs/user/` subdirectory
+
+**Key Principle:** User documentation is derived FROM technical documentation (especially requirements and specifications) but is written at a different level of abstraction. Changes to technical docs may require updates to user docs, but user docs do not influence technical docs.
+
 
 ## Document Purposes and Update Policies
 
@@ -831,6 +851,7 @@ Cascade: Update implementation_order.md with optimization task
 | deployment.md | 3 | Deployment strategy changes | Tier 4 | DevOps lead |
 | implementation_order.md | 4 | Any upstream change | None (downstream only) | Project manager |
 | GOV002-requirements_enumeration.md | Cross-cutting | ID scheme changes | ID format in all docs | Doc lead |
+| **User Documentation (docs/user/)** | N/A | Requirements/specs change | None (derived only) | Documentation lead |
 
 ## Quick Reference: "Should I Update This Document?"
 
@@ -862,11 +883,16 @@ Cascade: Update implementation_order.md with optimization task
 
 ---
 
-**Document Version:** 1.3
+**Document Version:** 1.4
 **Last Updated:** 2025-10-18
 **Maintained By:** Technical Lead
 
 **Change Log:**
+- v1.4 (2025-10-18): Added User Documentation section and guidance
+  - Created docs/user/ folder for user-facing documentation
+  - Distinguished between technical docs (developers) and user docs (end users)
+  - Added user documentation entry to document update summary table
+  - Established principle: user docs derived FROM technical docs
 - v1.3 (2025-10-18): Added Tier R (Review & Change Control) classification
   - Added REV###-*.md (Revision/Review Documents)
   - Added CHANGELOG-*.md (Change Log Documents)

@@ -6,6 +6,7 @@
 //! - [SSD-DEC-010] Decode-from-start-and-skip approach
 //! - [SSD-DEC-013] Always decode from beginning (never use compressed seek)
 //! - [SSD-FBUF-021] Decode-and-skip for accurate timing
+//! - [REQ-TECH-022A] Opus codec via C library FFI (symphonia-adapter-libopus)
 
 use crate::error::{Error, Result};
 use std::path::PathBuf;
@@ -16,6 +17,31 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use tracing::{debug, warn};
+
+// Import Opus adapter to register codec with symphonia
+// [REQ-TECH-022A]: Opus support via libopus C library FFI
+use symphonia::core::codecs::CodecRegistry;
+use symphonia_adapter_libopus::OpusDecoder;
+use std::sync::OnceLock;
+
+/// Get codec registry with Opus support
+/// [REQ-TECH-022A]: Registers OpusDecoder with symphonia codec registry
+fn get_codec_registry() -> &'static CodecRegistry {
+    static CODEC_REGISTRY: OnceLock<CodecRegistry> = OnceLock::new();
+    CODEC_REGISTRY.get_or_init(|| {
+        let mut registry = CodecRegistry::new();
+        // Register Opus decoder first
+        registry.register_all::<OpusDecoder>();
+        // Register default codecs (MP3, FLAC, Vorbis, etc.)
+        registry.register_all::<symphonia::default::codecs::MpaDecoder>();
+        registry.register_all::<symphonia::default::codecs::PcmDecoder>();
+        registry.register_all::<symphonia::default::codecs::VorbisDecoder>();
+        registry.register_all::<symphonia::default::codecs::FlacDecoder>();
+        registry.register_all::<symphonia::default::codecs::AdpcmDecoder>();
+        registry.register_all::<symphonia::default::codecs::AacDecoder>();
+        registry
+    })
+}
 
 /// Simple audio decoder using symphonia.
 ///
@@ -89,8 +115,9 @@ impl SimpleDecoder {
         );
 
         // Create decoder
+        // [REQ-TECH-022A]: Use custom codec registry with Opus support
         let decoder_opts = DecoderOptions::default();
-        let mut decoder = symphonia::default::get_codecs()
+        let mut decoder = get_codec_registry()
             .make(&codec_params, &decoder_opts)
             .map_err(|e| Error::Decode(format!("Failed to create decoder: {}", e)))?;
 

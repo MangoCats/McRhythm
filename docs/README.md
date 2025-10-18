@@ -1,22 +1,85 @@
-﻿# WKMP Audio Player Documentation
+﻿# WKMP Documentation
 
-## Audio Playback Architecture Documentation
+This directory contains comprehensive documentation for the WKMP (Auto DJ Music Player) project.
 
-This directory contains comprehensive documentation for the WKMP Audio Player's playback architecture designs.
+## Documentation Structure
 
-### 📚 Document Index
+WKMP documentation is organized into two major categories:
 
-1. **[architecture-comparison.md](archive/ARCH003-architecture_comparison.md)** - **START HERE**
+### 📘 Technical Documentation (docs/ root)
+
+**Audience:** Developers, architects, contributors
+
+Technical documentation follows a strict 5-tier hierarchy (see [GOV001-document_hierarchy.md](GOV001-document_hierarchy.md)):
+
+- **Tier 0 (Governance):** Documentation framework and standards
+- **Tier R (Review):** Design reviews, architectural changes, change logs
+- **Tier 1 (Requirements):** What the system must do
+- **Tier 2 (Design):** How requirements are satisfied
+- **Tier 3 (Implementation):** Concrete implementation specifications
+- **Tier 4 (Execution):** When features are built
+
+**Key Documents:**
+- [Document Hierarchy](GOV001-document_hierarchy.md) - START HERE for understanding doc structure
+- [Requirements](REQ001-requirements.md) - Complete feature specifications
+- [Architecture](SPEC001-architecture.md) - System structure and components
+- [API Design](SPEC007-api_design.md) - REST API and SSE specifications
+- [Database Schema](IMPL001-database_schema.md) - Data model and migrations
+- [Implementation Order](EXEC001-implementation_order.md) - Development roadmap
+
+### 📗 User Documentation (docs/user/)
+
+**Audience:** End users, system administrators
+
+User documentation provides practical guides for installation, operation, and troubleshooting:
+
+- **[QUICKSTART.md](user/QUICKSTART.md)** - Get WKMP running in under 5 minutes
+- **[TROUBLESHOOTING.md](user/TROUBLESHOOTING.md)** - Diagnose and resolve common issues
+
+See [docs/user/README.md](user/README.md) for complete user documentation index.
+
+---
+
+## Quick Start for Developers
+
+1. **Understand the documentation framework:** Read [GOV001-document_hierarchy.md](GOV001-document_hierarchy.md)
+2. **Learn what WKMP does:** Read [REQ001-requirements.md](REQ001-requirements.md)
+3. **Understand the architecture:** Read [SPEC001-architecture.md](SPEC001-architecture.md)
+4. **See implementation details:** Browse Tier 3 documents (IMPL###-*.md)
+5. **Follow the development plan:** Read [EXEC001-implementation_order.md](EXEC001-implementation_order.md)
+
+---
+
+## Document Types
+
+Technical documents use systematic naming conventions (see [GOV003-filename_convention.md](GOV003-filename_convention.md)):
+
+- **GOV###:** Governance and meta-documentation
+- **REQ###:** Requirements and entity definitions
+- **SPEC###:** Design specifications
+- **IMPL###:** Implementation details
+- **EXEC###:** Execution plans and roadmaps
+- **REV###:** Design reviews and architectural changes
+- **CHANGELOG-*:** Detailed change tracking
+- **ADDENDUM-*:** Temporary clarifications
+- **MIGRATION-*:** Migration guides
+
+---
+
+## Architecture Overview
+
+### Playback Architecture
+
+1. **[architecture-comparison.md](archive/ARCH003-architecture_comparison.md)** - **Historical Reference**
    - Side-by-side comparison of Dual Pipeline vs Single Stream approaches
    - Detailed analysis of implementation complexity, performance, and deployment
    - Recommendation table with scores
    - Best for: Decision making and understanding trade-offs
 
-2. **[single-stream-design.md](SPEC013-single_stream_playback.md)** - **CORE DESIGN DESCRIPTION**
+2. **[single-stream-design.md](SPEC013-single_stream_playback.md)** - **Current Design**
    - Manual buffer management with sample-accurate crossfading
    - Pure Rust implementation using symphonia, rubato, and cpal
    - Detailed component design and implementation phases
-   - Status: 📋 Proposed (not yet implemented)
 
 ### 📜 Reading Guide
 

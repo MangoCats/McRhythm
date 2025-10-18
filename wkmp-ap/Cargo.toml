@@ -34,7 +34,10 @@ futures = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
 
 # Audio processing
+# Note: Opus support via symphonia-adapter-libopus [REQ-TECH-022A]
+# Requires libopus system library (see IMPL006-opus_integration.md)
 symphonia = { version = "0.5", features = ["mp3", "flac", "aac", "isomp4", "vorbis"] }
+symphonia-adapter-libopus = "0.2.3"
 rubato = "0.15"
 cpal = "0.15"
 ringbuf = "0.4"

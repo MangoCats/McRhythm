@@ -7,9 +7,11 @@
 pub mod buffer_manager;
 pub mod decoder_pool;
 pub mod engine;
+pub mod events;
 pub mod pipeline;
 pub mod queue_manager;
 pub mod ring_buffer;
+pub mod song_timeline;
 pub mod types;
 
 pub use buffer_manager::BufferManager;

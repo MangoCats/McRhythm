@@ -182,6 +182,13 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 **[REQ-TECH-020]** Technical Stack:
   - **[REQ-TECH-021]** Rust
   - **[REQ-TECH-022]** Single-stream audio architecture (symphonia for decoding, rubato for resampling, cpal for output)
+    - **[REQ-TECH-022A]** Exception: Opus codec support via C library FFI
+      - **Rationale:** Pure Rust Opus implementation not available in symphonia 0.5.x
+      - **Implementation:** `symphonia-adapter-libopus` crate providing FFI bindings to libopus
+      - **Scope:** Limited to Opus codec only; all other codecs use pure Rust implementations
+      - **Precedent:** Consistent with existing Chromaprint C library usage for fingerprinting
+      - **Deployment:** Requires libopus system library installation on target platforms
+      - **See:** [REV003-opus_c_library_exception.md](REV003-opus_c_library_exception.md) for complete rationale
   - **[REQ-TECH-023]** SQLite
   - **[REQ-TECH-024]** Web server
   
@@ -214,6 +221,32 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-NF-020]** Errors logged to developer interface, otherwise gracefully ignored and continue playing as best as able
   - developer interface is stdout/stderr
+
+**[REQ-NF-030]** Configuration file graceful degradation
+  - **[REQ-NF-031]** When a microservice's TOML configuration file is missing, the system SHALL NOT terminate with an error
+  - **[REQ-NF-032]** Missing configuration files SHALL result in:
+    - A warning logged to stdout/stderr indicating the missing file path
+    - Automatic fallback to compiled default values
+    - Successful module startup with default configuration
+  - **[REQ-NF-033]** Root folder default location (when config file absent and no command-line/environment override):
+    - Linux: `~/Music` (user's Music folder)
+    - macOS: `~/Music` (user's Music folder)
+    - Windows: `%USERPROFILE%\Music` (user's Music folder)
+  - **[REQ-NF-034]** Other configuration defaults (when config file absent):
+    - Logging level: `info`
+    - Log file: stdout only (no file logging)
+    - Static assets: platform-specific standard paths (e.g., `/usr/local/share/wkmp/ui/` on Linux)
+  - **[REQ-NF-035]** Priority order for root folder resolution remains unchanged:
+    1. Command-line argument (highest priority)
+    2. Environment variable (second priority)
+    3. TOML configuration file (third priority)
+    4. Compiled default (lowest priority, graceful fallback)
+  - **[REQ-NF-036]** First-run experience:
+    - When started with default Music folder path, system SHALL create necessary directories automatically
+    - If database does not exist at root folder path, system SHALL create empty database with default schema
+    - System SHALL remain operational and log informational messages about initialization
+
+> **See [Architecture - Initialization](SPEC001-architecture.md#module-initialization) for detailed startup sequence and default value handling.**
 
 ## Passage Identification & Library Management
 

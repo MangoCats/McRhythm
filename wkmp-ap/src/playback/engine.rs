@@ -5,6 +5,7 @@
 //! **Traceability:**
 //! - [SSD-FLOW-010] Complete playback sequence
 //! - [SSD-ENG-020] Queue processing
+//! - [REV002] Event-driven position tracking
 
 use crate::audio::output::AudioOutput;
 use crate::audio::types::AudioFrame;
@@ -12,16 +13,19 @@ use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, val
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::decoder_pool::DecoderPool;
+use crate::playback::events::PlaybackEvent;
 use crate::playback::pipeline::mixer::CrossfadeMixer;
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
 use crate::playback::ring_buffer::AudioRingBuffer;
+use crate::playback::song_timeline::SongTimeline;
 use crate::playback::types::DecodePriority;
 use crate::state::{CurrentPassage, PlaybackState, SharedState};
 use sqlx::{Pool, Sqlite};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -86,12 +90,28 @@ pub struct PlaybackEngine {
 
     /// Playback loop running flag
     running: Arc<RwLock<bool>>,
+
+    /// Position event channel sender
+    /// **[REV002]** Event-driven position tracking
+    /// Mixer sends position events to handler via this channel
+    position_event_tx: mpsc::UnboundedSender<PlaybackEvent>,
+
+    /// Position event channel receiver
+    /// **[REV002]** Taken by position_event_handler on start
+    /// Wrapped in Option so it can be taken once
+    position_event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<PlaybackEvent>>>>,
+
+    /// Song timeline for current passage
+    /// **[REV002]** Loaded when passage starts, used for boundary detection
+    /// None when no passage playing or passage has no songs
+    current_song_timeline: Arc<RwLock<Option<SongTimeline>>>,
 }
 
 impl PlaybackEngine {
     /// Create new playback engine
     ///
     /// [SSD-FLOW-010] Initialize all components
+    /// **[REV002]** Configure event-driven position tracking
     pub async fn new(db_pool: Pool<Sqlite>, state: Arc<SharedState>) -> Result<Self> {
         info!("Creating playback engine");
 
@@ -101,9 +121,23 @@ impl PlaybackEngine {
         // Create decoder pool
         let decoder_pool = DecoderPool::new(Arc::clone(&buffer_manager));
 
+        // **[REV002]** Create position event channel
+        let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
+
         // Create mixer
         // [SSD-MIX-010] Crossfade mixer for sample-accurate mixing
-        let mixer = Arc::new(RwLock::new(CrossfadeMixer::new()));
+        let mut mixer = CrossfadeMixer::new();
+
+        // **[REV002]** Configure mixer with event channel
+        mixer.set_event_channel(position_event_tx.clone());
+
+        // **[REV002]** Load position_event_interval_ms from database
+        let interval_ms = crate::db::settings::load_position_event_interval(&db_pool)
+            .await
+            .unwrap_or(1000); // Default: 1 second
+        mixer.set_position_event_interval_ms(interval_ms);
+
+        let mixer = Arc::new(RwLock::new(mixer));
 
         // Load queue from database
         let queue_manager = QueueManager::load_from_db(&db_pool).await?;
@@ -118,6 +152,9 @@ impl PlaybackEngine {
             mixer,
             position: PlaybackPosition::new(), // [ISSUE-8] Direct initialization, Arcs inside
             running: Arc::new(RwLock::new(false)),
+            position_event_tx,
+            position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
+            current_song_timeline: Arc::new(RwLock::new(None)),
         })
     }
 
@@ -139,10 +176,10 @@ impl PlaybackEngine {
             }
         });
 
-        // Start position tracking loop
+        // **[REV002]** Start position event handler (replaces position_tracking_loop)
         let self_clone = self.clone_handles();
         tokio::spawn(async move {
-            self_clone.position_tracking_loop().await;
+            self_clone.position_event_handler().await;
         });
 
         // Create lock-free ring buffer for audio frames
@@ -924,6 +961,49 @@ impl PlaybackEngine {
                         // Get passage timing information
                         let passage = self.get_passage_timing(current).await?;
 
+                        // **[REV002]** Load song timeline for passage
+                        if let Some(passage_id) = current.passage_id {
+                            match crate::db::passage_songs::load_song_timeline(&self.db_pool, passage_id).await {
+                                Ok(timeline) => {
+                                    // Get initial song at position 0
+                                    let initial_song_id = timeline.get_current_song(0);
+                                    let timeline_len = timeline.len();
+                                    let timeline_not_empty = !timeline.is_empty();
+
+                                    // Store timeline for boundary detection
+                                    *self.current_song_timeline.write().await = Some(timeline);
+
+                                    // Emit initial CurrentSongChanged if passage starts within a song
+                                    if initial_song_id.is_some() || timeline_not_empty {
+                                        debug!(
+                                            "Passage starts with song: {:?}",
+                                            initial_song_id
+                                        );
+
+                                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
+                                            passage_id,
+                                            song_id: initial_song_id,
+                                            position_ms: 0,
+                                            timestamp: chrono::Utc::now(),
+                                        });
+                                    }
+
+                                    info!("Loaded song timeline: {} entries", timeline_len);
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        "Failed to load song timeline for passage {}: {} (continuing without song boundaries)",
+                                        passage_id, e
+                                    );
+                                    // Continue playback without song boundary detection
+                                    *self.current_song_timeline.write().await = None;
+                                }
+                            }
+                        } else {
+                            // Ephemeral passage - no song timeline
+                            *self.current_song_timeline.write().await = None;
+                        }
+
                         // Calculate fade-in duration from timing points
                         // fade_in_point_ms is where fade-in completes, so duration = fade_in - start
                         let fade_in_duration_ms = passage.fade_in_point_ms.saturating_sub(passage.start_time_ms) as u32;
@@ -1141,80 +1221,130 @@ impl PlaybackEngine {
         }
     }
 
-    /// Position tracking loop
+    /// Position event handler (replaces position_tracking_loop)
     ///
-    /// Updates SharedState with current position periodically
-    async fn position_tracking_loop(&self) {
-        let mut tick = interval(Duration::from_millis(1000)); // Update every second
-        let mut progress_counter = 0;
+    /// **[REV002]** Event-driven position tracking
+    /// **[ARCH-SNGC-030]** Event-driven position tracking architecture
+    ///
+    /// Receives PositionUpdate events from mixer and:
+    /// 1. Checks song boundaries and emits CurrentSongChanged events
+    /// 2. Emits PlaybackProgress events every N seconds
+    /// 3. Updates shared state with current position
+    async fn position_event_handler(&self) {
+        // Take ownership of receiver (only one handler allowed)
+        let mut rx = match self.position_event_rx.write().await.take() {
+            Some(rx) => rx,
+            None => {
+                error!("Position event receiver already taken!");
+                return;
+            }
+        };
+
+        // Load playback_progress_interval_ms from database
+        let progress_interval_ms = crate::db::settings::load_progress_interval(&self.db_pool)
+            .await
+            .unwrap_or(5000); // Default: 5 seconds
+
+        let mut last_progress_position_ms = 0u64;
+
+        info!("Position event handler started (progress interval: {}ms)", progress_interval_ms);
 
         loop {
-            tick.tick().await;
+            // Wait for position event
+            match rx.recv().await {
+                Some(PlaybackEvent::PositionUpdate { queue_entry_id, position_ms }) => {
+                    // [1] Check song boundary
+                    let mut timeline = self.current_song_timeline.write().await;
+                    if let Some(timeline) = timeline.as_mut() {
+                        let (crossed, new_song_id) = timeline.check_boundary(position_ms);
 
-            // Check if we should continue running
-            if !*self.running.read().await {
-                break;
-            }
+                        if crossed {
+                            // Get passage_id for event
+                            let queue = self.queue.read().await;
+                            let passage_id = queue.current()
+                                .and_then(|e| e.passage_id)
+                                .unwrap_or_else(|| uuid::Uuid::nil());
+                            drop(queue);
 
-            // Get current position from mixer
-            // [SSD-MIX-010] Mixer tracks playback position
-            let mixer = self.mixer.read().await;
-            let mixer_position_frames = mixer.get_position();
-            let mixer_passage_id = mixer.get_current_passage_id();
-            drop(mixer);
+                            // Emit CurrentSongChanged event
+                            info!(
+                                "Song boundary crossed: new_song={:?}, position={}ms",
+                                new_song_id, position_ms
+                            );
 
-            // Update position in PlaybackPosition for reference
-            // [ISSUE-8] Lock-free atomic update for performance
-            self.position.frame_position.store(mixer_position_frames as u64, Ordering::Relaxed);
-
-            // Update current passage in shared state
-            let queue = self.queue.read().await;
-
-            if let Some(current) = queue.current() {
-                // Only update if mixer is playing the current queue entry
-                if mixer_passage_id == Some(current.queue_entry_id) {
-                    // Get buffer to calculate duration
-                    if let Some(buffer_ref) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
-                        let buffer = buffer_ref.read().await;
-
-                        // Convert frame position to milliseconds
-                        let position_ms = (mixer_position_frames as u64 * 1000) / buffer.sample_rate as u64;
-                        let duration_ms = buffer.duration_ms();
-
-                        let current_passage = CurrentPassage {
-                            queue_entry_id: current.queue_entry_id,
-                            passage_id: current.passage_id,
-                            position_ms,
-                            duration_ms,
-                        };
-
-                        self.state.set_current_passage(Some(current_passage.clone())).await;
-
-                        // Emit PlaybackProgress event every 5 seconds (if playing)
-                        progress_counter += 1;
-                        if progress_counter >= 5 {
-                            progress_counter = 0;
-                            let playback_state = self.state.get_playback_state().await;
-                            if playback_state == PlaybackState::Playing {
-                                debug!(
-                                    "PlaybackProgress: position={}ms duration={}ms",
-                                    current_passage.position_ms,
-                                    current_passage.duration_ms
-                                );
-                                self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
-                                    passage_id: current_passage.passage_id.unwrap_or_else(|| Uuid::nil()),
-                                    position_ms: current_passage.position_ms,
-                                    duration_ms: current_passage.duration_ms,
-                                    timestamp: chrono::Utc::now(),
-                                });
-                            }
+                            self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
+                                passage_id,
+                                song_id: new_song_id,
+                                position_ms,
+                                timestamp: chrono::Utc::now(),
+                            });
                         }
                     }
+                    drop(timeline);
+
+                    // [2] Check if PlaybackProgress interval elapsed
+                    if position_ms >= last_progress_position_ms + progress_interval_ms {
+                        last_progress_position_ms = position_ms;
+
+                        // Get duration from buffer
+                        if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                            let buffer = buffer_ref.read().await;
+                            let duration_ms = buffer.duration_ms();
+
+                            // Get passage_id for event
+                            let queue = self.queue.read().await;
+                            let passage_id = queue.current()
+                                .and_then(|e| e.passage_id)
+                                .unwrap_or_else(|| uuid::Uuid::nil());
+                            drop(queue);
+
+                            debug!(
+                                "PlaybackProgress: position={}ms, duration={}ms",
+                                position_ms, duration_ms
+                            );
+
+                            self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
+                                passage_id,
+                                position_ms,
+                                duration_ms,
+                                timestamp: chrono::Utc::now(),
+                            });
+                        }
+                    }
+
+                    // [3] Update shared state
+                    let queue = self.queue.read().await;
+                    if let Some(current) = queue.current() {
+                        if current.queue_entry_id == queue_entry_id {
+                            if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                                let buffer = buffer_ref.read().await;
+                                let duration_ms = buffer.duration_ms();
+
+                                let current_passage = CurrentPassage {
+                                    queue_entry_id: current.queue_entry_id,
+                                    passage_id: current.passage_id,
+                                    position_ms,
+                                    duration_ms,
+                                };
+
+                                self.state.set_current_passage(Some(current_passage)).await;
+                            }
+                        }
+                    } else {
+                        // No current passage
+                        self.state.set_current_passage(None).await;
+                    }
                 }
-            } else {
-                // No current passage
-                self.state.set_current_passage(None).await;
-                progress_counter = 0;
+
+                Some(PlaybackEvent::StateChanged { .. }) => {
+                    // Future: Handle state change events
+                }
+
+                None => {
+                    // Channel closed, handler should exit
+                    info!("Position event handler stopping (channel closed)");
+                    break;
+                }
             }
         }
     }
@@ -1230,6 +1360,9 @@ impl PlaybackEngine {
             mixer: Arc::clone(&self.mixer),
             position: self.position.clone_handles(), // [ISSUE-8] Clone inner Arcs
             running: Arc::clone(&self.running),
+            position_event_tx: self.position_event_tx.clone(), // **[REV002]** Clone sender
+            position_event_rx: Arc::clone(&self.position_event_rx), // **[REV002]** Clone receiver
+            current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
         }
     }
 }

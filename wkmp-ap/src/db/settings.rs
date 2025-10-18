@@ -163,6 +163,46 @@ pub async fn load_queue_state(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
     }
 }
 
+/// Load position_event_interval_ms from settings table
+///
+/// **[REV002]** Event-driven position tracking
+/// **[ADDENDUM-interval_configurability]** Configurable position event interval
+///
+/// # Returns
+/// Interval in milliseconds (default: 1000ms if not set)
+pub async fn load_position_event_interval(db: &Pool<Sqlite>) -> Result<u32> {
+    match get_setting::<u32>(db, "position_event_interval_ms").await? {
+        Some(interval) => {
+            // Clamp to valid range: 100-5000ms
+            Ok(interval.clamp(100, 5000))
+        }
+        None => {
+            // Default: 1000ms (1 second)
+            Ok(1000)
+        }
+    }
+}
+
+/// Load playback_progress_interval_ms from settings table
+///
+/// **[REV002]** Event-driven position tracking
+/// **[ADDENDUM-interval_configurability]** Configurable playback progress interval
+///
+/// # Returns
+/// Interval in milliseconds (default: 5000ms if not set)
+pub async fn load_progress_interval(db: &Pool<Sqlite>) -> Result<u64> {
+    match get_setting::<u64>(db, "playback_progress_interval_ms").await? {
+        Some(interval) => {
+            // Clamp to valid range: 1000-60000ms (1-60 seconds)
+            Ok(interval.clamp(1000, 60000))
+        }
+        None => {
+            // Default: 5000ms (5 seconds)
+            Ok(5000)
+        }
+    }
+}
+
 /// Generic setting getter
 ///
 /// Returns None if key doesn't exist in database.

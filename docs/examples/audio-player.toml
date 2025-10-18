@@ -1,0 +1,31 @@
+# Example TOML configuration for WKMP Audio Player (wkmp-ap)
+#
+# NOTE: This file is OPTIONAL. If missing, wkmp-ap uses compiled defaults.
+# [REQ-NF-031, REQ-NF-032]: Missing config files do NOT cause errors.
+#
+# Default location (if you want to use this file):
+# - Linux: ~/.config/wkmp/audio-player.toml
+# - macOS: ~/Library/Application Support/WKMP/audio-player.toml
+# - Windows: %APPDATA%\WKMP\audio-player.toml
+
+# Root folder path containing database and audio files
+# Default (if not specified or file missing): ~/Music (Linux/macOS), %USERPROFILE%\Music\wkmp (Windows)
+# [REQ-NF-033]: Platform-specific default locations
+root_folder = "~/Music"
+
+# Logging configuration
+[logging]
+# Log level: trace, debug, info, warn, error
+# Default (if not specified): info
+level = "info"
+
+# Log file path (empty or omitted = stdout only)
+# Default (if not specified): stdout only
+log_file = ""
+
+# Static assets path (not typically needed - uses platform defaults)
+# Default locations:
+# - Linux: /usr/local/share/wkmp/audio-player/
+# - macOS: /Applications/WKMP.app/Contents/Resources/audio-player/
+# - Windows: C:\Program Files\WKMP\share\audio-player\
+# static_assets = "/custom/path/to/assets"

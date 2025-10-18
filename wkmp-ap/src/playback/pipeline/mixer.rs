@@ -10,11 +10,15 @@
 //! - [SSD-MIX-040] Crossfade initiation
 //! - [SSD-MIX-050] Sample-accurate mixing
 //! - [SSD-MIX-060] Passage completion detection
+//! - [REV002] Event-driven position tracking
 
 use crate::audio::types::{AudioFrame, PassageBuffer};
 use crate::error::Error;
+use crate::playback::events::PlaybackEvent;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tracing::trace;
 use uuid::Uuid;
 use wkmp_common::FadeCurve;
 
@@ -30,6 +34,25 @@ pub struct CrossfadeMixer {
 
     /// Sample rate (always 44100)
     sample_rate: u32,
+
+    /// Event emission channel (optional)
+    ///
+    /// **[REV002]** Event-driven position tracking
+    /// When configured, mixer emits PositionUpdate events periodically
+    event_tx: Option<mpsc::UnboundedSender<PlaybackEvent>>,
+
+    /// Frame counter for position event emission
+    ///
+    /// Incremented on every frame. When reaches position_event_interval_frames,
+    /// a PositionUpdate event is emitted and counter resets to 0.
+    frame_counter: usize,
+
+    /// Position event interval in frames
+    ///
+    /// **[ADDENDUM-interval_configurability]** Configurable from database
+    /// Default: 44100 frames (1 second @ 44.1kHz)
+    /// Loaded from `position_event_interval_ms` database setting
+    position_event_interval_frames: usize,
 }
 
 /// Mixer state machine
@@ -82,7 +105,36 @@ impl CrossfadeMixer {
         CrossfadeMixer {
             state: MixerState::None,
             sample_rate: STANDARD_SAMPLE_RATE,
+            event_tx: None,
+            frame_counter: 0,
+            position_event_interval_frames: 44100, // Default: 1 second
         }
+    }
+
+    /// Set event channel for position updates
+    ///
+    /// **[REV002]** Configure event emission
+    ///
+    /// # Arguments
+    /// * `tx` - Unbounded sender for position events
+    pub fn set_event_channel(&mut self, tx: mpsc::UnboundedSender<PlaybackEvent>) {
+        self.event_tx = Some(tx);
+    }
+
+    /// Set position event interval from database setting
+    ///
+    /// **[ADDENDUM-interval_configurability]** Configurable interval
+    ///
+    /// # Arguments
+    /// * `interval_ms` - Interval in milliseconds (will be converted to frames)
+    pub fn set_position_event_interval_ms(&mut self, interval_ms: u32) {
+        self.position_event_interval_frames =
+            ((interval_ms as f32 / 1000.0) * self.sample_rate as f32) as usize;
+        trace!(
+            "Position event interval set to {} ms ({} frames)",
+            interval_ms,
+            self.position_event_interval_frames
+        );
     }
 
     /// Start playing a passage (no crossfade)
@@ -168,11 +220,13 @@ impl CrossfadeMixer {
     /// Get next audio frame
     ///
     /// **[SSD-MIX-050]** Sample-accurate mixing with fade curve application
+    /// **[REV002]** Now emits PositionUpdate events periodically
     ///
     /// # Returns
     /// Next audio frame (stereo sample), or silence if no audio playing
     pub async fn get_next_frame(&mut self) -> AudioFrame {
-        match &mut self.state {
+        // Generate frame based on current state
+        let frame = match &mut self.state {
             MixerState::None => AudioFrame::zero(),
 
             MixerState::SinglePassage {
@@ -265,7 +319,47 @@ impl CrossfadeMixer {
 
                 mixed
             }
+        };
+
+        // **[REV002]** Emit position events periodically
+        // This runs after frame generation to include position in the event
+        self.frame_counter += 1;
+
+        if self.frame_counter >= self.position_event_interval_frames {
+            self.frame_counter = 0; // Reset counter
+
+            // Emit PositionUpdate event if channel configured
+            if let Some(tx) = &self.event_tx {
+                if let Some(passage_id) = self.get_current_passage_id() {
+                    let position_ms = self.calculate_position_ms();
+
+                    // Non-blocking send (use try_send to avoid blocking audio thread)
+                    let _ = tx.send(PlaybackEvent::PositionUpdate {
+                        queue_entry_id: passage_id,
+                        position_ms,
+                    });
+
+                    trace!(
+                        "Emitted PositionUpdate: passage={}, position={}ms",
+                        passage_id,
+                        position_ms
+                    );
+                }
+            }
         }
+
+        frame
+    }
+
+    /// Calculate current position in milliseconds
+    ///
+    /// **[REV002]** Helper for position event emission
+    ///
+    /// # Returns
+    /// Current playback position in milliseconds
+    fn calculate_position_ms(&self) -> u64 {
+        let position_frames = self.get_position();
+        (position_frames as u64 * 1000) / self.sample_rate as u64
     }
 
     /// Check if current passage finished

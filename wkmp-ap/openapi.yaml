@@ -1,0 +1,971 @@
+openapi: 3.0.3
+info:
+  title: WKMP Audio Player API
+  description: |
+    REST API for the WKMP Audio Player module (wkmp-ap).
+
+    The Audio Player is the core playback engine responsible for:
+    - Decoding audio files (MP3, FLAC, AAC, Vorbis, Opus)
+    - Managing playback queue with SQLite persistence
+    - Sample-accurate crossfading (~0.02ms precision)
+    - Real-time event broadcasting via Server-Sent Events (SSE)
+
+    **Architecture:** Single-stream audio pipeline using symphonia + rubato + cpal
+
+    **Default Port:** 5721 (configurable)
+
+    **Module Version:** See `/health` endpoint
+  version: 1.0.0
+  contact:
+    name: WKMP Project
+  license:
+    name: (License TBD)
+
+servers:
+  - url: http://localhost:5721
+    description: Default development server
+  - url: http://127.0.0.1:5721
+    description: Localhost
+
+tags:
+  - name: Health
+    description: Module health and status
+  - name: Audio
+    description: Audio device and volume control
+  - name: Playback
+    description: Playback control and queue management
+  - name: Events
+    description: Server-Sent Events (SSE) stream
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: |
+        Returns module health status, name, and version.
+
+        This endpoint is required for all WKMP modules and is used for
+        service discovery and health monitoring.
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Module is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "healthy"
+                module: "audio_player"
+                version: "0.1.0"
+
+  /audio/devices:
+    get:
+      summary: List available audio devices
+      description: |
+        Returns a list of available audio output devices detected by cpal.
+
+        Device names can be used with POST /audio/device to select output.
+      operationId: listAudioDevices
+      tags:
+        - Audio
+      responses:
+        '200':
+          description: List of available devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceListResponse'
+              example:
+                devices:
+                  - "default"
+                  - "PulseAudio"
+                  - "HDA Intel PCH, ALC887-VD Analog"
+        '500':
+          description: Failed to enumerate devices
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /audio/device:
+    get:
+      summary: Get current audio device
+      description: |
+        Returns the currently configured audio output device name.
+
+        This setting is persisted in the database and restored on restart.
+      operationId: getAudioDevice
+      tags:
+        - Audio
+      responses:
+        '200':
+          description: Current device name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+              example:
+                device_name: "default"
+        '500':
+          description: Failed to read device setting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+    post:
+      summary: Set audio output device
+      description: |
+        Sets the audio output device by name.
+
+        **Note:** Device change requires audio output restart (not yet implemented).
+        This endpoint saves the setting to database for next restart.
+      operationId: setAudioDevice
+      tags:
+        - Audio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDeviceRequest'
+            example:
+              device_name: "PulseAudio"
+      responses:
+        '200':
+          description: Device setting updated (will apply on next restart)
+        '500':
+          description: Failed to save device setting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /audio/volume:
+    get:
+      summary: Get current volume
+      description: |
+        Returns the current volume level as a percentage (0-100).
+
+        This is converted from internal system volume (0.0-1.0).
+      operationId: getVolume
+      tags:
+        - Audio
+      responses:
+        '200':
+          description: Current volume level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeResponse'
+              example:
+                volume: 75
+
+    post:
+      summary: Set volume level
+      description: |
+        Sets the volume level as a percentage (0-100).
+
+        Volume changes take effect immediately and emit a `VolumeChanged` SSE event.
+      operationId: setVolume
+      tags:
+        - Audio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VolumeRequest'
+            example:
+              volume: 75
+      responses:
+        '200':
+          description: Volume updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VolumeResponse'
+        '400':
+          description: Invalid volume (must be 0-100)
+
+  /playback/enqueue:
+    post:
+      summary: Enqueue audio file for playback
+      description: |
+        Adds an audio file to the playback queue.
+
+        **File Path:**
+        - Must be relative to configured root folder
+        - Use forward slashes (/) as path separator
+        - Example: "albums/artist/song.mp3"
+
+        **Behavior:**
+        - Creates ephemeral passage if file not in database
+        - Automatically starts playback if queue was empty
+        - Emits `QueueChanged` SSE event
+
+        **Supported Formats:** MP3, FLAC, AAC, Vorbis, Opus, WAV
+      operationId: enqueuePassage
+      tags:
+        - Playback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnqueueRequest'
+            example:
+              file_path: "albums/4_Non_Blondes/Bigger,_Better,_Faster,_More/03-What's_Up.mp3"
+      responses:
+        '200':
+          description: File enqueued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnqueueResponse'
+              example:
+                status: "ok"
+                queue_entry_id: "550e8400-e29b-41d4-a716-446655440000"
+        '500':
+          description: Failed to enqueue file (invalid path, unsupported format, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /playback/queue/{queue_entry_id}:
+    delete:
+      summary: Remove queue entry
+      description: |
+        Removes a specific entry from the playback queue by UUID.
+
+        **Behavior:**
+        - Removes from both in-memory queue and database
+        - Cannot remove currently playing passage
+        - Emits `QueueChanged` SSE event
+      operationId: removeFromQueue
+      tags:
+        - Playback
+      parameters:
+        - name: queue_entry_id
+          in: path
+          required: true
+          description: UUID of queue entry to remove
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Queue entry removed successfully
+        '404':
+          description: Queue entry not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /playback/queue/clear:
+    post:
+      summary: Clear entire queue
+      description: |
+        Removes all entries from the playback queue.
+
+        **Behavior:**
+        - Clears both in-memory queue and database
+        - Stops playback if currently playing
+        - Emits `QueueChanged` SSE event
+      operationId: clearQueue
+      tags:
+        - Playback
+      responses:
+        '204':
+          description: Queue cleared successfully
+        '500':
+          description: Failed to clear queue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /playback/queue/reorder:
+    post:
+      summary: Reorder queue entry
+      description: |
+        Moves a queue entry to a new position.
+
+        **Position Index:**
+        - 0-based index
+        - 0 = first in queue (plays next after current)
+        - Use negative index to count from end (-1 = last)
+
+        **Behavior:**
+        - Updates both in-memory queue and database
+        - Cannot reorder currently playing passage
+        - Emits `QueueChanged` SSE event
+      operationId: reorderQueueEntry
+      tags:
+        - Playback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderQueueRequest'
+            example:
+              queue_entry_id: "550e8400-e29b-41d4-a716-446655440000"
+              new_position: 0
+      responses:
+        '200':
+          description: Queue entry reordered successfully
+        '400':
+          description: Invalid request (entry not found, invalid position, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /playback/queue:
+    get:
+      summary: Get queue contents
+      description: |
+        Returns all entries currently in the playback queue.
+
+        **Order:** Entries are returned in playback order (first = next to play).
+      operationId: getQueue
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Queue contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueResponse'
+              example:
+                queue:
+                  - queue_entry_id: "550e8400-e29b-41d4-a716-446655440000"
+                    passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    file_path: "albums/artist/song1.mp3"
+                  - queue_entry_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                    passage_id: null
+                    file_path: "albums/artist/song2.mp3"
+
+  /playback/play:
+    post:
+      summary: Resume playback
+      description: |
+        Resumes playback from paused state.
+
+        **Behavior:**
+        - Changes state from Paused → Playing
+        - If queue empty, has no effect
+        - Emits `PlaybackStateChanged` SSE event
+        - Emits `PlaybackProgress` SSE event with current position
+        - Persists position to database
+      operationId: play
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Playback resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                status: "ok"
+
+  /playback/pause:
+    post:
+      summary: Pause playback
+      description: |
+        Pauses playback immediately (no fade-out).
+
+        **Behavior:**
+        - Changes state from Playing → Paused
+        - Position is preserved for resume
+        - Emits `PlaybackStateChanged` SSE event
+        - Emits `PlaybackProgress` SSE event with current position
+        - Persists position to database
+      operationId: pause
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Playback paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                status: "ok"
+
+  /playback/next:
+    post:
+      summary: Skip to next passage
+      description: |
+        Skips the currently playing passage and advances to next in queue.
+
+        **Behavior:**
+        - Stops current passage immediately (no fade-out)
+        - Removes current from queue
+        - Starts next passage
+        - Emits `PassageCompleted` SSE event (completed=false for skip)
+        - Emits `QueueChanged` SSE event
+      operationId: skipNext
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Skipped to next passage
+        '500':
+          description: No passage to skip (queue empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /playback/previous:
+    post:
+      summary: Skip to previous passage (not implemented)
+      description: |
+        Previous/backwards playback is not implemented in current architecture.
+
+        This endpoint exists for API completeness but returns 501 Not Implemented.
+      operationId: skipPrevious
+      tags:
+        - Playback
+      responses:
+        '501':
+          description: Previous playback not implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+              example:
+                status: "Previous playback not implemented"
+
+  /playback/seek:
+    post:
+      summary: Seek to position in current passage
+      description: |
+        Seeks to a specific position within the currently playing passage.
+
+        **Position:**
+        - Specified in milliseconds
+        - Clamped to passage duration (seeking beyond end skips to next)
+
+        **Behavior:**
+        - Immediately jumps to new position
+        - Preserves playing/paused state
+        - Emits `PlaybackProgress` SSE event with new position
+        - May emit `CurrentSongChanged` if seek crosses song boundary
+      operationId: seek
+      tags:
+        - Playback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeekRequest'
+            example:
+              position_ms: 45000
+      responses:
+        '200':
+          description: Seek successful
+        '400':
+          description: Invalid seek position
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+
+  /playback/state:
+    get:
+      summary: Get playback state
+      description: |
+        Returns current playback state (playing or paused).
+
+        **Note:** WKMP has no "stopped" state - paused with empty queue is equivalent.
+      operationId: getPlaybackState
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Current playback state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    type: string
+                    enum: [playing, paused]
+              example:
+                state: "playing"
+
+  /playback/position:
+    get:
+      summary: Get current playback position
+      description: |
+        Returns current position, duration, and state.
+
+        **Position Tracking:**
+        - Updated via event-driven architecture (not polling)
+        - Typical latency: <50ms
+        - Accurate to ~1ms
+      operationId: getPosition
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Current playback position
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionResponse'
+              example:
+                passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                position_ms: 45230
+                duration_ms: 245000
+                state: "playing"
+
+  /playback/buffer_status:
+    get:
+      summary: Get buffer decode status
+      description: |
+        Returns status of all passage buffers in memory.
+
+        **Buffer States:**
+        - `decoding`: Buffer is being filled by decoder (includes progress %)
+        - `ready`: Buffer fully decoded and ready for playback
+        - `playing`: Buffer is currently being played
+        - `exhausted`: Buffer has been fully consumed
+
+        **Use Cases:**
+        - Monitor decode progress for long files
+        - Verify next passage is ready before crossfade
+        - Debug playback issues
+      operationId: getBufferStatus
+      tags:
+        - Playback
+      responses:
+        '200':
+          description: Buffer status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BufferStatusResponse'
+              example:
+                buffers:
+                  - passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    status: "playing"
+                    decode_progress_percent: null
+                  - passage_id: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+                    status: "decoding"
+                    decode_progress_percent: 67.5
+                  - passage_id: "a3bb189e-8bf9-3888-9912-ace4e6543002"
+                    status: "ready"
+                    decode_progress_percent: null
+
+  /events:
+    get:
+      summary: Server-Sent Events stream
+      description: |
+        Real-time event stream using Server-Sent Events (SSE) protocol.
+
+        **Connection:**
+        - Long-lived HTTP connection
+        - Events pushed from server as they occur
+        - Automatic reconnection on disconnect
+
+        **Event Types:**
+        - `PlaybackStateChanged` - Playing/Paused state changed
+        - `PassageStarted` - New passage began playing
+        - `PassageCompleted` - Passage finished (completed or skipped)
+        - `CurrentSongChanged` - Crossed song boundary within passage
+        - `PlaybackProgress` - Position update (every ~5 seconds)
+        - `QueueChanged` - Queue modified
+        - `VolumeChanged` - Volume level changed
+
+        **Event Format:**
+        ```
+        event: PlaybackProgress
+        data: {"type":"PlaybackProgress","passage_id":"...","position_ms":45000,"duration_ms":245000,"timestamp":"2025-10-18T..."}
+
+        ```
+
+        **Client Libraries:**
+        - JavaScript: Built-in `EventSource` API
+        - Rust: `eventsource-client` crate
+        - Python: `sseclient-py` package
+        - cURL: `curl -N http://localhost:5721/events`
+      operationId: eventStream
+      tags:
+        - Events
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream (see component schemas for event types)
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, module, version]
+      properties:
+        status:
+          type: string
+          example: "healthy"
+          description: Always "healthy" if server is responding
+        module:
+          type: string
+          example: "audio_player"
+          description: Module identifier
+        version:
+          type: string
+          example: "0.1.0"
+          description: Semantic version from Cargo.toml
+
+    StatusResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: Status message ("ok" or error description)
+
+    VolumeRequest:
+      type: object
+      required: [volume]
+      properties:
+        volume:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Volume level as percentage
+
+    VolumeResponse:
+      type: object
+      required: [volume]
+      properties:
+        volume:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 75
+          description: Volume level as percentage
+
+    SetDeviceRequest:
+      type: object
+      required: [device_name]
+      properties:
+        device_name:
+          type: string
+          example: "PulseAudio"
+          description: Audio device name (from /audio/devices list)
+
+    DeviceResponse:
+      type: object
+      required: [device_name]
+      properties:
+        device_name:
+          type: string
+          example: "default"
+          description: Currently configured audio device
+
+    DeviceListResponse:
+      type: object
+      required: [devices]
+      properties:
+        devices:
+          type: array
+          items:
+            type: string
+          example: ["default", "PulseAudio", "HDA Intel PCH"]
+          description: List of available audio output device names
+
+    EnqueueRequest:
+      type: object
+      required: [file_path]
+      properties:
+        file_path:
+          type: string
+          example: "albums/artist/song.mp3"
+          description: Audio file path relative to root folder (use forward slashes)
+
+    EnqueueResponse:
+      type: object
+      required: [status, queue_entry_id]
+      properties:
+        status:
+          type: string
+          example: "ok"
+        queue_entry_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+          description: UUID of newly created queue entry
+
+    QueueEntryInfo:
+      type: object
+      required: [queue_entry_id, file_path]
+      properties:
+        queue_entry_id:
+          type: string
+          format: uuid
+          description: Unique identifier for this queue entry
+        passage_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Passage UUID (null for ephemeral passages)
+        file_path:
+          type: string
+          description: Audio file path
+
+    QueueResponse:
+      type: object
+      required: [queue]
+      properties:
+        queue:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueueEntryInfo'
+          description: Queue entries in playback order
+
+    PositionResponse:
+      type: object
+      required: [position_ms, duration_ms, state]
+      properties:
+        passage_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Currently playing passage UUID (null if nothing playing)
+        position_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 45230
+          description: Current position in milliseconds
+        duration_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 245000
+          description: Total passage duration in milliseconds
+        state:
+          type: string
+          enum: [playing, paused]
+          description: Current playback state
+
+    BufferInfo:
+      type: object
+      required: [passage_id, status]
+      properties:
+        passage_id:
+          type: string
+          format: uuid
+          description: Passage UUID
+        status:
+          type: string
+          enum: [decoding, ready, playing, exhausted]
+          description: Buffer state
+        decode_progress_percent:
+          type: number
+          format: float
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Decode progress (only present when status="decoding")
+
+    BufferStatusResponse:
+      type: object
+      required: [buffers]
+      properties:
+        buffers:
+          type: array
+          items:
+            $ref: '#/components/schemas/BufferInfo'
+          description: Status of all buffers in memory
+
+    SeekRequest:
+      type: object
+      required: [position_ms]
+      properties:
+        position_ms:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 45000
+          description: Target position in milliseconds
+
+    ReorderQueueRequest:
+      type: object
+      required: [queue_entry_id, new_position]
+      properties:
+        queue_entry_id:
+          type: string
+          format: uuid
+          description: UUID of queue entry to move
+        new_position:
+          type: integer
+          format: int32
+          description: Target position index (0-based, negative for count from end)
+
+    # SSE Event Schemas
+    PlaybackStateChangedEvent:
+      type: object
+      required: [type, state, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [PlaybackStateChanged]
+        state:
+          type: string
+          enum: [playing, paused, stopped]
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "PlaybackStateChanged"
+        state: "playing"
+        timestamp: "2025-10-18T14:30:00.123Z"
+
+    PassageStartedEvent:
+      type: object
+      required: [type, passage_id, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [PassageStarted]
+        passage_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "PassageStarted"
+        passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        timestamp: "2025-10-18T14:30:00.123Z"
+
+    PassageCompletedEvent:
+      type: object
+      required: [type, passage_id, completed, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [PassageCompleted]
+        passage_id:
+          type: string
+          format: uuid
+        completed:
+          type: boolean
+          description: "true = finished naturally, false = skipped/interrupted"
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "PassageCompleted"
+        passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        completed: true
+        timestamp: "2025-10-18T14:35:00.456Z"
+
+    CurrentSongChangedEvent:
+      type: object
+      required: [type, passage_id, position_ms, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [CurrentSongChanged]
+        passage_id:
+          type: string
+          format: uuid
+        song_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: "New song UUID (null = entered gap between songs)"
+        position_ms:
+          type: integer
+          format: int64
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "CurrentSongChanged"
+        passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        song_id: "a3bb189e-8bf9-3888-9912-ace4e6543002"
+        position_ms: 120500
+        timestamp: "2025-10-18T14:32:00.789Z"
+
+    PlaybackProgressEvent:
+      type: object
+      required: [type, passage_id, position_ms, duration_ms, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [PlaybackProgress]
+        passage_id:
+          type: string
+          format: uuid
+        position_ms:
+          type: integer
+          format: int64
+        duration_ms:
+          type: integer
+          format: int64
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "PlaybackProgress"
+        passage_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        position_ms: 45000
+        duration_ms: 245000
+        timestamp: "2025-10-18T14:30:45.123Z"
+
+    QueueChangedEvent:
+      type: object
+      required: [type, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [QueueChanged]
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "QueueChanged"
+        timestamp: "2025-10-18T14:30:00.123Z"
+
+    VolumeChangedEvent:
+      type: object
+      required: [type, volume, timestamp]
+      properties:
+        type:
+          type: string
+          enum: [VolumeChanged]
+        volume:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+          description: "System volume (0.0-1.0 scale)"
+        timestamp:
+          type: string
+          format: date-time
+      example:
+        type: "VolumeChanged"
+        volume: 0.75
+        timestamp: "2025-10-18T14:30:00.123Z"

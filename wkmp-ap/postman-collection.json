@@ -1,0 +1,622 @@
+{
+  "info": {
+    "name": "WKMP Audio Player API",
+    "description": "Complete API collection for testing the WKMP Audio Player (wkmp-ap) module.\n\n**Features:**\n- Health checks and status queries\n- Audio device management\n- Volume control\n- Queue management (enqueue, remove, reorder, clear)\n- Playback control (play, pause, skip, seek)\n- Buffer status monitoring\n\n**Server:** http://localhost:5721\n\n**Import Instructions:**\n1. Open Postman\n2. Click 'Import' button\n3. Select this JSON file\n4. Collection will appear in sidebar\n\n**Usage:**\n- Requests are organized by category\n- Update {{baseUrl}} variable if using different port\n- Test in sequence or individual requests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "wkmp-ap-collection-v1",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5721",
+      "type": "string"
+    },
+    {
+      "key": "testFilePath",
+      "value": "test-10s.mp3",
+      "type": "string"
+    },
+    {
+      "key": "queueEntryId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the Audio Player module is healthy and get version info."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Playback State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/state",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "state"]
+            },
+            "description": "Get current playback state (playing or paused)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Playback Position",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/position",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "position"]
+            },
+            "description": "Get current playback position, duration, and state."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Buffer Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/buffer_status",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "buffer_status"]
+            },
+            "description": "Get status of all passage buffers in memory (decoding progress, ready, playing, exhausted)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Health checks and status queries."
+    },
+    {
+      "name": "Audio Devices",
+      "item": [
+        {
+          "name": "List Audio Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audio/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "devices"]
+            },
+            "description": "List all available audio output devices detected by cpal."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Device",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audio/device",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "device"]
+            },
+            "description": "Get currently configured audio output device."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Audio Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_name\": \"default\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/audio/device",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "device"]
+            },
+            "description": "Set audio output device by name. Device change requires restart (not yet implemented)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Audio device management."
+    },
+    {
+      "name": "Volume Control",
+      "item": [
+        {
+          "name": "Get Volume",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audio/volume",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "volume"]
+            },
+            "description": "Get current volume level (0-100 scale)."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Volume to 50%",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"volume\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/audio/volume",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "volume"]
+            },
+            "description": "Set volume to 50%."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Volume to 75%",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"volume\": 75\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/audio/volume",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "volume"]
+            },
+            "description": "Set volume to 75%."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Volume to 100%",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"volume\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/audio/volume",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "volume"]
+            },
+            "description": "Set volume to 100%."
+          },
+          "response": []
+        },
+        {
+          "name": "Mute (Volume 0%)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"volume\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/audio/volume",
+              "host": ["{{baseUrl}}"],
+              "path": ["audio", "volume"]
+            },
+            "description": "Mute audio (set volume to 0%)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Volume control endpoints."
+    },
+    {
+      "name": "Queue Management",
+      "item": [
+        {
+          "name": "Get Queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/queue",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "queue"]
+            },
+            "description": "Get all entries currently in the playback queue."
+          },
+          "response": []
+        },
+        {
+          "name": "Enqueue File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  pm.collectionVariables.set('queueEntryId', jsonData.queue_entry_id);",
+                  "  console.log('Saved queue_entry_id:', jsonData.queue_entry_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_path\": \"{{testFilePath}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/playback/enqueue",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "enqueue"]
+            },
+            "description": "Enqueue an audio file for playback. Response includes queue_entry_id that is saved as collection variable."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Queue Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/queue/{{queueEntryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "queue", "{{queueEntryId}}"]
+            },
+            "description": "Remove specific queue entry by UUID. Uses the queueEntryId saved from 'Enqueue File' request."
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Queue",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/queue/clear",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "queue", "clear"]
+            },
+            "description": "Remove all entries from the playback queue."
+          },
+          "response": []
+        },
+        {
+          "name": "Reorder Queue Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"queue_entry_id\": \"{{queueEntryId}}\",\n  \"new_position\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/playback/queue/reorder",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "queue", "reorder"]
+            },
+            "description": "Move queue entry to new position (0 = first, -1 = last)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Queue management operations."
+    },
+    {
+      "name": "Playback Control",
+      "item": [
+        {
+          "name": "Play",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/play",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "play"]
+            },
+            "description": "Resume playback from paused state."
+          },
+          "response": []
+        },
+        {
+          "name": "Pause",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/pause",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "pause"]
+            },
+            "description": "Pause playback immediately (no fade-out)."
+          },
+          "response": []
+        },
+        {
+          "name": "Skip to Next",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/next",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "next"]
+            },
+            "description": "Skip currently playing passage and advance to next in queue."
+          },
+          "response": []
+        },
+        {
+          "name": "Skip to Previous (Not Implemented)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/playback/previous",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "previous"]
+            },
+            "description": "Skip to previous passage. Returns 501 Not Implemented (previous playback not supported)."
+          },
+          "response": []
+        },
+        {
+          "name": "Seek to 30 Seconds",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position_ms\": 30000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/playback/seek",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "seek"]
+            },
+            "description": "Seek to 30 seconds (30000ms) in current passage."
+          },
+          "response": []
+        },
+        {
+          "name": "Seek to 1 Minute",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position_ms\": 60000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/playback/seek",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "seek"]
+            },
+            "description": "Seek to 1 minute (60000ms) in current passage."
+          },
+          "response": []
+        },
+        {
+          "name": "Seek to Beginning",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"position_ms\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/playback/seek",
+              "host": ["{{baseUrl}}"],
+              "path": ["playback", "seek"]
+            },
+            "description": "Seek to beginning (0ms) of current passage."
+          },
+          "response": []
+        }
+      ],
+      "description": "Playback control operations."
+    },
+    {
+      "name": "Testing Workflows",
+      "item": [
+        {
+          "name": "Complete Playback Test",
+          "item": [
+            {
+              "name": "1. Clear Queue",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/playback/queue/clear",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["playback", "queue", "clear"]
+                }
+              }
+            },
+            {
+              "name": "2. Enqueue File 1",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"file_path\": \"{{testFilePath}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/playback/enqueue",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["playback", "enqueue"]
+                }
+              }
+            },
+            {
+              "name": "3. Enqueue File 2",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"file_path\": \"{{testFilePath}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/playback/enqueue",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["playback", "enqueue"]
+                }
+              }
+            },
+            {
+              "name": "4. Set Volume 75%",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"volume\": 75\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/audio/volume",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["audio", "volume"]
+                }
+              }
+            },
+            {
+              "name": "5. Start Playback",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/playback/play",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["playback", "play"]
+                }
+              }
+            },
+            {
+              "name": "6. Check Position",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/playback/position",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["playback", "position"]
+                }
+              }
+            },
+            {
+              "name": "7. Pause",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/playback/pause",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["playback", "pause"]
+                }
+              }
+            }
+          ],
+          "description": "Run these requests in sequence to test complete playback workflow."
+        }
+      ],
+      "description": "Pre-configured test workflows."
+    }
+  ]
+}
