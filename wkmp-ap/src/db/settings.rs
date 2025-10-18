@@ -223,6 +223,79 @@ pub async fn load_ring_buffer_grace_period(db: &Pool<Sqlite>) -> Result<u64> {
     }
 }
 
+/// Mixer thread configuration parameters
+///
+/// These parameters control the behavior of the mixer thread that fills
+/// the audio ring buffer. Tuned values prevent both underruns (audio gaps)
+/// and overruns (wasted CPU cycles).
+///
+/// **Traceability:**
+/// - [SSD-MIX-020] Mixer thread ring buffer filling strategy
+#[derive(Debug, Clone)]
+pub struct MixerThreadConfig {
+    /// Check interval in microseconds (how often mixer checks if filling needed)
+    /// Default: 10μs - Fast enough to keep buffer filled without busy-waiting
+    pub check_interval_us: u64,
+
+    /// Batch size when buffer < 50% (aggressive filling)
+    /// Default: 8 frames - Fills moderately to catch up quickly
+    pub batch_size_low: usize,
+
+    /// Batch size when buffer 50-75% (conservative top-up)
+    /// Default: 2 frames - Small batches to avoid overshooting optimal range
+    pub batch_size_optimal: usize,
+}
+
+/// Load mixer thread configuration from settings table
+///
+/// **[SSD-MIX-020]** Mixer thread parameters
+///
+/// # Returns
+/// Mixer thread configuration with validated defaults
+pub async fn load_mixer_thread_config(db: &Pool<Sqlite>) -> Result<MixerThreadConfig> {
+    let check_interval_us = match get_setting::<u64>(db, "mixer_check_interval_us").await? {
+        Some(interval) => {
+            // Clamp to valid range: 1-1000μs
+            // Too low = busy-waiting, too high = buffer underruns
+            interval.clamp(1, 1000)
+        }
+        None => {
+            // Default: 10μs - Tuned to eliminate underruns/overruns
+            10
+        }
+    };
+
+    let batch_size_low = match get_setting::<usize>(db, "mixer_batch_size_low").await? {
+        Some(size) => {
+            // Clamp to valid range: 1-32 frames
+            // Too low = slow recovery, too high = overshooting
+            size.clamp(1, 32)
+        }
+        None => {
+            // Default: 8 frames - Moderately aggressive when buffer low
+            8
+        }
+    };
+
+    let batch_size_optimal = match get_setting::<usize>(db, "mixer_batch_size_optimal").await? {
+        Some(size) => {
+            // Clamp to valid range: 1-16 frames
+            // Too low = frequent lock acquisition, too high = overshooting
+            size.clamp(1, 16)
+        }
+        None => {
+            // Default: 2 frames - Conservative when buffer in optimal range
+            2
+        }
+    };
+
+    Ok(MixerThreadConfig {
+        check_interval_us,
+        batch_size_low,
+        batch_size_optimal,
+    })
+}
+
 /// Generic setting getter
 ///
 /// Returns None if key doesn't exist in database.

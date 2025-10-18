@@ -201,18 +201,28 @@ impl PlaybackEngine {
         // Set initial audio_expected flag based on current state
         self.update_audio_expected_flag().await;
 
+        // [SSD-MIX-020] Load mixer thread configuration from database
+        let mixer_config = crate::db::settings::load_mixer_thread_config(&self.db_pool).await?;
+        info!(
+            "Mixer thread config: check_interval={}μs, batch_low={}, batch_optimal={}",
+            mixer_config.check_interval_us,
+            mixer_config.batch_size_low,
+            mixer_config.batch_size_optimal
+        );
+
         // Start mixer thread that fills the ring buffer
         // This thread continuously calls mixer.get_next_frame() and pushes to ring buffer
         let mixer_clone = Arc::clone(&self.mixer);
         let running_clone = Arc::clone(&self.running);
         let audio_expected_clone = Arc::clone(&self.audio_expected);
+        let check_interval_us = mixer_config.check_interval_us;
+        let batch_size_low = mixer_config.batch_size_low;
+        let batch_size_optimal = mixer_config.batch_size_optimal;
         tokio::spawn(async move {
             info!("Mixer thread started");
-            let mut fill_interval = interval(Duration::from_micros(100)); // Check fill level every 100μs
+            let mut check_interval = interval(Duration::from_micros(check_interval_us));
 
             loop {
-                fill_interval.tick().await;
-
                 // Check if engine stopped
                 if !*running_clone.read().await {
                     info!("Mixer thread stopping");
@@ -223,53 +233,71 @@ impl PlaybackEngine {
                 let audio_expected = audio_expected_clone.load(std::sync::atomic::Ordering::Acquire);
 
                 if !audio_expected {
-                    // Queue is empty or paused - produce frames minimally to prevent underruns
-                    // Only fill if buffer is nearly empty (< 10% full)
+                    // Queue is empty or paused - yield when idle
+                    check_interval.tick().await;
+
                     let occupied = producer.occupied_len();
                     let capacity = producer.capacity();
                     let fill_percent = occupied as f32 / capacity as f32;
 
                     if fill_percent < 0.10 {
                         // Buffer nearly empty - add a small amount of silence
+                        let mut mixer = mixer_clone.write().await;
                         for _ in 0..4 {
-                            let frame = {
-                                let mut mixer = mixer_clone.write().await;
-                                mixer.get_next_frame().await
-                            };
-
+                            let frame = mixer.get_next_frame().await;
                             if !producer.push(frame) {
-                                break; // Buffer full (shouldn't happen)
+                                break;
                             }
                         }
                     }
-                    // Otherwise let buffer drain naturally (prevents overruns)
                     continue;
                 }
 
-                // Audio IS expected - fill aggressively to target level (50-75%)
-                let needs_filling = producer.needs_frames();
+                // Audio IS expected - check if mixer is actually playing
+                let mixer_playing = {
+                    let mixer = mixer_clone.read().await;
+                    mixer.get_current_passage_id().is_some()
+                };
+
+                if !mixer_playing {
+                    // Mixer not playing yet (still in None state) - yield and wait
+                    check_interval.tick().await;
+                    continue;
+                }
+
+                // Mixer IS playing - use graduated filling strategy
+                // [SSD-MIX-020] Use configurable batch sizes from database
+                let needs_filling = producer.needs_frames(); // < 50%
+                let is_optimal = producer.is_fill_optimal(); // 50-75%
 
                 if needs_filling {
-                    // Fill multiple frames at once when below target
-                    for _ in 0..16 {
-                        let frame = {
-                            let mut mixer = mixer_clone.write().await;
-                            mixer.get_next_frame().await
-                        };
+                    // Buffer < 50% - fill moderately
+                    let mut mixer = mixer_clone.write().await;
 
+                    for _ in 0..batch_size_low {
+                        let frame = mixer.get_next_frame().await;
                         if !producer.push(frame) {
-                            // Buffer full (overrun) - this shouldn't happen often
+                            break;
+                        }
+                    }
+                    // Lock released here
+
+                    // Yield to allow audio callback to consume
+                    check_interval.tick().await;
+                } else if is_optimal {
+                    // Buffer 50-75% - top up conservatively
+                    check_interval.tick().await;
+
+                    let mut mixer = mixer_clone.write().await;
+                    for _ in 0..batch_size_optimal {
+                        let frame = mixer.get_next_frame().await;
+                        if !producer.push(frame) {
                             break;
                         }
                     }
                 } else {
-                    // Just top up one frame when at good fill level
-                    let frame = {
-                        let mut mixer = mixer_clone.write().await;
-                        mixer.get_next_frame().await
-                    };
-
-                    producer.push(frame); // Ignore result when buffer healthy
+                    // Buffer > 75% - just yield and wait for consumption
+                    check_interval.tick().await;
                 }
             }
 
