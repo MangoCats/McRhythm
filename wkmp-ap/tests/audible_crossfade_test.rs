@@ -565,40 +565,6 @@ fn test_audible_crossfade() {
         CycleTimeline::new(4, 135.0, passage_dur, crossfade_sec),         // Cycle 4: 135-190s (overlaps at 135-145s)
     ];
 
-    println!("=== Expected Timeline (All 4 Cycles) ===");
-    println!("\nCycle 1 (Exponential/Logarithmic): 0-55s");
-    println!("  0-10s: Passage 1 fade-in");
-    println!("  10-15s: Passage 1 at 100%");
-    println!("  15-25s: Crossfade 1→2");
-    println!("  25-30s: Passage 2 at 100%");
-    println!("  30-40s: Crossfade 2→3");
-    println!("  40-45s: Passage 3 at 100%");
-    println!("  45-55s: Crossfade 3→1 (starts Cycle 2)");
-
-    println!("\nCycle 2 (Linear): 55-100s");
-    println!("  55-65s: P1 at 100%");
-    println!("  65-75s: Crossfade 1→2");
-    println!("  75-80s: Passage 2 at 100%");
-    println!("  80-90s: Crossfade 2→3");
-    println!("  90-95s: Passage 3 at 100%");
-    println!("  95-105s: Crossfade 3→1 (starts Cycle 3)");
-
-    println!("\nCycle 3 (S-Curve): 100-145s");
-    println!("  100-110s: P1 at 100%");
-    println!("  110-120s: Crossfade 1→2");
-    println!("  120-125s: Passage 2 at 100%");
-    println!("  125-135s: Crossfade 2→3");
-    println!("  135-140s: Passage 3 at 100%");
-    println!("  140-150s: Crossfade 3→1 (starts Cycle 4)");
-
-    println!("\nCycle 4 (Equal-Power): 145-190s");
-    println!("  145-155s: P1 at 100%");
-    println!("  155-165s: Crossfade 1→2");
-    println!("  165-170s: Passage 2 at 100%");
-    println!("  170-180s: Crossfade 2→3");
-    println!("  180-185s: Passage 3 at 100%");
-    println!("  185-195s: Passage 3 fade-out");
-
     let total_duration = timelines[3].crossfade3_complete + 10.0; // Last cycle + final fade-out
     println!("\nTotal duration: {:.1}s (~{:.1} minutes)\n", total_duration, total_duration / 60.0);
 
