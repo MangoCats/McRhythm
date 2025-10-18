@@ -1052,7 +1052,7 @@ Lyric Editor (Full only)
    - **[REQ-NF-033]** Default locations in user's Music folder:
      - Linux: `~/Music`
      - macOS: `~/Music`
-     - Windows: `%USERPROFILE%\Music\wkmp`
+     - Windows: `%USERPROFILE%\Music`
    - Used when no other source provides a value
    - Ensures module can always start with a valid root folder path
    - **[REQ-NF-036]** System automatically creates directory if missing
