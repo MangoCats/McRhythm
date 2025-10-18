@@ -658,6 +658,24 @@ pub async fn browse_files(
         }
     };
 
+    /// Helper: Clean up path for display (removes Windows \\?\ prefix)
+    ///
+    /// [CROSS-PLATFORM] Windows canonicalize() adds \\?\ prefix for extended-length paths.
+    /// This is not user-friendly and should be stripped for display.
+    fn clean_path_for_display(path: &std::path::Path) -> String {
+        let path_str = path.to_string_lossy();
+
+        #[cfg(target_os = "windows")]
+        {
+            // Strip \\?\ prefix on Windows
+            if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+                return stripped.to_string();
+            }
+        }
+
+        path_str.to_string()
+    }
+
     // Determine target path (default to root folder)
     let target_path = if let Some(path_str) = req.path {
         PathBuf::from(&path_str)
@@ -780,7 +798,7 @@ pub async fn browse_files(
             if is_directory || is_audio_file {
                 file_entries.push(FileEntry {
                     name,
-                    path: path.to_string_lossy().to_string(),
+                    path: clean_path_for_display(&path),
                     is_directory,
                     is_audio_file,
                 });
@@ -803,11 +821,11 @@ pub async fn browse_files(
     } else {
         canonical_target
             .parent()
-            .map(|p| p.to_string_lossy().to_string())
+            .map(|p| clean_path_for_display(p))
     };
 
     Ok(Json(BrowseFilesResponse {
-        current_path: canonical_target.to_string_lossy().to_string(),
+        current_path: clean_path_for_display(&canonical_target),
         parent_path,
         entries: file_entries,
     }))
