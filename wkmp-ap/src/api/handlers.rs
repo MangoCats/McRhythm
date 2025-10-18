@@ -654,7 +654,7 @@ pub async fn browse_files(
         Some(folder) => PathBuf::from(folder),
         None => {
             // Use OS default if not configured in database
-            crate::config::Config::get_os_default_root_folder()
+            wkmp_common::config::get_default_root_folder()
         }
     };
 
@@ -689,7 +689,7 @@ pub async fn browse_files(
         Ok(p) => p,
         Err(e) => {
             // Configured folder doesn't exist - try OS default
-            let os_default = crate::config::Config::get_os_default_root_folder();
+            let os_default = wkmp_common::config::get_default_root_folder();
 
             match fs::canonicalize(&os_default) {
                 Ok(p) => {

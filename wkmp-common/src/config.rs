@@ -111,8 +111,9 @@ impl CompiledDefaults {
         let userprofile = std::env::var("USERPROFILE")
             .unwrap_or_else(|_| "C:\\Users\\user".to_string());
 
+        // [REQ-NF-033] Windows default: %USERPROFILE%\Music (amended - removed \wkmp subfolder)
         Self {
-            root_folder: PathBuf::from(userprofile).join("Music").join("wkmp"),
+            root_folder: PathBuf::from(userprofile).join("Music"),
             log_level: "info".to_string(),
             log_file: None,
             static_assets_path: PathBuf::from("C:\\Program Files\\WKMP\\share"),
@@ -128,6 +129,17 @@ impl CompiledDefaults {
             static_assets_path: PathBuf::from("./wkmp_assets"),
         }
     }
+}
+
+/// Get the default root folder for the current platform [REQ-NF-033]
+///
+/// Returns platform-appropriate default locations for music files:
+/// - **Linux**: `~/Music`
+/// - **macOS**: `~/Music`
+/// - **Windows**: `%USERPROFILE%\Music`
+/// - **Other**: `./wkmp_data`
+pub fn get_default_root_folder() -> PathBuf {
+    CompiledDefaults::for_current_platform().root_folder
 }
 
 /// Root folder resolver following ARCH-INIT-005 priority order
