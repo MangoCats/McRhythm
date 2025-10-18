@@ -46,11 +46,21 @@ This is a **Tier 0 governance document**, which means it governs the documentati
 | **IMPL** | 3 | **Implementation** | Concrete technical details; database schemas, code conventions, deployment | IMPL001-database_schema.md, IMPL002-coding_conventions.md |
 | **EXEC** | 4 | **Execution** | WHEN features are built; implementation plans and task ordering | EXEC001-implementation_order.md |
 
+### Tier R: Review & Change Control Prefixes
+
+| Prefix | Tier | Meaning | When to Use | Examples |
+|--------|------|---------|-------------|----------|
+| **REV** | R | **Revision/Review** | Design reviews, architectural changes, issue identification (immutable snapshots) | REV001-wkmp_ap_design_review.md, REV002-event_driven_architecture_update.md |
+| **CHANGELOG** | R | **Change Log** | Detailed file-by-file change tracking for major updates (immutable audit trail) | CHANGELOG-event_driven_architecture.md |
+| **ADDENDUM** | R | **Addendum** | Temporary cross-document clarifications pending integration (updatable until integrated) | ADDENDUM-interval_configurability.md |
+| **MIGRATION** | R | **Migration Guide** | Migration paths from deprecated to current implementations (updatable during deprecation) | MIGRATION-gstreamer_to_single_stream.md |
+
+**Note:** Tier R documents are meta-documentation for tracking changes and reviews. They are NOT content documents (Tier 1-4).
+
 ### Special Category Prefixes
 
 | Prefix | Meaning | When to Use | Examples |
 |--------|---------|-------------|----------|
-| **REV** | Review | Documentation reviews, audits, and findings | REV001-review_findings.md |
 | **PLAN** | Plan | Migration plans, proposals, and strategic documents | PLAN001-single_stream_migration_plan.md |
 | **GUIDE** | Guide | Implementation guides, phased build plans for specific modules | GUIDE001-wkmp_ap_implementation_plan.md |
 | **STATUS** | Status | Status reports, proof-of-concept outcomes, progress updates | STATUS001-single_stream_poc_status.md |

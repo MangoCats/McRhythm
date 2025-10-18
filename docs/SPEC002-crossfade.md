@@ -4,7 +4,7 @@
 
 Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](GOV002-requirements_enumeration.md).
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Single Stream Design](SPEC014-single_stream_design.md)
 
 ---
 
@@ -193,7 +193,9 @@ Timeline:  |---------------------------|------------------|
 
 ## Implementation Algorithm
 
-This section provides the complete algorithm for calculating crossfade timing and volume curves. See [gstreamer_design.md](archive/ARCH002-gstreamer_design.md) for details on how this algorithm is executed within the GStreamer pipeline architecture.
+This section provides the complete algorithm for calculating crossfade timing and volume curves. See [Single Stream Playback Architecture](SPEC013-single_stream_playback.md#crossfade-execution) for details on how this algorithm is executed in the current single-stream implementation.
+
+> **Historical Note:** Prior GStreamer dual-pipeline implementation archived in [gstreamer_design.md](archive/ARCH002-gstreamer_design.md).
 
 ### Crossfade Start Calculation
 
@@ -465,9 +467,9 @@ if current_position_a >= preload_trigger_point:
     transition_pipeline_to_paused_state(idle_pipeline)
 ```
 
-**[XFD-IMPL-080]** Pre-loading ensures the idle pipeline is in PAUSED state (buffered and ready) before crossfade begins, preventing audio glitches.
+**[XFD-IMPL-080]** Pre-loading ensures buffers are decoded and ready before crossfade begins, preventing audio glitches.
 
-> See [gstreamer_design.md - Section 5: Crossfade Implementation](archive/ARCH002-gstreamer_design.md#5-crossfade-implementation) for complete pre-loading and pipeline management details.
+> See [Single Stream Playback Architecture](SPEC013-single_stream_playback.md#buffer-management) for complete buffer pre-loading details.
 
 ### Volume Fade Curve Formulas
 
@@ -541,6 +543,8 @@ where:
 Characteristic: Smooth acceleration and deceleration
 ```
 
+> See [Single Stream Playback - Fade Curve Algorithms](SPEC013-single_stream_playback.md#fade-curve-algorithms) for implementation of these formulas in the audio pipeline.
+
 #### Normalized Time Calculation
 
 **[XFD-IMPL-100]** For any fade operation, normalized time `t` is calculated as:
@@ -603,7 +607,7 @@ function apply_fade_out_curve(t, curve_type) -> f64:
 volume_a = calculate_passage_volume(passage_a, current_time_in_a)
 volume_b = calculate_passage_volume(passage_b, current_time_in_b)
 
-// Mix audio streams (performed by GStreamer audiomixer)
+// Mix audio streams (performed by CrossfadeMixer)
 mixed_audio = (audio_a * volume_a) + (audio_b * volume_b)
 
 // Apply resume-from-pause fade-in if active (see Pause/Resume section below)
@@ -660,7 +664,7 @@ function volume_update_loop():
 - Update timer runs continuously during playback (even when not crossfading)
 - When not in crossfade or resume fade-in, volumes remain constant (no calculations needed)
 - Timer precision affects fade smoothness; use high-resolution timer if available
-- See [gstreamer_design.md - Section 14: Performance Optimization](archive/ARCH002-gstreamer_design.md#14-performance-optimization) for GStreamer-specific implementation details
+- See [Single Stream Design](SPEC014-single_stream_design.md#performance-characteristics) for implementation performance details
 
 ---
 
@@ -674,10 +678,10 @@ This section specifies how pause and resume operations affect audio playback, di
 
 - **Fade-out duration**: None (immediate stop)
 - **Fade-out curve**: Does not apply
-- **Implementation**: GStreamer pipeline volume set to 0.0 immediately
-- **Pipeline state**: Remains in PLAYING state internally (muted) to maintain accurate position tracking
+- **Implementation**: Audio output volume set to 0.0 immediately
+- **Playback state**: Position tracking continues to maintain accurate position
 - **Playback position**: Preserved at moment of pause
-- **Crossfade interaction**: If pause occurs during crossfade, both pipelines are muted immediately
+- **Crossfade interaction**: If pause occurs during crossfade, both passages are muted immediately
 
 **Rationale:** Pause is conceptually an immediate stop, not a gradual fade. Users expect instant response when pausing.
 
@@ -761,12 +765,12 @@ See [database_schema.md - settings table](IMPL001-database_schema.md#settings) f
 
 **[XFD-IMPL-140]** Key implementation considerations:
 
-1. **Timing precision**: All calculations use floating-point seconds internally; convert to nanoseconds only when interfacing with GStreamer
-2. **Thread safety**: Crossfade calculations performed on main thread; volume updates applied atomically to pipeline elements
+1. **Timing precision**: All calculations use floating-point seconds internally; convert to sample counts when applying to audio buffers
+2. **Thread safety**: Crossfade calculations performed on playback thread; volume updates applied atomically during frame generation
 3. **Edge case handling**: Zero-duration fades (instant transitions) handled by setting volume directly without interpolation
 4. **Fade curve symmetry**: Exponential fade-in pairs with logarithmic fade-out for perceptually balanced crossfades
 
-> Complete GStreamer implementation details in [gstreamer_design.md - Section 5: Crossfade Implementation](archive/ARCH002-gstreamer_design.md#5-crossfade-implementation)
+> See [Single Stream Playback Architecture - Crossfade Execution](SPEC013-single_stream_playback.md#crossfade-execution) for complete implementation details.
 
 ## Fade Behavior During Crossfade
 
@@ -863,7 +867,7 @@ This intentional asymmetry between user-defined and NULL timing points serves sp
   - **User-defined points (not clamped):** When users explicitly set timing points, they have made a deliberate choice for that specific passage. The system respects this choice even if it exceeds 50% of passage duration
   - **Design philosophy:** Global defaults should be conservative and safe, while per-passage customization grants full control to users who understand their content
 
-**Use case example:** A 10-second intro passage might have a user-defined 8-second lead-out (80% of duration) to ensure it crossfades smoothly into the main track. This is intentional and should not be overridden by automatic clamping.
+**Use case example:** A 10-second intro passage might have a user-defined 8-second lead-out (80% of duration) to ensure it crossfades smoothly into the next passage. This is intentional and should not be overridden by automatic clamping.
 
 **[XFD-DEF-062] Warning Logic:**
 - The UI warns when user sets **lead-in point** > (0.5 Ã— passage duration)
@@ -973,7 +977,7 @@ When passages are enqueued via `/playback/enqueue` API endpoint, timing points m
 - All timing values are unsigned integer milliseconds
 - `lead_in_point_ms`, `fade_in_point_ms`, `lead_out_point_ms`, `fade_out_point_ms` are relative to `start_time_ms`
 - When converting from database (seconds) to API (milliseconds): multiply by 1000
-- When converting from API (milliseconds) to GStreamer (nanoseconds): multiply by 1,000,000
+- When converting from API (milliseconds) to audio samples: multiply by `(sample_rate / 1000)`
 
 > See [API Design - POST /playback/enqueue](SPEC007-api_design.md#post-playbackenqueue) for complete endpoint specification.
 

@@ -1,5 +1,11 @@
 # wkmp-ap (Audio Player) Design Review Report
 
+**📋 TIER R - REVIEW & CHANGE CONTROL**
+
+Identifies critical design issues requiring project-architect review. This is a historical snapshot (immutable after creation). See [Document Hierarchy](GOV001-document_hierarchy.md) for Tier R classification details.
+
+**Authority:** Historical reference only - Tier 1-4 documents are authoritative for current system state
+
 **Date:** 2025-10-17
 **Reviewer:** Claude (docs-specialist)
 **Scope:** Architecture, Single-Stream Design, Crossfade, API, Implementation Plan

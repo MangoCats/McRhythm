@@ -70,6 +70,119 @@ WKMP project documentation is organized into a strict hierarchy that governs how
 
 ---
 
+### Tier R: Review & Change Control (Meta)
+
+These documents track the evolution of WKMP documentation and identify gaps requiring change control review. They are meta-documentation alongside Tier 0 but serve a temporal/historical purpose rather than structural governance.
+
+**Key Principle:** Tier R documents are **descriptive** (recording what happened) rather than **prescriptive** (defining what should happen). They feed the change control process but do not directly update content tiers.
+
+#### REV###-*.md (Revision/Review Documents)
+
+**Purpose:** Record major design decisions, architectural changes, or comprehensive design reviews
+
+**Contains:**
+- Design review findings (issue identification, recommendations)
+- Architectural change baselines (before/after snapshots)
+- Decision rationale and trade-off analysis
+- Reference commits and dates
+- Impact analysis (requirements satisfied, trade-offs)
+
+**Examples:**
+- REV001-wkmp_ap_design_review.md - Quality assurance review identifying 5 critical issues
+- REV002-event_driven_architecture_update.md - Architectural change from timer-driven to event-driven
+
+**Update Policy:**
+- ✅ Created for major architectural changes
+- ✅ Created for formal design reviews
+- ❌ NEVER updated after creation (historical snapshots)
+- ❌ NOT authoritative for current system state (Tier 1-4 documents are authoritative)
+- ✅ New REV document created for subsequent changes/reviews
+
+**Change Control:**
+- REV documents identify issues and recommend changes
+- Recommendations feed change control process
+- Accepted recommendations → Update Tier 1-4 documents
+- REV documents remain immutable (historical record)
+
+**Maintained By:** Project architect, technical lead
+
+**Authority:** **Historical reference only** - Tier 1-4 documents are authoritative for current system state
+
+#### CHANGELOG-*.md (Change Log Documents)
+
+**Purpose:** Provide detailed file-by-file accounting of documentation changes implementing a decision
+
+**Contains:**
+- Date and reference commit
+- Summary of changes
+- File-by-file modification lists
+- Before/after snippets for major changes
+- Rationale for each change
+- Cross-references to related REV documents
+
+**Examples:**
+- CHANGELOG-event_driven_architecture.md - Documents all changes made for REV002
+
+**Update Policy:**
+- ✅ Created alongside REV documents when changes are extensive
+- ❌ NEVER updated after creation (audit trail)
+- ✅ May have multiple changelogs for same topic (CHANGELOG-topic-v1.md, CHANGELOG-topic-v2.md)
+
+**Maintained By:** Documentation lead, technical lead
+
+**Authority:** **Audit trail only** - NOT authoritative (Tier 1-4 documents reflect final state)
+
+#### ADDENDUM-*.md (Addendum Documents)
+
+**Purpose:** Provide temporary supplementary clarification or enhancement spanning multiple specifications
+
+**Contains:**
+- Enhancement description
+- Cross-references to enhanced documents
+- Additional details, examples, or guidance
+- Rationale for addendum (vs updating original docs)
+- Integration notes
+
+**Examples:**
+- ADDENDUM-interval_configurability.md - Enhances event timing configuration documentation
+
+**Update Policy:**
+- ✅ Created when clarification spans multiple documents
+- ✅ Created when enhancement is temporary (pending integration)
+- ✅ May be updated until integrated into Tier 1-4 documents
+- ✅ Should eventually be integrated into authoritative docs and archived
+- ✅ After integration: Move to archive/ with note pointing to integrated location
+
+**Maintained By:** Technical lead, documentation lead
+
+**Authority:** **Temporary authoritative** - Valid until content is integrated into Tier 1-4 documents
+
+#### MIGRATION-*.md (Migration/Deprecation Guides - Future)
+
+**Purpose:** Document migration paths from deprecated to current implementations
+
+**Contains:**
+- Deprecated element description
+- Replacement element description
+- Migration steps
+- Code examples (before/after)
+- Timeline and version support
+- Compatibility notes
+
+**Examples (hypothetical):**
+- MIGRATION-gstreamer_to_single_stream.md - Guide for migrating from GStreamer to single-stream
+
+**Update Policy:**
+- ✅ Created when major deprecations occur
+- ✅ Updated during deprecation period
+- ✅ Archived when migration complete
+
+**Maintained By:** Technical lead, affected module leads
+
+**Authority:** **Operational guidance** - Authoritative for migration process, not for final state
+
+---
+
 ### Tier 1: Authoritative Requirements
 
 #### REQ001-requirements.md
@@ -516,10 +629,31 @@ These documents translate design into concrete implementation details.
 ```
 document_hierarchy.md (Tier 0)
     ↓ governs structure and policies for ↓
-All other documents (Tiers 1-4, Cross-cutting)
+All other documents (Tiers R, 1-4, Cross-cutting)
 ```
 
 **Rule:** document_hierarchy.md governs all other documents but is not influenced by their content. It defines the framework; they provide the substance.
+
+### Review & Change Control Flow (Meta-level)
+```
+Tier 1-4 (Content Documents)
+    ↓ Major change or review needed
+REV###-*.md (Design review or architectural change)
+    ├─> CHANGELOG-*.md (Detailed change tracking)
+    ├─> ADDENDUM-*.md (Temporary clarifications)
+    └─> Change Control Process
+        ├─> Accept → Update Tier 1-4 documents
+        └─> Reject → Document reason in REV
+
+Tier 1-4 (Content Documents)
+    ↓ Issue/gap discovered during implementation
+REV###-*.md (Issue identification)
+    └─> Recommendations feed Change Control
+        ├─> Accept → Update Tier 1-4 documents
+        └─> REV document remains immutable (historical record)
+```
+
+**Rule:** Tier R documents are **descriptive** (historical snapshots) not **prescriptive** (authoritative content). They feed change control but do not directly update content tiers.
 
 ### Downward Flow (Normal)
 ```
@@ -671,6 +805,10 @@ Cascade: Update implementation_order.md with optimization task
 | Document | Tier | Updates When | Influences | Updated By |
 |----------|------|--------------|------------|------------|
 | document_hierarchy.md | 0 (Meta) | Documentation structure changes | Governs all documents | Tech lead, doc lead |
+| REV###-*.md | R (Review) | Never (snapshot) | Change control process | Project architect, tech lead |
+| CHANGELOG-*.md | R (Review) | Never (audit trail) | None (historical record) | Doc lead, tech lead |
+| ADDENDUM-*.md | R (Review) | Until integrated | Tier 1-4 (temporary) | Tech lead, doc lead |
+| MIGRATION-*.md | R (Review) | During deprecation period | Migration process | Tech lead, module leads |
 | requirements.md | 1 | Product needs change | All content documents | Product owner |
 | entity_definitions.md | 1 | Entity terminology changes | Tier 2, 3, 4 | Product owner, tech lead |
 | architecture.md | 2 | Design decisions change | Tier 3, 4 | Tech lead |
@@ -724,11 +862,19 @@ Cascade: Update implementation_order.md with optimization task
 
 ---
 
-**Document Version:** 1.2
-**Last Updated:** 2025-10-10
+**Document Version:** 1.3
+**Last Updated:** 2025-10-18
 **Maintained By:** Technical Lead
 
 **Change Log:**
+- v1.3 (2025-10-18): Added Tier R (Review & Change Control) classification
+  - Added REV###-*.md (Revision/Review Documents)
+  - Added CHANGELOG-*.md (Change Log Documents)
+  - Added ADDENDUM-*.md (Addendum Documents)
+  - Added MIGRATION-*.md (Migration/Deprecation Guides)
+  - Updated information flow section with Tier R flow diagram
+  - Updated document summary table to include Tier R documents
+  - Formalized historical review and change control document classification
 - v1.2 (2025-10-10): Added missing Tier 3 documents: gstreamer_design.md, project_structure.md (deployment.md was already documented in text but not in diagram)
 - v1.1 (2025-10-08): Added missing documents: musical_taste.md, program_director.md, like_dislike.md, ui_specification.md, user_identity.md, audio_file_segmentation.md
 - v1.0 (2025-10-05): Initial version

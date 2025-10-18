@@ -172,6 +172,8 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
     any valid control messages.
 - **Database access**: Direct SQLite access for queue persistence, passage metadata
 
+<a id="arch-queue-persist-030"></a>
+<a id="queue-persistence"></a>
 ### Queue and State Persistence
 
 **[ARCH-QP-010]** Queue Persistence Strategy:
@@ -515,7 +517,7 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 
 **[ARCH-VOL-010]** Volume Scale Conversion:
 - **User-facing** (UI): Integer 0-100 (percentage)
-- **Backend** (API, storage, GStreamer): Double 0.0-1.0
+- **Backend** (API, storage, audio pipeline): Double 0.0-1.0
 - **Conversion**:
   - User → System: `system_volume = user_volume / 100.0`
   - System → User: `user_volume = ceil(system_volume * 100.0)`

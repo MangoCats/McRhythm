@@ -512,6 +512,83 @@ The crossfade timing (see `XFD-BEH-C1`) depends on lead-in duration (`XFD-DUR-03
 - [ ] IMPL-P1-4: REST API (`REQ-API-010` through `REQ-API-090`)
 ```
 
+### Document Anchors
+
+**Purpose:** Ensure stable cross-referencing between documents using explicit HTML anchor tags.
+
+**When to Use Explicit Anchors:**
+- Headers containing code backticks (e.g., `` ### `settings` ``)
+- Frequently cross-referenced sections (e.g., table definitions in IMPL001)
+- Sections with requirement IDs that don't match auto-generated markdown anchors
+- Any section where auto-generated anchor names may vary across markdown renderers
+
+**Anchor Naming Conventions:**
+
+1. **Simplified Names:** Use lowercase, hyphenated versions of the concept
+   ```html
+   <a id="settings"></a>
+   ### `settings`
+   ```
+
+2. **Requirement ID Anchors:** Use lowercase requirement IDs without brackets
+   ```html
+   <a id="arch-queue-persist-030"></a>
+   ### [ARCH-QUEUE-PERSIST-030] Queue and State Persistence
+   ```
+
+3. **Multiple Anchors:** Add both requirement ID and simplified name for maximum compatibility
+   ```html
+   <a id="arch-queue-persist-030"></a>
+   <a id="queue-persistence"></a>
+   ### [ARCH-QUEUE-PERSIST-030] Queue and State Persistence
+   ```
+
+**Cross-Reference Examples:**
+
+```markdown
+<!-- Internal reference to database table -->
+See the [`settings` table](IMPL001-database_schema.md#settings) for configuration.
+
+<!-- Cross-document reference to architecture section -->
+Queue persistence is documented in [SPEC001-architecture.md#queue-persistence].
+
+<!-- Requirement ID reference -->
+Details at [ARCH-QUEUE-PERSIST-030](SPEC001-architecture.md#arch-queue-persist-030).
+```
+
+**Guidelines:**
+- Place anchor tags **immediately before** the header they reference
+- Use descriptive, stable names that won't change if header wording changes
+- Document anchors should be all lowercase with hyphens (kebab-case)
+- Avoid special characters other than hyphens in anchor IDs
+- For database table headers, use the table name without backticks (e.g., `users`, not `` `users` ``)
+
+**Implementation Examples:**
+
+From IMPL001-database_schema.md:
+```html
+<a id="users"></a>
+### `users`
+
+<a id="images"></a>
+### `images`
+```
+
+From SPEC001-architecture.md:
+```html
+<a id="arch-queue-persist-030"></a>
+<a id="queue-persistence"></a>
+### [ARCH-QUEUE-PERSIST-030] Queue and State Persistence
+```
+
+**Rationale:**
+Markdown renderers generate different anchor names for headers with backticks or special characters. Explicit HTML anchors ensure cross-references remain stable regardless of the rendering engine (GitHub, GitLab, static site generators, etc.).
+
+**See Also:**
+- [GOV001-document_hierarchy.md](GOV001-document_hierarchy.md) - Tier system and cross-referencing policy
+- [IMPL001-database_schema.md](IMPL001-database_schema.md#users) - Example implementation for database tables
+- [SPEC001-architecture.md](SPEC001-architecture.md#queue-persistence) - Example implementation for architecture sections
+
 ## Benefits of This Scheme
 
 ### Unique Identification
@@ -630,9 +707,13 @@ The crossfade timing (see `XFD-BEH-C1`) depends on lead-in duration (`XFD-DUR-03
 ## Review and Approval
 
 **Document Status:** Draft
-**Version:** 1.0
-**Last Updated:** 2025-10-05
+**Version:** 1.1
+**Last Updated:** 2025-10-18
 **Author:** Claude Code
+
+**Revision History:**
+- v1.1 (2025-10-18): Added "Document Anchors" subsection to formalize cross-reference anchor conventions
+- v1.0 (2025-10-05): Initial enumeration scheme specification
 
 **Pending Decisions:**
 - Confirm category code assignments for all sections

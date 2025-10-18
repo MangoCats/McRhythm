@@ -36,6 +36,31 @@ Defines core entity terminology used throughout WKMP documentation. Part of [req
     - References to one or more images associated with the passage
 - **[ENT-MP-035]** Audio file as Passage: A passage which only identifies an audio file, with start, end, fade, lead and other metadata undefined, shall be handled as a passage which starts at the beginning of the file, ends at the end of the file, and has zero duration lead-in, lead-out, fade-in and fade-out times.
 
+#### Zero-Song Passage
+
+**Definition:** A passage that is not associated with any MusicBrainz Recording (and therefore has zero Songs).
+
+**Characteristics:**
+- Contains audio data that can be played normally
+- No MusicBrainz metadata (Recording, Work, Artist) associated
+- Has no Musical Flavor (excluded from automatic selection algorithm)
+- Can only be manually queued via `POST /playback/enqueue`
+
+**Common Examples:**
+- Audio files with no MusicBrainz metadata
+- Passages that fall in gaps between identified songs in an audio file
+- Sound effects, spoken word, ambient sounds, or other non-musical content
+- User-defined passages not yet matched to MusicBrainz database
+
+**Terminology Note:** "Zero songs" is equivalent to "zero recordings" since each Song contains exactly one Recording ([ENT-MP-010], [ENT-CARD-040]). A passage with zero recordings inherently has zero songs.
+
+**Playback Behavior:**
+- Zero-song passages play audio identically to passages with songs
+- All crossfade timing and fade curves apply normally
+- Excluded from Program Director automatic selection ([ENT-CNST-010])
+- No cooldown tracking (no artist/work to track)
+- No Musical Flavor calculation possible
+
 #### Ephemeral Passage
 
 **Definition:** A temporary passage definition created transiently for ad-hoc playback without database persistence.

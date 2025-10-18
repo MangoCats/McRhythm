@@ -662,7 +662,7 @@ Internal events enable **reactive position tracking** without timer polling:
 - **Configurable intervals**: Both position event and PlaybackProgress intervals stored in database
   - `position_event_interval_ms`: Controls internal event frequency (default: 1000ms)
   - `playback_progress_interval_ms`: Controls external SSE event frequency (default: 5000ms)
-  - See [Database Schema - Event Timing Intervals](../IMPL001-database_schema.md#event-timing-intervals---detailed-explanation) for detailed configuration guidance
+  - See [Database Schema - Event Timing Intervals](IMPL001-database_schema.md#event-timing-intervals---detailed-explanation) for detailed configuration guidance
 
 ## EventBus Implementation
 

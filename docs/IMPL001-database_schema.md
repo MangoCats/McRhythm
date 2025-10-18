@@ -79,6 +79,7 @@ Tracks database schema version for migration management.
 | version | INTEGER | PRIMARY KEY | Current schema version number |
 | applied_at | TIMESTAMP | NOT NULL | When this version was applied |
 
+<a id="users"></a>
 ### `users`
 
 Stores user account information for both Anonymous and registered users.
@@ -295,6 +296,7 @@ Albums/releases from MusicBrainz.
 
 **Note:** Album art is stored in the `images` table with `image_type` IN ('album_front', 'album_back', 'album_liner') and `entity_id` = album guid.
 
+<a id="images"></a>
 ### `images`
 
 Images associated with various entities (songs, passages, albums, artists, works).
@@ -416,7 +418,7 @@ Associates passages with albums.
   this table provides a direct link for performance and handles edge cases:
   - Multiple songs in a passage may come from different albums
   - Passage metadata needs album association before song identification completes
-  - Compilation albums where passage spans tracks from different source albums
+  - Compilation albums where passage spans songs from different source albums
 - **Album art selection for multi-album passages**:
   - UI displays artwork based on the currently playing song within the passage
   - When playback position is between songs (in a gap), nearest song determines artwork
@@ -662,6 +664,7 @@ Passages that define the musical flavor target for each timeslot.
 
 ## Configuration & Settings
 
+<a id="module_config"></a>
 ### `module_config`
 
 Module network configuration for inter-module communication. Each module reads this table on startup to discover other modules' addresses and ports.
@@ -709,6 +712,7 @@ The database is initialized with default module configurations on first run:
 - Each module binds to its own configured port and uses other modules' configurations to make HTTP requests
 - See [Deployment - Module Discovery](IMPL004-deployment.md#module-discovery-via-database) for startup sequence
 
+<a id="settings"></a>
 ### `settings`
 
 **Global** application settings (key-value store). All settings are system-wide, not per-user.

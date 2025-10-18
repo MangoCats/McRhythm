@@ -833,7 +833,7 @@ When determining timing values for the enqueued passage, the following precedenc
     }
   }
   ```
-  Validation follows XFD-IMPL-040 through XFD-IMPL-043.
+  Validation follows the crossfade timing constraints defined in [SPEC002-crossfade.md](SPEC002-crossfade.md) ([XFD-CONS-010] through [XFD-CONS-030]).
 - **404 Not Found**: Audio file does not exist at specified path
   ```json
   {"error": "file_not_found", "file_path": "music/album/track.mp3"}

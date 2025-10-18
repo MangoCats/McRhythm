@@ -11,7 +11,7 @@ Defines code organization and quality standards. Supports Tier 2 design document
 ## Overview
 
 This document establishes coding standards and organizational requirements for the WKMP codebase.
-These conventions ensure maintainability, testability, and consistency across the Rust/GStreamer/Tauri application.
+These conventions ensure maintainability, testability, and consistency across the Rust microservices application.
 
 ## Workspace Structure
 
@@ -38,7 +38,7 @@ WKMP uses a Cargo workspace with multiple binary crates and a shared common libr
 
 - **CO-008:** Module-specific code shall remain in respective binary crates:
   - HTTP server setup (module-specific)
-  - GStreamer code (Audio Player only)
+  - Audio pipeline code (Audio Player only)
   - Password hashing (User Interface only)
   - Selection algorithm (Program Director only)
   - File scanning (Audio Ingest only)

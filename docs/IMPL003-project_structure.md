@@ -511,8 +511,9 @@ tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 
 # Module-specific dependencies
-gstreamer = "0.22"
-gstreamer-audio = "0.22"
+symphonia = "0.5"  # Audio decoding
+rubato = "0.15"    # Sample rate conversion
+cpal = "0.15"      # Audio output
 toml = "0.8"
 futures = "0.3"
 
@@ -884,7 +885,9 @@ new-crate = { workspace = true }
 ```toml
 # Edit module Cargo.toml (e.g., wkmp-ap/Cargo.toml)
 [dependencies]
-gstreamer = "0.22"  # Only needed by Audio Player
+symphonia = "0.5"  # Only needed by Audio Player (audio decoding)
+rubato = "0.15"    # Only needed by Audio Player (sample rate conversion)
+cpal = "0.15"      # Only needed by Audio Player (audio output)
 ```
 
 ### Updating Dependencies
@@ -918,7 +921,7 @@ cargo outdated
 
 ❌ **Should NOT be in common:**
 - HTTP server setup (module-specific)
-- GStreamer code (Audio Player only)
+- Audio pipeline code (Audio Player only)
 - Password hashing (User Interface only)
 - Selection algorithm (Program Director only)
 - File scanning (Audio Ingest only)
