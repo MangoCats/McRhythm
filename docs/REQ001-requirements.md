@@ -152,7 +152,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - No internet access
 - Authentication: Always operates as Anonymous user
   - No login or account creation UI elements shown
-  - See [architecture.md#version-differences](SPEC001-architecture.md#version-differences)
+  - See [architecture.md#version-differentiation](SPEC001-architecture.md#version-differentiation)
 
 **[REQ-VER-042]** Resource Profile:
 - CPU: Minimal (playback + basic selection)

@@ -216,7 +216,7 @@ When an entity (song, work, artist) is associated with multiple audio files in d
 **Process:**
 
 1. **Decode audio to PCM**
-   - Use GStreamer pipeline: `filesrc → decodebin → audioconvert → audioresample`
+   - Decode audio using symphonia library with configured resampling to 11025 Hz
    - Target format: 16-bit signed integer, mono, 11025 Hz (Chromaprint requirement)
    - Duration: Full passage (or first 120 seconds for very long passages)
 
