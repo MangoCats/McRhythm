@@ -78,11 +78,23 @@ async fn main() -> Result<()> {
     let shared_state = Arc::new(SharedState::new());
 
     // Create database connection pool
+    // [ISSUE-11] Add connection timeouts and retry configuration
+    // [ARCH-ERRH-050] Database lock retry strategy
+    // [ARCH-ERRH-070] Lock timeout configuration
     let db_pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(5)
+        .acquire_timeout(std::time::Duration::from_secs(5))  // [ISSUE-11] 5 second timeout
+        .idle_timeout(Some(std::time::Duration::from_secs(60)))  // [ISSUE-11] Close idle connections after 60s
         .connect(&format!("sqlite:{}", config.database_path.display()))
         .await?;
-    info!("Connected to database");
+    info!("Connected to database with timeouts (acquire: 5s, idle: 60s)");
+
+    // Initialize database tables and defaults
+    // [ARCH-INIT-010] Module startup sequence
+    // [ARCH-INIT-020] Default value initialization
+    // [ISSUE-3] Complete module initialization
+    db::init::initialize_database(&db_pool).await?;
+    info!("Database initialization complete");
 
     // Initialize playback engine
     let engine = Arc::new(PlaybackEngine::new(db_pool.clone(), Arc::clone(&shared_state)).await?);

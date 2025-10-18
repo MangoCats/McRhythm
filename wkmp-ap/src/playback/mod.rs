@@ -9,6 +9,7 @@ pub mod decoder_pool;
 pub mod engine;
 pub mod pipeline;
 pub mod queue_manager;
+pub mod ring_buffer;
 pub mod types;
 
 pub use buffer_manager::BufferManager;

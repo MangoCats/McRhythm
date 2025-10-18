@@ -84,6 +84,8 @@ impl QueueEntry {
 /// - Current: Currently playing
 /// - Next: Next to play (gets full buffer)
 /// - Queued: After next (get partial buffers)
+///
+/// **[ISSUE-10]** Caches total count for O(1) length queries
 pub struct QueueManager {
     /// Currently playing passage
     current: Option<QueueEntry>,
@@ -93,6 +95,10 @@ pub struct QueueManager {
 
     /// After next (get partial buffers)
     queued: Vec<QueueEntry>,
+
+    /// Cached total count (current + next + queued.len())
+    /// [ISSUE-10] Maintained on all queue mutations for O(1) len()
+    total_count: usize,
 }
 
 impl QueueManager {
@@ -102,6 +108,7 @@ impl QueueManager {
             current: None,
             next: None,
             queued: Vec::new(),
+            total_count: 0, // [ISSUE-10] Initialize count
         }
     }
 
@@ -122,12 +129,15 @@ impl QueueManager {
 
         if !entries.is_empty() {
             manager.current = Some(entries.remove(0));
+            manager.total_count += 1; // [ISSUE-10] Update count
         }
 
         if !entries.is_empty() {
             manager.next = Some(entries.remove(0));
+            manager.total_count += 1; // [ISSUE-10] Update count
         }
 
+        manager.total_count += entries.len(); // [ISSUE-10] Add queued count
         manager.queued = entries;
 
         Ok(manager)
@@ -142,6 +152,11 @@ impl QueueManager {
     ///
     /// Returns the new current passage, or None if queue is empty
     pub fn advance(&mut self) -> Option<QueueEntry> {
+        // [ISSUE-10] Count changes: old current is discarded (-1)
+        if self.current.is_some() {
+            self.total_count -= 1;
+        }
+
         // Move next to current
         self.current = self.next.take();
 
@@ -176,7 +191,7 @@ impl QueueManager {
         // Check if it's the current passage
         if let Some(ref current) = self.current {
             if current.queue_entry_id == queue_entry_id {
-                // Advance to next
+                // Advance to next (advance() handles count update)
                 self.advance();
                 return true;
             }
@@ -191,6 +206,7 @@ impl QueueManager {
                 } else {
                     self.next = None;
                 }
+                self.total_count -= 1; // [ISSUE-10] Removed one entry
                 return true;
             }
         }
@@ -198,6 +214,7 @@ impl QueueManager {
         // Check queued passages
         if let Some(index) = self.queued.iter().position(|e| e.queue_entry_id == queue_entry_id) {
             self.queued.remove(index);
+            self.total_count -= 1; // [ISSUE-10] Removed one entry
             return true;
         }
 
@@ -209,6 +226,9 @@ impl QueueManager {
     /// Appends to end of queued list.
     /// Call this after enqueuing to database to keep in-memory state in sync.
     pub fn enqueue(&mut self, entry: QueueEntry) {
+        // [ISSUE-10] Increment count for any addition
+        self.total_count += 1;
+
         // If queue is completely empty, set as current
         if self.current.is_none() {
             self.current = Some(entry);
@@ -230,6 +250,7 @@ impl QueueManager {
         self.current = None;
         self.next = None;
         self.queued.clear();
+        self.total_count = 0; // [ISSUE-10] Reset count
     }
 
     /// Check if queue is completely empty
@@ -238,16 +259,9 @@ impl QueueManager {
     }
 
     /// Get total queue length (current + next + queued)
+    /// [ISSUE-10] O(1) cached count instead of O(1) calculation
     pub fn len(&self) -> usize {
-        let mut count = 0;
-        if self.current.is_some() {
-            count += 1;
-        }
-        if self.next.is_some() {
-            count += 1;
-        }
-        count += self.queued.len();
-        count
+        self.total_count
     }
 }
 

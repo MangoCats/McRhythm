@@ -10,6 +10,7 @@
 use crate::error::{Error, Result};
 use sqlx::{Pool, Sqlite};
 use std::str::FromStr;
+use uuid::Uuid;
 
 /// Get volume setting (0.0-1.0)
 ///
@@ -93,6 +94,73 @@ pub async fn get_crossfade_defaults(db: &Pool<Sqlite>) -> Result<CrossfadeDefaul
         crossfade_time_s,
         fade_curve,
     })
+}
+
+/// Save playback position to database
+///
+/// [REQ-PERS-011] Persist last played position
+/// [ARCH-QP-020] Position persisted on Pause/Play
+/// [ISSUE-2] Database persistence for playback state
+pub async fn save_playback_position(db: &Pool<Sqlite>, position_ms: i64) -> Result<()> {
+    set_setting(db, "last_played_position_ms", position_ms).await
+}
+
+/// Load last playback position from database
+///
+/// [REQ-PERS-011] Restore last played position
+pub async fn load_playback_position(db: &Pool<Sqlite>) -> Result<Option<i64>> {
+    get_setting::<i64>(db, "last_played_position_ms").await
+}
+
+/// Save last played passage/queue entry ID
+///
+/// [REQ-PERS-011] Persist last played passage
+pub async fn save_last_passage_id(db: &Pool<Sqlite>, passage_id: Uuid) -> Result<()> {
+    set_setting(db, "last_played_passage_id", passage_id.to_string()).await
+}
+
+/// Load last played passage/queue entry ID
+///
+/// [REQ-PERS-011] Restore last played passage
+pub async fn load_last_passage_id(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
+    match get_setting::<String>(db, "last_played_passage_id").await? {
+        Some(id_str) => {
+            Uuid::parse_str(&id_str)
+                .map(Some)
+                .map_err(|e| Error::Config(format!("Invalid UUID in last_played_passage_id: {}", e)))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Save queue state (current passage being played)
+///
+/// [ARCH-QP-020] Queue state persistence
+pub async fn save_queue_state(db: &Pool<Sqlite>, current_id: Option<Uuid>) -> Result<()> {
+    match current_id {
+        Some(id) => set_setting(db, "queue_current_id", id.to_string()).await,
+        None => {
+            // Delete the setting if no current passage
+            sqlx::query("DELETE FROM settings WHERE key = 'queue_current_id'")
+                .execute(db)
+                .await?;
+            Ok(())
+        }
+    }
+}
+
+/// Load queue state
+///
+/// [ARCH-QP-020] Queue state restoration
+pub async fn load_queue_state(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
+    match get_setting::<String>(db, "queue_current_id").await? {
+        Some(id_str) => {
+            Uuid::parse_str(&id_str)
+                .map(Some)
+                .map_err(|e| Error::Config(format!("Invalid UUID in queue_current_id: {}", e)))
+        }
+        None => Ok(None),
+    }
 }
 
 /// Generic setting getter
@@ -264,5 +332,59 @@ mod tests {
             .unwrap();
         let value: Option<String> = get_setting(&db, "test_key").await.unwrap();
         assert_eq!(value, Some("value2".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_playback_position_persistence() {
+        let db = setup_test_db().await;
+
+        // Initially should be None
+        let pos = load_playback_position(&db).await.unwrap();
+        assert_eq!(pos, None);
+
+        // Save position
+        save_playback_position(&db, 12345).await.unwrap();
+        let pos = load_playback_position(&db).await.unwrap();
+        assert_eq!(pos, Some(12345));
+
+        // Update position
+        save_playback_position(&db, 54321).await.unwrap();
+        let pos = load_playback_position(&db).await.unwrap();
+        assert_eq!(pos, Some(54321));
+    }
+
+    #[tokio::test]
+    async fn test_last_passage_id_persistence() {
+        let db = setup_test_db().await;
+
+        // Initially should be None
+        let id = load_last_passage_id(&db).await.unwrap();
+        assert_eq!(id, None);
+
+        // Save passage ID
+        let test_id = Uuid::new_v4();
+        save_last_passage_id(&db, test_id).await.unwrap();
+        let loaded_id = load_last_passage_id(&db).await.unwrap();
+        assert_eq!(loaded_id, Some(test_id));
+    }
+
+    #[tokio::test]
+    async fn test_queue_state_persistence() {
+        let db = setup_test_db().await;
+
+        // Initially should be None
+        let state = load_queue_state(&db).await.unwrap();
+        assert_eq!(state, None);
+
+        // Save queue state with current ID
+        let test_id = Uuid::new_v4();
+        save_queue_state(&db, Some(test_id)).await.unwrap();
+        let loaded_state = load_queue_state(&db).await.unwrap();
+        assert_eq!(loaded_state, Some(test_id));
+
+        // Clear queue state (None)
+        save_queue_state(&db, None).await.unwrap();
+        let loaded_state = load_queue_state(&db).await.unwrap();
+        assert_eq!(loaded_state, None);
     }
 }

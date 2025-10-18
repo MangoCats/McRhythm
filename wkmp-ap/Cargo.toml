@@ -37,6 +37,7 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 symphonia = { version = "0.5", features = ["mp3", "flac", "aac", "isomp4", "vorbis"] }
 rubato = "0.15"
 cpal = "0.15"
+ringbuf = "0.4"
 
 [dev-dependencies]
 # Additional dependencies for testing
