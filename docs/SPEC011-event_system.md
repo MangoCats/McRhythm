@@ -554,6 +554,116 @@ wkmp-ap (Audio Player)
 
 SSD-BUF-010 (Buffer state visibility requirement)
 
+## Internal vs External Events
+
+### Event Scope Classification
+
+WKMP uses two distinct event systems with different scopes:
+
+| Event System | Scope | Purpose | Transport | Examples |
+|--------------|-------|---------|-----------|----------|
+| **External Events** (`WkmpEvent`) | Cross-module, public API | SSE broadcast to UI clients | `tokio::broadcast` + HTTP SSE | `PassageStarted`, `PlaybackProgress`, `CurrentSongChanged` |
+| **Internal Events** (`PlaybackEvent`) | Within wkmp-ap module | Internal position tracking | `tokio::mpsc` channel | `PositionUpdate`, `StateChanged` |
+
+### External Events (WkmpEvent)
+
+**Purpose:** Broadcast playback state to all interested components (UI, other modules, external systems)
+
+**Implementation:** See `wkmp-common/src/events.rs`
+
+**Transport:**
+- Within wkmp-ap: `EventBus` (tokio::broadcast)
+- To UI clients: Server-Sent Events (SSE) via HTTP
+
+**Characteristics:**
+- Public API contract (versioned, stable)
+- Serialized to JSON for SSE transmission
+- Many-to-many broadcast pattern
+- Subscribed by: SSE handler, state persistence, potentially other modules
+
+### Internal Events (PlaybackEvent)
+
+**Purpose:** Enable event-driven architecture within wkmp-ap for position tracking and song boundary detection
+
+**Implementation:** See `wkmp-ap/src/playback/events.rs`
+
+**Transport:** MPSC channel from mixer thread to position event handler
+
+**Event Types:**
+
+```rust
+/// Internal playback events (not exposed via SSE)
+#[derive(Debug, Clone)]
+pub enum PlaybackEvent {
+    /// Position update from mixer
+    ///
+    /// Emitted at configurable interval (database setting: position_event_interval_ms, default: 1000ms)
+    /// Example: At 44.1kHz with 1000ms interval → every 44,100 frames (~1 second of audio)
+    /// See IMPL001-database_schema.md for interval configuration details
+    PositionUpdate {
+        /// Queue entry ID of current passage
+        queue_entry_id: Uuid,
+
+        /// Frame position within buffer
+        position_frames: usize,
+
+        /// Sample rate (for ms conversion)
+        sample_rate: u32,
+
+        /// Mixer state context
+        state: MixerStateContext,
+    },
+
+    /// Mixer state changed (e.g., started crossfade)
+    StateChanged {
+        queue_entry_id: Uuid,
+        new_state: MixerStateContext,
+    },
+}
+```
+
+**Characteristics:**
+- Private implementation detail (not exposed outside wkmp-ap)
+- NOT serialized or sent via SSE
+- One-to-one MPSC pattern (mixer → handler)
+- Non-blocking emission (`try_send()` to avoid blocking audio thread)
+
+**Use Cases:**
+- Event-driven position tracking (replaces timer-based polling)
+- Song boundary detection (for `CurrentSongChanged` external event)
+- Coordinating position updates with `PlaybackProgress` emission
+
+**Event Flow:**
+
+```
+Mixer Thread (audio generation)
+  └─> mixer.get_next_frame()
+      └─> Every position_event_interval_ms of audio: emit PlaybackEvent::PositionUpdate
+          └─> MPSC channel (capacity: 100 events)
+          └─> Default: 1000ms interval (44,100 frames @ 44.1kHz)
+
+Position Event Handler (async task)
+  └─> Receive PlaybackEvent::PositionUpdate
+      ├─> Convert frames → milliseconds
+      ├─> Check song timeline for boundary crossing
+      ├─> If crossed: Emit WkmpEvent::CurrentSongChanged (external)
+      └─> If position_ms elapsed >= playback_progress_interval_ms:
+          Emit WkmpEvent::PlaybackProgress (external)
+          Default: 5000ms interval
+```
+
+**Design Rationale:**
+
+Internal events enable **reactive position tracking** without timer polling:
+- Position updates tied to actual frame generation (not polling timers)
+- Sample-accurate precision (~0.02ms) maintained through event chain
+- CPU-efficient (events only when frames generated, none when paused)
+- Clean separation: Mixer knows frames, handler knows songs/timing
+- **Configurable intervals**: Both position event and PlaybackProgress intervals stored in database
+  - `position_event_interval_ms`: Controls internal event frequency (default: 1000ms)
+  - `playback_progress_interval_ms`: Controls external SSE event frequency (default: 5000ms)
+  - See [Database Schema - Event Timing Intervals](../IMPL001-database_schema.md#event-timing-intervals---detailed-explanation) for detailed configuration guidance
+
 ## EventBus Implementation
 
 ### Core EventBus Structure

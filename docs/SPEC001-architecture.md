@@ -134,7 +134,7 @@ WKMP consists of **5 independent processes** (depending on version, Full deploym
 - `VolumeChanged` - Volume level updated
 - `QueueChanged` - Queue modified (add/remove/reorder)
 - `PlaybackStateChanged` - Playing/Paused state changed
-- `PlaybackProgress` - Position updates (every 5000ms)
+- `PlaybackProgress` - Position updates (configurable interval, default: 5 seconds)
 - `PassageStarted` - New passage began playing
 - `PassageCompleted` - Passage finished
 - `CurrentSongChanged` - Within-passage song boundary crossed
@@ -349,17 +349,24 @@ When a passage starts playing:
 
 **[ARCH-SNGC-030]** CurrentSongChanged Emission:
 
-During playback, wkmp-ap monitors playback position to detect song boundary crossings:
+During playback, wkmp-ap uses **event-driven position tracking** to detect song boundary crossings:
 
-1. **Position monitoring:** Check current position against song timeline every 500ms
-   - Use same position query mechanism as `PlaybackProgress` event
-   - Separate 500ms timer for song boundary detection
+1. **Position event generation:** Mixer emits `PositionUpdate` internal events
+   - **Configurable interval**: Database setting `position_event_interval_ms` (default: 1000ms)
+   - **Emission timing**: Every `(position_event_interval_ms / 1000.0) * sample_rate` frames
+   - **Example**: At 44.1kHz with 1000ms interval → event every 44,100 frames (~1 second of audio)
+   - Event contains: frame position, queue entry ID, sample rate, mixer state
+   - Non-blocking emission via MPSC channel (capacity: 100 events)
+   - **See [Database Schema](IMPL001-database_schema.md#event-timing-intervals---detailed-explanation)** for interval configuration details
 
-2. **Boundary detection:**
-   - Compare `current_position_ms` to each song's `[start_time_ms, end_time_ms]` range
-   - Determine if position crossed into different song or gap since last check
+2. **Event-driven boundary detection:**
+   - Position event handler receives `PositionUpdate` events
+   - Converts frame position to milliseconds using sample rate
+   - Compares `position_ms` to each song's `[start_time_ms, end_time_ms]` range in timeline
+   - Determines if position crossed into different song or gap since last event
+   - **Detection latency**: 0 to `position_event_interval_ms` (configurable, default: 0-1000ms)
 
-3. **Event emission:** Emit `CurrentSongChanged` when:
+3. **Event emission:** Emit `CurrentSongChanged` SSE event when:
    - Passage starts, in a song or gap
    - Position crosses from one song to another
    - Position crosses from song to gap (no song at current position)
@@ -402,8 +409,10 @@ Do not emit `CurrentSongChanged` when passage starts or ends in a gap.
 - Song timeline built **only once** per passage (on `PassageStarted`)
 - No periodic re-reading of `passage_songs` table during playback
 - Boundary checks use simple time range comparisons (no complex state machine)
-- 500ms detection interval provides smooth UI updates without excessive CPU usage
-  - note: detection only triggers SSE emission when transition is detected.
+- **Event-driven detection**: Boundary checks occur when mixer emits position update events (~1 event/second of audio)
+  - Position events are tied to actual frame generation, not polling timers
+  - Detection only triggers SSE emission when transition is detected
+  - Typical latency: <50ms (determined by ring buffer size and event channel)
 - First `CurrentSongChanged` emitted immediately on passage start (if passage begins within a song and not a gap)
 
 **[ARCH-SNGC-041]** Song Timeline Data Structure:
@@ -489,7 +498,17 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 - Song timeline stored in memory (typically <100 songs per passage, minimal memory impact)
 - Boundary checks are O(n) where n = songs in passage (acceptable for typical passage sizes)
   - If the future should bring large passages (>1000 songs), consider binary search on sorted timeline
-- Detection timer runs only during playback (paused = no checks)
+- **Event-driven architecture**: Position events emitted only when frames are generated
+  - **Position event frequency**: Configurable via `position_event_interval_ms` (default: 1000ms)
+    - Lower values (100-500ms): More responsive boundary detection, higher CPU usage
+    - Higher values (2000-5000ms): Lower CPU usage, delayed boundary detection
+  - During playback: Events emitted at configured interval (tied to actual audio generation)
+  - When paused: No events emitted (mixer stops generating frames)
+  - **CPU overhead**: Proportional to event frequency
+    - At 1000ms interval: <0.1% CPU (event emission + boundary checking)
+    - At 100ms interval: ~1% CPU (10x event frequency)
+  - **Memory overhead**: ~10KB (event channel buffer + song timeline)
+  - **See [Database Schema - Event Timing Intervals](IMPL001-database_schema.md#event-timing-intervals---detailed-explanation)** for configuration guidance
 
 ### Volume Handling
 <a name="volume-handling"></a>

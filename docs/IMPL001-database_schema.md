@@ -745,8 +745,9 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | **Audio Configuration** |
 | `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (user-facing API uses 0-100 integer; conversion: `system = user / 100.0`, `user = ceil(system * 100.0)`) | wkmp-ap | All |
 | `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
-| `playback_progress_interval_ms` | INTEGER | 5000 | SSE PlaybackProgress event frequency (milliseconds) | wkmp-ap | All |
-| `current_song_check_interval_ms` | INTEGER | 500 | Song boundary detection check frequency (milliseconds) | wkmp-ap | All |
+| **Event Timing Configuration** |
+| `position_event_interval_ms` | INTEGER | 1000 | **Internal event**: Interval for mixer to emit PositionUpdate internal events (milliseconds). Controls song boundary detection accuracy and CPU usage. Lower values = more frequent boundary checks but higher CPU. Range: 100-5000ms. | wkmp-ap | All |
+| `playback_progress_interval_ms` | INTEGER | 5000 | **External event**: Interval for emitting PlaybackProgress SSE events to UI clients (milliseconds). Controls UI progress bar update frequency. Based on playback time, not wall clock time. Range: 1000-10000ms. | wkmp-ap | All |
 | **Database Backup** |
 | `backup_location` | TEXT | (same folder as wkmp.db) | Path to backup directory | wkmp-ui | All |
 | `backup_interval_ms` | INTEGER | 7776000000 | Periodic backup interval (default: 90 days) | wkmp-ui | All |
@@ -795,6 +796,113 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 - See [Requirements](REQ001-requirements.md) for requirement references (e.g., [REQ-PB-050] for `initial_play_state`)
 - See [Crossfade Design](SPEC002-crossfade.md) for complete crossfade system specifications
 - See [Architecture](SPEC001-architecture.md) for module responsibilities and configuration patterns
+
+### Event Timing Intervals - Detailed Explanation
+
+WKMP uses an **event-driven architecture** for position tracking with two configurable time intervals that control different aspects of the system:
+
+#### 1. Position Event Interval (`position_event_interval_ms`)
+
+**Purpose:** Controls how often the mixer emits **internal** `PositionUpdate` events
+
+**Stored in:** `settings` table, `position_event_interval_ms` column
+**Default:** `1000` milliseconds (1 second)
+**Range:** 100-5000ms
+**Used by:** wkmp-ap (Audio Player module)
+
+**Application Points:**
+- **Mixer thread** (`playback/pipeline/mixer.rs`): Checks frame counter every `get_next_frame()` call
+- **Event emission**: When frame count reaches `(position_event_interval_ms / 1000.0) * sample_rate` frames
+- At 44.1kHz with 1000ms interval: Event emitted every 44,100 frames
+
+**Affects:**
+- **Song boundary detection accuracy**: Lower values = boundaries detected faster
+- **CPU usage**: Lower values = more frequent event processing
+- **CurrentSongChanged event latency**: Lower values = faster detection of song transitions
+
+**Trade-offs:**
+- **100ms**: Very responsive, ~10x CPU overhead, <100ms boundary detection
+- **1000ms** (default): Balanced, minimal CPU, ~1s boundary detection
+- **5000ms**: Low CPU, delayed boundary detection up to 5s
+
+**Internal Event Flow:**
+```
+Mixer (every position_event_interval_ms of audio)
+  └─> Emit PositionUpdate event
+      └─> MPSC channel (capacity: 100 events)
+          └─> Position Event Handler receives event
+              └─> Checks song timeline for boundaries
+```
+
+#### 2. PlaybackProgress Event Interval (`playback_progress_interval_ms`)
+
+**Purpose:** Controls how often **external** `PlaybackProgress` SSE events are sent to UI clients
+
+**Stored in:** `settings` table, `playback_progress_interval_ms` column
+**Default:** `5000` milliseconds (5 seconds)
+**Range:** 1000-10000ms
+**Used by:** wkmp-ap (Audio Player module)
+
+**Application Points:**
+- **Position event handler** (`playback/engine.rs`): Tracks elapsed playback time
+- **Emission logic**: When `current_position_ms - last_progress_position_ms >= playback_progress_interval_ms`
+- Based on **playback time**, not wall clock time (paused = no events)
+
+**Affects:**
+- **UI progress bar update frequency**: Lower values = smoother progress bar
+- **Network traffic**: Lower values = more SSE events sent to clients
+- **UI responsiveness**: Balance between smoothness and efficiency
+
+**Trade-offs:**
+- **1000ms**: Very smooth progress bar, higher network traffic
+- **5000ms** (default): Balanced, standard 5-second UI updates
+- **10000ms**: Minimal traffic, jerky progress bar updates
+
+**External Event Flow:**
+```
+Position Event Handler
+  └─> Receives PositionUpdate (has current position_ms)
+  └─> Checks: position_ms - last_emitted >= playback_progress_interval_ms?
+      └─> YES: Emit PlaybackProgress SSE event to all clients
+```
+
+#### Interval Relationship and Independence
+
+These two intervals are **independent and serve different purposes**:
+
+| Aspect | Position Event Interval | PlaybackProgress Event Interval |
+|--------|-------------------------|--------------------------------|
+| **Scope** | Internal (wkmp-ap only) | External (SSE to UI clients) |
+| **Event Type** | `PlaybackEvent::PositionUpdate` | `WkmpEvent::PlaybackProgress` |
+| **Transport** | MPSC channel | HTTP Server-Sent Events |
+| **Purpose** | Song boundary detection | UI progress bar updates |
+| **Trigger** | Frame count | Playback time elapsed |
+| **Typical Ratio** | 1:5 (1s : 5s) | Default configuration |
+
+**Example Scenario (Default Settings):**
+```
+Time    Position Event (1000ms)    PlaybackProgress Event (5000ms)
+0ms     ✓ (check boundaries)       ✓ (emit to UI)
+1000ms  ✓ (check boundaries)
+2000ms  ✓ (check boundaries)
+3000ms  ✓ (check boundaries)
+4000ms  ✓ (check boundaries)
+5000ms  ✓ (check boundaries)       ✓ (emit to UI)
+6000ms  ✓ (check boundaries)
+...
+```
+
+**Configuration Recommendations:**
+
+- **Standard playback**: position_event_interval_ms=1000, playback_progress_interval_ms=5000
+- **Rapid song changes**: position_event_interval_ms=500, playback_progress_interval_ms=2000
+- **Low-power devices**: position_event_interval_ms=2000, playback_progress_interval_ms=10000
+- **High-precision lyrics**: position_event_interval_ms=100, playback_progress_interval_ms=1000
+
+**Important:** Both intervals are measured in **playback time**, not wall clock time:
+- During playback: Intervals advance with audio frames
+- When paused: No events emitted (no frame generation)
+- After seek: Immediate position event, then regular intervals resume
 
 **Queue Entry Timing Overrides JSON Schema:**
 

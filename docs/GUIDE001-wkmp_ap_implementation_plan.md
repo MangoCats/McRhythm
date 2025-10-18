@@ -256,9 +256,16 @@ This document provides a phased implementation plan for building wkmp-ap from sc
 ### Event Emission Timing
 - **PassageStarted**: Emit when mixer starts reading buffer
 - **PassageCompleted**: Emit when mixer exhausts buffer OR user skips
-- **PlaybackProgress**: Emit every 5000ms (configurable), also on play/pause
+- **PlaybackProgress**: Emit based on configurable interval
+  - Database setting: `playback_progress_interval_ms` (default: 5000ms)
+  - Based on playback time, not wall clock time
+  - Event-driven: Triggered when position events indicate interval elapsed
 - **BufferStateChanged**: Emit on Decoding→Ready, Ready→Playing, Playing→Exhausted
-- **CurrentSongChanged**: Check every 500ms, emit when boundary crossed
+- **CurrentSongChanged**: Event-driven detection - emitted when position event indicates boundary crossed
+  - Database setting: `position_event_interval_ms` (default: 1000ms)
+  - Mixer emits internal PositionUpdate event at configured interval (default: every 44,100 frames @ 44.1kHz)
+  - Position event handler checks song timeline and emits CurrentSongChanged when boundary detected
+  - See [Database Schema - Event Timing Intervals](IMPL001-database_schema.md#event-timing-intervals---detailed-explanation) for configuration details
 
 ---
 

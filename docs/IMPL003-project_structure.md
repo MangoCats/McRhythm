@@ -75,13 +75,15 @@ mcrhythm/
 │   │   │   └── events.rs        # SSE endpoint
 │   │   ├── playback/
 │   │   │   ├── mod.rs
-│   │   │   ├── engine.rs        # Playback engine
+│   │   │   ├── engine.rs        # Playback engine with event-driven position tracking
+│   │   │   ├── events.rs        # Internal PlaybackEvent types (not exposed via SSE)
+│   │   │   ├── song_timeline.rs # Song boundary detection logic
 │   │   │   ├── pipeline/        # Single-stream architecture
 │   │   │   │   ├── mod.rs
 │   │   │   │   ├── single_stream/ # Sample-accurate crossfading
 │   │   │   │   │   ├── mod.rs
 │   │   │   │   │   ├── buffer.rs  # PCM buffer management
-│   │   │   │   │   ├── mixer.rs   # Sample-accurate mixer
+│   │   │   │   │   ├── mixer.rs   # Sample-accurate mixer with position events
 │   │   │   │   │   └── curves.rs  # Fade curve algorithms
 │   │   │   │   └── dual.rs       # Legacy dual-pipeline (archived)
 │   │   │   ├── crossfade.rs     # Crossfade logic
@@ -90,6 +92,9 @@ mcrhythm/
 │   │   │   ├── mod.rs
 │   │   │   ├── device.rs        # Device management
 │   │   │   └── volume.rs        # Volume control
+│   │   ├── db/
+│   │   │   ├── mod.rs
+│   │   │   └── passage_songs.rs # Song timeline loading from database
 │   │   ├── historian.rs         # Play history recorder
 │   │   └── dev_ui/
 │   │       └── templates/       # Minimal HTML developer UI
