@@ -983,6 +983,27 @@ Skip latency:           <100 ms (if buffer ready)
 - **[SSD-FADE-024]** Implementation flexibility: Allow fade application during decode OR defer to read-time based on implementation needs
 - **[SSD-FADE-025]** Logging: Warn if timing issue occurs, including buffer status and skip activity
 
+### Ring Buffer Underrun Logging Classification
+**[SSD-RBUF-010] Implementation:** Audio ring buffer uses context-aware logging to distinguish expected underruns from concerning ones.
+
+**[SSD-RBUF-011] Expected Underruns (TRACE level):**
+- **Startup underruns:** First ~50-100ms after audio output initialization, before mixer fills buffer
+- **Paused state underruns:** When PlaybackState is Paused, no audio output expected
+- **Empty queue underruns:** When queue has no passages to play
+
+**[SSD-RBUF-012] Concerning Underruns (WARN level):**
+- **Active playback underruns:** When PlaybackState is Playing AND queue has passages
+- Indicates CPU cannot keep up with decoding, or mixer thread is blocked
+
+**[SSD-RBUF-013] Context Tracking:**
+- `buffer_has_been_filled` flag: Set when buffer reaches 50-75% fill (startup complete)
+- `audio_expected` flag: Updated by PlaybackEngine based on state + queue status
+- Both flags use lock-free atomics for real-time audio thread safety
+
+**[SSD-RBUF-014] Log Frequency:**
+- Underruns logged every 1000th occurrence to avoid log spam
+- Each message includes cumulative total for trend tracking
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -1218,16 +1239,31 @@ This section provides a comprehensive index of all traceability IDs assigned to 
 | SSD-CLIP-025 | Clipping prevention: Apply gain reduction or limiting |
 | SSD-CLIP-026 | Warning frequency: Maximum one warning per crossover |
 
+### RBUF - Ring Buffer Underrun Classification
+
+| ID | Description |
+|----|-------------|
+| SSD-RBUF-010 | Context-aware logging to distinguish expected vs concerning underruns |
+| SSD-RBUF-011 | Expected underruns: Startup, paused state, empty queue (TRACE level) |
+| SSD-RBUF-012 | Concerning underruns: Active playback with queue (WARN level) |
+| SSD-RBUF-013 | Context tracking using lock-free atomics (buffer_has_been_filled, audio_expected) |
+| SSD-RBUF-014 | Log frequency: Every 1000th underrun with cumulative total |
+
 ---
 
-**Document Version:** 1.3
+**Document Version:** 1.4
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-17
+**Last Updated:** 2025-10-18
 **Status:** Current Architecture (Selected for Implementation)
 **Note:** This single-stream architecture has been selected as the current implementation approach. See [architecture.md](SPEC001-architecture.md) for integration details.
 **Related:** `dual-pipeline-design.md` (archived), `architecture-comparison.md`, `single-stream-playback.md`
 
 **Change Log:**
+- v1.4 (2025-10-18): Added Ring Buffer Underrun Logging Classification
+  - Added subsection "Ring Buffer Underrun Logging Classification" after Challenge 7
+  - Added 5 new requirement IDs (SSD-RBUF-010 through SSD-RBUF-014)
+  - Documents context-aware logging: TRACE for expected underruns, WARN for concerning ones
+  - Specifies lock-free atomic flags for real-time audio thread safety
 - v1.2 (2025-10-17): Added requirement traceability IDs
   - Added document code `SSD` (Single Stream Design) to requirements_enumeration.md
   - Added category codes: DEC, BUF, FBUF, PBUF, UND, FADE, CLIP, and others

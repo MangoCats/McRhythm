@@ -15,8 +15,8 @@
 use crate::audio::types::AudioFrame;
 use ringbuf::{traits::*, HeapRb};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use tracing::{warn, debug};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use tracing::{warn, debug, trace};
 
 /// Ring buffer configuration
 const DEFAULT_BUFFER_SIZE: usize = 2048; // ~46ms @ 44.1kHz
@@ -36,6 +36,15 @@ pub struct AudioRingBuffer {
 
     /// Overrun counter (mixer found buffer full)
     overruns: Arc<AtomicU64>,
+
+    /// Flag indicating buffer has been filled to optimal level at least once
+    /// Used to distinguish startup underruns (expected) from steady-state underruns (concerning)
+    buffer_has_been_filled: Arc<AtomicBool>,
+
+    /// Flag indicating audio output is expected
+    /// Set by PlaybackEngine based on playback state (Playing vs Paused) and queue state
+    /// Used to classify underruns: TRACE (expected) vs WARN (concerning)
+    audio_expected: Arc<AtomicBool>,
 }
 
 impl AudioRingBuffer {
@@ -43,7 +52,8 @@ impl AudioRingBuffer {
     ///
     /// # Arguments
     /// * `capacity` - Buffer size in frames (default: 2048 frames = ~46ms @ 44.1kHz)
-    pub fn new(capacity: Option<usize>) -> Self {
+    /// * `audio_expected` - Shared flag indicating if audio output is expected (managed by PlaybackEngine)
+    pub fn new(capacity: Option<usize>, audio_expected: Arc<AtomicBool>) -> Self {
         let capacity = capacity.unwrap_or(DEFAULT_BUFFER_SIZE);
 
         debug!("Creating audio ring buffer with capacity: {} frames", capacity);
@@ -52,6 +62,8 @@ impl AudioRingBuffer {
             buffer: HeapRb::new(capacity),
             underruns: Arc::new(AtomicU64::new(0)),
             overruns: Arc::new(AtomicU64::new(0)),
+            buffer_has_been_filled: Arc::new(AtomicBool::new(false)),
+            audio_expected,
         }
     }
 
@@ -65,11 +77,14 @@ impl AudioRingBuffer {
         let producer = AudioProducer {
             producer: prod,
             overruns: Arc::clone(&self.overruns),
+            buffer_has_been_filled: Arc::clone(&self.buffer_has_been_filled),
         };
 
         let consumer = AudioConsumer {
             consumer: cons,
             underruns: Arc::clone(&self.underruns),
+            buffer_has_been_filled: Arc::clone(&self.buffer_has_been_filled),
+            audio_expected: Arc::clone(&self.audio_expected),
         };
 
         (producer, consumer)
@@ -90,6 +105,7 @@ impl AudioRingBuffer {
 pub struct AudioProducer {
     producer: ringbuf::HeapProd<AudioFrame>,
     overruns: Arc<AtomicU64>,
+    buffer_has_been_filled: Arc<AtomicBool>,
 }
 
 impl AudioProducer {
@@ -99,7 +115,15 @@ impl AudioProducer {
     /// Lock-free operation safe for real-time use.
     pub fn push(&mut self, frame: AudioFrame) -> bool {
         match self.producer.try_push(frame) {
-            Ok(_) => true,
+            Ok(_) => {
+                // Check if buffer has reached optimal fill level
+                // This flag helps distinguish startup underruns from steady-state underruns
+                if !self.buffer_has_been_filled.load(Ordering::Relaxed) && self.is_fill_optimal() {
+                    self.buffer_has_been_filled.store(true, Ordering::Relaxed);
+                    debug!("Audio ring buffer filled to optimal level (startup complete)");
+                }
+                true
+            }
             Err(_) => {
                 // Buffer full - overrun
                 let count = self.overruns.fetch_add(1, Ordering::Relaxed) + 1;
@@ -145,6 +169,8 @@ impl AudioProducer {
 pub struct AudioConsumer {
     consumer: ringbuf::HeapCons<AudioFrame>,
     underruns: Arc<AtomicU64>,
+    buffer_has_been_filled: Arc<AtomicBool>,
+    audio_expected: Arc<AtomicBool>,
 }
 
 impl AudioConsumer {
@@ -155,14 +181,36 @@ impl AudioConsumer {
     ///
     /// On underrun, returns None and increments underrun counter.
     /// Caller should output silence in this case.
+    ///
+    /// Log level classification:
+    /// - TRACE: Expected underruns (startup, paused, or empty queue)
+    /// - WARN: Unexpected underruns (active playback with audio in queue)
     pub fn pop(&mut self) -> Option<AudioFrame> {
         match self.consumer.try_pop() {
             Some(frame) => Some(frame),
             None => {
                 // Buffer empty - underrun
                 let count = self.underruns.fetch_add(1, Ordering::Relaxed) + 1;
+
+                // Log every 1000th underrun to avoid spam
                 if count % 1000 == 0 {
-                    warn!("Audio ring buffer underrun (total: {})", count);
+                    let buffer_filled = self.buffer_has_been_filled.load(Ordering::Relaxed);
+                    let audio_expected = self.audio_expected.load(Ordering::Relaxed);
+
+                    if !buffer_filled {
+                        // Startup underruns - expected behavior
+                        trace!("Audio ring buffer underrun during startup (total: {})", count);
+                    } else if !audio_expected {
+                        // Paused or empty queue - expected behavior
+                        trace!("Audio ring buffer underrun while paused/idle (total: {})", count);
+                    } else {
+                        // Active playback underrun - concerning!
+                        warn!(
+                            "Audio ring buffer underrun during active playback (total: {}) - \
+                             CPU may not be keeping up with decoding",
+                            count
+                        );
+                    }
                 }
                 None
             }
@@ -210,7 +258,8 @@ mod tests {
 
     #[test]
     fn test_ring_buffer_basic() {
-        let rb = AudioRingBuffer::new(Some(128));
+        let audio_expected = Arc::new(AtomicBool::new(false));
+        let rb = AudioRingBuffer::new(Some(128), audio_expected);
         let (mut prod, mut cons) = rb.split();
 
         // Push some frames
@@ -235,7 +284,8 @@ mod tests {
 
     #[test]
     fn test_ring_buffer_overrun() {
-        let rb = AudioRingBuffer::new(Some(4)); // Small buffer
+        let audio_expected = Arc::new(AtomicBool::new(false));
+        let rb = AudioRingBuffer::new(Some(4), audio_expected); // Small buffer
         let (mut prod, mut _cons) = rb.split();
 
         let frame = AudioFrame::zero();
@@ -252,7 +302,8 @@ mod tests {
 
     #[test]
     fn test_ring_buffer_underrun() {
-        let rb = AudioRingBuffer::new(Some(128));
+        let audio_expected = Arc::new(AtomicBool::new(false));
+        let rb = AudioRingBuffer::new(Some(128), audio_expected);
         let (_prod, mut cons) = rb.split();
 
         // Pop from empty buffer (underrun)
@@ -261,7 +312,8 @@ mod tests {
 
     #[test]
     fn test_fill_level_check() {
-        let rb = AudioRingBuffer::new(Some(100));
+        let audio_expected = Arc::new(AtomicBool::new(false));
+        let rb = AudioRingBuffer::new(Some(100), audio_expected);
         let (mut prod, _cons) = rb.split();
 
         // Initially needs frames

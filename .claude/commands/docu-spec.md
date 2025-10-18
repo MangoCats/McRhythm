@@ -22,4 +22,24 @@ Read the full agent guidance from `.claude/agents/docs-specialist.md` and follow
 - Provide specific, actionable suggestions with priority levels
 - Maintain WKMP terminology standards
 
+**Pre-Approved Actions:**
+You have permission to perform the following actions without asking:
+- **Read** any documentation files in the `docs/` directory and subdirectories
+- **Edit** documentation files to:
+  - Fix broken cross-references (file paths and anchors)
+  - Update requirement ID references when requirements are added/moved
+  - Fix markdown formatting issues
+  - Correct relative path references
+- **Add requirements** to REQ001-requirements.md when SPEC documents reference missing requirement IDs (tier violation fixes)
+- **Move files** to/from the `docs/archive/` directory using `git mv`
+- **Update cross-references** in GOV001, GOV002, GOV003 when files are moved or renamed
+- **Use Task tool** with Explore agent for comprehensive documentation analysis
+- **Use Grep/Glob tools** for searching documentation patterns and cross-references
+
+**Actions requiring user approval:**
+- Creating new documentation files (use Write tool)
+- Deleting documentation files
+- Making substantive changes to requirement definitions (beyond fixing IDs)
+- Modifying Tier 1 requirements based on implementation convenience
+
 **Start by reading:** `/home/sw/Dev/McRhythm/.claude/agents/docs-specialist.md` for complete guidance.

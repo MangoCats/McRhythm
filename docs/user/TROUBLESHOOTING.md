@@ -440,16 +440,40 @@ curl -X POST http://localhost:5721/api/v1/playback/volume \
 
 ---
 
+### Note: Startup Audio Messages (Expected Behavior)
+
+**Symptom:**
+```
+TRACE: Audio ring buffer underrun during startup (total: 1000)
+```
+**Appears once during wkmp-ap startup, then stops.**
+
+**Explanation:**
+This TRACE message is **expected and harmless** during wkmp-ap startup. It occurs because:
+1. The audio output callback starts immediately when the audio device initializes
+2. The mixer thread hasn't filled the buffer with audio frames yet (~50-100ms delay)
+3. The audio callback outputs silence until frames are available
+4. Once the mixer catches up, underruns stop
+
+**Action Required:** None - this is normal startup behavior.
+
+**When to Investigate:**
+- If you see WARN level underrun messages (not TRACE)
+- If warnings continue appearing after startup
+- If you hear audio stuttering or dropouts during playback
+
+---
+
 ### Issue: Audio Stuttering or Dropouts
 
 **Symptom:**
 ```
-WARN: Audio ring buffer underrun (total: 1000)
-WARN: Audio ring buffer underrun (total: 2000)
+WARN: Audio ring buffer underrun during active playback (total: 1000) - CPU may not be keeping up with decoding
+WARN: Audio ring buffer underrun during active playback (total: 2000) - CPU may not be keeping up with decoding
 ```
 
 **Diagnosis:**
-CPU can't keep up with audio decoding or system is under high load.
+CPU can't keep up with audio decoding or system is under high load during active playback.
 
 **Resolution:**
 

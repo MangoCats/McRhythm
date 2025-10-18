@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -105,6 +105,12 @@ pub struct PlaybackEngine {
     /// **[REV002]** Loaded when passage starts, used for boundary detection
     /// None when no passage playing or passage has no songs
     current_song_timeline: Arc<RwLock<Option<SongTimeline>>>,
+
+    /// Audio expected flag for ring buffer underrun classification
+    /// Set to true when Playing state with non-empty queue
+    /// Set to false when Paused or queue is empty
+    /// Shared with audio ring buffer consumer for context-aware logging
+    audio_expected: Arc<AtomicBool>,
 }
 
 impl PlaybackEngine {
@@ -155,6 +161,7 @@ impl PlaybackEngine {
             position_event_tx,
             position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
             current_song_timeline: Arc::new(RwLock::new(None)),
+            audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
         })
     }
 
@@ -186,8 +193,11 @@ impl PlaybackEngine {
         // [SSD-OUT-012] Real-time audio callback requires lock-free operation
         // [ISSUE-1] Replaces try_write() pattern with lock-free ring buffer
         info!("Creating lock-free audio ring buffer");
-        let ring_buffer = AudioRingBuffer::new(None); // Use default size (2048 frames = ~46ms @ 44.1kHz)
+        let ring_buffer = AudioRingBuffer::new(None, Arc::clone(&self.audio_expected)); // Use default size (2048 frames = ~46ms @ 44.1kHz)
         let (mut producer, mut consumer) = ring_buffer.split();
+
+        // Set initial audio_expected flag based on current state
+        self.update_audio_expected_flag().await;
 
         // Start mixer thread that fills the ring buffer
         // This thread continuously calls mixer.get_next_frame() and pushes to ring buffer
@@ -373,6 +383,10 @@ impl PlaybackEngine {
         }
 
         info!("Playback state changed: {:?} -> Playing", old_state);
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
+
         Ok(())
     }
 
@@ -428,6 +442,10 @@ impl PlaybackEngine {
         }
 
         info!("Playback state changed: {:?} -> Paused", old_state);
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
+
         Ok(())
     }
 
@@ -484,6 +502,9 @@ impl PlaybackEngine {
         drop(queue_write);
 
         info!("Queue advanced to next passage");
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
 
         Ok(())
     }
@@ -692,6 +713,27 @@ impl PlaybackEngine {
         Ok(())
     }
 
+    /// Update audio_expected flag based on playback state and queue state
+    ///
+    /// Sets flag to true when: Playing state AND queue has passages
+    /// Sets flag to false when: Paused OR queue is empty
+    ///
+    /// This flag is used by the ring buffer consumer to classify underrun log levels:
+    /// - Expected underruns (startup, paused, empty queue): TRACE
+    /// - Unexpected underruns (active playback): WARN
+    async fn update_audio_expected_flag(&self) {
+        let state = self.state.get_playback_state().await;
+        let queue = self.queue.read().await;
+        let has_passages = queue.len() > 0;
+        drop(queue);
+
+        let expected = state == PlaybackState::Playing && has_passages;
+        self.audio_expected.store(expected, Ordering::Relaxed);
+
+        debug!("Audio expected flag updated: {} (state={:?}, has_passages={})",
+               expected, state, has_passages);
+    }
+
     /// Get buffer statuses for all managed buffers
     ///
     /// Returns a map of passage_id to buffer status.
@@ -773,6 +815,9 @@ impl PlaybackEngine {
         };
 
         self.queue.write().await.enqueue(entry);
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
 
         Ok(queue_entry_id)
     }
@@ -1363,6 +1408,7 @@ impl PlaybackEngine {
             position_event_tx: self.position_event_tx.clone(), // **[REV002]** Clone sender
             position_event_rx: Arc::clone(&self.position_event_rx), // **[REV002]** Clone receiver
             current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
+            audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
         }
     }
 }
