@@ -145,33 +145,41 @@ impl Config {
     /// Get OS-specific default root folder
     ///
     /// [ARCH-INIT-005] OS default root folder location
+    /// [REQ-NF-033] Default root folder locations per platform
     ///
-    /// Returns platform-appropriate default locations:
-    /// - **Windows**: `%APPDATA%\wkmp` (e.g., `C:\Users\username\AppData\Roaming\wkmp`)
-    /// - **macOS**: `~/Library/Application Support/wkmp`
-    /// - **Linux**: `~/.local/share/wkmp`
-    /// - **Other**: `/tmp/wkmp`
+    /// Returns platform-appropriate default locations for music files:
+    /// - **Linux**: `~/Music` (user's Music folder)
+    /// - **macOS**: `~/Music` (user's Music folder)
+    /// - **Windows**: `%USERPROFILE%\Music\wkmp` (user's Music folder with WKMP subfolder)
+    /// - **Other**: `/tmp/wkmp` (fallback for unsupported platforms)
+    ///
+    /// **Rationale:** WKMP is a music player, so the default location should be
+    /// where users typically store their music files, not application data folders.
     pub fn get_os_default_root_folder() -> PathBuf {
         #[cfg(target_os = "linux")]
         {
+            // [REQ-NF-033] Linux default: ~/Music
             let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-            PathBuf::from(home).join(".local/share/wkmp")
+            PathBuf::from(home).join("Music")
         }
 
         #[cfg(target_os = "macos")]
         {
+            // [REQ-NF-033] macOS default: ~/Music
             let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-            PathBuf::from(home).join("Library/Application Support/wkmp")
+            PathBuf::from(home).join("Music")
         }
 
         #[cfg(target_os = "windows")]
         {
-            let appdata = std::env::var("APPDATA").unwrap_or_else(|_| "C:\\".to_string());
-            PathBuf::from(appdata).join("wkmp")
+            // [REQ-NF-033] Windows default: %USERPROFILE%\Music\wkmp
+            let userprofile = std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\".to_string());
+            PathBuf::from(userprofile).join("Music").join("wkmp")
         }
 
         #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
         {
+            // Fallback for unsupported platforms
             PathBuf::from("/tmp/wkmp")
         }
     }
