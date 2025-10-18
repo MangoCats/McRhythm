@@ -570,7 +570,7 @@
                 // Add parent directory link if available
                 if (data.parent_path) {
                     html += `
-                        <div class="file-item" onclick="loadDirectory('${escapeHtml(data.parent_path)}')">
+                        <div class="file-item" data-path="${escapeHtml(data.parent_path)}" data-action="directory">
                             <span class="file-icon">📁</span>
                             <span class="file-name">..</span>
                         </div>
@@ -580,13 +580,11 @@
                 // Add entries
                 data.entries.forEach(entry => {
                     const icon = entry.is_directory ? '📁' : '🎵';
-                    const onclick = entry.is_directory
-                        ? `loadDirectory('${escapeHtml(entry.path)}')`
-                        : `selectFile('${escapeHtml(entry.path)}')`;
+                    const action = entry.is_directory ? 'directory' : 'file';
                     const color = entry.is_audio_file ? '#4ade80' : '#e0e0e0';
 
                     html += `
-                        <div class="file-item" onclick="${onclick}">
+                        <div class="file-item" data-path="${escapeHtml(entry.path)}" data-action="${action}">
                             <span class="file-icon">${icon}</span>
                             <span class="file-name" style="color: ${color};">${escapeHtml(entry.name)}</span>
                         </div>
@@ -594,6 +592,20 @@
                 });
 
                 fileList.innerHTML = html;
+
+                // Add event delegation for file/directory clicks
+                // [CROSS-PLATFORM] Using data attributes avoids JavaScript escaping issues with Windows paths
+                fileList.querySelectorAll('.file-item[data-path]').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const path = item.getAttribute('data-path');
+                        const action = item.getAttribute('data-action');
+                        if (action === 'directory') {
+                            loadDirectory(path);
+                        } else {
+                            selectFile(path);
+                        }
+                    });
+                });
             } catch (err) {
                 fileList.innerHTML = `<div class="file-item" style="color: #f87171;">Error: ${err.message}</div>`;
             }
