@@ -12,18 +12,47 @@
 //! - [SSD-MIX-060] Passage completion detection
 //! - [REV002] Event-driven position tracking
 
-use crate::audio::types::{AudioFrame, PassageBuffer};
+use crate::audio::types::{AudioFrame, BufferStatus, PassageBuffer};
 use crate::error::Error;
+use crate::playback::buffer_manager::BufferManager;
 use crate::playback::events::PlaybackEvent;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
-use tracing::trace;
+use tracing::{trace, warn};
 use uuid::Uuid;
 use wkmp_common::FadeCurve;
 
 /// Standard sample rate for all audio processing
 const STANDARD_SAMPLE_RATE: u32 = 44100;
+
+/// Minimum buffer ahead required to resume from underrun (1 second)
+///
+/// **[SSD-UND-016]** Resume threshold
+const UNDERRUN_RESUME_BUFFER_MS: u64 = 1000;
+
+/// Underrun state tracking
+///
+/// **[SSD-UND-010]** Tracks underrun condition and flatline output
+#[derive(Debug, Clone)]
+struct UnderrunState {
+    /// Passage ID experiencing underrun
+    passage_id: Uuid,
+
+    /// Last valid audio frame (for flatline output)
+    ///
+    /// **[SSD-UND-017]** Pause by re-feeding same audio level
+    flatline_frame: AudioFrame,
+
+    /// When underrun was detected
+    ///
+    /// **[SSD-UND-011]** For diagnostic logging
+    started_at: Instant,
+
+    /// Position when underrun occurred
+    position_frames: usize,
+}
 
 /// Crossfade mixer state machine
 ///
@@ -53,6 +82,16 @@ pub struct CrossfadeMixer {
     /// Default: 44100 frames (1 second @ 44.1kHz)
     /// Loaded from `position_event_interval_ms` database setting
     position_event_interval_frames: usize,
+
+    /// Buffer manager for checking buffer status
+    ///
+    /// **[SSD-UND-010]** Used for underrun detection and buffer status queries
+    buffer_manager: Option<Arc<BufferManager>>,
+
+    /// Underrun state tracking
+    ///
+    /// **[SSD-UND-016]** Tracks if mixer is paused due to underrun
+    underrun_state: Option<UnderrunState>,
 }
 
 /// Mixer state machine
@@ -108,7 +147,19 @@ impl CrossfadeMixer {
             event_tx: None,
             frame_counter: 0,
             position_event_interval_frames: 44100, // Default: 1 second
+            buffer_manager: None,
+            underrun_state: None,
         }
+    }
+
+    /// Set buffer manager for underrun detection
+    ///
+    /// **[SSD-UND-010]** Enable underrun detection by providing buffer manager
+    ///
+    /// # Arguments
+    /// * `buffer_manager` - Arc to buffer manager for status queries
+    pub fn set_buffer_manager(&mut self, buffer_manager: Arc<BufferManager>) {
+        self.buffer_manager = Some(buffer_manager);
     }
 
     /// Set event channel for position updates
@@ -221,16 +272,40 @@ impl CrossfadeMixer {
     ///
     /// **[SSD-MIX-050]** Sample-accurate mixing with fade curve application
     /// **[REV002]** Now emits PositionUpdate events periodically
+    /// **[SSD-UND-010]** Underrun detection and flatline output
     ///
     /// # Returns
     /// Next audio frame (stereo sample), or silence if no audio playing
     pub async fn get_next_frame(&mut self) -> AudioFrame {
-        // Generate frame based on current state
+        // **[SSD-UND-016]** Check if in underrun state and try to resume
+        if let Some(ref underrun) = self.underrun_state.clone() {
+            // Check if buffer has caught up
+            if self.can_resume_from_underrun(underrun.passage_id, underrun.position_frames).await {
+                // **[SSD-UND-018]** Auto-resume
+                warn!(
+                    "[SSD-UND-018] Resuming from underrun: passage_id={}, elapsed={}ms",
+                    underrun.passage_id,
+                    underrun.started_at.elapsed().as_millis()
+                );
+                self.underrun_state = None;
+                // Continue to normal frame generation below
+            } else {
+                // **[SSD-UND-017]** Still in underrun - output flatline
+                trace!("Underrun continues: outputting flatline frame");
+                return underrun.flatline_frame;
+            }
+        }
+
+        // Generate frame based on current state and check for underrun
+        // Underrun detection info (passage_id, position to check)
+        let mut underrun_check: Option<(Uuid, usize, AudioFrame)> = None;
+
         let frame = match &mut self.state {
             MixerState::None => AudioFrame::zero(),
 
             MixerState::SinglePassage {
                 buffer,
+                passage_id,
                 position,
                 fade_in_curve,
                 fade_in_duration_samples,
@@ -248,7 +323,14 @@ impl CrossfadeMixer {
                     }
                 }
 
+                // **[SSD-UND-010]** Save info for underrun check after match
+                let current_passage_id = *passage_id;
+
                 *position += 1;
+
+                // Save underrun check data (will check after match completes)
+                underrun_check = Some((current_passage_id, *position, frame));
+
                 frame
             }
 
@@ -320,6 +402,27 @@ impl CrossfadeMixer {
                 mixed
             }
         };
+
+        // **[SSD-UND-010]** Perform underrun detection after match completes (mutable borrow released)
+        if let Some((passage_id, next_position, last_frame)) = underrun_check {
+            // Detect if next position will cause underrun
+            if self.detect_underrun(passage_id, next_position).await {
+                // Enter underrun state
+                self.log_underrun(passage_id, next_position).await;
+
+                self.underrun_state = Some(UnderrunState {
+                    passage_id,
+                    flatline_frame: last_frame, // Save last frame for flatline output
+                    started_at: Instant::now(),
+                    position_frames: next_position - 1, // Current position before increment
+                });
+
+                warn!(
+                    "[SSD-UND-016] Entering underrun pause: passage_id={}, position={}",
+                    passage_id, next_position
+                );
+            }
+        }
 
         // **[REV002]** Emit position events periodically
         // This runs after frame generation to include position in the event
@@ -487,6 +590,102 @@ impl CrossfadeMixer {
     /// Convert milliseconds to samples
     fn ms_to_samples(&self, ms: u32) -> usize {
         ((ms as f32 / 1000.0) * self.sample_rate as f32) as usize
+    }
+
+    /// Check if buffer has caught up and can resume from underrun
+    ///
+    /// **[SSD-UND-018]** Auto-resume when sufficient buffer available
+    ///
+    /// # Arguments
+    /// * `passage_id` - Passage experiencing underrun
+    /// * `position_frames` - Current playback position
+    ///
+    /// # Returns
+    /// true if buffer has at least 1 second ahead of position
+    async fn can_resume_from_underrun(&self, passage_id: Uuid, position_frames: usize) -> bool {
+        if let Some(ref buffer_manager) = self.buffer_manager {
+            // Get current buffer
+            if let Some(buffer_arc) = buffer_manager.get_buffer(passage_id).await {
+                let buffer = buffer_arc.read().await;
+
+                // Calculate how much buffer is available ahead of position
+                let available_frames = buffer.sample_count.saturating_sub(position_frames);
+                let available_ms = (available_frames as u64 * 1000) / self.sample_rate as u64;
+
+                // Need at least 1 second ahead
+                available_ms >= UNDERRUN_RESUME_BUFFER_MS
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Detect underrun condition
+    ///
+    /// **[SSD-UND-010]** Detect when playback reaches unbuffered region
+    ///
+    /// # Arguments
+    /// * `passage_id` - Passage being played
+    /// * `position_frames` - Current playback position
+    ///
+    /// # Returns
+    /// true if underrun detected (position >= buffer.sample_count but buffer still decoding)
+    async fn detect_underrun(&self, passage_id: Uuid, position_frames: usize) -> bool {
+        if let Some(ref buffer_manager) = self.buffer_manager {
+            // Check buffer status
+            if let Some(status) = buffer_manager.get_status(passage_id).await {
+                // Only underrun if buffer is still Decoding (not Ready/Playing/Exhausted)
+                if matches!(status, BufferStatus::Decoding { .. }) {
+                    // Check if position has reached end of currently decoded samples
+                    if let Some(buffer_arc) = buffer_manager.get_buffer(passage_id).await {
+                        let buffer = buffer_arc.read().await;
+                        return position_frames >= buffer.sample_count;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Log underrun diagnostics
+    ///
+    /// **[SSD-UND-011]** to **[SSD-UND-015]** Diagnostic logging
+    async fn log_underrun(&self, passage_id: Uuid, position_frames: usize) {
+        if let Some(ref buffer_manager) = self.buffer_manager {
+            let status = buffer_manager.get_status(passage_id).await;
+            let decode_elapsed = buffer_manager.get_decode_elapsed(passage_id).await;
+
+            let position_ms = (position_frames as u64 * 1000) / self.sample_rate as u64;
+
+            warn!(
+                "[SSD-UND-011] Buffer underrun detected: passage_id={}, position={}ms ({} frames)",
+                passage_id, position_ms, position_frames
+            );
+
+            // [SSD-UND-012] Current buffer status
+            if let Some(status) = status {
+                warn!("[SSD-UND-012] Buffer status: {:?}", status);
+            }
+
+            // [SSD-UND-014] Decode speed
+            if let Some(elapsed) = decode_elapsed {
+                let decode_ms = elapsed.as_millis() as u64;
+                let speed_ratio = if decode_ms > 0 {
+                    (position_ms as f64) / (decode_ms as f64)
+                } else {
+                    0.0
+                };
+                warn!(
+                    "[SSD-UND-014] Decode speed: {} ms decoded in {} ms (ratio: {:.2}x realtime)",
+                    position_ms, decode_ms, speed_ratio
+                );
+            }
+
+            // [SSD-UND-015] Note about pre-buffering
+            warn!("[SSD-UND-015] Consider extending pre-buffering time for this passage");
+        }
     }
 }
 

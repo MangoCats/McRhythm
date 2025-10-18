@@ -18,6 +18,7 @@ use std::collections::BinaryHeap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
+use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -200,18 +201,19 @@ impl DecoderPool {
                     worker_id, request.passage_id, request.priority
                 );
 
-                // Register with buffer manager
+                // Register with buffer manager and get writable buffer handle
+                // [SSD-PBUF-028] Incremental buffer filling
                 let passage_id = request.passage_id;
-                rt_handle.block_on(async {
-                    buffer_manager.register_decoding(passage_id).await;
+                let buffer_handle = rt_handle.block_on(async {
+                    buffer_manager.register_decoding(passage_id).await
                 });
 
-                // Perform decode
-                match Self::decode_passage(&request, Arc::clone(&buffer_manager), &rt_handle) {
-                    Ok(buffer) => {
-                        // Mark buffer as ready
+                // Perform decode with incremental buffer appending
+                match Self::decode_passage(&request, buffer_handle, Arc::clone(&buffer_manager), &rt_handle) {
+                    Ok(()) => {
+                        // Mark buffer as ready (buffer already filled incrementally)
                         rt_handle.block_on(async {
-                            buffer_manager.mark_ready(passage_id, buffer).await;
+                            buffer_manager.mark_ready(passage_id).await;
                         });
 
                         debug!("Worker {} completed: passage_id={}", worker_id, passage_id);
@@ -234,17 +236,19 @@ impl DecoderPool {
         debug!("Worker {} exiting", worker_id);
     }
 
-    /// Decode passage according to request
+    /// Decode passage according to request with incremental buffer filling
     ///
     /// [SSD-DEC-013] Always decode from start of file
     /// [SSD-DEC-014] Skip samples until passage start
     /// [SSD-DEC-015] Continue decoding until passage end
     /// [SSD-DEC-016] Resample to 44.1kHz if needed
+    /// [SSD-PBUF-028] Append samples incrementally to enable partial buffer playback
     fn decode_passage(
         request: &DecodeRequest,
+        buffer_handle: Arc<RwLock<PassageBuffer>>,
         buffer_manager: Arc<BufferManager>,
         rt_handle: &tokio::runtime::Handle,
-    ) -> Result<PassageBuffer> {
+    ) -> Result<()> {
         let passage = &request.passage;
         let passage_id = request.passage_id;
 
@@ -333,21 +337,42 @@ impl DecoderPool {
             stereo
         };
 
-        // Update progress to 100%
-        rt_handle.block_on(async {
-            buffer_manager.update_decode_progress(passage_id, 100).await;
-        });
+        // Append samples in chunks to enable partial buffer playback
+        // [SSD-PBUF-028] Incremental buffer filling
+        // Chunk size: 1 second = 44100 frames = 88200 samples (stereo)
+        const CHUNK_SIZE: usize = 88200; // 1 second of stereo audio @ 44.1kHz
+        let total_samples = stereo_samples.len();
+        let total_chunks = (total_samples + CHUNK_SIZE - 1) / CHUNK_SIZE;
 
-        // Create passage buffer
-        // [SSD-DEC-017] Write PCM data to passage buffer
-        let buffer = PassageBuffer::new(
-            passage_id,
-            stereo_samples,
-            STANDARD_SAMPLE_RATE,
-            2, // Always stereo
-        );
+        for chunk_idx in 0..total_chunks {
+            let start = chunk_idx * CHUNK_SIZE;
+            let end = (start + CHUNK_SIZE).min(total_samples);
+            let chunk = stereo_samples[start..end].to_vec();
 
-        Ok(buffer)
+            // Append chunk to buffer
+            rt_handle.block_on(async {
+                let mut buffer = buffer_handle.write().await;
+                buffer.append_samples(chunk);
+            });
+
+            // Update progress
+            let progress = ((chunk_idx + 1) * 100 / total_chunks).min(100) as u8;
+            if progress % 10 == 0 || progress == 100 {
+                // Update every 10%
+                rt_handle.block_on(async {
+                    buffer_manager.update_decode_progress(passage_id, progress).await;
+                });
+            }
+
+            debug!(
+                "Appended chunk {}/{} ({:.1}%)",
+                chunk_idx + 1,
+                total_chunks,
+                progress as f32
+            );
+        }
+
+        Ok(())
     }
 
     /// Shutdown decoder pool

@@ -48,31 +48,41 @@ impl BufferManager {
     /// Register a buffer as decoding
     ///
     /// Called by decoder pool when decode starts.
-    /// Initializes buffer with Decoding status.
+    /// Initializes buffer with Decoding status and returns writable buffer handle.
     ///
     /// [SSD-BUF-020] Buffer state: None → Decoding
-    pub async fn register_decoding(&self, passage_id: Uuid) {
+    /// [SSD-PBUF-028] Returns buffer handle for incremental filling
+    ///
+    /// # Returns
+    /// Arc<RwLock<PassageBuffer>> for incremental sample appending
+    pub async fn register_decoding(&self, passage_id: Uuid) -> Arc<RwLock<PassageBuffer>> {
         use tracing::debug;
         let mut buffers = self.buffers.write().await;
 
         // Only insert if not already present (avoid overwriting in-progress or completed buffers)
         if !buffers.contains_key(&passage_id) {
             debug!("Registering new buffer for decoding: passage_id={}", passage_id);
+            let buffer_arc = Arc::new(RwLock::new(PassageBuffer::new(
+                passage_id,
+                Vec::new(), // Empty initially - will be filled incrementally
+                44100,
+                2,
+            )));
+
             buffers.insert(
                 passage_id,
                 ManagedBuffer {
-                    buffer: Arc::new(RwLock::new(PassageBuffer::new(
-                        passage_id,
-                        Vec::new(), // Empty until decode completes
-                        44100,
-                        2,
-                    ))),
+                    buffer: Arc::clone(&buffer_arc),
                     status: BufferStatus::Decoding { progress_percent: 0 },
                     decode_started: Instant::now(),
                 },
             );
+
+            buffer_arc
         } else {
-            debug!("Buffer already exists for passage_id={}, skipping registration", passage_id);
+            debug!("Buffer already exists for passage_id={}, returning existing", passage_id);
+            // Return existing buffer
+            Arc::clone(&buffers.get(&passage_id).unwrap().buffer)
         }
     }
 
@@ -91,31 +101,27 @@ impl BufferManager {
     /// Mark buffer as ready
     ///
     /// Called by decoder pool when decode completes.
-    /// Stores the completed buffer and updates status.
+    /// Updates status to Ready (buffer already filled incrementally).
     ///
     /// [SSD-BUF-020] Buffer state: Decoding → Ready
-    pub async fn mark_ready(&self, passage_id: Uuid, buffer: PassageBuffer) {
+    /// [SSD-PBUF-028] With incremental decode, buffer already contains all samples
+    pub async fn mark_ready(&self, passage_id: Uuid) {
         use tracing::debug;
 
-        // Get the Arc to the buffer while holding the HashMap lock
-        let buffer_arc = {
-            let mut buffers = self.buffers.write().await;
+        let mut buffers = self.buffers.write().await;
 
-            if let Some(managed) = buffers.get_mut(&passage_id) {
-                debug!("Marking buffer ready for passage_id={}, samples={}", passage_id, buffer.samples.len());
-                // Update status while we have the lock
-                managed.status = BufferStatus::Ready;
-                // Clone the Arc to the buffer
-                Arc::clone(&managed.buffer)
-            } else {
-                debug!("mark_ready called but passage_id={} not found in buffers", passage_id);
-                return;
-            }
-        }; // HashMap lock released here
+        if let Some(managed) = buffers.get_mut(&passage_id) {
+            // Get sample count from buffer for logging
+            let sample_count = {
+                let buf = managed.buffer.read().await;
+                buf.sample_count
+            };
 
-        // Now write to the buffer without holding the HashMap lock
-        *buffer_arc.write().await = buffer;
-        debug!("Buffer ready: passage_id={}", passage_id);
+            debug!("Marking buffer ready for passage_id={}, frames={}", passage_id, sample_count);
+            managed.status = BufferStatus::Ready;
+        } else {
+            debug!("mark_ready called but passage_id={} not found in buffers", passage_id);
+        }
     }
 
     /// Get buffer for playback
@@ -199,6 +205,31 @@ impl BufferManager {
 
         if let Some(managed) = buffers.get(&passage_id) {
             matches!(managed.status, BufferStatus::Ready | BufferStatus::Playing)
+        } else {
+            false
+        }
+    }
+
+    /// Check if buffer has minimum playback buffer available
+    ///
+    /// [SSD-PBUF-028] Minimum playback buffer threshold
+    /// Returns true if buffer has at least `min_duration_ms` of audio decoded.
+    /// Enables partial buffer playback - start playing before full decode completes.
+    ///
+    /// **Default threshold:** 3000ms (3 seconds)
+    /// **Use case:** Start current passage playback as soon as minimum buffer available
+    pub async fn has_minimum_playback_buffer(&self, passage_id: Uuid, min_duration_ms: u64) -> bool {
+        // First check if buffer exists
+        let buffer_arc = {
+            let buffers = self.buffers.read().await;
+            buffers.get(&passage_id).map(|m| Arc::clone(&m.buffer))
+        };
+
+        if let Some(buffer_arc) = buffer_arc {
+            // Read buffer and check duration
+            let buffer = buffer_arc.read().await;
+            let available_ms = buffer.duration_ms();
+            available_ms >= min_duration_ms
         } else {
             false
         }

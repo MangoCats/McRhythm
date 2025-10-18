@@ -143,6 +143,9 @@ impl PlaybackEngine {
             .unwrap_or(1000); // Default: 1 second
         mixer.set_position_event_interval_ms(interval_ms);
 
+        // **[SSD-UND-010]** Configure mixer with buffer manager for underrun detection
+        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
         let mixer = Arc::new(RwLock::new(mixer));
 
         // Load queue from database
@@ -1055,15 +1058,21 @@ impl PlaybackEngine {
             }
         }
 
-        // Start mixer if current passage is ready and not playing
+        // Start mixer if current passage has minimum playback buffer
         // [SSD-MIX-030] Single passage playback initiation
+        // [SSD-PBUF-028] Start playback with minimum buffer (3 seconds)
         if let Some(current) = queue.current() {
             debug!("process_queue: Found current passage: {}", current.queue_entry_id);
-            // Check if buffer is ready
-            let buffer_is_ready = self.buffer_manager.is_ready(current.queue_entry_id).await;
-            debug!("process_queue: Buffer ready for {}: {}", current.queue_entry_id, buffer_is_ready);
 
-            if buffer_is_ready {
+            // Check if buffer has minimum playback buffer available (3 seconds)
+            // This enables instant play start - decode continues in background
+            const MIN_PLAYBACK_BUFFER_MS: u64 = 3000;
+            let buffer_has_minimum = self.buffer_manager
+                .has_minimum_playback_buffer(current.queue_entry_id, MIN_PLAYBACK_BUFFER_MS)
+                .await;
+            debug!("process_queue: Minimum buffer for {}: {}", current.queue_entry_id, buffer_has_minimum);
+
+            if buffer_has_minimum {
                 // Check if mixer is currently idle
                 let mixer = self.mixer.read().await;
                 let mixer_idle = mixer.get_current_passage_id().is_none();
@@ -1214,6 +1223,28 @@ impl PlaybackEngine {
             }
         }
 
+        // Trigger decode for next passage if needed
+        // [SSD-FBUF-011] Full decode for currently playing OR next-to-be-played
+        // [SSD-PBUF-013] Facilitate instant skip to queued passages
+        // This MUST happen before completion check to ensure prefetch while playing
+        if let Some(next) = queue.next() {
+            if !self.buffer_manager.is_ready(next.queue_entry_id).await {
+                debug!("Requesting decode for next passage: {}", next.queue_entry_id);
+                self.request_decode(next, DecodePriority::Next, true)
+                    .await?;
+            }
+        }
+
+        // Trigger decode for queued passages (first 3)
+        // [SSD-PBUF-010] Partial buffer decode for queued passages
+        for queued in queue.queued().iter().take(3) {
+            if !self.buffer_manager.is_ready(queued.queue_entry_id).await {
+                debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
+                self.request_decode(queued, DecodePriority::Prefetch, false)
+                    .await?;
+            }
+        }
+
         // Check for passage completion
         // [SSD-MIX-060] Passage completion detection
         // [SSD-ENG-020] Queue processing and advancement
@@ -1284,24 +1315,6 @@ impl PlaybackEngine {
 
                 // Return early - next iteration will start the new current passage
                 return Ok(());
-            }
-        }
-
-        // Trigger decode for next passage if needed
-        if let Some(next) = queue.next() {
-            if !self.buffer_manager.is_ready(next.queue_entry_id).await {
-                debug!("Requesting decode for next passage: {}", next.queue_entry_id);
-                self.request_decode(next, DecodePriority::Next, true)
-                    .await?;
-            }
-        }
-
-        // Trigger decode for queued passages (first 3)
-        for queued in queue.queued().iter().take(3) {
-            if !self.buffer_manager.is_ready(queued.queue_entry_id).await {
-                debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
-                self.request_decode(queued, DecodePriority::Prefetch, false)
-                    .await?;
             }
         }
 

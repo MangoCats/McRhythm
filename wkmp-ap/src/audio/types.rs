@@ -74,6 +74,31 @@ impl PassageBuffer {
             None
         }
     }
+
+    /// Append samples to buffer (for incremental decode)
+    ///
+    /// [SSD-PBUF-028] Support for partial buffer playback
+    /// Allows decoder to progressively fill buffer as it decodes.
+    ///
+    /// # Arguments
+    /// * `new_samples` - Stereo interleaved samples to append
+    ///
+    /// # Panics
+    /// Panics if new_samples length is not even (must be stereo pairs)
+    pub fn append_samples(&mut self, new_samples: Vec<f32>) {
+        assert_eq!(new_samples.len() % 2, 0, "Samples must be stereo pairs");
+
+        self.samples.extend(new_samples);
+        self.sample_count = self.samples.len() / self.channel_count as usize;
+    }
+
+    /// Reserve capacity for expected total samples
+    ///
+    /// Optimization to reduce reallocations during incremental decode
+    pub fn reserve_capacity(&mut self, total_frames: usize) {
+        let total_samples = total_frames * self.channel_count as usize;
+        self.samples.reserve(total_samples.saturating_sub(self.samples.len()));
+    }
 }
 
 /// AudioFrame represents a single stereo sample (one frame of audio).
