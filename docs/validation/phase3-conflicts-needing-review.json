@@ -1,0 +1,666 @@
+{
+  "metadata": {
+    "generated_date": "2025-10-19",
+    "agent": "Agent 6: Tier 0/1 Conflict Reviewer",
+    "phase": "Phase 3 - Tier 0/1 and SPEC016/017 Review",
+    "source_document": "docs/validation/phase2-contradictions.json",
+    "total_contradictions_analyzed": 11,
+    "tier_0_1_conflicts_found": 0,
+    "spec16_17_contradictions_requiring_review": 11,
+    "critical_spec16_17_conflicts": 3,
+    "major_spec16_17_conflicts": 5,
+    "minor_spec16_17_conflicts": 3
+  },
+
+  "tier_0_1_conflicts": [],
+
+  "spec16_17_contradictions": [
+    {
+      "conflict_id": "SPEC16-CONTRA-001",
+      "tier": "2",
+      "severity": "CRITICAL",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC013-single_stream_playback.md",
+        "SPEC014-single_stream_design.md",
+        "REV004-incremental_buffer_implementation.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-DEC-040: Decoding is handled serially in priority order, only one decode runs at a time to preserve cache coherency and reduce maximum processor loads, to avoid spinning up the cooling fans.",
+        "other_docs_say": "SPEC013 SSP-DEC-020 + SPEC014 SSD-DEC-030: Fixed pool of 2 decoder threads running concurrently. Sufficient for current + next passage full decode.",
+        "lines": [
+          "SPEC016 line 177",
+          "SPEC013 line 81",
+          "SPEC014 line 114",
+          "REV004 line 64"
+        ]
+      },
+      "analysis": "SPEC016 describes serial decoder execution (one at a time) for cache coherency and thermal management. However, SPEC013, SPEC014, and REV004 all consistently describe a 2-thread decoder pool with parallel execution capability. This is a fundamental architectural discrepancy about whether 1 or 2 decodes can run simultaneously. The earlier implementation documents (SPEC013/014 from mid-October) consistently describe parallel execution, while SPEC016 (marked immutable) describes serial execution.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Update SPEC016 to match implemented 2-thread pool architecture",
+          "edit": "Change DBD-DEC-040 to: 'Decoding is handled by a fixed 2-thread pool in priority order. Up to 2 decodes can run concurrently to enable current + next passage preparation while maintaining manageable processor loads on resource-constrained devices.'",
+          "impact": "Aligns SPEC016 with actual implementation documented in SPEC013/014. Clarifies that parallel execution is intentional and limited to 2 threads for thermal management.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Update SPEC013/014 to match SPEC016 serial execution model",
+          "edit": "Change SSD-DEC-030 to describe single decoder thread, remove 2-thread pool references, update component diagrams",
+          "impact": "Would require re-architecting the decoder pool to use 1 thread instead of 2. Increases latency for queue prefetching. May violate playback requirements if gaps occur between passages.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        },
+        {
+          "option": "C",
+          "action": "Clarify that both are valid at different abstraction levels",
+          "edit": "Add note to SPEC016: 'Implementation Note: While the design describes serial priority-based scheduling, the implementation uses a 2-thread pool to parallelize current+next passage decoding while maintaining priority order. See SPEC014 for implementation details.'",
+          "impact": "Preserves both documents but requires explicit cross-reference. Acknowledges different abstraction levels.",
+          "violates_constraints": true,
+          "constraint_violated": "Modifies SPEC016 (marked immutable)"
+        }
+      ],
+      "recommendation": "Option A - Update SPEC016",
+      "approval_required_from": "Technical Lead, Audio Engineer",
+      "rationale": "All implementation documents consistently describe 2-thread execution. Serial execution would significantly degrade performance. SPEC016 appears to be aspirational design that doesn't match implementation reality."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-002",
+      "tier": "2",
+      "severity": "CRITICAL",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC013-single_stream_playback.md",
+        "SPEC014-single_stream_design.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-FADE-030: When fade-in duration is > 0 then samples between the start time and the fade-in end point have the fade-in curve applied before they are buffered.",
+        "other_docs_say": "SPEC013 SSP-BUF-020: Automatic fade application during read_sample() - no separate fade step. SPEC014 SSD-FADE-012: Fade application can occur during decode or be deferred to read-time (implementation choice).",
+        "lines": [
+          "SPEC016 line 199",
+          "SPEC013 line 114, 143",
+          "SPEC014 line 205"
+        ]
+      },
+      "analysis": "SPEC016 states fades are applied BEFORE buffering (pre-buffer, during decode). SPEC013 states fades are applied during read_sample() (on-read, after buffering). SPEC014 acknowledges both approaches are possible. This affects whether fade parameters can be changed after buffering, memory usage patterns, and CPU overhead. Pre-buffer makes fades immutable but pre-computed; on-read enables dynamic fade adjustment but requires per-sample multiplication during playback.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Update SPEC016 to describe on-read fade application",
+          "edit": "Change DBD-FADE-030/040/050 to describe fade curves applied during buffer read using read_sample() API, not during decode.",
+          "impact": "Aligns with SPEC013 API description. Clarifies fades are dynamic and applied at playback time.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Update SPEC013/014 to describe pre-buffer fade application",
+          "edit": "Change SSP-BUF-020 to describe fades applied during decode, modify API examples to show fades pre-applied.",
+          "impact": "Would require reimplementing fade system. Makes fades immutable after buffering. Reduces CPU during playback but increases complexity during decode.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        },
+        {
+          "option": "C",
+          "action": "Clarify both approaches are valid and document which is implemented",
+          "edit": "Update SPEC016 to say 'MAY be applied during decode OR during read (implementation choice)'. Add cross-reference to SPEC013 for actual implementation choice.",
+          "impact": "Preserves flexibility. Requires investigation to determine which is actually implemented in code.",
+          "violates_constraints": true,
+          "constraint_violated": "Modifies SPEC016 (marked immutable)"
+        },
+        {
+          "option": "D",
+          "action": "Investigate actual implementation in code",
+          "edit": "Examine wkmp-ap/src/playback/pipeline/single_stream/buffer.rs to determine when fades are actually applied, then update SPEC016 or SPEC013 accordingly.",
+          "impact": "Provides empirical answer. May reveal third option not documented in either spec.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option D then Option A - Investigate first, then update SPEC016",
+      "approval_required_from": "Technical Lead, Audio Engineer",
+      "rationale": "SPEC014 explicitly acknowledges both approaches are possible. Need to determine actual implementation. SPEC013's API examples suggest on-read application."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-003",
+      "tier": "2",
+      "severity": "CRITICAL",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC014-single_stream_design.md",
+        "REV004-incremental_buffer_implementation.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-OV-020: Separate buffers are created for each passage. (No mention of partial buffering, minimum thresholds, or incremental filling)",
+        "other_docs_say": "SPEC014 SSD-PBUF-010/SSD-FBUF-010: Full decode strategy for current/next passages vs Partial buffer strategy (15-second default) for queued passages. REV004: Incremental buffer filling with 1-second chunks, 3000ms minimum threshold.",
+        "lines": [
+          "SPEC016 line 19",
+          "SPEC014 lines 187, 193",
+          "REV004 line 119"
+        ]
+      },
+      "analysis": "SPEC016 does not describe the full vs partial buffer strategy at all. This is a major architectural feature completely missing from SPEC016. SPEC014 clearly documents two distinct buffering approaches based on queue position (full decode for current/next, 15-second partial for queued). REV004 describes the incremental implementation with 3-second playback threshold. Without this, SPEC016 does not accurately describe how the system actually works.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Add full vs partial buffer strategy documentation to SPEC016",
+          "edit": "Add new sections describing: (1) Full decode strategy for current/next passages (DBD-BUF-070), (2) Partial decode strategy with 15-second default for queued passages (DBD-BUF-080), (3) Minimum playback threshold of 3 seconds (DBD-BUF-090), (4) Incremental buffer filling with 1-second chunks (DBD-BUF-100)",
+          "impact": "Makes SPEC016 complete and accurate. Large addition to document.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable (but this is adding missing content, not contradicting existing)"
+        },
+        {
+          "option": "B",
+          "action": "Accept that SPEC016 is incomplete and defer to SPEC014",
+          "edit": "Add note to SPEC016: 'Buffer management strategy is documented in SPEC014-single_stream_design.md. This document describes the decoder-buffer chain architecture only.'",
+          "impact": "Acknowledges SPEC016 is partial specification. Requires readers to consult multiple documents.",
+          "violates_constraints": true,
+          "constraint_violated": "Modifies SPEC016 (marked immutable)"
+        },
+        {
+          "option": "C",
+          "action": "Remove buffer management from SPEC014, make SPEC016 authoritative",
+          "edit": "Delete SSD-PBUF and SSD-FBUF sections from SPEC014. Update SPEC016 to be complete buffer specification.",
+          "impact": "Consolidates documentation but requires major work on SPEC016. May lose important implementation context from SPEC014.",
+          "violates_constraints": true,
+          "constraint_violated": "Requires updating SPEC016 (marked immutable)"
+        }
+      ],
+      "recommendation": "Option A - Add missing content to SPEC016",
+      "approval_required_from": "Technical Lead, Audio Engineer",
+      "rationale": "SPEC016 is incomplete. Adding missing content is less disruptive than consolidation. This is a major architectural feature that must be documented."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-004",
+      "tier": "2",
+      "severity": "MAJOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC014-single_stream_design.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-PARAM-050: maximum_decode_streams: Default value 12. The maximum number of audio decoders that will operate on passages in the queue.",
+        "other_docs_say": "SPEC014 SSD-DEC-030: Fixed pool: 2 decoder threads. Rationale: Sufficient for current + next passage full decode.",
+        "lines": [
+          "SPEC016 line 104",
+          "SPEC014 line 114"
+        ]
+      },
+      "analysis": "SPEC016 says 12 decoder streams, SPEC014 says 2 decoder threads. These concepts are different but confusingly named. 'maximum_decode_streams' likely refers to how many passages can have decoder-buffer chains allocated (12 buffers), while 'decoder threads' limits actual parallel execution (2 threads). Both values are probably correct for their respective purposes, but the terminology creates confusion.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Clarify distinction in SPEC016",
+          "edit": "Update DBD-PARAM-050 to: 'maximum_decode_streams determines how many decoder-buffer chains can exist simultaneously (default: 12). Note: Actual decoder execution is limited to a fixed 2-thread pool (see DBD-DEC-040). This parameter controls memory allocation, not thread count.'",
+          "impact": "Clarifies both values are correct for different purposes. Eliminates confusion.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Accept terminology difference, add glossary",
+          "edit": "Add glossary to SPEC016 distinguishing 'decode stream' (buffer allocation) from 'decoder thread' (execution resource).",
+          "impact": "Documents terminology without changing specification text.",
+          "violates_constraints": true,
+          "constraint_violated": "Modifies SPEC016 (marked immutable)"
+        },
+        {
+          "option": "C",
+          "action": "Rename parameter in SPEC016 to avoid confusion",
+          "edit": "Rename 'maximum_decode_streams' to 'maximum_buffer_allocations' or 'maximum_decoder_buffer_chains'.",
+          "impact": "Clearer terminology but requires updating database schema and code.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable, plus would break implementation"
+        }
+      ],
+      "recommendation": "Option A - Clarify distinction",
+      "approval_required_from": "Technical Lead",
+      "rationale": "Both values are likely correct. Just needs clarification. Option A adds minimal text to resolve confusion."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-005",
+      "tier": "2",
+      "severity": "MAJOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC014-single_stream_design.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-PARAM-060: decode_work_period: Default 5000ms. Once every decode_work_period the currently working decoder is paused and the list of pending decode jobs is evaluated to determine the highest priority job and switch to decoding it.",
+        "other_docs_say": "SPEC014 SSD-DEC-032: Priority Queue Management using ordered VecDeque. Insert at position based on priority value. Always pop front (highest priority first). Enum-based priority (Immediate, Next, Prefetch), not time-based scheduling.",
+        "lines": [
+          "SPEC016 line 111",
+          "SPEC014 lines 88, 124"
+        ]
+      },
+      "analysis": "SPEC016 describes time-based decode switching (pause every 5 seconds to re-evaluate priorities). SPEC014 describes priority queue with continuous processing (dequeue highest priority, no time-based pausing). These are fundamentally different scheduling approaches. Need to determine if decode_work_period is actually implemented or if the priority queue approach replaced it.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Update SPEC016 to describe priority queue scheduling",
+          "edit": "Replace DBD-PARAM-060 with priority-based scheduling description matching SPEC014 enum approach.",
+          "impact": "Aligns SPEC016 with SPEC014. Removes decode_work_period parameter if not implemented.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Update SPEC014 to document decode_work_period integration",
+          "edit": "Add section to SPEC014 describing how decode_work_period timer integrates with priority queue (periodic re-evaluation on timer).",
+          "impact": "Clarifies that both mechanisms coexist. Requires verification that decode_work_period is implemented.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        },
+        {
+          "option": "C",
+          "action": "Investigate actual implementation",
+          "edit": "Examine decoder pool code to determine if decode_work_period timer exists or if only priority queue is implemented.",
+          "impact": "Provides empirical answer before making documentation changes.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option C then Option A - Investigate first, likely priority queue only",
+      "approval_required_from": "Technical Lead, Audio Engineer",
+      "rationale": "SPEC014's priority queue approach is more elegant and typical for Rust. Time-based pausing seems overly complex. Likely only priority queue is implemented."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-006",
+      "tier": "2",
+      "severity": "MAJOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC013-single_stream_playback.md",
+        "SPEC014-single_stream_design.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-OV-040: Pipeline shows separate components: Decoder → Resampler → Fade In/Out Handler → Buffer → Mixer → Output",
+        "other_docs_say": "SPEC013/014: Component architecture shows Decoder Thread Pool → Passage Buffer Manager → Crossfade Mixer → Audio Output Thread. No explicit Resampler or Fade Handler components in structure diagrams.",
+        "lines": [
+          "SPEC016 line 23",
+          "SPEC013 line 30",
+          "SPEC014 line 69"
+        ]
+      },
+      "analysis": "SPEC016 shows pipeline as separate logical components (Decoder, Resampler, Fade Handler). SPEC013/SPEC014 show higher-level physical architecture (DecoderPool, BufferManager). This is not necessarily a contradiction - SPEC016 shows logical processing stages while SPEC013/SPEC014 show component structure. Resampler and Fade Handler are likely implemented within DecoderPool worker threads, not as separate components. Needs cross-reference to clarify different abstraction levels.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Add clarification note to SPEC016",
+          "edit": "Add to DBD-OV-040: 'Note: This diagram shows logical processing stages. In the implemented architecture, Decoder, Resampler, and Fade In/Out Handler are all performed within DecoderPool worker threads (see SPEC014 for component-level architecture).'",
+          "impact": "Links logical and physical views. Clarifies both are correct at different abstraction levels.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Add corresponding logical pipeline diagram to SPEC013/014",
+          "edit": "Add SPEC016's logical pipeline diagram to SPEC013/014 to show processing stages within components.",
+          "impact": "Provides both views in implementation docs. Doesn't require changing SPEC016.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        },
+        {
+          "option": "C",
+          "action": "Accept as different levels of abstraction",
+          "edit": "No changes. Document in review that SPEC016 is logical, SPEC013/014 is physical.",
+          "impact": "Minimal. Relies on readers understanding abstraction difference.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option A - Add clarification note",
+      "approval_required_from": "Technical Lead",
+      "rationale": "Small note prevents reader confusion. Makes explicit that both views are correct. Minimal change to SPEC016."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-007",
+      "tier": "2",
+      "severity": "MAJOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC015-playback_completion_fixes.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-BUF-060: When the sample corresponding to the passage end time is removed from the buffer, the buffer informs the queue that passage playout has completed.",
+        "other_docs_say": "SPEC015 PCF-COMP-010: Use explicit 'decode complete' signal instead of comparing position to growing buffer. Add decode_complete (bool) and total_frames (Option<usize>) fields to PassageBuffer. is_exhausted() checks current_position >= total_frames.",
+        "lines": [
+          "SPEC016 line 219",
+          "SPEC015 lines 183, 204"
+        ]
+      },
+      "analysis": "SPEC016 implies completion is detected by position reaching end time (implicit). SPEC015 explicitly documents using a decode_complete sentinel flag with total_frames field to avoid race conditions with incremental buffer filling. The sentinel approach is more robust and prevents premature completion detection when buffer is still growing. SPEC015 documents a fix for issues in the original approach.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Update SPEC016 to describe sentinel-based approach",
+          "edit": "Change DBD-BUF-060 to: 'When the mixer position reaches total_frames (set when decoder marks buffer as complete), the buffer is considered exhausted and the passage is removed from the queue. This sentinel-based approach prevents race conditions with incremental buffer filling.'",
+          "impact": "Aligns SPEC016 with SPEC015 fix. Documents current implementation accurately.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Accept that SPEC015 supersedes SPEC016 on this detail",
+          "edit": "Add note to SPEC016: 'Implementation uses explicit completion sentinel. See SPEC015-playback_completion_fixes.md for details.'",
+          "impact": "Minimal change to SPEC016. References SPEC015 for implementation detail.",
+          "violates_constraints": true,
+          "constraint_violated": "Modifies SPEC016 (marked immutable)"
+        },
+        {
+          "option": "C",
+          "action": "No changes",
+          "edit": "Accept that SPEC015 is newer and documents the fix. SPEC016 describes original concept.",
+          "impact": "Leaves SPEC016 potentially misleading about current implementation.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option A - Update SPEC016",
+      "approval_required_from": "Technical Lead",
+      "rationale": "SPEC015 documents a fix for race conditions. SPEC016 should reflect current correct implementation, not historical approach."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-008",
+      "tier": "2",
+      "severity": "MAJOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC011-event_system.md",
+        "SPEC014-single_stream_design.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-BUF-050: Describes buffer state transitions (pause when nearly full, resume when space available) but no mention of events.",
+        "other_docs_say": "SPEC011: BufferStateChanged event with old_state, new_state, passage_id, buffer_status, decode_progress_percent. BufferStatus enum: Decoding, Ready, Playing, Exhausted. SPEC014 SSD-BUF-020: Buffer Manager emits BufferStateChanged events at four key transition points.",
+        "lines": [
+          "SPEC016 line 217",
+          "SPEC011 line 232",
+          "SPEC014 line 308"
+        ]
+      },
+      "analysis": "SPEC016 describes buffer state management but doesn't mention the BufferStateChanged event system documented in SPEC011 and SPEC014. This is not a contradiction per se, but SPEC016 is incomplete without documenting event integration. Events are critical for system observability and UI updates. The buffer lifecycle should emit events at each state transition.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Add event emission documentation to SPEC016",
+          "edit": "Add new requirement DBD-BUF-070: 'The buffer manager emits BufferStateChanged events (see SPEC011) at each state transition: None→Decoding when decoder starts, Decoding→Ready when decode completes, Ready→Playing when mixer starts reading, Playing→Exhausted when position reaches total_frames.'",
+          "impact": "Makes SPEC016 complete. Documents observability integration.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable (but this is adding missing content)"
+        },
+        {
+          "option": "B",
+          "action": "Add cross-reference to SPEC011",
+          "edit": "Add note to DBD-BUF-050: 'For event emission at buffer state transitions, see SPEC011-event_system.md BufferStateChanged.'",
+          "impact": "Minimal change. Points readers to event documentation.",
+          "violates_constraints": true,
+          "constraint_violated": "Modifies SPEC016 (marked immutable)"
+        },
+        {
+          "option": "C",
+          "action": "Accept SPEC016 focuses on data flow, not events",
+          "edit": "No changes. SPEC011/014 are authoritative for events.",
+          "impact": "SPEC016 remains incomplete for observability aspects.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option A - Add event documentation",
+      "approval_required_from": "Technical Lead",
+      "rationale": "Events are integral to buffer lifecycle. Should be documented alongside buffer management, not separated. Option A makes SPEC016 complete."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-009",
+      "tier": "2",
+      "severity": "MINOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC013-single_stream_playback.md",
+        "REV004-incremental_buffer_implementation.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-OV-050: Uses term 'decoder-buffer chain'. Each chain is assigned 1:1 to a passage.",
+        "other_docs_say": "SPEC013: Uses 'PassageBuffer' terminology. REV004: Uses 'ManagedBuffer' terminology.",
+        "lines": [
+          "SPEC016 line 60",
+          "SPEC013 line 145",
+          "REV004 line 177"
+        ]
+      },
+      "analysis": "Terminology inconsistency: SPEC016 uses 'decoder-buffer chain' (design concept), SPEC013 uses 'PassageBuffer' (core data structure), REV004 uses 'ManagedBuffer' (lifecycle management wrapper). These are the same concept with different names at different abstraction levels. Not a contradiction but needs cross-reference for clarity.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Add glossary note to SPEC016",
+          "edit": "Add: 'Terminology: decoder-buffer chain (design concept) = PassageBuffer (core data structure) wrapped in ManagedBuffer (lifecycle management). See SPEC013 for implementation details.'",
+          "impact": "Clarifies terminology mapping. Minimal change.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Standardize terminology across all documents",
+          "edit": "Pick one term and update all documents to use it consistently.",
+          "impact": "Large change across multiple documents. May not be worth it for minor terminology variation.",
+          "violates_constraints": true,
+          "constraint_violated": "Would update SPEC016 (marked immutable)"
+        },
+        {
+          "option": "C",
+          "action": "Accept terminology variation",
+          "edit": "No changes. Context makes meaning clear.",
+          "impact": "Minimal. Relies on reader inferring equivalence.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option A - Add glossary note",
+      "approval_required_from": "Documentation Lead",
+      "rationale": "Small clarification prevents confusion. Explicit mapping helps readers navigate between design and implementation."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-010",
+      "tier": "2",
+      "severity": "MINOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "IMPL001-database_schema.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-PARAM-010: Defined values are stored in global settings table where they are read once at startup.",
+        "other_docs_say": "IMPL001: Settings table includes volume_level, audio_sink, position_event_interval_ms, playback_progress_interval_ms not mentioned in SPEC016.",
+        "lines": [
+          "SPEC016 line 78",
+          "IMPL001 lines 750, 753"
+        ]
+      },
+      "analysis": "IMPL001 documents additional settings (volume_level, audio_sink, event intervals) not mentioned in SPEC016. This is expected - SPEC016 focuses on decode/buffer parameters, while IMPL001 is comprehensive database schema. Not really a contradiction, just SPEC016 being scoped to decoder-buffer chain parameters. However, should cross-reference IMPL001 for complete settings list.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Add cross-reference to IMPL001",
+          "edit": "Add note to DBD-PARAM-010: 'See IMPL001-database_schema.md for complete settings table schema including volume_level, audio_sink, and event timing configuration not directly related to decode/buffer behavior.'",
+          "impact": "Clarifies SPEC016 scope. Points readers to comprehensive schema.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Add all settings to SPEC016",
+          "edit": "Document all settings in SPEC016, even if outside decoder-buffer scope.",
+          "impact": "Makes SPEC016 comprehensive but bloated. Mixes concerns.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "C",
+          "action": "Accept SPEC016 is scoped to decoder-buffer parameters",
+          "edit": "No changes. IMPL001 is authoritative for complete schema.",
+          "impact": "SPEC016 remains focused. Readers must consult IMPL001 for full picture.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option A - Add cross-reference",
+      "approval_required_from": "Documentation Lead",
+      "rationale": "Small note clarifies scope and prevents readers from thinking SPEC016 is comprehensive for all settings."
+    },
+
+    {
+      "conflict_id": "SPEC16-CONTRA-011",
+      "tier": "2",
+      "severity": "MINOR",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC016-decoder_buffer_design.md",
+        "SPEC013-single_stream_playback.md"
+      ],
+      "issue": {
+        "spec016_says": "DBD-MIX-020: Every output_refill_period refills the output ring buffer for cpal to output.",
+        "other_docs_say": "SPEC013 SSP-OUT-050: Threading model uses lock-free ring buffer with atomic read/write pointers. Mixer thread pulls samples, audio callback reads continuously.",
+        "lines": [
+          "SPEC016 line 225",
+          "SPEC013 line 260"
+        ]
+      },
+      "analysis": "SPEC016 implies timer-based periodic refill ('every output_refill_period'). SPEC013 describes continuous lock-free operation with mixer thread and audio callback. These are compatible - output_refill_period likely determines how frequently the mixer thread wakes to check buffer level and refill as needed, not a hard synchronous timer. The ring buffer itself uses lock-free atomic operations for continuous audio callback access without blocking.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Clarify SPEC016 wording",
+          "edit": "Change DBD-MIX-020 to: 'The mixer thread wakes approximately every output_refill_period to check output ring buffer fill level and refill as needed. The ring buffer itself uses lock-free atomic operations for continuous audio callback access.'",
+          "impact": "Clarifies that periodic check doesn't block continuous audio. Aligns with SPEC013.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "B",
+          "action": "Add cross-reference to SPEC013",
+          "edit": "Add note to DBD-MIX-020: 'See SPEC013 SSP-OUT-050 for ring buffer threading model details.'",
+          "impact": "Minimal change. Points readers to implementation details.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC016 marked as immutable"
+        },
+        {
+          "option": "C",
+          "action": "Accept both descriptions are compatible",
+          "edit": "No changes. Periodic wake + continuous lock-free are compatible concepts.",
+          "impact": "Minimal. Both descriptions are correct at different abstraction levels.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        }
+      ],
+      "recommendation": "Option C - Accept as compatible",
+      "approval_required_from": "None (informational)",
+      "rationale": "Not a real contradiction. SPEC016 describes wake period, SPEC013 describes ring buffer mechanics. Both are correct."
+    },
+
+    {
+      "conflict_id": "SPEC17-DB-TIMING",
+      "tier": "2-3",
+      "severity": "CRITICAL",
+      "type": "spec16_17_contradiction",
+      "documents_involved": [
+        "SPEC017-sample_rate_conversion.md",
+        "SPEC002-crossfade.md",
+        "IMPL001-database_schema.md"
+      ],
+      "issue": {
+        "spec017_says": "SRC-DB-010 through SRC-DB-040: All passage timing points stored as INTEGER ticks in database. Tick rate = 28,224,000 Hz (LCM of all sample rates). Database stores ticks for sample-accurate precision.",
+        "other_docs_say": "SPEC002: Timing points defined in seconds (REAL). IMPL001: Database schema shows start_time, fade_in_point, lead_in_point, lead_out_point, fade_out_point, end_time all as REAL (seconds), not INTEGER (ticks).",
+        "lines": [
+          "SPEC017 lines 110-140 (database storage section)",
+          "SPEC002 lines 150-155 (timing constraints show seconds)",
+          "IMPL001 lines 150-155 (passages table shows REAL)"
+        ]
+      },
+      "analysis": "CRITICAL MISMATCH: SPEC017 explicitly states all timing points should be stored as INTEGER ticks in the database for sample-accurate precision. However, IMPL001 database schema shows all timing fields as REAL (seconds). SPEC002 also uses seconds throughout. This is a fundamental data type contradiction between the timing system design (SPEC017) and the actual database implementation (IMPL001). This affects data precision, storage, and all timing calculations.",
+      "options": [
+        {
+          "option": "A",
+          "action": "Update IMPL001 database schema to use INTEGER ticks",
+          "edit": "Change all timing fields (start_time, fade_in_point, lead_in_point, lead_out_point, fade_out_point, end_time) from REAL to INTEGER. Update migration to convert existing REAL seconds to INTEGER ticks.",
+          "impact": "MAJOR: Requires database migration, code changes to convert ticks↔samples, API changes if external representation differs. Achieves sample-accurate precision per SPEC017 design.",
+          "violates_constraints": false,
+          "constraint_violated": null
+        },
+        {
+          "option": "B",
+          "action": "Update SPEC017 to match REAL seconds implementation",
+          "edit": "Change SPEC017 SRC-DB sections to document that database uses REAL seconds, not INTEGER ticks. Update rationale to explain precision trade-off.",
+          "impact": "MAJOR: Violates SPEC017's core premise that tick-based timing enables sample accuracy. Acknowledges floating-point seconds are actually used. May introduce precision errors documented in SRC-PROB-020.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC017 marked as immutable"
+        },
+        {
+          "option": "C",
+          "action": "Investigate actual implementation in code",
+          "edit": "Examine wkmp-ap timing code to determine what data types are actually used internally and in database operations.",
+          "impact": "Provides empirical answer. May reveal conversion happening at database boundary (REAL in DB, ticks in memory).",
+          "violates_constraints": false,
+          "constraint_violated": null
+        },
+        {
+          "option": "D",
+          "action": "Hybrid approach: REAL in DB, ticks in memory",
+          "edit": "Update SPEC017 to clarify: Database stores REAL seconds for human readability and external API compatibility. Internal processing converts to INTEGER ticks for sample-accurate calculations. Document conversion at database boundary.",
+          "impact": "Reconciles both specs. Adds complexity of conversion layer but achieves both human-readable storage and sample-accurate processing.",
+          "violates_constraints": true,
+          "constraint_violated": "SPEC017 marked as immutable"
+        }
+      ],
+      "recommendation": "Option C then Option D - Investigate actual implementation, likely hybrid approach",
+      "approval_required_from": "Technical Lead, Database Engineer, Audio Engineer",
+      "rationale": "This is the most critical conflict. SPEC017's tick-based design is sophisticated but may not be implemented. Database shows REAL seconds. Need to verify actual code before deciding. Hybrid approach (REAL storage, tick calculations) is common pattern."
+    }
+  ],
+
+  "summary": {
+    "tier_0_1_conflicts": 0,
+    "spec16_17_contradictions": 11,
+    "critical_conflicts": 4,
+    "major_conflicts": 5,
+    "minor_conflicts": 3,
+    "require_spec16_modification": 10,
+    "require_other_doc_modification": 1,
+    "require_investigation": 4
+  },
+
+  "phase_4_recommendation": {
+    "can_proceed": false,
+    "blocking_issues": [
+      "SPEC16-CONTRA-001 (decoder threading model)",
+      "SPEC16-CONTRA-002 (fade application timing)",
+      "SPEC16-CONTRA-003 (buffer management strategy)",
+      "SPEC17-DB-TIMING (tick vs seconds storage)"
+    ],
+    "rationale": "Four CRITICAL contradictions require resolution before Phase 4. All involve fundamental architectural decisions. SPEC016/SPEC017 immutability constraint conflicts with need to align with implemented architecture documented in SPEC013/SPEC014/IMPL001.",
+    "required_actions": [
+      "User must decide: Are SPEC016/SPEC017 authoritative (require implementation changes) or descriptive (should match current implementation)?",
+      "Investigate actual implementation for fade timing (SPEC16-CONTRA-002) and decoder scheduling (SPEC16-CONTRA-005)",
+      "Investigate database timing storage (SPEC17-DB-TIMING) - most critical issue",
+      "After investigation, update either SPEC016/017 or SPEC013/014/IMPL001 for consistency"
+    ]
+  }
+}

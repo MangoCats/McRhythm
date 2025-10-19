@@ -1,0 +1,779 @@
+{
+  "metadata": {
+    "generated_at": "2025-10-19T00:00:00Z",
+    "agent": "Agent 2: Existing Documentation Inventory",
+    "purpose": "Comprehensive inventory of existing WKMP documentation excluding SPEC016, SPEC017, GOV_INTEGRATION_SUMMARY, and docs/validation/",
+    "total_documents_analyzed": 23,
+    "exclusions": [
+      "SPEC016-decoder_buffer_design.md",
+      "SPEC017-sample_rate_conversion.md",
+      "GOV_INTEGRATION_SUMMARY.md",
+      "docs/validation/*"
+    ]
+  },
+  "documents_by_tier": {
+    "tier_0_governance": 3,
+    "tier_r_review": 1,
+    "tier_1_requirements": 2,
+    "tier_2_specifications": 12,
+    "tier_3_implementation": 5,
+    "tier_4_execution": 0
+  },
+  "documents_with_spec016_spec017_overlap": [
+    "SPEC011-event_system.md",
+    "SPEC013-single_stream_playback.md",
+    "SPEC014-single_stream_design.md",
+    "SPEC015-playback_completion_fixes.md",
+    "REV004-incremental_buffer_implementation.md",
+    "IMPL001-database_schema.md"
+  ],
+  "documents_with_high_redundancy_risk": [
+    "SPEC013-single_stream_playback.md",
+    "SPEC014-single_stream_design.md"
+  ],
+  "documents": [
+    {
+      "filename": "GOV001-document_hierarchy.md",
+      "tier": "Tier 0",
+      "document_code": "GOV",
+      "version": "1.5",
+      "status": "Current",
+      "last_updated": "2025-10-19",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Defines the WKMP documentation hierarchy with 5 tiers (0-4) plus Tier R for review/change control. Establishes governance rules for documentation maintenance, information flow (downward normal, upward controlled), and change control processes."
+    },
+    {
+      "filename": "GOV002-requirements_enumeration.md",
+      "tier": "Tier 0",
+      "document_code": "GOV",
+      "version": "1.2",
+      "status": "Current",
+      "last_updated": "2025-10-19",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [
+        "REQ-CF-010",
+        "REQ-CF-020",
+        "REQ-CF-030",
+        "REQ-CF-060",
+        "XFD-TP-010",
+        "XFD-CURV-010",
+        "XFD-BEH-C1",
+        "DB-PASS-015",
+        "DBD-*",
+        "SRC-*"
+      ],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Establishes requirement ID enumeration scheme (DOC-CAT-NNN format). Added DBD and SRC document codes in v1.2 for SPEC016 and SPEC017. Defines numbering guidelines, document codes, category codes, and cross-referencing conventions."
+    },
+    {
+      "filename": "GOV003-filename_convention.md",
+      "tier": "Tier 0",
+      "document_code": "GOV",
+      "version": "1.0",
+      "status": "APPROVED",
+      "last_updated": "2025-10-17",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Establishes systematic filename convention for WKMP documentation using prefixes (GOV, REQ, SPEC, IMPL, EXEC, REV) and sequential numbering. Defines scope (docs/ directory), exclusions (README, CLAUDE, agent definitions), and migration mapping for all existing documents."
+    },
+    {
+      "filename": "REV004-incremental_buffer_implementation.md",
+      "tier": "Tier R",
+      "document_code": "REV",
+      "version": "1.0",
+      "status": "Accepted",
+      "last_updated": "2025-10-18",
+      "topics_overlapping_spec016_spec017": [
+        "buffer_management",
+        "decoder_architecture",
+        "audio_processing_pipeline",
+        "operating_parameters"
+      ],
+      "requirement_ids_referenced": [
+        "REQ-NF-010",
+        "REQ-XFD-010",
+        "REQ-TECH-011",
+        "ARCH-AUDIO-010",
+        "SSD-PBUF-028",
+        "SSD-UND-010"
+      ],
+      "relevant_sections": [
+        {
+          "title": "Fix 2: Partial Buffer Playback with Incremental Decode",
+          "line_range": "120-180",
+          "summary": "Documents change from atomic buffer approach to incremental buffer filling. BufferManager API changed from mark_ready() with full buffer to register_decoding() returning Arc<RwLock<PassageBuffer>> for incremental writes. Enables partial buffer playback with 3-second minimum threshold."
+        },
+        {
+          "title": "Fix 3: Buffer Underrun Detection and Recovery",
+          "line_range": "181-220",
+          "summary": "Documents underrun detection when buffer exhausted before decode complete. Auto-pause with flatline output, auto-resume when buffer available. Results show latency reduced from ~200ms to ~70ms."
+        }
+      ],
+      "redundancy_indicators": {
+        "default_values": true,
+        "component_architectures": true,
+        "dataflow_descriptions": true
+      },
+      "summary": "Review document (Tier R) documenting major improvements to buffer management implemented 2025-10-18. Three fixes: reorder prefetch logic, partial buffer playback with incremental decode, buffer underrun detection and recovery. Results show significant latency improvements."
+    },
+    {
+      "filename": "SPEC011-event_system.md",
+      "tier": "Tier 2",
+      "document_code": "EVT",
+      "version": "1.1",
+      "status": "Current",
+      "last_updated": "2025-10-17",
+      "topics_overlapping_spec016_spec017": [
+        "buffer_management"
+      ],
+      "requirement_ids_referenced": [
+        "REQ-CF-082",
+        "REQ-CF-082A",
+        "REQ-CF-085A",
+        "REQ-CF-085B",
+        "REQ-CF-085C",
+        "REQ-PI-020",
+        "REQ-CF-010",
+        "REQ-TECH-021",
+        "REQ-TECH-022",
+        "SSD-BUF-010"
+      ],
+      "relevant_sections": [
+        {
+          "title": "BufferStateChanged Event",
+          "line_range": "223-239",
+          "summary": "Defines BufferStateChanged event with old_state, new_state, passage_id, buffer_status, and decode_progress_percent fields. BufferStatus enum includes Decoding, Ready, Playing, Exhausted states."
+        },
+        {
+          "title": "Internal PlaybackEvent",
+          "line_range": "467-474",
+          "summary": "Defines internal PlaybackEvent for position tracking within wkmp-ap. Uses tokio::mpsc channel, separate from WkmpEvent broadcast."
+        }
+      ],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": true,
+        "dataflow_descriptions": true
+      },
+      "summary": "Defines WkmpEvent enum and event-driven architecture for WKMP. Specifies EventBus implementation using tokio::broadcast. Includes BufferStateChanged event relevant to SPEC016 with BufferStatus enum states. Documents internal PlaybackEvent for position tracking."
+    },
+    {
+      "filename": "SPEC013-single_stream_playback.md",
+      "tier": "Tier 2",
+      "document_code": "SSP",
+      "version": "1.0",
+      "status": "Current",
+      "last_updated": "2025-10-16",
+      "topics_overlapping_spec016_spec017": [
+        "buffer_management",
+        "decoder_architecture",
+        "sample_rate_handling",
+        "timing_precision",
+        "audio_processing_pipeline",
+        "operating_parameters",
+        "crossfade_mechanics",
+        "mixer_behavior"
+      ],
+      "requirement_ids_referenced": [
+        "SSP-OV-010",
+        "SSP-ARCH-010",
+        "SSP-DEC-010",
+        "SSP-DEC-020",
+        "SSP-DEC-030",
+        "SSP-DEC-040",
+        "SSP-BUF-010",
+        "SSP-BUF-020",
+        "SSP-BUF-030",
+        "SSP-CURV-010",
+        "SSP-CURV-020",
+        "SSP-MIX-010",
+        "SSP-MIX-020",
+        "SSP-MIX-030",
+        "SSP-XFD-010",
+        "SSP-XFD-020",
+        "SSP-XFD-030",
+        "SSP-XFD-040"
+      ],
+      "relevant_sections": [
+        {
+          "title": "Component Diagram and Architecture",
+          "line_range": "20-80",
+          "summary": "Describes component diagram: Decoder Thread Pool → Passage Buffer Manager → Crossfade Mixer → Audio Output Thread. Specifies symphonia 0.5.x for decoding, rubato 0.15.x for resampling, cpal 0.15.x for output."
+        },
+        {
+          "title": "Buffer Specifications",
+          "line_range": "100-180",
+          "summary": "SSP-BUF-020: PCM storage, automatic fade application, position tracking. SSP-BUF-030: Memory calculations (1 second @ 44.1kHz stereo = ~353 KB, 15-second buffer = ~5.3 MB)."
+        },
+        {
+          "title": "Decoder Specifications and Flow",
+          "line_range": "200-260",
+          "summary": "SSP-DEC-040: Decoding flow - Open file → Seek to passage start → Decode → Resample → Write to buffer. Describes decode-from-start-and-skip approach for sample-accurate positioning."
+        },
+        {
+          "title": "Crossfade Algorithm",
+          "line_range": "280-350",
+          "summary": "SSP-MIX-030: Sample-accurate crossfade mixing algorithm. Describes fade curves (Linear, Logarithmic, Exponential, S-Curve, Equal-Power) and mixing calculations."
+        }
+      ],
+      "redundancy_indicators": {
+        "default_values": true,
+        "component_architectures": true,
+        "dataflow_descriptions": true
+      },
+      "summary": "Core architecture document for single-stream audio playback. Directly overlaps with SPEC016/SPEC017 topics. Describes decoder thread pool, passage buffer manager, crossfade mixer, and audio output thread. Specifies buffer management strategies, decoder flow, fade curves, and sample-accurate crossfade algorithm."
+    },
+    {
+      "filename": "SPEC014-single_stream_design.md",
+      "tier": "Tier 2",
+      "document_code": "SSD",
+      "version": "1.0",
+      "status": "Current",
+      "last_updated": "2025-10-16",
+      "topics_overlapping_spec016_spec017": [
+        "buffer_management",
+        "decoder_architecture",
+        "sample_rate_handling",
+        "timing_precision",
+        "audio_processing_pipeline",
+        "operating_parameters",
+        "crossfade_mechanics"
+      ],
+      "requirement_ids_referenced": [
+        "SSD-DEC-010",
+        "SSD-DEC-015",
+        "SSD-DEC-020",
+        "SSD-DEC-025",
+        "SSD-FBUF-010",
+        "SSD-FBUF-015",
+        "SSD-FBUF-020",
+        "SSD-FBUF-025",
+        "SSD-FBUF-030",
+        "SSD-FBUF-033",
+        "SSD-PBUF-010",
+        "SSD-PBUF-015",
+        "SSD-PBUF-020",
+        "SSD-PBUF-028",
+        "SSD-PBUF-030",
+        "SSD-PBUF-032",
+        "SSD-UND-010",
+        "SSD-UND-015",
+        "SSD-UND-020",
+        "SSD-UND-025",
+        "SSD-UND-026",
+        "SSD-DEC-030",
+        "SSD-DEC-033",
+        "SSD-MIX-040",
+        "SSD-MIX-041",
+        "SSD-MIX-042",
+        "SSD-CLIP-010",
+        "SSD-CLIP-020",
+        "SSD-CLIP-021",
+        "SSD-CLIP-022",
+        "SSD-CLIP-023",
+        "SSD-CLIP-024",
+        "SSD-CLIP-025",
+        "SSD-CLIP-026",
+        "REQ-TECH-011"
+      ],
+      "relevant_sections": [
+        {
+          "title": "Decode-and-Skip Approach",
+          "line_range": "100-160",
+          "summary": "SSD-DEC-010 through SSD-DEC-025: Always decode from start of file and skip samples until passage start. Never use compressed seek for sample-accurate positioning."
+        },
+        {
+          "title": "Full Decode Strategy",
+          "line_range": "180-240",
+          "summary": "SSD-FBUF-010 through SSD-FBUF-033: Full decode for current/next passages. Entire passage decoded into RAM for instant seeking. Memory: ~63 MB for 3-minute passage @ 44.1kHz stereo."
+        },
+        {
+          "title": "Partial Buffer Strategy",
+          "line_range": "260-320",
+          "summary": "SSD-PBUF-010 through SSD-PBUF-032: Partial buffer for queued passages (default 15 seconds). Incremental decode with 3-second minimum threshold. Memory: ~5.3 MB per passage @ 44.1kHz stereo."
+        },
+        {
+          "title": "Buffer Underrun Handling",
+          "line_range": "340-390",
+          "summary": "SSD-UND-010 through SSD-UND-026: Underrun detection when buffer exhausted before decode complete. Auto-pause with flatline output, auto-resume when buffer available."
+        },
+        {
+          "title": "Decoder Pool Lifecycle",
+          "line_range": "420-460",
+          "summary": "SSD-DEC-030 through SSD-DEC-033: 2-thread decoder pool with priority queue (Immediate, Next, Prefetch). Task submission and lifecycle management."
+        },
+        {
+          "title": "Crossfade Timing Calculation",
+          "line_range": "500-560",
+          "summary": "SSD-MIX-040 through SSD-MIX-042: CrossfadeMixer owns calculation responsibility. Executes Phase 3 validation from crossfade.md. Returns sample-accurate timing output."
+        },
+        {
+          "title": "Clipping Detection",
+          "line_range": "580-620",
+          "summary": "SSD-CLIP-010 through SSD-CLIP-026: Crossfade summation clipping detection. Log warning with playback point, fade durations, fade curves. Apply gain reduction or limiting."
+        }
+      ],
+      "redundancy_indicators": {
+        "default_values": true,
+        "component_architectures": true,
+        "dataflow_descriptions": true
+      },
+      "summary": "Detailed technical design for single-stream architecture. Complete coverage of buffer management strategies (full vs partial decode), decoder implementation details, underrun handling, decoder pool (2 threads), and crossfade timing calculation. High overlap with SPEC016/SPEC017 topics."
+    },
+    {
+      "filename": "SPEC015-playback_completion_fixes.md",
+      "tier": "Tier 2",
+      "document_code": "PCF",
+      "version": "1.0",
+      "status": "Current",
+      "last_updated": "2025-10-18",
+      "topics_overlapping_spec016_spec017": [
+        "buffer_management",
+        "timing_precision"
+      ],
+      "requirement_ids_referenced": [
+        "PCF-DUR-010",
+        "PCF-DUR-020",
+        "PCF-DUR-030",
+        "PCF-COMP-010",
+        "PCF-COMP-020",
+        "PCF-COMP-030",
+        "PCF-EVENT-010",
+        "REQ-CF-030",
+        "SSD-MIX-060",
+        "REV002"
+      ],
+      "relevant_sections": [
+        {
+          "title": "Bug #1: Duration Climbing",
+          "line_range": "50-100",
+          "summary": "Documents bug where passage duration climbs due to live calculation from growing buffer during decode. Solution: Cache total duration in PassageBuffer with total_duration_ms field set on decode complete."
+        },
+        {
+          "title": "Bug #2: Passage Repeats",
+          "line_range": "120-170",
+          "summary": "Documents race condition where position check vs buffer growth causes passage to repeat instead of advancing queue. Solution: Detect completion via decode sentinel (decode_complete flag) set when decoder finishes."
+        },
+        {
+          "title": "PassageBuffer Structure Changes",
+          "line_range": "190-250",
+          "summary": "Adds three fields to PassageBuffer: decode_complete (bool), total_frames (Option<usize>), total_duration_ms (Option<u64>). Includes finalize() method to set all three atomically when decode completes."
+        }
+      ],
+      "redundancy_indicators": {
+        "default_values": true,
+        "component_architectures": false,
+        "dataflow_descriptions": true
+      },
+      "summary": "Documents critical bug fixes for buffer management and duration tracking. Bug #1: duration climbing from live calculation. Bug #2: passage repeats from race condition. Solutions involve caching duration and using decode sentinel for completion detection."
+    },
+    {
+      "filename": "IMPL001-database_schema.md",
+      "tier": "Tier 3",
+      "document_code": "DB",
+      "version": "1.2",
+      "status": "Current",
+      "last_updated": "2025-10-18",
+      "topics_overlapping_spec016_spec017": [
+        "operating_parameters"
+      ],
+      "requirement_ids_referenced": [
+        "DB-VER-010",
+        "DB-FILE-010",
+        "DB-PASS-010",
+        "DB-SONG-010",
+        "DB-ART-010",
+        "DB-WORK-010",
+        "DB-ALB-010",
+        "REQ-CF-030",
+        "REQ-XFD-010"
+      ],
+      "relevant_sections": [
+        {
+          "title": "Settings Table - Event Timing Configuration",
+          "line_range": "750-900",
+          "summary": "Settings table contains position_event_interval_ms (default 1000ms, range 100-5000ms) for internal PositionUpdate events, and playback_progress_interval_ms (default 5000ms, range 1000-10000ms) for external PlaybackProgress SSE events. Both control different aspects of audio processing timing."
+        },
+        {
+          "title": "Settings Table - Audio Configuration",
+          "line_range": "746-770",
+          "summary": "Contains volume_level (0.0-1.0), audio_sink (device identifier), and other playback state settings. Database-first configuration approach with NULL values initialized from built-in defaults."
+        }
+      ],
+      "redundancy_indicators": {
+        "default_values": true,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Defines complete SQLite database schema for WKMP. Settings table likely contains audio configuration parameters including event timing intervals that affect buffer management and position tracking. Uses UUID primary keys, JSON1 extension for flavor vectors, and automatic triggers."
+    },
+    {
+      "filename": "IMPL002-coding_conventions.md",
+      "tier": "Tier 3",
+      "document_code": "CODE",
+      "version": "1.0",
+      "status": "Draft",
+      "last_updated": "2025-10-05",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [
+        "CO-100",
+        "CO-101",
+        "CO-102",
+        "CO-103",
+        "CO-110",
+        "CO-111",
+        "CO-112",
+        "CO-113",
+        "CO-120",
+        "CO-121",
+        "CO-122",
+        "CO-123",
+        "CO-140",
+        "CO-141",
+        "CO-142",
+        "CO-143",
+        "CO-144",
+        "CO-145"
+      ],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Establishes code organization, style, and quality standards for WKMP. Defines Cargo workspace structure (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le, common/), module size limits (800 lines, architectural review at 1000), testing requirements (80% coverage), and requirement traceability conventions."
+    },
+    {
+      "filename": "SPEC007-api_design.md",
+      "tier": "Tier 2",
+      "document_code": "API",
+      "version": "1.1",
+      "status": "Current",
+      "last_updated": "2025-10-17",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [
+        "API-OV-010",
+        "API-OV-020",
+        "API-COMM-010",
+        "API-COMM-020",
+        "API-COMM-030",
+        "API-AUTH-010",
+        "API-AUTH-020",
+        "API-AUTH-030",
+        "SSD-BUF-010",
+        "REQ-CF-030",
+        "XFD-CONS-010",
+        "XFD-CONS-030"
+      ],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Defines REST API structure and Server-Sent Events interface for WKMP microservices. Specifies endpoints for Audio Player (port 5721), User Interface (5720), Program Director (5722), Audio Ingest (5723), and Lyric Editor (5724). Includes buffer status endpoint and timing validation."
+    },
+    {
+      "filename": "SPEC008-library_management.md",
+      "tier": "Tier 2",
+      "document_code": "LIB",
+      "version": "1.0",
+      "status": "Current",
+      "last_updated": "2025-10-09",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [
+        "LIB-OV-010",
+        "LIB-IMG-010",
+        "LIB-IMG-020",
+        "LIB-IMG-030",
+        "LIB-MPF-010"
+      ],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Defines file scanning, metadata extraction, and MusicBrainz integration workflows. Covers file discovery, tag parsing, cover art extraction, audio fingerprinting (Chromaprint), AcoustID API, MusicBrainz lookup, AcousticBrainz integration, and multi-passage file handling."
+    },
+    {
+      "filename": "SPEC009-ui_specification.md",
+      "tier": "Tier 2",
+      "document_code": "UI",
+      "version": "1.0",
+      "status": "Current",
+      "last_updated": "2025-10-09",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [
+        "UI-AUTH-010",
+        "UI-AUTH-020",
+        "UI-AUTH-030",
+        "UI-AUTH-040",
+        "UI-LAYOUT-010",
+        "UI-ART-010",
+        "UI-ART-020",
+        "UI-LYRICS-025"
+      ],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "Defines Web UI design, layout, and behavior. Covers authentication flow, playback controls, now playing information display with album artwork rotation, queue management, network status indicators (Full only), responsive design, accessibility, and real-time SSE updates."
+    },
+    {
+      "filename": "REQ001-requirements.md",
+      "tier": "Tier 1",
+      "document_code": "REQ",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Primary authoritative requirements document defining WHAT WKMP must do from product/user perspective. Contains functional requirements, non-functional requirements, user workflows, and version feature matrices (Full/Lite/Minimal)."
+    },
+    {
+      "filename": "SPEC001-architecture.md",
+      "tier": "Tier 2",
+      "document_code": "ARCH",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines system structure, components, and interactions. Covers microservices architecture (5 independent HTTP servers), component design, communication patterns, technology stack, concurrency model, and platform abstractions."
+    },
+    {
+      "filename": "SPEC002-crossfade.md",
+      "tier": "Tier 2",
+      "document_code": "XFD",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [
+        "crossfade_mechanics",
+        "timing_precision"
+      ],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines crossfade timing system and behavior. Six timing point definitions, fade curve specifications (exponential, cosine, linear), crossfade behavior cases, and volume calculation formulas."
+    },
+    {
+      "filename": "SPEC003-musical_flavor.md",
+      "tier": "Tier 2",
+      "document_code": "MFL",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines musical flavor characterization and distance calculation system. AcousticBrainz data structure, distance calculation formulas, flavor mapping rules (single-song, multi-song, zero-song passages)."
+    },
+    {
+      "filename": "SPEC004-musical_taste.md",
+      "tier": "Tier 2",
+      "document_code": "MTA",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines musical taste calculation from likes and dislikes. Simple taste calculation (centroid of flavors), weighted taste calculation, time-based weighting (time of day, day of week, day of year, lunar phase)."
+    },
+    {
+      "filename": "SPEC005-program_director.md",
+      "tier": "Tier 2",
+      "document_code": "PD",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines automatic passage selection algorithm (Program Director). Five-stage selection algorithm (filtering, distance calculation, ranking, candidate selection, weighted random), cooldown system, base probability calculations."
+    },
+    {
+      "filename": "SPEC006-like_dislike.md",
+      "tier": "Tier 2",
+      "document_code": "LD",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines like and dislike functionality. Like/Dislike user interactions (Full/Lite versions), data storage per user UUID, integration with musical taste calculation, UI controls and behaviors."
+    },
+    {
+      "filename": "SPEC010-user_identity.md",
+      "tier": "Tier 2",
+      "document_code": "UID",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines user identity, authentication, and account management. Three authentication modes (Anonymous, Create Account, Login), browser-based UUID persistence (one-year rolling expiration), multi-user session coordination."
+    },
+    {
+      "filename": "SPEC012-multi_user_coordination.md",
+      "tier": "Tier 2",
+      "document_code": "MUC",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines multi-user coordination mechanisms. Skip throttling (5-second window), concurrent queue removal handling, concurrent lyric editing (last-write-wins strategy)."
+    },
+    {
+      "filename": "IMPL003-project_structure.md",
+      "tier": "Tier 3",
+      "document_code": "IMPL",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines Rust workspace structure and project organization. Cargo workspace configuration, module/crate organization (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le, wkmp-common), dependency management, testing infrastructure."
+    },
+    {
+      "filename": "IMPL004-deployment.md",
+      "tier": "Tier 3",
+      "document_code": "IMPL",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines deployment, process management, and operational configuration. Module binary locations, configuration file paths, startup order, process management (systemd, launchd, Windows Services), health checks, version-specific deployments."
+    },
+    {
+      "filename": "IMPL005-audio_file_segmentation.md",
+      "tier": "Tier 3",
+      "document_code": "AFS",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines workflow for segmenting single audio file into multiple passages. Passage boundary detection, user interface for defining start/end points, timing point configuration per passage, validation and constraints."
+    },
+    {
+      "filename": "REQ002-entity_definitions.md",
+      "tier": "Tier 1",
+      "document_code": "ENT",
+      "version": "NOT_FOUND",
+      "status": "NOT_FOUND",
+      "last_updated": "NOT_FOUND",
+      "topics_overlapping_spec016_spec017": [],
+      "requirement_ids_referenced": [],
+      "relevant_sections": [],
+      "redundancy_indicators": {
+        "default_values": false,
+        "component_architectures": false,
+        "dataflow_descriptions": false
+      },
+      "summary": "NOT FULLY READ - Defines core entity terminology for WKMP. MusicBrainz entities (Track, Recording, Work, Artist), WKMP-specific entities (Song, Passage), entity relationships and cardinality rules."
+    }
+  ],
+  "issues_encountered": [
+    "Many documents only partially read due to length (REQ001, SPEC001-006, SPEC010, SPEC012, IMPL003-005, REQ002)",
+    "Some documents marked as NOT_FOUND for version/status/date because not fully read in current session"
+  ],
+  "recommendations": [
+    "SPEC013 and SPEC014 have very high overlap with SPEC016/SPEC017 topics - recommend careful integration to avoid duplication",
+    "SPEC015 documents bug fixes that should be integrated into SPEC016 buffer management sections",
+    "REV004 contains implementation details that may inform SPEC016/SPEC017 design decisions",
+    "IMPL001 settings table should be referenced by SPEC016/SPEC017 for configuration parameters",
+    "SPEC011 BufferStateChanged event should be cross-referenced in SPEC016 for buffer lifecycle tracking"
+  ]
+}

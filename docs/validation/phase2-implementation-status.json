@@ -1,0 +1,474 @@
+{
+  "metadata": {
+    "generated_date": "2025-10-19",
+    "agent": "Agent 3B: Design Improvement Classifier",
+    "phase": "Phase 2B - Implementation Status Tracking",
+    "purpose": "Track which design improvements require implementation work vs documentation updates only"
+  },
+
+  "implementation_tracking": [
+    {
+      "improvement_id": "IMPROVE-001",
+      "title": "Serial Decode Execution",
+      "status": "NOT_YET_IMPLEMENTED",
+      "current_implementation": "2-thread parallel decoder pool",
+      "target_implementation": "Serial decode with priority queue",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": {
+        "check": "Inspect wkmp-ap/src/playback/pipeline/single_stream/decoder.rs",
+        "determine": "Is decoder pool using 2 threads in parallel or serial execution?",
+        "expected_current": "2-thread pool based on SPEC014"
+      },
+
+      "implementation_work": {
+        "code_changes_required": true,
+        "estimated_effort": "Medium (2-3 days)",
+        "files_to_modify": [
+          "wkmp-ap/src/playback/pipeline/single_stream/decoder.rs",
+          "wkmp-ap/src/playback/pipeline/single_stream/buffer.rs (priority queue integration)"
+        ],
+        "testing_required": [
+          "Verify decode still completes correctly",
+          "Test priority switching at job boundaries",
+          "Benchmark CPU usage (should decrease)",
+          "Test on resource-constrained device (RPi Zero 2W)"
+        ]
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC014-single_stream_design.md (lines 114-122)",
+          "SPEC013-single_stream_playback.md (diagram lines 26-28)",
+          "REV004-incremental_buffer_implementation.md (historical note)"
+        ],
+        "update_after_implementation": true
+      },
+
+      "decision": "Implement if performance testing shows benefits. Otherwise keep 2-thread pool and update SPEC016 to match."
+    },
+
+    {
+      "improvement_id": "IMPROVE-002",
+      "title": "Pre-Buffer Fade Application",
+      "status": "VERIFY_CURRENT_BEHAVIOR",
+      "current_implementation": "Unknown - need to verify",
+      "target_implementation": "Fades applied during decode (pre-buffer)",
+
+      "verification_needed": {
+        "check": "Inspect wkmp-ap/src/playback/pipeline/single_stream/buffer.rs",
+        "determine": "When are fade curves applied? During decode or during read_sample()?",
+        "methods_to_examine": [
+          "PassageBuffer::read_sample() - does it apply fades?",
+          "Decoder populate_buffer() - does it apply fades before buffering?"
+        ]
+      },
+
+      "implementation_work": {
+        "code_changes_required": "Maybe (depends on verification)",
+        "estimated_effort": "Small (1 day) if changes needed",
+        "scenarios": {
+          "if_on_read": {
+            "change_to": "Pre-buffer application",
+            "benefits": "Reduce per-sample overhead",
+            "cost": "Fade parameters become immutable"
+          },
+          "if_pre_buffer": {
+            "change_to": "No changes needed",
+            "action": "Update SPEC013 documentation to match"
+          }
+        }
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC013-single_stream_playback.md (line 114)",
+          "SPEC014-single_stream_design.md (line 205)"
+        ],
+        "update_based_on_verification": true
+      },
+
+      "decision": "Verify first, then decide whether to change code or documentation."
+    },
+
+    {
+      "improvement_id": "IMPROVE-003",
+      "title": "Full vs Partial Buffer Strategy Documentation",
+      "status": "DOCUMENTED_IN_SPEC014_ONLY",
+      "current_implementation": "Already implemented per SPEC014",
+      "target_implementation": "No code changes - documentation only",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": {
+        "check": "Verify implementation matches SPEC014 descriptions",
+        "files_to_verify": [
+          "wkmp-ap/src/playback/pipeline/single_stream/buffer.rs (check for full vs partial logic)",
+          "wkmp-ap/src/playback/pipeline/single_stream/decoder.rs (check for incremental filling)"
+        ]
+      },
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only",
+        "note": "Feature already implemented per SPEC014"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (add major sections after line 219)"
+        ],
+        "content_to_add": [
+          "DBD-BUF-070: Full decode strategy (current/next passages)",
+          "DBD-BUF-080: Partial decode strategy (queued passages, 15s default)",
+          "DBD-BUF-090: Minimum playback threshold (3 seconds)",
+          "DBD-BUF-100: Incremental buffer filling (1-second chunks)",
+          "Cross-references to SSD-FBUF-010, SSD-PBUF-010"
+        ]
+      },
+
+      "decision": "Update SPEC016 to incorporate content from SPEC014. No code changes."
+    },
+
+    {
+      "improvement_id": "IMPROVE-004",
+      "title": "maximum_decode_streams Parameter Clarification",
+      "status": "CLARIFICATION_NEEDED",
+      "current_implementation": "Both values likely correct",
+      "target_implementation": "No changes - clarify documentation",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": {
+        "check": "Verify what maximum_decode_streams actually controls",
+        "determine": "Is it buffer allocation limit (12) or thread count (2)?",
+        "expected": "Buffer allocation limit (12), separate from thread count (2)"
+      },
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (lines 104-107)"
+        ],
+        "clarification": "Update DBD-PARAM-050 to distinguish buffer allocation from thread count"
+      },
+
+      "decision": "Verify interpretation, then update documentation to clarify."
+    },
+
+    {
+      "improvement_id": "IMPROVE-005",
+      "title": "Priority Queue vs Time-Based Decode Switching",
+      "status": "VERIFY_CURRENT_BEHAVIOR",
+      "current_implementation": "Unknown - need to verify",
+      "target_implementation": "Priority queue with continuous processing",
+
+      "verification_needed": {
+        "check": "Inspect decoder pool implementation",
+        "determine": "Is decode_work_period (5s timer) implemented, or priority queue?",
+        "files_to_check": [
+          "wkmp-ap/src/playback/pipeline/single_stream/decoder.rs"
+        ]
+      },
+
+      "implementation_work": {
+        "code_changes_required": "Maybe (depends on verification)",
+        "estimated_effort": "Medium (2-3 days) if time-based currently implemented",
+        "scenarios": {
+          "if_timer_based": {
+            "change_to": "Priority queue approach",
+            "benefits": "Simpler logic, no timer interrupts",
+            "effort": "Medium"
+          },
+          "if_priority_queue": {
+            "change_to": "No changes needed",
+            "action": "Update SPEC016 to match SPEC014"
+          }
+        }
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (lines 111-117)"
+        ],
+        "update_based_on_verification": true
+      },
+
+      "decision": "Verify current implementation, then update either code or documentation."
+    },
+
+    {
+      "improvement_id": "IMPROVE-006",
+      "title": "Logical vs Physical Architecture Cross-Reference",
+      "status": "DOCUMENTATION_CLARIFICATION",
+      "current_implementation": "Both views are correct",
+      "target_implementation": "Add cross-reference linking them",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": null,
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (after line 58)"
+        ],
+        "content_to_add": "Clarification note linking logical pipeline to physical component architecture"
+      },
+
+      "decision": "Add cross-reference note. No other changes."
+    },
+
+    {
+      "improvement_id": "IMPROVE-007",
+      "title": "Sentinel-Based Buffer Completion",
+      "status": "FIX_DOCUMENTED_IN_SPEC015",
+      "current_implementation": "Likely already implemented per SPEC015",
+      "target_implementation": "decode_complete flag + total_frames",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": {
+        "check": "Verify PassageBuffer has decode_complete and total_frames fields",
+        "files_to_check": [
+          "wkmp-ap/src/playback/pipeline/single_stream/buffer.rs"
+        ],
+        "expected": "Fields already present per SPEC015"
+      },
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - likely already implemented",
+        "note": "SPEC015 documents this fix already"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (line 219)"
+        ],
+        "content_to_add": "Cross-reference to SPEC015 sentinel-based completion"
+      },
+
+      "decision": "Verify implementation, then add cross-reference to SPEC016."
+    },
+
+    {
+      "improvement_id": "IMPROVE-008",
+      "title": "BufferStateChanged Event Integration",
+      "status": "DOCUMENTED_IN_SPEC011_AND_SPEC014",
+      "current_implementation": "Already specified in SPEC011/SPEC014",
+      "target_implementation": "No changes - add cross-reference",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": {
+        "check": "Verify BufferStateChanged events are emitted",
+        "files_to_check": [
+          "wkmp-ap/src/playback/pipeline/single_stream/buffer.rs (event emission)"
+        ],
+        "expected": "Events already implemented per SPEC014"
+      },
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (after line 219)"
+        ],
+        "content_to_add": "DBD-BUF-070: Cross-reference to SPEC011 BufferStateChanged events"
+      },
+
+      "decision": "Add event integration section to SPEC016. No code changes."
+    },
+
+    {
+      "improvement_id": "IMPROVE-009",
+      "title": "Terminology Cross-Reference (decoder-buffer chain)",
+      "status": "DOCUMENTATION_ONLY",
+      "current_implementation": "Multiple terms for same concept",
+      "target_implementation": "Add glossary cross-reference",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": null,
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (after line 67)"
+        ],
+        "content_to_add": "Glossary note linking decoder-buffer chain to PassageBuffer/ManagedBuffer"
+      },
+
+      "decision": "Add glossary cross-reference. No other changes."
+    },
+
+    {
+      "improvement_id": "IMPROVE-010",
+      "title": "Settings Table Cross-Reference",
+      "status": "DOCUMENTATION_ONLY",
+      "current_implementation": "SPEC016 lists subset of settings",
+      "target_implementation": "Add cross-reference to IMPL001",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": null,
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (after line 78)"
+        ],
+        "content_to_add": "Cross-reference note to IMPL001 for complete settings table"
+      },
+
+      "decision": "Add cross-reference note. No other changes."
+    },
+
+    {
+      "improvement_id": "IMPROVE-011",
+      "title": "Mixer Thread Behavior Clarification",
+      "status": "CLARIFICATION_ONLY",
+      "current_implementation": "Both descriptions compatible",
+      "target_implementation": "Clarify that periodic wake ≠ blocking timer",
+      "blocking_tier1_approval": false,
+
+      "verification_needed": null,
+
+      "implementation_work": {
+        "code_changes_required": false,
+        "estimated_effort": "None - documentation only"
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "SPEC016-decoder_buffer_design.md (line 225)"
+        ],
+        "content_to_add": "Clarify mixer thread wake behavior with lock-free ring buffer"
+      },
+
+      "decision": "Clarify documentation. No code changes."
+    },
+
+    {
+      "improvement_id": "T1-TIMING-001",
+      "title": "Tick-Based Timing System (TIER 1 APPROVAL)",
+      "status": "PENDING_TIER1_APPROVAL",
+      "current_implementation": "Unknown - need to verify database schema",
+      "target_implementation": "INTEGER ticks at 28,224,000 Hz",
+      "blocking_tier1_approval": true,
+
+      "verification_needed": {
+        "check": "Inspect actual database schema and existing migrations",
+        "files_to_check": [
+          "migrations/*.sql (look for passages table creation)",
+          "IMPL001-database_schema.md (check if timing columns specified)"
+        ],
+        "determine": "Are timing columns currently REAL or INTEGER? Or not yet specified?"
+      },
+
+      "implementation_work": {
+        "code_changes_required": true,
+        "estimated_effort": "Large (1-2 weeks)",
+        "blocking": "Requires Tier 1 approval first",
+        "files_to_modify": [
+          "migrations/NNN-add_tick_based_timing.sql (new migration)",
+          "common/src/models/passage.rs (timing field types)",
+          "wkmp-ap/src/playback/decoder conversion logic",
+          "wkmp-ui/src/api conversion ms ↔ ticks"
+        ],
+        "testing_required": [
+          "Migration script testing on sample databases",
+          "Conversion accuracy verification",
+          "Performance benchmarking",
+          "Cross-platform testing"
+        ]
+      },
+
+      "documentation_work": {
+        "documents_to_update": [
+          "IMPL001-database_schema.md (specify INTEGER for timing columns)",
+          "SPEC007-api_design.md (document ms ↔ ticks conversion)",
+          "SPEC002-crossfade.md (update examples to use ticks)",
+          "Migration guide (new document)"
+        ],
+        "update_after_approval": true
+      },
+
+      "decision": "BLOCKED pending Tier 1 approval. See phase2-tier1-approvals-needed.md"
+    }
+  ],
+
+  "summary": {
+    "total_improvements": 12,
+    "by_status": {
+      "NOT_YET_IMPLEMENTED": 1,
+      "VERIFY_CURRENT_BEHAVIOR": 3,
+      "DOCUMENTED_IN_OTHER_SPECS": 4,
+      "DOCUMENTATION_ONLY": 3,
+      "PENDING_TIER1_APPROVAL": 1
+    },
+    "blocking_on_tier1": 1,
+    "code_changes_required": 4,
+    "documentation_only": 8,
+    "verification_needed_first": 6
+  },
+
+  "next_steps": {
+    "immediate": [
+      "Verify current implementation of improvements marked VERIFY_CURRENT_BEHAVIOR",
+      "Seek Tier 1 approval for T1-TIMING-001 tick-based timing",
+      "Start documentation updates for improvements marked DOCUMENTATION_ONLY"
+    ],
+    "after_verification": [
+      "Decide whether to implement IMPROVE-001 (serial decode) or keep 2-thread pool",
+      "Update SPEC016 based on verification results",
+      "Update SPEC013/SPEC014 to align with decisions"
+    ],
+    "after_tier1_approval": [
+      "Implement tick-based timing migration (if approved)",
+      "Update IMPL001 database schema specification",
+      "Create database migration script and testing plan"
+    ]
+  },
+
+  "documentation_update_priorities": {
+    "priority_1_critical": [
+      "IMPROVE-003: Add full/partial buffer strategy to SPEC016 (major missing content)"
+    ],
+    "priority_2_high": [
+      "IMPROVE-006: Add logical/physical architecture cross-reference",
+      "IMPROVE-007: Add sentinel-based completion cross-reference",
+      "IMPROVE-008: Add event integration section"
+    ],
+    "priority_3_medium": [
+      "IMPROVE-004: Clarify maximum_decode_streams parameter",
+      "IMPROVE-009: Add terminology cross-reference",
+      "IMPROVE-010: Add settings table cross-reference",
+      "IMPROVE-011: Clarify mixer thread behavior"
+    ]
+  },
+
+  "code_implementation_priorities": {
+    "blocked": [
+      "T1-TIMING-001: Tick-based timing (waiting on Tier 1 approval)"
+    ],
+    "evaluate_first": [
+      "IMPROVE-001: Serial decode (performance testing needed to decide)",
+      "IMPROVE-002: Pre-buffer fades (verify current behavior first)",
+      "IMPROVE-005: Priority queue (verify current implementation first)"
+    ]
+  }
+}
