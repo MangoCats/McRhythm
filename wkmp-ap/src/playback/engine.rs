@@ -22,7 +22,7 @@ use crate::playback::types::DecodePriority;
 use crate::state::{CurrentPassage, PlaybackState, SharedState};
 use sqlx::{Pool, Sqlite};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -96,6 +96,11 @@ pub struct PlaybackEngine {
     /// Mixer sends position events to handler via this channel
     position_event_tx: mpsc::UnboundedSender<PlaybackEvent>,
 
+    /// Master volume control (shared with AudioOutput)
+    /// **[ARCH-VOL-020]** Volume Arc shared between engine and audio output
+    /// Updated by API handlers, read by audio callback
+    volume: Arc<Mutex<f32>>,
+
     /// Position event channel receiver
     /// **[REV002]** Taken by position_event_handler on start
     /// Wrapped in Option so it can be taken once
@@ -120,6 +125,11 @@ impl PlaybackEngine {
     /// **[REV002]** Configure event-driven position tracking
     pub async fn new(db_pool: Pool<Sqlite>, state: Arc<SharedState>) -> Result<Self> {
         info!("Creating playback engine");
+
+        // **[ARCH-VOL-020]** Load initial volume from database
+        let initial_volume = crate::db::settings::get_volume(&db_pool).await?;
+        let volume = Arc::new(Mutex::new(initial_volume));
+        info!("Initial volume loaded from database: {:.2}", initial_volume);
 
         // Create buffer manager
         let buffer_manager = Arc::new(BufferManager::new());
@@ -162,6 +172,7 @@ impl PlaybackEngine {
             position: PlaybackPosition::new(), // [ISSUE-8] Direct initialization, Arcs inside
             running: Arc::new(RwLock::new(false)),
             position_event_tx,
+            volume, // [ARCH-VOL-020] Shared volume control
             position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
             current_song_timeline: Arc::new(RwLock::new(None)),
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
@@ -313,13 +324,15 @@ impl PlaybackEngine {
         // that just keeps it alive. The audio stream runs independently once started.
         info!("Initializing audio output with lock-free callback");
         let running_clone2 = Arc::clone(&self.running);
+        let volume_clone = Arc::clone(&self.volume); // [ARCH-VOL-020] Share volume with audio output
 
         // Capture runtime handle while we're still in async context
         let rt_handle = tokio::runtime::Handle::current();
 
         std::thread::spawn(move || {
             // Create audio output (must be done on non-async thread for cpal)
-            let mut audio_output = match AudioOutput::new(None) {
+            // [ARCH-VOL-020] Pass shared volume Arc for synchronized control
+            let mut audio_output = match AudioOutput::new_with_volume(None, Some(volume_clone)) {
                 Ok(output) => output,
                 Err(e) => {
                     error!("Failed to create audio output: {}", e);
@@ -668,6 +681,16 @@ impl PlaybackEngine {
         }
 
         Ok(())
+    }
+
+    /// Get shared volume Arc for API access
+    ///
+    /// **[ARCH-VOL-020]** Provides direct access to shared volume control
+    ///
+    /// # Returns
+    /// Cloned Arc to volume Mutex - can be used to update volume from API handlers
+    pub fn get_volume_arc(&self) -> Arc<Mutex<f32>> {
+        Arc::clone(&self.volume)
     }
 
     /// Get current queue length
@@ -1516,6 +1539,7 @@ impl PlaybackEngine {
             position: self.position.clone_handles(), // [ISSUE-8] Clone inner Arcs
             running: Arc::clone(&self.running),
             position_event_tx: self.position_event_tx.clone(), // **[REV002]** Clone sender
+            volume: Arc::clone(&self.volume), // [ARCH-VOL-020] Clone volume Arc
             position_event_rx: Arc::clone(&self.position_event_rx), // **[REV002]** Clone receiver
             current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
             audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
@@ -1749,5 +1773,73 @@ mod tests {
 
         // Note: Cannot directly verify mixer.resume() parameters due to encapsulation,
         // but state transitions and settings persistence verify integration path
+    }
+
+    /// **[ARCH-VOL-020]** Test that PlaybackEngine loads volume from database on startup
+    #[tokio::test]
+    async fn test_engine_loads_volume_from_database() {
+        let db = create_test_db().await;
+
+        // Set custom volume in database before creating engine
+        crate::db::settings::set_volume(&db, 0.6).await.unwrap();
+
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Verify volume was loaded from database
+        let volume_arc = engine.get_volume_arc();
+        let volume = *volume_arc.lock().unwrap();
+        assert_eq!(volume, 0.6, "Engine should load volume 0.6 from database");
+    }
+
+    /// **[ARCH-VOL-020]** Test that get_volume_arc() returns the correct shared Arc
+    #[tokio::test]
+    async fn test_get_volume_arc() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Get volume Arc
+        let volume_arc = engine.get_volume_arc();
+        let original_value = *volume_arc.lock().unwrap();
+
+        // Modify volume via Arc
+        *volume_arc.lock().unwrap() = 0.8;
+
+        // Get Arc again and verify it's the same instance
+        let volume_arc2 = engine.get_volume_arc();
+        let new_value = *volume_arc2.lock().unwrap();
+
+        assert_eq!(new_value, 0.8, "Volume Arc should reflect updated value");
+        assert_ne!(new_value, original_value, "Volume should have changed");
+    }
+
+    /// **[ARCH-VOL-020]** Test volume Arc synchronization between API and AudioOutput
+    #[tokio::test]
+    async fn test_volume_arc_synchronization() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Get shared volume Arc (simulating what API handler does)
+        let volume_arc = engine.get_volume_arc();
+
+        // Verify initial value
+        let initial = *volume_arc.lock().unwrap();
+        assert_eq!(initial, 0.5, "Initial volume should be 0.5 (default)");
+
+        // Update volume via Arc (simulating API handler)
+        *volume_arc.lock().unwrap() = 0.3;
+
+        // Get Arc again (simulating what AudioOutput would see)
+        let volume_arc2 = engine.get_volume_arc();
+        let updated = *volume_arc2.lock().unwrap();
+
+        assert_eq!(updated, 0.3, "Volume change should be visible through same Arc");
+
+        // Verify both Arcs point to same underlying data
+        *volume_arc.lock().unwrap() = 0.9;
+        let final_value = *volume_arc2.lock().unwrap();
+        assert_eq!(final_value, 0.9, "Changes via first Arc should be visible in second Arc");
     }
 }

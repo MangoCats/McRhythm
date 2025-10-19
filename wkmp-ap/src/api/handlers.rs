@@ -247,6 +247,7 @@ pub async fn get_volume(
 /// POST /audio/volume - Set volume level
 ///
 /// **Traceability:** API Design - POST /audio/volume
+/// **[ARCH-VOL-020]** Updates shared volume Arc (synchronized with AudioOutput)
 pub async fn set_volume(
     State(ctx): State<AppContext>,
     Json(req): Json<VolumeRequest>,
@@ -258,13 +259,16 @@ pub async fn set_volume(
 
     let old_volume = ctx.state.get_volume().await;
 
-    // Update SharedState
+    // **[ARCH-VOL-020]** Update shared volume Arc (synchronized with AudioOutput)
+    *ctx.volume.lock().unwrap() = req.volume.clamp(0.0, 1.0);
+
+    // Update SharedState for consistency
     ctx.state.set_volume(req.volume).await;
 
     // Persist to database [ARCH-CFG-020] Database-first configuration
     if let Err(e) = crate::db::settings::set_volume(&ctx.db_pool, req.volume).await {
         error!("Failed to persist volume to database: {}", e);
-        // Continue anyway - SharedState is updated, will retry on next change
+        // Continue anyway - volume is updated in Arc and SharedState
     }
 
     // Emit VolumeChanged event

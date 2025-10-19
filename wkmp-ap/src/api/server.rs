@@ -16,7 +16,7 @@ use axum::{
 };
 use sqlx::{Pool, Sqlite};
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tower_http::cors::CorsLayer;
 use tracing::info;
 
@@ -26,6 +26,9 @@ pub struct AppContext {
     pub state: Arc<SharedState>,
     pub engine: Arc<PlaybackEngine>,
     pub db_pool: Pool<Sqlite>,
+    /// Shared volume control Arc (synchronized with AudioOutput)
+    /// **[ARCH-VOL-020]** Direct access for API handlers
+    pub volume: Arc<Mutex<f32>>,
 }
 
 /// Run HTTP API server
@@ -38,7 +41,9 @@ pub struct AppContext {
 ///
 /// **Traceability:** API Design - Port 5721 (configurable)
 pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEngine>, db_pool: Pool<Sqlite>) -> Result<()> {
-    let ctx = AppContext { state, engine, db_pool };
+    // [ARCH-VOL-020] Get shared volume Arc from engine
+    let volume = engine.get_volume_arc();
+    let ctx = AppContext { state, engine, db_pool, volume };
     // Build router with all endpoints
     let app = Router::new()
         // Developer UI (served at root)

@@ -76,10 +76,13 @@ async fn setup_test_server() -> (axum::Router, Arc<SharedState>, Arc<PlaybackEng
     );
 
     // Create application context
+    // [ARCH-VOL-020] Get shared volume Arc from engine
+    let volume = engine.get_volume_arc();
     let ctx = AppContext {
         state: Arc::clone(&state),
         engine: Arc::clone(&engine),
         db_pool: db_pool.clone(),
+        volume,
     };
 
     // Build router with same structure as server.rs
@@ -531,4 +534,101 @@ async fn test_volume_persistence_flow() {
     assert_eq!(status, StatusCode::OK);
     let returned_volume = body.unwrap()["volume"].as_f64().unwrap();
     assert!((returned_volume - test_volume2).abs() < 0.0001);
+}
+
+/// **[ARCH-VOL-020]** Test that VolumeChanged event is broadcast
+#[tokio::test]
+async fn test_volume_changed_event() {
+    let (app, state, _engine) = setup_test_server().await;
+
+    // Subscribe to events before making change
+    let mut event_rx = state.subscribe_events();
+
+    // Change volume via API
+    let request = json!({"volume": 0.65});
+    let (status, _) = make_request(&app, "POST", "/audio/volume", Some(request)).await;
+    assert_eq!(status, StatusCode::OK);
+
+    // Wait for event (with timeout)
+    let event_result = tokio::time::timeout(
+        std::time::Duration::from_millis(100),
+        event_rx.recv()
+    ).await;
+
+    assert!(event_result.is_ok(), "Should receive event within timeout");
+    let event = event_result.unwrap();
+    assert!(event.is_ok(), "Event should not be an error");
+
+    // Verify it's a VolumeChanged event with correct value
+    let event = event.unwrap();
+    match event {
+        wkmp_common::events::WkmpEvent::VolumeChanged { volume, .. } => {
+            assert!((volume - 0.65).abs() < 0.0001, "Event should contain correct volume");
+        }
+        _ => panic!("Expected VolumeChanged event, got {:?}", event),
+    }
+}
+
+/// **[ARCH-VOL-020]** Test concurrent volume updates (thread safety)
+#[tokio::test]
+async fn test_concurrent_volume_updates() {
+    let (app, _state, engine) = setup_test_server().await;
+
+    // Get volume Arc directly from engine
+    let volume_arc = engine.get_volume_arc();
+
+    // Spawn multiple tasks updating volume concurrently
+    let mut handles = vec![];
+
+    for i in 0..10 {
+        let volume_clone = Arc::clone(&volume_arc);
+        let handle = tokio::spawn(async move {
+            let value = (i as f32) / 10.0; // 0.0, 0.1, 0.2, ..., 0.9
+            *volume_clone.lock().unwrap() = value;
+            tokio::time::sleep(tokio::time::Duration::from_micros(10)).await;
+            *volume_clone.lock().unwrap()
+        });
+        handles.push(handle);
+    }
+
+    // Wait for all tasks to complete
+    let results: Vec<f32> = futures::future::join_all(handles)
+        .await
+        .into_iter()
+        .map(|r| r.unwrap())
+        .collect();
+
+    // Verify no panics occurred (all tasks completed)
+    assert_eq!(results.len(), 10, "All concurrent tasks should complete");
+
+    // Verify final value is valid (one of the set values)
+    let final_value = *volume_arc.lock().unwrap();
+    assert!(final_value >= 0.0 && final_value <= 1.0, "Final value should be in valid range");
+
+    // Test concurrent API updates
+    let mut api_handles = vec![];
+    for i in 0..5 {
+        let app_clone = app.clone();
+        let handle = tokio::spawn(async move {
+            let value = (i as f64 + 1.0) / 10.0; // 0.1, 0.2, 0.3, 0.4, 0.5
+            let request = json!({"volume": value});
+            make_request(&app_clone, "POST", "/audio/volume", Some(request)).await
+        });
+        api_handles.push(handle);
+    }
+
+    // Wait for all API requests
+    let api_results = futures::future::join_all(api_handles).await;
+
+    // Verify all requests succeeded
+    for result in api_results {
+        let (status, _body) = result.unwrap();
+        assert_eq!(status, StatusCode::OK, "All concurrent API requests should succeed");
+    }
+
+    // Verify final state is consistent
+    let (status, body) = make_request(&app, "GET", "/audio/volume", None).await;
+    assert_eq!(status, StatusCode::OK);
+    let final_api_volume = body.unwrap()["volume"].as_f64().unwrap();
+    assert!(final_api_volume >= 0.0 && final_api_volume <= 1.0, "Final API volume should be valid");
 }

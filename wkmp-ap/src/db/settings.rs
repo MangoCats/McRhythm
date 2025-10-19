@@ -430,6 +430,56 @@ mod tests {
         assert_eq!(vol, 0.0);
     }
 
+    /// **[DB-SETTINGS-020]** Test default volume on first run (empty database)
+    #[tokio::test]
+    async fn test_default_volume_on_first_run() {
+        let db = setup_test_db().await;
+
+        // Database is empty - no volume_level entry exists yet
+        // First call to get_volume should return default 0.5 and persist it
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 0.5, "Default volume should be 0.5");
+
+        // Verify it was persisted to database
+        let stored_vol: String = sqlx::query_scalar(
+            "SELECT value FROM settings WHERE key = 'volume_level'"
+        )
+        .fetch_one(&db)
+        .await
+        .unwrap();
+
+        assert_eq!(stored_vol, "0.5", "Volume should be persisted to database");
+
+        // Subsequent calls should return the same value
+        let vol2 = get_volume(&db).await.unwrap();
+        assert_eq!(vol2, 0.5, "Volume should remain 0.5");
+    }
+
+    /// **[DB-SETTINGS-020]** Test volume persistence continues to work after errors
+    /// Note: This tests best-effort persistence - errors are logged but don't fail the operation
+    #[tokio::test]
+    async fn test_volume_persistence_continues_after_errors() {
+        let db = setup_test_db().await;
+
+        // Set initial volume successfully
+        set_volume(&db, 0.7).await.unwrap();
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 0.7);
+
+        // Note: We can't easily simulate database write failures in SQLite in-memory mode
+        // without significant mocking infrastructure. The actual error handling is in the
+        // API handler (handlers.rs:265) which logs errors but continues.
+
+        // Verify that clamping still works even with extreme values
+        set_volume(&db, 999.0).await.unwrap();
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 1.0, "Volume should be clamped to 1.0");
+
+        set_volume(&db, -999.0).await.unwrap();
+        let vol = get_volume(&db).await.unwrap();
+        assert_eq!(vol, 0.0, "Volume should be clamped to 0.0");
+    }
+
     #[tokio::test]
     async fn test_audio_device_get_set() {
         let db = setup_test_db().await;

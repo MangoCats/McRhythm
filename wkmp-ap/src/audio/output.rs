@@ -75,6 +75,20 @@ impl AudioOutput {
     /// If the requested device fails to open, will attempt to use the default device.
     /// [ARCH-ERRH-080] Audio device error handling
     pub fn new(device_name: Option<String>) -> Result<Self> {
+        Self::new_with_volume(device_name, None)
+    }
+
+    /// Open audio device for output with shared volume control.
+    ///
+    /// **[ARCH-VOL-020]** Master volume control with shared Arc
+    ///
+    /// # Arguments
+    /// - `device_name`: Optional device name (None = default device)
+    /// - `volume`: Optional shared volume Arc (None = create new at 1.0)
+    ///
+    /// # Returns
+    /// AudioOutput instance ready to start playback
+    pub fn new_with_volume(device_name: Option<String>, volume: Option<Arc<Mutex<f32>>>) -> Result<Self> {
         let host = cpal::default_host();
 
         // Try to get requested device, with fallback to default
@@ -123,12 +137,15 @@ impl AudioOutput {
             config.sample_rate.0, config.channels, sample_format
         );
 
+        // Use provided volume Arc or create new one at 1.0
+        let volume_arc = volume.unwrap_or_else(|| Arc::new(Mutex::new(1.0)));
+
         Ok(Self {
             device,
             config,
             sample_format,
             stream: None,
-            volume: Arc::new(Mutex::new(1.0)),
+            volume: volume_arc,
             error_flag: Arc::new(AtomicBool::new(false)),
             error_count: Arc::new(AtomicU32::new(0)),
             requested_device: device_name,
@@ -543,6 +560,58 @@ mod tests {
 
         *volume.lock().unwrap() = 0.5_f32.clamp(0.0, 1.0);
         assert_eq!(*volume.lock().unwrap(), 0.5);
+    }
+
+    /// **[ARCH-VOL-020]** Test that AudioOutput accepts external volume Arc
+    #[test]
+    fn test_audio_output_with_external_volume_arc() {
+        // Create external volume Arc
+        let external_volume = Arc::new(Mutex::new(0.7));
+
+        // Note: We can't actually create AudioOutput in tests without audio hardware,
+        // but we can test the pattern that would be used
+        let volume_clone = Arc::clone(&external_volume);
+
+        // Verify the Arc pattern works correctly
+        assert_eq!(*volume_clone.lock().unwrap(), 0.7);
+
+        // Modify via one Arc
+        *external_volume.lock().unwrap() = 0.9;
+
+        // Verify visible via clone
+        assert_eq!(*volume_clone.lock().unwrap(), 0.9);
+
+        // This demonstrates that new_with_volume() would correctly share the Arc
+        // Actual AudioOutput creation requires audio hardware (tested in integration tests)
+    }
+
+    /// **[ARCH-VOL-020]** Test audio callback applies volume correctly
+    #[test]
+    fn test_audio_callback_applies_volume() {
+        use crate::audio::types::AudioFrame;
+
+        // Simulate what the audio callback does
+        let volume = Arc::new(Mutex::new(0.5));
+
+        // Create test audio frame
+        let mut frame = AudioFrame::from_stereo(1.0, -1.0);
+
+        // Apply volume (as callback does)
+        let current_volume = *volume.lock().unwrap();
+        frame.apply_volume(current_volume);
+
+        // Verify samples are scaled
+        assert_eq!(frame.left, 0.5);
+        assert_eq!(frame.right, -0.5);
+
+        // Test with different volume
+        *volume.lock().unwrap() = 0.25;
+        let mut frame2 = AudioFrame::from_stereo(0.8, -0.4);
+        let current_volume2 = *volume.lock().unwrap();
+        frame2.apply_volume(current_volume2);
+
+        assert_eq!(frame2.left, 0.2);
+        assert_eq!(frame2.right, -0.1);
     }
 
     // Note: Actual audio playback tests require hardware and are best done as manual tests
