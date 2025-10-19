@@ -1,59 +1,98 @@
-﻿# Sample Rate Conversion Considerations
+﻿# Decoder Buffer Design
 
 **Status:** NEW concept for integration into the system designs and specifications
 
-## Problem Statement
+## Scope
 
-When expressing time as an exact integer number of audio samples, different commonly used audio sample rates will have fractional numbers of samples. WKMP strives to achieve precise and high-quality sample-rate conversion (SRC) and to handle available audio sources as cleanly as possible.
+The concepts described herein apply primarily to the wkmp-ap Audio Player microservice.
 
-### Common audio sample rates
+## Overview
 
-Some sample rates that WKMP may be expected to play include:
+The Audio Player plays audio from source files that are encoded, often compressed.  The audio is decoded, converted to the working_sample_period when necessary, and buffered for playback as uncompressed stereo sample values.  Separate buffers are created for each [**[ENT-MP-030]**](REQ002-entity_definitions.md) passage.
 
-- 8,000 Hz
-- 11,025 Hz
-- 16,000 Hz
-- 22,050 Hz
-- 44,100 Hz
-- 48,000 Hz
-- 88,200 Hz
-- 96,000 Hz
-- 176,400 Hz
-- 192,000 Hz 
+The playback system reads audio from the buffers, applies [**[REQ-CTL-040]**](REQ001-requirements.md) volume, [**[XFD-OV-010]**](SPEC002-crossfade.md) crossfade and [**[REQ-XFD-030]**](REQ001-requirements.md) other amplitude modifications before sending the final computed stereo audio sample levels to the [**[SSP-OUT-010]**](SPEC013-single_stream_playback.md) output system.
 
-## Least Common Multiple
+A simplified view of the audio processing chain is:
 
-The least common multiple (LCM) of those common audio sample rates is: 28,224,000 Hz.  Time, expressed in 28,224,000 Hz "ticks", will always be able to exactly express an integer number of samples from all those sample rates.
+API -> queue -> decoders -> resamplers -> buffers -> mixer -> output
 
-## Practical considerations
-
-28,224,000 is already large compared with a 32 bit integer, less than 76 seconds of 28,224,000 Hz ticks can be represented in a signed 32 bit integer.  However, even the ARM processors in small devices like a Raspberry Pi Zero 2 have 64 bit architectures.
-
-Used with 64 bit integers, 28,224,000 Hz ticks represent more time than WKMP will be expected to process: over 10,000 years of time.
-
-## Defined terms: tick, ticks
-
-In the WKMP project, one tick represents 1/28,224,000 of a second.
-
-Examples of usage:
-
-- one sample of a 44.1KHz audio file is: 640 ticks long.
-- one sample of a 192kHz audio file is: 147 ticks long.
-- Midnight, January 1, 2029 (UTC): is 1861929600 seconds in Unix time, or 1861929600 * 28224000 = 52,551,101,472,000,000 ticks
-
-## Usage of ticks
-
-Whenever calculations relating to a number of audio samples are performed, units of ticks are to be used.
-
-The 28224000 ticks per second constant shall be defined at a single location in the wkmp-common code base and referred to by its name whenever used.
-
-```rust
-const TICKS_PER_SEC: i64 = 28224000;
+```mermaid
+graph LR
+    API[API] --> Queue[Queue]
+    Queue --> Decoder1[Decoder 1]
+    Queue --> Decoder2[Decoder 2]
+    Queue --> DecoderN[Decoder N]
+    
+    Decoder1 --> Resampler1[Resampler 1]
+    Decoder2 --> Resampler2[Resampler 2]
+    DecoderN --> ResamplerN[Resampler N]
+    
+    Resampler1 --> Buffer1[Buffer 1]
+    Resampler2 --> Buffer2[Buffer 2]
+    ResamplerN --> BufferN[Buffer N]
+    
+    Buffer1 --> Mixer[Mixer]
+    Buffer2 --> Mixer
+    BufferN --> Mixer
+    
+    Mixer --> Output[Output]
 ```
 
-## Caveat
+```mermaid
+graph LR
+    API[API] --> Queue[Queue]
+    Queue --> Decoder1[Decoder 1]
+    Queue --> Decoder2[Decoder 2]
+    Queue -.-> DecoderDots[...]
+    Queue --> DecoderN[Decoder N]
+    
+    Decoder1 --> Resampler1[Resampler 1]
+    Decoder2 --> Resampler2[Resampler 2]
+    DecoderDots -.-> ResamplerDots[...]
+    DecoderN --> ResamplerN[Resampler N]
+    
+    Resampler1 --> Buffer1[Buffer 1]
+    Resampler2 --> Buffer2[Buffer 2]
+    ResamplerDots -.-> BufferDots[...]
+    ResamplerN --> BufferN[Buffer N]
+    
+    Buffer1 --> Mixer[Mixer]
+    Buffer2 --> Mixer
+    BufferDots -.-> Mixer
+    BufferN --> Mixer
+    
+    Mixer --> Output[Output]
+    
+    style DecoderDots fill:none,stroke:none
+    style ResamplerDots fill:none,stroke:none
+    style BufferDots fill:none,stroke:none
+```
 
-Ticks multiplied by ticks will easily overflow a 64 bit integer.  Any calculations that may overflow shall be performed in double precision floating point.
+## Operating Parameters
+
+These defined values are stored in the global settings table of the database, where they are read once at startup for run-time use.  Changes of operating parameters' values may require a complete system restart for proper operation.
+
+- working_sample_rate: the sample rate that all decoded audio is converted to before buffering.  Default value: 44100Hz.  When audio comes out of the decoder at the working_sample_rate, the sample rate conversion process shall be bypassed.
+
+- output_ringbuffer_size: the maximum number of (stereo) samples that the output ring buffer can contain. Default value: 8192, equivalant to 185ms of audio at 44.1kHz.
+
+- maximum_decode_streams: the maximum number of audio decoders that will operate on passages in the queue.  When the queue has more passages than this, only the passages closest to being played will  
+
+(stereo) samples that a passage may contain.  Default value: 158760000, equivalent to one hour of audio at 44.1kHz.
+
+## Dataflow
+
+### API -> queue
+
+The wkmp-ap audio player is given passage definitions to enqueue via the API, either from the user interface, the program director, or other sources.  This queue of passage definitions is served in a First In First Out (FIFO) order for decoding and buffering.
+
+### Backpressure
+
+Playback has two modes: Playing and Paused.  When in playing mode, audio data is fed from the buffers to the mixer and then to the output system.  When paused, the mixer outputs silence: a flat line, and no samples are consumed from the buffers. When no samples are consumed from the buffers, the buffers do not finish playing and so they are not removed from the queue.
+
+When in Playing mode, the mixer operates on samples from one or more buffers, calculating values to pass to the output ring buffer.  When the buffer associated with a passage in the queue reaches its end point, the passage is removed from the queue.
+
+
 
 ----
 
