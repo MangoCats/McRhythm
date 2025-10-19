@@ -747,7 +747,7 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `last_played_passage_id` | TEXT (UUID) | NULL | UUID of last played passage | wkmp-ap | All |
 | `last_played_position` | INTEGER (ms) | 0 | Position in milliseconds (updated only on clean shutdown, reset to 0 on queue change) | wkmp-ap | All |
 | **Audio Configuration** |
-| `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (user-facing API uses 0-100 integer; conversion: `system = user / 100.0`, `user = ceil(system * 100.0)`) | wkmp-ap | All |
+| `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (HTTP API also uses 0.0-1.0; UI displays 0-100 with conversion: `display = round(volume * 100.0)`) | wkmp-ap | All |
 | `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
 | **Event Timing Configuration** |
 | `position_event_interval_ms` | INTEGER | 1000 | **Internal event**: Interval for mixer to emit PositionUpdate internal events (milliseconds). Controls song boundary detection accuracy and CPU usage. Lower values = more frequent boundary checks but higher CPU. Range: 100-5000ms. | wkmp-ap | All |

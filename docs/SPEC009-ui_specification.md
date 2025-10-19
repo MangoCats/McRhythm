@@ -339,10 +339,13 @@ The system attempts to find lyrics using a fallback chain to maximize the chance
 ### Volume Control
 
 **[UI-CTRL-050]** Volume slider:
-- Range: 0-100 (percentage)
+- Display range: 0-100 (percentage for user-friendly display)
 - Current volume displayed numerically: "Volume: 75%"
 - Updates in real-time as user drags slider
 - Updates from SSE when other users change volume
+- **Conversion required**: API/SSE use 0.0-1.0 scale
+  - To API: `api_volume = slider_value / 100.0`
+  - From API/SSE: `slider_value = round(api_volume * 100.0)`
 
 **[UI-CTRL-060]** Volume changes apply immediately (no "apply" button needed).
 

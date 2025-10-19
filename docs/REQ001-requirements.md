@@ -406,7 +406,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-CTL-030]** Skip: Move to next passage in queue
 
-**[REQ-CTL-040]** Volume: Set 0-100% volume level
+**[REQ-CTL-040]** Volume: Set volume level (0.0-1.0 floating-point scale)
 
 **[REQ-CTL-050]** Seek: Jump to specific position in current passage (rewind/fast-forward within 0 to passage duration; seeking to end is equivalent to skip)
 

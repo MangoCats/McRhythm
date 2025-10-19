@@ -723,28 +723,28 @@ Set audio output device.
 - See [single-stream-design.md](SPEC014-single_stream_design.md) for audio device configuration details
 
 #### `POST /audio/volume`
-Set volume level (0-100 integer, user-facing scale).
+Set volume level (0.0-1.0 floating-point scale).
 
 **Request:**
 ```json
-{"volume": 75}
+{"volume": 0.75}
 ```
 
 **Response (200 OK):**
 ```json
-{"status": "ok", "volume": 75}
+{"status": "ok", "volume": 0.75}
 ```
 
 **Error Responses:**
-- **400 Bad Request**: Invalid volume value (out of range 0-100)
+- **400 Bad Request**: Invalid volume value (out of range 0.0-1.0)
   ```json
-  {"error": "invalid_volume", "volume": 150, "valid_range": "0-100"}
+  {"error": "invalid_volume", "volume": 1.5, "valid_range": "0.0-1.0"}
   ```
 
 **Notes:**
-- User-facing scale: 0-100 (integer percentage)
-- Backend converts to 0.0-1.0 (double) for audio system: `system_volume = user_volume / 100.0`
-- Conversion back: `user_volume = ceil(system_volume * 100.0)`
+- API uses 0.0-1.0 floating-point scale (aligned with backend storage)
+- UI components should convert to 0-100 integer for user display: `user_display = round(volume * 100.0)`
+- Conversion from UI: `api_volume = user_input / 100.0`
 - Volume change persists to database (`settings.volume_level`)
 - VolumeChanged SSE event emitted
 
@@ -1006,16 +1006,16 @@ Get current audio output device.
 - Device persisted in `settings.audio_sink` database key
 
 #### `GET /audio/volume`
-Get current volume level (0-100 integer).
+Get current volume level (0.0-1.0 floating-point).
 
 **Response (200 OK):**
 ```json
-{"volume": 75}
+{"volume": 0.75}
 ```
 
 **Notes:**
-- Returns user-facing 0-100 integer scale (converted from internal 0.0-1.0)
-- Conversion: `user_volume = ceil(system_volume * 100.0)`
+- Returns 0.0-1.0 floating-point scale (aligned with backend storage)
+- UI components should convert to 0-100 integer for user display: `user_display = round(volume * 100.0)`
 
 #### `GET /playback/queue`
 Get queue contents in play order.
@@ -1251,7 +1251,7 @@ Server-Sent Events stream for real-time playback updates.
 
 This section defines the JSON wire format for Server-Sent Events transmitted by the Audio Player (`GET /events` endpoint).
 
-**Note on Volume Scale:** SSE events use the system-level volume scale (0.0-1.0 floating-point) rather than the user-facing scale (0-100 integer). This allows for precise volume representation in real-time event streams. User interface components should convert to 0-100 integer scale for display (see [architecture.md - Volume Handling](SPEC001-architecture.md#volume-handling) for conversion formulas).
+**Note on Volume Scale:** SSE events use the system-wide volume scale (0.0-1.0 floating-point), consistent with HTTP API endpoints. UI components should convert to 0-100 integer scale for user display (see [architecture.md - Volume Handling](SPEC001-architecture.md#volume-handling) for conversion formulas).
 
 ### PlaybackProgress
 
@@ -1303,7 +1303,7 @@ data: {"old_volume":0.75,"new_volume":0.85,"timestamp":"2025-10-10T14:30:00Z"}
 - `new_volume` (float): New volume level (0.0 = mute, 1.0 = maximum)
 - `timestamp` (string): ISO 8601 timestamp (UTC) when volume changed
 
-**Conversion:** System volume (0.0-1.0) → User display (0-100): `user_volume = ceil(system_volume Ã— 100.0)`
+**Conversion:** API/SSE volume (0.0-1.0) → User display (0-100): `user_volume = round(volume * 100.0)`
 
 ### QueueChanged
 

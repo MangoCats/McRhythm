@@ -526,18 +526,19 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
 ### Volume Handling
 <a name="volume-handling"></a>
 
-**[ARCH-VOL-010]** Volume Scale Conversion:
-- **User-facing** (UI): Integer 0-100 (percentage)
-- **Backend** (API, storage, audio pipeline): Double 0.0-1.0
-- **Conversion**:
-  - User → System: `system_volume = user_volume / 100.0`
-  - System → User: `user_volume = ceil(system_volume * 100.0)`
-- **Rationale for ceiling**: Ensures non-zero audio never displays as 0%
+**[ARCH-VOL-010]** Volume Scale:
+- **System-wide** (API, storage, audio pipeline, SSE events): Double 0.0-1.0
+- **UI Display Only**: UI components convert to integer 0-100 (percentage) for user display
+- **Conversion** (UI layer only):
+  - User input → API: `api_volume = user_input / 100.0`
+  - API → User display: `user_display = round(api_volume * 100.0)`
+- **Rationale**: Consistent 0.0-1.0 scale across all backend systems eliminates conversion errors
 
-**Storage:**
+**Storage and Transmission:**
 - Database: Store as double (0.0-1.0) in `settings.volume_level`
-- API: Accept/return double (0.0-1.0)
-- Events: Transmit as double (0.0-1.0) for precision in real-time streams
+- HTTP API: Accept/return double (0.0-1.0) in JSON
+- SSE Events: Transmit as double (0.0-1.0) for precision in real-time streams
+- Audio pipeline: Use double (0.0-1.0) for volume multipliers
 
 ### User Interface
 

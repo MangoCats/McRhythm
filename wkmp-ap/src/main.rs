@@ -89,14 +89,19 @@ async fn main() -> Result<()> {
 
     info!("Audio Player configuration: {}:{}", module_config.host, module_config.port);
 
-    // Initialize shared state
-    let shared_state = Arc::new(SharedState::new());
-
     // Initialize database tables specific to audio player
     // [ARCH-INIT-010] Module startup sequence
     // [ISSUE-3] Complete module initialization
     db::init::initialize_database(&db_pool).await?;
     info!("Audio Player database tables initialized");
+
+    // Initialize shared state and load volume from database
+    // [ARCH-CFG-020] Database-first configuration
+    let shared_state = Arc::new(SharedState::new());
+    let db_volume = db::settings::get_volume(&db_pool).await
+        .map_err(|e| anyhow::anyhow!("Failed to load volume from database: {}", e))?;
+    shared_state.set_volume(db_volume).await;
+    info!("Volume loaded from database: {:.0}%", db_volume * 100.0);
 
     // Initialize playback engine
     let engine = Arc::new(PlaybackEngine::new(db_pool.clone(), Arc::clone(&shared_state)).await?);

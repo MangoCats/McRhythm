@@ -358,8 +358,8 @@
                 const progress = durMs > 0 ? (posMs / durMs * 100) : 0;
                 document.getElementById('progress-fill').style.width = progress + '%';
 
-                document.getElementById('volume').textContent = (volume.volume * 100).toFixed(0) + '%';
-                document.getElementById('audio-device').textContent = device.device || 'default';
+                document.getElementById('volume').textContent = Math.round(volume.volume * 100) + '%';
+                document.getElementById('audio-device').textContent = device.device_name || 'default';
             } catch (err) {
                 console.error('Failed to load status:', err);
             }
@@ -404,11 +404,12 @@
         async function setVolume() {
             const resultEl = document.getElementById('volume-result');
             try {
-                const volume = parseInt(document.getElementById('volume-input').value);
+                const userVolume = parseInt(document.getElementById('volume-input').value);
+                const apiVolume = userVolume / 100.0;  // Convert 0-100 to 0.0-1.0
                 const response = await fetch(`${API_BASE}/audio/volume`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ volume })
+                    body: JSON.stringify({ volume: apiVolume })
                 });
                 if (response.ok) {
                     resultEl.innerHTML = '<div class="success">✓ Volume set</div>';

@@ -35,12 +35,12 @@ pub struct StatusResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct VolumeRequest {
-    volume: u8, // 0-100 user-facing scale
+    volume: f32, // 0.0-1.0 system-wide scale
 }
 
 #[derive(Debug, Serialize)]
 pub struct VolumeResponse {
-    volume: u8,
+    volume: f32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -237,11 +237,10 @@ pub async fn set_audio_device(
 pub async fn get_volume(
     State(ctx): State<AppContext>,
 ) -> Json<VolumeResponse> {
-    let system_volume = ctx.state.get_volume().await;
-    let user_volume = (system_volume * 100.0).ceil() as u8;
+    let volume = ctx.state.get_volume().await;
 
     Json(VolumeResponse {
-        volume: user_volume,
+        volume,
     })
 }
 
@@ -252,23 +251,29 @@ pub async fn set_volume(
     State(ctx): State<AppContext>,
     Json(req): Json<VolumeRequest>,
 ) -> Result<Json<VolumeResponse>, StatusCode> {
-    // Validate range
-    if req.volume > 100 {
+    // Validate range (0.0-1.0)
+    if req.volume < 0.0 || req.volume > 1.0 {
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    // Convert user scale (0-100) to system scale (0.0-1.0)
-    let system_volume = req.volume as f32 / 100.0;
     let old_volume = ctx.state.get_volume().await;
-    ctx.state.set_volume(system_volume).await;
+
+    // Update SharedState
+    ctx.state.set_volume(req.volume).await;
+
+    // Persist to database [ARCH-CFG-020] Database-first configuration
+    if let Err(e) = crate::db::settings::set_volume(&ctx.db_pool, req.volume).await {
+        error!("Failed to persist volume to database: {}", e);
+        // Continue anyway - SharedState is updated, will retry on next change
+    }
 
     // Emit VolumeChanged event
     ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::VolumeChanged {
-        volume: system_volume as f64,
+        volume: req.volume as f64,
         timestamp: chrono::Utc::now(),
     });
 
-    info!("Volume changed: {:.0}% -> {:.0}%", old_volume * 100.0, system_volume * 100.0);
+    info!("Volume changed: {:.2} -> {:.2}", old_volume, req.volume);
 
     Ok(Json(VolumeResponse {
         volume: req.volume,
