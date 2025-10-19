@@ -474,6 +474,76 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Maintained By:** Software architect, technical lead
 
+#### SPEC013-single_stream_playback.md
+**Purpose:** Defines single-stream audio playback architecture
+
+**Contains:**
+- Component architecture (decoder, buffer, mixer, output)
+- Passage buffer specifications
+- Crossfade mixer implementation
+- Performance characteristics
+
+**Update Policy:**
+- ✅ Update to satisfy playback requirements from requirements.md
+- ✅ Update when playback architecture evolves
+- ❌ Must remain consistent with requirements.md and crossfade.md
+
+**Maintained By:** Audio engineer, technical lead
+
+#### SPEC014-single_stream_design.md
+**Purpose:** Defines single-stream audio architecture design decisions
+
+**Contains:**
+- Motivation for single-stream approach
+- Decoder pool sizing and management
+- Buffer management strategies
+- Performance optimization
+
+**Update Policy:**
+- ✅ Update to satisfy playback requirements from requirements.md
+- ✅ Update when design decisions evolve
+- ❌ Must remain consistent with requirements.md and architecture.md
+
+**Maintained By:** Audio engineer, technical lead
+
+#### SPEC016-decoder_buffer_design.md
+**Purpose:** Defines decoder-buffer chain architecture and dataflow
+
+**Contains:**
+- Operating parameters (working_sample_rate, buffer sizes, decode scheduling)
+- Decoder-buffer chain component specifications
+- Backpressure mechanisms
+- Resampling, fade application, and mixer behavior
+- Sample format specifications
+
+**Update Policy:**
+- ✅ Update to satisfy playback requirements from requirements.md
+- ✅ Update when decoder-buffer architecture evolves
+- ✅ Must remain consistent with single_stream_playback.md and crossfade.md
+- ❌ Must not contradict requirements.md without explicit requirement change
+
+**Maintained By:** Audio engineer, technical lead
+
+#### SPEC017-sample_rate_conversion.md
+**Purpose:** Defines sample rate conversion and tick-based timing system
+
+**Contains:**
+- Tick-based timing system design (LCM approach)
+- Supported audio sample rates
+- Tick-to-sample and sample-to-tick conversion formulas
+- Database storage format (integer ticks)
+- API representation format (milliseconds)
+- Working sample rate integration
+- Dual timing system coexistence
+
+**Update Policy:**
+- ✅ Update to satisfy timing precision requirements from requirements.md
+- ✅ Update when timing system design evolves
+- ✅ Must remain consistent with decoder_buffer_design.md and database_schema.md
+- ❌ Must not contradict requirements.md without explicit requirement change
+
+**Maintained By:** Audio engineer, technical lead
+
 ---
 
 ### Tier 3: Implementation Specifications
@@ -843,6 +913,10 @@ Cascade: Update implementation_order.md with optimization task
 | user_identity.md | 2 | Authentication design changes | Tier 3, 4 | Security lead, backend lead |
 | event_system.md | 2 | Communication design changes | Tier 3, 4 | Architect |
 | multi_user_coordination.md | 2 | Multi-user edge case changes | Tier 3, 4 | Architect |
+| single_stream_playback.md | 2 | Playback architecture changes | Tier 3, 4 | Audio engineer |
+| single_stream_design.md | 2 | Single-stream design changes | Tier 3, 4 | Audio engineer |
+| decoder_buffer_design.md | 2 | Decoder-buffer chain changes | Tier 3, 4 | Audio engineer |
+| sample_rate_conversion.md | 2 | Timing system changes | Tier 3, 4 | Audio engineer |
 | database_schema.md | 3 | Data model changes | Tier 4 | DB engineer |
 | coding_conventions.md | 3 | Standards evolve | Tier 4 | Tech lead |
 | audio_file_segmentation.md | 3 | Segmentation workflow changes | Tier 4 | Library subsystem lead, UX designer |
@@ -883,11 +957,19 @@ Cascade: Update implementation_order.md with optimization task
 
 ---
 
-**Document Version:** 1.4
-**Last Updated:** 2025-10-18
+**Document Version:** 1.5
+**Last Updated:** 2025-10-19
 **Maintained By:** Technical Lead
 
 **Change Log:**
+- v1.5 (2025-10-19): Added SPEC016 and SPEC017 documents
+  - Added SPEC013-single_stream_playback.md to Tier 2 section
+  - Added SPEC014-single_stream_design.md to Tier 2 section
+  - Added SPEC016-decoder_buffer_design.md to Tier 2 section
+  - Added SPEC017-sample_rate_conversion.md to Tier 2 section
+  - Updated Document Update Summary table with all four documents
+  - Established decoder-buffer chain architecture specifications
+  - Established tick-based timing system specifications
 - v1.4 (2025-10-18): Added User Documentation section and guidance
   - Created docs/user/ folder for user-facing documentation
   - Distinguished between technical docs (developers) and user docs (end users)

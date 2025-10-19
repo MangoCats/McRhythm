@@ -74,6 +74,8 @@ For simple lists where hierarchy is clear from context:
 | AFS | audio_file_segmentation.md | Audio file segmentation workflow |
 | SSD | single-stream-design.md | Single stream audio architecture design |
 | SSP | single_stream_playback.md | Single stream playback architecture |
+| DBD | decoder_buffer_design.md | Decoder-buffer chain architecture |
+| SRC | sample_rate_conversion.md | Sample rate conversion and tick-based timing |
 
 ## Category Codes by Document
 
@@ -437,6 +439,42 @@ For simple lists where hierarchy is clear from context:
 | DEPL | Deployment | Dependencies, system requirements, distribution |
 | TEST | Testing | Testing strategy and coverage |
 
+### DBD (decoder_buffer_design.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| SC | Scope | Document applicability |
+| OV | Overview | Decoder-buffer chain architecture overview |
+| REL | Related Documents | Cross-references to related specifications |
+| PARAM | Operating Parameters | Configurable system parameters |
+| FLOW | Dataflow | Data flow and backpressure mechanisms |
+| DEC | Decoders | Audio decoder specifications |
+| RSMP | Resampling | Sample rate conversion stage |
+| FADE | Fade In/Out Handlers | Fade curve application stage |
+| BUF | Buffers | Ring buffer management |
+| MIX | Mixer | Mixer implementation |
+| OUT | Output | Output system interface |
+| FMT | Sample Format | Audio sample format specifications |
+
+### SRC (sample_rate_conversion.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| SC | Scope | Document applicability |
+| PROB | Problem Statement | Timing precision requirements |
+| SOL | Solution | Tick-based timing system design |
+| RATE | Sample Rates | Supported audio sample rates |
+| TICK | Tick Rate | Tick rate calculation and definition |
+| CONV | Conversions | Tick-to-sample conversion formulas |
+| TIME | Time Conversion | Tick-to-seconds conversion |
+| PREC | Precision and Range | Numeric precision and limits |
+| DB | Database Storage | Database field storage format |
+| API | API Representation | REST API timing format |
+| WSR | Working Sample Rate | Internal sample rate handling |
+| COEX | Timing Coexistence | Dual timing system integration |
+| IMPL | Implementation | Implementation notes |
+| EXAM | Examples | Usage examples |
+
 ## Numbering Guidelines
 
 ### Increment by 10 Rule
@@ -741,12 +779,17 @@ Markdown renderers generate different anchor names for headers with backticks or
 
 ## Review and Approval
 
-**Document Status:** Draft
-**Version:** 1.1
-**Last Updated:** 2025-10-18
+**Document Status:** Current
+**Version:** 1.2
+**Last Updated:** 2025-10-19
 **Author:** Claude Code
 
 **Revision History:**
+- v1.2 (2025-10-19): Added DBD and SRC document codes
+  - Added DBD (decoder_buffer_design.md) document code and category codes
+  - Added SRC (sample_rate_conversion.md) document code and category codes
+  - Registered SPEC016 and SPEC017 in documentation hierarchy
+  - Updated status from Draft to Current
 - v1.1 (2025-10-18): Added "Document Anchors" subsection to formalize cross-reference anchor conventions
 - v1.0 (2025-10-05): Initial enumeration scheme specification
 
