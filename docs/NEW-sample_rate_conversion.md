@@ -1,4 +1,4 @@
-﻿# Sample Rate Conversion Considerations
+﻿# Sample Rate Conversion Design
 
 **Status:** NEW concept for integration into the system designs and specifications
 
@@ -39,12 +39,18 @@ Examples of usage:
 
 - one sample of a 44.1KHz audio file is: 640 ticks long.
 - one sample of a 192kHz audio file is: 147 ticks long.
-- Midnight, January 1, 2029 (UTC): is 1861929600 seconds in Unix time, or 1861929600 * 28224000 =52,551,101,472,000,000 ticks
+- one sample of a 8kHz audio file is: 3528 ticks long.
+- Midnight, January 1, 2029 (UTC): is 1861929600 seconds in Unix time, or 1861929600 * 28224000 = 52,551,101,472,000,000 ticks
 
+### Specific usage within WKMP
 
+Passage timing points shall be specified when these timing points
+are:
+- stored in the database
+- passed in API calls
+- used for sample number calculations
 
-
-
+This precision of specification retains sample precise identification of time points without rounding, even when working_sample_rate is changed.
 
 ---
 
