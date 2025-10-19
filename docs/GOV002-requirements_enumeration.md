@@ -73,6 +73,7 @@ For simple lists where hierarchy is clear from context:
 | UID | user_identity.md | User identity and authentication |
 | AFS | audio_file_segmentation.md | Audio file segmentation workflow |
 | SSD | single-stream-design.md | Single stream audio architecture design |
+| SSP | single_stream_playback.md | Single stream playback architecture |
 
 ## Category Codes by Document
 
@@ -170,19 +171,36 @@ For simple lists where hierarchy is clear from context:
 
 | Code | Section | Scope |
 |------|---------|-------|
-| OV | Overview | API overview |
-| REST | REST Endpoints | REST API endpoint definitions |
-| PB | Playback Control | Playback control endpoints |
-| QUE | Queue Management | Queue operation endpoints |
-| FB | User Feedback | Like/dislike endpoints |
-| LYR | Lyrics | Lyrics endpoints |
-| LIB | Library Management | Import/scan endpoints |
-| OUT | Audio Output | Audio sink selection endpoints |
-| SSE | Server-Sent Events | SSE endpoint and event streaming |
+| OV | Overview | API overview and microservices architecture |
+| COMM | Communication | API communication patterns between modules |
+| AUTH | Authentication | Authentication flow and security |
+| UI | User Interface API | User Interface module endpoints (port 5720) |
+| UIAUTH | UI Authentication | Login, register, logout endpoints |
+| UIPB | UI Playback | Playback control endpoints (proxied to AP) |
+| UIQUE | UI Queue | Queue management endpoints (proxied to AP) |
+| UIFB | UI Feedback | User feedback (like/dislike) endpoints |
+| UILYR | UI Lyrics | Lyrics endpoints |
+| UILIB | UI Library | Library management endpoints (Full only) |
+| UIOUT | UI Output | Audio output selection endpoints |
+| LE | Lyric Editor API | Lyric Editor module endpoints (port 5724, Full only) |
+| AP | Audio Player API | Audio Player module endpoints (port 5721) |
+| APCTL | AP Control | Audio Player control endpoints (play, pause, etc.) |
+| APSTAT | AP Status | Audio Player status endpoints (position, queue, etc.) |
+| APHLTH | AP Health | Audio Player health check endpoint |
+| APSSE | AP SSE | Audio Player SSE event stream |
+| PD | Program Director API | Program Director module endpoints (port 5722) |
+| PDCFG | PD Configuration | Program Director configuration endpoints |
+| PDSTAT | PD Status | Program Director status endpoints |
+| PDSSE | PD SSE | Program Director SSE events |
+| AI | Audio Ingest API | Audio Ingest module endpoints (port 5723, Full only) |
+| SSE | SSE Event Formats | Server-Sent Event format specifications |
 | ERR | Error Responses | Error response formats |
+| NET | Network Requirements | Network and port requirements |
 | CORS | CORS Policy | Cross-origin resource sharing |
-| VER | API Versioning | Versioning strategy |
-| IMPL | Implementation Notes | API implementation details |
+| RATE | Rate Limiting | API rate limiting policy |
+| VER | API Versioning | API versioning strategy |
+| IMPL | Implementation | API implementation architecture |
+| TEST | Testing | API testing strategy |
 
 ### LIB (library_management.md)
 
@@ -400,6 +418,23 @@ For simple lists where hierarchy is clear from context:
 | LOG | Logging | Logging requirements and diagnostics |
 | FLOW | Data Flow | Complete playback sequence and timing |
 | PERF | Performance | Performance characteristics and optimization |
+| TEST | Testing | Testing strategy and coverage |
+
+### SSP (single_stream_playback.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| OV | Overview | Architecture overview and executive summary |
+| ARCH | Architecture Diagram | Component diagram and system structure |
+| DEC | Decoder Component | Audio decoder (symphonia + rubato) specification |
+| BUF | Buffer Component | Passage buffer PCM storage and fade application |
+| CURV | Curve Component | Fade curve algorithms and implementations |
+| MIX | Mixer Component | Crossfade mixer specification |
+| OUT | Output Component | Audio output (cpal) specification |
+| PIPE | Pipeline Component | Playback pipeline integration |
+| XFD | Crossfade Behavior | Crossfade timing and execution behavior |
+| PERF | Performance | Memory, CPU, and latency characteristics |
+| DEPL | Deployment | Dependencies, system requirements, distribution |
 | TEST | Testing | Testing strategy and coverage |
 
 ## Numbering Guidelines

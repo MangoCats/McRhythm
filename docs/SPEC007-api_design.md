@@ -4,15 +4,17 @@
 
 Defines REST API structure and Server-Sent Events interface. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Event System](SPEC011-event_system.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
 
 ---
 
 ## Overview
 
-WKMP implements a **microservices architecture** with 5 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
+**[API-OV-010]** WKMP implements a **microservices architecture** with 5 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
 
 ### Module API Endpoints
+
+**[API-OV-020]** Module endpoint configuration:
 
 | Module | Default Port | Base URL | Purpose |
 |--------|--------------|----------|---------|
@@ -24,49 +26,51 @@ WKMP implements a **microservices architecture** with 5 independent HTTP servers
 
 ### API Communication Patterns
 
-**End Users → User Interface:**
+**[API-COMM-010]** End Users → User Interface:
 - User Interface serves as the primary API gateway for end users
 - Proxies playback requests to Audio Player
 - Proxies configuration requests to Program Director
 - Handles authentication and session management
 - Aggregates SSE events from Audio Player
 
-**Program Director → Audio Player:**
+**[API-COMM-020]** Program Director → Audio Player:
 - Direct communication for automatic enqueueing
 - No user interface involvement required
 
-**Audio Ingest → Database:**
+**[API-COMM-030]** Audio Ingest → Database:
 - Direct SQLite access for new file insertion
 - Independent operation
 
 ### Authentication
 
-**User Interface API** handles all authentication:
+**[API-AUTH-010]** User Interface API handles all authentication:
 1. Proceed as Anonymous user (shared UUID, no password)
 2. Create new account (generates unique UUID, requires username/password)
 3. Login to existing account (retrieves UUID, requires username/password)
 
 Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. See [User Identity and Authentication](SPEC010-user_identity.md) for complete flow.
 
-**Internal Module APIs** (Audio Player, Program Director, Audio Ingest, Lyric Editor):
+**[API-AUTH-020]** Internal Module APIs (Audio Player, Program Director, Audio Ingest, Lyric Editor):
 - No authentication required (assumed to be on trusted local network)
 - Minimal HTML/JavaScript developer UIs for debugging (served via HTTP)
 - Security relies on network isolation
 - Lyric Editor is launched on-demand by User Interface when needed
 
-**Content-Type:** `application/json` for all request/response bodies across all modules
+**[API-AUTH-030]** Content-Type: `application/json` for all request/response bodies across all modules
 
 ---
 
+<a id="user-interface-api"></a>
 ## User Interface API
 
-**Base URL:** `http://localhost:5720/api`
+**[API-UI-010]** Base URL: `http://localhost:5720/api`
 **Port:** 5720 (configurable)
 **Purpose:** Primary API for end users, handles authentication, proxies to other modules
 
+<a id="authentication-endpoints"></a>
 ### Authentication Endpoints
 
-These endpoints establish user identity and return a UUID for subsequent requests. All users must authenticate through one of these methods before accessing other endpoints.
+**[API-UIAUTH-010]** These endpoints establish user identity and return a UUID for subsequent requests. All users must authenticate through one of these methods before accessing other endpoints.
 
 ### `POST /api/login`
 
@@ -182,7 +186,7 @@ Get current playback state.
     "duration": 180.5
   },
   "position": 42.3,
-  "volume": 75,
+  "volume": 0.75,
   "queue_length": 3
 }
 ```
@@ -193,7 +197,7 @@ Get current playback state.
   "state": "playing" | "paused",
   "passage": null,
   "position": 0.0,
-  "volume": 75,
+  "volume": 0.75,
   "queue_length": 0
 }
 ```
@@ -256,18 +260,18 @@ Set master volume level.
 **Request:**
 ```json
 {
-  "level": 75
+  "level": 0.75
 }
 ```
 
 **Parameters:**
-- `level`: Integer 0-100 (percentage)
+- `level`:  0.0-1.0 (floating-point scale)
 
 **Response:**
 ```json
 {
   "status": "ok",
-  "volume": 75
+  "volume": 0.75
 }
 ```
 
@@ -538,9 +542,10 @@ Select audio output device.
 
 ---
 
+<a id="lyric-editor-api"></a>
 ## Lyric Editor API
 
-**Base URL:** `http://localhost:5724`
+**[API-LE-010]** Base URL: `http://localhost:5724`
 **Port:** 5724 (configurable)
 **Purpose:** Dedicated lyric editing interface
 **Authentication:** None (internal/trusted network only)
@@ -641,16 +646,20 @@ Closes the lyric editor without saving.
 
 ---
 
+<a id="audio-player-api"></a>
 ## Audio Player API
 
-**Base URL:** `http://localhost:5721`
+**[API-AP-010]** Base URL: `http://localhost:5721`
 **Port:** 5721 (configurable)
 **Purpose:** Direct playback control, queue management
 **Authentication:** None (internal/trusted network only)
 
 **Note:** End users typically access these endpoints via User Interface, which proxies requests. Program Director calls these endpoints directly for automatic enqueueing.
 
+<a id="audio-player-control"></a>
 ### Control Endpoints
+
+**[API-APCTL-010]** Audio Player control endpoints for playback, volume, and queue management.
 
 #### `GET /audio/devices`
 List available audio output devices.
@@ -972,7 +981,10 @@ Pause playback (transition to Paused state).
 - Idempotent operation (safe to call multiple times)
 - Position not persisted to database until clean shutdown
 
+<a id="audio-player-status"></a>
 ### Status Endpoints
+
+**[API-APSTAT-010]** Audio Player status query endpoints.
 
 #### `GET /audio/device`
 Get current audio output device.
@@ -1159,7 +1171,10 @@ Retrieve current buffer decode/playback status for all passages in queue.
 
 **Traceability:** SSD-BUF-010 (Buffer state visibility)
 
+<a id="audio-player-health"></a>
 ### Health Endpoint
+
+**[API-APHLTH-010]** Audio Player health check for monitoring.
 
 #### `GET /health`
 Health check endpoint for monitoring and duplicate instance detection. **Required for all modules** (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-le, wkmp-ai).
@@ -1229,7 +1244,10 @@ See [architecture.md - Health check and respawning](SPEC001-architecture.md#laun
 - Used for health monitoring by operators
 - Should respond quickly (<100ms) even under load
 
+<a id="audio-player-sse"></a>
 ### SSE Events
+
+**[API-APSSE-010]** Audio Player Server-Sent Events stream.
 
 #### `GET /events`
 Server-Sent Events stream for real-time playback updates.
@@ -1247,11 +1265,12 @@ Server-Sent Events stream for real-time playback updates.
 
 ---
 
+<a id="sse-event-formats"></a>
 ## SSE Event Formats
 
-This section defines the JSON wire format for Server-Sent Events transmitted by the Audio Player (`GET /events` endpoint).
+**[API-SSE-010]** This section defines the JSON wire format for Server-Sent Events transmitted by the Audio Player (`GET /events` endpoint).
 
-**Note on Volume Scale:** SSE events use the system-wide volume scale (0.0-1.0 floating-point), consistent with HTTP API endpoints. UI components should convert to 0-100 integer scale for user display (see [architecture.md - Volume Handling](SPEC001-architecture.md#volume-handling) for conversion formulas).
+**[API-SSE-020]** Note on Volume Scale: SSE events use the system-wide volume scale (0.0-1.0 floating-point), consistent with HTTP API endpoints. UI components should convert to 0-100 integer scale for user display (see [architecture.md - Volume Handling](SPEC001-architecture.md#volume-handling) for conversion formulas).
 
 ### PlaybackProgress
 
@@ -1458,16 +1477,20 @@ data: {"passage_id":"uuid-string","song_id":"song-uuid","song_albums":["album-uu
 
 ---
 
+<a id="program-director-api"></a>
 ## Program Director API
 
-**Base URL:** `http://localhost:5722`
+**[API-PD-010]** Base URL: `http://localhost:5722`
 **Port:** 5722 (configurable)
 **Purpose:** Selection configuration, timeslot management
 **Authentication:** None (internal/trusted network only)
 
 **Note:** End users access these endpoints via User Interface, which proxies configuration requests.
 
+<a id="program-director-config"></a>
 ### Configuration Endpoints
+
+**[API-PDCFG-010]** Program Director configuration endpoints for timeslots, probabilities, and cooldowns.
 
 #### `GET /config/timeslots`
 Retrieve timeslot configuration for 24-hour schedule.
@@ -1525,7 +1548,10 @@ Request passage selection (called by Audio Player when queue is low).
 - Audio Player throttles requests while queue is underfilled:
   - Interval configured in settings table: `queue_refill_request_throttle_seconds` (default: 10 seconds)
 
+<a id="program-director-status"></a>
 ### Status Endpoints
+
+**[API-PDSTAT-010]** Program Director status query endpoints.
 
 #### `GET /status`
 Get module status, current timeslot, target flavor.
@@ -1533,7 +1559,10 @@ Get module status, current timeslot, target flavor.
 #### `GET /selection/candidates`
 Get last selection candidates (debugging).
 
+<a id="program-director-sse"></a>
 ### SSE Events
+
+**[API-PDSSE-010]** Program Director Server-Sent Events stream.
 
 #### `GET /events`
 Server-Sent Events stream for selection updates.
@@ -1546,14 +1575,18 @@ Server-Sent Events stream for selection updates.
 
 ---
 
+<a id="audio-ingest-api"></a>
 ## Audio Ingest API (Full Version Only)
 
-**Base URL:** `http://localhost:5723`
+**[API-AI-010]** Base URL: `http://localhost:5723`
 **Port:** 5723 (configurable)
 **Purpose:** File scanning, ingest workflow
 **Authentication:** None (internal/trusted network only)
 
+<a id="audio-ingest-endpoints"></a>
 ### Ingest Endpoints
+
+**[API-AI-020]** Audio Ingest workflow endpoints for file scanning and metadata enrichment.
 
 #### `POST /ingest/scan`
 Scan directory for new audio files.
@@ -1648,9 +1681,10 @@ All connected clients receive the same event stream, ensuring synchronized UI st
 
 > **Implements:** [Requirements - Real-time UI Updates](REQ001-requirements.md#core-features)
 
+<a id="error-responses"></a>
 ## Error Responses
 
-All endpoints may return error responses:
+**[API-ERR-010]** All endpoints may return error responses:
 
 **Format:**
 ```json
@@ -1673,39 +1707,47 @@ All endpoints may return error responses:
 - `500 Internal Server Error` - Server error
 - `503 Service Unavailable` - Feature not available in this version
 
+<a id="network-requirements"></a>
 ## Network Requirements
 
-**Local Network Access (WebUI Server):**
+**[API-NET-010]** Local Network Access (WebUI Server):
 - REST API and SSE endpoint require HTTP server running on `localhost:5720`
 - Accessible via localhost (no network) or local network (LAN required)
 - No internet connection required for API operation
 
-**Internet Access (External Data):**
+**[API-NET-020]** Internet Access (External Data):
 - Not required for any API endpoint
 - Library import/update operations may trigger internet requests internally
 - Internet failures do not affect API availability or playback control
 
+<a id="cors-policy"></a>
 ## CORS Policy
 
-**Allowed Origins:** `http://localhost:*`
+**[API-CORS-010]** Allowed Origins: `http://localhost:*`
 
 **Rationale:** Local-only access, no external network exposure. User responsible for network security.
 
+<a id="rate-limiting"></a>
 ## Rate Limiting
 
-No rate limiting on local API endpoints.
+**[API-RATE-010]** No rate limiting on local API endpoints.
 
 **Note:** External API rate limits (AcoustID, MusicBrainz) handled internally by WKMP, not exposed to API clients.
 
+<a id="api-versioning"></a>
 ## API Versioning
 
-**Current Version:** v1 (implicit, no version in URL)
+**[API-VER-010]** Current Version: v1 (implicit, no version in URL)
 
-**Future Versioning:** If breaking changes needed, introduce `/api/v2/...` endpoints while maintaining v1 compatibility.
+**[API-VER-020]** Future Versioning: If breaking changes needed, introduce `/api/v2/...` endpoints while maintaining v1 compatibility.
 
+<a id="implementation-notes"></a>
 ## Implementation Notes
 
+<a id="api-layer-architecture"></a>
 ### API Layer Architecture
+
+**[API-IMPL-010]** Implementation architecture for WKMP REST APIs.
 
 See [Architecture - API Layer](SPEC001-architecture.md#layered-architecture) for component structure.
 
@@ -1720,9 +1762,10 @@ See [Architecture - API Layer](SPEC001-architecture.md#layered-architecture) for
 
 SSE endpoint subscribes to EventBus (see [Event System](SPEC011-event_system.md)) and forwards all events to connected clients.
 
+<a id="testing"></a>
 ### Testing
 
-API endpoints should have integration tests covering:
+**[API-TEST-010]** API endpoints should have integration tests covering:
 - Request validation
 - Multi-user edge cases (skip throttling, concurrent operations)
 - Error handling

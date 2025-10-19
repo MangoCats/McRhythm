@@ -1,12 +1,18 @@
 ﻿# Single Stream Audio Playback Architecture
 
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Crossfade Design](SPEC002-crossfade.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
+
+---
+
+**⚖️ TIER 2 - DESIGN SPECIFICATION**
+
 **Status:** ✅ **Production Implementation** (Replaces GStreamer Dual Pipeline)
 **Decision Date:** 2025-10-16
 **Version:** 1.0
 
 ## Executive Summary
 
-The WKMP Audio Player uses a **single-stream architecture** with sample-accurate crossfading to provide continuous audio playback with seamless transitions between passages. This approach delivers:
+**[SSP-OV-010]** The WKMP Audio Player uses a **single-stream architecture** with sample-accurate crossfading to provide continuous audio playback with seamless transitions between passages. This approach delivers:
 
 - **Sample-accurate crossfading**: ~0.02ms precision (500-2500x better than GStreamer dual pipeline)
 - **Lower memory usage**: ~27 MB for 5 buffered passages (6x reduction vs dual pipeline)
@@ -16,7 +22,7 @@ The WKMP Audio Player uses a **single-stream architecture** with sample-accurate
 
 ## Architecture Overview
 
-The single-stream architecture decodes audio files into memory buffers, applies fade curves at the sample level, mixes passages with sample-accurate timing, and outputs the mixed audio stream to the system audio device.
+**[SSP-ARCH-010]** The single-stream architecture decodes audio files into memory buffers, applies fade curves at the sample level, mixes passages with sample-accurate timing, and outputs the mixed audio stream to the system audio device.
 
 ### Component Diagram
 
@@ -70,13 +76,13 @@ The single-stream architecture decodes audio files into memory buffers, applies 
 
 ### 1. Audio Decoder (symphonia + rubato)
 
-**Purpose:** Decode compressed audio files into raw PCM samples.
+**[SSP-DEC-010]** Purpose: Decode compressed audio files into raw PCM samples.
 
-**Technology:**
+**[SSP-DEC-020]** Technology:
 - `symphonia 0.5.x`: Pure Rust audio decoder
 - `rubato 0.15.x`: High-quality sample rate conversion
 
-**Supported Formats:**
+**[SSP-DEC-030]** Supported Formats:
 - MP3 (MPEG-1/2 Layer 3)
 - FLAC (Free Lossless Audio Codec)
 - Ogg Vorbis
@@ -86,7 +92,7 @@ The single-stream architecture decodes audio files into memory buffers, applies 
 - AIFF (Audio Interchange File Format)
 - WavPack, ALAC, APE, and more
 
-**Decoding Flow:**
+**[SSP-DEC-040]** Decoding Flow:
 1. Open audio file using symphonia decoder
 2. Seek to passage start position (skip unwanted samples)
 3. Decode compressed audio into PCM samples
@@ -99,11 +105,11 @@ The single-stream architecture decodes audio files into memory buffers, applies 
 
 ### 2. Passage Buffer (PCM Storage + Fade Application)
 
-**Purpose:** Store decoded PCM audio with automatic per-sample fade curve application.
+**[SSP-BUF-010]** Purpose: Store decoded PCM audio with automatic per-sample fade curve application.
 
 **Status:** ✅ **Complete** (351 LOC, 12/12 tests passing)
 
-**Key Features:**
+**[SSP-BUF-020]** Key Features:
 - PCM audio storage (interleaved stereo f32: [L, R, L, R, ...])
 - Automatic fade application during `read_sample()` - no separate fade step
 - Position tracking with seek support
@@ -111,7 +117,7 @@ The single-stream architecture decodes audio files into memory buffers, applies 
 - Memory usage tracking
 - Buffer status management (Decoding/Ready/Playing/Exhausted)
 
-**Memory Efficiency:**
+**[SSP-BUF-030]** Memory Efficiency:
 ```
 1 second audio @ 44.1kHz stereo = ~353 KB
 15 second buffer = ~5.3 MB
@@ -141,13 +147,14 @@ let (left, right) = buffer.read_sample();
 - Implementation: `wkmp-ap/src/playback/pipeline/single_stream/buffer.rs` ✅
 - Tests: `wkmp-ap/src/playback/pipeline/single_stream/buffer.rs#tests` ✅
 
+<a id="fade-curve-algorithms"></a>
 ### 3. Fade Curve Algorithms
 
-**Purpose:** Calculate gain values for smooth audio transitions.
+**[SSP-CURV-010]** Purpose: Calculate gain values for smooth audio transitions.
 
 **Status:** ✅ **Complete** (218 LOC, 8/8 tests passing)
 
-**Implemented Curves:**
+**[SSP-CURV-020]** Implemented Curves:
 1. **Linear** - Simple linear fade (y = x)
 2. **Logarithmic** - Gradual start, faster end
 3. **Exponential** - Faster start, gradual end
@@ -179,18 +186,18 @@ let name = curve.to_str(); // "s_curve"
 
 ### 4. Crossfade Mixer
 
-**Purpose:** Mix two passage buffers with sample-accurate crossfading.
+**[SSP-MIX-010]** Purpose: Mix two passage buffers with sample-accurate crossfading.
 
 **Status:** ✅ **Complete** (307 LOC, 8/8 tests passing)
 
-**Key Features:**
+**[SSP-MIX-020]** Key Features:
 - Sample-accurate mixing of two passage buffers (current + next)
 - Automatic crossfade detection (when current is in fade-out region)
 - Master volume control
 - Position and duration queries
 - Passage advancement (promotes next to current)
 
-**Crossfade Algorithm:**
+**[SSP-MIX-030]** Crossfade Algorithm:
 ```rust
 // Simplified mixing algorithm
 for each sample in output_buffer {
@@ -228,16 +235,16 @@ let frames_written = mixer.fill_output_buffer(&mut output).await?;
 
 ### 5. Audio Output (cpal)
 
-**Purpose:** Output mixed audio stream to system audio device.
+**[SSP-OUT-010]** Purpose: Output mixed audio stream to system audio device.
 
-**Technology:** `cpal 0.15.x` - Cross-platform audio output abstraction
+**[SSP-OUT-020]** Technology: `cpal 0.15.x` - Cross-platform audio output abstraction
 
-**Platform Backends:**
+**[SSP-OUT-030]** Platform Backends:
 - **Linux**: PulseAudio (primary), ALSA (fallback)
 - **macOS**: CoreAudio (built into macOS)
 - **Windows**: WASAPI (built into Windows Vista and later)
 
-**Ring Buffer Design:**
+**[SSP-OUT-040]** Ring Buffer Design:
 ```
 ┌─────────────────────────────────────────────┐
 │            Ring Buffer                      │
@@ -250,7 +257,7 @@ let frames_written = mixer.fill_output_buffer(&mut output).await?;
 └─────────────────────────────────────────────┘
 ```
 
-**Threading Model:**
+**[SSP-OUT-050]** Threading Model:
 1. **Mixer Thread**: Pulls samples from CrossfadeMixer, writes to ring buffer
 2. **Audio Callback**: Reads from ring buffer, sends to audio device
 3. **Synchronization**: Lock-free ring buffer with atomic read/write pointers
@@ -275,7 +282,7 @@ impl AudioOutput {
 
 ### 6. Playback Pipeline Integration
 
-**Purpose:** Coordinate decoder, mixer, and output components into complete playback system.
+**[SSP-PIPE-010]** Purpose: Coordinate decoder, mixer, and output components into complete playback system.
 
 **API Sketch:**
 ```rust
@@ -303,7 +310,7 @@ impl SingleStreamPipeline {
 
 ### Lead-In/Lead-Out Points
 
-Passages in WKMP have three timing markers:
+**[SSP-XFD-010]** Passages in WKMP have three timing markers:
 1. **Lead-in point**: Where passage should start playing (skips intro silence)
 2. **Lead-out point**: Where crossfade to next passage should begin
 3. **End point**: Absolute end of passage audio
@@ -323,9 +330,10 @@ Fade-out:                                         ├──┤
                                                   3s crossfade
 ```
 
+<a id="crossfade-execution"></a>
 ### Crossfade Execution
 
-When current passage reaches lead-out point:
+**[SSP-XFD-020]** When current passage reaches lead-out point:
 
 1. **Crossfade Start**: Current passage position reaches lead-out sample
 2. **Mixer Behavior**:
@@ -335,7 +343,7 @@ When current passage reaches lead-out point:
 3. **Crossfade Duration**: Determined by fade-out samples of current passage
 4. **Crossfade End**: Current buffer exhausted, next buffer becomes current
 
-**Sample-Accurate Timing:**
+**[SSP-XFD-030]** Sample-Accurate Timing:
 - Each sample = 0.0227 ms @ 44.1kHz
 - Crossfade precision = ~0.02ms
 - No timing uncertainty from framework scheduler
@@ -343,7 +351,7 @@ When current passage reaches lead-out point:
 
 ### Fade Curve Selection
 
-The fade curve determines how volume transitions during crossfade:
+**[SSP-XFD-040]** The fade curve determines how volume transitions during crossfade:
 
 **Equal-Power (Recommended for crossfading):**
 - Maintains constant perceived loudness during crossfade
@@ -369,103 +377,49 @@ The fade curve determines how volume transitions during crossfade:
 
 ### Memory Usage
 
-**Per Passage Buffer:**
+**[SSP-PERF-010]** Per Passage Buffer:
 - Sample rate: 44.1kHz
 - Channels: 2 (stereo)
 - Sample format: f32 (4 bytes)
 - Buffer duration: 15 seconds
 - Memory: 44100 samples/sec Ã— 2 channels Ã— 4 bytes Ã— 15 sec = **5.3 MB**
 
-**Total Memory (5 passages buffered):**
+**[SSP-PERF-020]** Total Memory (5 passages buffered):
 - 5 passages Ã— 5.3 MB = **~27 MB**
-
-**Comparison to GStreamer Dual Pipeline:**
-- GStreamer: ~170 MB (entire files buffered + framework overhead)
-- Single stream: ~27 MB (only 15-second windows buffered)
-- **Reduction: 6x lower memory usage**
 
 ### CPU Usage
 
-**Decoding (symphonia):**
+**[SSP-PERF-030]** Decoding (symphonia):
 - Runs in background threads
 - Minimal CPU impact on playback
 - Typical: < 5% CPU on modern hardware
 
-**Mixing (per-sample calculations):**
+**[SSP-PERF-040]** Mixing (per-sample calculations):
 - Extremely efficient
 - Two buffer reads + addition + volume multiply per sample
 - Typical: < 1% CPU on modern hardware
 
-**Resampling (rubato):**
+**[SSP-PERF-050]** Resampling (rubato):
 - Only when source sample rate â‰  44.1kHz
 - High-quality sinc interpolation
 - Typical: 2-5% CPU on modern hardware
 
 ### Latency
 
-**Crossfade Precision:**
+**[SSP-PERF-060]** Crossfade Precision:
 - Sample-accurate: ~0.02ms @ 44.1kHz
 - GStreamer dual pipeline: 10-50ms (property update latency)
 - **Improvement: 500-2500x better precision**
 
-**Pause/Play Latency:**
+**[SSP-PERF-070]** Pause/Play Latency:
 - Near-instant (audio callback driven)
 - < 1ms typical
-
-## Implementation Status
-
-### Completed (POC Phase)
-
-✅ **Fade Curves** (`curves.rs`, 218 LOC, 8/8 tests)
-- 5 curve types implemented
-- String serialization support
-- Comprehensive unit tests
-
-✅ **Passage Buffer** (`buffer.rs`, 351 LOC, 12/12 tests)
-- PCM storage with automatic fade application
-- Position tracking and seek
-- Memory usage tracking
-
-✅ **Crossfade Mixer** (`mixer.rs`, 307 LOC, 8/8 tests)
-- Sample-accurate mixing
-- Automatic crossfade detection
-- Master volume control
-
-✅ **Module Integration** (`mod.rs`, 37 LOC)
-- Public API exposure
-- Documentation
-
-**Total POC**: 913 LOC, 28/28 tests passing (100%)
-
-### Remaining Work
-
-⏳ **Audio Decoder** (`decoder.rs`, est. 200 LOC, 4-6 hours)
-- Implement symphonia-based decoding
-- Sample rate conversion with rubato
-- Passage buffer filling
-
-⏳ **Audio Output** (`output.rs`, est. 300 LOC, 6-8 hours)
-- Ring buffer implementation
-- cpal stream creation
-- Audio callback handling
-
-⏳ **Pipeline Integration** (`pipeline.rs`, est. 200 LOC, 4-6 hours)
-- Component coordination
-- Play/pause/seek controls
-- Position tracking
-
-⏳ **Testing** (est. 100 LOC, 2-3 hours)
-- End-to-end playback tests
-- Crossfade quality verification
-- Performance testing
-
-**Total Remaining**: ~800 LOC, 16-23 hours (2-3 days focused work)
 
 ## Deployment
 
 ### Dependencies
 
-**Cargo.toml:**
+**[SSP-DEPL-010]** Cargo.toml:
 ```toml
 [dependencies]
 # Audio decoding
@@ -483,73 +437,32 @@ tokio = { version = "1", features = ["full"] }
 
 ### System Requirements
 
-**Linux:**
+**[SSP-DEPL-020]** Linux:
 - `libasound2` (ALSA library) - typically pre-installed
 - `libpulse0` (PulseAudio client library) - typically pre-installed on desktop systems
 
-**macOS:**
+**[SSP-DEPL-030]** macOS:
 - CoreAudio framework - built into macOS, no additional libraries needed
 
-**Windows:**
+**[SSP-DEPL-040]** Windows:
 - WASAPI (Windows Audio Session API) - built into Windows Vista and later
 
 ### Distribution
 
-**Single Binary:**
+**[SSP-DEPL-050]** Single Binary:
 - All audio processing code compiled into wkmp-ap executable
 - No plugin directories or separate libraries to bundle
 - No environment variables required
 - Binary size: ~15-20 MB (vs ~100+ MB with GStreamer bundling)
 
-**Cross-Platform:**
+**[SSP-DEPL-060]** Cross-Platform:
 - Same Rust codebase compiles for all platforms
 - No platform-specific plugin versions to manage
 - Consistent behavior across platforms
 
-## Migration from GStreamer Dual Pipeline
-
-### Code Removal
-
-The following GStreamer-based components will be removed:
-
-**Files to Remove:**
-- `wkmp-ap/src/playback/pipeline/dual.rs` (partially implemented dual pipeline)
-- Any GStreamer utility modules
-
-**Dependencies to Remove (Cargo.toml):**
-```toml
-# Remove these:
-gstreamer = "0.21"
-gstreamer-audio = "0.21"
-gstreamer-app = "0.21"
-```
-
-### Code Migration
-
-**Replace in `wkmp-ap/src/playback/engine.rs`:**
-```rust
-// Old:
-use crate::playback::pipeline::dual::DualPipeline;
-
-// New:
-use crate::playback::pipeline::single_stream::SingleStreamPipeline;
-```
-
-**Update PlaybackEngine:**
-```rust
-pub struct PlaybackEngine {
-    // Old:
-    // pipeline: Arc<RwLock<DualPipeline>>,
-
-    // New:
-    pipeline: Arc<RwLock<SingleStreamPipeline>>,
-
-    // ... rest unchanged
-}
-```
-
 ### Testing Strategy
 
+**[SSP-TEST-010]** Testing Levels:
 1. **Unit Tests**: Verify all single-stream components (already 28/28 passing)
 2. **Integration Tests**: Test decoder → buffer → mixer → output chain
 3. **End-to-End Tests**: Full playback with crossfading
