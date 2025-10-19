@@ -131,7 +131,8 @@ impl DecoderPool {
     /// Submit decode request
     ///
     /// [SSD-DEC-032] Inserts request into priority queue.
-    pub fn submit(
+    /// **Fix for queue flooding:** Registers buffer immediately to prevent duplicate submissions.
+    pub async fn submit(
         &self,
         passage_id: Uuid,
         passage: PassageWithTiming,
@@ -142,16 +143,26 @@ impl DecoderPool {
             return Err(Error::Playback("Decoder pool is shutting down".to_string()));
         }
 
+        // **FIX: Register buffer BEFORE queuing to prevent duplicate submissions**
+        // This makes is_managed() return true immediately, preventing race condition
+        // where engine submits duplicates before worker registers buffer.
+        self.buffer_manager.register_decoding(passage_id).await;
+
         let request = DecodeRequest {
             passage_id,
-            passage,
+            passage: passage.clone(),
             priority,
             full_decode,
         };
 
+        // Extract filename for human-readable logging
+        let filename = passage.file_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("<unknown>");
+
         debug!(
-            "Submitting decode request: passage_id={}, priority={:?}, full={}",
-            passage_id, priority, full_decode
+            "Submitting decode request: {} (passage_id={}, priority={:?}, full={})",
+            filename, passage_id, priority, full_decode
         );
 
         // Add to priority queue
@@ -196,9 +207,14 @@ impl DecoderPool {
             };
 
             if let Some(request) = request {
+                // Extract filename for human-readable logging
+                let filename = request.passage.file_path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("<unknown>");
+
                 debug!(
-                    "Worker {} processing: passage_id={}, priority={:?}",
-                    worker_id, request.passage_id, request.priority
+                    "Worker {} processing: {} (passage_id={}, priority={:?})",
+                    worker_id, filename, request.passage_id, request.priority
                 );
 
                 // Register with buffer manager and get writable buffer handle
@@ -218,12 +234,12 @@ impl DecoderPool {
                             buffer_manager.mark_ready(passage_id).await;
                         });
 
-                        debug!("Worker {} completed: passage_id={}", worker_id, passage_id);
+                        debug!("Worker {} completed: {} (passage_id={})", worker_id, filename, passage_id);
                     }
                     Err(e) => {
                         error!(
-                            "Worker {} decode failed for passage_id={}: {}",
-                            worker_id, passage_id, e
+                            "Worker {} decode failed for {}: {} (passage_id={})",
+                            worker_id, filename, e, passage_id
                         );
 
                         // Remove from buffer manager on failure
@@ -264,9 +280,14 @@ impl DecoderPool {
             start_ms + 15_000 // 15 seconds in milliseconds
         };
 
+        // Extract filename for logging
+        let filename = passage.file_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("<unknown>");
+
         debug!(
-            "Decoding passage: start={}ms, end={}ms, full={}",
-            start_ms, end_ms, request.full_decode
+            "Decoding {}: start={}ms, end={}ms, full={}",
+            filename, start_ms, end_ms, request.full_decode
         );
 
         // Decode passage from file

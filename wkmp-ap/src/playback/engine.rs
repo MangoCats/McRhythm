@@ -660,6 +660,67 @@ impl PlaybackEngine {
         Ok(())
     }
 
+    /// Clear entire queue
+    ///
+    /// [API] POST /playback/queue/clear
+    /// Clear all passages from queue
+    ///
+    /// Stops current playback immediately and clears all queue entries.
+    /// Emits QueueChanged event.
+    pub async fn clear_queue(&self) -> Result<()> {
+        info!("Clear queue command received");
+
+        // Get current passage to clean up buffer if playing
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        drop(queue);
+
+        // Stop mixer immediately
+        let mut mixer = self.mixer.write().await;
+        let passage_id_before_stop = mixer.get_current_passage_id();
+        mixer.stop();
+        let passage_id_after_stop = mixer.get_current_passage_id();
+        drop(mixer);
+
+        info!(
+            "Mixer stopped: passage_before={:?}, passage_after={:?}",
+            passage_id_before_stop, passage_id_after_stop
+        );
+
+        // Clean up current buffer if exists
+        if let Some(current) = current {
+            if let Some(passage_id) = current.passage_id {
+                self.buffer_manager.remove(passage_id).await;
+                info!("Removed current buffer: {}", passage_id);
+            }
+        }
+
+        // Clear all buffers from buffer manager
+        self.buffer_manager.clear().await;
+
+        // Clear in-memory queue
+        let mut queue_write = self.queue.write().await;
+        queue_write.clear();
+        drop(queue_write);
+
+        info!("In-memory queue cleared");
+
+        // Clear shared state
+        self.state.set_current_passage(None).await;
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
+
+        // Emit QueueChanged event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+            timestamp: chrono::Utc::now(),
+        });
+
+        info!("Queue cleared successfully");
+
+        Ok(())
+    }
+
     /// Seek to position in current passage
     ///
     /// Updates playback position to specified time. Clamps to passage bounds.
@@ -1148,8 +1209,10 @@ impl PlaybackEngine {
         let queue = self.queue.read().await;
 
         // Trigger decode for current passage if needed
+        // **Fix for queue flooding:** Only request decode if buffer doesn't exist yet
+        // Previously checked is_ready() which allowed duplicate requests while Decoding
         if let Some(current) = queue.current() {
-            if !self.buffer_manager.is_ready(current.queue_entry_id).await {
+            if !self.buffer_manager.is_managed(current.queue_entry_id).await {
                 debug!("Requesting decode for current passage: {}", current.queue_entry_id);
                 self.request_decode(current, DecodePriority::Immediate, true)
                     .await?;
@@ -1325,8 +1388,9 @@ impl PlaybackEngine {
         // [SSD-FBUF-011] Full decode for currently playing OR next-to-be-played
         // [SSD-PBUF-013] Facilitate instant skip to queued passages
         // This MUST happen before completion check to ensure prefetch while playing
+        // **Fix for queue flooding:** Only request if not already managed
         if let Some(next) = queue.next() {
-            if !self.buffer_manager.is_ready(next.queue_entry_id).await {
+            if !self.buffer_manager.is_managed(next.queue_entry_id).await {
                 debug!("Requesting decode for next passage: {}", next.queue_entry_id);
                 self.request_decode(next, DecodePriority::Next, true)
                     .await?;
@@ -1335,8 +1399,9 @@ impl PlaybackEngine {
 
         // Trigger decode for queued passages (first 3)
         // [SSD-PBUF-010] Partial buffer decode for queued passages
+        // **Fix for queue flooding:** Only request if not already managed
         for queued in queue.queued().iter().take(3) {
-            if !self.buffer_manager.is_ready(queued.queue_entry_id).await {
+            if !self.buffer_manager.is_managed(queued.queue_entry_id).await {
                 debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
                 self.request_decode(queued, DecodePriority::Prefetch, false)
                     .await?;
@@ -1348,28 +1413,31 @@ impl PlaybackEngine {
         // [SSD-ENG-020] Queue processing and advancement
         let mixer = self.mixer.read().await;
         let is_finished = mixer.is_current_finished().await;
-        let current_passage_id = mixer.get_current_passage_id();
         drop(mixer);
 
         if is_finished {
-            if let Some(passage_id) = current_passage_id {
-                info!("Passage {} completed", passage_id);
+            // Get current queue entry for event emission and logging
+            // **FIX:** Use queue.current() instead of mixer.get_current_passage_id()
+            // The mixer may have already transitioned to the next passage when
+            // buffer_event_handler started it, so mixer's passage_id can be stale.
+            if let Some(current) = queue.current() {
+                info!("Passage {} completed", current.queue_entry_id);
 
-                // Get current queue entry for event emission
-                if let Some(current) = queue.current() {
-                    // Emit PassageCompleted event
-                    // [Event-PassageCompleted] Passage playback finished
-                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
-                        passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
-                        completed: true, // true = finished naturally, false = skipped/interrupted
-                        timestamp: chrono::Utc::now(),
-                    });
+                // Emit PassageCompleted event
+                // [Event-PassageCompleted] Passage playback finished
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
+                    passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                    completed: true, // true = finished naturally, false = skipped/interrupted
+                    timestamp: chrono::Utc::now(),
+                });
 
-                    // Mark buffer as exhausted
-                    self.buffer_manager.mark_exhausted(current.queue_entry_id).await;
+                // Mark buffer as exhausted
+                self.buffer_manager.mark_exhausted(current.queue_entry_id).await;
 
-                    info!("Marked buffer {} as exhausted", current.queue_entry_id);
-                }
+                info!("Marked buffer {} as exhausted", current.queue_entry_id);
+
+                // Capture passage_id for buffer cleanup later (after queue advance)
+                let passage_id_for_cleanup = current.passage_id;
 
                 // Release queue read lock before advancing (needs write lock)
                 drop(queue);
@@ -1404,7 +1472,9 @@ impl PlaybackEngine {
                 self.update_audio_expected_flag().await;
 
                 // Clean up the exhausted buffer (free memory)
-                self.buffer_manager.remove(passage_id).await;
+                if let Some(p_id) = passage_id_for_cleanup {
+                    self.buffer_manager.remove(p_id).await;
+                }
 
                 // Stop the mixer (will be restarted on next iteration with new passage)
                 self.mixer.write().await.stop();
@@ -1429,14 +1499,14 @@ impl PlaybackEngine {
         // Get passage timing
         let passage = self.get_passage_timing(entry).await?;
 
-        // Submit to decoder pool
+        // Submit to decoder pool (now async - registers buffer immediately)
         if let Some(decoder_pool) = self.decoder_pool.read().await.as_ref() {
             decoder_pool.submit(
                 entry.queue_entry_id,
                 passage,
                 priority,
                 full_decode,
-            )?;
+            ).await?;
         }
 
         Ok(())

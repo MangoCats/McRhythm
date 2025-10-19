@@ -194,28 +194,130 @@ impl SimpleDecoder {
             end_ms
         );
 
-        // First, decode the entire file
-        let (all_samples, sample_rate, channels) = Self::decode_file(path)?;
+        // **PERFORMANCE FIX:** Decode only until passage end, not entire file
+        // This reduces decode time from O(file_length) to O(passage_length)
 
-        // Calculate sample indices for trimming
-        let start_sample = ((start_ms * sample_rate as u64) / 1000) as usize * channels as usize;
-        let end_sample = if end_ms == 0 {
-            all_samples.len()
+        // Open the file
+        let file = std::fs::File::open(path)
+            .map_err(|e| Error::Decode(format!("Failed to open file {}: {}", path.display(), e)))?;
+
+        let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+        // Create format hint
+        let mut hint = Hint::new();
+        if let Some(extension) = path.extension() {
+            if let Some(ext_str) = extension.to_str() {
+                hint.with_extension(ext_str);
+            }
+        }
+
+        // Probe the file
+        let format_opts = FormatOptions::default();
+        let metadata_opts = MetadataOptions::default();
+
+        let probed = symphonia::default::get_probe()
+            .format(&hint, mss, &format_opts, &metadata_opts)
+            .map_err(|e| Error::Decode(format!("Failed to probe format: {}", e)))?;
+
+        let mut format = probed.format;
+
+        // Get the default audio track
+        let track = format
+            .tracks()
+            .iter()
+            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+            .ok_or_else(|| Error::Decode("No audio track found".to_string()))?;
+
+        let track_id = track.id;
+        let codec_params = &track.codec_params;
+
+        // Get sample rate and channels
+        let sample_rate = codec_params
+            .sample_rate
+            .ok_or_else(|| Error::Decode("Sample rate not found".to_string()))?;
+
+        let channels = codec_params
+            .channels
+            .map(|c| c.count() as u16)
+            .ok_or_else(|| Error::Decode("Channel count not found".to_string()))?;
+
+        debug!(
+            "Audio format: sample_rate={}, channels={}",
+            sample_rate, channels
+        );
+
+        // Calculate target sample counts
+        let start_sample_idx = ((start_ms * sample_rate as u64) / 1000) as usize * channels as usize;
+        let end_sample_idx = if end_ms == 0 {
+            usize::MAX // Decode to file end
         } else {
             ((end_ms * sample_rate as u64) / 1000) as usize * channels as usize
         };
 
-        // Validate indices
-        if start_sample >= all_samples.len() {
+        // Create decoder
+        let decoder_opts = DecoderOptions::default();
+        let mut decoder = get_codec_registry()
+            .make(&codec_params, &decoder_opts)
+            .map_err(|e| Error::Decode(format!("Failed to create decoder: {}", e)))?;
+
+        // Decode packets until we reach passage end
+        let mut all_samples = Vec::new();
+        let mut current_sample_idx = 0;
+
+        loop {
+            // Stop early if we've reached passage end
+            if current_sample_idx >= end_sample_idx {
+                debug!("Reached passage end at sample {}, stopping decode", current_sample_idx);
+                break;
+            }
+
+            // Read next packet
+            let packet = match format.next_packet() {
+                Ok(packet) => packet,
+                Err(symphonia::core::errors::Error::IoError(ref e))
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                {
+                    debug!("Reached end of file at sample {}", current_sample_idx);
+                    break;
+                }
+                Err(e) => {
+                    warn!("Error reading packet: {}", e);
+                    break;
+                }
+            };
+
+            // Skip packets for other tracks
+            if packet.track_id() != track_id {
+                continue;
+            }
+
+            // Decode packet
+            match decoder.decode(&packet) {
+                Ok(decoded) => {
+                    // Convert decoded audio to f32 samples
+                    let before_len = all_samples.len();
+                    Self::convert_samples_to_f32(&decoded, &mut all_samples);
+                    let decoded_count = all_samples.len() - before_len;
+                    current_sample_idx += decoded_count;
+                }
+                Err(e) => {
+                    warn!("Decode error: {}", e);
+                    continue;
+                }
+            }
+        }
+
+        // Trim to passage boundaries
+        if start_sample_idx >= all_samples.len() {
             return Err(Error::InvalidTiming(format!(
-                "Start time {}ms is beyond file duration",
+                "Start time {}ms is beyond decoded audio",
                 start_ms
             )));
         }
 
-        let end_sample = end_sample.min(all_samples.len());
+        let actual_end_sample = end_sample_idx.min(all_samples.len());
 
-        if start_sample >= end_sample {
+        if start_sample_idx >= actual_end_sample {
             return Err(Error::InvalidTiming(format!(
                 "Invalid passage timing: start={}ms, end={}ms",
                 start_ms, end_ms
@@ -223,12 +325,14 @@ impl SimpleDecoder {
         }
 
         // Extract the passage samples
-        let passage_samples = all_samples[start_sample..end_sample].to_vec();
+        let passage_samples = all_samples[start_sample_idx..actual_end_sample].to_vec();
 
         debug!(
-            "Trimmed passage: {} samples ({} frames)",
+            "Trimmed passage: {} samples ({} frames), stopped at sample {} (saved {} samples)",
             passage_samples.len(),
-            passage_samples.len() / channels as usize
+            passage_samples.len() / channels as usize,
+            current_sample_idx,
+            all_samples.len().saturating_sub(actual_end_sample)
         );
 
         Ok((passage_samples, sample_rate, channels))

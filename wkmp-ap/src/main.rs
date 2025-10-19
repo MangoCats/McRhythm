@@ -63,7 +63,14 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
         .init();
 
-    info!("Starting WKMP Audio Player (wkmp-ap)");
+    // [CO-226] Log build identification for debugging
+    info!(
+        "Starting WKMP Audio Player (wkmp-ap) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
 
     // Step 1: Resolve root folder [ARCH-INIT-005, REQ-NF-035]
     // Uses 4-tier priority: CLI args > env vars > TOML > compiled defaults

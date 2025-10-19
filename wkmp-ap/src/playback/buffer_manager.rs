@@ -372,6 +372,17 @@ impl BufferManager {
         }
     }
 
+    /// Check if buffer exists and is managed (any state except non-existent)
+    ///
+    /// Returns true if buffer is in any state: Decoding, Ready, Playing, or Exhausted.
+    /// Use this to prevent duplicate decode requests.
+    ///
+    /// **Fix for queue flooding:** Engine should only request decode if buffer doesn't exist yet.
+    pub async fn is_managed(&self, passage_id: Uuid) -> bool {
+        let buffers = self.buffers.read().await;
+        buffers.contains_key(&passage_id)
+    }
+
     /// Check if buffer has minimum playback buffer available
     ///
     /// [SSD-PBUF-028] Minimum playback buffer threshold
@@ -1397,5 +1408,51 @@ mod tests {
         manager.mark_ready(passage_id).await;
         let status = manager.get_status(passage_id).await.unwrap();
         assert_eq!(status, BufferStatus::Ready);
+    }
+
+    /// **Fix for queue flooding:** Test is_managed() prevents duplicate decode requests
+    #[tokio::test]
+    async fn test_is_managed_prevents_duplicates() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Initially not managed
+        assert!(!manager.is_managed(passage_id).await, "Buffer should not be managed initially");
+        assert!(!manager.is_ready(passage_id).await, "Buffer should not be ready initially");
+
+        // Register for decoding
+        let _handle = manager.register_decoding(passage_id).await;
+
+        // Now managed (Decoding state) but not ready
+        assert!(manager.is_managed(passage_id).await, "Buffer should be managed after registration");
+        assert!(!manager.is_ready(passage_id).await, "Buffer should not be ready while decoding");
+
+        // Mark ready
+        manager.mark_ready(passage_id).await;
+
+        // Still managed and now ready
+        assert!(manager.is_managed(passage_id).await, "Buffer should still be managed when ready");
+        assert!(manager.is_ready(passage_id).await, "Buffer should be ready after mark_ready");
+
+        // Mark playing
+        manager.mark_playing(passage_id).await;
+
+        // Still managed and still ready
+        assert!(manager.is_managed(passage_id).await, "Buffer should still be managed when playing");
+        assert!(manager.is_ready(passage_id).await, "Buffer should still be ready when playing");
+
+        // Mark exhausted
+        manager.mark_exhausted(passage_id).await;
+
+        // Still managed but no longer ready
+        assert!(manager.is_managed(passage_id).await, "Buffer should still be managed when exhausted");
+        assert!(!manager.is_ready(passage_id).await, "Buffer should not be ready when exhausted");
+
+        // Remove buffer
+        manager.remove(passage_id).await;
+
+        // No longer managed
+        assert!(!manager.is_managed(passage_id).await, "Buffer should not be managed after removal");
+        assert!(!manager.is_ready(passage_id).await, "Buffer should not be ready after removal");
     }
 }

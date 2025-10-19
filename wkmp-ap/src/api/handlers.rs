@@ -14,7 +14,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 // ============================================================================
@@ -368,15 +368,15 @@ pub async fn clear_queue(
 ) -> Result<StatusCode, (StatusCode, Json<StatusResponse>)> {
     info!("Clear queue request");
 
-    // Clear database queue
-    match crate::db::queue::clear_queue(&ctx.db_pool).await {
+    // Clear engine state (stops playback, clears in-memory queue, clears buffers)
+    match ctx.engine.clear_queue().await {
         Ok(_) => {
-            info!("Successfully cleared queue");
+            // Also clear database queue to keep in sync
+            if let Err(e) = crate::db::queue::clear_queue(&ctx.db_pool).await {
+                warn!("Failed to clear database queue (continuing anyway): {}", e);
+            }
 
-            // Emit QueueChanged event
-            ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
-                timestamp: chrono::Utc::now(),
-            });
+            info!("Successfully cleared queue");
 
             Ok(StatusCode::NO_CONTENT)
         }

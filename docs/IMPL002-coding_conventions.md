@@ -347,6 +347,14 @@ The `common/` library crate shall be organized as follows:
   - Use `warn` for recoverable issues
   - Use `error` for failures requiring attention
 
+- **CO-226:** Each binary shall log build identification information at startup at INFO level containing:
+  - Cargo package version from `Cargo.toml`
+  - Git commit hash (short form, 8 characters)
+  - Build timestamp (ISO 8601 format)
+  - Build profile (debug/release)
+  - Example output: `wkmp-ap v0.1.0 [a1b2c3d4] built 2025-10-19T12:34:56Z (debug)`
+  - This enables unambiguous determination of which code version is running
+
 ### Testing Conventions
 
 **CO-230: Test Organization**

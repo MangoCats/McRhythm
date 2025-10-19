@@ -42,6 +42,10 @@ rubato = "0.15"
 cpal = "0.15"
 ringbuf = "0.4"
 
+[build-dependencies]
+# For build.rs to capture build timestamp
+chrono = { workspace = true }
+
 [dev-dependencies]
 # Additional dependencies for testing
 http = "1.0"
