@@ -1029,4 +1029,166 @@ mod tests {
         mixer.set_position(200).await.unwrap();
         assert_eq!(mixer.get_position(), 200);
     }
+
+    // --- REV004: Tests for buffer underrun detection ---
+
+    #[tokio::test]
+    async fn test_set_buffer_manager() {
+        let mut mixer = CrossfadeMixer::new();
+        let buffer_manager = Arc::new(BufferManager::new());
+
+        // Should be able to set buffer manager
+        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
+        // Verify it's set (indirectly, by checking underrun detection works)
+        // This is tested in the underrun detection tests below
+    }
+
+    #[tokio::test]
+    async fn test_no_underrun_with_full_buffer() {
+        let mut mixer = CrossfadeMixer::new();
+        let buffer_manager = Arc::new(BufferManager::new());
+        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
+        let passage_id = Uuid::new_v4();
+
+        // Create full buffer (100 frames)
+        let buffer_handle = buffer_manager.register_decoding(passage_id).await;
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.5; 200]);  // 100 stereo frames
+        }
+        buffer_manager.mark_ready(passage_id).await;
+
+        // Start playback
+        let buffer_arc = buffer_manager.get_buffer(passage_id).await.unwrap();
+        mixer.start_passage(buffer_arc, passage_id, None, 0).await;
+
+        // Read all 100 frames - should all succeed without underrun
+        for _ in 0..100 {
+            let frame = mixer.get_next_frame().await;
+            // Should get actual data, not flatline
+            assert_eq!(frame.left, 0.5);
+            assert_eq!(frame.right, 0.5);
+        }
+
+        // At this point we've exhausted the buffer, but not during decoding
+        // so no underrun state should have been triggered
+    }
+
+    #[tokio::test]
+    async fn test_underrun_detection_with_partial_buffer() {
+        let mut mixer = CrossfadeMixer::new();
+        let buffer_manager = Arc::new(BufferManager::new());
+        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
+        let passage_id = Uuid::new_v4();
+
+        // Create partial buffer (50 frames) that's still decoding
+        let buffer_handle = buffer_manager.register_decoding(passage_id).await;
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.5; 100]);  // 50 stereo frames
+        }
+        // Note: NOT marking as ready - still in Decoding state
+
+        // Start playback with buffer manager
+        let buffer_arc = buffer_manager.get_buffer(passage_id).await.unwrap();
+        mixer.start_passage(buffer_arc, passage_id, None, 0).await;
+
+        // Read 50 frames - should work (within buffer)
+        for i in 0..50 {
+            let frame = mixer.get_next_frame().await;
+            assert_eq!(frame.left, 0.5, "Frame {} should be valid", i);
+            assert_eq!(frame.right, 0.5);
+        }
+
+        // Next frame (51st) would trigger underrun detection
+        // Position 50 >= sample_count 50, and buffer status is Decoding
+        let frame = mixer.get_next_frame().await;
+
+        // Should output flatline (last valid frame)
+        // Last valid frame was 0.5, 0.5
+        assert_eq!(frame.left, 0.5, "Should output flatline of last valid frame");
+        assert_eq!(frame.right, 0.5);
+    }
+
+    #[tokio::test]
+    async fn test_underrun_auto_resume() {
+        let mut mixer = CrossfadeMixer::new();
+        let buffer_manager = Arc::new(BufferManager::new());
+        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
+        let passage_id = Uuid::new_v4();
+
+        // Create partial buffer (50 frames)
+        let buffer_handle = buffer_manager.register_decoding(passage_id).await;
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.5; 100]);  // 50 stereo frames
+        }
+
+        // Start playback
+        let buffer_arc = buffer_manager.get_buffer(passage_id).await.unwrap();
+        mixer.start_passage(buffer_arc, passage_id, None, 0).await;
+
+        // Consume all 50 frames
+        for _ in 0..50 {
+            mixer.get_next_frame().await;
+        }
+
+        // Trigger underrun (position 50 >= sample_count 50)
+        let underrun_frame = mixer.get_next_frame().await;
+        assert_eq!(underrun_frame.left, 0.5);  // Flatline
+
+        // Still in underrun - get flatline again
+        let underrun_frame2 = mixer.get_next_frame().await;
+        assert_eq!(underrun_frame2.left, 0.5);  // Still flatline
+
+        // Now append enough data to resume (need 1 second ahead = 44100 frames)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.7; 88200]);  // 44100 more frames
+        }
+
+        // Next frame should auto-resume
+        let resumed_frame = mixer.get_next_frame().await;
+        // Should now read from position 50 (where we left off)
+        assert_eq!(resumed_frame.left, 0.7, "Should auto-resume with new data");
+        assert_eq!(resumed_frame.right, 0.7);
+    }
+
+    #[tokio::test]
+    async fn test_underrun_during_decoding_only() {
+        let mut mixer = CrossfadeMixer::new();
+        let buffer_manager = Arc::new(BufferManager::new());
+        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
+        let passage_id = Uuid::new_v4();
+
+        // Create buffer and mark as Ready (not Decoding)
+        let buffer_handle = buffer_manager.register_decoding(passage_id).await;
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.5; 100]);  // 50 stereo frames
+        }
+        buffer_manager.mark_ready(passage_id).await;  // Mark as Ready
+
+        // Start playback
+        let buffer_arc = buffer_manager.get_buffer(passage_id).await.unwrap();
+        mixer.start_passage(buffer_arc, passage_id, None, 0).await;
+
+        // Consume all frames
+        for _ in 0..50 {
+            mixer.get_next_frame().await;
+        }
+
+        // Try to read beyond buffer (position 50 >= sample_count 50)
+        // But status is Ready, not Decoding, so no underrun detection
+        let frame = mixer.get_next_frame().await;
+
+        // Should get silence (normal end-of-buffer behavior)
+        assert_eq!(frame.left, 0.0);
+        assert_eq!(frame.right, 0.0);
+    }
 }

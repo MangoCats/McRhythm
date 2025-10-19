@@ -256,4 +256,152 @@ mod tests {
         assert_eq!(frame.left, 1.0);
         assert_eq!(frame.right, -1.0);
     }
+
+    // --- REV004: Tests for incremental buffer methods ---
+
+    #[test]
+    fn test_append_samples_basic() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.1, 0.2, 0.3, 0.4], 44100, 2);
+
+        // Initial state: 2 stereo frames (4 samples)
+        assert_eq!(buffer.sample_count, 2);
+        assert_eq!(buffer.samples.len(), 4);
+
+        // Append 2 more frames (4 samples)
+        buffer.append_samples(vec![0.5, 0.6, 0.7, 0.8]);
+
+        // Should now have 4 frames total
+        assert_eq!(buffer.sample_count, 4);
+        assert_eq!(buffer.samples.len(), 8);
+        assert_eq!(buffer.samples[0], 0.1);  // Original data preserved
+        assert_eq!(buffer.samples[1], 0.2);
+        assert_eq!(buffer.samples[4], 0.5);  // New data appended
+        assert_eq!(buffer.samples[5], 0.6);
+    }
+
+    #[test]
+    fn test_append_samples_multiple_times() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![], 44100, 2);
+
+        // Start with empty buffer
+        assert_eq!(buffer.sample_count, 0);
+
+        // Append first chunk (1 second @ 44.1kHz = 88200 samples)
+        buffer.append_samples(vec![0.0; 88200]);
+        assert_eq!(buffer.sample_count, 44100);  // 44100 frames
+        assert_eq!(buffer.duration_ms(), 1000);   // 1 second
+
+        // Append second chunk
+        buffer.append_samples(vec![0.0; 88200]);
+        assert_eq!(buffer.sample_count, 88200);  // 88200 frames
+        assert_eq!(buffer.duration_ms(), 2000);   // 2 seconds
+
+        // Append third chunk
+        buffer.append_samples(vec![0.0; 88200]);
+        assert_eq!(buffer.sample_count, 132300); // 132300 frames
+        assert_eq!(buffer.duration_ms(), 3000);   // 3 seconds
+    }
+
+    #[test]
+    fn test_append_samples_updates_duration() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.0; 88200], 44100, 2);
+
+        // Initial duration: 1 second
+        assert_eq!(buffer.duration_ms(), 1000);
+        assert_eq!(buffer.duration_seconds(), 1.0);
+
+        // Append 2 more seconds
+        buffer.append_samples(vec![0.0; 176400]);  // 2 seconds worth
+
+        // Duration should be 3 seconds
+        assert_eq!(buffer.duration_ms(), 3000);
+        assert_eq!(buffer.duration_seconds(), 3.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Samples must be stereo pairs")]
+    fn test_append_samples_panics_on_odd_length() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![], 44100, 2);
+
+        // Attempt to append odd number of samples - should panic
+        buffer.append_samples(vec![1.0, 2.0, 3.0]);  // 3 samples (not stereo pairs)
+    }
+
+    #[test]
+    fn test_append_samples_empty_vec() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.1, 0.2], 44100, 2);
+
+        // Append empty vector (valid - no-op)
+        buffer.append_samples(vec![]);
+
+        // Buffer unchanged
+        assert_eq!(buffer.sample_count, 1);
+        assert_eq!(buffer.samples.len(), 2);
+    }
+
+    #[test]
+    fn test_reserve_capacity() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![], 44100, 2);
+
+        // Reserve capacity for 10 seconds of audio
+        let frames = 44100 * 10;  // 10 seconds @ 44.1kHz
+        buffer.reserve_capacity(frames);
+
+        // Capacity should be reserved (at least as much as requested)
+        assert!(buffer.samples.capacity() >= frames * 2);  // *2 for stereo
+
+        // Length should still be 0
+        assert_eq!(buffer.samples.len(), 0);
+        assert_eq!(buffer.sample_count, 0);
+    }
+
+    #[test]
+    fn test_reserve_capacity_reduces_reallocations() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![], 44100, 2);
+
+        // Reserve for full 10-second passage
+        buffer.reserve_capacity(441000);  // 10 seconds of frames
+        let capacity_after_reserve = buffer.samples.capacity();
+
+        // Append 10 chunks of 1 second each
+        for _ in 0..10 {
+            buffer.append_samples(vec![0.0; 88200]);  // 1 second
+        }
+
+        // Capacity should not have grown (no reallocations needed)
+        assert_eq!(buffer.samples.capacity(), capacity_after_reserve);
+        assert_eq!(buffer.duration_ms(), 10000);
+    }
+
+    #[test]
+    fn test_get_frame_after_append() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.1, 0.2], 44100, 2);
+
+        // Append more frames
+        buffer.append_samples(vec![0.3, 0.4, 0.5, 0.6]);
+
+        // Should be able to access all frames
+        let frame0 = buffer.get_frame(0).unwrap();
+        assert_eq!(frame0.left, 0.1);
+        assert_eq!(frame0.right, 0.2);
+
+        let frame1 = buffer.get_frame(1).unwrap();
+        assert_eq!(frame1.left, 0.3);
+        assert_eq!(frame1.right, 0.4);
+
+        let frame2 = buffer.get_frame(2).unwrap();
+        assert_eq!(frame2.left, 0.5);
+        assert_eq!(frame2.right, 0.6);
+
+        // Out of bounds
+        assert!(buffer.get_frame(3).is_none());
+    }
 }

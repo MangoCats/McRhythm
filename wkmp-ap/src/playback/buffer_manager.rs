@@ -273,8 +273,8 @@ mod tests {
         assert!(manager.get_status(passage_id).await.is_none());
         assert!(!manager.is_ready(passage_id).await);
 
-        // Register decoding
-        manager.register_decoding(passage_id).await;
+        // Register decoding - get writable buffer handle
+        let buffer_handle = manager.register_decoding(passage_id).await;
         let status = manager.get_status(passage_id).await.unwrap();
         assert!(matches!(status, BufferStatus::Decoding { .. }));
         assert!(!manager.is_ready(passage_id).await);
@@ -284,9 +284,14 @@ mod tests {
         let status = manager.get_status(passage_id).await.unwrap();
         assert_eq!(status, BufferStatus::Decoding { progress_percent: 50 });
 
-        // Mark ready
-        let buffer = PassageBuffer::new(passage_id, vec![0.0; 1000], 44100, 2);
-        manager.mark_ready(passage_id, buffer).await;
+        // Append samples to buffer (simulating incremental decode)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 1000]);  // 500 stereo frames
+        }
+
+        // Mark ready (buffer already filled incrementally)
+        manager.mark_ready(passage_id).await;
         let status = manager.get_status(passage_id).await.unwrap();
         assert_eq!(status, BufferStatus::Ready);
         assert!(manager.is_ready(passage_id).await);
@@ -321,17 +326,20 @@ mod tests {
         let id2 = Uuid::new_v4();
         let id3 = Uuid::new_v4();
 
-        // Register multiple buffers
-        manager.register_decoding(id1).await;
+        // Register multiple buffers - get writable handles
+        let handle1 = manager.register_decoding(id1).await;
         manager.register_decoding(id2).await;
         manager.register_decoding(id3).await;
 
         let statuses = manager.get_all_statuses().await;
         assert_eq!(statuses.len(), 3);
 
-        // Mark one ready
-        let buffer = PassageBuffer::new(id1, vec![0.0; 100], 44100, 2);
-        manager.mark_ready(id1, buffer).await;
+        // Fill buffer 1 and mark ready
+        {
+            let mut buffer = handle1.write().await;
+            buffer.append_samples(vec![0.0; 100]);  // 50 stereo frames
+        }
+        manager.mark_ready(id1).await;
 
         assert!(manager.is_ready(id1).await);
         assert!(!manager.is_ready(id2).await);
@@ -383,5 +391,158 @@ mod tests {
 
         let removed = manager.remove(passage_id).await;
         assert!(!removed);
+    }
+
+    // --- REV004: Tests for partial buffer playback ---
+
+    #[tokio::test]
+    async fn test_has_minimum_playback_buffer_no_buffer() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Buffer doesn't exist - should return false
+        assert!(!manager.has_minimum_playback_buffer(passage_id, 3000).await);
+    }
+
+    #[tokio::test]
+    async fn test_has_minimum_playback_buffer_below_threshold() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Register and get writable handle
+        let handle = manager.register_decoding(passage_id).await;
+
+        // Append 2 seconds of audio (88200 samples/sec * 2)
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200 * 2]);  // 2 seconds
+        }
+
+        // Threshold is 3000ms, buffer has 2000ms - should be false
+        assert!(!manager.has_minimum_playback_buffer(passage_id, 3000).await);
+    }
+
+    #[tokio::test]
+    async fn test_has_minimum_playback_buffer_at_threshold() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Register and get handle
+        let handle = manager.register_decoding(passage_id).await;
+
+        // Append exactly 3 seconds
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200 * 3]);  // 3 seconds
+        }
+
+        // Threshold is 3000ms, buffer has 3000ms - should be true
+        assert!(manager.has_minimum_playback_buffer(passage_id, 3000).await);
+    }
+
+    #[tokio::test]
+    async fn test_has_minimum_playback_buffer_above_threshold() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Register and get handle
+        let handle = manager.register_decoding(passage_id).await;
+
+        // Append 5 seconds
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200 * 5]);  // 5 seconds
+        }
+
+        // Threshold is 3000ms, buffer has 5000ms - should be true
+        assert!(manager.has_minimum_playback_buffer(passage_id, 3000).await);
+    }
+
+    #[tokio::test]
+    async fn test_has_minimum_playback_buffer_incremental() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Register and get handle
+        let handle = manager.register_decoding(passage_id).await;
+
+        // Initially false (no buffer)
+        assert!(!manager.has_minimum_playback_buffer(passage_id, 3000).await);
+
+        // Append 1 second - still below threshold
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]);
+        }
+        assert!(!manager.has_minimum_playback_buffer(passage_id, 3000).await);
+
+        // Append 1 more second (total 2) - still below
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]);
+        }
+        assert!(!manager.has_minimum_playback_buffer(passage_id, 3000).await);
+
+        // Append 1 more second (total 3) - now at threshold
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]);
+        }
+        assert!(manager.has_minimum_playback_buffer(passage_id, 3000).await);
+
+        // Append more - still true
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.0; 88200 * 2]);
+        }
+        assert!(manager.has_minimum_playback_buffer(passage_id, 5000).await);
+    }
+
+    #[tokio::test]
+    async fn test_register_decoding_returns_writable_handle() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Register and get writable handle
+        let handle = manager.register_decoding(passage_id).await;
+
+        // Should be able to write to buffer via handle
+        {
+            let mut buffer = handle.write().await;
+            buffer.append_samples(vec![0.1, 0.2, 0.3, 0.4]);
+        }
+
+        // Verify buffer was updated
+        let retrieved = manager.get_buffer(passage_id).await.unwrap();
+        {
+            let buffer = retrieved.read().await;
+            assert_eq!(buffer.sample_count, 2);
+            assert_eq!(buffer.samples[0], 0.1);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_register_decoding_duplicate_returns_same_handle() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+
+        // Register first time
+        let handle1 = manager.register_decoding(passage_id).await;
+
+        // Write some data
+        {
+            let mut buffer = handle1.write().await;
+            buffer.append_samples(vec![0.1, 0.2]);
+        }
+
+        // Register again with same ID - should return existing
+        let handle2 = manager.register_decoding(passage_id).await;
+
+        // Data should be preserved
+        {
+            let buffer = handle2.read().await;
+            assert_eq!(buffer.sample_count, 1);
+            assert_eq!(buffer.samples[0], 0.1);
+        }
     }
 }
