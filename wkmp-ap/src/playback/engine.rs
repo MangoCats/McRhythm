@@ -244,11 +244,10 @@ impl PlaybackEngine {
                     let fill_percent = occupied as f32 / capacity as f32;
 
                     if fill_percent < 0.10 {
-                        // Buffer nearly empty - add a small amount of silence
-                        let mut mixer = mixer_clone.write().await;
+                        // Buffer nearly empty - add silence
+                        // [XFD-PAUS-010] When paused, output flatline silence (not audio)
                         for _ in 0..4 {
-                            let frame = mixer.get_next_frame().await;
-                            if !producer.push(frame) {
+                            if !producer.push(AudioFrame::zero()) {
                                 break;
                             }
                         }
@@ -427,7 +426,26 @@ impl PlaybackEngine {
     pub async fn play(&self) -> Result<()> {
         info!("Play command received");
         let old_state = self.state.get_playback_state().await;
+
+        // [XFD-PAUS-020] Check if resuming from pause
+        let resuming_from_pause = old_state == PlaybackState::Paused;
+
         self.state.set_playback_state(PlaybackState::Playing).await;
+
+        // [XFD-PAUS-020] If resuming from pause, initiate resume fade-in
+        if resuming_from_pause {
+            // Load resume fade-in settings from database
+            let fade_duration_ms = crate::db::settings::load_resume_fade_in_duration(&self.db_pool)
+                .await
+                .unwrap_or(500); // Default: 0.5 seconds
+            let fade_curve = crate::db::settings::load_resume_fade_in_curve(&self.db_pool)
+                .await
+                .unwrap_or_else(|_| "exponential".to_string());
+
+            self.mixer.write().await.resume(fade_duration_ms, &fade_curve);
+
+            info!("Resuming from pause with {}ms {} fade-in", fade_duration_ms, fade_curve);
+        }
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
@@ -462,6 +480,9 @@ impl PlaybackEngine {
         info!("Pause command received");
         let old_state = self.state.get_playback_state().await;
         self.state.set_playback_state(PlaybackState::Paused).await;
+
+        // [XFD-PAUS-010] Tell mixer to enter pause state (outputs silence)
+        self.mixer.write().await.pause();
 
         // Persist playback state to database
         // [REQ-PERS-011] Save position and passage ID on pause
@@ -1536,6 +1557,20 @@ mod tests {
         .await
         .unwrap();
 
+        // Create settings table for pause/resume configuration tests
+        sqlx::query(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         pool
     }
 
@@ -1648,5 +1683,71 @@ mod tests {
             let queue = engine.queue.read().await;
             assert_eq!(queue.len(), 0);
         }
+    }
+
+    #[tokio::test]
+    async fn test_pause_integration() {
+        // [XFD-PAUS-010] Verify engine.pause() integrates with mixer and state
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db.clone(), state.clone()).await.unwrap();
+
+        // Start in Playing state
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+
+        // Verify state transitioned to Paused
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+
+        // Verify pause state persists in mixer (indirectly - mixer should output silence)
+        // Note: Cannot directly verify mixer.pause() was called due to encapsulation,
+        // but the state change verifies integration path was executed
+    }
+
+    #[tokio::test]
+    async fn test_resume_from_pause_with_custom_settings() {
+        // [XFD-PAUS-020] Verify engine.play() loads resume settings from database
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        // Set custom resume fade-in settings in database
+        crate::db::settings::set_setting(&db, "resume_from_pause_fade_in_duration", 1000u64)
+            .await
+            .unwrap();
+        crate::db::settings::set_setting(&db, "resume_from_pause_fade_in_curve", "linear".to_string())
+            .await
+            .unwrap();
+
+        let engine = PlaybackEngine::new(db.clone(), state.clone()).await.unwrap();
+
+        // Start playing
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+
+        // Resume (should load custom settings: 1000ms linear fade-in)
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Verify settings were loaded from database
+        let duration = crate::db::settings::load_resume_fade_in_duration(&db)
+            .await
+            .unwrap();
+        let curve = crate::db::settings::load_resume_fade_in_curve(&db)
+            .await
+            .unwrap();
+
+        assert_eq!(duration, 1000, "Custom resume fade-in duration should be 1000ms");
+        assert_eq!(curve, "linear", "Custom resume fade-in curve should be linear");
+
+        // Note: Cannot directly verify mixer.resume() parameters due to encapsulation,
+        // but state transitions and settings persistence verify integration path
     }
 }

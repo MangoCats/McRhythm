@@ -343,6 +343,42 @@ pub async fn set_setting<T: ToString>(db: &Pool<Sqlite>, key: &str, value: T) ->
     Ok(())
 }
 
+/// Load resume-from-pause fade-in duration (milliseconds)
+///
+/// **[XFD-PAUS-020]** Configurable resume fade-in duration
+///
+/// # Arguments
+/// * `db` - Database connection pool
+///
+/// # Returns
+/// Fade-in duration in milliseconds (default: 500ms = 0.5 seconds)
+///
+/// **Traceability:** XFD-PAUS-020
+pub async fn load_resume_fade_in_duration(db: &Pool<Sqlite>) -> Result<u64> {
+    match get_setting::<u64>(db, "resume_from_pause_fade_in_duration").await? {
+        Some(duration) => Ok(duration),
+        None => Ok(500), // Default: 0.5 seconds
+    }
+}
+
+/// Load resume-from-pause fade-in curve
+///
+/// **[XFD-PAUS-020]** Configurable resume fade-in curve
+///
+/// # Arguments
+/// * `db` - Database connection pool
+///
+/// # Returns
+/// Fade curve name: "linear", "exponential", or "cosine" (default: "exponential")
+///
+/// **Traceability:** XFD-PAUS-020
+pub async fn load_resume_fade_in_curve(db: &Pool<Sqlite>) -> Result<String> {
+    match get_setting::<String>(db, "resume_from_pause_fade_in_curve").await? {
+        Some(curve) => Ok(curve),
+        None => Ok("exponential".to_string()), // Default: exponential curve
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -519,5 +555,71 @@ mod tests {
         save_queue_state(&db, None).await.unwrap();
         let loaded_state = load_queue_state(&db).await.unwrap();
         assert_eq!(loaded_state, None);
+    }
+
+    #[tokio::test]
+    async fn test_resume_fade_in_duration_default() {
+        // [XFD-PAUS-020] Verify default resume fade-in duration
+        let db = setup_test_db().await;
+
+        // When setting doesn't exist, should return default 500ms
+        let duration = load_resume_fade_in_duration(&db).await.unwrap();
+        assert_eq!(duration, 500, "Default resume fade-in duration should be 500ms");
+    }
+
+    #[tokio::test]
+    async fn test_resume_fade_in_duration_custom() {
+        // [XFD-PAUS-020] Verify custom resume fade-in duration persists
+        let db = setup_test_db().await;
+
+        // Set custom duration (1000ms = 1 second)
+        set_setting(&db, "resume_from_pause_fade_in_duration", 1000u64)
+            .await
+            .unwrap();
+
+        // Should load custom value
+        let duration = load_resume_fade_in_duration(&db).await.unwrap();
+        assert_eq!(duration, 1000, "Custom resume fade-in duration should persist");
+
+        // Set different custom duration (250ms)
+        set_setting(&db, "resume_from_pause_fade_in_duration", 250u64)
+            .await
+            .unwrap();
+
+        let duration = load_resume_fade_in_duration(&db).await.unwrap();
+        assert_eq!(duration, 250, "Updated resume fade-in duration should persist");
+    }
+
+    #[tokio::test]
+    async fn test_resume_fade_in_curve_default() {
+        // [XFD-PAUS-020] Verify default resume fade-in curve
+        let db = setup_test_db().await;
+
+        // When setting doesn't exist, should return default "exponential"
+        let curve = load_resume_fade_in_curve(&db).await.unwrap();
+        assert_eq!(curve, "exponential", "Default resume fade-in curve should be exponential");
+    }
+
+    #[tokio::test]
+    async fn test_resume_fade_in_curve_custom() {
+        // [XFD-PAUS-020] Verify custom resume fade-in curve persists
+        let db = setup_test_db().await;
+
+        // Set custom curve to "linear"
+        set_setting(&db, "resume_from_pause_fade_in_curve", "linear".to_string())
+            .await
+            .unwrap();
+
+        // Should load custom value
+        let curve = load_resume_fade_in_curve(&db).await.unwrap();
+        assert_eq!(curve, "linear", "Custom resume fade-in curve should persist");
+
+        // Change to exponential
+        set_setting(&db, "resume_from_pause_fade_in_curve", "exponential".to_string())
+            .await
+            .unwrap();
+
+        let curve = load_resume_fade_in_curve(&db).await.unwrap();
+        assert_eq!(curve, "exponential", "Updated resume fade-in curve should persist");
     }
 }
