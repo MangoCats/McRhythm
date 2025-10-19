@@ -6,6 +6,58 @@
 
 The concepts described herein apply primarily to the wkmp-ap Audio Player microservice.
 
+## Glossary
+
+### Core Components
+
+  **Decoder-Buffer Chain**: A complete audio processing pipeline assigned to a single passage, consisting of:
+  - **Decoder**: Reads and decompresses audio data from the source file
+  - **Resampler**: Converts audio from source sample rate to working_sample_rate (if needed)
+  - **Fade In/Out Handler**: Applies crossfade curves and discards samples outside passage boundaries
+  - **Playout Ring Buffer**: Stores processed stereo samples ready for mixing and output
+
+  **Working Sample Rate**: The standardized sample rate (default 44,100 Hz) used internally for all mixing and playback operations. All source audio not already at this rate is converted to this rate before buffering.
+
+  **Passage**: A defined segment of an audio file with specific start/end times and optional crossfade parameters.
+   Each passage gets its own dedicated decoder-buffer chain.
+
+  **Queue Position**: Location in the playback queue:
+  - **Now Playing** (position 0): Currently audible passage
+  - **Playing Next** (position 1): Next passage, may be crossfading with "now playing"
+  - **Positions 2-11** (default): Passages being pre-decoded into buffers
+  - **Positions 12+** (default): Waiting for assignment to decoder-buffer chains
+
+### Sample Terminology
+
+  **Sample**: A single audio measurement at one point in time. In this document:
+  - **Mono sample**: Single f32 value representing one channel
+  - **Stereo sample** or **(stereo) sample**: Pair of f32 values (left + right channels) = 8 bytes
+  - All buffer sizes are specified in stereo samples unless explicitly stated otherwise
+
+  **Sample-Accurate**: Timing precision measured in individual samples rather than milliseconds, ensuring exact repeatability. At 44.1kHz, one sample = ~0.0227ms precision.
+
+### Buffer Types
+
+  **Playout Ring Buffer**: Per-passage circular buffer holding decoded, resampled, fade-applied stereo samples awaiting playback (default: 15 seconds capacity per buffer).
+
+  **Output Ring Buffer**: Single system-wide circular buffer between mixer and audio output device (default: 185ms capacity). Fed by mixer combining active passage buffers.
+
+### Operating Modes
+
+  **Playing Mode**: Mixer actively consumes samples from buffers, applies volume/crossfades, and feeds output ring buffer. Passages advance through queue as they complete.
+
+  **Paused Mode**: Mixer outputs exponentially-decaying silence based on last playing sample values. No samples consumed from buffers; now playing passage remains in queue.  API queue manipulations are possible during Paused mode.
+
+### Dataflow Concepts
+
+  **Backpressure**: Flow control mechanism where full buffers signal decoders to pause until space becomes available, preventing memory overflow.
+
+  **Buffer Headroom**: Reserved capacity (default: 10ms) at the top of each playout ring buffer to accommodate resampler output after decoder pause signal.
+
+  **Decode Priority**: Ordering system ensuring passages closest to playback position receive decoding resources first. Evaluated every decode_work_period (default: 5 seconds).
+
+  **Crossfade Window**: Time period where two passages play simultaneously, with "now playing" fading out while "playing next" fades in. Mixer combines samples from both buffers during this window.
+
 ## Overview
 
 The Audio Player plays audio from source files that are encoded, often compressed.  The audio is decoded, converted to the working_sample_period when necessary, and buffered for playback as uncompressed stereo sample values.  Separate buffers are created for each [**[ENT-MP-030]**](REQ002-entity_definitions.md) passage.
