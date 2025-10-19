@@ -552,15 +552,18 @@ impl CrossfadeMixer {
     /// Check if current passage finished
     ///
     /// **[SSD-MIX-060]** Passage completion detection
+    /// **[PCF-COMP-010]** Uses is_exhausted() for race-free detection
     ///
     /// # Returns
     /// true if current passage has been fully consumed
     pub async fn is_current_finished(&self) -> bool {
         match &self.state {
             MixerState::SinglePassage { buffer, position, .. } => {
-                // Check if position >= buffer length
+                // **[PCF-COMP-010]** Use is_exhausted() for race-free completion detection
+                // Checks against cached total_frames set when decode completes,
+                // not against growing sample_count
                 if let Ok(buf) = buffer.try_read() {
-                    *position >= buf.sample_count
+                    buf.is_exhausted(*position)
                 } else {
                     false
                 }
@@ -875,6 +878,8 @@ mod tests {
     use crate::audio::types::PassageBuffer;
 
     /// Create a test buffer with sine wave samples
+    ///
+    /// **[PCF-DUR-010][PCF-COMP-010]** Test buffers are finalized (simulates completed decode)
     fn create_test_buffer(passage_id: Uuid, sample_count: usize, amplitude: f32) -> Arc<RwLock<PassageBuffer>> {
         let mut samples = Vec::with_capacity(sample_count * 2);
         for i in 0..sample_count {
@@ -883,12 +888,17 @@ mod tests {
             samples.push(value); // right
         }
 
-        Arc::new(RwLock::new(PassageBuffer::new(
+        let mut buffer = PassageBuffer::new(
             passage_id,
             samples,
             44100,
             2,
-        )))
+        );
+
+        // Finalize buffer (test buffers are complete, like a finished decode)
+        buffer.finalize();
+
+        Arc::new(RwLock::new(buffer))
     }
 
     #[tokio::test]

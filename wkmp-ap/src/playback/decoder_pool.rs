@@ -211,8 +211,10 @@ impl DecoderPool {
                 // Perform decode with incremental buffer appending
                 match Self::decode_passage(&request, buffer_handle, Arc::clone(&buffer_manager), &rt_handle) {
                     Ok(()) => {
+                        // **[PCF-DUR-010][PCF-COMP-010]** Finalize buffer (cache duration + total_frames)
                         // Mark buffer as ready (buffer already filled incrementally)
                         rt_handle.block_on(async {
+                            buffer_manager.finalize_buffer(passage_id).await;
                             buffer_manager.mark_ready(passage_id).await;
                         });
 

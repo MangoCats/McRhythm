@@ -36,6 +36,18 @@ pub struct PassageBuffer {
 
     /// Number of stereo frames (samples.len() / 2)
     pub sample_count: usize,
+
+    /// **[PCF-DUR-010]** Flag indicating if decode is complete
+    /// When true, duration is cached and won't change even if buffer grows
+    pub decode_complete: bool,
+
+    /// **[PCF-COMP-010]** Total frames when decode completes (sentinel for completion)
+    /// Set by finalize(), used for race-free exhaustion detection
+    pub total_frames: Option<usize>,
+
+    /// **[PCF-DUR-010]** Cached duration when decode completes
+    /// Prevents duration from growing after decode finishes
+    pub total_duration_ms: Option<u64>,
 }
 
 impl PassageBuffer {
@@ -49,12 +61,20 @@ impl PassageBuffer {
             sample_rate,
             channel_count,
             sample_count,
+            decode_complete: false,        // [PCF-DUR-010] Initially false, set by finalize()
+            total_frames: None,            // [PCF-COMP-010] Set when decode completes
+            total_duration_ms: None,       // [PCF-DUR-010] Cached when decode completes
         }
     }
 
     /// Get duration in milliseconds
+    ///
+    /// **[PCF-DUR-010]** After finalize() is called, returns cached duration
+    /// to prevent duration from growing as buffer is appended to.
     pub fn duration_ms(&self) -> u64 {
-        (self.sample_count as u64 * 1000) / self.sample_rate as u64
+        self.total_duration_ms.unwrap_or_else(|| {
+            (self.sample_count as u64 * 1000) / self.sample_rate as u64
+        })
     }
 
     /// Get duration in seconds
@@ -98,6 +118,46 @@ impl PassageBuffer {
     pub fn reserve_capacity(&mut self, total_frames: usize) {
         let total_samples = total_frames * self.channel_count as usize;
         self.samples.reserve(total_samples.saturating_sub(self.samples.len()));
+    }
+
+    /// Finalize buffer after decode completes
+    ///
+    /// **[PCF-DUR-010][PCF-COMP-010]** Sets the completion sentinel and caches duration.
+    /// After finalize() is called:
+    /// - `decode_complete` is true
+    /// - `total_frames` holds the final frame count
+    /// - `total_duration_ms` holds the cached duration
+    /// - `duration_ms()` will return cached value even if buffer grows
+    /// - `is_exhausted()` can accurately detect completion
+    ///
+    /// This method should be called by decoder when it reaches end of file.
+    pub fn finalize(&mut self) {
+        self.decode_complete = true;
+        self.total_frames = Some(self.sample_count);
+        self.total_duration_ms = Some(
+            (self.sample_count as u64 * 1000) / self.sample_rate as u64
+        );
+    }
+
+    /// Check if playback position has exhausted all available audio
+    ///
+    /// **[PCF-COMP-010]** Race-free completion detection using cached total_frames.
+    ///
+    /// Returns true if:
+    /// - Decode is complete (finalized) AND
+    /// - Position >= total_frames
+    ///
+    /// Returns false if decode is not yet complete (cannot be exhausted until
+    /// we know the final length).
+    ///
+    /// # Arguments
+    /// * `position` - Current playback position in frames
+    pub fn is_exhausted(&self, position: usize) -> bool {
+        if let Some(total) = self.total_frames {
+            position >= total
+        } else {
+            false
+        }
     }
 }
 
@@ -403,5 +463,134 @@ mod tests {
 
         // Out of bounds
         assert!(buffer.get_frame(3).is_none());
+    }
+
+    // --- [PCF-DUR-010] Tests for duration caching after decode completion ---
+
+    #[test]
+    fn test_duration_fixed_after_finalize() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![], 44100, 2);
+
+        // Append first chunk (500ms)
+        buffer.append_samples(vec![0.0; 88200]); // 44100 frames * 2 channels
+        assert_eq!(buffer.duration_ms(), 1000);
+
+        // Append second chunk (+500ms = 1000ms total)
+        buffer.append_samples(vec![0.0; 88200]);
+        assert_eq!(buffer.duration_ms(), 2000);  // Still growing
+
+        // Finalize decode - duration should be locked
+        buffer.finalize();
+        assert_eq!(buffer.duration_ms(), 2000);  // Locked at 2000ms
+
+        // Simulate decoder appending more (shouldn't happen, but test defensively)
+        buffer.append_samples(vec![0.0; 88200]); // Buffer grows to 3000ms of samples
+
+        // Duration should STILL be 2000ms (cached value)
+        assert_eq!(buffer.duration_ms(), 2000);
+    }
+
+    #[test]
+    fn test_finalize_sets_all_fields() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.0; 88200], 44100, 2);
+
+        // Before finalize
+        assert!(!buffer.decode_complete);
+        assert_eq!(buffer.total_frames, None);
+        assert_eq!(buffer.total_duration_ms, None);
+
+        // Finalize
+        buffer.finalize();
+
+        // After finalize
+        assert!(buffer.decode_complete);
+        assert_eq!(buffer.total_frames, Some(44100));  // 44100 stereo frames
+        assert_eq!(buffer.total_duration_ms, Some(1000));  // 1 second
+    }
+
+    // --- [PCF-COMP-010] Tests for completion detection ---
+
+    #[test]
+    fn test_is_exhausted_before_finalize() {
+        let passage_id = Uuid::new_v4();
+        let buffer = PassageBuffer::new(passage_id, vec![0.0; 88200], 44100, 2);
+
+        // Not finalized yet, cannot be exhausted
+        assert!(!buffer.is_exhausted(0));
+        assert!(!buffer.is_exhausted(44100));
+        assert!(!buffer.is_exhausted(100000));
+    }
+
+    #[test]
+    fn test_is_exhausted_after_finalize() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.0; 88200], 44100, 2);
+
+        buffer.finalize();
+        assert_eq!(buffer.total_frames, Some(44100));
+
+        // Check exhaustion at various positions
+        assert!(!buffer.is_exhausted(0));       // Position at start
+        assert!(!buffer.is_exhausted(10000));   // Position < total
+        assert!(!buffer.is_exhausted(44099));   // Position just before end
+        assert!(buffer.is_exhausted(44100));    // Position == total (exhausted)
+        assert!(buffer.is_exhausted(50000));    // Position > total (also exhausted)
+    }
+
+    #[test]
+    fn test_is_exhausted_exact_boundary() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.0; 176400], 44100, 2);  // 2 seconds
+
+        buffer.finalize();
+        assert_eq!(buffer.total_frames, Some(88200));  // 88200 stereo frames = 2 seconds
+
+        // Position one frame before end
+        assert!(!buffer.is_exhausted(88199));
+
+        // Position exactly at end
+        assert!(buffer.is_exhausted(88200));
+
+        // Position one frame past end
+        assert!(buffer.is_exhausted(88201));
+    }
+
+    #[test]
+    fn test_finalize_with_empty_buffer() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![], 44100, 2);
+
+        buffer.finalize();
+
+        assert!(buffer.decode_complete);
+        assert_eq!(buffer.total_frames, Some(0));
+        assert_eq!(buffer.total_duration_ms, Some(0));
+
+        // Empty buffer is immediately exhausted
+        assert!(buffer.is_exhausted(0));
+    }
+
+    #[test]
+    fn test_duration_uses_cached_value_after_finalize() {
+        let passage_id = Uuid::new_v4();
+        let mut buffer = PassageBuffer::new(passage_id, vec![0.0; 88200], 44100, 2);
+
+        // Before finalize: calculated from current buffer
+        let duration_before = buffer.duration_ms();
+        assert_eq!(duration_before, 1000);
+
+        // Finalize
+        buffer.finalize();
+        let duration_after = buffer.duration_ms();
+        assert_eq!(duration_after, 1000);
+
+        // Manually corrupt sample_count (simulate race condition)
+        // This would normally cause duration to change, but cached value should be used
+        buffer.sample_count = 88200; // Double the frames
+
+        // Duration should STILL be 1000ms (using cached value, not recalculating)
+        assert_eq!(buffer.duration_ms(), 1000);
     }
 }

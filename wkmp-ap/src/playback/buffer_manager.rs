@@ -92,12 +92,19 @@ impl BufferManager {
 
         // **[PERF-FIRST-010]** First-passage optimization: Use 500ms for instant startup
         let configured_threshold = *self.min_buffer_threshold_ms.read().await;
-        let is_first_passage = !self.ever_played.load(Ordering::Relaxed);
+        let ever_played_value = self.ever_played.load(Ordering::Relaxed);
+        let is_first_passage = !ever_played_value;
         let threshold_ms = if is_first_passage {
             500.min(configured_threshold) // Use 500ms or configured, whichever is smaller
         } else {
             configured_threshold
         };
+
+        // [DIAGNOSTIC] Log threshold calculation
+        debug!(
+            "🔍 check_and_notify_ready({}): ever_played={}, is_first_passage={}, configured={}ms, threshold={}ms",
+            queue_entry_id, ever_played_value, is_first_passage, configured_threshold, threshold_ms
+        );
 
         // Check if we should notify
         let should_notify = {
@@ -268,13 +275,22 @@ impl BufferManager {
     /// [SSD-BUF-020] Buffer state: Ready → Playing
     /// **[PERF-FIRST-010]** Mark that we've played at least one passage
     pub async fn mark_playing(&self, passage_id: Uuid) {
+        use tracing::debug;
+
         let mut buffers = self.buffers.write().await;
 
         if let Some(managed) = buffers.get_mut(&passage_id) {
             managed.status = BufferStatus::Playing;
 
             // **[PERF-FIRST-010]** Mark that we've started playback at least once
+            let was_played_before = self.ever_played.load(Ordering::Relaxed);
             self.ever_played.store(true, Ordering::Relaxed);
+
+            // [DIAGNOSTIC] Log when ever_played flag is set
+            debug!(
+                "🎵 mark_playing({}): Setting ever_played from {} to true",
+                passage_id, was_played_before
+            );
         }
     }
 
@@ -287,6 +303,29 @@ impl BufferManager {
 
         if let Some(managed) = buffers.get_mut(&passage_id) {
             managed.status = BufferStatus::Exhausted;
+        }
+    }
+
+    /// Finalize buffer after decode completes
+    ///
+    /// **[PCF-DUR-010][PCF-COMP-010]** Caches duration and sets completion sentinel.
+    /// This method should be called by the decoder when it reaches end-of-file.
+    ///
+    /// After finalization:
+    /// - `buffer.duration_ms()` returns cached value (won't grow)
+    /// - `buffer.is_exhausted(position)` can accurately detect completion
+    /// - Duration display in UI remains stable
+    pub async fn finalize_buffer(&self, passage_id: Uuid) {
+        // Get buffer handle
+        let buffer_arc = {
+            let buffers = self.buffers.read().await;
+            buffers.get(&passage_id).map(|m| Arc::clone(&m.buffer))
+        };
+
+        // Finalize the buffer (cache duration and total_frames)
+        if let Some(buffer_arc) = buffer_arc {
+            let mut buffer = buffer_arc.write().await;
+            buffer.finalize();
         }
     }
 
@@ -1244,6 +1283,87 @@ mod tests {
         }
 
         assert_eq!(event_count, 20, "Should receive 20 ReadyForStart events");
+    }
+
+    /// **[PCF-DUR-010][PCF-COMP-010]** Test finalize_buffer() caches duration and completion metadata
+    #[tokio::test]
+    async fn test_finalize_buffer() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append some samples (2 seconds)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 176400]); // 88200 frames = 2 seconds
+        }
+
+        // Before finalize: duration calculated from sample_count
+        {
+            let buffer = buffer_handle.read().await;
+            assert_eq!(buffer.duration_ms(), 2000);
+            assert!(!buffer.decode_complete);
+            assert_eq!(buffer.total_frames, None);
+            assert_eq!(buffer.total_duration_ms, None);
+        }
+
+        // Finalize the buffer (decode complete)
+        manager.finalize_buffer(passage_id).await;
+
+        // After finalize: metadata is cached
+        {
+            let buffer = buffer_handle.read().await;
+            assert!(buffer.decode_complete);
+            assert_eq!(buffer.total_frames, Some(88200));
+            assert_eq!(buffer.total_duration_ms, Some(2000));
+            assert_eq!(buffer.duration_ms(), 2000); // Uses cached value
+        }
+
+        // Append more samples (defensive test - shouldn't happen in practice)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]); // +1 second
+        }
+
+        // Duration should still be 2000ms (cached, not recalculated)
+        {
+            let buffer = buffer_handle.read().await;
+            assert_eq!(buffer.duration_ms(), 2000); // Still 2000ms, not 3000ms!
+        }
+    }
+
+    /// **[PCF-COMP-010]** Test is_exhausted() detection after finalize
+    #[tokio::test]
+    async fn test_buffer_exhaustion_detection() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append 1 second of audio
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]); // 44100 frames = 1 second
+        }
+
+        // Before finalize: cannot be exhausted
+        {
+            let buffer = buffer_handle.read().await;
+            assert!(!buffer.is_exhausted(0));
+            assert!(!buffer.is_exhausted(44100)); // Position at end
+            assert!(!buffer.is_exhausted(100000)); // Position past end
+        }
+
+        // Finalize the buffer
+        manager.finalize_buffer(passage_id).await;
+
+        // After finalize: can detect exhaustion
+        {
+            let buffer = buffer_handle.read().await;
+            assert!(!buffer.is_exhausted(0));      // Position at start
+            assert!(!buffer.is_exhausted(44099));  // Just before end
+            assert!(buffer.is_exhausted(44100));   // At end (exhausted)
+            assert!(buffer.is_exhausted(50000));   // Past end (exhausted)
+        }
     }
 
     /// Test handling large buffer (60 seconds of audio)
