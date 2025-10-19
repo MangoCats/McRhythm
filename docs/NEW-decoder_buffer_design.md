@@ -98,6 +98,7 @@ graph LR
     
     style DecoderDots fill:none,stroke:none
     style ResamplerDots fill:none,stroke:none
+    style FadeDots fill:none,stroke:none
     style BufferDots fill:none,stroke:none
 ```
 The system allocates maximum_decode_streams decoder-buffer chains.  Each chain is assigned 1:1 to a passage in the queue, when the passage is less than maximum_decode_streams or less from the first position in the queue.
