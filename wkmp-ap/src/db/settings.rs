@@ -246,6 +246,39 @@ pub struct MixerThreadConfig {
     pub batch_size_optimal: usize,
 }
 
+/// Load minimum buffer threshold for instant playback start
+///
+/// **[PERF-START-010]** Configurable minimum buffer threshold
+///
+/// # Returns
+/// Minimum buffer duration in milliseconds before starting playback
+/// Default: 3000ms (3 seconds) - Conservative for Raspberry Pi Zero2W
+/// Range: 500-5000ms (0.5-5 seconds)
+pub async fn load_minimum_buffer_threshold(db: &Pool<Sqlite>) -> Result<u64> {
+    match get_setting::<u64>(db, "minimum_buffer_threshold_ms").await? {
+        Some(threshold) => {
+            // Clamp to valid range: 500-5000ms
+            // Too low = risk of underruns, too high = slow startup
+            Ok(threshold.clamp(500, 5000))
+        }
+        None => {
+            // Default: 3000ms (3 seconds) - Conservative for target hardware
+            Ok(3000)
+        }
+    }
+}
+
+/// Set minimum buffer threshold
+///
+/// **[PERF-START-010]** Configure minimum buffer for playback start
+///
+/// # Arguments
+/// * `threshold_ms` - Minimum buffer duration in milliseconds (will be clamped to 500-5000)
+pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) -> Result<()> {
+    let clamped = threshold_ms.clamp(500, 5000);
+    set_setting(db, "minimum_buffer_threshold_ms", clamped).await
+}
+
 /// Load mixer thread configuration from settings table
 ///
 /// **[SSD-MIX-020]** Mixer thread parameters

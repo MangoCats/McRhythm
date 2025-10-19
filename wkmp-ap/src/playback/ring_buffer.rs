@@ -371,4 +371,100 @@ mod tests {
         assert!(prod.is_fill_optimal());
         assert!(!prod.needs_frames());
     }
+
+    /// Test grace period timestamp tracking
+    /// [SSD-RBUF-014] Grace period calculation
+    #[test]
+    fn test_grace_period_timestamp_tracking() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let audio_expected = Arc::new(AtomicBool::new(true));
+        let grace_period_ms = 2000;
+        let rb = AudioRingBuffer::new(Some(100), grace_period_ms, audio_expected);
+        let (mut prod, _cons) = rb.split();
+
+        // Initially, buffer_filled_timestamp should be 0
+        assert_eq!(prod.buffer_filled_timestamp_ms.load(Ordering::Relaxed), 0);
+
+        // Fill buffer to optimal level (50-75%)
+        for _ in 0..60 {
+            prod.push(AudioFrame::zero());
+        }
+
+        // After reaching optimal fill, timestamp should be set
+        let timestamp = prod.buffer_filled_timestamp_ms.load(Ordering::Relaxed);
+        assert!(timestamp > 0, "Buffer filled timestamp should be set after reaching optimal fill");
+
+        // Verify timestamp is recent (within last 10 seconds)
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        assert!(now_ms - timestamp < 10000, "Timestamp should be recent");
+    }
+
+    /// Test underrun behavior when audio_expected=false
+    /// [SSD-RBUF-014] audio_expected flag interaction (paused/idle case)
+    #[test]
+    fn test_underrun_with_audio_not_expected() {
+        let audio_expected = Arc::new(AtomicBool::new(false));
+        let rb = AudioRingBuffer::new(Some(100), 2000, Arc::clone(&audio_expected));
+        let (mut prod, mut cons) = rb.split();
+
+        // Fill buffer to optimal
+        for _ in 0..60 {
+            prod.push(AudioFrame::zero());
+        }
+
+        // Drain buffer completely
+        while cons.pop().is_some() {}
+
+        // Verify underrun counter incremented
+        let underrun_count = cons.underruns.load(Ordering::Relaxed);
+        assert!(underrun_count > 0, "Underrun counter should increment");
+
+        // When audio_expected=false, underruns should be logged at TRACE level
+        // (This is expected behavior for paused/idle state - no warning should be emitted)
+        // Note: We can't assert log level in unit tests, but this verifies the flag is accessible
+        assert!(!audio_expected.load(Ordering::Acquire), "audio_expected should be false");
+    }
+
+    /// Test underrun behavior when audio_expected=true
+    /// [SSD-RBUF-014] Grace period behavior during active playback
+    #[test]
+    fn test_underrun_with_audio_expected_and_grace_period() {
+        let audio_expected = Arc::new(AtomicBool::new(true));
+        let grace_period_ms = 2000;
+        let rb = AudioRingBuffer::new(Some(100), grace_period_ms, Arc::clone(&audio_expected));
+        let (mut prod, mut cons) = rb.split();
+
+        // Set audio_expected to true (simulating active playback)
+        audio_expected.store(true, Ordering::Release);
+
+        // Fill buffer to optimal (this sets buffer_filled_timestamp)
+        for _ in 0..60 {
+            prod.push(AudioFrame::zero());
+        }
+
+        // Verify timestamp is set
+        let filled_timestamp = cons.buffer_filled_timestamp_ms.load(Ordering::Relaxed);
+        assert!(filled_timestamp > 0, "Timestamp should be set after filling");
+
+        // Drain buffer completely to trigger underrun
+        while cons.pop().is_some() {}
+
+        // Verify underrun occurred
+        let underrun_count = cons.underruns.load(Ordering::Relaxed);
+        assert!(underrun_count > 0, "Underrun should be detected");
+
+        // When audio_expected=true AND within grace period:
+        // - Underrun is logged at TRACE level (expected during startup stabilization)
+        // When audio_expected=true AND past grace period:
+        // - Underrun is logged at WARN level (concerning - CPU can't keep up)
+        //
+        // Note: Actual log level depends on timing. This test verifies the flag
+        // and timestamp infrastructure are in place for the grace period logic.
+        assert!(audio_expected.load(Ordering::Acquire), "audio_expected should be true");
+    }
 }

@@ -18,7 +18,7 @@ use crate::playback::pipeline::mixer::CrossfadeMixer;
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
 use crate::playback::ring_buffer::AudioRingBuffer;
 use crate::playback::song_timeline::SongTimeline;
-use crate::playback::types::DecodePriority;
+use crate::playback::types::{BufferEvent, DecodePriority};
 use crate::state::{CurrentPassage, PlaybackState, SharedState};
 use sqlx::{Pool, Sqlite};
 use std::path::PathBuf;
@@ -116,6 +116,11 @@ pub struct PlaybackEngine {
     /// Set to false when Paused or queue is empty
     /// Shared with audio ring buffer consumer for context-aware logging
     audio_expected: Arc<AtomicBool>,
+
+    /// Buffer event channel receiver for instant mixer start
+    /// **[PERF-POLL-010]** Event-driven buffer readiness
+    /// Receives ReadyForStart events when buffers reach minimum threshold
+    buffer_event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<BufferEvent>>>>,
 }
 
 impl PlaybackEngine {
@@ -124,15 +129,46 @@ impl PlaybackEngine {
     /// [SSD-FLOW-010] Initialize all components
     /// **[REV002]** Configure event-driven position tracking
     pub async fn new(db_pool: Pool<Sqlite>, state: Arc<SharedState>) -> Result<Self> {
+        use std::time::Instant;
+        let engine_start = Instant::now();
         info!("Creating playback engine");
 
-        // **[ARCH-VOL-020]** Load initial volume from database
-        let initial_volume = crate::db::settings::get_volume(&db_pool).await?;
+        // **[PERF-INIT-010]** Parallel database queries for faster initialization
+        let db_start = Instant::now();
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config) = tokio::join!(
+            crate::db::settings::get_volume(&db_pool),
+            crate::db::settings::load_minimum_buffer_threshold(&db_pool),
+            crate::db::settings::load_position_event_interval(&db_pool),
+            crate::db::settings::load_ring_buffer_grace_period(&db_pool),
+            crate::db::settings::load_mixer_thread_config(&db_pool),
+        );
+        let db_elapsed = db_start.elapsed();
+
+        let initial_volume = initial_volume?;
+        let min_buffer_threshold = min_buffer_threshold?;
+        let interval_ms = interval_ms?;
+        let _grace_period_ms = grace_period_ms?;  // Loaded in parallel for performance
+        let _mixer_config = mixer_config?;  // Loaded in parallel for performance
+
+        info!(
+            "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
+            db_elapsed.as_secs_f64() * 1000.0,
+            initial_volume,
+            min_buffer_threshold,
+            interval_ms
+        );
+
         let volume = Arc::new(Mutex::new(initial_volume));
-        info!("Initial volume loaded from database: {:.2}", initial_volume);
+
+        // **[PERF-POLL-010]** Create buffer event channel for instant mixer start
+        let (buffer_event_tx, buffer_event_rx) = mpsc::unbounded_channel();
 
         // Create buffer manager
         let buffer_manager = Arc::new(BufferManager::new());
+
+        // **[PERF-POLL-010]** Configure buffer manager with event channel and threshold
+        buffer_manager.set_event_channel(buffer_event_tx).await;
+        buffer_manager.set_min_buffer_threshold(min_buffer_threshold).await;
 
         // Create decoder pool
         let decoder_pool = DecoderPool::new(Arc::clone(&buffer_manager));
@@ -147,10 +183,7 @@ impl PlaybackEngine {
         // **[REV002]** Configure mixer with event channel
         mixer.set_event_channel(position_event_tx.clone());
 
-        // **[REV002]** Load position_event_interval_ms from database
-        let interval_ms = crate::db::settings::load_position_event_interval(&db_pool)
-            .await
-            .unwrap_or(1000); // Default: 1 second
+        // **[REV002]** Use already-loaded position_event_interval_ms
         mixer.set_position_event_interval_ms(interval_ms);
 
         // **[SSD-UND-010]** Configure mixer with buffer manager for underrun detection
@@ -159,8 +192,20 @@ impl PlaybackEngine {
         let mixer = Arc::new(RwLock::new(mixer));
 
         // Load queue from database
+        let queue_start = Instant::now();
         let queue_manager = QueueManager::load_from_db(&db_pool).await?;
-        info!("Loaded queue: {} entries", queue_manager.len());
+        let queue_elapsed = queue_start.elapsed();
+        info!(
+            "Queue loaded in {:.2}ms: {} entries",
+            queue_elapsed.as_secs_f64() * 1000.0,
+            queue_manager.len()
+        );
+
+        let total_elapsed = engine_start.elapsed();
+        info!(
+            "✅ Playback engine created in {:.2}ms",
+            total_elapsed.as_secs_f64() * 1000.0
+        );
 
         Ok(Self {
             db_pool,
@@ -176,6 +221,7 @@ impl PlaybackEngine {
             position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
             current_song_timeline: Arc::new(RwLock::new(None)),
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
+            buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
         })
     }
 
@@ -184,6 +230,7 @@ impl PlaybackEngine {
     /// [SSD-FLOW-010] Begin processing queue and managing buffers
     /// [ISSUE-1] Lock-free audio callback using ring buffer
     pub async fn start(&self) -> Result<()> {
+        use std::time::Instant;
         info!("Starting playback engine");
 
         // Mark as running
@@ -203,26 +250,33 @@ impl PlaybackEngine {
             self_clone.position_event_handler().await;
         });
 
+        // **[PERF-POLL-010]** Start buffer event handler for instant mixer start
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.buffer_event_handler().await;
+        });
+
         // Create lock-free ring buffer for audio frames
         // [SSD-OUT-012] Real-time audio callback requires lock-free operation
         // [ISSUE-1] Replaces try_write() pattern with lock-free ring buffer
         // [SSD-RBUF-014] Load grace period from database settings
         info!("Creating lock-free audio ring buffer");
+        let rb_start = Instant::now();
         let grace_period_ms = crate::db::settings::load_ring_buffer_grace_period(&self.db_pool).await?;
+        let mixer_config = crate::db::settings::load_mixer_thread_config(&self.db_pool).await?;
         let ring_buffer = AudioRingBuffer::new(None, grace_period_ms, Arc::clone(&self.audio_expected)); // Use default size (2048 frames = ~46ms @ 44.1kHz)
         let (mut producer, mut consumer) = ring_buffer.split();
+        let rb_elapsed = rb_start.elapsed();
+
+        info!(
+            "⚡ Ring buffer created in {:.2}ms (grace_period={}ms, check_interval={}μs)",
+            rb_elapsed.as_secs_f64() * 1000.0,
+            grace_period_ms,
+            mixer_config.check_interval_us
+        );
 
         // Set initial audio_expected flag based on current state
         self.update_audio_expected_flag().await;
-
-        // [SSD-MIX-020] Load mixer thread configuration from database
-        let mixer_config = crate::db::settings::load_mixer_thread_config(&self.db_pool).await?;
-        info!(
-            "Mixer thread config: check_interval={}μs, batch_low={}, batch_optimal={}",
-            mixer_config.check_interval_us,
-            mixer_config.batch_size_low,
-            mixer_config.batch_size_optimal
-        );
 
         // Start mixer thread that fills the ring buffer
         // This thread continuously calls mixer.get_next_frame() and pushes to ring buffer
@@ -1543,6 +1597,157 @@ impl PlaybackEngine {
             position_event_rx: Arc::clone(&self.position_event_rx), // **[REV002]** Clone receiver
             current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
             audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
+            buffer_event_rx: Arc::clone(&self.buffer_event_rx), // **[PERF-POLL-010]** Clone buffer event receiver
+        }
+    }
+
+    /// Buffer event handler for instant mixer start
+    ///
+    /// **[PERF-POLL-010]** Event-driven buffer readiness
+    ///
+    /// Listens for ReadyForStart events from BufferManager and immediately
+    /// starts the mixer when a buffer reaches the minimum threshold.
+    /// This replaces the polling loop that checked has_minimum_playback_buffer().
+    async fn buffer_event_handler(&self) {
+        use std::time::Instant;
+
+        // Take ownership of receiver (only one handler allowed)
+        let mut rx = match self.buffer_event_rx.write().await.take() {
+            Some(rx) => rx,
+            None => {
+                error!("Buffer event receiver already taken!");
+                return;
+            }
+        };
+
+        info!("Buffer event handler started (event-driven mixer start)");
+
+        loop {
+            // Wait for buffer event
+            match rx.recv().await {
+                Some(BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms }) => {
+                    let start_time = Instant::now();
+
+                    info!(
+                        "🚀 Buffer ready event received: {} ({}ms available)",
+                        queue_entry_id, buffer_duration_ms
+                    );
+
+                    // Check if this is the current passage in queue
+                    let queue = self.queue.read().await;
+                    let is_current = queue.current().map(|c| c.queue_entry_id) == Some(queue_entry_id);
+
+                    if !is_current {
+                        debug!(
+                            "Buffer ready for {} but not current passage, ignoring",
+                            queue_entry_id
+                        );
+                        continue;
+                    }
+
+                    let current = match queue.current() {
+                        Some(c) => c.clone(),
+                        None => continue,
+                    };
+                    drop(queue);
+
+                    // Check if mixer is already playing
+                    let mixer = self.mixer.read().await;
+                    let mixer_idle = mixer.get_current_passage_id().is_none();
+                    drop(mixer);
+
+                    if !mixer_idle {
+                        debug!("Mixer already playing, ignoring ready event for {}", queue_entry_id);
+                        continue;
+                    }
+
+                    // Get buffer from buffer manager
+                    let buffer = match self.buffer_manager.get_buffer(queue_entry_id).await {
+                        Some(buf) => buf,
+                        None => {
+                            warn!("Buffer ready event but buffer not found: {}", queue_entry_id);
+                            continue;
+                        }
+                    };
+
+                    // Get passage timing information
+                    let passage = match self.get_passage_timing(&current).await {
+                        Ok(p) => p,
+                        Err(e) => {
+                            error!("Failed to get passage timing: {}", e);
+                            continue;
+                        }
+                    };
+
+                    // **[REV002]** Load song timeline for passage
+                    if let Some(passage_id) = current.passage_id {
+                        match crate::db::passage_songs::load_song_timeline(&self.db_pool, passage_id).await {
+                            Ok(timeline) => {
+                                let initial_song_id = timeline.get_current_song(0);
+                                *self.current_song_timeline.write().await = Some(timeline);
+
+                                if initial_song_id.is_some() {
+                                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
+                                        passage_id,
+                                        song_id: initial_song_id,
+                                        position_ms: 0,
+                                        timestamp: chrono::Utc::now(),
+                                    });
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Failed to load song timeline: {}", e);
+                                *self.current_song_timeline.write().await = None;
+                            }
+                        }
+                    }
+
+                    // Calculate fade-in duration
+                    let fade_in_duration_ms = passage.fade_in_point_ms.saturating_sub(passage.start_time_ms) as u32;
+
+                    // Determine fade-in curve
+                    let fade_in_curve = current.fade_in_curve.as_ref()
+                        .and_then(|s| wkmp_common::FadeCurve::from_str(s))
+                        .unwrap_or(wkmp_common::FadeCurve::Exponential);
+
+                    info!(
+                        "⚡ Starting playback instantly (buffer ready): passage={}, fade_in={}ms",
+                        current.passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                        fade_in_duration_ms
+                    );
+
+                    // Start mixer immediately
+                    self.mixer.write().await.start_passage(
+                        buffer,
+                        queue_entry_id,
+                        Some(fade_in_curve),
+                        fade_in_duration_ms,
+                    ).await;
+
+                    // Mark buffer as playing
+                    self.buffer_manager.mark_playing(queue_entry_id).await;
+
+                    // Update position tracking
+                    *self.position.queue_entry_id.write().await = Some(queue_entry_id);
+
+                    // Emit PassageStarted event
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
+                        passage_id: current.passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                        timestamp: chrono::Utc::now(),
+                    });
+
+                    let elapsed = start_time.elapsed();
+                    info!(
+                        "✅ Mixer started in {:.2}ms (event-driven instant start)",
+                        elapsed.as_secs_f64() * 1000.0
+                    );
+                }
+
+                None => {
+                    info!("Buffer event handler stopping (channel closed)");
+                    break;
+                }
+            }
         }
     }
 }

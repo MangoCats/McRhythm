@@ -355,6 +355,12 @@ impl DecoderPool {
                 buffer.append_samples(chunk);
             });
 
+            // **[PERF-POLL-010]** Notify buffer manager after appending
+            // This triggers ReadyForStart event when threshold is reached
+            rt_handle.block_on(async {
+                buffer_manager.notify_samples_appended(passage_id).await;
+            });
+
             // Update progress
             let progress = ((chunk_idx + 1) * 100 / total_chunks).min(100) as u8;
             if progress % 10 == 0 || progress == 100 {

@@ -7,12 +7,15 @@
 //! - [SSD-FBUF-010] Full decode strategy
 //! - [SSD-PBUF-010] Partial buffer strategy (15 seconds)
 //! - [SSD-BUF-020] Buffer state tracking
+//! - [PERF-POLL-010] Event-driven buffer readiness notification
 
 use crate::audio::types::{BufferStatus, PassageBuffer};
+use crate::playback::types::BufferEvent;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
 
 /// Wrapper for buffer with metadata
@@ -25,6 +28,10 @@ struct ManagedBuffer {
 
     /// When decode started
     decode_started: Instant,
+
+    /// Whether we've already sent ReadyForStart notification for this buffer
+    /// **[PERF-POLL-010]** Prevent duplicate notifications
+    ready_notified: bool,
 }
 
 /// Manages passage buffers
@@ -32,9 +39,22 @@ struct ManagedBuffer {
 /// [SSD-BUF-010] Buffer management strategy:
 /// - Full decode for current and next passages
 /// - Partial decode (15 seconds) for queued passages
+/// **[PERF-POLL-010]** Event-driven buffer readiness notification
 pub struct BufferManager {
     /// Map of passage_id -> managed buffer
     buffers: Arc<RwLock<HashMap<Uuid, ManagedBuffer>>>,
+
+    /// Optional channel for buffer events (ReadyForStart notifications)
+    /// **[PERF-POLL-010]** Enable event-driven playback start
+    event_tx: Arc<RwLock<Option<mpsc::UnboundedSender<BufferEvent>>>>,
+
+    /// Minimum buffer threshold in milliseconds
+    /// **[PERF-START-010]** Configurable minimum buffer for instant startup
+    min_buffer_threshold_ms: Arc<RwLock<u64>>,
+
+    /// Whether any passage has ever been played (for first-passage optimization)
+    /// **[PERF-FIRST-010]** Use smaller buffer for first passage only
+    ever_played: Arc<AtomicBool>,
 }
 
 impl BufferManager {
@@ -42,6 +62,96 @@ impl BufferManager {
     pub fn new() -> Self {
         Self {
             buffers: Arc::new(RwLock::new(HashMap::new())),
+            event_tx: Arc::new(RwLock::new(None)),
+            min_buffer_threshold_ms: Arc::new(RwLock::new(3000)), // Default: 3 seconds
+            ever_played: Arc::new(AtomicBool::new(false)), // **[PERF-FIRST-010]** Track first passage
+        }
+    }
+
+    /// Set buffer event channel for ReadyForStart notifications
+    ///
+    /// **[PERF-POLL-010]** Enable event-driven playback start
+    pub async fn set_event_channel(&self, tx: mpsc::UnboundedSender<BufferEvent>) {
+        *self.event_tx.write().await = Some(tx);
+    }
+
+    /// Set minimum buffer threshold
+    ///
+    /// **[PERF-START-010]** Configurable minimum buffer
+    pub async fn set_min_buffer_threshold(&self, threshold_ms: u64) {
+        *self.min_buffer_threshold_ms.write().await = threshold_ms;
+    }
+
+    /// Check if buffer should notify readiness and send event if needed
+    ///
+    /// **[PERF-POLL-010]** Event-driven buffer readiness
+    /// **[PERF-FIRST-010]** Use 500ms threshold for first passage, then normal threshold
+    /// Called after appending samples to check if threshold is reached
+    async fn check_and_notify_ready(&self, queue_entry_id: Uuid) {
+        use tracing::{debug, info};
+
+        // **[PERF-FIRST-010]** First-passage optimization: Use 500ms for instant startup
+        let configured_threshold = *self.min_buffer_threshold_ms.read().await;
+        let is_first_passage = !self.ever_played.load(Ordering::Relaxed);
+        let threshold_ms = if is_first_passage {
+            500.min(configured_threshold) // Use 500ms or configured, whichever is smaller
+        } else {
+            configured_threshold
+        };
+
+        // Check if we should notify
+        let should_notify = {
+            let mut buffers = self.buffers.write().await;
+
+            if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+                // Only notify if not already notified
+                if !managed.ready_notified {
+                    // Get buffer duration
+                    let buffer_duration_ms = {
+                        let buf = managed.buffer.read().await;
+                        buf.duration_ms()
+                    };
+
+                    if buffer_duration_ms >= threshold_ms {
+                        // Mark as notified to prevent duplicate events
+                        managed.ready_notified = true;
+                        Some(buffer_duration_ms)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        // Send notification if threshold reached
+        if let Some(buffer_duration_ms) = should_notify {
+            let event_tx = self.event_tx.read().await;
+            if let Some(ref tx) = *event_tx {
+                let event = BufferEvent::ReadyForStart {
+                    queue_entry_id,
+                    buffer_duration_ms,
+                };
+
+                if let Err(e) = tx.send(event) {
+                    debug!("Failed to send ReadyForStart event: {}", e);
+                } else {
+                    if is_first_passage {
+                        info!(
+                            "🚀 FIRST PASSAGE ready for instant playback: {} ({}ms >= {}ms threshold) [FAST START]",
+                            queue_entry_id, buffer_duration_ms, threshold_ms
+                        );
+                    } else {
+                        info!(
+                            "⚡ Buffer ready for playback: {} ({}ms >= {}ms threshold)",
+                            queue_entry_id, buffer_duration_ms, threshold_ms
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -75,6 +185,7 @@ impl BufferManager {
                     buffer: Arc::clone(&buffer_arc),
                     status: BufferStatus::Decoding { progress_percent: 0 },
                     decode_started: Instant::now(),
+                    ready_notified: false, // [PERF-POLL-010] Not notified yet
                 },
             );
 
@@ -96,6 +207,14 @@ impl BufferManager {
         if let Some(managed) = buffers.get_mut(&passage_id) {
             managed.status = BufferStatus::Decoding { progress_percent };
         }
+    }
+
+    /// Notify after samples appended (check readiness threshold)
+    ///
+    /// **[PERF-POLL-010]** Check buffer threshold and send event if ready
+    /// Called by decoder after appending each chunk to check if threshold reached
+    pub async fn notify_samples_appended(&self, queue_entry_id: Uuid) {
+        self.check_and_notify_ready(queue_entry_id).await;
     }
 
     /// Mark buffer as ready
@@ -147,11 +266,15 @@ impl BufferManager {
     ///
     /// Called when mixer starts reading buffer.
     /// [SSD-BUF-020] Buffer state: Ready → Playing
+    /// **[PERF-FIRST-010]** Mark that we've played at least one passage
     pub async fn mark_playing(&self, passage_id: Uuid) {
         let mut buffers = self.buffers.write().await;
 
         if let Some(managed) = buffers.get_mut(&passage_id) {
             managed.status = BufferStatus::Playing;
+
+            // **[PERF-FIRST-010]** Mark that we've started playback at least once
+            self.ever_played.store(true, Ordering::Relaxed);
         }
     }
 
@@ -544,5 +667,615 @@ mod tests {
             assert_eq!(buffer.sample_count, 1);
             assert_eq!(buffer.samples[0], 0.1);
         }
+    }
+
+    // ============================================================================
+    // Phase 1: Event-Driven Notification Tests [PERF-POLL-010]
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_event_channel_setup() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+
+        let manager = BufferManager::new();
+        let (tx, _rx) = mpsc::unbounded_channel();
+
+        // Should succeed
+        manager.set_event_channel(tx).await;
+
+        // Manager should now have event channel configured
+        let event_tx = manager.event_tx.read().await;
+        assert!(event_tx.is_some(), "Event channel should be configured");
+    }
+
+    #[tokio::test]
+    async fn test_buffer_ready_event_emission() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(3000).await;
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append 3+ seconds of audio (264600 samples = 3s @ 44.1kHz stereo)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 264600]);
+        }
+
+        // Trigger notification
+        manager.notify_samples_appended(passage_id).await;
+
+        // Verify ReadyForStart event emitted
+        let event = tokio::time::timeout(Duration::from_millis(100), rx.recv())
+            .await
+            .expect("Should receive event within timeout")
+            .expect("Channel should not be closed");
+
+        match event {
+            BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms } => {
+                assert_eq!(queue_entry_id, passage_id);
+                assert!(buffer_duration_ms >= 3000, "Buffer should have 3000ms+, got {}ms", buffer_duration_ms);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_buffer_ready_event_with_threshold() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(2000).await; // 2 second threshold
+
+        // Register and mark a dummy passage as playing to disable first-passage optimization
+        let dummy_id = Uuid::new_v4();
+        let _dummy_handle = manager.register_decoding(dummy_id).await;
+        manager.mark_playing(dummy_id).await;
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append 1.9 seconds (below threshold)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 167580]); // 1.9s @ 44.1kHz stereo
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        // No event yet (below threshold)
+        tokio::time::timeout(Duration::from_millis(50), rx.recv())
+            .await
+            .expect_err("Should timeout - buffer below threshold");
+
+        // Append +200ms (total 2.1s, above threshold)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 17640]); // +200ms
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        // Event should be emitted
+        let event = tokio::time::timeout(Duration::from_millis(100), rx.recv())
+            .await
+            .expect("Should receive event")
+            .expect("Channel should not be closed");
+
+        match event {
+            BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms } => {
+                assert_eq!(queue_entry_id, passage_id);
+                assert!(buffer_duration_ms >= 2000, "Buffer should have 2000ms+");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_event_deduplication() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(1000).await;
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append 1+ second
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]); // 1s
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        // First event should be emitted
+        let _event = rx.recv().await.expect("Should receive first event");
+
+        // Append more samples
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]); // +1s = 2s total
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        // Should NOT emit duplicate event
+        tokio::time::timeout(Duration::from_millis(50), rx.recv())
+            .await
+            .expect_err("Should not emit duplicate ReadyForStart event");
+    }
+
+    #[tokio::test]
+    async fn test_event_channel_failure_handling() {
+        use tokio::sync::mpsc;
+
+        let manager = BufferManager::new();
+        let (tx, rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(1000).await;
+
+        // Drop receiver to simulate channel failure
+        drop(rx);
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append samples
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]); // 1s
+        }
+
+        // Should not panic when channel is closed
+        manager.notify_samples_appended(passage_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_notify_samples_appended_without_event_channel() {
+        let manager = BufferManager::new();
+        manager.set_min_buffer_threshold(1000).await;
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 88200]);
+        }
+
+        // Should not panic when event channel is not configured
+        manager.notify_samples_appended(passage_id).await;
+    }
+
+    // ============================================================================
+    // Phase 1: First-Passage Optimization Tests [PERF-FIRST-010]
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_first_passage_uses_500ms_threshold() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(3000).await; // Normal threshold = 3000ms
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append exactly 500ms of audio
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 44100]); // 500ms @ 44.1kHz stereo
+        }
+
+        manager.notify_samples_appended(passage_id).await;
+
+        // First passage should trigger at 500ms (not 3000ms)
+        let event = tokio::time::timeout(Duration::from_millis(100), rx.recv())
+            .await
+            .expect("Should receive event within timeout")
+            .expect("Channel should not be closed");
+
+        match event {
+            BufferEvent::ReadyForStart { buffer_duration_ms, .. } => {
+                assert!(buffer_duration_ms >= 500, "First passage should trigger at 500ms");
+                assert!(buffer_duration_ms < 1000, "First passage triggered at {}ms", buffer_duration_ms);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_subsequent_passage_uses_configured_threshold() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(3000).await;
+
+        // First passage - should use 500ms
+        let passage1 = Uuid::new_v4();
+        let handle1 = manager.register_decoding(passage1).await;
+        {
+            let mut buffer = handle1.write().await;
+            buffer.append_samples(vec![0.0; 44100]); // 500ms
+        }
+        manager.notify_samples_appended(passage1).await;
+        let _event = rx.recv().await.expect("First passage should emit at 500ms");
+
+        // Mark as playing (sets ever_played flag)
+        manager.mark_playing(passage1).await;
+
+        // Second passage - should use 3000ms
+        let passage2 = Uuid::new_v4();
+        let handle2 = manager.register_decoding(passage2).await;
+
+        // 500ms should NOT trigger for second passage
+        {
+            let mut buffer = handle2.write().await;
+            buffer.append_samples(vec![0.0; 44100]); // 500ms
+        }
+        manager.notify_samples_appended(passage2).await;
+
+        tokio::time::timeout(Duration::from_millis(100), rx.recv())
+            .await
+            .expect_err("Second passage should not emit at 500ms");
+
+        // 3000ms SHOULD trigger for second passage
+        {
+            let mut buffer = handle2.write().await;
+            buffer.append_samples(vec![0.0; 220500]); // +2.5s = 3s total
+        }
+        manager.notify_samples_appended(passage2).await;
+
+        let event = rx.recv().await.expect("Second passage should emit at 3000ms");
+        assert!(matches!(event, BufferEvent::ReadyForStart { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_ever_played_flag_behavior() {
+        use std::sync::atomic::Ordering;
+
+        let manager = BufferManager::new();
+
+        // Initially, ever_played should be false
+        assert!(!manager.ever_played.load(Ordering::Relaxed), "ever_played should be false initially");
+
+        let passage_id = Uuid::new_v4();
+        manager.register_decoding(passage_id).await;
+
+        // Still false after registration
+        assert!(!manager.ever_played.load(Ordering::Relaxed));
+
+        // Mark as playing
+        manager.mark_playing(passage_id).await;
+
+        // Should be true now
+        assert!(manager.ever_played.load(Ordering::Relaxed), "ever_played should be true after mark_playing");
+    }
+
+    #[tokio::test]
+    async fn test_first_passage_optimization_with_partial_buffer() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(2000).await; // 2s threshold
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append 499ms (below 500ms minimum for first passage)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 43956]); // 499ms
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        // Should not emit yet
+        tokio::time::timeout(Duration::from_millis(50), rx.recv())
+            .await
+            .expect_err("Should not emit below 500ms even for first passage");
+
+        // Append +2ms (total 501ms, above 500ms minimum)
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 176]); // +2ms
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        // Should emit now
+        let event = rx.recv().await.expect("Should emit at 501ms for first passage");
+        assert!(matches!(event, BufferEvent::ReadyForStart { .. }));
+    }
+
+    // ============================================================================
+    // Phase 1: Configurable Threshold Tests [PERF-START-010]
+    // ============================================================================
+
+    #[tokio::test]
+    async fn test_set_min_buffer_threshold() {
+        let manager = BufferManager::new();
+
+        // Default should be some reasonable value
+        let default_threshold = *manager.min_buffer_threshold_ms.read().await;
+        assert!(default_threshold > 0, "Default threshold should be positive");
+
+        // Set custom threshold
+        manager.set_min_buffer_threshold(1500).await;
+        let threshold = *manager.min_buffer_threshold_ms.read().await;
+        assert_eq!(threshold, 1500, "Threshold should be updated");
+    }
+
+    #[tokio::test]
+    async fn test_dynamic_threshold_configuration() {
+        let manager = BufferManager::new();
+
+        // Test setting threshold
+        manager.set_min_buffer_threshold(1500).await;
+
+        // Verify threshold is used in checks
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Mark as playing first to avoid first-passage optimization
+        manager.mark_playing(Uuid::new_v4()).await;
+
+        // 1400ms should be below threshold
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 123480]); // 1.4s
+        }
+        assert!(!manager.has_minimum_playback_buffer(passage_id, 1500).await, "1400ms should be below 1500ms threshold");
+
+        // 1600ms should be above threshold
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 17640]); // +200ms = 1.6s total
+        }
+        assert!(manager.has_minimum_playback_buffer(passage_id, 1500).await, "1600ms should be above 1500ms threshold");
+    }
+
+    #[tokio::test]
+    async fn test_threshold_configuration_with_events() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+        use tokio::time::Duration;
+
+        let manager = BufferManager::new();
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+
+        // Set threshold to 800ms
+        manager.set_min_buffer_threshold(800).await;
+
+        // Register and mark a dummy passage as playing to disable first-passage optimization
+        let dummy_id = Uuid::new_v4();
+        let _dummy_handle = manager.register_decoding(dummy_id).await;
+        manager.mark_playing(dummy_id).await;
+
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // 750ms should not trigger
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 66150]); // 750ms
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        tokio::time::timeout(Duration::from_millis(50), rx.recv())
+            .await
+            .expect_err("Should not emit at 750ms with 800ms threshold");
+
+        // 850ms should trigger
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 8820]); // +100ms = 850ms total
+        }
+        manager.notify_samples_appended(passage_id).await;
+
+        let event = rx.recv().await.expect("Should emit at 850ms");
+        assert!(matches!(event, BufferEvent::ReadyForStart { .. }));
+    }
+
+    // ==================== Phase 3: Performance/Stress Tests ====================
+
+    /// Test high-frequency buffer append operations
+    /// Verifies system can handle rapid small appends without performance degradation
+    #[tokio::test]
+    async fn test_high_frequency_buffer_appends() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // Append 1000 small chunks (200 samples each = 100 stereo frames = ~2.2ms per chunk)
+        // Total: 200,000 samples = ~2.2 seconds of audio
+        for _ in 0..1000 {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.0; 200]);
+        }
+
+        // Verify final buffer has all samples
+        let buffer = buffer_handle.read().await;
+        assert_eq!(buffer.samples.len(), 200_000, "All appends should accumulate");
+
+        // Verify duration calculation is accurate (samples / (sample_rate * channels) * 1000)
+        let duration_ms = (buffer.samples.len() as f64 / (44100.0 * 2.0) * 1000.0) as u64;
+        assert!(duration_ms >= 2200 && duration_ms <= 2300, "Duration should be ~2.2s, got {}ms", duration_ms);
+    }
+
+    /// Test concurrent buffer registration from multiple tasks
+    /// Verifies no race conditions or deadlocks during parallel registration
+    #[tokio::test]
+    async fn test_concurrent_buffer_registration() {
+        let manager = Arc::new(BufferManager::new());
+        let mut handles = Vec::new();
+
+        // Spawn 50 concurrent tasks, each registering a different passage
+        for _ in 0..50 {
+            let manager_clone = Arc::clone(&manager);
+            handles.push(tokio::spawn(async move {
+                let passage_id = Uuid::new_v4();
+                let buffer_handle = manager_clone.register_decoding(passage_id).await;
+
+                // Append some data
+                let mut buffer = buffer_handle.write().await;
+                buffer.append_samples(vec![0.5; 1000]);
+
+                passage_id
+            }));
+        }
+
+        // Wait for all tasks to complete
+        let mut passage_ids = Vec::new();
+        for handle in handles {
+            let id = handle.await.unwrap();
+            passage_ids.push(id);
+        }
+
+        // Verify all 50 passages are registered
+        assert_eq!(passage_ids.len(), 50);
+        for id in passage_ids {
+            assert!(manager.get_buffer(id).await.is_some(), "Passage {} should be registered", id);
+        }
+    }
+
+    /// Test rapid state transitions (Ready → Playing → Exhausted)
+    /// Verifies state machine handles quick succession without errors
+    #[tokio::test]
+    async fn test_rapid_state_transitions() {
+        let manager = BufferManager::new();
+
+        // Create 20 passages and cycle them through states rapidly
+        for _ in 0..20 {
+            let passage_id = Uuid::new_v4();
+            let buffer_handle = manager.register_decoding(passage_id).await;
+
+            // Fill buffer (Decoding → Ready)
+            {
+                let mut buffer = buffer_handle.write().await;
+                buffer.append_samples(vec![0.0; 10000]);
+            }
+            manager.mark_ready(passage_id).await;
+
+            // Start playing (Ready → Playing)
+            manager.mark_playing(passage_id).await;
+            let status = manager.get_status(passage_id).await.unwrap();
+            assert_eq!(status, BufferStatus::Playing);
+
+            // Exhaust (Playing → Exhausted)
+            manager.mark_exhausted(passage_id).await;
+            let status = manager.get_status(passage_id).await.unwrap();
+            assert_eq!(status, BufferStatus::Exhausted);
+
+            // Remove
+            manager.remove(passage_id).await;
+            assert!(manager.get_buffer(passage_id).await.is_none());
+        }
+    }
+
+    /// Test concurrent event notifications from multiple passages
+    /// Verifies event channel handles many simultaneous ReadyForStart events
+    #[tokio::test]
+    async fn test_concurrent_event_notifications() {
+        use tokio::sync::mpsc;
+        use crate::playback::types::BufferEvent;
+
+        let manager = Arc::new(BufferManager::new());
+        let (tx, mut rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(500).await; // Low threshold for quick events
+
+        // Disable first-passage optimization
+        let dummy_id = Uuid::new_v4();
+        let _dummy = manager.register_decoding(dummy_id).await;
+        manager.mark_playing(dummy_id).await;
+
+        let mut handles = Vec::new();
+
+        // Spawn 20 tasks, each filling a buffer to trigger event
+        for _ in 0..20 {
+            let manager_clone = Arc::clone(&manager);
+            handles.push(tokio::spawn(async move {
+                let passage_id = Uuid::new_v4();
+                let buffer_handle = manager_clone.register_decoding(passage_id).await;
+
+                // Append enough to trigger 500ms threshold
+                {
+                    let mut buffer = buffer_handle.write().await;
+                    buffer.append_samples(vec![0.0; 44100]); // 500ms @ 44.1kHz stereo
+                }
+
+                manager_clone.notify_samples_appended(passage_id).await;
+                passage_id
+            }));
+        }
+
+        // Wait for all tasks
+        for handle in handles {
+            handle.await.unwrap();
+        }
+
+        // Collect all events (should be 20)
+        let mut event_count = 0;
+        while let Ok(event) = rx.try_recv() {
+            if matches!(event, BufferEvent::ReadyForStart { .. }) {
+                event_count += 1;
+            }
+        }
+
+        assert_eq!(event_count, 20, "Should receive 20 ReadyForStart events");
+    }
+
+    /// Test handling large buffer (60 seconds of audio)
+    /// Verifies memory management and duration calculations for large passages
+    #[tokio::test]
+    async fn test_large_buffer_stress() {
+        let manager = BufferManager::new();
+        let passage_id = Uuid::new_v4();
+        let buffer_handle = manager.register_decoding(passage_id).await;
+
+        // 60 seconds @ 44.1kHz stereo = 5,292,000 samples
+        // This is ~20MB of f32 data - tests memory handling
+        let sixty_seconds_samples = 60 * 44100 * 2;
+
+        {
+            let mut buffer = buffer_handle.write().await;
+            buffer.append_samples(vec![0.5; sixty_seconds_samples]);
+        }
+
+        // Verify duration calculation
+        let buffer = buffer_handle.read().await;
+        let duration_ms = (buffer.samples.len() as f64 / (44100.0 * 2.0) * 1000.0) as u64;
+        assert!(duration_ms >= 59_900 && duration_ms <= 60_100,
+                "Duration should be ~60s, got {}ms", duration_ms);
+
+        // Verify buffer status is correct
+        let status = manager.get_status(passage_id).await.unwrap();
+        assert!(matches!(status, BufferStatus::Decoding { .. }));
+
+        // Mark ready and verify
+        manager.mark_ready(passage_id).await;
+        let status = manager.get_status(passage_id).await.unwrap();
+        assert_eq!(status, BufferStatus::Ready);
     }
 }
