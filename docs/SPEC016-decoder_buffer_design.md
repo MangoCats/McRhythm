@@ -53,6 +53,7 @@ graph LR
     Mixer --> Output[Output]
 
     style DecoderDots fill:none,stroke:none
+    style FadeDots fill:none,stroke:none
     style ResamplerDots fill:none,stroke:none
     style BufferDots fill:none,stroke:none
 ```
