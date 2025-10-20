@@ -36,6 +36,10 @@ pub async fn init_settings_defaults(pool: &Pool<Sqlite>) -> Result<()> {
         // Crossfade defaults
         ("global_crossfade_time", "2.0"), // 2 seconds
         ("global_fade_curve", "exponential_logarithmic"),
+
+        // Buffer chain configuration
+        // [DBD-PARAM-050] Maximum decoder-resampler-fade-buffer chains
+        ("maximum_decode_streams", "12"),
     ];
 
     for (key, default_value) in defaults {

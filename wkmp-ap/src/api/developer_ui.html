@@ -208,6 +208,124 @@
             font-size: 12px;
         }
 
+        /* 12-Chain Buffer Monitor Styles */
+        .buffer-monitor {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .buffer-detailed {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .buffer-chain-full {
+            background: #1a1a1a;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .buffer-chain-full.pos-1 { border-left-color: #4ade80; }
+        .buffer-chain-full.pos-2 { border-left-color: #fbbf24; }
+        .chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .chain-title {
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .chain-title.pos-1 { color: #4ade80; }
+        .chain-title.pos-2 { color: #fbbf24; }
+        .chain-filename {
+            color: #888;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+        }
+        .chain-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            font-size: 11px;
+        }
+        .metric {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .metric-value {
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+        .buffer-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+        .buffer-chain-compact {
+            background: #1a1a1a;
+            padding: 6px;
+            border-radius: 3px;
+            border-left: 3px solid;
+            font-size: 10px;
+        }
+        .buffer-chain-compact.queued { border-left-color: #3b82f6; }
+        .buffer-chain-compact.idle { border-left-color: #444; }
+        .compact-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .compact-row:last-child { margin-bottom: 0; }
+        .compact-label { color: #666; }
+        .compact-value { color: #e0e0e0; font-weight: 500; }
+        .buffer-bar {
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        .buffer-bar-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .buffer-bar-fill.filling { background: #3b82f6; }
+        .buffer-bar-fill.ready { background: #10b981; }
+        .buffer-bar-fill.playing { background: #4ade80; }
+        .state-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .state-Empty { background: #444; color: #888; }
+        .state-Filling { background: #3b82f6; color: #fff; }
+        .state-Ready { background: #10b981; color: #fff; }
+        .state-Playing { background: #4ade80; color: #000; }
+        .state-Finished { background: #666; color: #ccc; }
+        .decoder-state {
+            color: #888;
+            font-size: 10px;
+        }
+        .decoder-Idle { color: #666; }
+        .decoder-Decoding { color: #3b82f6; }
+        .decoder-Paused { color: #fbbf24; }
+
         /* File Browser Modal */
         .modal {
             display: none;
@@ -665,40 +783,173 @@
                 return;
             }
 
-            let html = '<div style="background: #1a1a1a; padding: 6px; border-radius: 3px;">';
+            // Ensure we display all 12 chains, filling in missing ones as idle
+            const allChains = [];
+            for (let i = 0; i < 12; i++) {
+                const existingChain = chains.find(c => c.slot_index === i);
+                if (existingChain) {
+                    allChains.push(existingChain);
+                } else {
+                    // Create idle placeholder
+                    allChains.push({
+                        slot_index: i,
+                        queue_position: null,
+                        buffer_state: 'Empty',
+                        buffer_fill_percent: 0,
+                        buffer_fill_samples: 0,
+                        buffer_capacity_samples: 0,
+                        mixer_role: 'Idle',
+                        is_active_in_mixer: false,
+                        file_name: null,
+                        passage_id: null,
+                        playback_position_ms: 0,
+                        duration_ms: 0
+                    });
+                }
+            }
 
-            chains.forEach(chain => {
-                const roleColor = {
-                    'Idle': '#666',
-                    'Current': '#4ade80',
-                    'Next': '#fbbf24',
-                    'Crossfading': '#ec4899'
-                }[chain.mixer_role] || '#888';
-
-                const fileName = chain.file_name || '(idle)';
-                const bufferPct = chain.buffer_fill_percent.toFixed(1);
-                const posMs = chain.playback_position_ms;
-                const posSec = Math.floor(posMs / 1000);
-                const durMs = chain.duration_ms || 0;
-                const durSec = Math.floor(durMs / 1000);
-
-                html += `
-                    <div style="margin-bottom: 6px; padding: 6px; background: #2a2a2a; border-left: 3px solid ${roleColor};">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
-                            <span style="color: ${roleColor}; font-weight: bold;">Slot ${chain.slot_index}: ${chain.mixer_role}</span>
-                            <span style="color: #888;">${fileName}</span>
-                        </div>
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px;">
-                            <div><span style="color: #888;">Buffer:</span> <span style="color: #4a9eff;">${bufferPct}%</span> (${chain.buffer_fill_samples} / ${chain.buffer_capacity_samples})</div>
-                            <div><span style="color: #888;">Position:</span> <span style="color: #10b981;">${formatTime(posSec)} / ${formatTime(durSec)}</span></div>
-                            <div><span style="color: #888;">Mixer:</span> <span style="color: ${chain.is_active_in_mixer ? '#4ade80' : '#666'};">${chain.is_active_in_mixer ? '✓ Active' : '○ Inactive'}</span></div>
-                        </div>
-                    </div>
-                `;
+            // Sort by queue_position to ensure proper ordering
+            allChains.sort((a, b) => {
+                if (a.queue_position && b.queue_position) {
+                    return a.queue_position - b.queue_position;
+                }
+                if (a.queue_position) return -1;
+                if (b.queue_position) return 1;
+                return a.slot_index - b.slot_index;
             });
+
+            let html = '<div class="buffer-monitor">';
+
+            // Detailed view for positions 1-2 (now playing and next)
+            const detailedChains = allChains.filter(c => c.queue_position === 1 || c.queue_position === 2);
+            if (detailedChains.length > 0) {
+                html += '<div class="buffer-detailed">';
+                detailedChains.forEach(chain => {
+                    html += renderChainFull(chain);
+                });
+                html += '</div>';
+            }
+
+            // Compact grid for positions 3-12 and idle chains
+            const compactChains = allChains.filter(c => !c.queue_position || c.queue_position > 2);
+            if (compactChains.length > 0) {
+                html += '<div class="buffer-grid">';
+                compactChains.forEach(chain => {
+                    html += renderChainCompact(chain);
+                });
+                html += '</div>';
+            }
 
             html += '</div>';
             el.innerHTML = html;
+        }
+
+        function renderChainFull(chain) {
+            const queuePos = chain.queue_position || 0;
+            const posClass = queuePos === 1 ? 'pos-1' : 'pos-2';
+            const fileName = chain.file_name || '(idle)';
+            const bufferPct = chain.buffer_fill_percent.toFixed(1);
+            const posMs = chain.playback_position_ms || 0;
+            const posSec = Math.floor(posMs / 1000);
+            const durMs = chain.duration_ms || 0;
+            const durSec = Math.floor(durMs / 1000);
+            const bufferState = chain.buffer_state || 'Empty';
+            const decoderState = chain.decoder_state || 'N/A';
+            const fadeStage = chain.fade_stage || 'N/A';
+            const decodeProgress = chain.decode_progress_percent || 0;
+
+            const title = queuePos === 1 ? 'NOW PLAYING (Position 1)' : 'UP NEXT (Position 2)';
+
+            return `
+                <div class="buffer-chain-full ${posClass}">
+                    <div class="chain-header">
+                        <div>
+                            <div class="chain-title ${posClass}">${title}</div>
+                            <div class="chain-filename" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</div>
+                        </div>
+                        <span class="state-badge state-${bufferState}">${bufferState}</span>
+                    </div>
+                    <div class="chain-metrics">
+                        <div class="metric">
+                            <div class="metric-label">Queue Position</div>
+                            <div class="metric-value" style="color: ${queuePos === 1 ? '#4ade80' : '#fbbf24'}; font-size: 18px;">
+                                #${queuePos}
+                            </div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Buffer Fill</div>
+                            <div class="metric-value">${bufferPct}%</div>
+                            <div style="color: #666; font-size: 9px;">${formatNumber(chain.buffer_fill_samples)} / ${formatNumber(chain.buffer_capacity_samples)} samples</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Playback Position</div>
+                            <div class="metric-value">${formatTime(posSec)} / ${formatTime(durSec)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Decoder State</div>
+                            <div class="metric-value decoder-state decoder-${decoderState}">${decoderState}</div>
+                            <div style="color: #666; font-size: 9px;">Progress: ${decodeProgress}%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Fade Stage</div>
+                            <div class="metric-value">${fadeStage}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Mixer Role</div>
+                            <div class="metric-value">${chain.mixer_role}</div>
+                            <div style="color: ${chain.is_active_in_mixer ? '#4ade80' : '#666'}; font-size: 9px;">
+                                ${chain.is_active_in_mixer ? '✓ Active' : '○ Inactive'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderChainCompact(chain) {
+            const queuePos = chain.queue_position;
+            const isIdle = !queuePos;
+            const bufferState = chain.buffer_state || 'Empty';
+            const bufferPct = chain.buffer_fill_percent.toFixed(0);
+            const passageId = chain.passage_id ? chain.passage_id.substring(0, 8) : 'N/A';
+
+            const stateClass = bufferState.toLowerCase();
+            const borderClass = isIdle ? 'idle' : 'queued';
+
+            let statusColor = '#666';
+            if (bufferState === 'Playing') statusColor = '#4ade80';
+            else if (bufferState === 'Ready') statusColor = '#10b981';
+            else if (bufferState === 'Filling') statusColor = '#3b82f6';
+
+            return `
+                <div class="buffer-chain-compact ${borderClass}">
+                    <div class="compact-row">
+                        <span class="compact-label">Slot ${chain.slot_index}</span>
+                        <span class="compact-value" style="color: ${queuePos ? '#4a9eff' : '#666'};">
+                            ${queuePos ? 'Pos ' + queuePos : 'Idle'}
+                        </span>
+                    </div>
+                    <div class="compact-row">
+                        <span class="compact-label">Passage</span>
+                        <span class="compact-value" style="font-size: 9px;">${passageId}</span>
+                    </div>
+                    <div class="compact-row">
+                        <span class="compact-label">State</span>
+                        <span class="compact-value" style="color: ${statusColor};">${bufferState}</span>
+                    </div>
+                    <div class="compact-row">
+                        <span class="compact-label">Buffer</span>
+                        <span class="compact-value">${bufferPct}%</span>
+                    </div>
+                    <div class="buffer-bar">
+                        <div class="buffer-bar-fill ${stateClass}" style="width: ${bufferPct}%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatNumber(num) {
+            return num.toLocaleString();
         }
 
         function updateVolumeDisplay(volume) {

@@ -30,6 +30,18 @@ pub enum BufferState {
     Finished,
 }
 
+impl std::fmt::Display for BufferState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BufferState::Empty => write!(f, "Empty"),
+            BufferState::Filling => write!(f, "Filling"),
+            BufferState::Ready => write!(f, "Ready"),
+            BufferState::Playing => write!(f, "Playing"),
+            BufferState::Finished => write!(f, "Finished"),
+        }
+    }
+}
+
 /// Buffer metadata for state tracking
 ///
 /// Tracks buffer position and timing information

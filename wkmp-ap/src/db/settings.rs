@@ -412,6 +412,29 @@ pub async fn load_resume_fade_in_curve(db: &Pool<Sqlite>) -> Result<String> {
     }
 }
 
+/// Load maximum_decode_streams from settings table
+///
+/// **[DBD-PARAM-050]** Maximum number of decoder-resampler-fade-buffer chains
+///
+/// # Returns
+/// Maximum decode streams (default: 12 if not set)
+///
+/// **Traceability:** DBD-PARAM-050
+pub async fn load_maximum_decode_streams(db: &Pool<Sqlite>) -> Result<usize> {
+    match get_setting::<usize>(db, "maximum_decode_streams").await? {
+        Some(max_streams) => {
+            // Clamp to valid range: 2-32
+            // Minimum 2 for current+next passages
+            // Maximum 32 to prevent excessive memory usage
+            Ok(max_streams.clamp(2, 32))
+        }
+        None => {
+            // Default: 12 streams (current + next + 10 queued)
+            Ok(12)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -704,5 +727,78 @@ mod tests {
 
         let curve = load_resume_fade_in_curve(&db).await.unwrap();
         assert_eq!(curve, "exponential", "Updated resume fade-in curve should persist");
+    }
+
+    /// **[DBD-PARAM-050]** Test default maximum_decode_streams loading
+    #[tokio::test]
+    async fn test_maximum_decode_streams_default() {
+        let db = setup_test_db().await;
+
+        // When setting doesn't exist, should return default 12
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 12, "Default maximum_decode_streams should be 12");
+    }
+
+    /// **[DBD-PARAM-050]** Test custom maximum_decode_streams loading
+    #[tokio::test]
+    async fn test_maximum_decode_streams_custom() {
+        let db = setup_test_db().await;
+
+        // Set custom value (8 streams)
+        set_setting(&db, "maximum_decode_streams", 8usize)
+            .await
+            .unwrap();
+
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 8, "Custom maximum_decode_streams should persist");
+
+        // Change to 16 streams
+        set_setting(&db, "maximum_decode_streams", 16usize)
+            .await
+            .unwrap();
+
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 16, "Updated maximum_decode_streams should persist");
+    }
+
+    /// **[DBD-PARAM-050]** Test maximum_decode_streams clamping (2-32 range)
+    #[tokio::test]
+    async fn test_maximum_decode_streams_clamping() {
+        let db = setup_test_db().await;
+
+        // Test lower bound: 1 should clamp to 2
+        set_setting(&db, "maximum_decode_streams", 1usize)
+            .await
+            .unwrap();
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 2, "maximum_decode_streams should clamp minimum to 2");
+
+        // Test lower bound: 0 should clamp to 2
+        set_setting(&db, "maximum_decode_streams", 0usize)
+            .await
+            .unwrap();
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 2, "maximum_decode_streams should clamp 0 to 2");
+
+        // Test upper bound: 64 should clamp to 32
+        set_setting(&db, "maximum_decode_streams", 64usize)
+            .await
+            .unwrap();
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 32, "maximum_decode_streams should clamp maximum to 32");
+
+        // Test upper bound: 100 should clamp to 32
+        set_setting(&db, "maximum_decode_streams", 100usize)
+            .await
+            .unwrap();
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 32, "maximum_decode_streams should clamp 100 to 32");
+
+        // Test valid value within range: 10 should remain 10
+        set_setting(&db, "maximum_decode_streams", 10usize)
+            .await
+            .unwrap();
+        let max_streams = load_maximum_decode_streams(&db).await.unwrap();
+        assert_eq!(max_streams, 10, "maximum_decode_streams should not clamp valid values");
     }
 }

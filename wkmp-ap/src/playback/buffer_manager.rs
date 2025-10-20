@@ -565,6 +565,12 @@ impl BufferManager {
             },
         })
     }
+
+    /// Get buffer state for monitoring (**[DBD-BUF-020]** through **[DBD-BUF-060]**)
+    pub async fn get_buffer_state(&self, queue_entry_id: Uuid) -> Option<BufferState> {
+        let buffers = self.buffers.read().await;
+        buffers.get(&queue_entry_id).map(|managed| managed.metadata.state)
+    }
 }
 
 /// Buffer monitoring information
@@ -754,5 +760,58 @@ mod tests {
 
         assert!(!manager.is_managed(id1).await);
         assert!(!manager.is_managed(id2).await);
+    }
+
+    /// **[DBD-BUF-020]** Test get_buffer_state() exposes buffer state for monitoring
+    #[tokio::test]
+    async fn test_get_buffer_state() {
+        let manager = BufferManager::new();
+        let (tx, _rx) = mpsc::unbounded_channel();
+        manager.set_event_channel(tx).await;
+        manager.set_min_buffer_threshold(500).await;
+
+        let queue_entry_id = Uuid::new_v4();
+
+        // No buffer yet - should return None
+        assert_eq!(manager.get_buffer_state(queue_entry_id).await, None);
+
+        // Allocate buffer - should be Empty
+        let _buffer = manager.allocate_buffer(queue_entry_id).await;
+        assert_eq!(
+            manager.get_buffer_state(queue_entry_id).await,
+            Some(BufferState::Empty)
+        );
+
+        // Append samples - should transition to Filling
+        manager.notify_samples_appended(queue_entry_id, 1000).await.unwrap();
+        assert_eq!(
+            manager.get_buffer_state(queue_entry_id).await,
+            Some(BufferState::Filling)
+        );
+
+        // Reach threshold - should transition to Ready
+        manager.notify_samples_appended(queue_entry_id, 22_050).await.unwrap();
+        assert_eq!(
+            manager.get_buffer_state(queue_entry_id).await,
+            Some(BufferState::Ready)
+        );
+
+        // Start playback - should transition to Playing
+        manager.start_playback(queue_entry_id).await.unwrap();
+        assert_eq!(
+            manager.get_buffer_state(queue_entry_id).await,
+            Some(BufferState::Playing)
+        );
+
+        // Finalize decode - should transition to Finished
+        manager.finalize_buffer(queue_entry_id, 100_000).await.unwrap();
+        assert_eq!(
+            manager.get_buffer_state(queue_entry_id).await,
+            Some(BufferState::Finished)
+        );
+
+        // Remove buffer - should return None
+        manager.remove(queue_entry_id).await;
+        assert_eq!(manager.get_buffer_state(queue_entry_id).await, None);
     }
 }

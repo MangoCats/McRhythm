@@ -122,6 +122,10 @@ pub struct PlaybackEngine {
     /// **[PERF-POLL-010]** Event-driven buffer readiness
     /// Receives ReadyForStart events when buffers reach minimum threshold
     buffer_event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<BufferEvent>>>>,
+
+    /// Maximum number of decoder-resampler-fade-buffer chains
+    /// **[DBD-PARAM-050]** Configurable maximum decode streams (default: 12)
+    maximum_decode_streams: usize,
 }
 
 impl PlaybackEngine {
@@ -136,12 +140,13 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
             crate::db::settings::load_ring_buffer_grace_period(&db_pool),
             crate::db::settings::load_mixer_thread_config(&db_pool),
+            crate::db::settings::load_maximum_decode_streams(&db_pool),
         );
         let db_elapsed = db_start.elapsed();
 
@@ -150,6 +155,7 @@ impl PlaybackEngine {
         let interval_ms = interval_ms?;
         let _grace_period_ms = grace_period_ms?;  // Loaded in parallel for performance
         let _mixer_config = mixer_config?;  // Loaded in parallel for performance
+        let maximum_decode_streams = maximum_decode_streams?;
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -223,6 +229,7 @@ impl PlaybackEngine {
             current_song_timeline: Arc::new(RwLock::new(None)),
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
             buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
+            maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
         })
     }
 
@@ -861,108 +868,130 @@ impl PlaybackEngine {
     }
     /// Get buffer chain status for monitoring
     ///
-    /// Returns status of all decoder-resampler-fade-buffer chains (slots 0-1).
+    /// **[DBD-OV-040]** Returns status of all decoder-resampler-fade-buffer chains.
+    /// **[DBD-OV-050]** Up to `maximum_decode_streams` chains (default: 12).
+    /// **[DBD-OV-080]** Passage-based chain association (not position-based).
+    ///
     /// Used for developer UI monitoring panel.
     pub async fn get_buffer_chains(&self) -> Vec<wkmp_common::events::BufferChainInfo> {
         use wkmp_common::events::BufferChainInfo;
 
-        let mut chains = Vec::new();
+        // **[DBD-PARAM-050]** Loaded from settings (default: 12)
+        let maximum_decode_streams = self.maximum_decode_streams;
+
+        let mut chains = Vec::with_capacity(maximum_decode_streams);
 
         // Get mixer state to determine active passages
         let mixer = self.mixer.read().await;
         let mixer_state = mixer.get_state_info();
         drop(mixer);
 
-        // Get queue entries
+        // **[DBD-OV-080]** Get all queue entries (passage-based iteration)
         let queue = self.queue.read().await;
-        let current = queue.current().cloned();
-        let next = queue.next().cloned();
+        let mut all_entries = Vec::new();
+
+        // Add current passage (position 1 - "now playing") **[DBD-OV-060]**
+        if let Some(current) = queue.current() {
+            all_entries.push(current.clone());
+        }
+
+        // Add next passage (position 2 - "playing next") **[DBD-OV-070]**
+        if let Some(next) = queue.next() {
+            all_entries.push(next.clone());
+        }
+
+        // Add queued passages (positions 3-12 - pre-buffering)
+        all_entries.extend(queue.queued().iter().cloned());
         drop(queue);
 
-        // Slot 0: Current passage (if playing)
-        if let Some(ref entry) = current {
-            let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
-            let is_active = mixer_state.current_passage_id == entry.passage_id;
+        // Create BufferChainInfo for each passage (up to maximum_decode_streams)
+        for (slot_index, entry) in all_entries.iter().take(maximum_decode_streams).enumerate() {
+            let queue_position = slot_index + 1; // 1-indexed for display
 
+            // Get buffer information
+            let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
+            let buffer_state = self.buffer_manager.get_buffer_state(entry.queue_entry_id).await;
+
+            // Extract file name
             let file_name = entry.file_path.file_name()
                 .and_then(|n| n.to_str())
                 .map(|s| s.to_string());
 
+            // Determine mixer role
+            let is_active_in_mixer = if slot_index == 0 {
+                mixer_state.current_passage_id == entry.passage_id
+            } else if slot_index == 1 {
+                mixer_state.next_passage_id == entry.passage_id
+            } else {
+                false
+            };
+
+            let mixer_role = if slot_index == 0 {
+                if mixer_state.is_crossfading {
+                    "Crossfading".to_string()
+                } else {
+                    "Current".to_string()
+                }
+            } else if slot_index == 1 {
+                if mixer_state.is_crossfading {
+                    "Crossfading".to_string()
+                } else {
+                    "Next".to_string()
+                }
+            } else {
+                "Queued".to_string()
+            };
+
+            // Get playback position (only for current passage)
+            let (playback_position_frames, playback_position_ms) = if slot_index == 0 {
+                (mixer_state.current_position_frames,
+                 (mixer_state.current_position_frames as u64 * 1000) / 44100)
+            } else if slot_index == 1 && mixer_state.is_crossfading {
+                (mixer_state.next_position_frames,
+                 (mixer_state.next_position_frames as u64 * 1000) / 44100)
+            } else {
+                (0, 0)
+            };
+
             chains.push(BufferChainInfo {
-                slot_index: 0,
+                slot_index,
                 queue_entry_id: Some(entry.queue_entry_id),
                 passage_id: entry.passage_id,
                 file_name,
+                queue_position: Some(queue_position),
+
+                // Decoder stage (stubbed for Phase 3c)
+                decoder_state: None, // TODO: Query decoder pool status
+                decode_progress_percent: None,
+                is_actively_decoding: None,
+
+                // Resampler stage (stubbed for Phase 3c)
+                source_sample_rate: None, // TODO: Get from decoder
+                resampler_active: None,
+                target_sample_rate: 44100, // **[DBD-PARAM-020]** working_sample_rate
+
+                // Fade stage (stubbed for Phase 3c)
+                fade_stage: None, // TODO: Get from decoder
+
+                // Buffer stage **[DBD-BUF-020]** through **[DBD-BUF-060]**
+                buffer_state: buffer_state.map(|s| s.to_string()),
                 buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
                 buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
                 buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
-                playback_position_frames: mixer_state.current_position_frames,
-                playback_position_ms: (mixer_state.current_position_frames as u64 * 1000) / 44100,
+
+                // Mixer stage
+                playback_position_frames,
+                playback_position_ms,
                 duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
-                is_active_in_mixer: is_active,
-                mixer_role: if mixer_state.is_crossfading { "Crossfading".to_string() } else { "Current".to_string() },
+                is_active_in_mixer,
+                mixer_role,
                 started_at: None, // TODO: Track start time
-            });
-        } else {
-            // Idle slot
-            chains.push(BufferChainInfo {
-                slot_index: 0,
-                queue_entry_id: None,
-                passage_id: None,
-                file_name: None,
-                buffer_fill_percent: 0.0,
-                buffer_fill_samples: 0,
-                buffer_capacity_samples: 0,
-                playback_position_frames: 0,
-                playback_position_ms: 0,
-                duration_ms: None,
-                is_active_in_mixer: false,
-                mixer_role: "Idle".to_string(),
-                started_at: None,
             });
         }
 
-        // Slot 1: Next passage (if queued)
-        if let Some(ref entry) = next {
-            let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
-            let is_active = mixer_state.next_passage_id == entry.passage_id;
-
-            let file_name = entry.file_path.file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string());
-
-            chains.push(BufferChainInfo {
-                slot_index: 1,
-                queue_entry_id: Some(entry.queue_entry_id),
-                passage_id: entry.passage_id,
-                file_name,
-                buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
-                buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
-                buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
-                playback_position_frames: mixer_state.next_position_frames,
-                playback_position_ms: (mixer_state.next_position_frames as u64 * 1000) / 44100,
-                duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
-                is_active_in_mixer: is_active,
-                mixer_role: if mixer_state.is_crossfading { "Crossfading".to_string() } else { "Next".to_string() },
-                started_at: None,
-            });
-        } else {
-            // Idle slot
-            chains.push(BufferChainInfo {
-                slot_index: 1,
-                queue_entry_id: None,
-                passage_id: None,
-                file_name: None,
-                buffer_fill_percent: 0.0,
-                buffer_fill_samples: 0,
-                buffer_capacity_samples: 0,
-                playback_position_frames: 0,
-                playback_position_ms: 0,
-                duration_ms: None,
-                is_active_in_mixer: false,
-                mixer_role: "Idle".to_string(),
-                started_at: None,
-            });
+        // Fill remaining slots with idle chains (up to maximum_decode_streams)
+        while chains.len() < maximum_decode_streams {
+            chains.push(BufferChainInfo::idle(chains.len()));
         }
 
         chains
@@ -1568,13 +1597,16 @@ impl PlaybackEngine {
             }
         }
 
-        // Trigger decode for queued passages (first 3)
+        // Trigger decode for queued passages
         // [SSD-PBUF-010] Partial buffer decode for queued passages
+        // **[DBD-PARAM-050]** Decode up to (maximum_decode_streams - 2) queued passages
+        // Subtract 2 for current and next passages
         // **CRITICAL FIX:** Always request FULL decode (full=true) to prevent
         // third-file bug where passages decoded as "queued" with full=false
         // never get upgraded to full decode when promoted to "next".
         // Trade-off: Slightly higher memory usage, but guarantees correct playback.
-        for queued in queued_entries.iter().take(3) {
+        let max_queued = self.maximum_decode_streams.saturating_sub(2);
+        for queued in queued_entries.iter().take(max_queued) {
             if !self.buffer_manager.is_managed(queued.queue_entry_id).await {
                 debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
                 self.request_decode(queued, DecodePriority::Prefetch, true)
@@ -1941,6 +1973,7 @@ impl PlaybackEngine {
             current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
             audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
             buffer_event_rx: Arc::clone(&self.buffer_event_rx), // **[PERF-POLL-010]** Clone buffer event receiver
+            maximum_decode_streams: self.maximum_decode_streams, // [DBD-PARAM-050] Copy decode stream limit
         }
     }
 
@@ -2491,5 +2524,266 @@ mod tests {
         *volume_arc.lock().unwrap() = 0.9;
         let final_value = *volume_arc2.lock().unwrap();
         assert_eq!(final_value, 0.9, "Changes via first Arc should be visible in second Arc");
+    }
+
+    /// **[DBD-OV-080]** Test get_buffer_chains() returns all 12 chains (passage-based iteration)
+    #[tokio::test]
+    async fn test_buffer_chain_12_passage_iteration() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files for testing
+        let temp_dir = std::env::temp_dir();
+        let mut passages = Vec::new();
+        for i in 0..15 {
+            let passage = temp_dir.join(format!("test_buffer_chain_{}.mp3", i));
+            std::fs::write(&passage, b"").unwrap();
+            passages.push(passage);
+        }
+
+        // Enqueue 15 passages (should see maximum_decode_streams = 12)
+        for passage in &passages {
+            engine.enqueue_file(passage.clone()).await.unwrap();
+        }
+
+        // Get buffer chains
+        let chains = engine.get_buffer_chains().await;
+
+        // Should always return exactly 12 chains (maximum_decode_streams default)
+        assert_eq!(chains.len(), 12, "get_buffer_chains() should return exactly 12 chains");
+
+        // First 12 should have queue_entry_id and passage_id (active chains)
+        for i in 0..12 {
+            assert!(
+                chains[i].queue_entry_id.is_some(),
+                "Chain {} should have queue_entry_id",
+                i
+            );
+        }
+
+        // Clean up
+        for passage in &passages {
+            let _ = std::fs::remove_file(passage);
+        }
+    }
+
+    /// **[DBD-OV-080]** Test passage-based association (queue_entry_id persistence)
+    #[tokio::test]
+    async fn test_buffer_chain_passage_based_association() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_passage_based_1.mp3");
+        let passage2 = temp_dir.join("test_passage_based_2.mp3");
+        let passage3 = temp_dir.join("test_passage_based_3.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+
+        // Enqueue 3 passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+
+        // Get initial buffer chains (3 passages + 9 idle)
+        let chains_before = engine.get_buffer_chains().await;
+
+        // Verify we have 12 chains total
+        assert_eq!(chains_before.len(), 12);
+
+        // Capture queue_entry_id of passage in position 2 (next)
+        let next_qe_id = chains_before[1].queue_entry_id;
+        assert!(next_qe_id.is_some(), "Position 2 should have queue_entry_id");
+
+        // Skip current passage (advance queue)
+        engine.skip_next().await.unwrap();
+
+        // Get buffer chains again after queue advance
+        let chains_after = engine.get_buffer_chains().await;
+
+        // The passage that was in position 2 should now be in position 1
+        // **[DBD-OV-080]** Chains follow passages, not positions
+        assert_eq!(
+            chains_after[0].queue_entry_id,
+            next_qe_id,
+            "Passage-based association: queue_entry_id should follow passage to new position"
+        );
+
+        // Position should update (was 2, now 1)
+        assert_eq!(
+            chains_after[0].queue_position,
+            Some(1),
+            "queue_position should update to 1 (now playing)"
+        );
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+    }
+
+    /// **[DBD-OV-060]** **[DBD-OV-070]** Test queue_position tracking (1-indexed)
+    #[tokio::test]
+    async fn test_buffer_chain_queue_position_tracking() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_queue_pos_1.mp3");
+        let passage2 = temp_dir.join("test_queue_pos_2.mp3");
+        let passage3 = temp_dir.join("test_queue_pos_3.mp3");
+        let passage4 = temp_dir.join("test_queue_pos_4.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+        std::fs::write(&passage4, b"").unwrap();
+
+        // Enqueue 4 passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+        engine.enqueue_file(passage4.clone()).await.unwrap();
+
+        // Get buffer chains
+        let chains = engine.get_buffer_chains().await;
+
+        // Verify queue_position values (1-indexed for display)
+        // **[DBD-OV-060]** Position 1 = "now playing"
+        assert_eq!(
+            chains[0].queue_position,
+            Some(1),
+            "Current passage should have queue_position 1 (now playing)"
+        );
+
+        // **[DBD-OV-070]** Position 2 = "playing next"
+        assert_eq!(
+            chains[1].queue_position,
+            Some(2),
+            "Next passage should have queue_position 2 (playing next)"
+        );
+
+        // Positions 3-4 = "queued passages"
+        assert_eq!(
+            chains[2].queue_position,
+            Some(3),
+            "Queued passage should have queue_position 3"
+        );
+        assert_eq!(
+            chains[3].queue_position,
+            Some(4),
+            "Queued passage should have queue_position 4"
+        );
+
+        // Positions 5-12 = idle (no queue_position)
+        for i in 4..12 {
+            assert_eq!(
+                chains[i].queue_position,
+                None,
+                "Idle chain {} should have queue_position None",
+                i
+            );
+        }
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+        let _ = std::fs::remove_file(&passage4);
+    }
+
+    /// **[DBD-OV-080]** Test idle chain filling when queue < 12 entries
+    #[tokio::test]
+    async fn test_buffer_chain_idle_filling() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Empty queue - should have 12 idle chains
+        let chains_empty = engine.get_buffer_chains().await;
+        assert_eq!(chains_empty.len(), 12, "Should always return 12 chains");
+
+        for (i, chain) in chains_empty.iter().enumerate() {
+            assert_eq!(
+                chain.queue_entry_id,
+                None,
+                "Empty queue: chain {} should have no queue_entry_id",
+                i
+            );
+            assert_eq!(
+                chain.queue_position,
+                None,
+                "Empty queue: chain {} should have no queue_position",
+                i
+            );
+            assert_eq!(
+                chain.buffer_state,
+                Some("Idle".to_string()),
+                "Empty queue: chain {} should be Idle",
+                i
+            );
+        }
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_idle_1.mp3");
+        let passage2 = temp_dir.join("test_idle_2.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+
+        // Enqueue 2 passages - should have 2 active + 10 idle chains
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+
+        let chains_partial = engine.get_buffer_chains().await;
+        assert_eq!(chains_partial.len(), 12, "Should always return 12 chains");
+
+        // First 2 should be active
+        for i in 0..2 {
+            assert!(
+                chains_partial[i].queue_entry_id.is_some(),
+                "Chain {} should be active",
+                i
+            );
+            assert!(
+                chains_partial[i].queue_position.is_some(),
+                "Chain {} should have queue_position",
+                i
+            );
+        }
+
+        // Remaining 10 should be idle
+        for i in 2..12 {
+            assert_eq!(
+                chains_partial[i].queue_entry_id,
+                None,
+                "Chain {} should be idle (no queue_entry_id)",
+                i
+            );
+            assert_eq!(
+                chains_partial[i].queue_position,
+                None,
+                "Chain {} should be idle (no queue_position)",
+                i
+            );
+            assert_eq!(
+                chains_partial[i].buffer_state,
+                Some("Idle".to_string()),
+                "Chain {} should have Idle state",
+                i
+            );
+        }
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
     }
 }
