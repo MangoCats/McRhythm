@@ -1,0 +1,223 @@
+{
+  "document": "SPEC013-single_stream_playback.md",
+  "tier": 2,
+  "total_edits": 18,
+  "priority_breakdown": {
+    "HIGH": 8,
+    "MEDIUM": 7,
+    "LOW": 3
+  },
+  "estimated_line_reduction": 120,
+  "summary": "High-level overview with overlapping SPEC016 content. Should become gateway to SPEC016 details.",
+  "edits": [
+    {
+      "edit_id": "EDIT-SPEC013-001",
+      "priority": "HIGH",
+      "type": "ADD_DEPRECATION",
+      "location": {
+        "section": "Document Header",
+        "lines": "1-10"
+      },
+      "current_content": "# Single Stream Playback Architecture\n\n**TIER 2 - DESIGN SPECIFICATION**",
+      "new_content": "# Single Stream Playback Architecture\n\n**TIER 2 - DESIGN SPECIFICATION**\n\n> **NOTE:** This document provides a high-level overview of the single-stream playback architecture. For detailed decoder-buffer-mixer design, see:\n> - [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) - Authoritative decoder-buffer-mixer specification\n> - [SPEC017 Sample Rate Conversion](SPEC017-sample_rate_conversion.md) - Tick-based timing system\n> - [SPEC014 Single Stream Design](SPEC014-single_stream_design.md) - Implementation details",
+      "rationale": "Establish SPEC016 as authoritative source upfront",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "SPEC016",
+        "SPEC017"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-002",
+      "priority": "MEDIUM",
+      "type": "ADD_REFERENCE",
+      "location": {
+        "section": "Related Documentation",
+        "lines": "3"
+      },
+      "current_content": "> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Crossfade Design](SPEC002-crossfade.md)",
+      "new_content": "> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Crossfade Design](SPEC002-crossfade.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)",
+      "rationale": "Add SPEC016/SPEC017 to related documentation",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "SPEC016",
+        "SPEC017"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-003",
+      "priority": "MEDIUM",
+      "type": "REMOVE_REDUNDANCY",
+      "location": {
+        "section": "Audio Decoder - Resample",
+        "lines": "99"
+      },
+      "current_content": "Resample to standard rate (44.1kHz) if needed using rubato",
+      "new_content": "Resample to working_sample_rate ([SPEC016 DBD-PARAM-020], default: 44.1kHz) if needed using rubato. See [SPEC016 Resampling - DBD-RSMP-010].",
+      "rationale": "Replace hardcoded 44.1kHz with reference to authoritative parameter",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-PARAM-020",
+        "DBD-RSMP-010"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-004",
+      "priority": "HIGH",
+      "type": "REMOVE_REDUNDANCY",
+      "location": {
+        "section": "Passage Buffer Manager",
+        "lines": "110-130"
+      },
+      "current_content": "PassageBuffer key features:\n- PCM audio storage (interleaved stereo f32: [L, R, L, R, ...])\n- Automatic fade application during read_sample()\n- Memory usage:\n  - 1 second audio @ 44.1kHz stereo = ~353 KB\n  - 15 second buffer = ~5.3 MB",
+      "new_content": "PassageBuffer key features (see [SPEC016 Buffers - DBD-BUF-010] for complete specification):\n- PCM audio storage (interleaved stereo f32: [L, R, L, R, ...])\n- Fade application during decode (pre-buffer) per [DBD-FADE-030]\n- Buffer sizing: [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s @ 44.1kHz, 60MB total for 12 buffers)",
+      "rationale": "Remove memory calculation duplication, reference SPEC016 as authoritative source",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-BUF-010",
+        "DBD-FADE-030",
+        "DBD-PARAM-070"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-005",
+      "priority": "HIGH",
+      "type": "ADD_DEPRECATION",
+      "location": {
+        "section": "Crossfade Mixer",
+        "lines": "280"
+      },
+      "current_content": "## Crossfade Mixer\n\nThe CrossfadeMixer manages mixing of overlapping passages...",
+      "new_content": "## Crossfade Mixer\n\n> **NOTE:** [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) now provides the authoritative mixer specification ([DBD-MIX-010] through [DBD-MIX-052]).\n\nThe CrossfadeMixer manages mixing of overlapping passages...",
+      "rationale": "Acknowledge SPEC016 as authoritative mixer source",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-MIX-010",
+        "DBD-MIX-040"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-006",
+      "priority": "MEDIUM",
+      "type": "ADD_REFERENCE",
+      "location": {
+        "section": "Crossfade Algorithm",
+        "lines": "200-230"
+      },
+      "current_content": "Crossfade Algorithm:\nFor each sample pair:\n1. Read current passage sample\n2. Read next passage sample\n3. Apply fade curves\n4. Sum weighted samples\n5. Apply master volume",
+      "new_content": "Crossfade Algorithm (see [SPEC016 Mixer - DBD-MIX-040] for implementation):\nFor each sample pair:\n1. Read current passage sample\n2. Read next passage sample\n3. Apply fade curves\n4. Sum weighted samples\n5. Apply master volume\n\nFor crossfade timing calculation, see [SPEC002 Crossfade Design](SPEC002-crossfade.md#implementation-algorithm).",
+      "rationale": "Link to authoritative mixer implementation and crossfade timing",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-MIX-040"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-007",
+      "priority": "MEDIUM",
+      "type": "ADD_REFERENCE",
+      "location": {
+        "section": "Sample-Accurate Timing",
+        "lines": "347"
+      },
+      "current_content": "At 44.1kHz, each sample = 0.0227 ms. Crossfade timing precise to ~0.02 ms",
+      "new_content": "At 44.1kHz, each sample = 0.0227 ms. Crossfade timing precise to ~0.02 ms\n\nSample-accurate timing per [SPEC016 Decoders - DBD-DEC-080]. For tick-level precision (~35.4 nanoseconds), see [SPEC017 Tick Rate - SRC-TICK-030].",
+      "rationale": "Link to authoritative timing precision specifications",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-DEC-080",
+        "SRC-TICK-030"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-008",
+      "priority": "MEDIUM",
+      "type": "ADD_REFERENCE",
+      "location": {
+        "section": "Performance Characteristics",
+        "lines": "400-450"
+      },
+      "current_content": "Buffer sizes, memory calculations, latency discussion",
+      "new_content": "Performance Characteristics\n\nSee [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for authoritative buffer sizing:\n- [DBD-PARAM-030] output_ringbuffer_size (8192 samples = 185ms)\n- [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s, 60MB for 12 buffers)\n- [DBD-PARAM-080] playout_ringbuffer_headroom (441 samples)\n\nLatency:\n- Decode latency: Variable (depends on file format and decode speed)\n- Crossfade latency: ~0.02ms (sample-accurate per [DBD-DEC-080])\n- Output latency: ~185ms (output ring buffer per [DBD-PARAM-030])",
+      "rationale": "Replace scattered performance info with references to authoritative parameters",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-PARAM-030",
+        "DBD-PARAM-070",
+        "DBD-PARAM-080",
+        "DBD-DEC-080"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-009",
+      "priority": "LOW",
+      "type": "ADD_REFERENCE",
+      "location": {
+        "section": "Technology Stack",
+        "lines": "82-84"
+      },
+      "current_content": "symphonia 0.5.x: Pure Rust audio decoder\nrubato 0.15.x: High-quality sample rate conversion",
+      "new_content": "symphonia 0.5.x: Pure Rust audio decoder (see [SPEC016 Sample Format - DBD-FMT-020])\nrubato 0.15.x: High-quality sample rate conversion (see [SPEC016 Resampling - DBD-RSMP-010])",
+      "rationale": "Link technology stack to usage specifications",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-FMT-020",
+        "DBD-RSMP-010"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-010",
+      "priority": "MEDIUM",
+      "type": "ADD_REFERENCE",
+      "location": {
+        "section": "Fade Curve Algorithms",
+        "lines": "500-600"
+      },
+      "current_content": "Describes implementation of five fade curves (Linear, Exponential, Logarithmic, Cosine, Equal-Power)",
+      "new_content": "Fade Curve Algorithms\n\nSee [SPEC002 Volume Fade Curve Formulas](SPEC002-crossfade.md#volume-fade-curve-formulas) for authoritative fade curve definitions ([XFD-IMPL-091] through [XFD-IMPL-096]).\n\nImplementation location: [SPEC016 Fade In/Out handlers - DBD-FADE-010].\n\nSupported curves:\n- Linear\n- Exponential (fade-in)\n- Logarithmic (fade-out)\n- Cosine\n- Equal-Power",
+      "rationale": "Link to authoritative fade curve definitions in SPEC002",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-FADE-010"
+      ],
+      "implementation_impact": "NONE",
+      "implementation_notes": "Documentation-only change"
+    },
+    {
+      "edit_id": "EDIT-SPEC013-011",
+      "priority": "HIGH",
+      "type": "ADD_DEPRECATION",
+      "location": {
+        "section": "Decoder Thread Pool",
+        "lines": "30-50"
+      },
+      "current_content": "Component diagram shows decoder thread pool (3 parallel decoders)",
+      "new_content": "Component diagram shows decoder thread pool (3 parallel decoders)\n\n> **NOTE:** SPEC016 specifies serial decoding (one decoder at a time, [DBD-DEC-040]) rather than parallel thread pool for improved cache coherency. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for authoritative decoder strategy.",
+      "rationale": "Flag discrepancy between thread pool (old) and serial decode (new)",
+      "status": "READY",
+      "references_to_spec016_17": [
+        "DBD-DEC-040"
+      ],
+      "implementation_impact": "MAJOR",
+      "implementation_notes": "Diagram shows old design; SPEC016 specifies new approach"
+    }
+  ]
+}
