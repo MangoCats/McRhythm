@@ -315,7 +315,10 @@ impl BufferManager {
 
     /// Start playback (mixer starts reading)
     ///
-    /// **[DBD-BUF-050]** Transitions: Ready → Playing
+    /// **[DBD-BUF-050]** Transitions: Ready → Playing, Finished → Playing
+    ///
+    /// Note: Finished state means "decode complete" not "playback complete".
+    /// Pre-decoded buffers will be in Finished state when playback starts.
     pub async fn start_playback(&self, queue_entry_id: Uuid) -> Result<(), String> {
         let mut buffers = self.buffers.write().await;
 
@@ -324,7 +327,10 @@ impl BufferManager {
 
         let old_state = managed.metadata.state;
 
-        if old_state == BufferState::Ready {
+        // Accept both Ready and Finished states
+        // Ready = decode in progress, threshold reached
+        // Finished = decode complete (pre-decoded buffers)
+        if old_state == BufferState::Ready || old_state == BufferState::Finished {
             managed.metadata.state = BufferState::Playing;
             managed.metadata.playing_at = Some(Instant::now());
 
@@ -332,8 +338,8 @@ impl BufferManager {
             self.ever_played.store(true, Ordering::Relaxed);
 
             debug!(
-                "Buffer {} transitioned Ready → Playing",
-                queue_entry_id
+                "Buffer {} transitioned {:?} → Playing",
+                queue_entry_id, old_state
             );
 
             self.emit_event(BufferEvent::StateChanged {
@@ -344,7 +350,7 @@ impl BufferManager {
             }).await;
         } else {
             warn!(
-                "start_playback called on buffer {} in state {:?} (expected Ready)",
+                "start_playback called on buffer {} in state {:?} (expected Ready or Finished)",
                 queue_entry_id, old_state
             );
         }

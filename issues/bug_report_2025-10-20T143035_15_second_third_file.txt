@@ -1,0 +1,21 @@
+Bug report:
+
+Manual testing of current version of wkmp-ap found the following incorrect behavior consistently.
+
+Actions to reproduce:
+
+cd wkmp-ap
+cargo run
+
+Via the localhost:5721 developer UI, enqueue three regular .mp3 audio files each approximately 2-3 minutes in length.
+
+Expected behavior:
+
+All three audio files (now passages) should play in their entirety.
+
+Actual behavior:
+
+First two passages play, usually in their entirety, but the third file only plays 15 seconds, then stops.
+
+debug_log_2025-10-20T143035.txt contains console output from one test.
+

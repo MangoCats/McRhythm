@@ -1341,7 +1341,11 @@ mod tests {
         }
         buffer_manager.mark_ready(passage_id).await;  // Mark as Ready
 
-        // Start playback
+        // Finalize the buffer to set total_samples (required for proper EOF detection)
+        buffer_manager.finalize_buffer(passage_id, 100).await.unwrap();
+
+        // Start playback (buffer now in Finished state after finalize)
+        buffer_manager.start_playback(passage_id).await.unwrap();
         let buffer_arc = buffer_manager.get_buffer(passage_id).await.unwrap();
         mixer.start_passage(buffer_arc, passage_id, None, 0).await;
 
@@ -1351,7 +1355,7 @@ mod tests {
         }
 
         // Try to read beyond buffer (position 50 >= sample_count 50)
-        // But status is Ready, not Decoding, so no underrun detection
+        // Buffer is now Finished (not Decoding), so no underrun detection
         let frame = mixer.get_next_frame().await;
 
         // Should get silence (normal end-of-buffer behavior)
