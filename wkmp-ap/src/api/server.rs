@@ -78,6 +78,9 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
         // SSE event stream
         .route("/events", get(super::sse::event_stream))
 
+        // Build information
+        .route("/build_info", get(super::handlers::get_build_info))
+
         // File browser
         .route("/files/browse", get(super::handlers::browse_files))
 

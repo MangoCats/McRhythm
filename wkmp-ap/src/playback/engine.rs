@@ -2182,17 +2182,16 @@ impl PlaybackEngine {
 
             // Get current passage from SharedState
             if let Some(current) = self.state.get_current_passage().await {
-                // Only emit if passage has a valid passage_id
-                if let Some(passage_id) = current.passage_id {
-                    // Emit PlaybackPosition event
-                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackPosition {
-                        timestamp: chrono::Utc::now(),
-                        passage_id,
-                        position_ms: current.position_ms,
-                        duration_ms: current.duration_ms,
-                        playing: true,
-                    });
-                }
+                // Emit PlaybackPosition event (use queue_entry_id as fallback for ephemeral passages)
+                let passage_id = current.passage_id.unwrap_or(current.queue_entry_id);
+
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackPosition {
+                    timestamp: chrono::Utc::now(),
+                    passage_id,
+                    position_ms: current.position_ms,
+                    duration_ms: current.duration_ms,
+                    playing: true,
+                });
             }
         }
     }

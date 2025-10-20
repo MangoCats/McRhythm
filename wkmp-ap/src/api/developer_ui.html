@@ -22,17 +22,32 @@
         }
         h1 {
             color: #4a9eff;
-            margin-bottom: 4px;
-            font-size: 24px;
-        }
-        .subtitle {
-            color: #888;
             margin-bottom: 8px;
-            font-size: 13px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-center {
+            flex: 1;
+            text-align: center;
+            color: #888;
+            font-size: 16px;
+        }
+        .header-right {
+            color: #666;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            text-align: right;
         }
         .grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: auto auto 1fr;
             gap: 8px;
             flex: 1;
             overflow: hidden;
@@ -297,14 +312,17 @@
 <body>
     <div class="container">
         <h1>
-            WKMP Audio Player
-            <span class="connection-status" id="connection-status">Connecting...</span>
+            <div class="header-left">
+                WKMP Audio Player
+                <span class="connection-status" id="connection-status">Connecting...</span>
+            </div>
+            <div class="header-center">Developer Interface</div>
+            <div class="header-right" id="build-info">Loading...</div>
         </h1>
-        <p class="subtitle">Developer Interface - SSE-Based Real-Time Updates</p>
 
         <div class="grid">
-            <!-- Status Display -->
-            <div class="panel">
+            <!-- Module Status (half-width) -->
+            <div class="panel" style="grid-column: span 1;">
                 <h2>Module Status</h2>
                 <div class="status-item">
                     <span class="status-label">Playback State</span>
@@ -325,20 +343,26 @@
                     <span class="status-label">Audio Device</span>
                     <span class="status-value" id="audio-device">default</span>
                 </div>
+                <div class="control-group" style="margin-top: 8px;">
+                    <label>Change Device</label>
+                    <input type="text" id="device-input" placeholder="default">
+                    <button onclick="setAudioDevice()">Set Device</button>
+                    <div id="device-result"></div>
+                </div>
             </div>
 
-            <!-- Playback Controls -->
-            <div class="panel">
+            <!-- Playback Controls (half-width) -->
+            <div class="panel" style="grid-column: span 1;">
                 <h2>Playback Controls</h2>
                 <div class="button-group">
                     <button class="btn-play" onclick="controlPlayback('play')">▶ Play</button>
                     <button class="btn-pause" onclick="controlPlayback('pause')">⏸ Pause</button>
                 </div>
-                <div class="button-group" style="margin-top: 10px;">
+                <div class="button-group" style="margin-top: 6px;">
                     <button class="btn-skip" onclick="skipCurrentPassage()">⏭ Skip Current</button>
                     <button class="btn-danger" onclick="clearQueue()">🗑 Clear Queue</button>
                 </div>
-                <div class="control-group" style="margin-top: 15px;">
+                <div class="control-group" style="margin-top: 8px;">
                     <label>Volume (0 - 100)</label>
                     <input type="number" id="volume-input" min="0" max="100" step="5" value="75">
                     <button onclick="setVolume()">Set Volume</button>
@@ -346,29 +370,18 @@
                 </div>
             </div>
 
-            <!-- Queue Display -->
+            <!-- Queue Contents (with Enqueue controls) -->
             <div class="panel">
                 <h2>Queue Contents</h2>
-                <div id="queue-display">Waiting for SSE...</div>
-            </div>
-
-            <!-- Enqueue Controls -->
-            <div class="panel">
-                <h2>Enqueue Passage</h2>
-                <div class="control-group">
-                    <label>File Path</label>
+                <div id="queue-display" style="margin-bottom: 8px;">Waiting for SSE...</div>
+                <div class="control-group" style="border-top: 1px solid #3a3a3a; padding-top: 8px; margin-top: 8px;">
+                    <label>Enqueue Passage</label>
                     <div class="input-with-browse">
                         <input type="text" id="file-path" placeholder="/path/to/audio/file.mp3">
                         <button class="btn-browse" onclick="openFileBrowser()">Browse</button>
                     </div>
                     <button onclick="enqueuePassage()">Enqueue</button>
                     <div id="enqueue-result"></div>
-                </div>
-                <div class="control-group" style="margin-top: 15px;">
-                    <label>Audio Device</label>
-                    <input type="text" id="device-input" placeholder="default">
-                    <button onclick="setAudioDevice()">Set Device</button>
-                    <div id="device-result"></div>
                 </div>
             </div>
 
@@ -420,8 +433,59 @@
         const eventHistory = []; // Store all events for export
         let eventsPaused = false;
 
+        // Fetch initial state from API
+        async function fetchInitialState() {
+            try {
+                // Fetch build info
+                const buildResponse = await fetch(`${API_BASE}/build_info`);
+                if (buildResponse.ok) {
+                    const buildData = await buildResponse.json();
+                    const buildInfo = `v${buildData.version} [${buildData.git_hash}] ${buildData.build_timestamp} (${buildData.build_profile})`;
+                    document.getElementById('build-info').textContent = buildInfo;
+                }
+
+                // Fetch playback state
+                const stateResponse = await fetch(`${API_BASE}/playback/state`);
+                if (stateResponse.ok) {
+                    const stateData = await stateResponse.json();
+                    updatePlaybackState(stateData.state);
+                }
+
+                // Fetch queue
+                const queueResponse = await fetch(`${API_BASE}/playback/queue`);
+                if (queueResponse.ok) {
+                    const queueData = await queueResponse.json();
+                    updateQueueDisplay(queueData.queue);
+                }
+
+                // Fetch position
+                const positionResponse = await fetch(`${API_BASE}/playback/position`);
+                if (positionResponse.ok) {
+                    const positionData = await positionResponse.json();
+                    updatePosition(positionData);
+                }
+
+                // Fetch volume
+                const volumeResponse = await fetch(`${API_BASE}/audio/volume`);
+                if (volumeResponse.ok) {
+                    const volumeData = await volumeResponse.json();
+                    updateVolumeDisplay(volumeData.volume);
+                }
+
+                // Fetch buffer chains
+                const bufferResponse = await fetch(`${API_BASE}/playback/buffer_chains`);
+                if (bufferResponse.ok) {
+                    const bufferData = await bufferResponse.json();
+                    updateBufferChainDisplay(bufferData.chains);
+                }
+            } catch (err) {
+                console.error('Failed to fetch initial state:', err);
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            fetchInitialState();
             connectEventStream();
         });
 

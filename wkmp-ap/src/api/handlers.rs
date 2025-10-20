@@ -118,6 +118,14 @@ pub struct ReorderQueueRequest {
     new_position: i32,
 }
 
+#[derive(Debug, Serialize)]
+pub struct BuildInfoResponse {
+    version: String,
+    git_hash: String,
+    build_timestamp: String,
+    build_profile: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BrowseFilesRequest {
     path: Option<String>,
@@ -893,6 +901,22 @@ pub async fn browse_files(
         parent_path,
         entries: file_entries,
     }))
+}
+
+// ============================================================================
+// Build Information
+// ============================================================================
+
+/// GET /build_info - Get build information
+///
+/// Returns version, git hash, build timestamp, and build profile
+pub async fn get_build_info() -> Json<BuildInfoResponse> {
+    Json(BuildInfoResponse {
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        git_hash: env!("GIT_HASH").to_string(),
+        build_timestamp: env!("BUILD_TIMESTAMP").to_string(),
+        build_profile: env!("BUILD_PROFILE").to_string(),
+    })
 }
 
 // ============================================================================
