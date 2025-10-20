@@ -540,6 +540,40 @@ impl BufferManager {
         buffers.get(&queue_entry_id)
             .map(|managed| managed.metadata.created_at.elapsed())
     }
+
+    /// Get buffer monitoring info for developer UI
+    pub async fn get_buffer_info(&self, queue_entry_id: Uuid) -> Option<BufferMonitorInfo> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)?;
+
+        let buffer = managed.buffer.read().await;
+        let capacity = buffer.samples.capacity() / 2; // Capacity in frames (stereo)
+        let fill_percent = if capacity > 0 {
+            (buffer.sample_count as f32 / capacity as f32) * 100.0
+        } else {
+            0.0
+        };
+
+        Some(BufferMonitorInfo {
+            fill_percent,
+            samples_buffered: buffer.sample_count,
+            capacity_samples: capacity,
+            duration_ms: if buffer.sample_count > 0 {
+                Some(buffer.duration_ms())
+            } else {
+                None
+            },
+        })
+    }
+}
+
+/// Buffer monitoring information
+#[derive(Debug, Clone)]
+pub struct BufferMonitorInfo {
+    pub fill_percent: f32,
+    pub samples_buffered: usize,
+    pub capacity_samples: usize,
+    pub duration_ms: Option<u64>,
 }
 
 impl Default for BufferManager {

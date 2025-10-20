@@ -24,6 +24,16 @@ use tracing::{trace, warn};
 use uuid::Uuid;
 use wkmp_common::FadeCurve;
 
+/// Mixer state information for monitoring
+#[derive(Debug, Clone)]
+pub struct MixerStateInfo {
+    pub current_passage_id: Option<Uuid>,
+    pub next_passage_id: Option<Uuid>,
+    pub current_position_frames: usize,
+    pub next_position_frames: usize,
+    pub is_crossfading: bool,
+}
+
 /// Standard sample rate for all audio processing
 const STANDARD_SAMPLE_RATE: u32 = 44100;
 
@@ -743,6 +753,39 @@ impl CrossfadeMixer {
                 current_position, ..
             } => *current_position,
             MixerState::None => 0,
+        }
+    }
+
+    /// Get mixer state information for monitoring
+    pub fn get_state_info(&self) -> MixerStateInfo {
+        match &self.state {
+            MixerState::None => MixerStateInfo {
+                current_passage_id: None,
+                next_passage_id: None,
+                current_position_frames: 0,
+                next_position_frames: 0,
+                is_crossfading: false,
+            },
+            MixerState::SinglePassage { passage_id, position, .. } => MixerStateInfo {
+                current_passage_id: Some(*passage_id),
+                next_passage_id: None,
+                current_position_frames: *position,
+                next_position_frames: 0,
+                is_crossfading: false,
+            },
+            MixerState::Crossfading {
+                current_passage_id,
+                current_position,
+                next_passage_id,
+                next_position,
+                ..
+            } => MixerStateInfo {
+                current_passage_id: Some(*current_passage_id),
+                next_passage_id: Some(*next_passage_id),
+                current_position_frames: *current_position,
+                next_position_frames: *next_position,
+                is_crossfading: true,
+            },
         }
     }
 

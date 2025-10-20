@@ -73,6 +73,7 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
         .route("/playback/state", get(super::handlers::get_playback_state))
         .route("/playback/position", get(super::handlers::get_position))
         .route("/playback/buffer_status", get(super::handlers::get_buffer_status))
+        .route("/playback/buffer_chains", get(super::handlers::get_buffer_chains))
 
         // SSE event stream
         .route("/events", get(super::sse::event_stream))

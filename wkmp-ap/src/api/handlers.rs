@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tracing::{error, info, warn};
 use uuid::Uuid;
+use wkmp_common::events::BufferChainInfo;
 
 // ============================================================================
 // Request/Response Types
@@ -94,6 +95,11 @@ pub struct SetDeviceRequest {
 #[derive(Debug, Serialize)]
 pub struct DeviceListResponse {
     devices: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BufferChainsResponse {
+    chains: Vec<BufferChainInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -310,6 +316,20 @@ pub async fn enqueue_passage(
                 timestamp: chrono::Utc::now(),
             });
 
+            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                .map(|e| wkmp_common::events::QueueEntryInfo {
+                    queue_entry_id: e.queue_entry_id,
+                    passage_id: e.passage_id,
+                    file_path: e.file_path.to_string_lossy().to_string(),
+                })
+                .collect();
+            ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                timestamp: chrono::Utc::now(),
+                queue: queue_info,
+            });
+
             Ok(Json(EnqueueResponse {
                 status: "ok".to_string(),
                 queue_entry_id,
@@ -344,6 +364,20 @@ pub async fn remove_from_queue(
             // Emit QueueChanged event
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
                 timestamp: chrono::Utc::now(),
+            });
+
+            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                .map(|e| wkmp_common::events::QueueEntryInfo {
+                    queue_entry_id: e.queue_entry_id,
+                    passage_id: e.passage_id,
+                    file_path: e.file_path.to_string_lossy().to_string(),
+                })
+                .collect();
+            ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                timestamp: chrono::Utc::now(),
+                queue: queue_info,
             });
 
             Ok(StatusCode::NO_CONTENT)
@@ -445,6 +479,13 @@ pub async fn get_queue(
     }).collect();
 
     Json(QueueResponse { queue })
+}
+
+pub async fn get_buffer_chains(
+    State(ctx): State<AppContext>,
+) -> Json<BufferChainsResponse> {
+    let chains = ctx.engine.get_buffer_chains().await;
+    Json(BufferChainsResponse { chains })
 }
 
 pub async fn get_playback_state(
@@ -613,6 +654,20 @@ pub async fn reorder_queue_entry(
             // Emit QueueChanged event
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
                 timestamp: chrono::Utc::now(),
+            });
+
+            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                .map(|e| wkmp_common::events::QueueEntryInfo {
+                    queue_entry_id: e.queue_entry_id,
+                    passage_id: e.passage_id,
+                    file_path: e.file_path.to_string_lossy().to_string(),
+                })
+                .collect();
+            ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                timestamp: chrono::Utc::now(),
+                queue: queue_info,
             });
 
             Ok(StatusCode::OK)

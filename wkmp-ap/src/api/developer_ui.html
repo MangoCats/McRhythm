@@ -10,61 +10,84 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #1a1a1a;
             color: #e0e0e0;
-            padding: 20px;
-            line-height: 1.6;
+            padding: 8px;
+            line-height: 1.4;
+            height: 100vh;
+            overflow: hidden;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
-        h1 { color: #4a9eff; margin-bottom: 10px; font-size: 28px; }
-        .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            color: #4a9eff;
+            margin-bottom: 4px;
+            font-size: 24px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            flex: 1;
+            overflow: hidden;
+        }
         .panel {
             background: #2a2a2a;
             border: 1px solid #3a3a3a;
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: 4px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         h2 {
             color: #4a9eff;
-            font-size: 18px;
-            margin-bottom: 15px;
+            font-size: 16px;
+            margin-bottom: 6px;
             border-bottom: 1px solid #3a3a3a;
-            padding-bottom: 8px;
+            padding-bottom: 4px;
         }
         .status-item {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
+            padding: 4px 0;
             border-bottom: 1px solid #333;
         }
         .status-item:last-child { border-bottom: none; }
-        .status-label { color: #888; font-size: 14px; }
-        .status-value { color: #e0e0e0; font-weight: 500; font-size: 14px; }
+        .status-label { color: #888; font-size: 13px; }
+        .status-value { color: #e0e0e0; font-weight: 500; font-size: 13px; }
         .state-playing { color: #4ade80; }
         .state-paused { color: #fbbf24; }
         .queue-item {
             background: #333;
-            padding: 10px;
-            margin: 8px 0;
-            border-radius: 4px;
-            font-size: 13px;
+            padding: 6px;
+            margin: 4px 0;
+            border-radius: 3px;
+            font-size: 12px;
         }
-        .queue-item-id { color: #888; font-size: 11px; }
-        .queue-empty { color: #666; font-style: italic; padding: 10px 0; }
-        .control-group { margin-bottom: 15px; }
+        .queue-item-id { color: #888; font-size: 10px; }
+        .queue-empty { color: #666; font-style: italic; padding: 6px 0; }
+        .control-group { margin-bottom: 6px; }
         .control-group label {
             display: block;
             color: #888;
-            font-size: 13px;
-            margin-bottom: 5px;
+            font-size: 12px;
+            margin-bottom: 3px;
         }
         input, select, button {
             width: 100%;
-            padding: 10px;
+            padding: 6px 8px;
             background: #333;
             border: 1px solid #444;
             color: #e0e0e0;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 3px;
+            font-size: 13px;
         }
         input:focus, select:focus {
             outline: none;
@@ -76,11 +99,11 @@
             border: none;
             font-weight: 600;
             transition: background 0.2s;
-            margin-top: 5px;
+            margin-top: 3px;
         }
         button:hover { background: #3a8eef; }
         button:active { background: #2a7edf; }
-        .button-group { display: flex; gap: 10px; }
+        .button-group { display: flex; gap: 4px; }
         .button-group button { flex: 1; }
         .btn-play { background: #4ade80; }
         .btn-play:hover { background: #3ace70; }
@@ -93,37 +116,82 @@
         .event-log {
             background: #1a1a1a;
             border: 1px solid #333;
-            border-radius: 4px;
-            padding: 10px;
-            max-height: 300px;
+            border-radius: 3px;
+            padding: 6px;
+            flex: 1;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 12px;
         }
         .event-item {
-            padding: 5px;
+            padding: 3px;
             border-bottom: 1px solid #2a2a2a;
             word-break: break-all;
         }
         .event-item:last-child { border-bottom: none; }
         .event-time { color: #666; }
-        .event-type { color: #4a9eff; font-weight: 600; }
+        .event-type { font-weight: 600; }
         .event-data { color: #888; }
+
+        /* Event type colors */
+        .event-type-InitialState { color: #8b5cf6; }
+        .event-type-QueueStateUpdate { color: #3b82f6; }
+        .event-type-PlaybackPosition { color: #10b981; }
+        .event-type-VolumeChanged { color: #f59e0b; }
+        .event-type-PlaybackStateChanged { color: #ef4444; }
+        .event-type-CrossfadeStarted { color: #ec4899; }
+        .event-type-PassageStarted { color: #06b6d4; }
+        .event-type-PassageCompleted { color: #84cc16; }
+        .event-type-system { color: #6b7280; }
+
         .progress-bar {
             width: 100%;
             height: 6px;
             background: #333;
             border-radius: 3px;
             overflow: hidden;
-            margin-top: 5px;
+            margin-top: 3px;
         }
         .progress-fill {
             height: 100%;
             background: #4a9eff;
             transition: width 0.3s;
         }
-        .error { color: #f87171; font-size: 12px; margin-top: 5px; }
-        .success { color: #4ade80; font-size: 12px; margin-top: 5px; }
+        .error { color: #f87171; font-size: 12px; margin-top: 3px; }
+        .success { color: #4ade80; font-size: 12px; margin-top: 3px; }
+
+        .connection-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .status-connected {
+            background: #10b981;
+            color: #fff;
+        }
+        .status-connecting {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .status-disconnected {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .event-controls {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+        .event-controls button {
+            flex: 1;
+            margin-top: 0;
+            padding: 6px;
+            font-size: 12px;
+        }
 
         /* File Browser Modal */
         .modal {
@@ -142,7 +210,7 @@
         .modal-content {
             background: #2a2a2a;
             border: 1px solid #3a3a3a;
-            border-radius: 8px;
+            border-radius: 4px;
             width: 90%;
             max-width: 700px;
             max-height: 80vh;
@@ -150,7 +218,7 @@
             flex-direction: column;
         }
         .modal-header {
-            padding: 15px 20px;
+            padding: 10px 12px;
             border-bottom: 1px solid #3a3a3a;
             display: flex;
             justify-content: space-between;
@@ -173,15 +241,15 @@
         }
         .modal-close:hover { color: #e0e0e0; }
         .modal-body {
-            padding: 20px;
+            padding: 12px;
             overflow-y: auto;
             flex: 1;
         }
         .current-path {
             background: #1a1a1a;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
+            padding: 6px;
+            border-radius: 3px;
+            margin-bottom: 8px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
             color: #888;
@@ -189,17 +257,17 @@
         }
         .file-list {
             border: 1px solid #333;
-            border-radius: 4px;
+            border-radius: 3px;
             max-height: 400px;
             overflow-y: auto;
         }
         .file-item {
-            padding: 10px;
+            padding: 6px 8px;
             border-bottom: 1px solid #333;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
             transition: background 0.2s;
         }
         .file-item:last-child { border-bottom: none; }
@@ -228,8 +296,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>WKMP Audio Player</h1>
-        <p class="subtitle">Developer Interface - Module Status and API Testing</p>
+        <h1>
+            WKMP Audio Player
+            <span class="connection-status" id="connection-status">Connecting...</span>
+        </h1>
+        <p class="subtitle">Developer Interface - SSE-Based Real-Time Updates</p>
 
         <div class="grid">
             <!-- Status Display -->
@@ -237,7 +308,7 @@
                 <h2>Module Status</h2>
                 <div class="status-item">
                     <span class="status-label">Playback State</span>
-                    <span class="status-value" id="playback-state">Loading...</span>
+                    <span class="status-value" id="playback-state">Waiting for SSE...</span>
                 </div>
                 <div class="status-item">
                     <span class="status-label">Position</span>
@@ -252,7 +323,7 @@
                 </div>
                 <div class="status-item">
                     <span class="status-label">Audio Device</span>
-                    <span class="status-value" id="audio-device">-</span>
+                    <span class="status-value" id="audio-device">default</span>
                 </div>
             </div>
 
@@ -278,7 +349,7 @@
             <!-- Queue Display -->
             <div class="panel">
                 <h2>Queue Contents</h2>
-                <div id="queue-display">Loading...</div>
+                <div id="queue-display">Waiting for SSE...</div>
             </div>
 
             <!-- Enqueue Controls -->
@@ -301,9 +372,24 @@
                 </div>
             </div>
 
+            <!-- Buffer Chain Monitor -->
+            <div class="panel" style="grid-column: 1 / -1;">
+                <h2>Buffer Chain Monitor</h2>
+                <div id="buffer-chains" style="font-family: 'Courier New', monospace; font-size: 12px;">
+                    <div style="color: #888;">Waiting for buffer chain data...</div>
+                </div>
+            </div>
+
             <!-- Event Stream Monitor -->
             <div class="panel" style="grid-column: 1 / -1;">
                 <h2>Event Stream Monitor (SSE)</h2>
+                <div class="event-controls">
+                    <button onclick="clearEventLog()">Clear Log</button>
+                    <button onclick="exportEventLog()">Export JSON</button>
+                    <button onclick="toggleEventPause()">
+                        <span id="pause-text">Pause</span>
+                    </button>
+                </div>
                 <div class="event-log" id="event-log">
                     <div class="event-item">Connecting to event stream...</div>
                 </div>
@@ -330,93 +416,315 @@
     <script>
         const API_BASE = '';
         let eventSource = null;
-        const maxEvents = 50;
+        const maxEvents = 100;
+        const eventHistory = []; // Store all events for export
+        let eventsPaused = false;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            loadStatus();
-            loadQueue();
             connectEventStream();
-            setInterval(() => {
-                loadStatus();
-                loadQueue();
-            }, 2000);
         });
 
-        // Load status
-        async function loadStatus() {
-            try {
-                const [state, position, volume, device] = await Promise.all([
-                    fetch(`${API_BASE}/playback/state`).then(r => r.json()),
-                    fetch(`${API_BASE}/playback/position`).then(r => r.json()),
-                    fetch(`${API_BASE}/audio/volume`).then(r => r.json()),
-                    fetch(`${API_BASE}/audio/device`).then(r => r.json())
-                ]);
+        // Connect to SSE event stream with auto-reconnect
+        function connectEventStream() {
+            const logEl = document.getElementById('event-log');
+            const statusEl = document.getElementById('connection-status');
 
-                const stateEl = document.getElementById('playback-state');
-                stateEl.textContent = state.state;
-                stateEl.className = 'status-value ' + (state.state === 'Playing' ? 'state-playing' : 'state-paused');
+            if (eventSource) {
+                eventSource.close();
+            }
 
-                const posMs = position.position_ms || 0;
-                const durMs = position.duration_ms || 1;
-                const posSec = Math.floor(posMs / 1000);
-                const durSec = Math.floor(durMs / 1000);
-                document.getElementById('position').textContent = `${formatTime(posSec)} / ${formatTime(durSec)}`;
+            updateConnectionStatus('connecting');
+            eventSource = new EventSource(`${API_BASE}/events`);
 
-                const progress = durMs > 0 ? (posMs / durMs * 100) : 0;
-                document.getElementById('progress-fill').style.width = progress + '%';
+            eventSource.onopen = () => {
+                updateConnectionStatus('connected');
+                addEvent('system', 'Connected to SSE event stream');
+            };
 
-                document.getElementById('volume').textContent = Math.round(volume.volume * 100) + '%';
-                document.getElementById('audio-device').textContent = device.device_name || 'default';
-            } catch (err) {
-                console.error('Failed to load status:', err);
+            eventSource.onerror = (err) => {
+                updateConnectionStatus('disconnected');
+                addEvent('system', 'SSE connection error, auto-reconnecting...');
+                // EventSource automatically reconnects
+            };
+
+            // Handle all event types
+            eventSource.addEventListener('InitialState', (e) => {
+                handleInitialState(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('QueueStateUpdate', (e) => {
+                handleQueueStateUpdate(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('PlaybackPosition', (e) => {
+                handlePlaybackPosition(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('VolumeChanged', (e) => {
+                handleVolumeChanged(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('PlaybackStateChanged', (e) => {
+                handlePlaybackStateChanged(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('CrossfadeStarted', (e) => {
+                handleCrossfadeStarted(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('PassageStarted', (e) => {
+                handlePassageStarted(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('PassageCompleted', (e) => {
+                handlePassageCompleted(JSON.parse(e.data));
+            });
+
+            eventSource.addEventListener('BufferChainStatus', (e) => {
+                handleBufferChainStatus(JSON.parse(e.data));
+            });
+
+            // Fallback for unknown events
+            eventSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    addEvent(data.type || 'unknown', JSON.stringify(data, null, 2));
+                } catch (err) {
+                    addEvent('raw', e.data);
+                }
+            };
+        }
+
+        // SSE Event Handlers
+        function handleInitialState(data) {
+            addEvent('InitialState', JSON.stringify(data, null, 2));
+
+            // Update queue
+            if (data.queue) {
+                updateQueueDisplay(data.queue);
+            }
+
+            // Update position
+            if (data.position) {
+                updatePosition(data.position);
+            }
+
+            // Update volume
+            if (typeof data.volume === 'number') {
+                updateVolumeDisplay(data.volume);
             }
         }
 
-        // Load queue
-        async function loadQueue() {
-            try {
-                const response = await fetch(`${API_BASE}/playback/queue`);
-                const data = await response.json();
-                const queueEl = document.getElementById('queue-display');
+        function handleQueueStateUpdate(data) {
+            addEvent('QueueStateUpdate', `Queue updated: ${data.queue.length} entries`);
+            updateQueueDisplay(data.queue);
+        }
 
-                if (!data.queue || data.queue.length === 0) {
-                    queueEl.innerHTML = '<div class="queue-empty">Queue is empty</div>';
-                    return;
-                }
+        function handlePlaybackPosition(data) {
+            // Don't log every position update (too spammy), just update UI
+            updatePosition({
+                passage_id: data.passage_id,
+                position_ms: data.position_ms,
+                duration_ms: data.duration_ms,
+                playing: data.playing
+            });
+        }
 
-                queueEl.innerHTML = data.queue.map(item => `
-                    <div class="queue-item">
-                        <div>${item.file_path || 'Unknown'}</div>
-                        <div class="queue-item-id">ID: ${item.queue_entry_id || 'N/A'}</div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                document.getElementById('queue-display').innerHTML = '<div class="queue-empty">Failed to load queue</div>';
+        function handleVolumeChanged(data) {
+            addEvent('VolumeChanged', `Volume: ${Math.round(data.volume * 100)}%`);
+            updateVolumeDisplay(data.volume);
+        }
+
+        function handlePlaybackStateChanged(data) {
+            addEvent('PlaybackStateChanged', `State: ${data.state}`);
+            updatePlaybackState(data.state);
+        }
+
+        function handleCrossfadeStarted(data) {
+            addEvent('CrossfadeStarted', `From: ${data.from_passage_id.substring(0, 8)}... To: ${data.to_passage_id.substring(0, 8)}...`);
+        }
+
+        function handlePassageStarted(data) {
+            addEvent('PassageStarted', `Passage: ${data.passage_id.substring(0, 8)}...`);
+        }
+
+        function handlePassageCompleted(data) {
+            const status = data.completed ? 'completed' : 'skipped';
+            addEvent('PassageCompleted', `Passage: ${data.passage_id.substring(0, 8)}... (${status})`);
+        }
+
+        function handleBufferChainStatus(data) {
+            // Don't add to event log (too noisy)
+            updateBufferChainDisplay(data.chains);
+        }
+
+        // UI Update Functions
+        function updateQueueDisplay(queue) {
+            const queueEl = document.getElementById('queue-display');
+
+            if (!queue || queue.length === 0) {
+                queueEl.innerHTML = '<div class="queue-empty">Queue is empty</div>';
+                return;
             }
+
+            queueEl.innerHTML = queue.map(item => `
+                <div class="queue-item">
+                    <div>${item.file_path || 'Unknown'}</div>
+                    <div class="queue-item-id">ID: ${item.queue_entry_id || 'N/A'}</div>
+                </div>
+            `).join('');
+        }
+
+        function updatePosition(position) {
+            if (!position) {
+                document.getElementById('position').textContent = '-';
+                document.getElementById('progress-fill').style.width = '0%';
+                return;
+            }
+
+            const posMs = position.position_ms || 0;
+            const durMs = position.duration_ms || 1;
+            const posSec = Math.floor(posMs / 1000);
+            const durSec = Math.floor(durMs / 1000);
+
+            document.getElementById('position').textContent = `${formatTime(posSec)} / ${formatTime(durSec)}`;
+
+            const progress = durMs > 0 ? (posMs / durMs * 100) : 0;
+            document.getElementById('progress-fill').style.width = progress + '%';
+        }
+
+        function updateBufferChainDisplay(chains) {
+            const el = document.getElementById('buffer-chains');
+            if (!chains || chains.length === 0) {
+                el.innerHTML = '<div style="color: #888;">No buffer chains</div>';
+                return;
+            }
+
+            let html = '<div style="background: #1a1a1a; padding: 6px; border-radius: 3px;">';
+
+            chains.forEach(chain => {
+                const roleColor = {
+                    'Idle': '#666',
+                    'Current': '#4ade80',
+                    'Next': '#fbbf24',
+                    'Crossfading': '#ec4899'
+                }[chain.mixer_role] || '#888';
+
+                const fileName = chain.file_name || '(idle)';
+                const bufferPct = chain.buffer_fill_percent.toFixed(1);
+                const posMs = chain.playback_position_ms;
+                const posSec = Math.floor(posMs / 1000);
+                const durMs = chain.duration_ms || 0;
+                const durSec = Math.floor(durMs / 1000);
+
+                html += `
+                    <div style="margin-bottom: 6px; padding: 6px; background: #2a2a2a; border-left: 3px solid ${roleColor};">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                            <span style="color: ${roleColor}; font-weight: bold;">Slot ${chain.slot_index}: ${chain.mixer_role}</span>
+                            <span style="color: #888;">${fileName}</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px;">
+                            <div><span style="color: #888;">Buffer:</span> <span style="color: #4a9eff;">${bufferPct}%</span> (${chain.buffer_fill_samples} / ${chain.buffer_capacity_samples})</div>
+                            <div><span style="color: #888;">Position:</span> <span style="color: #10b981;">${formatTime(posSec)} / ${formatTime(durSec)}</span></div>
+                            <div><span style="color: #888;">Mixer:</span> <span style="color: ${chain.is_active_in_mixer ? '#4ade80' : '#666'};">${chain.is_active_in_mixer ? '✓ Active' : '○ Inactive'}</span></div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            el.innerHTML = html;
+        }
+
+        function updateVolumeDisplay(volume) {
+            document.getElementById('volume').textContent = Math.round(volume * 100) + '%';
+            document.getElementById('volume-input').value = Math.round(volume * 100);
+        }
+
+        function updatePlaybackState(state) {
+            const stateEl = document.getElementById('playback-state');
+            stateEl.textContent = state;
+            stateEl.className = 'status-value ' + (state === 'playing' ? 'state-playing' : 'state-paused');
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connection-status');
+            statusEl.className = 'connection-status status-' + status;
+            statusEl.textContent = status === 'connected' ? 'Connected' :
+                                  status === 'connecting' ? 'Connecting...' : 'Disconnected';
+        }
+
+        // Event Log Functions
+        function addEvent(type, data) {
+            if (eventsPaused) return;
+
+            const logEl = document.getElementById('event-log');
+            const time = new Date().toLocaleTimeString();
+            const eventDiv = document.createElement('div');
+            eventDiv.className = 'event-item';
+            eventDiv.innerHTML = `
+                <span class="event-time">[${time}]</span>
+                <span class="event-type event-type-${escapeHtml(type)}">${escapeHtml(type)}</span>:
+                <span class="event-data">${escapeHtml(data)}</span>
+            `;
+            logEl.insertBefore(eventDiv, logEl.firstChild);
+
+            // Store in history
+            eventHistory.unshift({ time, type, data });
+
+            // Keep only last N events in DOM
+            while (logEl.children.length > maxEvents) {
+                logEl.removeChild(logEl.lastChild);
+            }
+
+            // Keep only last N*2 events in history
+            if (eventHistory.length > maxEvents * 2) {
+                eventHistory.length = maxEvents * 2;
+            }
+        }
+
+        function clearEventLog() {
+            document.getElementById('event-log').innerHTML = '';
+            eventHistory.length = 0;
+            addEvent('system', 'Event log cleared');
+        }
+
+        function exportEventLog() {
+            const dataStr = JSON.stringify(eventHistory, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `wkmp-events-${new Date().toISOString()}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            addEvent('system', 'Event log exported');
+        }
+
+        function toggleEventPause() {
+            eventsPaused = !eventsPaused;
+            document.getElementById('pause-text').textContent = eventsPaused ? 'Resume' : 'Pause';
+            addEvent('system', eventsPaused ? 'Event logging paused' : 'Event logging resumed');
         }
 
         // Playback control
         async function controlPlayback(action) {
             try {
                 const response = await fetch(`${API_BASE}/playback/${action}`, { method: 'POST' });
-                if (response.ok) {
-                    loadStatus();
+                if (!response.ok) {
+                    console.error(`Failed to ${action}`);
                 }
             } catch (err) {
                 console.error(`Failed to ${action}:`, err);
             }
         }
 
-        // Skip current passage (remove from queue and auto-play next if available)
+        // Skip current passage
         async function skipCurrentPassage() {
             try {
                 const response = await fetch(`${API_BASE}/playback/next`, { method: 'POST' });
-                if (response.ok) {
-                    console.log('Skipped to next passage');
-                    loadStatus();
-                    loadQueue();
-                } else {
+                if (!response.ok) {
                     console.error('Failed to skip passage');
                 }
             } catch (err) {
@@ -431,11 +739,7 @@
             }
             try {
                 const response = await fetch(`${API_BASE}/playback/queue/clear`, { method: 'POST' });
-                if (response.ok) {
-                    console.log('Queue cleared');
-                    loadQueue();
-                    loadStatus();
-                } else {
+                if (!response.ok) {
                     console.error('Failed to clear queue');
                 }
             } catch (err) {
@@ -448,7 +752,7 @@
             const resultEl = document.getElementById('volume-result');
             try {
                 const userVolume = parseInt(document.getElementById('volume-input').value);
-                const apiVolume = userVolume / 100.0;  // Convert 0-100 to 0.0-1.0
+                const apiVolume = userVolume / 100.0;
                 const response = await fetch(`${API_BASE}/audio/volume`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -456,7 +760,6 @@
                 });
                 if (response.ok) {
                     resultEl.innerHTML = '<div class="success">✓ Volume set</div>';
-                    loadStatus();
                 } else {
                     resultEl.innerHTML = '<div class="error">✗ Failed</div>';
                 }
@@ -478,7 +781,6 @@
                 });
                 if (response.ok) {
                     resultEl.innerHTML = '<div class="success">✓ Device set</div>';
-                    loadStatus();
                 } else {
                     resultEl.innerHTML = '<div class="error">✗ Failed</div>';
                 }
@@ -504,7 +806,6 @@
                 });
                 if (response.ok) {
                     resultEl.innerHTML = '<div class="success">✓ Enqueued</div>';
-                    loadQueue();
                 } else {
                     const error = await response.text();
                     resultEl.innerHTML = '<div class="error">✗ ' + error + '</div>';
@@ -513,52 +814,6 @@
                 resultEl.innerHTML = '<div class="error">✗ Error: ' + err.message + '</div>';
             }
             setTimeout(() => resultEl.innerHTML = '', 3000);
-        }
-
-        // Connect to SSE event stream
-        function connectEventStream() {
-            const logEl = document.getElementById('event-log');
-
-            if (eventSource) {
-                eventSource.close();
-            }
-
-            eventSource = new EventSource(`${API_BASE}/events`);
-
-            eventSource.onopen = () => {
-                addEvent('system', 'Connected to event stream');
-            };
-
-            eventSource.onerror = () => {
-                addEvent('system', 'Event stream error, reconnecting...');
-            };
-
-            eventSource.onmessage = (e) => {
-                try {
-                    const data = JSON.parse(e.data);
-                    addEvent(data.event_type || 'unknown', JSON.stringify(data, null, 2));
-                } catch (err) {
-                    addEvent('raw', e.data);
-                }
-            };
-        }
-
-        function addEvent(type, data) {
-            const logEl = document.getElementById('event-log');
-            const time = new Date().toLocaleTimeString();
-            const eventDiv = document.createElement('div');
-            eventDiv.className = 'event-item';
-            eventDiv.innerHTML = `
-                <span class="event-time">[${time}]</span>
-                <span class="event-type">${type}</span>:
-                <span class="event-data">${data}</span>
-            `;
-            logEl.insertBefore(eventDiv, logEl.firstChild);
-
-            // Keep only last N events
-            while (logEl.children.length > maxEvents) {
-                logEl.removeChild(logEl.lastChild);
-            }
         }
 
         function formatTime(seconds) {
@@ -574,7 +829,7 @@
         async function openFileBrowser() {
             const modal = document.getElementById('file-browser-modal');
             modal.classList.add('open');
-            await loadDirectory(); // Load root directory
+            await loadDirectory();
         }
 
         function closeFileBrowser() {
@@ -608,10 +863,8 @@
                     return;
                 }
 
-                // Build file list HTML
                 let html = '';
 
-                // Add parent directory link if available
                 if (data.parent_path) {
                     html += `
                         <div class="file-item" data-path="${escapeHtml(data.parent_path)}" data-action="directory">
@@ -621,7 +874,6 @@
                     `;
                 }
 
-                // Add entries
                 data.entries.forEach(entry => {
                     const icon = entry.is_directory ? '📁' : '🎵';
                     const action = entry.is_directory ? 'directory' : 'file';
@@ -637,8 +889,6 @@
 
                 fileList.innerHTML = html;
 
-                // Add event delegation for file/directory clicks
-                // [CROSS-PLATFORM] Using data attributes avoids JavaScript escaping issues with Windows paths
                 fileList.querySelectorAll('.file-item[data-path]').forEach(item => {
                     item.addEventListener('click', () => {
                         const path = item.getAttribute('data-path');
@@ -656,7 +906,6 @@
         }
 
         function selectFile(path) {
-            // Populate the input field and close modal
             document.getElementById('file-path').value = path;
             selectedFilePath = path;
             closeFileBrowser();

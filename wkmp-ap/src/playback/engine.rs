@@ -257,6 +257,18 @@ impl PlaybackEngine {
             self_clone.buffer_event_handler().await;
         });
 
+        // **[SSE-UI-030]** Start PlaybackPosition emission task (every 1s)
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.playback_position_emitter().await;
+        });
+
+        // Start BufferChainStatus emission task (every 1s, only when changed)
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.buffer_chain_status_emitter().await;
+        });
+
         // Create lock-free ring buffer for audio frames
         // [SSD-OUT-012] Real-time audio callback requires lock-free operation
         // [ISSUE-1] Replaces try_write() pattern with lock-free ring buffer
@@ -825,7 +837,10 @@ impl PlaybackEngine {
     /// [SSD-ENG-020] Queue processing
     /// [API] GET /playback/queue
     pub async fn get_queue_entries(&self) -> Vec<crate::playback::queue_manager::QueueEntry> {
+        tracing::debug!("get_queue_entries: Starting");
+        tracing::debug!("get_queue_entries: About to acquire queue read lock");
         let queue = self.queue.read().await;
+        tracing::debug!("get_queue_entries: Acquired queue read lock");
         let mut entries = Vec::new();
 
         // Add current if exists
@@ -841,8 +856,118 @@ impl PlaybackEngine {
         // Add all queued entries
         entries.extend_from_slice(queue.queued());
 
+        tracing::debug!("get_queue_entries: Returning {} entries", entries.len());
         entries
     }
+    /// Get buffer chain status for monitoring
+    ///
+    /// Returns status of all decoder-resampler-fade-buffer chains (slots 0-1).
+    /// Used for developer UI monitoring panel.
+    pub async fn get_buffer_chains(&self) -> Vec<wkmp_common::events::BufferChainInfo> {
+        use wkmp_common::events::BufferChainInfo;
+
+        let mut chains = Vec::new();
+
+        // Get mixer state to determine active passages
+        let mixer = self.mixer.read().await;
+        let mixer_state = mixer.get_state_info();
+        drop(mixer);
+
+        // Get queue entries
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        let next = queue.next().cloned();
+        drop(queue);
+
+        // Slot 0: Current passage (if playing)
+        if let Some(ref entry) = current {
+            let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
+            let is_active = mixer_state.current_passage_id == entry.passage_id;
+
+            let file_name = entry.file_path.file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string());
+
+            chains.push(BufferChainInfo {
+                slot_index: 0,
+                queue_entry_id: Some(entry.queue_entry_id),
+                passage_id: entry.passage_id,
+                file_name,
+                buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
+                buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
+                buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
+                playback_position_frames: mixer_state.current_position_frames,
+                playback_position_ms: (mixer_state.current_position_frames as u64 * 1000) / 44100,
+                duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
+                is_active_in_mixer: is_active,
+                mixer_role: if mixer_state.is_crossfading { "Crossfading".to_string() } else { "Current".to_string() },
+                started_at: None, // TODO: Track start time
+            });
+        } else {
+            // Idle slot
+            chains.push(BufferChainInfo {
+                slot_index: 0,
+                queue_entry_id: None,
+                passage_id: None,
+                file_name: None,
+                buffer_fill_percent: 0.0,
+                buffer_fill_samples: 0,
+                buffer_capacity_samples: 0,
+                playback_position_frames: 0,
+                playback_position_ms: 0,
+                duration_ms: None,
+                is_active_in_mixer: false,
+                mixer_role: "Idle".to_string(),
+                started_at: None,
+            });
+        }
+
+        // Slot 1: Next passage (if queued)
+        if let Some(ref entry) = next {
+            let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
+            let is_active = mixer_state.next_passage_id == entry.passage_id;
+
+            let file_name = entry.file_path.file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string());
+
+            chains.push(BufferChainInfo {
+                slot_index: 1,
+                queue_entry_id: Some(entry.queue_entry_id),
+                passage_id: entry.passage_id,
+                file_name,
+                buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
+                buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
+                buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
+                playback_position_frames: mixer_state.next_position_frames,
+                playback_position_ms: (mixer_state.next_position_frames as u64 * 1000) / 44100,
+                duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
+                is_active_in_mixer: is_active,
+                mixer_role: if mixer_state.is_crossfading { "Crossfading".to_string() } else { "Next".to_string() },
+                started_at: None,
+            });
+        } else {
+            // Idle slot
+            chains.push(BufferChainInfo {
+                slot_index: 1,
+                queue_entry_id: None,
+                passage_id: None,
+                file_name: None,
+                buffer_fill_percent: 0.0,
+                buffer_fill_samples: 0,
+                buffer_capacity_samples: 0,
+                playback_position_frames: 0,
+                playback_position_ms: 0,
+                duration_ms: None,
+                is_active_in_mixer: false,
+                mixer_role: "Idle".to_string(),
+                started_at: None,
+            });
+        }
+
+        chains
+    }
+
 
     /// Verify queue synchronization between in-memory and database
     ///
@@ -1183,6 +1308,13 @@ impl PlaybackEngine {
 
         info!("Crossfade started successfully");
 
+        // **[SSE-UI-040]** Emit CrossfadeStarted event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::CrossfadeStarted {
+            from_passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+            to_passage_id: next.passage_id.unwrap_or_else(|| Uuid::nil()),
+            timestamp: chrono::Utc::now(),
+        });
+
         // Mark next buffer as playing
         self.buffer_manager.mark_playing(next.queue_entry_id).await;
 
@@ -1228,12 +1360,22 @@ impl PlaybackEngine {
 
     /// Process queue: trigger decodes for current/next/queued passages
     async fn process_queue(&self) -> Result<()> {
-        let queue = self.queue.read().await;
+        // **[ASYNC-LOCK-001]** Clone queue entries immediately to avoid holding lock across awaits
+        // Holding RwLock read guard across await points can cause deadlocks when other tasks
+        // (like SSE handlers) try to acquire read locks while a write lock request is pending
+        let (current_entry, next_entry, queued_entries) = {
+            let queue = self.queue.read().await;
+            (
+                queue.current().cloned(),
+                queue.next().cloned(),
+                queue.queued().to_vec(),
+            )
+        }; // Lock is dropped here
 
         // Trigger decode for current passage if needed
         // **Fix for queue flooding:** Only request decode if buffer doesn't exist yet
         // Previously checked is_ready() which allowed duplicate requests while Decoding
-        if let Some(current) = queue.current() {
+        if let Some(current) = &current_entry {
             if !self.buffer_manager.is_managed(current.queue_entry_id).await {
                 debug!("Requesting decode for current passage: {}", current.queue_entry_id);
                 self.request_decode(current, DecodePriority::Immediate, true)
@@ -1244,7 +1386,7 @@ impl PlaybackEngine {
         // Start mixer if current passage has minimum playback buffer
         // [SSD-MIX-030] Single passage playback initiation
         // [SSD-PBUF-028] Start playback with minimum buffer (3 seconds)
-        if let Some(current) = queue.current() {
+        if let Some(current) = &current_entry {
             debug!("process_queue: Found current passage: {}", current.queue_entry_id);
 
             // Check if buffer has minimum playback buffer available (3 seconds)
@@ -1383,7 +1525,7 @@ impl PlaybackEngine {
         if let Some(current_id) = current_passage_id {
             if !is_crossfading {
                 // Verify current matches queue
-                if let Some(current) = queue.current() {
+                if let Some(current) = &current_entry {
                     if current.queue_entry_id == current_id {
                         // Get passage timing and buffer to calculate position
                         if let Ok(passage) = self.get_passage_timing(current).await {
@@ -1418,7 +1560,7 @@ impl PlaybackEngine {
         // [SSD-PBUF-013] Facilitate instant skip to queued passages
         // This MUST happen before completion check to ensure prefetch while playing
         // **Fix for queue flooding:** Only request if not already managed
-        if let Some(next) = queue.next() {
+        if let Some(next) = &next_entry {
             if !self.buffer_manager.is_managed(next.queue_entry_id).await {
                 debug!("Requesting decode for next passage: {}", next.queue_entry_id);
                 self.request_decode(next, DecodePriority::Next, true)
@@ -1432,7 +1574,7 @@ impl PlaybackEngine {
         // third-file bug where passages decoded as "queued" with full=false
         // never get upgraded to full decode when promoted to "next".
         // Trade-off: Slightly higher memory usage, but guarantees correct playback.
-        for queued in queue.queued().iter().take(3) {
+        for queued in queued_entries.iter().take(3) {
             if !self.buffer_manager.is_managed(queued.queue_entry_id).await {
                 debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
                 self.request_decode(queued, DecodePriority::Prefetch, true)
@@ -1477,6 +1619,20 @@ impl PlaybackEngine {
                     queue_write.advance();
                     drop(queue_write);
 
+                    // **[SSE-UI-020]** Emit QueueStateUpdate after queue advance
+                    let queue_entries = self.get_queue_entries().await;
+                    let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                        .map(|e| wkmp_common::events::QueueEntryInfo {
+                            queue_entry_id: e.queue_entry_id,
+                            passage_id: e.passage_id,
+                            file_path: e.file_path.to_string_lossy().to_string(),
+                        })
+                        .collect();
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                        timestamp: chrono::Utc::now(),
+                        queue: queue_info,
+                    });
+
                     // Remove completed passage from database to keep in sync
                     if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
                         warn!("Failed to remove completed passage from database: {}", e);
@@ -1516,30 +1672,34 @@ impl PlaybackEngine {
 
         if is_finished {
             // Get current queue entry for event emission and logging
-            // **FIX:** Use queue.current() instead of mixer.get_current_passage_id()
-            // The mixer may have already transitioned to the next passage when
-            // buffer_event_handler started it, so mixer's passage_id can be stale.
-            if let Some(current) = queue.current() {
-                info!("Passage {} completed", current.queue_entry_id);
+            // **[ASYNC-LOCK-001]** Acquire lock only for the data we need, then drop immediately
+            let (current_qe_id, current_pid) = {
+                let queue = self.queue.read().await;
+                if let Some(current) = queue.current() {
+                    (Some(current.queue_entry_id), current.passage_id)
+                } else {
+                    (None, None)
+                }
+            };
+
+            if let Some(queue_entry_id) = current_qe_id {
+                info!("Passage {} completed", queue_entry_id);
 
                 // Emit PassageCompleted event
                 // [Event-PassageCompleted] Passage playback finished
                 self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
-                    passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                    passage_id: current_pid.unwrap_or_else(|| Uuid::nil()),
                     completed: true, // true = finished naturally, false = skipped/interrupted
                     timestamp: chrono::Utc::now(),
                 });
 
                 // Mark buffer as exhausted
-                self.buffer_manager.mark_exhausted(current.queue_entry_id).await;
+                self.buffer_manager.mark_exhausted(queue_entry_id).await;
 
-                info!("Marked buffer {} as exhausted", current.queue_entry_id);
+                info!("Marked buffer {} as exhausted", queue_entry_id);
 
                 // Capture passage_id for buffer cleanup later (after queue advance)
-                let passage_id_for_cleanup = current.passage_id;
-
-                // Release queue read lock before advancing (needs write lock)
-                drop(queue);
+                let passage_id_for_cleanup = current_pid;
 
                 // [ISSUE-6] Sync queue advance to database
                 // Store ID of completed passage before advancing
@@ -1553,6 +1713,20 @@ impl PlaybackEngine {
                 let mut queue_write = self.queue.write().await;
                 queue_write.advance();
                 drop(queue_write);
+
+                // **[SSE-UI-020]** Emit QueueStateUpdate after queue advance
+                let queue_entries = self.get_queue_entries().await;
+                let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                    .map(|e| wkmp_common::events::QueueEntryInfo {
+                        queue_entry_id: e.queue_entry_id,
+                        passage_id: e.passage_id,
+                        file_path: e.file_path.to_string_lossy().to_string(),
+                    })
+                    .collect();
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                    timestamp: chrono::Utc::now(),
+                    queue: queue_info,
+                });
 
                 // Remove completed passage from database to keep in sync
                 if let Some(completed_id) = completed_queue_entry_id {
@@ -1929,6 +2103,95 @@ impl PlaybackEngine {
                 None => {
                     info!("Buffer event handler stopping (channel closed)");
                     break;
+                }
+            }
+        }
+    }
+
+    /// Background task: Emit BufferChainStatus events every 1 second when data changes
+    ///
+    /// Tracks decoder-resampler-fade-buffer chain states for developer UI monitoring.
+    /// Only emits when data changes to reduce SSE traffic.
+    async fn buffer_chain_status_emitter(&self) {
+        use tokio::time::interval;
+        use std::time::Duration;
+
+        info!("BufferChainStatus emitter started");
+
+        let mut tick = interval(Duration::from_secs(1));
+        let mut last_chains: Option<Vec<wkmp_common::events::BufferChainInfo>> = None;
+
+        loop {
+            tick.tick().await;
+
+            // Check if engine is still running
+            if !*self.running.read().await {
+                info!("BufferChainStatus emitter stopping");
+                break;
+            }
+
+            // Get current buffer chain status
+            let current_chains = self.get_buffer_chains().await;
+
+            // Only emit if data has changed
+            let should_emit = match &last_chains {
+                None => true, // First emission
+                Some(prev) => prev != &current_chains, // Data changed
+            };
+
+            if should_emit {
+                // Emit BufferChainStatus event
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferChainStatus {
+                    timestamp: chrono::Utc::now(),
+                    chains: current_chains.clone(),
+                });
+
+                last_chains = Some(current_chains);
+            }
+        }
+    }
+
+    /// Background task: Emit PlaybackPosition events every 1 second
+    ///
+    /// **[SSE-UI-030]** Playback Position Updates
+    ///
+    /// This background task runs continuously and emits PlaybackPosition
+    /// events to SSE clients every 1 second during active playback.
+    async fn playback_position_emitter(&self) {
+        use tokio::time::interval;
+        use std::time::Duration;
+
+        info!("PlaybackPosition emitter started");
+
+        let mut tick = interval(Duration::from_secs(1));
+
+        loop {
+            tick.tick().await;
+
+            // Check if engine is still running
+            if !*self.running.read().await {
+                info!("PlaybackPosition emitter stopping");
+                break;
+            }
+
+            // Only emit if currently playing (not paused/stopped)
+            let playback_state = self.state.get_playback_state().await;
+            if playback_state != crate::state::PlaybackState::Playing {
+                continue;
+            }
+
+            // Get current passage from SharedState
+            if let Some(current) = self.state.get_current_passage().await {
+                // Only emit if passage has a valid passage_id
+                if let Some(passage_id) = current.passage_id {
+                    // Emit PlaybackPosition event
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackPosition {
+                        timestamp: chrono::Utc::now(),
+                        passage_id,
+                        position_ms: current.position_ms,
+                        duration_ms: current.duration_ms,
+                        playing: true,
+                    });
                 }
             }
         }
