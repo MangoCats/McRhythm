@@ -52,10 +52,41 @@ http = "1.0"
 http-body-util = "0.1"
 reqwest = { version = "0.11", features = ["json"] }
 # Benchmarking
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 # File searching for tests
 walkdir = "2.4"
 
+# Performance Benchmarks
+# See docs/validation/IMPL-TESTS-003-performance-benchmarks.md
+
 [[bench]]
 name = "crossfade_bench"
+harness = false
+
+[[bench]]
+name = "startup_bench"
+harness = false
+
+[[bench]]
+name = "decode_bench"
+harness = false
+
+[[bench]]
+name = "resample_bench"
+harness = false
+
+[[bench]]
+name = "fade_bench"
+harness = false
+
+[[bench]]
+name = "buffer_bench"
+harness = false
+
+[[bench]]
+name = "mixer_bench"
+harness = false
+
+[[bench]]
+name = "tick_bench"
 harness = false

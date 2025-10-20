@@ -7,7 +7,7 @@ Defines HOW playback completion detection and duration tracking are designed to 
 > **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Crossfade Design](SPEC002-crossfade.md)
 
 **Document Type:** Design Specification (Tier 2)
-**Status:** Implemented
+**Status:** Implemented, archived, superceded by SPEC016-decoder_buffer_design.md
 **Date:** 2025-10-19
 **Related Requirements:** [REQ-CF-030], [SSD-MIX-060], [REV002]
 
