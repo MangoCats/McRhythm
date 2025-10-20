@@ -110,6 +110,8 @@ WKMP implements a **microservices architecture with 5 core processes** communica
 
 **[ARCH-PC-010]** Responsibilities:
 - Implements single-stream audio architecture with sample-accurate crossfading (~0.02ms precision)
+
+Note: 0.02ms represents sample-level precision at 44.1kHz ([SPEC016 DBD-DEC-080]). For tick-level precision (~35.4 nanoseconds), see [SPEC017 Tick Rate - SRC-TICK-030].
 - Decodes audio files using symphonia (MP3, FLAC, AAC, Vorbis in pure Rust; Opus via C library FFI)
 - Buffers decoded PCM audio in memory with automatic fade application
 - Coordinates passage transitions based on lead-in/lead-out timing
@@ -118,6 +120,8 @@ WKMP implements a **microservices architecture with 5 core processes** communica
 - Manages volume control (user level + fade automation)
 - Maintains playback queue with persistence
 - Outputs audio via cpal (cross-platform: PulseAudio, ALSA, CoreAudio, WASAPI)
+
+See [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) for complete audio player architecture including decoder-buffer chains, mixer, and output system.
 
 **HTTP Control API:**
 - `POST /audio/device` - Set audio output device
@@ -372,6 +376,8 @@ During playback, wkmp-ap uses **event-driven position tracking** to detect song 
    - Non-blocking emission via MPSC channel (capacity: 100 events)
    - **See [Database Schema](IMPL001-database_schema.md#event-timing-intervals---detailed-explanation)** for interval configuration details
 
+See [IMPL001 Database Schema - Settings Table](IMPL001-database_schema.md#settings-table) for position_event_interval_ms and playback_progress_interval_ms configuration.
+
 2. **Event-driven boundary detection:**
    - Position event handler receives `PositionUpdate` events
    - Converts frame position to milliseconds using sample rate
@@ -533,6 +539,8 @@ fn check_song_boundaries(&mut self, current_position_ms: u64) -> Option<CurrentS
   - User input → API: `api_volume = user_input / 100.0`
   - API → User display: `user_display = round(api_volume * 100.0)`
 - **Rationale**: Consistent 0.0-1.0 scale across all backend systems eliminates conversion errors
+
+See [SPEC016 Mixer - DBD-MIX-040] for volume application in mixer (multiply sample values by master volume).
 
 **Storage and Transmission:**
 - Database: Store as double (0.0-1.0) in `settings.volume_level`
@@ -841,8 +849,13 @@ The modules listed above are separate processes. Within each module, there are i
 - **Queue Monitor**: Calculates remaining queue time, sends `POST /selection/request` to Program Director when below thresholds (< 2 passages or < 15 minutes), throttles requests to once per 10 seconds
 - **Playback Controller**: Coordinates passage transitions, manages crossfade timing based on lead-in/lead-out points
 - **Audio Decoder**: Decodes audio files using symphonia, handles sample rate conversion with rubato, fills PCM buffers
-- **Crossfade Mixer**: Sample-accurate mixing engine with automatic fade curve application (5 curve types supported)
+- **Crossfade Mixer**: Sample-accurate mixing engine with automatic fade curve application (5 curve types supported) (see [SPEC016 Mixer - DBD-MIX-010] through [DBD-MIX-052] for complete specification)
 - **Audio Output**: cpal-based audio output with ring buffer management, handles platform-specific audio backends
+
+See [SPEC016 Output](SPEC016-decoder_buffer_design.md#output) for output ring buffer specification:
+- [DBD-OUT-010]: Output ring buffer architecture
+- [DBD-PARAM-030]: 8192 samples (185ms @ 44.1kHz)
+- [DBD-PARAM-040]: 90ms refill period
 - **Historian**: Records passage plays with timestamps, updates last-play times for cooldown calculations
 
 **User Interface Internal Components:**
@@ -1169,7 +1182,10 @@ Lyric Editor (Full only)
 This architecture implements the requirements specified in [requirements.md](REQ001-requirements.md).
 
 Detailed design specifications for each subsystem:
-- **Crossfade System**: See [Crossfade Design](SPEC002-crossfade.md)
+- **Audio Player Architecture**: See [Decoder Buffer Design](SPEC016-decoder_buffer_design.md)
+- **Timing Precision**: See [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)
+- **Crossfade Design**: See [Crossfade Design](SPEC002-crossfade.md)
+- **Single-Stream Playback**: See [Single Stream Playback](SPEC013-single_stream_playback.md), [Single Stream Design](SPEC014-single_stream_design.md)
 - **Musical Flavor System**: See [Musical Flavor](SPEC003-musical_flavor.md)
 - **Event-Driven Communication**: See [Event System](SPEC011-event_system.md)
 - **Data Model**: See [Database Schema](IMPL001-database_schema.md)

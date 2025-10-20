@@ -1,10 +1,15 @@
 ﻿# Single Stream Audio Playback Architecture
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Crossfade Design](SPEC002-crossfade.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Crossfade Design](SPEC002-crossfade.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
 
 ---
 
 **⚖️ TIER 2 - DESIGN SPECIFICATION**
+
+> **NOTE:** This document provides a high-level overview of the single-stream playback architecture. For detailed decoder-buffer-mixer design, see:
+> - [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) - Authoritative decoder-buffer-mixer specification
+> - [SPEC017 Sample Rate Conversion](SPEC017-sample_rate_conversion.md) - Tick-based timing system
+> - [SPEC014 Single Stream Design](SPEC014-single_stream_design.md) - Implementation details
 
 **Status:** ✅ **Production Implementation** (Replaces GStreamer Dual Pipeline)
 **Decision Date:** 2025-10-16
@@ -25,6 +30,8 @@
 **[SSP-ARCH-010]** The single-stream architecture decodes audio files into memory buffers, applies fade curves at the sample level, mixes passages with sample-accurate timing, and outputs the mixed audio stream to the system audio device.
 
 ### Component Diagram
+
+> **NOTE:** SPEC016 specifies serial decoding (one decoder at a time, [DBD-DEC-040]) rather than parallel thread pool for improved cache coherency. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for authoritative decoder strategy.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -79,8 +86,8 @@
 **[SSP-DEC-010]** Purpose: Decode compressed audio files into raw PCM samples.
 
 **[SSP-DEC-020]** Technology:
-- `symphonia 0.5.x`: Pure Rust audio decoder
-- `rubato 0.15.x`: High-quality sample rate conversion
+- `symphonia 0.5.x`: Pure Rust audio decoder (see [SPEC016 Sample Format - DBD-FMT-020])
+- `rubato 0.15.x`: High-quality sample rate conversion (see [SPEC016 Resampling - DBD-RSMP-010])
 
 **[SSP-DEC-030]** Supported Formats:
 - MP3 (MPEG-1/2 Layer 3)
@@ -96,7 +103,7 @@
 1. Open audio file using symphonia decoder
 2. Seek to passage start position (skip unwanted samples)
 3. Decode compressed audio into PCM samples
-4. Resample to standard rate (44.1kHz) if needed using rubato
+4. Resample to working_sample_rate ([SPEC016 DBD-PARAM-020], default: 44.1kHz) if needed using rubato. See [SPEC016 Resampling - DBD-RSMP-010].
 5. Write interleaved stereo PCM data (f32: [L, R, L, R, ...]) to PassageBuffer
 6. Notify buffer manager of completion
 
@@ -109,9 +116,10 @@
 
 **Status:** ✅ **Complete** (351 LOC, 12/12 tests passing)
 
-**[SSP-BUF-020]** Key Features:
+**[SSP-BUF-020]** Key Features (see [SPEC016 Buffers - DBD-BUF-010] for complete specification):
 - PCM audio storage (interleaved stereo f32: [L, R, L, R, ...])
-- Automatic fade application during `read_sample()` - no separate fade step
+- Fade application during decode (pre-buffer) per [DBD-FADE-030]
+- Buffer sizing: [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s @ 44.1kHz, 60MB total for 12 buffers)
 - Position tracking with seek support
 - Duration calculations (frames and milliseconds)
 - Memory usage tracking
@@ -150,11 +158,15 @@ let (left, right) = buffer.read_sample();
 <a id="fade-curve-algorithms"></a>
 ### 3. Fade Curve Algorithms
 
+See [SPEC002 Volume Fade Curve Formulas](SPEC002-crossfade.md#volume-fade-curve-formulas) for authoritative fade curve definitions ([XFD-IMPL-091] through [XFD-IMPL-096]).
+
+Implementation location: [SPEC016 Fade In/Out handlers - DBD-FADE-010].
+
 **[SSP-CURV-010]** Purpose: Calculate gain values for smooth audio transitions.
 
 **Status:** ✅ **Complete** (218 LOC, 8/8 tests passing)
 
-**[SSP-CURV-020]** Implemented Curves:
+**[SSP-CURV-020]** Supported curves:
 1. **Linear** - Simple linear fade (y = x)
 2. **Logarithmic** - Gradual start, faster end
 3. **Exponential** - Faster start, gradual end
@@ -186,6 +198,8 @@ let name = curve.to_str(); // "s_curve"
 
 ### 4. Crossfade Mixer
 
+> **NOTE:** [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) now provides the authoritative mixer specification ([DBD-MIX-010] through [DBD-MIX-052]).
+
 **[SSP-MIX-010]** Purpose: Mix two passage buffers with sample-accurate crossfading.
 
 **Status:** ✅ **Complete** (307 LOC, 8/8 tests passing)
@@ -197,7 +211,7 @@ let name = curve.to_str(); // "s_curve"
 - Position and duration queries
 - Passage advancement (promotes next to current)
 
-**[SSP-MIX-030]** Crossfade Algorithm:
+**[SSP-MIX-030]** Crossfade Algorithm (see [SPEC016 Mixer - DBD-MIX-040] for implementation):
 ```rust
 // Simplified mixing algorithm
 for each sample in output_buffer {
@@ -210,6 +224,8 @@ for each sample in output_buffer {
     output_right = (curr_right + next_right) * master_volume;
 }
 ```
+
+For crossfade timing calculation, see [SPEC002 Crossfade Design](SPEC002-crossfade.md#implementation-algorithm).
 
 **API Example:**
 ```rust
@@ -349,6 +365,8 @@ Fade-out:                                         ├──┤
 - No timing uncertainty from framework scheduler
 - Fade curves applied per-sample
 
+Sample-accurate timing per [SPEC016 Decoders - DBD-DEC-080]. For tick-level precision (~35.4 nanoseconds), see [SPEC017 Tick Rate - SRC-TICK-030].
+
 ### Fade Curve Selection
 
 **[SSP-XFD-040]** The fade curve determines how volume transitions during crossfade:
@@ -374,6 +392,16 @@ Fade-out:                                         ├──┤
 - Exponential: faster start, gradual end
 
 ## Performance Characteristics
+
+See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for authoritative buffer sizing:
+- [DBD-PARAM-030] output_ringbuffer_size (8192 samples = 185ms)
+- [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s, 60MB for 12 buffers)
+- [DBD-PARAM-080] playout_ringbuffer_headroom (441 samples)
+
+Latency:
+- Decode latency: Variable (depends on file format and decode speed)
+- Crossfade latency: ~0.02ms (sample-accurate per [DBD-DEC-080])
+- Output latency: ~185ms (output ring buffer per [DBD-PARAM-030])
 
 ### Memory Usage
 

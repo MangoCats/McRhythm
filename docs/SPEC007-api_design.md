@@ -4,7 +4,7 @@
 
 Defines REST API structure and Server-Sent Events interface. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Event System](SPEC011-event_system.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)
 
 ---
 

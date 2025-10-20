@@ -511,6 +511,9 @@ These documents define HOW requirements are satisfied through design decisions.
 
 **Contains:**
 - Operating parameters (working_sample_rate, buffer sizes, decode scheduling)
+
+See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) ([DBD-PARAM-010] through [DBD-PARAM-100]).
+
 - Decoder-buffer chain component specifications
 - Backpressure mechanisms
 - Resampling, fade application, and mixer behavior

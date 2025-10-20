@@ -473,6 +473,13 @@ pub enum BufferStatus {
     Exhausted,  // Buffer playback completed
 }
 
+// See [SPEC016 Buffers](SPEC016-decoder_buffer_design.md#buffers) for complete buffer lifecycle specification:
+// - [DBD-BUF-020]: Empty on start
+// - [DBD-BUF-030]: Mixer can't read empty buffer
+// - [DBD-BUF-040]: Returns last sample if empty
+// - [DBD-BUF-050]: Decoder pauses when nearly full
+// - [DBD-BUF-060]: Informs queue on completion
+
 **Note on Playback State:**
 - System always starts in `Playing` state on app launch
 - Only two states exist: `Playing` and `Paused`

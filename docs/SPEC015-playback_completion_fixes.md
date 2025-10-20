@@ -39,6 +39,8 @@ Both bugs stem from **incremental buffer decoding** interacting with **live dura
 
 ### Bug #1: Duration Climbing
 
+See [SPEC016 Buffers](SPEC016-decoder_buffer_design.md#buffers) for authoritative buffer behavior specification ([DBD-BUF-010] through [DBD-BUF-060]).
+
 **Observed Behavior:**
 - UI shows position like "2:30 / 10s", then "2:30 / 30s", then "2:30 / 118:13"
 - Total duration continuously increases during playback
@@ -70,6 +72,8 @@ pub fn duration_ms(&self) -> u64 {
 ---
 
 ### Bug #2: Passage Repeats Instead of Advancing
+
+Related to buffer exhaustion detection ([SPEC016 DBD-BUF-040](SPEC016-decoder_buffer_design.md#buffers)).
 
 **Observed Behavior:**
 - First passage plays for ~5 minutes (actual file length)

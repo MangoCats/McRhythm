@@ -4,7 +4,7 @@
 
 Defines HOW crossfade timing and behavior are designed. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md), and [Requirements Enumeration](GOV002-requirements_enumeration.md).
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Single Stream Design](SPEC014-single_stream_design.md)
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)
 
 ---
 
@@ -58,6 +58,8 @@ operation to take place.
 
   - **[XFD-PT-070] Lead-In/Lead-Out**: Define when this passage plays simultaneously with adjacent passages
   - **[XFD-PT-080] Fade-In/Fade-Out**: Define volume envelope (independent of simultaneous playback)
+
+**Database storage:** All timing points stored as INTEGER ticks (not seconds). See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for field definitions ([SRC-DB-011] through [SRC-DB-016]).
 
 ### Durations
 
@@ -242,6 +244,8 @@ crossfade_config = {
     crossfade_duration: crossfade_duration
 }
 ```
+
+See [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) for implementation of crossfade mixing with overlapping passages ([DBD-MIX-040]).
 
 **[XFD-IMPL-030]** Clamped Crossfade Time Calculation:
 
@@ -467,6 +471,8 @@ if current_position_a >= preload_trigger_point:
     transition_pipeline_to_paused_state(idle_pipeline)
 ```
 
+Note: 5-second pre-load buffer is 1/3 of [SPEC016 DBD-PARAM-070] playout_ringbuffer_size (15.01 seconds @ 44.1kHz). See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters).
+
 **[XFD-IMPL-080]** Pre-loading ensures buffers are decoded and ready before crossfade begins, preventing audio glitches.
 
 > See [Single Stream Playback Architecture](SPEC013-single_stream_playback.md#buffer-management) for complete buffer pre-loading details.
@@ -660,6 +666,8 @@ function volume_update_loop():
   - Higher values (e.g., 50ms): Lower CPU usage, may have audible steps in fade curves
   - Recommended: 10ms provides smooth, artifact-free transitions with reasonable CPU usage
 
+Note: This is distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms), which controls mixer-to-output ring buffer fills. Volume updates occur more frequently for smooth fade curves.
+
 **Implementation Notes:**
 - Update timer runs continuously during playback (even when not crossfading)
 - When not in crossfade or resume fade-in, volumes remain constant (no calculations needed)
@@ -682,6 +690,11 @@ This section specifies how pause and resume operations affect audio playback, di
 - **Playback state**: Position tracking continues to maintain accurate position
 - **Playback position**: Preserved at moment of pause
 - **Crossfade interaction**: If pause occurs during crossfade, both passages are muted immediately
+
+See [SPEC016 Mixer - Pause Mode](SPEC016-decoder_buffer_design.md#mixer) for mixer implementation of pause behavior:
+- [DBD-MIX-050]: Exponential decay output during pause
+- [DBD-MIX-051]: pause_decay_factor ([DBD-PARAM-090], default 0.9999)
+- [DBD-MIX-052]: pause_decay_floor ([DBD-PARAM-100], default 0.0001)
 
 **Rationale:** Pause is conceptually an immediate stop, not a gradual fade. Users expect instant response when pausing.
 
@@ -765,7 +778,16 @@ See [database_schema.md - settings table](IMPL001-database_schema.md#settings) f
 
 **[XFD-IMPL-140]** Key implementation considerations:
 
-1. **Timing precision**: All calculations use floating-point seconds internally; convert to sample counts when applying to audio buffers
+1. **Timing precision**: **CORRECTION:** Timing precision uses tick-based representation (not floating-point seconds).
+
+   See [SPEC017 Problem Statement](SPEC017-sample_rate_conversion.md#problem-statement):
+   - [SRC-PROB-020]: Floating-point seconds introduce cumulative rounding errors
+   - [SRC-SOL-010]: Use i64 ticks for lossless precision
+   - [SRC-TICK-020]: tick_rate = 28,224,000 Hz (LCM of common sample rates)
+   - [SRC-TICK-030]: One tick ≈ 35.4 nanoseconds
+
+   Internal timing uses ticks; floating-point may be used for logging/display only.
+
 2. **Thread safety**: Crossfade calculations performed on playback thread; volume updates applied atomically during frame generation
 3. **Edge case handling**: Zero-duration fades (instant transitions) handled by setting volume directly without interpolation
 4. **Fade curve symmetry**: Exponential fade-in pairs with logarithmic fade-out for perceptually balanced crossfades
@@ -776,6 +798,10 @@ See [database_schema.md - settings table](IMPL001-database_schema.md#settings) f
 
 **[XFD-FADE-010]** Fades operate independently of crossfade overlap
 
+See [SPEC016 Fade In/Out handlers](SPEC016-decoder_buffer_design.md#fade-inout-handlers) for fade curve application implementation:
+- [DBD-FADE-030]: Fade-in curve application
+- [DBD-FADE-050]: Fade-out curve application
+
 ## Volume Calculations
 
 **[XFD-VOL-010]** During crossfade overlap, audio streams are mixed:
@@ -783,6 +809,8 @@ See [database_schema.md - settings table](IMPL001-database_schema.md#settings) f
 ```
 Final Output = (Passage A Audio Ã— A Volume) + (Passage B Audio Ã— B Volume)
 ```
+
+See [SPEC016 Mixer](SPEC016-decoder_buffer_design.md#mixer) for implementation details of volume mixing during crossfade ([DBD-MIX-040]).
 
 **[XFD-VOL-020]** Where volume at any time `t` is determined by:
 - Current passage fade state (fade-in/fade-out curve)
@@ -976,6 +1004,8 @@ When passages are enqueued via `/playback/enqueue` API endpoint, timing points m
 **[XFD-QUEUE-030]** Timing Value Format:
 - All timing values are unsigned integer milliseconds
 - `lead_in_point_ms`, `fade_in_point_ms`, `lead_out_point_ms`, `fade_out_point_ms` are relative to `start_time_ms`
+
+See [SPEC017 Sample Rate Conversion - API Representation](SPEC017-sample_rate_conversion.md#api-representation) for conversion between milliseconds (API) and ticks (internal storage, [SRC-API-020]: ms * 28224).
 - When converting from database (seconds) to API (milliseconds): multiply by 1000
 - When converting from API (milliseconds) to audio samples: multiply by `(sample_rate / 1000)`
 
@@ -1022,13 +1052,19 @@ The Global Crossfade Time and Fade Curve Selection should be good for most passa
 
 ## Database Storage
 
-**[XFD-DB-010]** Passage table stores:
-- `start_time` (seconds, nullable)
-- `fade_in_point` (seconds, nullable)
-- `lead_in_point` (seconds, nullable)
-- `lead_out_point` (seconds, nullable)
-- `fade_out_point` (seconds, nullable)
-- `end_time` (seconds, nullable)
+**[XFD-DB-010]** **CORRECTION:** Database stores timing as INTEGER ticks, not seconds.
+
+See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for tick-based storage format:
+- [SRC-DB-011]: start_time_ticks (INTEGER NOT NULL)
+- [SRC-DB-012]: fade_in_start_ticks (INTEGER)
+- [SRC-DB-013]: lead_in_start_ticks (INTEGER)
+- [SRC-DB-014]: lead_out_start_ticks (INTEGER)
+- [SRC-DB-015]: fade_out_start_ticks (INTEGER)
+- [SRC-DB-016]: end_time_ticks (INTEGER NOT NULL)
+
+Conversion: ticks = seconds * 28,224,000 ([SRC-TICK-020])
+
+**Fade curve storage (unchanged):**
 - `fade_in_curve` (nullable enum: 'exponential', 'cosine', 'linear'; NULL = use global default)
 - `fade_out_curve` (nullable enum: 'logarithmic', 'cosine', 'linear'; NULL = use global default)
 

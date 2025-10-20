@@ -147,14 +147,23 @@ Audio passages (playable segments) extracted from files.
 |--------|------|-------------|-------------|
 | guid | TEXT | PRIMARY KEY | Unique passage identifier (UUID) |
 | file_id | TEXT | NOT NULL REFERENCES files(guid) ON DELETE CASCADE | Parent audio file |
-| start_time | REAL | | Passage start time in seconds (NULL = file start) |
-| fade_in_point | REAL | | Fade-in point in seconds (NULL = use global Crossfade Time) |
-| lead_in_point | REAL | | Lead-in point in seconds (NULL = use global Crossfade Time) |
-| lead_out_point | REAL | | Lead-out point in seconds (NULL = use global Crossfade Time) |
-| fade_out_point | REAL | | Fade-out point in seconds (NULL = use global Crossfade Time) |
-| end_time | REAL | | Passage end time in seconds (NULL = file end) |
-| fade_in_curve | TEXT | | Fade-in curve: 'exponential', 'cosine', 'linear' (NULL = use global default) |
-| fade_out_curve | TEXT | | Fade-out curve: 'logarithmic', 'cosine', 'linear' (NULL = use global default) |
+| start_time_ticks | INTEGER | NOT NULL | Passage start ([SRC-DB-011], ticks from file start, 0 = file start) |
+| fade_in_start_ticks | INTEGER | | Fade-in start ([SRC-DB-012], ticks from file start, NULL = use global Crossfade Time) |
+| lead_in_start_ticks | INTEGER | | Lead-in start ([SRC-DB-013], ticks from file start, NULL = use global Crossfade Time) |
+| lead_out_start_ticks | INTEGER | | Lead-out start ([SRC-DB-014], ticks from file start, NULL = use global Crossfade Time) |
+| fade_out_start_ticks | INTEGER | | Fade-out start ([SRC-DB-015], ticks from file start, NULL = use global Crossfade Time) |
+| end_time_ticks | INTEGER | NOT NULL | Passage end ([SRC-DB-016], ticks from file start) |
+
+**Tick-Based Timing:**
+- All timing fields use INTEGER ticks instead of REAL seconds for lossless precision
+- Conversion: ticks = seconds * 28,224,000 ([SPEC017 SRC-TICK-020])
+- One tick ≈ 35.4 nanoseconds ([SPEC017 SRC-TICK-030])
+- See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for complete tick storage specification
+
+| fade_in_curve | TEXT | | Fade-in curve type (see [SPEC002 XFD-CURV-020]: exponential, cosine, linear) (NULL = use global default) |
+| fade_out_curve | TEXT | | Fade-out curve type (see [SPEC002 XFD-CURV-030]: logarithmic, cosine, linear) (NULL = use global default) |
+
+> See [SPEC002 Fade Curves](SPEC002-crossfade.md#fade-curves) for curve definitions.
 | title | TEXT | | Title from file tags |
 | user_title | TEXT | | User-defined passage title (overrides tag title) |
 | artist | TEXT | | Artist from file tags |
@@ -164,14 +173,14 @@ Audio passages (playable segments) extracted from files.
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
 **Constraints:**
-- CHECK: `start_time IS NULL OR start_time >= 0`
-- CHECK: `end_time IS NULL OR (start_time IS NULL OR end_time > start_time)`
-- CHECK: `fade_in_point IS NULL OR ((start_time IS NULL OR fade_in_point >= start_time) AND (end_time IS NULL OR fade_in_point <= end_time))`
-- CHECK: `lead_in_point IS NULL OR ((start_time IS NULL OR lead_in_point >= start_time) AND (end_time IS NULL OR lead_in_point <= end_time))`
-- CHECK: `lead_out_point IS NULL OR ((start_time IS NULL OR lead_out_point >= start_time) AND (end_time IS NULL OR lead_out_point <= end_time))`
-- CHECK: `fade_out_point IS NULL OR ((start_time IS NULL OR fade_out_point >= start_time) AND (end_time IS NULL OR fade_out_point <= end_time))`
-- CHECK: `fade_in_point IS NULL OR fade_out_point IS NULL OR fade_in_point <= fade_out_point`
-- CHECK: `lead_in_point IS NULL OR lead_out_point IS NULL OR lead_in_point <= lead_out_point`
+- CHECK: `start_time_ticks >= 0`
+- CHECK: `end_time_ticks > start_time_ticks`
+- CHECK: `fade_in_start_ticks IS NULL OR (fade_in_start_ticks >= start_time_ticks AND fade_in_start_ticks <= end_time_ticks)`
+- CHECK: `lead_in_start_ticks IS NULL OR (lead_in_start_ticks >= start_time_ticks AND lead_in_start_ticks <= end_time_ticks)`
+- CHECK: `lead_out_start_ticks IS NULL OR (lead_out_start_ticks >= start_time_ticks AND lead_out_start_ticks <= end_time_ticks)`
+- CHECK: `fade_out_start_ticks IS NULL OR (fade_out_start_ticks >= start_time_ticks AND fade_out_start_ticks <= end_time_ticks)`
+- CHECK: `fade_in_start_ticks IS NULL OR fade_out_start_ticks IS NULL OR fade_in_start_ticks <= fade_out_start_ticks`
+- CHECK: `lead_in_start_ticks IS NULL OR lead_out_start_ticks IS NULL OR lead_in_start_ticks <= lead_out_start_ticks`
 - CHECK: `fade_in_curve IS NULL OR fade_in_curve IN ('exponential', 'cosine', 'linear')`
 - CHECK: `fade_out_curve IS NULL OR fade_out_curve IN ('logarithmic', 'cosine', 'linear')`
 
@@ -749,9 +758,13 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | **Audio Configuration** |
 | `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (HTTP API also uses 0.0-1.0; UI displays 0-100 with conversion: `display = round(volume * 100.0)`) | wkmp-ap | All |
 | `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
+
+> See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for complete audio player operating parameter definitions ([DBD-PARAM-010] through [DBD-PARAM-100]).
 | **Event Timing Configuration** |
 | `position_event_interval_ms` | INTEGER | 1000 | **Internal event**: Interval for mixer to emit PositionUpdate internal events (milliseconds). Controls song boundary detection accuracy and CPU usage. Lower values = more frequent boundary checks but higher CPU. Range: 100-5000ms. | wkmp-ap | All |
 | `playback_progress_interval_ms` | INTEGER | 5000 | **External event**: Interval for emitting PlaybackProgress SSE events to UI clients (milliseconds). Controls UI progress bar update frequency. Based on playback time, not wall clock time. Range: 1000-10000ms. | wkmp-ap | All |
+
+> Note: These event intervals are distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms) which controls mixer-to-output buffer refills. See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters).
 | **Database Backup** |
 | `backup_location` | TEXT | (same folder as wkmp.db) | Path to backup directory | wkmp-ui | All |
 | `backup_interval_ms` | INTEGER | 7776000000 | Periodic backup interval (default: 90 days) | wkmp-ui | All |

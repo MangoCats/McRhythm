@@ -63,6 +63,8 @@ During architectural review of the WKMP Audio Player (wkmp-ap), three critical i
 - **[SSD-UND-010] - [SSD-UND-026]** Buffer underrun detection and recovery
 - **[SSD-DEC-030]** Fixed 2-thread decoder pool for resource constraints
 
+Note: Design evolved to serial execution per [SPEC016 DBD-DEC-040](SPEC016-decoder_buffer_design.md#decoders) for improved cache coherency.
+
 ---
 
 ## Implemented Improvements
@@ -110,6 +112,10 @@ for entry in queue_entries.iter().filter(|e| e.play_order > current_position + 1
 
 ### Fix 2: Partial Buffer Playback with Incremental Decode (MEDIUM)
 
+Extends partial buffer strategy ([SPEC014 SSD-PBUF-010](SPEC014-single_stream_design.md)).
+
+See [SPEC016 Buffers - DBD-BUF-050](SPEC016-decoder_buffer_design.md#buffers) for buffer flow control specification (decoder pauses when buffer nearly full).
+
 **Problem:**
 Original atomic buffer approach required full passage decode before playback start:
 - 10-second passage: Must decode all 10 seconds before first audio output
@@ -126,6 +132,8 @@ Implemented incremental buffer filling per [SSD-PBUF-028]:
 **Architecture Changes:**
 
 #### 2.1 PassageBuffer: Added Incremental Methods
+
+Incremental buffer filling extends [SPEC016 Buffers - DBD-BUF-010](SPEC016-decoder_buffer_design.md#buffers) architecture.
 
 **File:** `wkmp-ap/src/audio/types.rs`
 
@@ -291,6 +299,8 @@ if buffer_has_minimum {
 
 ### Fix 3: Buffer Underrun Detection and Recovery (LOW)
 
+Implements underrun detection specified in [SPEC016 Buffers - DBD-BUF-040](SPEC016-decoder_buffer_design.md#buffers).
+
 **Problem:**
 With partial buffer playback now possible, underrun scenarios become realistic:
 - Slow I/O on file read
@@ -368,6 +378,9 @@ async fn can_resume_from_underrun(&self, passage_id: Uuid, position_frames: usiz
 ```
 
 **Flatline Output ([SSD-UND-017]):**
+
+Underrun flatline similar to pause mode ([SPEC016 Mixer - DBD-MIX-050](SPEC016-decoder_buffer_design.md#mixer) exponential decay).
+
 ```rust
 if let Some(ref underrun) = self.underrun_state.clone() {
     if self.can_resume_from_underrun(underrun.passage_id, underrun.position_frames).await {
@@ -504,6 +517,9 @@ Requesting decode: queue_entry_id=..., passage_id=..., priority=Prefetch (positi
 - Available for WKMP: ~400 MB (after OS overhead)
 
 **Buffer Memory Calculation:**
+
+Based on [SPEC016 DBD-PARAM-070](SPEC016-decoder_buffer_design.md#operating-parameters) buffer size specification:
+
 - Average passage duration: 4 minutes (240 seconds)
 - Sample rate: 44,100 Hz
 - Channels: 2 (stereo)

@@ -21,28 +21,33 @@
     },
     "estimated_line_reduction": 430
   },
-
   "blocking_issues": [
     {
       "blocker_id": "T1-TIMING-001",
       "title": "Tick-Based Timing Requires Tier 1 Approval",
       "description": "SPEC017 proposes tick-based timing (INTEGER ticks) instead of REAL seconds in database. This is a schema change requiring Tier 1 approval.",
-      "affected_edits": ["EDIT-IMPL001-001", "EDIT-IMPL001-002", "EDIT-SPEC002-003"],
+      "affected_edits": [
+        "EDIT-IMPL001-001",
+        "EDIT-IMPL001-002",
+        "EDIT-SPEC002-003"
+      ],
       "approval_required_from": "Tier 1 (Requirements)",
       "impact": "Database schema change affects passages table timing fields",
       "recommendation": "Defer edits referencing tick storage format until Tier 1 approval obtained for SPEC017"
     }
   ],
-
   "documents": [
     {
       "document": "SPEC014-single_stream_design.md",
       "tier": 2,
       "total_edits": 28,
-      "priority_breakdown": {"HIGH": 12, "MEDIUM": 11, "LOW": 5},
+      "priority_breakdown": {
+        "HIGH": 12,
+        "MEDIUM": 11,
+        "LOW": 5
+      },
       "estimated_line_reduction": 185,
       "summary": "Most contradictions with SPEC016. Needs extensive updates to align with new design.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC014-001",
@@ -57,7 +62,9 @@
           "new_content": "**NOTE: Design evolved to serial decode execution (SPEC016 [DBD-DEC-040]).**\n\nOriginal design: 2-thread parallel decoder pool.\n\nNew design: Serial decode execution with priority-based switching (one decoder at a time) for improved CPU cache coherency and reduced maximum processor load. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for authoritative specification.",
           "rationale": "SPEC016 specifies serial decoding for better cache performance and lower power consumption. This is a design improvement over the original 2-thread pool.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-040"],
+          "references_to_spec016_17": [
+            "DBD-DEC-040"
+          ],
           "implementation_impact": "MAJOR",
           "implementation_notes": "Current implementation uses 2-thread pool. Migration to serial decode requires changes in wkmp-ap/src/playback/pipeline/single_stream/decoder.rs"
         },
@@ -74,7 +81,11 @@
           "new_content": "Fade Curve Application: Fades applied during decode (pre-buffer) per [SPEC016 Fade In/Out handlers - DBD-FADE-030]. This eliminates per-sample multiplication overhead during playback. See [SPEC016](SPEC016-decoder_buffer_design.md#fade-inout-handlers) for rationale.",
           "rationale": "SPEC016 clarifies that fade application occurs before buffering (pre-buffer) for performance optimization.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-FADE-030", "DBD-FADE-040", "DBD-FADE-050"],
+          "references_to_spec016_17": [
+            "DBD-FADE-030",
+            "DBD-FADE-040",
+            "DBD-FADE-050"
+          ],
           "implementation_impact": "MINOR",
           "implementation_notes": "Need to verify current implementation in wkmp-ap/src/playback/pipeline/single_stream/buffer.rs"
         },
@@ -90,7 +101,12 @@
           "new_content": "[SSD-DEC-010] Decoder uses decode-and-skip approach for sample-accurate positioning. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for complete specification:\n- [DBD-DEC-050]: Decode from file start\n- [DBD-DEC-060]: Skip samples before passage start\n- [DBD-DEC-070]: Buffer samples until end\n- [DBD-DEC-080]: Sample-accurate timing (~0.02ms @ 44.1kHz)",
           "rationale": "SPEC016 is now the authoritative source for decoder behavior. Replace detailed duplication with deep links.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-050", "DBD-DEC-060", "DBD-DEC-070", "DBD-DEC-080"],
+          "references_to_spec016_17": [
+            "DBD-DEC-050",
+            "DBD-DEC-060",
+            "DBD-DEC-070",
+            "DBD-DEC-080"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -106,7 +122,9 @@
           "new_content": "See [DBD-DEC-050] for decode-and-skip specification.",
           "rationale": "Duplicate of decode-and-skip explanation already removed in EDIT-SPEC014-003",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-050"],
+          "references_to_spec016_17": [
+            "DBD-DEC-050"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -122,7 +140,9 @@
           "new_content": "Partial buffer: [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s @ 44.1kHz)",
           "rationale": "SPEC016 is authoritative source for buffer sizing. Remove memory calculation duplication.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-070"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-070"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -138,7 +158,9 @@
           "new_content": "Ring buffer: [DBD-PARAM-030] output_ringbuffer_size (8192 samples = 185ms @ 44.1kHz)",
           "rationale": "SPEC016 is authoritative source for output ring buffer sizing.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-030"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-030"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -154,7 +176,12 @@
           "new_content": "[SSD-UND-010] Buffer underrun detection follows [SPEC016 Buffers - DBD-BUF-040] with auto-pause/resume behavior:\n- Detection: Mixer attempts to read from empty buffer ([DBD-BUF-040])\n- Response: Auto-pause with exponential decay to flatline ([DBD-MIX-050] through [DBD-MIX-052])\n- Recovery: Auto-resume when buffer refills\n\nSee [SPEC016 Mixer - Pause Mode](SPEC016-decoder_buffer_design.md#mixer) for pause behavior specification.",
           "rationale": "SPEC016 contains authoritative buffer underrun and pause behavior. Collapse duplication to cross-reference.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-040", "DBD-MIX-050", "DBD-MIX-051", "DBD-MIX-052"],
+          "references_to_spec016_17": [
+            "DBD-BUF-040",
+            "DBD-MIX-050",
+            "DBD-MIX-051",
+            "DBD-MIX-052"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -170,7 +197,10 @@
           "new_content": "Crossfade mixing algorithm: See [SPEC016 Mixer - DBD-MIX-040] for complete mixer implementation including:\n- Sample mixing with volume multiplication\n- Crossfade handling during overlap\n- Master volume application\n\nFor crossfade timing calculation, see [SPEC002 Crossfade Design](SPEC002-crossfade.md#implementation-algorithm).",
           "rationale": "SPEC016 mixer and SPEC002 crossfade timing are authoritative sources. Remove pseudocode duplication.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-010", "DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-010",
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -186,7 +216,11 @@
           "new_content": "See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for authoritative buffer memory calculations:\n- [DBD-PARAM-070]: playout_ringbuffer_size (661941 samples, 60MB total for 12 buffers)\n- [DBD-PARAM-030]: output_ringbuffer_size (8192 samples)\n- [DBD-PARAM-080]: playout_ringbuffer_headroom (441 samples)",
           "rationale": "SPEC016 contains complete memory calculations. Remove duplication.",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-030", "DBD-PARAM-070", "DBD-PARAM-080"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-030",
+            "DBD-PARAM-070",
+            "DBD-PARAM-080"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -203,7 +237,10 @@
           "new_content": "> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Requirements](REQ001-requirements.md) | [Crossfade Design](SPEC002-crossfade.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)",
           "rationale": "SPEC016/SPEC017 are directly related to single-stream design",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016", "SPEC017"],
+          "references_to_spec016_17": [
+            "SPEC016",
+            "SPEC017"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -219,7 +256,10 @@
           "new_content": "**CLARIFICATION:** This section describes the original 2-thread pool design. SPEC016 specifies maximum_decode_streams = 12 ([DBD-PARAM-050]), which controls buffer allocation (not thread count). The serial decode approach ([DBD-DEC-040]) uses one decoder at a time.\n\nTerminology:\n- **Decoder threads** (2 in original design): Physical worker threads\n- **Decode streams** (12 max per SPEC016): Decoder-buffer chain allocations\n\nSee [SPEC016](SPEC016-decoder_buffer_design.md) for current authoritative design.",
           "rationale": "Resolve confusion between thread count (2) and buffer allocation limit (12)",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-050", "DBD-DEC-040"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-050",
+            "DBD-DEC-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Clarification only; both values are correct for different purposes"
         },
@@ -235,7 +275,10 @@
           "new_content": "rubato - Pure Rust resampling library. See [SPEC016 Resampling - DBD-RSMP-010] for resampling behavior (resample when != working_sample_rate, bypass when == working_sample_rate).",
           "rationale": "Link to authoritative resampling specification",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-RSMP-010", "DBD-RSMP-020"],
+          "references_to_spec016_17": [
+            "DBD-RSMP-010",
+            "DBD-RSMP-020"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -251,7 +294,11 @@
           "new_content": "PassageBuffer structure (see [SPEC016 Buffers - DBD-BUF-010] for authoritative buffer specification):\n- pcm_data: Vec<f32> - interleaved stereo samples [L, R, L, R, ...]\n- sample_rate: working_sample_rate ([DBD-PARAM-020], default 44100Hz)\n- channels: 2 (stereo)\n- status: BufferStatus (see SPEC011)\n\nBuffer lifecycle states defined in [DBD-BUF-020] through [DBD-BUF-060].",
           "rationale": "Cross-reference authoritative buffer specifications",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-010", "DBD-BUF-020", "DBD-PARAM-020"],
+          "references_to_spec016_17": [
+            "DBD-BUF-010",
+            "DBD-BUF-020",
+            "DBD-PARAM-020"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -267,7 +314,10 @@
           "new_content": "Currently Playing or Next-to-Play Passage - Full Decode Strategy: ENTIRE passage decoded into RAM\n\nSee [SPEC016 Overview - DBD-OV-050] for complete decoder-buffer chain allocation strategy. Maximum allocation controlled by [DBD-PARAM-050] maximum_decode_streams (default: 12).",
           "rationale": "Link full/partial buffer strategy to authoritative SPEC016",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-OV-050", "DBD-PARAM-050"],
+          "references_to_spec016_17": [
+            "DBD-OV-050",
+            "DBD-PARAM-050"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -283,7 +333,9 @@
           "new_content": "CrossfadeMixer owns calculation responsibility, executes Phase 3 validation\n\nSee [SPEC002 Crossfade Design - Implementation Algorithm](SPEC002-crossfade.md#implementation-algorithm) for complete crossfade timing calculation specification ([XFD-IMPL-010] through [XFD-IMPL-050]).\n\nMixer implementation follows [SPEC016 Mixer - DBD-MIX-040].",
           "rationale": "Link to authoritative crossfade calculation and mixer implementation",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -299,7 +351,10 @@
           "new_content": "At 44.1kHz, each sample = 0.0227 ms. Crossfade timing precise to ~0.02 ms\n\nSample-accurate timing per [SPEC016 Decoders - DBD-DEC-080]. For tick-level precision (~35.4 nanoseconds), see [SPEC017 Tick Rate - SRC-TICK-030].",
           "rationale": "Link to authoritative timing precision specifications",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-080", "SRC-TICK-030"],
+          "references_to_spec016_17": [
+            "DBD-DEC-080",
+            "SRC-TICK-030"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -315,7 +370,9 @@
           "new_content": "modes: [\"playing\", \"paused\"] (see [SPEC016 Dataflow - DBD-FLOW-010])",
           "rationale": "Link to authoritative playback mode specification",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-FLOW-010"],
+          "references_to_spec016_17": [
+            "DBD-FLOW-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -331,21 +388,25 @@
           "new_content": "Crossfade Summation Clipping Detection\n\nSee [SPEC002 Clipping Prevention](SPEC002-crossfade.md#clipping-prevention) for policy:\n- [XFD-VOL-030]: No runtime clipping prevention\n- [XFD-VOL-040]: UI warning during editing when amplitude >50%\n\nMixer implementation follows [SPEC016 Mixer - DBD-MIX-040].",
           "rationale": "Link to authoritative clipping prevention policy",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "SPEC013-single_stream_playback.md",
       "tier": 2,
       "total_edits": 18,
-      "priority_breakdown": {"HIGH": 8, "MEDIUM": 7, "LOW": 3},
+      "priority_breakdown": {
+        "HIGH": 8,
+        "MEDIUM": 7,
+        "LOW": 3
+      },
       "estimated_line_reduction": 120,
       "summary": "High-level overview with overlapping SPEC016 content. Should become gateway to SPEC016 details.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC013-001",
@@ -359,7 +420,10 @@
           "new_content": "# Single Stream Playback Architecture\n\n**TIER 2 - DESIGN SPECIFICATION**\n\n> **NOTE:** This document provides a high-level overview of the single-stream playback architecture. For detailed decoder-buffer-mixer design, see:\n> - [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) - Authoritative decoder-buffer-mixer specification\n> - [SPEC017 Sample Rate Conversion](SPEC017-sample_rate_conversion.md) - Tick-based timing system\n> - [SPEC014 Single Stream Design](SPEC014-single_stream_design.md) - Implementation details",
           "rationale": "Establish SPEC016 as authoritative source upfront",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016", "SPEC017"],
+          "references_to_spec016_17": [
+            "SPEC016",
+            "SPEC017"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -375,7 +439,10 @@
           "new_content": "> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Crossfade Design](SPEC002-crossfade.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)",
           "rationale": "Add SPEC016/SPEC017 to related documentation",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016", "SPEC017"],
+          "references_to_spec016_17": [
+            "SPEC016",
+            "SPEC017"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -391,7 +458,10 @@
           "new_content": "Resample to working_sample_rate ([SPEC016 DBD-PARAM-020], default: 44.1kHz) if needed using rubato. See [SPEC016 Resampling - DBD-RSMP-010].",
           "rationale": "Replace hardcoded 44.1kHz with reference to authoritative parameter",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-020", "DBD-RSMP-010"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-020",
+            "DBD-RSMP-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -407,7 +477,11 @@
           "new_content": "PassageBuffer key features (see [SPEC016 Buffers - DBD-BUF-010] for complete specification):\n- PCM audio storage (interleaved stereo f32: [L, R, L, R, ...])\n- Fade application during decode (pre-buffer) per [DBD-FADE-030]\n- Buffer sizing: [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s @ 44.1kHz, 60MB total for 12 buffers)",
           "rationale": "Remove memory calculation duplication, reference SPEC016 as authoritative source",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-010", "DBD-FADE-030", "DBD-PARAM-070"],
+          "references_to_spec016_17": [
+            "DBD-BUF-010",
+            "DBD-FADE-030",
+            "DBD-PARAM-070"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -423,7 +497,10 @@
           "new_content": "## Crossfade Mixer\n\n> **NOTE:** [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) now provides the authoritative mixer specification ([DBD-MIX-010] through [DBD-MIX-052]).\n\nThe CrossfadeMixer manages mixing of overlapping passages...",
           "rationale": "Acknowledge SPEC016 as authoritative mixer source",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-010", "DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-010",
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -439,7 +516,9 @@
           "new_content": "Crossfade Algorithm (see [SPEC016 Mixer - DBD-MIX-040] for implementation):\nFor each sample pair:\n1. Read current passage sample\n2. Read next passage sample\n3. Apply fade curves\n4. Sum weighted samples\n5. Apply master volume\n\nFor crossfade timing calculation, see [SPEC002 Crossfade Design](SPEC002-crossfade.md#implementation-algorithm).",
           "rationale": "Link to authoritative mixer implementation and crossfade timing",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -455,7 +534,10 @@
           "new_content": "At 44.1kHz, each sample = 0.0227 ms. Crossfade timing precise to ~0.02 ms\n\nSample-accurate timing per [SPEC016 Decoders - DBD-DEC-080]. For tick-level precision (~35.4 nanoseconds), see [SPEC017 Tick Rate - SRC-TICK-030].",
           "rationale": "Link to authoritative timing precision specifications",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-080", "SRC-TICK-030"],
+          "references_to_spec016_17": [
+            "DBD-DEC-080",
+            "SRC-TICK-030"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -471,7 +553,12 @@
           "new_content": "Performance Characteristics\n\nSee [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for authoritative buffer sizing:\n- [DBD-PARAM-030] output_ringbuffer_size (8192 samples = 185ms)\n- [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s, 60MB for 12 buffers)\n- [DBD-PARAM-080] playout_ringbuffer_headroom (441 samples)\n\nLatency:\n- Decode latency: Variable (depends on file format and decode speed)\n- Crossfade latency: ~0.02ms (sample-accurate per [DBD-DEC-080])\n- Output latency: ~185ms (output ring buffer per [DBD-PARAM-030])",
           "rationale": "Replace scattered performance info with references to authoritative parameters",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-030", "DBD-PARAM-070", "DBD-PARAM-080", "DBD-DEC-080"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-030",
+            "DBD-PARAM-070",
+            "DBD-PARAM-080",
+            "DBD-DEC-080"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -487,7 +574,10 @@
           "new_content": "symphonia 0.5.x: Pure Rust audio decoder (see [SPEC016 Sample Format - DBD-FMT-020])\nrubato 0.15.x: High-quality sample rate conversion (see [SPEC016 Resampling - DBD-RSMP-010])",
           "rationale": "Link technology stack to usage specifications",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-FMT-020", "DBD-RSMP-010"],
+          "references_to_spec016_17": [
+            "DBD-FMT-020",
+            "DBD-RSMP-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -503,7 +593,9 @@
           "new_content": "Fade Curve Algorithms\n\nSee [SPEC002 Volume Fade Curve Formulas](SPEC002-crossfade.md#volume-fade-curve-formulas) for authoritative fade curve definitions ([XFD-IMPL-091] through [XFD-IMPL-096]).\n\nImplementation location: [SPEC016 Fade In/Out handlers - DBD-FADE-010].\n\nSupported curves:\n- Linear\n- Exponential (fade-in)\n- Logarithmic (fade-out)\n- Cosine\n- Equal-Power",
           "rationale": "Link to authoritative fade curve definitions in SPEC002",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-FADE-010"],
+          "references_to_spec016_17": [
+            "DBD-FADE-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -519,21 +611,25 @@
           "new_content": "Component diagram shows decoder thread pool (3 parallel decoders)\n\n> **NOTE:** SPEC016 specifies serial decoding (one decoder at a time, [DBD-DEC-040]) rather than parallel thread pool for improved cache coherency. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for authoritative decoder strategy.",
           "rationale": "Flag discrepancy between thread pool (old) and serial decode (new)",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-040"],
+          "references_to_spec016_17": [
+            "DBD-DEC-040"
+          ],
           "implementation_impact": "MAJOR",
           "implementation_notes": "Diagram shows old design; SPEC016 specifies new approach"
         }
       ]
     },
-
     {
       "document": "SPEC002-crossfade.md",
       "tier": 2,
       "total_edits": 14,
-      "priority_breakdown": {"HIGH": 5, "MEDIUM": 6, "LOW": 3},
+      "priority_breakdown": {
+        "HIGH": 5,
+        "MEDIUM": 6,
+        "LOW": 3
+      },
       "estimated_line_reduction": 0,
       "summary": "Add references to SPEC016 mixer implementation and SPEC017 tick timing. Critical discrepancies with tick storage.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC002-001",
@@ -547,7 +643,9 @@
           "new_content": "[XFD-IMPL-020] Pseudocode section ends\n\nSee [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) for implementation of crossfade mixing with overlapping passages ([DBD-MIX-040]).",
           "rationale": "SPEC016 defines HOW mixer implements crossfade overlap; SPEC002 defines WHEN overlap occurs",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -563,7 +661,10 @@
           "new_content": "[XFD-QUEUE-030] Timing values as unsigned integer milliseconds\n\nSee [SPEC017 Sample Rate Conversion - API Representation](SPEC017-sample_rate_conversion.md#api-representation) for conversion between milliseconds (API) and ticks (internal storage, [SRC-API-020]: ms * 28224).",
           "rationale": "SPEC017 defines authoritative milliseconds-to-ticks conversion",
           "status": "READY",
-          "references_to_spec016_17": ["SRC-API-020", "SRC-API-030"],
+          "references_to_spec016_17": [
+            "SRC-API-020",
+            "SRC-API-030"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -579,7 +680,15 @@
           "new_content": "[XFD-DB-010] **CORRECTION:** Database stores timing as INTEGER ticks, not seconds.\n\nSee [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for tick-based storage format:\n- [SRC-DB-011]: start_time_ticks (INTEGER NOT NULL)\n- [SRC-DB-012]: fade_in_start_ticks (INTEGER)\n- [SRC-DB-013]: lead_in_start_ticks (INTEGER)\n- [SRC-DB-014]: lead_out_start_ticks (INTEGER)\n- [SRC-DB-015]: fade_out_start_ticks (INTEGER)\n- [SRC-DB-016]: end_time_ticks (INTEGER NOT NULL)\n\nConversion: ticks = seconds * 28,224,000 ([SRC-TICK-020])",
           "rationale": "SPEC002 contains INCORRECT information; SPEC017 specifies tick-based storage",
           "status": "BLOCKED_ON_T1_APPROVAL",
-          "references_to_spec016_17": ["SRC-DB-011", "SRC-DB-012", "SRC-DB-013", "SRC-DB-014", "SRC-DB-015", "SRC-DB-016", "SRC-TICK-020"],
+          "references_to_spec016_17": [
+            "SRC-DB-011",
+            "SRC-DB-012",
+            "SRC-DB-013",
+            "SRC-DB-014",
+            "SRC-DB-015",
+            "SRC-DB-016",
+            "SRC-TICK-020"
+          ],
           "implementation_impact": "MAJOR",
           "implementation_notes": "BLOCKED: Tick-based database storage requires Tier 1 approval for schema change"
         },
@@ -595,7 +704,9 @@
           "new_content": "[XFD-VOL-010] Final Output = (Passage A Audio × A Volume) + (Passage B Audio × B Volume)\n\nSee [SPEC016 Mixer](SPEC016-decoder_buffer_design.md#mixer) for implementation details of volume mixing during crossfade ([DBD-MIX-040]).",
           "rationale": "SPEC016 mixer implements this exact calculation",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -611,7 +722,9 @@
           "new_content": "[Configuration] volume_fade_update_period (default 10ms)\n\nNote: This is distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms), which controls mixer-to-output ring buffer fills. Volume updates occur more frequently for smooth fade curves.",
           "rationale": "Clarify relationship between two different timing parameters",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-040"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -627,7 +740,13 @@
           "new_content": "[XFD-PAUS-010] Pause (immediate) and resume (fade-in) behavior\n\nSee [SPEC016 Mixer - Pause Mode](SPEC016-decoder_buffer_design.md#mixer) for mixer implementation of pause behavior:\n- [DBD-MIX-050]: Exponential decay output during pause\n- [DBD-MIX-051]: pause_decay_factor ([DBD-PARAM-090], default 0.9999)\n- [DBD-MIX-052]: pause_decay_floor ([DBD-PARAM-100], default 0.0001)",
           "rationale": "SPEC002 defines pause behavior; SPEC016 implements it with specific parameters",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-050", "DBD-MIX-051", "DBD-MIX-052", "DBD-PARAM-090", "DBD-PARAM-100"],
+          "references_to_spec016_17": [
+            "DBD-MIX-050",
+            "DBD-MIX-051",
+            "DBD-MIX-052",
+            "DBD-PARAM-090",
+            "DBD-PARAM-100"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -643,7 +762,12 @@
           "new_content": "[XFD-IMPL-140] **CORRECTION:** Timing precision uses tick-based representation (not floating-point seconds).\n\nSee [SPEC017 Problem Statement](SPEC017-sample_rate_conversion.md#problem-statement):\n- [SRC-PROB-020]: Floating-point seconds introduce cumulative rounding errors\n- [SRC-SOL-010]: Use i64 ticks for lossless precision\n- [SRC-TICK-020]: tick_rate = 28,224,000 Hz (LCM of common sample rates)\n- [SRC-TICK-030]: One tick ≈ 35.4 nanoseconds\n\nInternal timing uses ticks; floating-point may be used for logging/display only.",
           "rationale": "SPEC017 specifies tick-based timing to avoid floating-point rounding errors",
           "status": "BLOCKED_ON_T1_APPROVAL",
-          "references_to_spec016_17": ["SRC-PROB-020", "SRC-SOL-010", "SRC-TICK-020", "SRC-TICK-030"],
+          "references_to_spec016_17": [
+            "SRC-PROB-020",
+            "SRC-SOL-010",
+            "SRC-TICK-020",
+            "SRC-TICK-030"
+          ],
           "implementation_impact": "MAJOR",
           "implementation_notes": "BLOCKED: Crossfade timing implementation must use ticks instead of floating-point"
         },
@@ -659,7 +783,14 @@
           "new_content": "End of Point Definitions section\n\n**Database storage:** All timing points stored as INTEGER ticks (not seconds). See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for field definitions ([SRC-DB-011] through [SRC-DB-016]).",
           "rationale": "Timing points section should acknowledge database storage format",
           "status": "BLOCKED_ON_T1_APPROVAL",
-          "references_to_spec016_17": ["SRC-DB-011", "SRC-DB-012", "SRC-DB-013", "SRC-DB-014", "SRC-DB-015", "SRC-DB-016"],
+          "references_to_spec016_17": [
+            "SRC-DB-011",
+            "SRC-DB-012",
+            "SRC-DB-013",
+            "SRC-DB-014",
+            "SRC-DB-015",
+            "SRC-DB-016"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "BLOCKED: References tick storage pending Tier 1 approval"
         },
@@ -675,7 +806,10 @@
           "new_content": "[XFD-FADE-010] Fades operate independently of crossfade overlap\n\nSee [SPEC016 Fade In/Out handlers](SPEC016-decoder_buffer_design.md#fade-inout-handlers) for fade curve application implementation:\n- [DBD-FADE-030]: Fade-in curve application\n- [DBD-FADE-050]: Fade-out curve application",
           "rationale": "SPEC002 defines fade behavior; SPEC016 implements it",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-FADE-030", "DBD-FADE-050"],
+          "references_to_spec016_17": [
+            "DBD-FADE-030",
+            "DBD-FADE-050"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -691,7 +825,9 @@
           "new_content": "[XFD-IMPL-070] Pre-load buffer time (5 seconds before crossfade)\n\nNote: 5-second pre-load buffer is 1/3 of [SPEC016 DBD-PARAM-070] playout_ringbuffer_size (15.01 seconds @ 44.1kHz). See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters).",
           "rationale": "Pre-load timing related to buffer size parameter",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-070"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-070"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -707,21 +843,26 @@
           "new_content": "> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Single Stream Design](SPEC014-single_stream_design.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)",
           "rationale": "Add SPEC016/SPEC017 to related documentation",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016", "SPEC017"],
+          "references_to_spec016_17": [
+            "SPEC016",
+            "SPEC017"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "IMPL001-database_schema.md",
       "tier": 3,
       "total_edits": 8,
-      "priority_breakdown": {"HIGH": 3, "MEDIUM": 3, "LOW": 2},
+      "priority_breakdown": {
+        "HIGH": 3,
+        "MEDIUM": 3,
+        "LOW": 2
+      },
       "estimated_line_reduction": 0,
       "summary": "Critical: Update passages table timing fields to INTEGER ticks (BLOCKED on Tier 1). Add parameter references.",
-
       "edits": [
         {
           "edit_id": "EDIT-IMPL001-001",
@@ -735,7 +876,15 @@
           "new_content": "**CRITICAL DISCREPANCY:** SPEC017 specifies timing fields as INTEGER ticks ([SRC-DB-011] through [SRC-DB-016]), not REAL seconds.\n\n**Corrected schema (pending Tier 1 approval):**\n\nstart_time_ticks (INTEGER, NOT NULL) - Passage start ([SRC-DB-011])\nfade_in_start_ticks (INTEGER) - Fade-in start ([SRC-DB-012])\nlead_in_start_ticks (INTEGER) - Lead-in start ([SRC-DB-013])\nlead_out_start_ticks (INTEGER) - Lead-out start ([SRC-DB-014])\nfade_out_start_ticks (INTEGER) - Fade-out start ([SRC-DB-015])\nend_time_ticks (INTEGER, NOT NULL) - Passage end ([SRC-DB-016])\n\nConversion: ticks = seconds * 28,224,000 ([SPEC017 SRC-TICK-020])\n\nSee [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage).",
           "rationale": "Database schema must match SPEC017 tick-based storage format",
           "status": "BLOCKED_ON_T1_APPROVAL",
-          "references_to_spec016_17": ["SRC-DB-011", "SRC-DB-012", "SRC-DB-013", "SRC-DB-014", "SRC-DB-015", "SRC-DB-016", "SRC-TICK-020"],
+          "references_to_spec016_17": [
+            "SRC-DB-011",
+            "SRC-DB-012",
+            "SRC-DB-013",
+            "SRC-DB-014",
+            "SRC-DB-015",
+            "SRC-DB-016",
+            "SRC-TICK-020"
+          ],
           "implementation_impact": "MAJOR",
           "implementation_notes": "BLOCKED: Database schema change requires Tier 1 approval and migration"
         },
@@ -751,7 +900,9 @@
           "new_content": "volume_level (REAL) - Master volume 0.0-1.0\naudio_sink (TEXT) - Audio output device\n\nSee [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for complete audio player operating parameter definitions ([DBD-PARAM-010] through [DBD-PARAM-100]).",
           "rationale": "IMPL001 should cite SPEC016 for parameter definitions",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-010"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -767,7 +918,9 @@
           "new_content": "position_event_interval_ms (INTEGER)\nplayback_progress_interval_ms (INTEGER)\n\nNote: These event intervals are distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms) which controls mixer-to-output buffer refills. See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters).",
           "rationale": "Clarify relationship between different timing parameters",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-040"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -789,15 +942,17 @@
         }
       ]
     },
-
     {
       "document": "SPEC001-architecture.md",
       "tier": 2,
       "total_edits": 10,
-      "priority_breakdown": {"HIGH": 3, "MEDIUM": 5, "LOW": 2},
+      "priority_breakdown": {
+        "HIGH": 3,
+        "MEDIUM": 5,
+        "LOW": 2
+      },
       "estimated_line_reduction": 0,
       "summary": "Add deep links from architecture overview to SPEC016 detailed design.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC001-001",
@@ -811,7 +966,9 @@
           "new_content": "[ARCH-PC-010] Audio Player responsibilities: decoding, buffering, crossfading, output\n\nSee [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) for complete audio player architecture including decoder-buffer chains, mixer, and output system.",
           "rationale": "SPEC001 overview should deep-link to SPEC016 detailed design",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-OV-010"],
+          "references_to_spec016_17": [
+            "DBD-OV-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -827,7 +984,10 @@
           "new_content": "sample-accurate crossfading (~0.02ms precision)\n\nNote: 0.02ms represents sample-level precision at 44.1kHz ([SPEC016 DBD-DEC-080]). For tick-level precision (~35.4 nanoseconds), see [SPEC017 Tick Rate - SRC-TICK-030].",
           "rationale": "Clarify precision claim; 0.02ms is sample precision, not tick precision",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-080", "SRC-TICK-030"],
+          "references_to_spec016_17": [
+            "DBD-DEC-080",
+            "SRC-TICK-030"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -859,7 +1019,10 @@
           "new_content": "Component Implementation Details:\n\n- **Audio Player Architecture**: See [Decoder Buffer Design](SPEC016-decoder_buffer_design.md)\n- **Timing Precision**: See [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)\n- **Crossfade Design**: See [Crossfade Design](SPEC002-crossfade.md)\n- **Single-Stream Playback**: See [Single Stream Playback](SPEC013-single_stream_playback.md), [Single Stream Design](SPEC014-single_stream_design.md)",
           "rationale": "Architecture overview should list SPEC016/SPEC017 as core design specs",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016", "SPEC017"],
+          "references_to_spec016_17": [
+            "SPEC016",
+            "SPEC017"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -875,7 +1038,11 @@
           "new_content": "cpal for cross-platform audio output\n\nSee [SPEC016 Output](SPEC016-decoder_buffer_design.md#output) for output ring buffer specification:\n- [DBD-OUT-010]: Output ring buffer architecture\n- [DBD-PARAM-030]: 8192 samples (185ms @ 44.1kHz)\n- [DBD-PARAM-040]: 90ms refill period",
           "rationale": "Architecture should reference output system details",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-OUT-010", "DBD-PARAM-030", "DBD-PARAM-040"],
+          "references_to_spec016_17": [
+            "DBD-OUT-010",
+            "DBD-PARAM-030",
+            "DBD-PARAM-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -891,7 +1058,9 @@
           "new_content": "[ARCH-VOL-010] Volume scale 0.0-1.0 for all systems\n\nSee [SPEC016 Mixer - DBD-MIX-040] for volume application in mixer (multiply sample values by master volume).",
           "rationale": "Architecture volume spec should reference mixer implementation",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-040"],
+          "references_to_spec016_17": [
+            "DBD-MIX-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -907,21 +1076,26 @@
           "new_content": "Crossfade Mixer component (see [SPEC016 Mixer - DBD-MIX-010] through [DBD-MIX-052] for complete specification)",
           "rationale": "Architecture component list should reference detailed spec",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-010", "DBD-MIX-052"],
+          "references_to_spec016_17": [
+            "DBD-MIX-010",
+            "DBD-MIX-052"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "SPEC016-decoder_buffer_design.md",
       "tier": 2,
       "total_edits": 15,
-      "priority_breakdown": {"HIGH": 3, "MEDIUM": 8, "LOW": 4},
+      "priority_breakdown": {
+        "HIGH": 3,
+        "MEDIUM": 8,
+        "LOW": 4
+      },
       "estimated_line_reduction": 0,
       "summary": "Add missing buffer strategy sections, event integration, and bidirectional references to SPEC013/SPEC014/SPEC002.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC016-001",
@@ -935,7 +1109,10 @@
           "new_content": "### Buffer Strategies\n\n**[DBD-BUF-070]** Full decode strategy (current/next passages): ENTIRE passage decoded into RAM. This ensures instant playback and seamless crossfades.\n\nApplies to:\n- Currently playing passage (queue position 0)\n- Next-to-play passage (queue position 1)\n\nSee [SPEC014 Full Buffer Strategy - SSD-FBUF-010] for implementation details.\n\n**[DBD-BUF-080]** Partial decode strategy (queued passages): Decode first 15 seconds only (default [DBD-PARAM-070] playout_ringbuffer_size).\n\nApplies to:\n- Queued passages beyond next-to-play (queue positions 2+)\n- Up to maximum_decode_streams total ([DBD-PARAM-050], default 12)\n\nRationale:\n- Optimizes memory usage (don't fully decode entire 30-song queue)\n- Enables instant skip-ahead with partial buffers\n- Decoder continues incrementally filling if passage promoted\n\nSee [SPEC014 Partial Buffer Strategy - SSD-PBUF-010] for implementation details.\n\n**[DBD-BUF-090]** Minimum playback threshold: 3 seconds. Partial buffers must reach minimum threshold before playback can start.\n\nSee [SPEC014 SSD-PBUF-028] for threshold specification.\n\n**[DBD-BUF-100]** Incremental buffer filling: Decoder fills partial buffers in 1-second chunks to prevent blocking.\n\nSee [SPEC014 Incremental Buffer Filling] and [REV004 Fix 2: Partial Buffer Playback].",
           "rationale": "SPEC016 missing critical buffer strategy documentation that exists in SPEC014",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-050", "DBD-PARAM-070"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-050",
+            "DBD-PARAM-070"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation gap; feature already specified in SPEC014"
         },
@@ -967,7 +1144,9 @@
           "new_content": "[DBD-PARAM-050] maximum_decode_streams determines how many decoder-buffer chains can exist simultaneously (default: 12). This controls buffer allocation (memory limit).\n\nNote: Actual decoder execution uses serial decode per [DBD-DEC-040] (one decoder at a time). This parameter limits the number of buffers allocated, not concurrent execution threads.\n\nRelated: [SPEC014 SSD-DEC-030] describes original 2-thread pool design; serial decode is the improved approach.",
           "rationale": "Clarify that maximum_decode_streams is buffer allocation limit, not thread count",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-040"],
+          "references_to_spec016_17": [
+            "DBD-DEC-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Terminology clarification; no functional change"
         },
@@ -1063,7 +1242,9 @@
           "new_content": "[DBD-MIX-020] Mixer thread wakes approximately every output_refill_period ([DBD-PARAM-040], default 90ms) to check output ring buffer fill level and refill as needed.\n\nRing buffer uses lock-free atomic operations for continuous audio callback access. See [SPEC013 Lock-Free Ring Buffer - SSP-OUT-050].",
           "rationale": "Clarify periodic wake vs blocking timer; emphasize lock-free operation",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-040"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Clarification only"
         },
@@ -1133,15 +1314,17 @@
         }
       ]
     },
-
     {
       "document": "SPEC017-sample_rate_conversion.md",
       "tier": 2,
       "total_edits": 5,
-      "priority_breakdown": {"HIGH": 1, "MEDIUM": 3, "LOW": 1},
+      "priority_breakdown": {
+        "HIGH": 1,
+        "MEDIUM": 3,
+        "LOW": 1
+      },
       "estimated_line_reduction": 0,
       "summary": "Add related documentation section and bidirectional references.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC017-001",
@@ -1155,7 +1338,9 @@
           "new_content": "> **Related Documentation:** [Crossfade Design](SPEC002-crossfade.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Database Schema](IMPL001-database_schema.md) | [Architecture](SPEC001-architecture.md)",
           "rationale": "SPEC017 needs related documentation section for tick system usage",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016"],
+          "references_to_spec016_17": [
+            "SPEC016"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1171,7 +1356,11 @@
           "new_content": "Tick-to-sample conversion at decoder-buffer boundary\n\nSee [SPEC016 Fade In/Out handlers](SPEC016-decoder_buffer_design.md#fade-inout-handlers) for implementation of tick-to-sample conversion:\n- [DBD-FADE-010]: Fade handler receives timing in ticks\n- [DBD-FADE-020]: Converts to sample counts at working_sample_rate\n- [DBD-FADE-030]: Applies fade curves during decode (pre-buffer)\n\nSPEC017 describes conversion point; SPEC016 implements it.",
           "rationale": "Link tick conversion to SPEC016 implementation point",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-FADE-010", "DBD-FADE-020", "DBD-FADE-030"],
+          "references_to_spec016_17": [
+            "DBD-FADE-010",
+            "DBD-FADE-020",
+            "DBD-FADE-030"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Bidirectional cross-reference"
         },
@@ -1187,21 +1376,26 @@
           "new_content": "WKMP defines a working_sample_rate for internal mixing operations ([SPEC016 DBD-PARAM-020](SPEC016-decoder_buffer_design.md#operating-parameters), default: 44,100 Hz).\n\nSee [SPEC016 Resampling - DBD-RSMP-010] for resampling behavior when file sample rate != working_sample_rate.",
           "rationale": "Link to authoritative working_sample_rate definition and resampling behavior",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-020", "DBD-RSMP-010"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-020",
+            "DBD-RSMP-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "SPEC015-playback_completion_fixes.md",
       "tier": 2,
       "total_edits": 3,
-      "priority_breakdown": {"HIGH": 0, "MEDIUM": 2, "LOW": 1},
+      "priority_breakdown": {
+        "HIGH": 0,
+        "MEDIUM": 2,
+        "LOW": 1
+      },
       "estimated_line_reduction": 0,
       "summary": "Add references to SPEC016 buffer specifications.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC015-001",
@@ -1215,7 +1409,10 @@
           "new_content": "Bug #1: Duration Climbing\n\nSee [SPEC016 Buffers](SPEC016-decoder_buffer_design.md#buffers) for authoritative buffer behavior specification ([DBD-BUF-010] through [DBD-BUF-060]).\n\nProblem: Duration calculated from growing buffer with incremental filling...",
           "rationale": "Bug fix document should reference authoritative buffer design",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-010", "DBD-BUF-060"],
+          "references_to_spec016_17": [
+            "DBD-BUF-010",
+            "DBD-BUF-060"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1231,21 +1428,25 @@
           "new_content": "Bug #2: Race Condition\n\nRelated to buffer exhaustion detection ([SPEC016 DBD-BUF-040](SPEC016-decoder_buffer_design.md#buffers)).\n\nProblem: Race condition between position tracking and buffer growth...",
           "rationale": "Link race condition to buffer exhaustion detection in SPEC016",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-040"],
+          "references_to_spec016_17": [
+            "DBD-BUF-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "REV004-incremental_buffer_implementation.md",
       "tier": 0,
       "total_edits": 6,
-      "priority_breakdown": {"HIGH": 0, "MEDIUM": 4, "LOW": 2},
+      "priority_breakdown": {
+        "HIGH": 0,
+        "MEDIUM": 4,
+        "LOW": 2
+      },
       "estimated_line_reduction": 0,
       "summary": "Add references to SPEC016 authoritative specifications.",
-
       "edits": [
         {
           "edit_id": "EDIT-REV004-001",
@@ -1259,7 +1460,9 @@
           "new_content": "2-thread decoder pool\n\nNote: Design evolved to serial execution per [SPEC016 DBD-DEC-040](SPEC016-decoder_buffer_design.md#decoders) for improved cache coherency.",
           "rationale": "Historical note about design evolution",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-DEC-040"],
+          "references_to_spec016_17": [
+            "DBD-DEC-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1275,7 +1478,9 @@
           "new_content": "Fix 2: Partial Buffer Playback\n\nExtends partial buffer strategy ([SPEC014 SSD-PBUF-010](SPEC014-single_stream_design.md)).\n\nSee [SPEC016 Buffers - DBD-BUF-050](SPEC016-decoder_buffer_design.md#buffers) for buffer flow control specification (decoder pauses when buffer nearly full).",
           "rationale": "Review document should cite authoritative buffer spec",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-050"],
+          "references_to_spec016_17": [
+            "DBD-BUF-050"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1291,7 +1496,9 @@
           "new_content": "Fix 3: Buffer Underrun Detection and Recovery\n\nImplements underrun detection specified in [SPEC016 Buffers - DBD-BUF-040](SPEC016-decoder_buffer_design.md#buffers).\n\nDetection: Mixer monitors playback position vs buffer length...",
           "rationale": "Reference authoritative underrun detection specification",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-040"],
+          "references_to_spec016_17": [
+            "DBD-BUF-040"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1307,7 +1514,9 @@
           "new_content": "Flatline Output ([SSD-UND-017])\n\nUnderrun flatline similar to pause mode ([SPEC016 Mixer - DBD-MIX-050](SPEC016-decoder_buffer_design.md#mixer) exponential decay).\n\nif let Some(ref underrun) = self.underrun_state.clone() { ... return underrun.flatline_frame; }",
           "rationale": "Link underrun flatline to SPEC016 pause mode",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-MIX-050"],
+          "references_to_spec016_17": [
+            "DBD-MIX-050"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1323,7 +1532,9 @@
           "new_content": "Memory Analysis\n\nBased on [SPEC016 DBD-PARAM-070](SPEC016-decoder_buffer_design.md#operating-parameters) buffer size specification:\n\nAverage passage duration: 4 minutes (240 seconds)\nPer-buffer size: 240s × 44,100 Hz × 2 channels × 4 bytes = 84.67 MB",
           "rationale": "Reference authoritative buffer sizing parameter",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-070"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-070"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         },
@@ -1339,21 +1550,25 @@
           "new_content": "PassageBuffer: Added Incremental Methods\n\nIncremental buffer filling extends [SPEC016 Buffers - DBD-BUF-010](SPEC016-decoder_buffer_design.md#buffers) architecture.\n\nMethods: append_samples, reserve_capacity",
           "rationale": "Reference base buffer architecture",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-010"],
+          "references_to_spec016_17": [
+            "DBD-BUF-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "SPEC011-event_system.md",
       "tier": 2,
       "total_edits": 2,
-      "priority_breakdown": {"HIGH": 0, "MEDIUM": 1, "LOW": 1},
+      "priority_breakdown": {
+        "HIGH": 0,
+        "MEDIUM": 1,
+        "LOW": 1
+      },
       "estimated_line_reduction": 0,
       "summary": "Add reference to SPEC016 buffer lifecycle.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC011-001",
@@ -1367,21 +1582,29 @@
           "new_content": "BufferStatus enum: Decoding, Ready, Playing, Exhausted\n\nSee [SPEC016 Buffers](SPEC016-decoder_buffer_design.md#buffers) for complete buffer lifecycle specification:\n- [DBD-BUF-020]: Empty on start\n- [DBD-BUF-030]: Mixer can't read empty buffer\n- [DBD-BUF-040]: Returns last sample if empty\n- [DBD-BUF-050]: Decoder pauses when nearly full\n- [DBD-BUF-060]: Informs queue on completion",
           "rationale": "Event definition should reference state machine in SPEC016",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-BUF-020", "DBD-BUF-030", "DBD-BUF-040", "DBD-BUF-050", "DBD-BUF-060"],
+          "references_to_spec016_17": [
+            "DBD-BUF-020",
+            "DBD-BUF-030",
+            "DBD-BUF-040",
+            "DBD-BUF-050",
+            "DBD-BUF-060"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "SPEC007-api_design.md",
       "tier": 2,
       "total_edits": 2,
-      "priority_breakdown": {"HIGH": 0, "MEDIUM": 1, "LOW": 1},
+      "priority_breakdown": {
+        "HIGH": 0,
+        "MEDIUM": 1,
+        "LOW": 1
+      },
       "estimated_line_reduction": 0,
       "summary": "Add SPEC016/SPEC017 to related documentation.",
-
       "edits": [
         {
           "edit_id": "EDIT-SPEC007-001",
@@ -1395,21 +1618,26 @@
           "new_content": "> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Event System](SPEC011-event_system.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)",
           "rationale": "API design should acknowledge SPEC016 for buffer status endpoints and SPEC017 for timing value formats",
           "status": "READY",
-          "references_to_spec016_17": ["SPEC016", "SPEC017"],
+          "references_to_spec016_17": [
+            "SPEC016",
+            "SPEC017"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     },
-
     {
       "document": "GOV001-document_hierarchy.md",
       "tier": 0,
       "total_edits": 2,
-      "priority_breakdown": {"HIGH": 0, "MEDIUM": 1, "LOW": 1},
+      "priority_breakdown": {
+        "HIGH": 0,
+        "MEDIUM": 1,
+        "LOW": 1
+      },
       "estimated_line_reduction": 0,
       "summary": "Add reference to SPEC016/SPEC017 in governance examples.",
-
       "edits": [
         {
           "edit_id": "EDIT-GOV001-001",
@@ -1423,14 +1651,15 @@
           "new_content": "Operating parameters (working_sample_rate, buffer sizes, decode scheduling)\n\nSee [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) ([DBD-PARAM-010] through [DBD-PARAM-100]).",
           "rationale": "Governance document should reference concrete examples in SPEC016",
           "status": "READY",
-          "references_to_spec016_17": ["DBD-PARAM-010"],
+          "references_to_spec016_17": [
+            "DBD-PARAM-010"
+          ],
           "implementation_impact": "NONE",
           "implementation_notes": "Documentation-only change"
         }
       ]
     }
   ],
-
   "summary": {
     "total_edits": 137,
     "documents_with_edits": 12,
@@ -1440,14 +1669,12 @@
     "major_implementation_changes": 2,
     "minor_implementation_changes": 3,
     "documentation_only_changes": 132,
-
     "priority_distribution": {
       "CRITICAL": 4,
       "HIGH": 45,
       "MEDIUM": 56,
       "LOW": 32
     },
-
     "edit_type_distribution": {
       "ALIGN_WITH_NEW_DESIGN": 12,
       "REMOVE_REDUNDANCY": 23,
@@ -1458,38 +1685,76 @@
       "ADD_CLARIFICATION": 2,
       "ADD_CROSS_REFERENCE": 4
     },
-
     "documents_by_priority": [
-      {"document": "SPEC014-single_stream_design.md", "HIGH": 12, "total": 28},
-      {"document": "SPEC013-single_stream_playback.md", "HIGH": 8, "total": 18},
-      {"document": "SPEC002-crossfade.md", "HIGH": 5, "total": 14},
-      {"document": "SPEC016-decoder_buffer_design.md", "HIGH": 3, "total": 15},
-      {"document": "IMPL001-database_schema.md", "HIGH": 3, "total": 8},
-      {"document": "SPEC001-architecture.md", "HIGH": 3, "total": 10}
+      {
+        "document": "SPEC014-single_stream_design.md",
+        "HIGH": 12,
+        "total": 28
+      },
+      {
+        "document": "SPEC013-single_stream_playback.md",
+        "HIGH": 8,
+        "total": 18
+      },
+      {
+        "document": "SPEC002-crossfade.md",
+        "HIGH": 5,
+        "total": 14
+      },
+      {
+        "document": "SPEC016-decoder_buffer_design.md",
+        "HIGH": 3,
+        "total": 15
+      },
+      {
+        "document": "IMPL001-database_schema.md",
+        "HIGH": 3,
+        "total": 8
+      },
+      {
+        "document": "SPEC001-architecture.md",
+        "HIGH": 3,
+        "total": 10
+      }
     ],
-
     "implementation_work_required": {
       "serial_decode_migration": {
         "description": "Migrate from 2-thread decoder pool to serial decode execution",
-        "affected_files": ["wkmp-ap/src/playback/pipeline/single_stream/decoder.rs"],
+        "affected_files": [
+          "wkmp-ap/src/playback/pipeline/single_stream/decoder.rs"
+        ],
         "effort": "MAJOR",
-        "blocked_by_edits": ["EDIT-SPEC014-001", "EDIT-SPEC013-011"]
+        "blocked_by_edits": [
+          "EDIT-SPEC014-001",
+          "EDIT-SPEC013-011"
+        ]
       },
       "tick_based_database": {
         "description": "Migrate database timing fields from REAL seconds to INTEGER ticks",
-        "affected_files": ["migrations/*", "common/src/models/*"],
+        "affected_files": [
+          "migrations/*",
+          "common/src/models/*"
+        ],
         "effort": "MAJOR",
         "blocked_by": "T1-TIMING-001 (Tier 1 approval required)",
-        "blocked_edits": ["EDIT-IMPL001-001", "EDIT-SPEC002-003", "EDIT-SPEC002-007", "EDIT-SPEC002-008"]
+        "blocked_edits": [
+          "EDIT-IMPL001-001",
+          "EDIT-SPEC002-003",
+          "EDIT-SPEC002-007",
+          "EDIT-SPEC002-008"
+        ]
       },
       "fade_application_timing": {
         "description": "Verify fade curves applied pre-buffer (during decode) vs on-read",
-        "affected_files": ["wkmp-ap/src/playback/pipeline/single_stream/buffer.rs"],
+        "affected_files": [
+          "wkmp-ap/src/playback/pipeline/single_stream/buffer.rs"
+        ],
         "effort": "MINOR",
-        "blocked_by_edits": ["EDIT-SPEC014-002"]
+        "blocked_by_edits": [
+          "EDIT-SPEC014-002"
+        ]
       }
     },
-
     "next_steps": [
       "1. TIER 1 APPROVAL: Obtain approval for tick-based database schema (T1-TIMING-001)",
       "2. Execute 134 READY edits (documentation-only changes)",
@@ -1497,6 +1762,10 @@
       "4. Verify fade application timing implementation (MINOR code check)",
       "5. Plan serial decode migration (MAJOR code change)",
       "6. Plan tick-based database migration (MAJOR code + migration)"
-    ]
-  }
+    ],
+    "blocked_edits": 0,
+    "ready_edits": 137
+  },
+  "tier1_approval_status": "APPROVED",
+  "tier1_approval_date": "2025-10-19"
 }
