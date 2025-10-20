@@ -1428,11 +1428,14 @@ impl PlaybackEngine {
 
         // Trigger decode for queued passages (first 3)
         // [SSD-PBUF-010] Partial buffer decode for queued passages
-        // **Fix for queue flooding:** Only request if not already managed
+        // **CRITICAL FIX:** Always request FULL decode (full=true) to prevent
+        // third-file bug where passages decoded as "queued" with full=false
+        // never get upgraded to full decode when promoted to "next".
+        // Trade-off: Slightly higher memory usage, but guarantees correct playback.
         for queued in queue.queued().iter().take(3) {
             if !self.buffer_manager.is_managed(queued.queue_entry_id).await {
                 debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
-                self.request_decode(queued, DecodePriority::Prefetch, false)
+                self.request_decode(queued, DecodePriority::Prefetch, true)
                     .await?;
             }
         }
