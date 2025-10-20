@@ -18,7 +18,4 @@ pub mod decoder;
 pub mod resampler;
 pub mod output;
 
-pub use types::{PassageBuffer, AudioFrame, BufferStatus};
-pub use decoder::SimpleDecoder;
-pub use resampler::Resampler;
-pub use output::AudioOutput;
+pub use types::AudioFrame;

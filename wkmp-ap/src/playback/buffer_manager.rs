@@ -147,6 +147,44 @@ impl BufferManager {
                     new_state: BufferState::Filling,
                     samples_buffered: managed.metadata.write_position,
                 }).await;
+
+                // Check if threshold already reached (large first append)
+                let threshold_samples = self.get_ready_threshold_samples().await;
+                if managed.metadata.write_position >= threshold_samples {
+                    // Transition to Ready immediately
+                    managed.metadata.state = BufferState::Ready;
+                    managed.metadata.ready_at = Some(Instant::now());
+
+                    // Calculate buffer duration
+                    let buffer_duration_ms = (managed.metadata.write_position as u64 * 1000)
+                        / (STANDARD_SAMPLE_RATE as u64 * 2); // /2 for stereo
+
+                    debug!(
+                        "Buffer {} transitioned Filling → Ready (threshold reached: {} samples, {}ms)",
+                        queue_entry_id, managed.metadata.write_position, buffer_duration_ms
+                    );
+
+                    // Emit state change
+                    self.emit_event(BufferEvent::StateChanged {
+                        queue_entry_id,
+                        old_state: BufferState::Filling,
+                        new_state: BufferState::Ready,
+                        samples_buffered: managed.metadata.write_position,
+                    }).await;
+
+                    // Emit ReadyForStart
+                    managed.metadata.ready_notified = true;
+                    self.emit_event(BufferEvent::ReadyForStart {
+                        queue_entry_id,
+                        samples_buffered: managed.metadata.write_position,
+                        buffer_duration_ms,
+                    }).await;
+
+                    info!(
+                        "⚡ Buffer ready for playback: {} ({}ms buffered)",
+                        queue_entry_id, buffer_duration_ms
+                    );
+                }
             }
 
             BufferState::Filling => {
@@ -224,8 +262,9 @@ impl BufferManager {
             configured_threshold_ms
         };
 
-        // Convert ms to samples (stereo @ 44.1kHz)
-        ((threshold_ms as usize * STANDARD_SAMPLE_RATE as usize * 2) / 1000)
+        // Convert ms to frames (stereo @ 44.1kHz)
+        // Note: Buffer counts stereo frames, not individual L+R samples
+        threshold_ms as usize * STANDARD_SAMPLE_RATE as usize / 1000
     }
 
     /// Finalize buffer after decode completes

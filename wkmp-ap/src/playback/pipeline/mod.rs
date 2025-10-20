@@ -7,5 +7,3 @@
 pub mod mixer;
 pub mod timing;
 
-pub use mixer::CrossfadeMixer;
-pub use timing::{CrossfadeTiming, PassageTiming};

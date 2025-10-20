@@ -13,7 +13,6 @@
 
 use crate::audio::decoder::SimpleDecoder;
 use crate::audio::resampler::Resampler;
-use crate::audio::types::PassageBuffer;
 use crate::db::passages::PassageWithTiming;
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
@@ -23,11 +22,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
-use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
-use wkmp_common::timing::{ms_to_ticks, ticks_to_ms, ticks_to_samples};
-use wkmp_common::FadeCurve;
 
 /// Standard output sample rate (44.1kHz)
 /// [DBD-PARAM-020] working_sample_rate = 44,100 Hz
@@ -605,6 +601,7 @@ impl SerialDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wkmp_common::FadeCurve;
 
     // Note: Full integration tests with real audio files are in tests/
     // These are just unit tests for the structure
