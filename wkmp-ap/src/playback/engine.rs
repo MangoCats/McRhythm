@@ -12,13 +12,14 @@ use crate::audio::types::AudioFrame;
 use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, validate_passage_timing, PassageWithTiming};
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
+use crate::playback::buffer_events::BufferEvent;
 use crate::playback::decoder_pool::DecoderPool;
 use crate::playback::events::PlaybackEvent;
 use crate::playback::pipeline::mixer::CrossfadeMixer;
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
 use crate::playback::ring_buffer::AudioRingBuffer;
 use crate::playback::song_timeline::SongTimeline;
-use crate::playback::types::{BufferEvent, DecodePriority};
+use crate::playback::types::DecodePriority;
 use crate::state::{CurrentPassage, PlaybackState, SharedState};
 use sqlx::{Pool, Sqlite};
 use std::path::PathBuf;
@@ -998,42 +999,44 @@ impl PlaybackEngine {
         let passage = validate_passage_timing(passage)?;
 
         debug!(
-            "Validated passage timing: start={}, end={:?}, fade_in={}, fade_out={:?}",
-            passage.start_time_ms,
-            passage.end_time_ms,
-            passage.fade_in_point_ms,
-            passage.fade_out_point_ms
+            "Validated passage timing: start={} ticks, end={:?} ticks, fade_in={} ticks, fade_out={:?} ticks",
+            passage.start_time_ticks,
+            passage.end_time_ticks,
+            passage.fade_in_point_ticks,
+            passage.fade_out_point_ticks
         );
 
         // Add to database queue
+        // Convert ticks to milliseconds for database storage
         let queue_entry_id = crate::db::queue::enqueue(
             &self.db_pool,
             file_path.to_string_lossy().to_string(),
             passage.passage_id,
             None, // Append to end
-            Some(passage.start_time_ms as i64),
-            passage.end_time_ms.map(|v| v as i64),
-            Some(passage.lead_in_point_ms as i64),
-            passage.lead_out_point_ms.map(|v| v as i64),
-            Some(passage.fade_in_point_ms as i64),
-            passage.fade_out_point_ms.map(|v| v as i64),
+            Some(wkmp_common::timing::ticks_to_ms(passage.start_time_ticks)),
+            passage.end_time_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            Some(wkmp_common::timing::ticks_to_ms(passage.lead_in_point_ticks)),
+            passage.lead_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            Some(wkmp_common::timing::ticks_to_ms(passage.fade_in_point_ticks)),
+            passage.fade_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
             Some(passage.fade_in_curve.to_db_string().to_string()),
             Some(passage.fade_out_curve.to_db_string().to_string()),
         )
         .await?;
 
         // Add to in-memory queue
+        // Convert ticks to milliseconds for queue entry (matches database format)
         let entry = QueueEntry {
             queue_entry_id,
             passage_id: passage.passage_id,
             file_path,
             play_order: 0, // Will be managed by database
-            start_time_ms: Some(passage.start_time_ms),
-            end_time_ms: passage.end_time_ms,
-            lead_in_point_ms: Some(passage.lead_in_point_ms),
-            lead_out_point_ms: passage.lead_out_point_ms,
-            fade_in_point_ms: Some(passage.fade_in_point_ms),
-            fade_out_point_ms: passage.fade_out_point_ms,
+            start_time_ms: Some(wkmp_common::timing::ticks_to_ms(passage.start_time_ticks) as u64),
+            end_time_ms: passage.end_time_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t) as u64),
+            lead_in_point_ms: Some(wkmp_common::timing::ticks_to_ms(passage.lead_in_point_ticks) as u64),
+            lead_out_point_ms: passage.lead_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t) as u64),
+            fade_in_point_ms: Some(wkmp_common::timing::ticks_to_ms(passage.fade_in_point_ticks) as u64),
+            fade_out_point_ms: passage.fade_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t) as u64),
             fade_in_curve: Some(passage.fade_in_curve.to_db_string().to_string()),
             fade_out_curve: Some(passage.fade_out_curve.to_db_string().to_string()),
         };
@@ -1050,17 +1053,25 @@ impl PlaybackEngine {
     ///
     /// [ISSUE-7] Extracted helper method to reduce complexity
     /// [XFD-IMPL-070] Crossfade timing calculation
+    /// [SRC-TICK-020] Uses tick-based passage timing
     fn calculate_crossfade_start_ms(&self, passage: &PassageWithTiming) -> u64 {
-        passage.fade_out_point_ms.unwrap_or_else(|| {
+        // Convert fade_out_point from ticks to ms
+        if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+            wkmp_common::timing::ticks_to_ms(fade_out_ticks) as u64
+        } else {
             // If no explicit fade_out_point, calculate from end
             // Default: start crossfade 5 seconds before end
-            let end_ms = passage.end_time_ms.unwrap_or(0);
-            if end_ms > 5000 {
-                end_ms - 5000
+            if let Some(end_ticks) = passage.end_time_ticks {
+                let end_ms = wkmp_common::timing::ticks_to_ms(end_ticks) as u64;
+                if end_ms > 5000 {
+                    end_ms - 5000
+                } else {
+                    end_ms
+                }
             } else {
-                end_ms
+                0
             }
-        })
+        }
     }
 
     /// Check if crossfade should be triggered
@@ -1134,16 +1145,27 @@ impl PlaybackEngine {
             current.queue_entry_id, next.queue_entry_id, position_ms
         );
 
-        // Calculate crossfade durations
-        let fade_out_duration_ms = if let Some(end_ms) = current_passage.end_time_ms {
-            end_ms.saturating_sub(crossfade_start_ms) as u32
+        // Calculate crossfade durations (in ticks)
+        let fade_out_duration_ticks = if let Some(end_ticks) = current_passage.end_time_ticks {
+            end_ticks.saturating_sub(wkmp_common::timing::ms_to_ticks(crossfade_start_ms as i64))
         } else {
-            5000 // Default 5-second crossfade
+            wkmp_common::timing::ms_to_ticks(5000) // Default 5-second crossfade
         };
 
-        let fade_in_duration_ms = next_passage
-            .fade_in_point_ms
-            .saturating_sub(next_passage.start_time_ms) as u32;
+        let fade_in_duration_ticks = next_passage
+            .fade_in_point_ticks
+            .saturating_sub(next_passage.start_time_ticks);
+
+        // Convert ticks to samples for mixer
+        let fade_out_duration_samples = wkmp_common::timing::ticks_to_samples(
+            fade_out_duration_ticks,
+            44100 // STANDARD_SAMPLE_RATE
+        );
+
+        let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+            fade_in_duration_ticks,
+            44100 // STANDARD_SAMPLE_RATE
+        );
 
         // Start the crossfade!
         self.mixer
@@ -1153,9 +1175,9 @@ impl PlaybackEngine {
                 next_buffer,
                 next.queue_entry_id,
                 current_passage.fade_out_curve,
-                fade_out_duration_ms,
+                fade_out_duration_samples,
                 next_passage.fade_in_curve,
-                fade_in_duration_ms,
+                fade_in_duration_samples,
             )
             .await?;
 
@@ -1291,9 +1313,15 @@ impl PlaybackEngine {
                             *self.current_song_timeline.write().await = None;
                         }
 
-                        // Calculate fade-in duration from timing points
-                        // fade_in_point_ms is where fade-in completes, so duration = fade_in - start
-                        let fade_in_duration_ms = passage.fade_in_point_ms.saturating_sub(passage.start_time_ms) as u32;
+                        // Calculate fade-in duration from timing points (in ticks)
+                        // fade_in_point_ticks is where fade-in completes, so duration = fade_in - start
+                        let fade_in_duration_ticks = passage.fade_in_point_ticks.saturating_sub(passage.start_time_ticks);
+
+                        // Convert ticks to samples for mixer
+                        let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+                            fade_in_duration_ticks,
+                            44100 // STANDARD_SAMPLE_RATE
+                        );
 
                         // Determine fade-in curve (default to Exponential if not specified)
                         let fade_in_curve = if let Some(curve_str) = current.fade_in_curve.as_ref() {
@@ -1304,10 +1332,11 @@ impl PlaybackEngine {
                         };
 
                         info!(
-                            "Starting playback of passage {} (queue_entry: {}) with fade-in: {}ms",
+                            "Starting playback of passage {} (queue_entry: {}) with fade-in: {} samples ({} ticks)",
                             current.passage_id.unwrap_or_else(|| Uuid::nil()),
                             current.queue_entry_id,
-                            fade_in_duration_ms
+                            fade_in_duration_samples,
+                            fade_in_duration_ticks
                         );
 
                         // Start mixer
@@ -1315,7 +1344,7 @@ impl PlaybackEngine {
                             buffer,
                             current.queue_entry_id,
                             Some(fade_in_curve),
-                            fade_in_duration_ms,
+                            fade_in_duration_samples,
                         ).await;
 
                         // Mark buffer as playing
@@ -1695,7 +1724,7 @@ impl PlaybackEngine {
         loop {
             // Wait for buffer event
             match rx.recv().await {
-                Some(BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms }) => {
+                Some(BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms, .. }) => {
                     let start_time = Instant::now();
 
                     info!(
@@ -1772,8 +1801,14 @@ impl PlaybackEngine {
                         }
                     }
 
-                    // Calculate fade-in duration
-                    let fade_in_duration_ms = passage.fade_in_point_ms.saturating_sub(passage.start_time_ms) as u32;
+                    // Calculate fade-in duration (in ticks)
+                    let fade_in_duration_ticks = passage.fade_in_point_ticks.saturating_sub(passage.start_time_ticks);
+
+                    // Convert ticks to samples for mixer
+                    let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+                        fade_in_duration_ticks,
+                        44100 // STANDARD_SAMPLE_RATE
+                    );
 
                     // Determine fade-in curve
                     let fade_in_curve = current.fade_in_curve.as_ref()
@@ -1781,9 +1816,10 @@ impl PlaybackEngine {
                         .unwrap_or(wkmp_common::FadeCurve::Exponential);
 
                     info!(
-                        "⚡ Starting playback instantly (buffer ready): passage={}, fade_in={}ms",
+                        "⚡ Starting playback instantly (buffer ready): passage={}, fade_in={} samples ({} ticks)",
                         current.passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
-                        fade_in_duration_ms
+                        fade_in_duration_samples,
+                        fade_in_duration_ticks
                     );
 
                     // Start mixer immediately
@@ -1791,7 +1827,7 @@ impl PlaybackEngine {
                         buffer,
                         queue_entry_id,
                         Some(fade_in_curve),
-                        fade_in_duration_ms,
+                        fade_in_duration_samples,
                     ).await;
 
                     // Mark buffer as playing
@@ -1811,6 +1847,13 @@ impl PlaybackEngine {
                         "✅ Mixer started in {:.2}ms (event-driven instant start)",
                         elapsed.as_secs_f64() * 1000.0
                     );
+                }
+
+                Some(BufferEvent::StateChanged { .. }) |
+                Some(BufferEvent::Exhausted { .. }) |
+                Some(BufferEvent::Finished { .. }) => {
+                    // Future: Handle other buffer events
+                    // For now, only ReadyForStart is used for instant mixer start
                 }
 
                 None => {

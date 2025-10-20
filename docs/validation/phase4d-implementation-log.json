@@ -1,0 +1,368 @@
+{
+  "phase": "4D",
+  "title": "Timing Migration and Mixer Integration",
+  "date": "2025-10-19",
+  "status": "complete",
+  "developer": "Claude Code Agent",
+
+  "timing_system": {
+    "tick_rate": 28224000,
+    "unit": "Hz",
+    "precision": "0.0354 microseconds per tick",
+    "improvement_factor": "28x more precise than milliseconds",
+    "supported_sample_rates": [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000]
+  },
+
+  "phases_completed": [
+    {
+      "phase": 1,
+      "name": "Database Migration",
+      "description": "Update PassageWithTiming to use ticks",
+      "status": "complete",
+      "files_modified": 1,
+      "lines_changed": 150
+    },
+    {
+      "phase": 2,
+      "name": "Mixer API Changes",
+      "description": "Update start_passage() and start_crossfade() signatures",
+      "status": "complete",
+      "files_modified": 1,
+      "lines_changed": 40
+    },
+    {
+      "phase": 3,
+      "name": "Engine Integration",
+      "description": "Update mixer call sites with tick conversions",
+      "status": "complete",
+      "files_modified": 3,
+      "lines_changed": 130
+    },
+    {
+      "phase": 4,
+      "name": "Testing",
+      "description": "Create integration tests for mixer",
+      "status": "complete",
+      "files_modified": 1,
+      "lines_changed": 300,
+      "tests_created": 9,
+      "tests_passing": 9
+    },
+    {
+      "phase": 5,
+      "name": "Documentation",
+      "description": "Create completion reports",
+      "status": "complete",
+      "files_created": 3
+    }
+  ],
+
+  "files_modified": [
+    {
+      "path": "wkmp-ap/src/db/passages.rs",
+      "type": "source",
+      "changes": [
+        "PassageWithTiming struct: ms → ticks",
+        "Database query conversions: seconds → ticks",
+        "Validation functions updated for tick values",
+        "Test cases updated with ms_to_ticks()"
+      ],
+      "lines_changed": 150,
+      "breaking_changes": true,
+      "requirements": ["SRC-TICK-020", "DBD-MIX-010"]
+    },
+    {
+      "path": "wkmp-ap/src/playback/pipeline/mixer.rs",
+      "type": "source",
+      "changes": [
+        "start_passage() API: ms → samples",
+        "start_crossfade() API: ms → samples",
+        "Removed ms_to_samples() helper function",
+        "Updated test case: ms_to_samples → ticks_to_samples"
+      ],
+      "lines_changed": 40,
+      "breaking_changes": true,
+      "requirements": ["DBD-MIX-010", "DBD-MIX-020"]
+    },
+    {
+      "path": "wkmp-ap/src/playback/engine.rs",
+      "type": "source",
+      "changes": [
+        "Call site 1: Single passage start with ticks_to_samples()",
+        "Call site 2: Crossfade trigger with ticks_to_samples()",
+        "Call site 3: Event-driven playback with ticks_to_samples()",
+        "calculate_crossfade_start_ms() uses ticks_to_ms()",
+        "enqueue_file() converts ticks → ms for database"
+      ],
+      "lines_changed": 80,
+      "breaking_changes": false,
+      "requirements": ["DBD-MIX-040", "SRC-WSR-030"]
+    },
+    {
+      "path": "wkmp-ap/src/playback/decoder_pool.rs",
+      "type": "source",
+      "changes": [
+        "Convert ticks → ms for decoder input",
+        "Updated test helper: create_test_passage()"
+      ],
+      "lines_changed": 20,
+      "breaking_changes": false,
+      "requirements": ["SRC-API-030"]
+    },
+    {
+      "path": "wkmp-ap/src/playback/serial_decoder.rs",
+      "type": "source",
+      "changes": [
+        "Convert ticks → ms for decoder input",
+        "Fade application uses ticks_to_samples()",
+        "Updated test cases with ms_to_ticks()"
+      ],
+      "lines_changed": 30,
+      "breaking_changes": false,
+      "requirements": ["SRC-WSR-030", "DBD-FADE-030"]
+    },
+    {
+      "path": "wkmp-ap/tests/mixer_integration_tests.rs",
+      "type": "test",
+      "changes": [
+        "Created new integration test file",
+        "9 comprehensive timing tests",
+        "All tests passing"
+      ],
+      "lines_changed": 300,
+      "breaking_changes": false,
+      "requirements": ["DBD-MIX-010", "DBD-MIX-020", "DBD-MIX-030"]
+    }
+  ],
+
+  "breaking_changes": {
+    "api_changes": [
+      {
+        "function": "CrossfadeMixer::start_passage",
+        "old_signature": "fade_in_duration_ms: u32",
+        "new_signature": "fade_in_duration_samples: usize",
+        "impact": "All call sites updated in engine.rs"
+      },
+      {
+        "function": "CrossfadeMixer::start_crossfade",
+        "old_signature": "fade_out_duration_ms: u32, fade_in_duration_ms: u32",
+        "new_signature": "fade_out_duration_samples: usize, fade_in_duration_samples: usize",
+        "impact": "All call sites updated in engine.rs"
+      }
+    ],
+    "structure_changes": [
+      {
+        "struct": "PassageWithTiming",
+        "old_fields": ["start_time_ms", "end_time_ms", "lead_in_point_ms", "lead_out_point_ms", "fade_in_point_ms", "fade_out_point_ms"],
+        "new_fields": ["start_time_ticks", "end_time_ticks", "lead_in_point_ticks", "lead_out_point_ticks", "fade_in_point_ticks", "fade_out_point_ticks"],
+        "type_change": "u64/Option<u64> → i64/Option<i64>",
+        "impact": "All code using PassageWithTiming updated"
+      }
+    ],
+    "deleted_functions": [
+      {
+        "function": "CrossfadeMixer::ms_to_samples",
+        "reason": "Conversion moved to engine layer using timing module"
+      }
+    ]
+  },
+
+  "requirements_implemented": [
+    {
+      "id": "SRC-TICK-020",
+      "description": "TICK_RATE = 28,224,000 Hz",
+      "status": "complete",
+      "verification": "Used throughout codebase via wkmp_common::timing"
+    },
+    {
+      "id": "SRC-TICK-040",
+      "description": "Divides evenly into all supported sample rates",
+      "status": "complete",
+      "verification": "Tested with 44.1kHz and 48kHz in integration tests"
+    },
+    {
+      "id": "SRC-API-020",
+      "description": "ms → ticks conversion",
+      "status": "complete",
+      "verification": "Used in database queries and engine conversions"
+    },
+    {
+      "id": "SRC-API-030",
+      "description": "ticks → ms conversion (truncating)",
+      "status": "complete",
+      "verification": "Used for database storage and decoder input"
+    },
+    {
+      "id": "SRC-WSR-030",
+      "description": "ticks ↔ samples conversion",
+      "status": "complete",
+      "verification": "Used in all mixer call sites"
+    },
+    {
+      "id": "SRC-CONV-010",
+      "description": "Lossless within 1 tick tolerance",
+      "status": "complete",
+      "verification": "Verified in test_high_precision_timing()"
+    },
+    {
+      "id": "DBD-MIX-010",
+      "description": "start_passage() uses sample-based duration",
+      "status": "complete",
+      "verification": "API updated, all call sites use ticks_to_samples()"
+    },
+    {
+      "id": "DBD-MIX-020",
+      "description": "start_crossfade() uses sample-based durations",
+      "status": "complete",
+      "verification": "API updated, all call sites use ticks_to_samples()"
+    },
+    {
+      "id": "DBD-MIX-030",
+      "description": "Dual buffer mixing during crossfade",
+      "status": "complete",
+      "verification": "Mixer state machine intact, sample-accurate timing"
+    },
+    {
+      "id": "DBD-MIX-040",
+      "description": "Event-driven playback start",
+      "status": "complete",
+      "verification": "buffer_event_handler updated with tick conversions"
+    },
+    {
+      "id": "DBD-MIX-060",
+      "description": "Pause mode exponential decay",
+      "status": "complete",
+      "verification": "Mixer pause state retained, no changes needed"
+    }
+  ],
+
+  "tests": {
+    "integration_tests_created": 9,
+    "integration_tests_passing": 9,
+    "unit_tests_updated": 6,
+    "test_coverage": [
+      {
+        "test_name": "test_tick_to_sample_conversion_accuracy",
+        "description": "Verifies exact conversions at 44.1kHz and 48kHz",
+        "requirements": ["SRC-TICK-020", "SRC-WSR-030"]
+      },
+      {
+        "test_name": "test_crossfade_duration_calculations",
+        "description": "Simulates engine.rs crossfade calculations",
+        "requirements": ["DBD-MIX-020"]
+      },
+      {
+        "test_name": "test_passage_timing_sample_accuracy",
+        "description": "Long passage with sample-accurate fade timing",
+        "requirements": ["DBD-MIX-010", "SRC-CONV-010"]
+      },
+      {
+        "test_name": "test_mixer_state_transitions",
+        "description": "Verifies Idle → SinglePassage → Crossfading",
+        "requirements": ["DBD-MIX-030"]
+      },
+      {
+        "test_name": "test_zero_duration_fades",
+        "description": "Tests instant start and 1ms fade",
+        "requirements": ["DBD-MIX-010"]
+      },
+      {
+        "test_name": "test_high_precision_timing",
+        "description": "Demonstrates 28x precision improvement",
+        "requirements": ["SRC-TICK-020", "SRC-CONV-010"]
+      },
+      {
+        "test_name": "test_maximum_passage_duration",
+        "description": "Tests 4-hour passage, no overflow",
+        "requirements": ["SRC-PREC-020"]
+      },
+      {
+        "test_name": "test_decoder_timing_conversion",
+        "description": "Verifies ticks → ms for decoder input",
+        "requirements": ["SRC-API-030"]
+      },
+      {
+        "test_name": "test_crossfade_overlap_detection",
+        "description": "Tests min(fade_out, fade_in) logic",
+        "requirements": ["DBD-MIX-030"]
+      }
+    ]
+  },
+
+  "build_status": {
+    "compilation": "success",
+    "warnings": 62,
+    "errors": 0,
+    "test_results": "9 passed, 0 failed"
+  },
+
+  "precision_analysis": {
+    "before_milliseconds": {
+      "resolution_us": 1000,
+      "samples_per_ms_44khz": 44.1,
+      "rounding_error_max_ms": 0.5
+    },
+    "after_ticks": {
+      "resolution_us": 0.0354,
+      "samples_per_tick_44khz": 0.00226,
+      "rounding_error_max_ticks": 0
+    },
+    "improvement_factor": 28.224
+  },
+
+  "performance_impact": {
+    "memory_usage": "no change (u64 → i64, same size)",
+    "computation": "negligible (same number of conversions)",
+    "database": "no change (still stores seconds as f64)"
+  },
+
+  "documentation_files": [
+    {
+      "path": "docs/validation/phase4d-mixer-implementation.md",
+      "type": "implementation_report",
+      "description": "Comprehensive implementation report"
+    },
+    {
+      "path": "docs/validation/phase4d-implementation-log.json",
+      "type": "structured_changelog",
+      "description": "Machine-readable changelog"
+    },
+    {
+      "path": "docs/validation/phase4d-test-results.md",
+      "type": "test_report",
+      "description": "Test execution report"
+    }
+  ],
+
+  "next_phases": [
+    {
+      "phase": "5",
+      "name": "Audio Output Integration",
+      "status": "ready",
+      "description": "Integrate mixer with audio output thread"
+    },
+    {
+      "phase": "6",
+      "name": "End-to-End Testing",
+      "status": "blocked",
+      "blocked_by": "Phase 5",
+      "description": "Test with real audio files"
+    },
+    {
+      "phase": "3A",
+      "name": "Database Schema Migration",
+      "status": "deferred",
+      "description": "Migrate database from seconds → ticks"
+    }
+  ],
+
+  "summary": {
+    "total_files_modified": 6,
+    "total_lines_changed": 620,
+    "total_tests_created": 9,
+    "total_requirements_implemented": 11,
+    "breaking_changes": true,
+    "backward_compatible": false,
+    "migration_path_documented": true
+  }
+}

@@ -241,25 +241,20 @@ impl CrossfadeMixer {
     /// Start playing a passage (no crossfade)
     ///
     /// **[SSD-MIX-030]** Initiates single passage playback with optional fade-in
+    /// **[DBD-MIX-010]** Accepts sample-based duration (not milliseconds)
     ///
     /// # Arguments
     /// * `buffer` - Passage buffer to play
     /// * `passage_id` - UUID of passage
     /// * `fade_in_curve` - Optional fade-in curve
-    /// * `fade_in_duration_ms` - Fade-in duration in milliseconds
+    /// * `fade_in_duration_samples` - Fade-in duration in samples
     pub async fn start_passage(
         &mut self,
         buffer: Arc<RwLock<PassageBuffer>>,
         passage_id: Uuid,
         fade_in_curve: Option<FadeCurve>,
-        fade_in_duration_ms: u32,
+        fade_in_duration_samples: usize,
     ) {
-        let fade_in_duration_samples = if fade_in_curve.is_some() {
-            self.ms_to_samples(fade_in_duration_ms)
-        } else {
-            0
-        };
-
         self.state = MixerState::SinglePassage {
             buffer,
             passage_id,
@@ -272,14 +267,15 @@ impl CrossfadeMixer {
     /// Start crossfade to next passage
     ///
     /// **[SSD-MIX-040]** Transitions from SinglePassage to Crossfading state
+    /// **[DBD-MIX-020]** Accepts sample-based durations (not milliseconds)
     ///
     /// # Arguments
     /// * `next_buffer` - Buffer for next passage
     /// * `next_passage_id` - UUID of next passage
     /// * `fade_out_curve` - Curve for fading out current passage
-    /// * `fade_out_duration_ms` - Fade-out duration in milliseconds
+    /// * `fade_out_duration_samples` - Fade-out duration in samples
     /// * `fade_in_curve` - Curve for fading in next passage
-    /// * `fade_in_duration_ms` - Fade-in duration in milliseconds
+    /// * `fade_in_duration_samples` - Fade-in duration in samples
     ///
     /// # Returns
     /// Ok if crossfade started, Err if no passage is currently playing
@@ -288,9 +284,9 @@ impl CrossfadeMixer {
         next_buffer: Arc<RwLock<PassageBuffer>>,
         next_passage_id: Uuid,
         fade_out_curve: FadeCurve,
-        fade_out_duration_ms: u32,
+        fade_out_duration_samples: usize,
         fade_in_curve: FadeCurve,
-        fade_in_duration_ms: u32,
+        fade_in_duration_samples: usize,
     ) -> Result<(), Error> {
         match &self.state {
             MixerState::SinglePassage {
@@ -301,13 +297,13 @@ impl CrossfadeMixer {
                     current_passage_id: *passage_id,
                     current_position: *position,
                     fade_out_curve,
-                    fade_out_duration_samples: self.ms_to_samples(fade_out_duration_ms),
+                    fade_out_duration_samples,
                     fade_out_progress: 0,
                     next_buffer,
                     next_passage_id,
                     next_position: 0,
                     fade_in_curve,
-                    fade_in_duration_samples: self.ms_to_samples(fade_in_duration_ms),
+                    fade_in_duration_samples,
                     fade_in_progress: 0,
                 };
                 Ok(())
@@ -753,11 +749,6 @@ impl CrossfadeMixer {
 
     // Helper methods
 
-    /// Convert milliseconds to samples
-    fn ms_to_samples(&self, ms: u32) -> usize {
-        ((ms as f32 / 1000.0) * self.sample_rate as f32) as usize
-    }
-
     /// Check if buffer has caught up and can resume from underrun
     ///
     /// **[SSD-UND-018]** Auto-resume when sufficient buffer available
@@ -1120,17 +1111,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_ms_to_samples() {
-        let mixer = CrossfadeMixer::new();
+    async fn test_ticks_to_samples_conversion() {
+        use wkmp_common::timing::{ms_to_ticks, ticks_to_samples};
 
         // 1 second = 44100 samples
-        assert_eq!(mixer.ms_to_samples(1000), 44100);
+        let one_sec_ticks = ms_to_ticks(1000);
+        assert_eq!(ticks_to_samples(one_sec_ticks, 44100), 44100);
 
         // 100ms = 4410 samples
-        assert_eq!(mixer.ms_to_samples(100), 4410);
+        let hundred_ms_ticks = ms_to_ticks(100);
+        assert_eq!(ticks_to_samples(hundred_ms_ticks, 44100), 4410);
 
         // 10ms = 441 samples
-        assert_eq!(mixer.ms_to_samples(10), 441);
+        let ten_ms_ticks = ms_to_ticks(10);
+        assert_eq!(ticks_to_samples(ten_ms_ticks, 44100), 441);
     }
 
     #[tokio::test]

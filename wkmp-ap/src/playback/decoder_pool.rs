@@ -228,9 +228,21 @@ impl DecoderPool {
                 match Self::decode_passage(&request, buffer_handle, Arc::clone(&buffer_manager), &rt_handle) {
                     Ok(()) => {
                         // **[PCF-DUR-010][PCF-COMP-010]** Finalize buffer (cache duration + total_frames)
-                        // Mark buffer as ready (buffer already filled incrementally)
+                        // Get total samples from buffer
+                        let total_samples = rt_handle.block_on(async {
+                            if let Some(buffer_arc) = buffer_manager.get_buffer(passage_id).await {
+                                let buffer = buffer_arc.read().await;
+                                buffer.samples.len()
+                            } else {
+                                0
+                            }
+                        });
+
                         rt_handle.block_on(async {
-                            buffer_manager.finalize_buffer(passage_id).await;
+                            if let Err(e) = buffer_manager.finalize_buffer(passage_id, total_samples).await {
+                                warn!("Failed to finalize buffer: {}", e);
+                            }
+                            // mark_ready is now no-op (handled by state machine)
                             buffer_manager.mark_ready(passage_id).await;
                         });
 
@@ -271,10 +283,13 @@ impl DecoderPool {
         let passage_id = request.passage_id;
 
         // Calculate start and end times
-        let start_ms = passage.start_time_ms;
+        // Convert ticks to milliseconds for decoder
+        let start_ms = wkmp_common::timing::ticks_to_ms(passage.start_time_ticks) as u64;
         let end_ms = if request.full_decode {
             // Full decode: decode to passage end (or file end if None)
-            passage.end_time_ms.unwrap_or(0) // 0 = file end in decoder
+            passage.end_time_ticks
+                .map(|t| wkmp_common::timing::ticks_to_ms(t) as u64)
+                .unwrap_or(0) // 0 = file end in decoder
         } else {
             // Partial decode: first 15 seconds
             start_ms + 15_000 // 15 seconds in milliseconds
@@ -373,6 +388,7 @@ impl DecoderPool {
             let chunk = stereo_samples[start..end].to_vec();
 
             // Append chunk to buffer
+            let chunk_len = chunk.len();
             rt_handle.block_on(async {
                 let mut buffer = buffer_handle.write().await;
                 buffer.append_samples(chunk);
@@ -381,7 +397,9 @@ impl DecoderPool {
             // **[PERF-POLL-010]** Notify buffer manager after appending
             // This triggers ReadyForStart event when threshold is reached
             rt_handle.block_on(async {
-                buffer_manager.notify_samples_appended(passage_id).await;
+                if let Err(e) = buffer_manager.notify_samples_appended(passage_id, chunk_len).await {
+                    warn!("Failed to notify samples appended: {}", e);
+                }
             });
 
             // Update progress
@@ -486,16 +504,17 @@ mod tests {
     fn create_test_passage() -> PassageWithTiming {
         use crate::db::passages::PassageWithTiming;
         use wkmp_common::FadeCurve;
+        use wkmp_common::timing::ms_to_ticks;
 
         PassageWithTiming {
             passage_id: Some(Uuid::new_v4()),
             file_path: PathBuf::from("/test/audio.mp3"),
-            start_time_ms: 0,
-            end_time_ms: Some(10000),
-            lead_in_point_ms: 0,
-            lead_out_point_ms: Some(9000),
-            fade_in_point_ms: 0,
-            fade_out_point_ms: Some(9000),
+            start_time_ticks: 0,
+            end_time_ticks: Some(ms_to_ticks(10000)),
+            lead_in_point_ticks: 0,
+            lead_out_point_ticks: Some(ms_to_ticks(9000)),
+            fade_in_point_ticks: 0,
+            fade_out_point_ticks: Some(ms_to_ticks(9000)),
             fade_in_curve: FadeCurve::Exponential,
             fade_out_curve: FadeCurve::Logarithmic,
         }

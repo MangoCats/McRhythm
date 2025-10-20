@@ -19,48 +19,7 @@ This design addresses key limitations of the dual pipeline approach:
 
 ### High-Level Design
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Audio Playback System                         │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Decoder Thread Pool                        │    │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │    │
-│  │  │  Decoder 1   │  │  Decoder 2   │  │  Decoder 3   │ │    │
-│  │  │  (Passage A) │  │  (Passage B) │  │  (Passage C) │ │    │
-│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │    │
-│  └─────────┼──────────────────┼──────────────────┼─────────┘    │
-│            │                  │                  │               │
-│            └──────────────────┴──────────────────┘               │
-│                               ↓                                  │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │           Passage Buffer Manager                        │    │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │    │
-│  │  │  Passage A   │  │  Passage B   │  │  Passage C   │ │    │
-│  │  │  PCM Buffer  │  │  PCM Buffer  │  │  PCM Buffer  │ │    │
-│  │  │  (15 sec)    │  │  (15 sec)    │  │  (15 sec)    │ │    │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘ │    │
-│  └─────────────────────────┬──────────────────────────────┘    │
-│                            │                                     │
-│                            ↓                                     │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Crossfade Mixer                            │    │
-│  │  • Applies fade-in/fade-out curves                      │    │
-│  │  • Sums overlapping passages                            │    │
-│  │  • Sample-accurate timing                               │    │
-│  │  • Outputs single stereo stream                         │    │
-│  └─────────────────────────┬──────────────────────────────┘    │
-│                            │                                     │
-│                            ↓                                     │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Audio Output Thread                        │    │
-│  │  • Ring buffer for audio device                         │    │
-│  │  • Clock-driven playback                                │    │
-│  │  • Uses 'cpal' for cross-platform output               │    │
-│  └────────────────────────────────────────────────────────┘    │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
+Refer to [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md#overview) for current architecture.
 
 ### Component Structure
 

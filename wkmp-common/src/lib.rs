@@ -14,6 +14,7 @@ pub mod error;
 pub mod events;
 pub mod fade_curves;
 pub mod time;
+pub mod timing;
 pub mod uuid_utils;
 
 pub use error::{Error, Result};

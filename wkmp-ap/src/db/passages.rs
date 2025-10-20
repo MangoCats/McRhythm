@@ -16,20 +16,20 @@ use wkmp_common::FadeCurve;
 
 /// Passage with all timing points resolved
 ///
-/// All timing values are in milliseconds.
+/// All timing values are in ticks (28,224,000 Hz).
 /// NULL values from database converted to appropriate defaults.
 ///
-/// **Traceability:** SSD-DEC-020
+/// **Traceability:** SSD-DEC-020, SRC-TICK-020
 #[derive(Debug, Clone)]
 pub struct PassageWithTiming {
     pub passage_id: Option<Uuid>,
     pub file_path: PathBuf,
-    pub start_time_ms: u64,
-    pub end_time_ms: Option<u64>, // None = file end
-    pub lead_in_point_ms: u64,
-    pub lead_out_point_ms: Option<u64>, // None = calculated from global setting
-    pub fade_in_point_ms: u64,
-    pub fade_out_point_ms: Option<u64>, // None = calculated from global setting
+    pub start_time_ticks: i64,
+    pub end_time_ticks: Option<i64>, // None = file end
+    pub lead_in_point_ticks: i64,
+    pub lead_out_point_ticks: Option<i64>, // None = calculated from global setting
+    pub fade_in_point_ticks: i64,
+    pub fade_out_point_ticks: Option<i64>, // None = calculated from global setting
     pub fade_in_curve: FadeCurve,
     pub fade_out_curve: FadeCurve,
 }
@@ -62,39 +62,40 @@ pub async fn get_passage_with_timing(
     .await?
     .ok_or_else(|| Error::PassageNotFound(passage_id.to_string()))?;
 
-    // Extract values (all timing in seconds from DB, convert to ms)
+    // Extract values (all timing in seconds from DB, convert to ticks)
     let file_path = PathBuf::from(row.get::<String, _>("path"));
     let file_duration_s: Option<f64> = row.get("duration");
 
-    // Convert seconds to milliseconds
-    let start_time_ms = row
+    // Convert seconds to ticks (28,224,000 Hz)
+    // 1 second = 28,224,000 ticks
+    let start_time_ticks = row
         .get::<Option<f64>, _>("start_time")
-        .map(|s| (s * 1000.0) as u64)
+        .map(|s| wkmp_common::timing::seconds_to_ticks(s))
         .unwrap_or(0);
 
-    let end_time_ms = match (row.get::<Option<f64>, _>("end_time"), file_duration_s) {
-        (Some(end), _) => Some((end * 1000.0) as u64),
-        (None, Some(duration)) => Some((duration * 1000.0) as u64),
+    let end_time_ticks = match (row.get::<Option<f64>, _>("end_time"), file_duration_s) {
+        (Some(end), _) => Some(wkmp_common::timing::seconds_to_ticks(end)),
+        (None, Some(duration)) => Some(wkmp_common::timing::seconds_to_ticks(duration)),
         (None, None) => None, // File duration unknown
     };
 
-    let lead_in_point_ms = row
+    let lead_in_point_ticks = row
         .get::<Option<f64>, _>("lead_in_point")
-        .map(|s| (s * 1000.0) as u64)
-        .unwrap_or(start_time_ms);
+        .map(|s| wkmp_common::timing::seconds_to_ticks(s))
+        .unwrap_or(start_time_ticks);
 
-    let lead_out_point_ms = row
+    let lead_out_point_ticks = row
         .get::<Option<f64>, _>("lead_out_point")
-        .map(|s| (s * 1000.0) as u64);
+        .map(|s| wkmp_common::timing::seconds_to_ticks(s));
 
-    let fade_in_point_ms = row
+    let fade_in_point_ticks = row
         .get::<Option<f64>, _>("fade_in_point")
-        .map(|s| (s * 1000.0) as u64)
-        .unwrap_or(start_time_ms);
+        .map(|s| wkmp_common::timing::seconds_to_ticks(s))
+        .unwrap_or(start_time_ticks);
 
-    let fade_out_point_ms = row
+    let fade_out_point_ticks = row
         .get::<Option<f64>, _>("fade_out_point")
-        .map(|s| (s * 1000.0) as u64);
+        .map(|s| wkmp_common::timing::seconds_to_ticks(s));
 
     // Parse fade curves
     let fade_in_curve = row
@@ -110,12 +111,12 @@ pub async fn get_passage_with_timing(
     let passage = PassageWithTiming {
         passage_id: Some(passage_id),
         file_path,
-        start_time_ms,
-        end_time_ms,
-        lead_in_point_ms,
-        lead_out_point_ms,
-        fade_in_point_ms,
-        fade_out_point_ms,
+        start_time_ticks,
+        end_time_ticks,
+        lead_in_point_ticks,
+        lead_out_point_ticks,
+        fade_in_point_ticks,
+        fade_out_point_ticks,
         fade_in_curve,
         fade_out_curve,
     };
@@ -150,17 +151,17 @@ pub async fn get_audio_file_path(db: &Pool<Sqlite>, passage_id: Uuid) -> Result<
 /// Used for immediate playback without database persistence.
 /// All timing points default to zero (no fade, no lead).
 ///
-/// **Traceability:** REQ-DEF-035 (Ephemeral passage)
+/// **Traceability:** REQ-DEF-035 (Ephemeral passage), SRC-TICK-020
 pub fn create_ephemeral_passage(file_path: PathBuf) -> PassageWithTiming {
     PassageWithTiming {
         passage_id: None, // Ephemeral = no database ID
         file_path,
-        start_time_ms: 0,
-        end_time_ms: None, // Will be determined during decode
-        lead_in_point_ms: 0,
-        lead_out_point_ms: None, // Will use global crossfade time
-        fade_in_point_ms: 0,
-        fade_out_point_ms: None, // Will use global crossfade time
+        start_time_ticks: 0,
+        end_time_ticks: None, // Will be determined during decode
+        lead_in_point_ticks: 0,
+        lead_out_point_ticks: None, // Will use global crossfade time
+        fade_in_point_ticks: 0,
+        fade_out_point_ticks: None, // Will use global crossfade time
         fade_in_curve: FadeCurve::Exponential,
         fade_out_curve: FadeCurve::Logarithmic,
     }
@@ -178,81 +179,81 @@ pub fn validate_passage_timing(mut passage: PassageWithTiming) -> Result<Passage
     // Validation happens in-order following crossfade.md spec
 
     // Step 1: Validate start < end (if end is known)
-    if let Some(end) = passage.end_time_ms {
-        if passage.start_time_ms >= end {
+    if let Some(end) = passage.end_time_ticks {
+        if passage.start_time_ticks >= end {
             tracing::warn!(
                 "Passage {:?}: Invalid start/end times (start={}, end={}). \
                  Setting start=0.",
                 passage.passage_id,
-                passage.start_time_ms,
+                passage.start_time_ticks,
                 end
             );
-            passage.start_time_ms = 0;
+            passage.start_time_ticks = 0;
         }
     }
 
     // Step 2: Validate fade-in point
-    if let Some(end) = passage.end_time_ms {
-        if passage.fade_in_point_ms < passage.start_time_ms {
+    if let Some(end) = passage.end_time_ticks {
+        if passage.fade_in_point_ticks < passage.start_time_ticks {
             tracing::warn!(
                 "Passage {:?}: fade_in_point ({}) < start_time ({}). \
                  Clamping to start_time.",
                 passage.passage_id,
-                passage.fade_in_point_ms,
-                passage.start_time_ms
+                passage.fade_in_point_ticks,
+                passage.start_time_ticks
             );
-            passage.fade_in_point_ms = passage.start_time_ms;
+            passage.fade_in_point_ticks = passage.start_time_ticks;
         }
 
-        if passage.fade_in_point_ms > end {
+        if passage.fade_in_point_ticks > end {
             tracing::warn!(
                 "Passage {:?}: fade_in_point ({}) > end_time ({}). \
                  Clamping to end_time.",
                 passage.passage_id,
-                passage.fade_in_point_ms,
+                passage.fade_in_point_ticks,
                 end
             );
-            passage.fade_in_point_ms = end;
+            passage.fade_in_point_ticks = end;
         }
     }
 
     // Step 3: Validate lead-in point
-    if let Some(end) = passage.end_time_ms {
-        if passage.lead_in_point_ms < passage.start_time_ms {
+    if let Some(end) = passage.end_time_ticks {
+        if passage.lead_in_point_ticks < passage.start_time_ticks {
             tracing::warn!(
                 "Passage {:?}: lead_in_point ({}) < start_time ({}). \
                  Clamping to start_time.",
                 passage.passage_id,
-                passage.lead_in_point_ms,
-                passage.start_time_ms
+                passage.lead_in_point_ticks,
+                passage.start_time_ticks
             );
-            passage.lead_in_point_ms = passage.start_time_ms;
+            passage.lead_in_point_ticks = passage.start_time_ticks;
         }
 
-        if passage.lead_in_point_ms > end {
+        if passage.lead_in_point_ticks > end {
             tracing::warn!(
                 "Passage {:?}: lead_in_point ({}) > end_time ({}). \
                  Clamping to end_time.",
                 passage.passage_id,
-                passage.lead_in_point_ms,
+                passage.lead_in_point_ticks,
                 end
             );
-            passage.lead_in_point_ms = end;
+            passage.lead_in_point_ticks = end;
         }
     }
 
     // Step 4: Validate lead-out point (if specified)
-    if let Some(lead_out) = passage.lead_out_point_ms {
-        if let Some(end) = passage.end_time_ms {
-            if lead_out < passage.start_time_ms {
+    if let Some(lead_out) = passage.lead_out_point_ticks {
+        if let Some(end) = passage.end_time_ticks {
+            if lead_out < passage.start_time_ticks {
                 tracing::warn!(
                     "Passage {:?}: lead_out_point ({}) < start_time ({}). \
                      Clamping to start_time.",
                     passage.passage_id,
                     lead_out,
-                    passage.start_time_ms
+                    passage.start_time_ticks
                 );
-                passage.lead_out_point_ms = Some(passage.start_time_ms);
+                passage.lead_out_point_ticks = Some(passage.start_time_ticks);
             }
 
             if lead_out > end {
@@ -263,37 +264,37 @@ pub fn validate_passage_timing(mut passage: PassageWithTiming) -> Result<Passage
                     lead_out,
                     end
                 );
-                passage.lead_out_point_ms = Some(end);
+                passage.lead_out_point_ticks = Some(end);
             }
         }
 
         // Validate lead-out >= lead-in
-        if let Some(corrected_lead_out) = passage.lead_out_point_ms {
-            if corrected_lead_out < passage.lead_in_point_ms {
+        if let Some(corrected_lead_out) = passage.lead_out_point_ticks {
+            if corrected_lead_out < passage.lead_in_point_ticks {
                 tracing::warn!(
                     "Passage {:?}: lead_out_point ({}) < lead_in_point ({}). \
                      Setting lead_out = lead_in.",
                     passage.passage_id,
                     corrected_lead_out,
-                    passage.lead_in_point_ms
+                    passage.lead_in_point_ticks
                 );
-                passage.lead_out_point_ms = Some(passage.lead_in_point_ms);
+                passage.lead_out_point_ticks = Some(passage.lead_in_point_ticks);
             }
         }
     }
 
     // Step 5: Validate fade-out point (if specified)
-    if let Some(fade_out) = passage.fade_out_point_ms {
-        if let Some(end) = passage.end_time_ms {
-            if fade_out < passage.start_time_ms {
+    if let Some(fade_out) = passage.fade_out_point_ticks {
+        if let Some(end) = passage.end_time_ticks {
+            if fade_out < passage.start_time_ticks {
                 tracing::warn!(
                     "Passage {:?}: fade_out_point ({}) < start_time ({}). \
                      Clamping to start_time.",
                     passage.passage_id,
                     fade_out,
-                    passage.start_time_ms
+                    passage.start_time_ticks
                 );
-                passage.fade_out_point_ms = Some(passage.start_time_ms);
+                passage.fade_out_point_ticks = Some(passage.start_time_ticks);
             }
 
             if fade_out > end {
@@ -304,21 +305,21 @@ pub fn validate_passage_timing(mut passage: PassageWithTiming) -> Result<Passage
                     fade_out,
                     end
                 );
-                passage.fade_out_point_ms = Some(end);
+                passage.fade_out_point_ticks = Some(end);
             }
         }
 
         // Validate fade-out >= fade-in
-        if let Some(corrected_fade_out) = passage.fade_out_point_ms {
-            if corrected_fade_out < passage.fade_in_point_ms {
+        if let Some(corrected_fade_out) = passage.fade_out_point_ticks {
+            if corrected_fade_out < passage.fade_in_point_ticks {
                 tracing::warn!(
                     "Passage {:?}: fade_out_point ({}) < fade_in_point ({}). \
                      Setting fade_out = fade_in.",
                     passage.passage_id,
                     corrected_fade_out,
-                    passage.fade_in_point_ms
+                    passage.fade_in_point_ticks
                 );
-                passage.fade_out_point_ms = Some(passage.fade_in_point_ms);
+                passage.fade_out_point_ticks = Some(passage.fade_in_point_ticks);
             }
         }
     }
@@ -355,70 +356,76 @@ mod tests {
 
         assert_eq!(passage.passage_id, None);
         assert_eq!(passage.file_path, path);
-        assert_eq!(passage.start_time_ms, 0);
-        assert_eq!(passage.end_time_ms, None);
-        assert_eq!(passage.lead_in_point_ms, 0);
-        assert_eq!(passage.lead_out_point_ms, None);
+        assert_eq!(passage.start_time_ticks, 0);
+        assert_eq!(passage.end_time_ticks, None);
+        assert_eq!(passage.lead_in_point_ticks, 0);
+        assert_eq!(passage.lead_out_point_ticks, None);
     }
 
     #[test]
     fn test_passage_timing_validation_start_end() {
+        use wkmp_common::timing::ms_to_ticks;
+
         // Test invalid start >= end
         let passage = PassageWithTiming {
             passage_id: Some(Uuid::new_v4()),
             file_path: PathBuf::from("/test.mp3"),
-            start_time_ms: 5000,
-            end_time_ms: Some(3000), // Invalid: start > end
-            lead_in_point_ms: 5000,
-            lead_out_point_ms: Some(3000),
-            fade_in_point_ms: 5000,
-            fade_out_point_ms: Some(3000),
+            start_time_ticks: ms_to_ticks(5000),
+            end_time_ticks: Some(ms_to_ticks(3000)), // Invalid: start > end
+            lead_in_point_ticks: ms_to_ticks(5000),
+            lead_out_point_ticks: Some(ms_to_ticks(3000)),
+            fade_in_point_ticks: ms_to_ticks(5000),
+            fade_out_point_ticks: Some(ms_to_ticks(3000)),
             fade_in_curve: FadeCurve::Linear,
             fade_out_curve: FadeCurve::Linear,
         };
 
         let validated = validate_passage_timing(passage).unwrap();
-        assert_eq!(validated.start_time_ms, 0); // Corrected to 0
+        assert_eq!(validated.start_time_ticks, 0); // Corrected to 0
     }
 
     #[test]
     fn test_passage_timing_validation_fade_points() {
+        use wkmp_common::timing::ms_to_ticks;
+
         // Test fade points outside bounds
         let passage = PassageWithTiming {
             passage_id: Some(Uuid::new_v4()),
             file_path: PathBuf::from("/test.mp3"),
-            start_time_ms: 1000,
-            end_time_ms: Some(10000),
-            lead_in_point_ms: 2000,
-            lead_out_point_ms: Some(9000),
-            fade_in_point_ms: 500, // Before start
-            fade_out_point_ms: Some(15000), // After end
+            start_time_ticks: ms_to_ticks(1000),
+            end_time_ticks: Some(ms_to_ticks(10000)),
+            lead_in_point_ticks: ms_to_ticks(2000),
+            lead_out_point_ticks: Some(ms_to_ticks(9000)),
+            fade_in_point_ticks: ms_to_ticks(500), // Before start
+            fade_out_point_ticks: Some(ms_to_ticks(15000)), // After end
             fade_in_curve: FadeCurve::Linear,
             fade_out_curve: FadeCurve::Linear,
         };
 
         let validated = validate_passage_timing(passage).unwrap();
-        assert_eq!(validated.fade_in_point_ms, 1000); // Clamped to start
-        assert_eq!(validated.fade_out_point_ms, Some(10000)); // Clamped to end
+        assert_eq!(validated.fade_in_point_ticks, ms_to_ticks(1000)); // Clamped to start
+        assert_eq!(validated.fade_out_point_ticks, Some(ms_to_ticks(10000))); // Clamped to end
     }
 
     #[test]
     fn test_passage_timing_validation_lead_ordering() {
+        use wkmp_common::timing::ms_to_ticks;
+
         // Test lead-out < lead-in
         let passage = PassageWithTiming {
             passage_id: Some(Uuid::new_v4()),
             file_path: PathBuf::from("/test.mp3"),
-            start_time_ms: 0,
-            end_time_ms: Some(10000),
-            lead_in_point_ms: 5000,
-            lead_out_point_ms: Some(3000), // Before lead-in (invalid)
-            fade_in_point_ms: 0,
-            fade_out_point_ms: Some(10000),
+            start_time_ticks: 0,
+            end_time_ticks: Some(ms_to_ticks(10000)),
+            lead_in_point_ticks: ms_to_ticks(5000),
+            lead_out_point_ticks: Some(ms_to_ticks(3000)), // Before lead-in (invalid)
+            fade_in_point_ticks: 0,
+            fade_out_point_ticks: Some(ms_to_ticks(10000)),
             fade_in_curve: FadeCurve::Linear,
             fade_out_curve: FadeCurve::Linear,
         };
 
         let validated = validate_passage_timing(passage).unwrap();
-        assert_eq!(validated.lead_out_point_ms, Some(5000)); // Corrected to lead-in
+        assert_eq!(validated.lead_out_point_ticks, Some(ms_to_ticks(5000))); // Corrected to lead-in
     }
 }

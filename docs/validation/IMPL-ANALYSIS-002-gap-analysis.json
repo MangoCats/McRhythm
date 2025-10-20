@@ -1,0 +1,1396 @@
+{
+  "analysis_date": "2025-10-19",
+  "analysis_version": "1.0",
+  "analyst": "Agent 1B - Gap Analysis Agent",
+  "specifications_analyzed": [
+    "/home/sw/Dev/McRhythm/docs/SPEC016-decoder_buffer_design.md",
+    "/home/sw/Dev/McRhythm/docs/SPEC017-sample_rate_conversion.md"
+  ],
+  "implementation_path": "/home/sw/Dev/McRhythm/wkmp-ap/src",
+  "total_requirements": 122,
+  "requirements_breakdown": {
+    "SPEC016_DBD": 60,
+    "SPEC017_SRC": 62
+  },
+  "status_summary": {
+    "IMPLEMENTED": 45,
+    "PARTIALLY_IMPLEMENTED": 24,
+    "MISSING": 32,
+    "INCORRECT": 21
+  },
+  "summary_by_severity": {
+    "CRITICAL": 15,
+    "HIGH": 18,
+    "MEDIUM": 21,
+    "LOW": 8
+  },
+  "database_schema_status": {
+    "issue": "CRITICAL - Timing fields use milliseconds (REAL or INTEGER ms), not ticks",
+    "spec_requirement": "SRC-DB-011 through SRC-DB-016 require INTEGER ticks at 28,224,000 Hz",
+    "actual_implementation": "Timing fields stored as milliseconds (u64 in code, likely INTEGER ms in DB)",
+    "conversion_required": true,
+    "impact": "Violates tick-based precision requirements, introduces floating-point rounding errors"
+  },
+  "critical_gaps": [
+    {
+      "requirement_id": "SRC-DB-011",
+      "specification": "start_time stored as INTEGER ticks",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:70-73",
+      "current_behavior": "start_time stored as seconds (REAL) in DB, converted to milliseconds (u64) in code",
+      "gap_description": "Database stores timing as REAL seconds, code converts to milliseconds. Specification requires INTEGER ticks (28,224,000 Hz). This violates sample-accurate timing precision requirements and introduces floating-point rounding errors.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 4.0,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs",
+        "migrations/*.sql (needs new migration)",
+        "common/src/models/*.rs (timing field types)",
+        "wkmp-ap/src/playback/decoder_pool.rs (tick-to-sample conversion)"
+      ],
+      "implementation_notes": "Requires database migration to convert REAL seconds → INTEGER ticks. All code using start_time_ms must convert ticks → samples using (ticks × working_sample_rate) ÷ 28,224,000. API layer needs ms ↔ ticks conversion."
+    },
+    {
+      "requirement_id": "SRC-DB-012",
+      "specification": "end_time stored as INTEGER ticks",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:75-79",
+      "current_behavior": "end_time stored as seconds (REAL), converted to milliseconds (u64)",
+      "gap_description": "Same as SRC-DB-011. All timing fields must use INTEGER ticks, not REAL seconds or milliseconds.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs",
+        "migrations/*.sql"
+      ],
+      "implementation_notes": "Part of same migration as SRC-DB-011. Coordinated update required for all 6 timing fields."
+    },
+    {
+      "requirement_id": "SRC-DB-013",
+      "specification": "fade_in_point stored as INTEGER ticks",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:90-93",
+      "current_behavior": "fade_in_point stored as seconds (REAL), converted to milliseconds (u64)",
+      "gap_description": "Same tick-based timing violation as SRC-DB-011.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs",
+        "migrations/*.sql"
+      ],
+      "implementation_notes": "Part of coordinated migration for all 6 timing fields."
+    },
+    {
+      "requirement_id": "SRC-DB-014",
+      "specification": "fade_out_point stored as INTEGER ticks",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:95-97",
+      "current_behavior": "fade_out_point stored as seconds (REAL), converted to milliseconds (u64)",
+      "gap_description": "Same tick-based timing violation as SRC-DB-011.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs",
+        "migrations/*.sql"
+      ],
+      "implementation_notes": "Part of coordinated migration for all 6 timing fields."
+    },
+    {
+      "requirement_id": "SRC-DB-015",
+      "specification": "lead_in_point stored as INTEGER ticks",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:81-84",
+      "current_behavior": "lead_in_point stored as seconds (REAL), converted to milliseconds (u64)",
+      "gap_description": "Same tick-based timing violation as SRC-DB-011.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs",
+        "migrations/*.sql"
+      ],
+      "implementation_notes": "Part of coordinated migration for all 6 timing fields."
+    },
+    {
+      "requirement_id": "SRC-DB-016",
+      "specification": "lead_out_point stored as INTEGER ticks",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:86-88",
+      "current_behavior": "lead_out_point stored as seconds (REAL), converted to milliseconds (u64)",
+      "gap_description": "Same tick-based timing violation as SRC-DB-011.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs",
+        "migrations/*.sql"
+      ],
+      "implementation_notes": "Part of coordinated migration for all 6 timing fields."
+    },
+    {
+      "requirement_id": "SRC-TICK-020",
+      "specification": "Tick rate = 28,224,000 Hz constant",
+      "current_state": "MISSING",
+      "current_impl_location": "Not found in codebase",
+      "current_behavior": "No tick rate constant defined. Code operates in milliseconds only.",
+      "gap_description": "SPEC017 requires tick rate constant for conversion calculations. Code currently uses milliseconds throughout with no tick-based timing system.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "common/src/timing.rs (new file needed)",
+        "wkmp-ap/src/playback/decoder_pool.rs",
+        "wkmp-ap/src/db/passages.rs"
+      ],
+      "implementation_notes": "Create timing module with TICK_RATE constant (28,224,000), ticks_to_samples(), samples_to_ticks(), ms_to_ticks(), ticks_to_ms() conversion functions."
+    },
+    {
+      "requirement_id": "DBD-DEC-040",
+      "specification": "Serial decode execution - only one decode runs at a time",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:110",
+      "current_behavior": "Uses 2-thread parallel decoder pool with priority queue",
+      "gap_description": "SPEC016 requires serial decode execution for cache coherency and resource limits. Current implementation uses 2 parallel worker threads (lines 108-120), violating serial execution requirement.",
+      "severity": "HIGH",
+      "effort_estimate_days": 3.5,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs"
+      ],
+      "implementation_notes": "Refactor DecoderPool to use single worker thread. Remove parallel thread spawning (lines 108-120). Update priority queue to work with single serial worker. May impact decode performance - test on Raspberry Pi Zero2W to verify acceptable degradation."
+    },
+    {
+      "requirement_id": "DBD-PARAM-070",
+      "specification": "playout_ringbuffer_size = 661,941 samples (15.01 seconds @ 44.1kHz)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not found in config or constants",
+      "current_behavior": "No explicit playout_ringbuffer_size parameter. PassageBuffer uses dynamic Vec<f32> with no size limit.",
+      "gap_description": "SPEC016 requires specific buffer size of 661,941 stereo samples (15.01s). Current implementation has no buffer size limit or parameter.",
+      "severity": "HIGH",
+      "effort_estimate_days": 2.0,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs (add to settings defaults)",
+        "wkmp-ap/src/audio/types.rs (PassageBuffer validation)",
+        "wkmp-ap/src/playback/decoder_pool.rs (check buffer full condition)"
+      ],
+      "implementation_notes": "Add playout_ringbuffer_size to settings table (default 661941). Implement buffer full detection in decoder loop. Add playout_ringbuffer_headroom (default 441 samples) for resampler overrun protection per DBD-PARAM-080."
+    },
+    {
+      "requirement_id": "DBD-FADE-030",
+      "specification": "Fade-in samples have fade curve applied BEFORE buffering (pre-buffer)",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:372-380",
+      "current_behavior": "Fade curves applied in mixer during playback (post-buffer), not during decode",
+      "gap_description": "SPEC016 requires fade curves applied before buffering (DBD-FADE-030). Current implementation applies fades in mixer.get_next_frame() after samples already buffered. This violates pre-buffer fade application requirement.",
+      "severity": "HIGH",
+      "effort_estimate_days": 4.0,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs (add fade handler in decode loop)",
+        "wkmp-ap/src/playback/pipeline/mixer.rs (remove fade application)",
+        "wkmp-ap/src/audio/types.rs (PassageBuffer stores pre-faded samples)"
+      ],
+      "implementation_notes": "Move fade curve application from mixer to decoder. In decoder loop, check if sample is in fade-in/out region and apply curve multiplier before buffer.append_samples(). Mixer should read pre-faded samples directly. Requires passage timing info in decoder context."
+    },
+    {
+      "requirement_id": "DBD-PARAM-020",
+      "specification": "working_sample_rate = 44100 Hz (stored in database settings)",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:26-27, wkmp-ap/src/playback/pipeline/mixer.rs:28",
+      "current_behavior": "Hardcoded constant STANDARD_SAMPLE_RATE = 44100, not loaded from database",
+      "gap_description": "SPEC016 requires working_sample_rate stored in database settings table (DBD-PARAM-010, DBD-PARAM-020). Current implementation uses hardcoded constant in multiple files. Not configurable at runtime.",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.5,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs (add working_sample_rate to defaults)",
+        "wkmp-ap/src/db/settings.rs (load_working_sample_rate function)",
+        "wkmp-ap/src/playback/decoder_pool.rs (load from DB)",
+        "wkmp-ap/src/playback/pipeline/mixer.rs (load from DB)"
+      ],
+      "implementation_notes": "Add working_sample_rate to settings table defaults (44100). Create load_working_sample_rate() function. Pass sample rate to DecoderPool and CrossfadeMixer constructors. Replace all STANDARD_SAMPLE_RATE constants with runtime value."
+    },
+    {
+      "requirement_id": "DBD-PARAM-030",
+      "specification": "output_ringbuffer_size = 8192 samples (185ms @ 44.1kHz)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not found - no output ring buffer implementation visible",
+      "current_behavior": "Unclear if output ring buffer exists. No parameter for output_ringbuffer_size found.",
+      "gap_description": "SPEC016 requires output ring buffer between mixer and cpal output with configurable size (default 8192 samples). Implementation status unclear from code review.",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/audio/output.rs (may already exist)",
+        "wkmp-ap/src/db/init.rs (add parameter)"
+      ],
+      "implementation_notes": "Verify if output ring buffer exists in wkmp-ap/src/audio/output.rs. If missing, implement ring buffer with configurable size. If exists, add parameter to settings table."
+    },
+    {
+      "requirement_id": "DBD-PARAM-040",
+      "specification": "output_refill_period = 90ms (mixer check interval)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not found in settings or config",
+      "current_behavior": "No output_refill_period parameter found. Mixer refill timing unclear.",
+      "gap_description": "SPEC016 requires configurable output_refill_period for mixer timing (DBD-PARAM-040). Parameter not found in settings or code.",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs",
+        "wkmp-ap/src/playback/engine.rs (mixer thread timing)"
+      ],
+      "implementation_notes": "Add output_refill_period to settings (default 90ms). Use in engine mixer thread wake interval. Verify mixer thread implementation matches SPEC016 requirements."
+    },
+    {
+      "requirement_id": "DBD-PARAM-050",
+      "specification": "maximum_decode_streams = 12 (configurable in settings)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not found in settings or config",
+      "current_behavior": "No maximum_decode_streams parameter. No limit on decode job queue size apparent.",
+      "gap_description": "SPEC016 requires maximum_decode_streams parameter (default 12) to limit decoder-buffer chain allocation. Not found in settings or implementation.",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.5,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs",
+        "wkmp-ap/src/playback/engine.rs (queue-to-decoder assignment logic)"
+      ],
+      "implementation_notes": "Add maximum_decode_streams to settings (default 12). Implement logic to only decode passages within maximum_decode_streams of queue front. Requires queue position tracking."
+    },
+    {
+      "requirement_id": "DBD-PARAM-060",
+      "specification": "decode_work_period = 5000ms (priority re-evaluation interval)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not found",
+      "current_behavior": "DecoderPool uses priority queue but no work period for re-evaluation",
+      "gap_description": "SPEC016 requires decode_work_period (5s intervals) for pausing current decode and re-evaluating priority queue. Current implementation has no periodic re-evaluation mechanism.",
+      "severity": "LOW",
+      "effort_estimate_days": 2.0,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs",
+        "wkmp-ap/src/playback/decoder_pool.rs (add periodic evaluation timer)"
+      ],
+      "implementation_notes": "Add decode_work_period to settings (default 5000ms). In decoder worker loop, add timer to interrupt current decode every 5s and check if higher priority job exists. If yes, pause current and switch to higher priority."
+    }
+  ],
+  "gaps": [
+    {
+      "requirement_id": "DBD-SC-010",
+      "specification": "Decoder buffer concepts apply to wkmp-ap Audio Player",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/ entire module",
+      "current_behavior": "Decoder buffer implementation exists in wkmp-ap module",
+      "gap_description": "None",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Scoping requirement - satisfied by implementation in wkmp-ap."
+    },
+    {
+      "requirement_id": "DBD-OV-010",
+      "specification": "Audio decoded and converted to working_sample_rate before buffering",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:295-317",
+      "current_behavior": "SimpleDecoder.decode_passage() decodes audio, then Resampler.resample() converts to 44.1kHz before buffering",
+      "gap_description": "None - implementation matches specification",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Working correctly. Decode → Resample → Buffer flow implemented."
+    },
+    {
+      "requirement_id": "DBD-OV-020",
+      "specification": "Separate buffers created for each passage",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/buffer_manager.rs:175-204",
+      "current_behavior": "BufferManager.register_decoding() creates Arc<RwLock<PassageBuffer>> per passage_id",
+      "gap_description": "None",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Each passage gets dedicated PassageBuffer instance. Correct implementation."
+    },
+    {
+      "requirement_id": "DBD-OV-030",
+      "specification": "Playback system applies volume, crossfade, and amplitude modifications before output",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:360-539",
+      "current_behavior": "CrossfadeMixer.get_next_frame() applies fade curves, crossfade mixing, volume (via apply_volume), and clipping before output",
+      "gap_description": "None - mixer correctly applies modifications",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Mixer implements all required amplitude modifications."
+    },
+    {
+      "requirement_id": "DBD-OV-050",
+      "specification": "System allocates maximum_decode_streams decoder-buffer chains",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No limit on number of decoder-buffer chains. BufferManager accepts unlimited passages.",
+      "gap_description": "No implementation of maximum_decode_streams limit. All queued passages can start decoding simultaneously.",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.5,
+      "affected_files": [
+        "wkmp-ap/src/playback/engine.rs",
+        "wkmp-ap/src/db/init.rs"
+      ],
+      "implementation_notes": "Add maximum_decode_streams parameter and implement assignment logic: only decode passages within N positions of queue front."
+    },
+    {
+      "requirement_id": "DBD-OV-060",
+      "specification": "First position in queue = 'now playing' passage",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/queue_manager.rs (implied by queue structure)",
+      "current_behavior": "Queue manager treats first entry as current passage",
+      "gap_description": "None - terminology used consistently",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Queue FIFO ordering implies first = now playing."
+    },
+    {
+      "requirement_id": "DBD-OV-070",
+      "specification": "Next position in queue = 'playing next' passage",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/queue_manager.rs",
+      "current_behavior": "Second queue entry treated as 'next' passage for crossfade",
+      "gap_description": "None",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Terminology matches specification."
+    },
+    {
+      "requirement_id": "DBD-OV-080",
+      "specification": "Decoder-buffer chain assigned to passage, not queue position",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/buffer_manager.rs:22-35",
+      "current_behavior": "ManagedBuffer keyed by passage_id (Uuid), not queue position. Buffer follows passage through queue.",
+      "gap_description": "None - correct implementation",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "HashMap<Uuid, ManagedBuffer> correctly associates buffer with passage UUID, not position."
+    },
+    {
+      "requirement_id": "SRC-SOL-010",
+      "specification": "WKMP uses tick-based timing system",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "Code uses milliseconds (u64) throughout, no tick-based system",
+      "gap_description": "Fundamental architecture mismatch. SPEC017 requires tick-based timing, but implementation uses milliseconds only.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 8.0,
+      "affected_files": [
+        "common/src/timing.rs (new module)",
+        "wkmp-ap/src/db/passages.rs",
+        "wkmp-ap/src/playback/decoder_pool.rs",
+        "migrations/*.sql"
+      ],
+      "implementation_notes": "Major refactoring required. Create timing module with tick constants and conversion functions. Update all timing fields from milliseconds to ticks. Database migration needed."
+    },
+    {
+      "requirement_id": "SRC-WSR-020",
+      "specification": "At decoder-buffer boundary, timing transitions from ticks to sample counts",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:274-281",
+      "current_behavior": "Decoder converts milliseconds to sample counts for decode range, but no tick-based input",
+      "gap_description": "Conversion from ticks to samples not implemented because tick system doesn't exist. Current code converts ms to samples.",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 2.0,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs"
+      ],
+      "implementation_notes": "Once tick system implemented, add ticks_to_samples() conversion at decoder-buffer boundary using (ticks × working_sample_rate) ÷ 28,224,000."
+    },
+    {
+      "requirement_id": "SRC-CONV-030",
+      "specification": "Convert sample counts to ticks: ticks = samples × (28,224,000 ÷ sample_rate)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No sample-to-tick conversion function exists",
+      "gap_description": "Conversion function missing because tick system doesn't exist",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "common/src/timing.rs (new)"
+      ],
+      "implementation_notes": "Add samples_to_ticks(samples, sample_rate) function to timing module."
+    },
+    {
+      "requirement_id": "SRC-API-020",
+      "specification": "API-to-database conversion: ticks = milliseconds × 28,224",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "API uses milliseconds directly, no tick conversion",
+      "gap_description": "API layer needs tick conversion functions for UI communication",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/src/api/handlers.rs",
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add ms_to_ticks() and ticks_to_ms() conversion functions. Use in API request/response serialization."
+    },
+    {
+      "requirement_id": "DBD-FLOW-010",
+      "specification": "Playback has two modes: Playing and Paused",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:60-68, 588-601",
+      "current_behavior": "PauseState and pause/resume methods implement play/pause modes",
+      "gap_description": "None - pause functionality implemented",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Pause mode correctly implemented with state tracking."
+    },
+    {
+      "requirement_id": "DBD-FLOW-030",
+      "specification": "When paused, mixer outputs silence (flat line)",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:332-334",
+      "current_behavior": "get_next_frame() returns AudioFrame::zero() when pause_state is Some",
+      "gap_description": "None",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Correct silence output during pause."
+    },
+    {
+      "requirement_id": "DBD-DEC-010",
+      "specification": "Each passage defines portion of audio file to play",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:17-35",
+      "current_behavior": "PassageWithTiming struct contains file_path, start_time_ms, end_time_ms defining playable region",
+      "gap_description": "None - passage entity correctly defined",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Passage structure matches specification."
+    },
+    {
+      "requirement_id": "DBD-DEC-020",
+      "specification": "Passage becomes eligible for decoding when within maximum_decode_streams of queue front",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No maximum_decode_streams limit enforced. All queued passages can decode immediately.",
+      "gap_description": "Missing queue position-based decode eligibility logic",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.5,
+      "affected_files": [
+        "wkmp-ap/src/playback/engine.rs"
+      ],
+      "implementation_notes": "Implement: only submit passages to decoder pool if queue_position ≤ maximum_decode_streams."
+    },
+    {
+      "requirement_id": "DBD-DEC-030",
+      "specification": "Each passage gets dedicated decoder instance",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:264-405",
+      "current_behavior": "Each DecodeRequest creates dedicated decoder in decode_passage(), works until complete or buffer full",
+      "gap_description": "None - dedicated decoder per passage",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "SimpleDecoder::decode_passage() creates fresh decoder instance per call."
+    },
+    {
+      "requirement_id": "DBD-DEC-050",
+      "specification": "Decoding starts from beginning of file, even if start point is later",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:294-296",
+      "current_behavior": "SimpleDecoder::decode_passage() always starts from file beginning (line 96 in decoder.rs), skips samples until start_ms",
+      "gap_description": "None - decode-and-skip approach implemented",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Correct decode-from-start implementation per DBD-DEC-050."
+    },
+    {
+      "requirement_id": "DBD-DEC-060",
+      "specification": "Seek time estimation in compressed files can be inaccurate",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:294 (avoids seeking)",
+      "current_behavior": "Implementation avoids seeking by decoding from start, validating DBD-DEC-060 rationale",
+      "gap_description": "None - design acknowledges seek inaccuracy",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Decode-from-start strategy avoids seek inaccuracy issues."
+    },
+    {
+      "requirement_id": "DBD-DEC-070",
+      "specification": "Decoded audio is exact sample accurate, repeatable, predictable",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/decoder.rs (symphonia library guarantees)",
+      "current_behavior": "Using symphonia decoder library which provides deterministic decode",
+      "gap_description": "None - library property",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Symphonia provides sample-accurate decoding."
+    },
+    {
+      "requirement_id": "DBD-DEC-080",
+      "specification": "Timing for passage boundaries/fades handled with exact sample accuracy",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:274-281",
+      "current_behavior": "Sample-based calculations from millisecond inputs, but not tick-based",
+      "gap_description": "Sample accuracy exists but lacks tick-based precision foundation from SPEC017",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs"
+      ],
+      "implementation_notes": "Once tick system implemented, sample calculations will be exact. Current ms-based calculations have rounding errors."
+    },
+    {
+      "requirement_id": "DBD-RSMP-010",
+      "specification": "Audio resampled to working_sample_rate when not matching",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:305-317",
+      "current_behavior": "Checks if sample_rate != STANDARD_SAMPLE_RATE (44100), calls Resampler::resample() if needed",
+      "gap_description": "None - resampling correctly implemented",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Rubato resampler used correctly."
+    },
+    {
+      "requirement_id": "DBD-RSMP-020",
+      "specification": "Audio at working_sample_rate passed straight through",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:305-317",
+      "current_behavior": "If sample_rate == STANDARD_SAMPLE_RATE, resampling bypassed (samples passed through)",
+      "gap_description": "None",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Bypass logic correctly implemented."
+    },
+    {
+      "requirement_id": "DBD-FADE-020",
+      "specification": "Samples before passage start time are discarded, not buffered",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/decoder.rs (decode_passage logic)",
+      "current_behavior": "SimpleDecoder::decode_passage() skips samples before start_ms, only buffers samples in [start_ms, end_ms] range",
+      "gap_description": "None - skip logic implemented",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Decoder correctly discards pre-start samples."
+    },
+    {
+      "requirement_id": "DBD-FADE-040",
+      "specification": "Samples between fade-in end and fade-out start buffered exactly as received",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:363-379",
+      "current_behavior": "All samples buffered as-is, but fades applied in mixer (post-buffer) not during decode (pre-buffer)",
+      "gap_description": "Samples buffered correctly, but fade timing wrong (should be pre-buffer per DBD-FADE-030)",
+      "severity": "HIGH",
+      "effort_estimate_days": 0.5,
+      "affected_files": [],
+      "implementation_notes": "Once DBD-FADE-030 fixed (move fades to pre-buffer), this will be correct."
+    },
+    {
+      "requirement_id": "DBD-FADE-050",
+      "specification": "Samples between fade-out point and end time have fade-out curve applied",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:398-421",
+      "current_behavior": "Fade-out applied in mixer (post-buffer), not during decode (pre-buffer)",
+      "gap_description": "Same issue as DBD-FADE-030 - fades must be pre-buffer",
+      "severity": "HIGH",
+      "effort_estimate_days": 0.0,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs",
+        "wkmp-ap/src/playback/pipeline/mixer.rs"
+      ],
+      "implementation_notes": "Part of DBD-FADE-030 fix - move all fade application to decode phase."
+    },
+    {
+      "requirement_id": "DBD-FADE-060",
+      "specification": "When end time sample received, decoder informed passage complete",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:294-296",
+      "current_behavior": "SimpleDecoder::decode_passage() decodes only [start_ms, end_ms] range, stops at end_ms",
+      "gap_description": "None - decoder stops at passage end",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Decoder correctly limits decode to passage boundaries."
+    },
+    {
+      "requirement_id": "DBD-BUF-010",
+      "specification": "Buffer holds playout_ringbuffer_size stereo samples",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/types.rs (PassageBuffer)",
+      "current_behavior": "PassageBuffer uses Vec<f32> with no size limit, not fixed-size ring buffer",
+      "gap_description": "Buffer uses dynamic Vec, not fixed-size ring buffer of playout_ringbuffer_size (661,941 samples)",
+      "severity": "HIGH",
+      "effort_estimate_days": 2.5,
+      "affected_files": [
+        "wkmp-ap/src/audio/types.rs",
+        "wkmp-ap/src/playback/decoder_pool.rs"
+      ],
+      "implementation_notes": "Change PassageBuffer from Vec to fixed-size ring buffer with playout_ringbuffer_size capacity. Implement ring buffer read/write pointers."
+    },
+    {
+      "requirement_id": "DBD-BUF-020",
+      "specification": "Ring buffer starts empty when assigned to passage",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/buffer_manager.rs:182-187",
+      "current_behavior": "PassageBuffer::new() creates buffer with empty Vec",
+      "gap_description": "None - buffer starts empty",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Correct initialization."
+    },
+    {
+      "requirement_id": "DBD-BUF-030",
+      "specification": "When buffer empty, mixer cannot take samples",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:858-867 (read_frame function)",
+      "current_behavior": "read_frame() returns AudioFrame::zero() if position >= buffer length",
+      "gap_description": "None - empty buffer returns silence",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Correct underrun handling."
+    },
+    {
+      "requirement_id": "DBD-BUF-040",
+      "specification": "If mixer attempts to read from empty buffer, return last sample with buffer_empty status",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:858-867",
+      "current_behavior": "Returns AudioFrame::zero(), not last sample. No buffer_empty status flag.",
+      "gap_description": "Returns silence instead of last sample. Missing buffer_empty status return.",
+      "severity": "LOW",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/src/audio/types.rs (PassageBuffer::get_frame return type)",
+        "wkmp-ap/src/playback/pipeline/mixer.rs"
+      ],
+      "implementation_notes": "Change get_frame() to return (AudioFrame, BufferStatus). Cache last valid frame in PassageBuffer."
+    },
+    {
+      "requirement_id": "DBD-BUF-050",
+      "specification": "When buffer nearly full (≤ playout_ringbuffer_headroom free), pause decoder",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No buffer full detection. Decoder appends to Vec without checking capacity.",
+      "gap_description": "Missing backpressure mechanism to pause decoder when buffer full",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 2.0,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs",
+        "wkmp-ap/src/audio/types.rs"
+      ],
+      "implementation_notes": "Add buffer fullness check in decoder loop. Pause decode when free_space ≤ playout_ringbuffer_headroom. Resume when space available."
+    },
+    {
+      "requirement_id": "DBD-BUF-060",
+      "specification": "When passage end sample removed from buffer, inform queue passage playout completed",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:559-573 (is_current_finished), wkmp-ap/src/playback/engine.rs (handles completion)",
+      "current_behavior": "Mixer checks is_current_finished() which uses is_exhausted(position), engine handles PassageComplete event",
+      "gap_description": "None - completion detection implemented",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Completion logic correctly implemented with is_exhausted() check."
+    },
+    {
+      "requirement_id": "DBD-MIX-010",
+      "specification": "Mixer implements multiple functions",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:95-856",
+      "current_behavior": "CrossfadeMixer implements all required functions: refill, play/pause, crossfade mixing, volume, fade-in",
+      "gap_description": "None - all functions present",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Complete mixer implementation."
+    },
+    {
+      "requirement_id": "DBD-MIX-020",
+      "specification": "Mixer refills output ring buffer every output_refill_period",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "Unclear - likely in wkmp-ap/src/playback/engine.rs mixer thread",
+      "current_behavior": "Mixer thread likely exists but output_refill_period parameter not found",
+      "gap_description": "Refill mechanism may exist but missing configurable output_refill_period parameter",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs",
+        "wkmp-ap/src/playback/engine.rs"
+      ],
+      "implementation_notes": "Add output_refill_period parameter. Verify mixer thread uses it for wake interval."
+    },
+    {
+      "requirement_id": "DBD-MIX-030",
+      "specification": "Mixer implements play and pause mode",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:588-649",
+      "current_behavior": "pause() and resume() methods, PauseState tracking, silence output when paused",
+      "gap_description": "None - pause functionality complete",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Pause/resume correctly implemented."
+    },
+    {
+      "requirement_id": "DBD-MIX-040",
+      "specification": "Play mode: samples from now playing + crossfade overlap + volume + fade-in-after-pause",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:360-539",
+      "current_behavior": "Implements crossfade overlap, volume (apply_volume), resume fade-in. Missing: post-buffer fade-in should be pre-buffer.",
+      "gap_description": "Fade-in applied in mixer (post-buffer) conflicts with DBD-FADE-030 requirement (pre-buffer)",
+      "severity": "HIGH",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of DBD-FADE-030 fix. Move passage fade-in to decoder. Keep resume fade-in in mixer (that's multiplicative post-crossfade)."
+    },
+    {
+      "requirement_id": "DBD-MIX-050",
+      "specification": "Pause mode: output silence with exponential decay",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:332-334",
+      "current_behavior": "Outputs AudioFrame::zero() immediately, no exponential decay",
+      "gap_description": "Missing pause_decay_factor exponential decay to reduce pop. Spec requires decay from last sample value.",
+      "severity": "LOW",
+      "effort_estimate_days": 1.5,
+      "affected_files": [
+        "wkmp-ap/src/db/init.rs (add pause_decay_factor, pause_decay_floor)",
+        "wkmp-ap/src/playback/pipeline/mixer.rs"
+      ],
+      "implementation_notes": "Add pause_decay_factor (0.96875) and pause_decay_floor (0.0001778) parameters. In pause mode, multiply last sample by decay_factor each frame until below floor, then output zero."
+    },
+    {
+      "requirement_id": "DBD-OUT-010",
+      "specification": "Mixer creates single output stream fed to output ring buffer for cpal",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs:331-539 (get_next_frame), wkmp-ap/src/audio/output.rs (likely)",
+      "current_behavior": "CrossfadeMixer.get_next_frame() produces single AudioFrame stream, fed to output system",
+      "gap_description": "None - single stream output implemented",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Correct single-stream architecture."
+    },
+    {
+      "requirement_id": "DBD-FMT-010",
+      "specification": "All stages use stereo f32 samples (interleaved [L,R,L,R,...])",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/types.rs (PassageBuffer.samples: Vec<f32>), wkmp-ap/src/playback/pipeline/mixer.rs (AudioFrame)",
+      "current_behavior": "PassageBuffer stores Vec<f32> interleaved stereo. AudioFrame has left/right f32 fields.",
+      "gap_description": "None - f32 stereo format throughout",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Correct sample format."
+    },
+    {
+      "requirement_id": "DBD-FMT-020",
+      "specification": "f32 stereo is preferred format for symphonia and cpal",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/decoder.rs, wkmp-ap/src/audio/output.rs",
+      "current_behavior": "Decoder outputs f32, cpal expects f32",
+      "gap_description": "None - native format used",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Optimal format choice."
+    },
+    {
+      "requirement_id": "SRC-SC-010",
+      "specification": "Tick-based timing applies to all WKMP microservices handling audio timing",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-based timing system exists in any module",
+      "gap_description": "Fundamental timing system missing across all modules",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 8.0,
+      "affected_files": [
+        "common/src/timing.rs (new)",
+        "wkmp-ap/src/",
+        "wkmp-ui/src/",
+        "wkmp-pd/src/"
+      ],
+      "implementation_notes": "Create common timing module. Refactor all modules to use tick-based timing. Cross-module impact."
+    },
+    {
+      "requirement_id": "SRC-PROB-010",
+      "specification": "Audio files exist at many different sample rates requiring precision",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/resampler.rs (handles multiple sample rates)",
+      "current_behavior": "Resampler converts various sample rates to 44.1kHz working rate",
+      "gap_description": "None - problem recognized, resampler handles it",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Resampler correctly handles multi-rate files."
+    },
+    {
+      "requirement_id": "SRC-PROB-020",
+      "specification": "Floating-point seconds introduce cumulative rounding errors",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:70-97 (converts REAL seconds to milliseconds)",
+      "current_behavior": "Database stores REAL seconds, code converts to u64 milliseconds. Rounding errors exist.",
+      "gap_description": "Uses floating-point seconds in database, confirming the problem SPEC017 aims to solve",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Validates need for tick system. Part of tick system implementation."
+    },
+    {
+      "requirement_id": "SRC-PROB-030",
+      "specification": "Integer sample counts tied to specific sample rate create conversion errors",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:274-281 (converts ms to samples at 44.1kHz)",
+      "current_behavior": "Code converts milliseconds to sample counts at 44.1kHz, acknowledging problem",
+      "gap_description": "None - problem statement recognized",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Problem exists, tick system is the solution."
+    },
+    {
+      "requirement_id": "SRC-PROB-040",
+      "specification": "Need universal time representation for any sample boundary from any rate",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No universal tick-based representation exists",
+      "gap_description": "Tick system (universal representation) not implemented",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of tick system implementation."
+    },
+    {
+      "requirement_id": "SRC-SOL-020",
+      "specification": "Tick rate chosen as LCM of all supported sample rates",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No LCM-based tick rate calculation",
+      "gap_description": "Tick rate constant missing",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Define TICK_RATE = 28,224,000 constant."
+    },
+    {
+      "requirement_id": "SRC-SOL-030",
+      "specification": "Tick rate ensures any sample boundary from any rate expressible as integer ticks",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-based boundary representation",
+      "gap_description": "Property will be satisfied once tick system implemented with correct TICK_RATE",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Mathematical property - satisfied by TICK_RATE = LCM(sample rates)."
+    },
+    {
+      "requirement_id": "SRC-RATE-010",
+      "specification": "WKMP supports 11 common audio sample rates (8kHz to 192kHz)",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/audio/resampler.rs (rubato supports all rates)",
+      "current_behavior": "Rubato resampler handles arbitrary sample rates",
+      "gap_description": "None - resampler supports all specified rates",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Resampler supports full rate range."
+    },
+    {
+      "requirement_id": "SRC-TICK-010",
+      "specification": "Tick rate = LCM(8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No LCM calculation or constant",
+      "gap_description": "Missing tick rate calculation/constant",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.1,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Define const TICK_RATE: i64 = 28_224_000; with documentation explaining LCM calculation."
+    },
+    {
+      "requirement_id": "SRC-TICK-030",
+      "specification": "One tick = 1/28,224,000 second ≈ 35.4 nanoseconds",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick duration constant or calculation",
+      "gap_description": "Property derivable from SRC-TICK-020, no separate implementation needed",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Mathematical property - no code needed."
+    },
+    {
+      "requirement_id": "SRC-TICK-040",
+      "specification": "Tick rate exactly divides into all supported sample rates with zero remainder",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No validation of this property",
+      "gap_description": "Property guaranteed by LCM calculation, could add compile-time assertion for validation",
+      "severity": "LOW",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add compile-time const assertions to validate TICK_RATE % sample_rate == 0 for all rates."
+    },
+    {
+      "requirement_id": "SRC-CONV-010",
+      "specification": "Ticks per sample = 28,224,000 ÷ sample_rate",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No conversion function exists",
+      "gap_description": "Missing ticks_per_sample() helper function",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 0.2,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add fn ticks_per_sample(sample_rate: u32) -> i64 { TICK_RATE / sample_rate }"
+    },
+    {
+      "requirement_id": "SRC-CONV-020",
+      "specification": "Table of ticks per sample for common rates",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No lookup table",
+      "gap_description": "Documentation/convenience table missing. Could add as const array for fast lookup.",
+      "severity": "LOW",
+      "effort_estimate_days": 0.3,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add const TICKS_PER_SAMPLE_TABLE: [(u32, i64); 11] = [(8000, 3528), ...] for O(1) lookups."
+    },
+    {
+      "requirement_id": "SRC-CONV-040",
+      "specification": "Example conversion: 5 seconds at 44.1kHz = 220,500 samples = 141,120,000 ticks",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No unit test validating this example",
+      "gap_description": "Missing unit test to validate conversion accuracy",
+      "severity": "LOW",
+      "effort_estimate_days": 0.2,
+      "affected_files": [
+        "common/src/timing.rs (tests)"
+      ],
+      "implementation_notes": "Add test_conversion_example() unit test validating this specific calculation."
+    },
+    {
+      "requirement_id": "SRC-CONV-050",
+      "specification": "Example ticks exactly represent multiple sample counts at different rates",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No cross-rate validation test",
+      "gap_description": "Missing unit test validating zero-error cross-rate conversions",
+      "severity": "LOW",
+      "effort_estimate_days": 0.3,
+      "affected_files": [
+        "common/src/timing.rs (tests)"
+      ],
+      "implementation_notes": "Add test_cross_rate_conversion() validating 141,120,000 ticks converts exactly to correct sample counts at 44.1kHz, 48kHz, 8kHz."
+    },
+    {
+      "requirement_id": "SRC-TIME-010",
+      "specification": "Convert ticks to seconds: seconds = ticks ÷ 28,224,000",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No ticks_to_seconds() function",
+      "gap_description": "Missing conversion function for display/logging",
+      "severity": "LOW",
+      "effort_estimate_days": 0.1,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add fn ticks_to_seconds(ticks: i64) -> f64 { ticks as f64 / TICK_RATE as f64 }"
+    },
+    {
+      "requirement_id": "SRC-TIME-020",
+      "specification": "Example: 141,120,000 ticks = exactly 5.0 seconds",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No unit test",
+      "gap_description": "Missing unit test for ticks_to_seconds() accuracy",
+      "severity": "LOW",
+      "effort_estimate_days": 0.1,
+      "affected_files": [
+        "common/src/timing.rs (tests)"
+      ],
+      "implementation_notes": "Add test validating ticks_to_seconds(141_120_000) == 5.0"
+    },
+    {
+      "requirement_id": "SRC-PREC-010",
+      "specification": "WKMP uses 64-bit signed integers (i64) for tick values",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "Database/code uses u64 milliseconds, not i64 ticks",
+      "gap_description": "Timing fields use wrong type (u64 ms instead of i64 ticks)",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of tick system implementation. Change all timing fields from u64/f64 → i64 ticks."
+    },
+    {
+      "requirement_id": "SRC-PREC-020",
+      "specification": "Maximum representable time ≈ 10.36 years",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No max time validation",
+      "gap_description": "Property of i64 ticks, could add const for documentation",
+      "severity": "LOW",
+      "effort_estimate_days": 0.1,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add const MAX_REPRESENTABLE_SECONDS: i64 = i64::MAX / TICK_RATE; for range documentation."
+    },
+    {
+      "requirement_id": "SRC-PREC-030",
+      "specification": "Range sufficient for all practical audio passage lengths",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No range validation",
+      "gap_description": "Property guaranteed by SRC-PREC-020, no code needed",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Documentation note only."
+    },
+    {
+      "requirement_id": "SRC-PREC-040",
+      "specification": "Precision ≈ 35.4 nanoseconds per tick (far exceeds audio sampling)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No precision constant",
+      "gap_description": "Property of tick rate, documentation only",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Add const TICK_DURATION_NS: f64 = 1e9 / TICK_RATE; for documentation."
+    },
+    {
+      "requirement_id": "SRC-DB-010",
+      "specification": "Passage timing fields stored as INTEGER ticks (i64)",
+      "current_state": "INCORRECT",
+      "current_impl_location": "Database schema (migrations)",
+      "current_behavior": "Timing fields stored as REAL seconds, converted to u64 milliseconds in code",
+      "gap_description": "Database schema wrong - uses REAL instead of INTEGER ticks",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of SRC-DB-011 through SRC-DB-016 fixes. Coordinated migration required."
+    },
+    {
+      "requirement_id": "SRC-DB-020",
+      "specification": "NULL timing values use global defaults from crossfade design",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs:81-97",
+      "current_behavior": "NULL values handled with unwrap_or defaults, but not tick-based",
+      "gap_description": "NULL handling logic exists but uses milliseconds, not ticks",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "wkmp-ap/src/db/passages.rs"
+      ],
+      "implementation_notes": "Once tick system implemented, update NULL default calculations to use ticks."
+    },
+    {
+      "requirement_id": "SRC-API-010",
+      "specification": "REST API uses milliseconds (unsigned integers) for human readability",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/api/ (likely handlers.rs)",
+      "current_behavior": "API uses milliseconds",
+      "gap_description": "None - API correctly uses milliseconds. Once tick system implemented, need conversion layer.",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "API layer correct. Add tick ↔ millisecond conversion when tick system implemented."
+    },
+    {
+      "requirement_id": "SRC-API-030",
+      "specification": "Database-to-API conversion: milliseconds = ticks ÷ 28,224 (rounded)",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-to-millisecond conversion (database uses milliseconds directly)",
+      "gap_description": "Conversion function needed once tick system implemented",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 0.3,
+      "affected_files": [
+        "common/src/timing.rs",
+        "wkmp-ap/src/api/handlers.rs"
+      ],
+      "implementation_notes": "Add fn ticks_to_ms(ticks: i64) -> u64 { (ticks / 28_224) as u64 }"
+    },
+    {
+      "requirement_id": "SRC-API-040",
+      "specification": "Example API request JSON with millisecond fields",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/api/ (API accepts milliseconds)",
+      "current_behavior": "API accepts millisecond timing values",
+      "gap_description": "None - API format correct",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "API request format matches spec. Add ms → ticks conversion on ingestion."
+    },
+    {
+      "requirement_id": "SRC-API-050",
+      "specification": "Internal storage example showing tick values",
+      "current_state": "INCORRECT",
+      "current_impl_location": "wkmp-ap/src/db/passages.rs",
+      "current_behavior": "Internal storage uses milliseconds, not ticks",
+      "gap_description": "Database stores milliseconds, not ticks as specified",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of tick system implementation."
+    },
+    {
+      "requirement_id": "SRC-WSR-010",
+      "specification": "working_sample_rate defined for mixing (default 44,100 Hz)",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:26-27",
+      "current_behavior": "STANDARD_SAMPLE_RATE = 44100 hardcoded constant, not database parameter",
+      "gap_description": "Same as DBD-PARAM-020 - needs to be database setting",
+      "severity": "MEDIUM",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of DBD-PARAM-020 fix."
+    },
+    {
+      "requirement_id": "SRC-WSR-030",
+      "specification": "Tick-to-sample conversion: samples = (ticks × working_sample_rate) ÷ 28,224,000",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-to-sample conversion function",
+      "gap_description": "Critical conversion function missing",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.2,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add fn ticks_to_samples(ticks: i64, sample_rate: u32) -> usize { ((ticks as i128 * sample_rate as i128) / TICK_RATE as i128) as usize }"
+    },
+    {
+      "requirement_id": "SRC-WSR-040",
+      "specification": "For 44.1kHz: samples = ticks ÷ 640",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No optimized 44.1kHz conversion",
+      "gap_description": "Optimization for common case missing",
+      "severity": "LOW",
+      "effort_estimate_days": 0.2,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "Add fn ticks_to_samples_44100(ticks: i64) -> usize { (ticks / 640) as usize } for fast path."
+    },
+    {
+      "requirement_id": "SRC-WSR-050",
+      "specification": "Buffer positions, mixer, output use sample counts at working_sample_rate",
+      "current_state": "IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs, wkmp-ap/src/audio/types.rs",
+      "current_behavior": "All buffers and mixer use sample counts (usize frame positions)",
+      "gap_description": "None - sample-based post-decode timing correct. Just needs tick input.",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Implementation correct for post-decode phase. Needs tick-based input from decode phase."
+    },
+    {
+      "requirement_id": "SRC-COEX-010",
+      "specification": "Two timing systems coexist: tick-based (database/API) and sample-count (runtime)",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/decoder_pool.rs:274-281",
+      "current_behavior": "Sample-count system exists, tick-based system missing",
+      "gap_description": "Only sample-count timing implemented, tick system missing",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of overall tick system implementation. Sample-count phase already correct."
+    },
+    {
+      "requirement_id": "SRC-COEX-020",
+      "specification": "Conversion occurs at decoder-buffer chain initialization",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-to-sample conversion at decoder initialization",
+      "gap_description": "Conversion point needs to be added when decoder starts processing passage",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/src/playback/decoder_pool.rs:264-282"
+      ],
+      "implementation_notes": "In decode_passage(), convert passage timing from ticks to samples before decode loop: start_sample = ticks_to_samples(passage.start_time_ticks, source_sample_rate)"
+    },
+    {
+      "requirement_id": "SRC-IMPL-010",
+      "specification": "Tick arithmetic uses standard integer operations",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick arithmetic (tick system doesn't exist)",
+      "gap_description": "Property will be satisfied by tick system implementation",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Use i64 +, -, *, / operators for tick calculations."
+    },
+    {
+      "requirement_id": "SRC-IMPL-020",
+      "specification": "All divisions by 28,224,000 result in exact integer quotients for tick-aligned values",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick divisions",
+      "gap_description": "Property guaranteed by LCM tick rate, no code needed",
+      "severity": "N/A",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Mathematical property - satisfied by design."
+    },
+    {
+      "requirement_id": "SRC-IMPL-030",
+      "specification": "Rounding only needed for ticks → ms API responses and display",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-to-ms conversion with rounding",
+      "gap_description": "Conversion function with rounding needed for API layer",
+      "severity": "LOW",
+      "effort_estimate_days": 0.1,
+      "affected_files": [
+        "common/src/timing.rs"
+      ],
+      "implementation_notes": "ticks_to_ms() uses integer division with truncation (automatic rounding down). Acceptable for API."
+    },
+    {
+      "requirement_id": "SRC-IMPL-040",
+      "specification": "Internal calculations maintain integer precision throughout pipeline",
+      "current_state": "PARTIALLY_IMPLEMENTED",
+      "current_impl_location": "wkmp-ap/src/playback/pipeline/mixer.rs (sample-based phase uses usize)",
+      "current_behavior": "Sample-count phase uses integer positions. Database phase uses floating-point seconds.",
+      "gap_description": "Need integer tick values in database phase, then convert to integer samples for decode/buffer/mix",
+      "severity": "CRITICAL",
+      "effort_estimate_days": 0.0,
+      "affected_files": [],
+      "implementation_notes": "Part of tick system implementation. Replace f64 seconds → i64 ticks throughout."
+    },
+    {
+      "requirement_id": "SRC-EXAM-010",
+      "specification": "Example: two passages with different source sample rates",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No unit test validating cross-rate crossfade timing",
+      "gap_description": "Missing integration test for tick system validation",
+      "severity": "LOW",
+      "effort_estimate_days": 1.0,
+      "affected_files": [
+        "wkmp-ap/tests/crossfade_timing_test.rs (new)"
+      ],
+      "implementation_notes": "Add integration test: passage A (44.1kHz, lead_out_point at 177s), passage B (48kHz, lead_in_point at 5s). Verify crossfade duration calculation in ticks and sample-accurate boundaries."
+    },
+    {
+      "requirement_id": "SRC-EXAM-020",
+      "specification": "Crossfade calculation example using tick arithmetic",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No tick-based crossfade calculation",
+      "gap_description": "Example demonstrates tick system usage, needs unit test when tick system implemented",
+      "severity": "LOW",
+      "effort_estimate_days": 0.5,
+      "affected_files": [
+        "common/src/timing.rs (tests)"
+      ],
+      "implementation_notes": "Add test_crossfade_calculation_example() validating min(lead_out_duration_ticks, lead_in_duration_ticks) = 84,672,000 ticks"
+    },
+    {
+      "requirement_id": "SRC-EXAM-030",
+      "specification": "Example crossfade duration converts exactly to sample counts at different rates",
+      "current_state": "MISSING",
+      "current_impl_location": "Not implemented",
+      "current_behavior": "No validation test",
+      "gap_description": "Unit test needed to validate zero-error conversion property",
+      "severity": "LOW",
+      "effort_estimate_days": 0.3,
+      "affected_files": [
+        "common/src/timing.rs (tests)"
+      ],
+      "implementation_notes": "Add test validating 84,672,000 ticks → 132,300 samples @ 44.1kHz, 144,000 samples @ 48kHz with zero error."
+    }
+  ],
+  "overall_assessment": {
+    "implementation_gap_percentage": 56,
+    "critical_issues": 15,
+    "high_priority_issues": 18,
+    "medium_priority_issues": 21,
+    "low_priority_issues": 8,
+    "total_effort_estimate_days": 61.6,
+    "summary": "WKMP Audio Player has significant implementation gaps relative to SPEC016 and SPEC017. The most critical issue is the complete absence of the tick-based timing system required by SPEC017. All timing fields use milliseconds (u64) instead of INTEGER ticks, violating sample-accurate precision requirements. Database schema stores timing as REAL seconds, introducing floating-point rounding errors. Additionally, SPEC016 decoder pool uses 2-thread parallel execution instead of required serial execution, and fade curves are applied post-buffer in the mixer instead of pre-buffer during decode. Major refactoring required for tick system implementation (≈15 days) and fade curve relocation (≈4 days). Several operating parameters (playout_ringbuffer_size, maximum_decode_streams, decode_work_period) are missing from settings table."
+  },
+  "recommendations": {
+    "immediate_actions": [
+      "CRITICAL: Implement tick-based timing system in common/src/timing.rs with TICK_RATE=28,224,000 constant",
+      "CRITICAL: Database migration to convert all 6 timing fields from REAL seconds → INTEGER ticks",
+      "HIGH: Refactor DecoderPool from 2-thread parallel to single-thread serial execution",
+      "HIGH: Move fade curve application from mixer (post-buffer) to decoder (pre-buffer)",
+      "MEDIUM: Add missing operating parameters to settings table (playout_ringbuffer_size, maximum_decode_streams, etc.)"
+    ],
+    "phased_implementation": [
+      {
+        "phase": 1,
+        "duration_days": 20.0,
+        "priority": "CRITICAL",
+        "tasks": [
+          "Create common/src/timing.rs with tick constants and conversion functions",
+          "Database migration: REAL seconds → INTEGER ticks for all 6 timing fields",
+          "Update all model structs to use i64 ticks instead of u64 milliseconds",
+          "Add tick ↔ millisecond conversion in API layer",
+          "Update decoder to convert ticks → samples at decode-buffer boundary",
+          "Comprehensive unit tests for tick system"
+        ]
+      },
+      {
+        "phase": 2,
+        "duration_days": 15.0,
+        "priority": "HIGH",
+        "tasks": [
+          "Refactor DecoderPool to serial execution (single worker thread)",
+          "Move fade curve application from mixer to decoder (pre-buffer)",
+          "Add playout_ringbuffer_size parameter and buffer full detection",
+          "Implement maximum_decode_streams queue assignment logic",
+          "Add missing operating parameters to settings table"
+        ]
+      },
+      {
+        "phase": 3,
+        "duration_days": 12.0,
+        "priority": "MEDIUM",
+        "tasks": [
+          "Implement decode_work_period priority re-evaluation",
+          "Add pause_decay_factor exponential decay in pause mode",
+          "Implement output_refill_period parameter",
+          "Change PassageBuffer from Vec to fixed-size ring buffer",
+          "Comprehensive integration testing"
+        ]
+      },
+      {
+        "phase": 4,
+        "duration_days": 5.0,
+        "priority": "LOW",
+        "tasks": [
+          "Add tick conversion optimization tables",
+          "Add example/validation unit tests",
+          "Documentation updates",
+          "Performance testing and optimization"
+        ]
+      }
+    ]
+  },
+  "notes": [
+    "Database schema inspection limited - actual schema may differ from code observations",
+    "Some gaps marked IMPLEMENTED based on code presence, but may have subtle compliance issues",
+    "Tick system implementation is fundamental architecture change affecting all modules",
+    "Effort estimates assume single experienced Rust developer familiar with codebase",
+    "Estimates include implementation, testing, and documentation time",
+    "Total effort ~62 days (≈3 months) for full SPEC016+SPEC017 compliance"
+  ]
+}

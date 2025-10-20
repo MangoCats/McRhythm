@@ -33,52 +33,6 @@
 
 > **NOTE:** SPEC016 specifies serial decoding (one decoder at a time, [DBD-DEC-040]) rather than parallel thread pool for improved cache coherency. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for authoritative decoder strategy.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Audio Playback System                         │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Decoder Thread Pool                        │    │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │    │
-│  │  │  Decoder 1   │  │  Decoder 2   │  │  Decoder 3   │ │    │
-│  │  │  (Passage A) │  │  (Passage B) │  │  (Passage C) │ │    │
-│  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘ │    │
-│  └─────────"¼──────────────────"¼──────────────────"¼─────────┘    │
-│            │   symphonia      │  + rubato        │               │
-│            └──────────────────"´──────────────────┘               │
-│                               â†“                                  │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │           Passage Buffer Manager                        │    │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │    │
-│  │  │  Passage A   │  │  Passage B   │  │  Passage C   │ │    │
-│  │  │  PCM Buffer  │  │  PCM Buffer  │  │  PCM Buffer  │ │    │
-│  │  │  (15 sec)    │  │  (15 sec)    │  │  (15 sec)    │ │    │
-│  │  │  + fades     │  │  + fades     │  │  + fades     │ │    │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘ │    │
-│  └─────────────────────────┬──────────────────────────────┘    │
-│                            │                                     │
-│                            â†“                                     │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Crossfade Mixer                            │    │
-│  │  • Reads samples from current & next buffers           │    │
-│  │  • Fade curves applied automatically per-sample        │    │
-│  │  • Sums overlapping passages (crossfade)               │    │
-│  │  • Applies master volume                               │    │
-│  │  • Sample-accurate timing (~0.02ms precision)          │    │
-│  └─────────────────────────┬──────────────────────────────┘    │
-│                            │                                     │
-│                            â†“                                     │
-│  ┌────────────────────────────────────────────────────────┐    │
-│  │              Audio Output Thread                        │    │
-│  │  • Ring buffer for smooth audio delivery               │    │
-│  │  • cpal-based cross-platform output                    │    │
-│  │  • Platform backends: PulseAudio, ALSA, CoreAudio,     │    │
-│  │    WASAPI                                               │    │
-│  └────────────────────────────────────────────────────────┘    │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
-```
-
 ## Core Components
 
 ### 1. Audio Decoder (symphonia + rubato)
@@ -101,11 +55,13 @@
 
 **[SSP-DEC-040]** Decoding Flow:
 1. Open audio file using symphonia decoder
-2. Seek to passage start position (skip unwanted samples)
-3. Decode compressed audio into PCM samples
+2. Read and decode from start of file through to passage start position
+3. Decode compressed audio into PCM samples, discard samples before start position
 4. Resample to working_sample_rate ([SPEC016 DBD-PARAM-020], default: 44.1kHz) if needed using rubato. See [SPEC016 Resampling - DBD-RSMP-010].
 5. Write interleaved stereo PCM data (f32: [L, R, L, R, ...]) to PassageBuffer
-6. Notify buffer manager of completion
+6. Pause decode when buffer is full (default 15 seconds of buffer)
+7. Resume decode periodically as buffer is consumed by mixer
+8. Terminate decode when end position is reached.
 
 **File Locations:**
 - Implementation: `wkmp-ap/src/playback/pipeline/single_stream/decoder.rs` (to be implemented)
@@ -137,10 +93,10 @@
 let mut buffer = PassageBuffer::new(
     passage_id,
     44100,              // sample rate
-    FadeCurve::SCurve,  // fade-in curve
+    FadeCurve::SCurve,  // fade-in  curve
     FadeCurve::SCurve,  // fade-out curve
-    2205,               // fade-in samples (50ms @ 44.1kHz)
-    2205,               // fade-out samples (50ms @ 44.1kHz)
+    28224000,           // fade-in  ticks (1.0sec @ 44.1kHz)
+    28224000,           // fade-out ticks (1.0sec @ 44.1kHz)
 );
 
 // Fill buffer with decoded PCM data
@@ -241,7 +197,7 @@ let frames_written = mixer.fill_output_buffer(&mut output).await?;
 // When buffer_a reaches fade-out region, mixer automatically:
 // 1. Reads from buffer_a with fade-out applied
 // 2. Reads from buffer_b with fade-in applied
-// 3. Sums the weighted samples
+// 3. Sums the pre-weighted samples
 // 4. Applies master volume
 ```
 
@@ -313,7 +269,7 @@ impl SingleStreamPipeline {
     pub async fn load_file(&mut self, file_path: &Path) -> Result<()>;
     pub fn play(&mut self) -> Result<()>;
     pub fn pause(&mut self) -> Result<()>;
-    pub fn seek(&mut self, position_ms: i64) -> Result<()>;
+    pub fn seek(&mut self, position_ticks: i64) -> Result<()>;
     pub fn position_ms(&self) -> Option<i64>;
     pub fn duration_ms(&self) -> Option<i64>;
 }
@@ -428,7 +384,7 @@ Latency:
 - Typical: < 1% CPU on modern hardware
 
 **[SSP-PERF-050]** Resampling (rubato):
-- Only when source sample rate â‰  44.1kHz
+- Only when source sample rate != 44.1kHz
 - High-quality sinc interpolation
 - Typical: 2-5% CPU on modern hardware
 
@@ -436,12 +392,10 @@ Latency:
 
 **[SSP-PERF-060]** Crossfade Precision:
 - Sample-accurate: ~0.02ms @ 44.1kHz
-- GStreamer dual pipeline: 10-50ms (property update latency)
-- **Improvement: 500-2500x better precision**
 
 **[SSP-PERF-070]** Pause/Play Latency:
-- Near-instant (audio callback driven)
-- < 1ms typical
+- depends on [DBD-PARAM-030] output ringbuffer contents
+- < 135ms typical
 
 ## Deployment
 
