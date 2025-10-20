@@ -1,0 +1,191 @@
+================================================================================
+VISUAL TIMELINE: Wrong Passage Playing Bug
+================================================================================
+
+Time: 16:25:00 to 16:31:30 (6.5 minutes total)
+
+Legend:
+  [P1]     = Passage 1 (House Of The Rising Sun)
+  [P2]     = Passage 2 (Pipeline) 
+  [P3]     = Passage 3 (Secret Agent Man)
+  ═══      = Playing normally
+  ╳╳╳      = Crossfade active
+  ███      = BUG: Duplicate playback
+  ---      = Stopped/Idle
+
+
+TIME SCALE (seconds from start):
+|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
+0   30   60   90  120  150  180  210  240  270  300  330  360  390
+
+
+PASSAGE QUEUE STATE:
+═══════════════════════════════════════════════════════════════════════
+
+0s: [P1] [--] [--]  ← P1 enqueued
+6s: [P1] [P2] [--]  ← P2 enqueued (0.5s before P1 starts)
+18s:[P1] [P2] [P3]  ← P3 enqueued
+138s:[P2] [P3] [--] ← P1 removed (NOT VISIBLE IN UI!)
+265s:[P3] [--] [--] ← P2 removed (NOT VISIBLE IN UI!)
+390s:[--] [--] [--] ← P3 removed
+
+
+ACTUAL PLAYBACK TIMELINE:
+═══════════════════════════════════════════════════════════════════════
+
+P1: ▓▓▓▓▓▓═══════╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳═════════════════════
+    |6s  |11s    |              126.5 seconds              |138s
+    START  XFADE                                            END
+           
+P2: ............╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳╳█████████████████████
+    |           |11s            |138s         |           |265s
+    QUEUED      START (1st)     ❌ RESTART    PLAYING     END
+                                   BUG!
+
+P3: ........................................................▓▓▓▓▓▓▓▓▓▓
+    |18s                                       |265s      |390s
+    QUEUED                                     START      END
+
+
+MIXER STATE:
+═══════════════════════════════════════════════════════════════════════
+
+MIXER:  IDLE═══PLAYING═══════════════════IDLE███PLAYING████════IDLE
+        |0s  |6s                       |138s|  |265s           |390s
+             ▲                          ▲   ▲   ▲
+             |                          |   |   |
+             P1 starts                  |   |   P2 completes (2nd)
+                                        |   |
+                                  P1 ends   P2 RESTARTS (BUG!)
+
+
+DETAILED SEQUENCE AT BUG POINT (16:27:18):
+═══════════════════════════════════════════════════════════════════════
+
+Time (ms)   Event                                   Line    Impact
+─────────── ─────────────────────────────────────── ─────── ──────────
+...417      P1 completes (after 132s playback)      4777    Normal
+...418      PassageCompleted SSE sent               4780    ✓
+...430      P1 removed from queue                   4781    ✓
+...430      ❌ Mixer STOPPED                        4783    ❌ BUG!
+                (P2 still playing!)
+...460      Ring buffer underrun warning #837       4784    ♪ SILENCE
+...490      Ring buffer underrun warning #838       4785    ♪ SILENCE  
+...510      Ring buffer underrun warning #839       4786    ♪ SILENCE
+...522      Mixer detected as IDLE                  4789    Wrong!
+...522      ❌ P2 RE-STARTED from beginning         4790    ❌ BUG!
+...523      Buffer: Finished → Playing              4791    Invalid
+...524      PassageStarted SSE sent (duplicate!)    4794    ❌ Wrong!
+
+Total silence gap: ~100ms
+Impact: User hears P2 start over from beginning
+
+
+EXPECTED vs ACTUAL:
+═══════════════════════════════════════════════════════════════════════
+
+EXPECTED:
+┌────────────────────────────────────────────────────────────────┐
+│ P1: ▓▓▓▓▓══╳╳╳╳                                                │
+│ P2:      ╳╳╳╳══════════════════════════════════════════════    │
+│ P3:                                             ▓▓▓▓▓══════     │
+│                                                                │
+│ Total: ~280 seconds (4.7 minutes)                              │
+│ Each passage plays ONCE                                        │
+└────────────────────────────────────────────────────────────────┘
+
+ACTUAL (BUG):
+┌────────────────────────────────────────────────────────────────┐
+│ P1: ▓▓▓▓▓══╳╳╳╳════════════════════════════════════════════    │
+│ P2:      ╳╳╳╳═══════════════█████████████████████████════      │
+│ P3:                                             ▓▓▓▓▓══════     │
+│                            └─── BUG: 126.5s ───┘               │
+│                                                                │
+│ Total: ~510 seconds (8.5 minutes)                              │
+│ P2 plays TWICE (253 seconds total!)                            │
+└────────────────────────────────────────────────────────────────┘
+
+
+BUFFER STATE MACHINE BUG:
+═══════════════════════════════════════════════════════════════════════
+
+Passage 2 Buffer States:
+
+11.870s:  Empty
+11.871s:  Filling    (first chunk received)
+11.871s:  Ready      (2000ms buffered, ready for playback)
+11.925s:  Playing    (crossfade started)
+11.932s:  Finished   (all 138 chunks decoded) ✓ NORMAL
+          ↓
+          [Playing for 126.5 seconds...]
+          ↓
+138.523s: Playing    (❌ BUG! Should not transition from Finished)
+          ↓
+          [Playing AGAIN for 126.5 seconds...]
+          ↓
+265.019s: Exhausted  (finally done)
+
+
+CRITICAL CODE PATHS:
+═══════════════════════════════════════════════════════════════════════
+
+1. PASSAGE COMPLETION HANDLER (engine.rs:~1456)
+   ┌──────────────────────────────────────────────────┐
+   │ if current_passage.is_complete() {               │
+   │     broadcast_completed();                       │
+   │     buffer.mark_exhausted();                     │
+   │     queue.advance(); // Removes P1               │
+   │     mixer.stop(); // ❌ BUG: Doesn't check      │
+   │                  //    if crossfade active!      │
+   │ }                                                │
+   └──────────────────────────────────────────────────┘
+
+2. QUEUE PROCESSOR (engine.rs:~1334)
+   ┌──────────────────────────────────────────────────┐
+   │ if mixer.is_idle() {                             │
+   │     let current = queue.get_current();           │
+   │     mixer.start(current); // ❌ BUG: Doesn't    │
+   │                           //    check if current │
+   │                           //    already playing! │
+   │     broadcast_started();                         │
+   │ }                                                │
+   └──────────────────────────────────────────────────┘
+
+3. BUFFER STATE TRANSITION (buffer_manager.rs:~340)
+   ┌──────────────────────────────────────────────────┐
+   │ pub fn transition_to_playing(&mut self) {        │
+   │     match self.state {                           │
+   │         BufferState::Ready => Ok(Playing),       │
+   │         BufferState::Finished => Ok(Playing), // ❌│
+   │         _ => Err("Invalid transition")           │
+   │     }                                            │
+   │ }                                                │
+   └──────────────────────────────────────────────────┘
+
+
+KEY METRICS:
+═══════════════════════════════════════════════════════════════════════
+
+Passage 2 Expected Duration:  137.6 seconds (12,142,080 samples @ 88.2kHz)
+Passage 2 Actual Duration:     253.0 seconds (played twice!)
+Overhead:                      115.4 seconds (83% longer than expected)
+
+P1 → P2 Crossfade Start:       5.5 seconds into P1
+P1 Duration During Crossfade:  126.5 seconds (P2 playing underneath)
+Silence Gap (P1 end → P2 restart): ~100ms (ring buffer underruns)
+
+Ring Buffer Underruns:         842 total by end of session
+Underrun Rate:                 ~2.16 per second during playback
+
+
+RECOMMENDATIONS:
+═══════════════════════════════════════════════════════════════════════
+
+1. Fix mixer.stop() logic to check for active crossfades
+2. Track crossfade state: which passage is outgoing vs incoming
+3. When outgoing passage completes, promote incoming to current
+4. Don't restart passage that's already marked as Playing/Finished
+5. Add QueueChanged SSE broadcast when queue.advance() is called
+6. Consider preventing Finished → Playing buffer transitions
+
+================================================================================

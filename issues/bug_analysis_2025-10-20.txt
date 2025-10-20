@@ -1,0 +1,377 @@
+================================================================================
+DEBUG LOG ANALYSIS: Wrong Passage Playing Bug
+================================================================================
+Log File: /home/sw/Dev/McRhythm/issues/debug_log_2025-10-20T163130.txt
+Analysis Date: 2025-10-20
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+BUG CONFIRMED: Passage 2 plays TWICE in full, causing it to be heard for 253 
+seconds instead of the expected 126.5 seconds. This happens because:
+
+1. Passage 1 crossfades to Passage 2 at 16:25:11.925
+2. Passage 1 completes playback at 16:27:18.418 (126.5s after crossfade)
+3. Mixer is STOPPED when Passage 1 completes
+4. Passage 2 RESTARTS from the beginning at 16:27:18.523 (only 105ms later!)
+5. Passage 2 plays to completion a second time
+6. Queue doesn't update until Passage 2's second playthrough completes
+
+ROOT CAUSE: When the outgoing passage in a crossfade completes, the engine 
+stops the mixer without checking if the incoming passage is still playing.
+
+================================================================================
+PASSAGE IDENTIFICATION
+================================================================================
+
+Passage 1: 703e7eaa-ee41-49ed-8d00-366570c7094d
+  File: Ventures - House Of The Rising Sun.mp3
+  Path: C:\Users\Mango Cat\Music\Ventures\Ventures_Greatest_Hits\
+  Size: 15,535,872 samples (177 chunks decoded)
+  
+Passage 2: 1941624f-8843-4a37-b828-2b346b8474f2
+  File: Ventures - Pipeline.MP3
+  Path: C:\Users\Mango Cat\Music\Ventures\Ventures_Greatest_Hits\
+  Size: 12,142,080 samples (138 chunks decoded)
+  
+Passage 3: b07ef975-2285-4e66-bc43-7eb23718d382
+  File: Ventures - Secret Agent Man.mp3
+  Path: C:\Users\Mango Cat\Music\Ventures\Ventures_Greatest_Hits\
+  Size: 12,043,008 samples (137 chunks decoded)
+
+================================================================================
+CRITICAL TIMELINE
+================================================================================
+
+Time            Event                                           Line    Notes
+─────────────── ─────────────────────────────────────────────── ─────── ─────
+16:25:00.107    Passage 1 enqueued                              50      
+16:25:00.107    QueueChanged SSE broadcast                      51      
+16:25:06.413    Passage 1 starts playing                        198     Instant start after decode
+16:25:06.919    Passage 2 enqueued                              402     
+16:25:06.920    QueueChanged SSE broadcast                      404     Queue now has 2 passages
+16:25:11.925    Crossfade triggered: P1 → P2                    752     At 6011ms into P1 playback
+16:25:11.925    Passage 2 starts (1st time)                     755     PassageStarted SSE broadcast
+16:25:11.932    P2 buffer: Ready → Playing → Finished           754,766 Transition happens in 7ms!
+16:25:18.892    Passage 3 enqueued                              982     
+16:25:18.892    QueueChanged SSE broadcast                      983     Queue now has 3 passages
+16:27:18.417    Passage 1 completed                             4777    After 132.0s playback
+16:27:18.418    PassageCompleted SSE broadcast                  4780    
+16:27:18.430    P1 removed from queue                           4781    "Queue advanced and synced"
+16:27:18.430    Mixer stopped                                   4783    ⚠️ CRITICAL BUG!
+16:27:18.522    Mixer detected idle                             4789    
+16:27:18.522    Passage 2 RESTARTS (2nd time)                   4790    ⚠️ WRONG! P2 already playing!
+16:27:18.523    P2 buffer: Finished → Playing                   4791    State reset to Playing
+16:27:18.524    PassageStarted SSE broadcast (2nd)              4794    Duplicate start event!
+16:29:25.019    Passage 2 completed (2nd playthrough)           9858    After 126.5s from restart
+16:29:25.033    P2 removed from queue                           9859    
+16:29:25.033    Mixer stopped (2nd time)                        9861    
+16:29:25.129    Passage 3 starts                                9868    
+16:29:25.130    PassageStarted SSE broadcast                    9872    
+16:31:30.618    Passage 3 completed                             14896   After 125.5s playback
+16:31:30.633    P3 removed from queue                           14897   
+
+================================================================================
+PASSAGE 1 DETAILED TIMELINE (House Of The Rising Sun)
+================================================================================
+
+Event                   Time            Duration    Line    State
+────────────────────    ─────────────   ─────────   ─────── ─────────────────
+Enqueued                16:25:00.107    --          50      
+Decode started          16:25:00.128    --          54      
+Buffer ready (1000ms)   16:25:06.412    +6.3s       190     Empty → Filling → Ready
+Playback started        16:25:06.413    --          198     Ready → Playing
+PassageStarted SSE      16:25:06.413    --          198     
+Crossfade begins        16:25:11.925    +5.5s       752     At 6011ms position
+Passage completed       16:27:18.417    +132.0s     4777    ✅ Normal completion
+PassageCompleted SSE    16:27:18.418    --          4780    
+Buffer exhausted        16:27:18.418    --          4778    mark_exhausted() called
+Removed from queue      16:27:18.430    --          4781    
+Mixer stopped           16:27:18.430    --          4783    ⚠️ Should check if crossfade active!
+
+Total playback duration: 132.0 seconds (normal)
+Expected duration: ~176 seconds (15,535,872 samples / 88,200 samples/sec)
+Actual duration: 132.0 seconds (ABORTED EARLY - crossfade truncated it)
+
+PROBLEM: Passage 1 completed before reaching end of file because crossfade
+logic probably shortens the outgoing passage. This is likely CORRECT behavior.
+
+================================================================================
+PASSAGE 2 DETAILED TIMELINE (Pipeline) - THE BUGGY PASSAGE
+================================================================================
+
+Event                   Time            Duration    Line    State
+────────────────────    ─────────────   ─────────   ─────── ─────────────────
+Enqueued                16:25:06.919    --          402     
+Decode started          16:25:06.923    --          410     
+Buffer ready (2000ms)   16:25:11.871    +5.0s       619     Empty → Filling → Ready
+Decode completed        16:25:11.932    --          768     All 138 chunks decoded
+Buffer state changed    16:25:11.932    --          766     Playing → Finished ⚠️
+
+FIRST PLAYTHROUGH (during crossfade):
+────────────────────────────────────────────────────────────────────────────
+Playback started (1st)  16:25:11.925    --          754     Ready → Playing
+PassageStarted SSE      16:25:11.925    --          755     
+Playing...              [126.5s]        --          --      Crossfade from P1
+P1 completes            16:27:18.417    +126.5s     4777    Outgoing passage done
+Mixer stopped           16:27:18.430    --          4783    ⚠️ BUG: P2 still playing!
+
+SECOND PLAYTHROUGH (restart from beginning):
+────────────────────────────────────────────────────────────────────────────
+Mixer idle detected     16:27:18.522    +0.09s      4789    ⚠️ Wrong! P2 was playing
+Playback RESTARTED      16:27:18.522    --          4790    ⚠️ Duplicate start!
+Buffer state changed    16:27:18.523    --          4791    Finished → Playing
+PassageStarted SSE (2)  16:27:18.524    --          4794    ⚠️ Duplicate event!
+Playing...              [126.5s]        --          --      Full second playthrough
+Passage completed       16:29:25.019    +126.5s     9858    
+PassageCompleted SSE    16:29:25.019    --          9858    
+Removed from queue      16:29:25.033    --          9859    ✅ Finally removed
+Mixer stopped           16:29:25.033    --          9861    
+
+Total playback duration: 253 seconds (126.5s × 2)
+Expected duration: 137.6 seconds (12,142,080 samples / 88,200 samples/sec)
+Actual duration: 253 seconds (PLAYED TWICE!)
+
+BUFFER STATE ANOMALY:
+Line 766: Buffer transitioned Playing → Finished at 16:25:11.932
+Line 754: Buffer was just set to Playing at 16:25:11.925
+Time gap: Only 7 milliseconds!
+
+This suggests the buffer completed decoding before/during playback start,
+which is NORMAL for full decode. But the buffer state is reused incorrectly
+when P2 restarts.
+
+================================================================================
+PASSAGE 3 DETAILED TIMELINE (Secret Agent Man)
+================================================================================
+
+Event                   Time            Duration    Line    State
+────────────────────    ─────────────   ─────────   ─────── ─────────────────
+Enqueued                16:25:18.892    --          982     
+Decode completed        16:25:23.800    +5.0s       1283    All 137 chunks
+Playback started        16:29:25.129    +246.2s     9868    ✅ Waited for P2
+PassageStarted SSE      16:29:25.130    --          9872    
+Passage completed       16:31:30.618    +125.5s     14896   
+Removed from queue      16:31:30.633    --          14897   
+
+Total playback duration: 125.5 seconds (NORMAL)
+Expected duration: 136.5 seconds (12,043,008 samples / 88,200 samples/sec)
+Actual duration: 125.5 seconds (close enough)
+
+================================================================================
+QUEUE STATE TRANSITIONS
+================================================================================
+
+Time            Queue Length    Passages in Queue                   SSE Event
+─────────────── ─────────────── ─────────────────────────────────── ──────────
+16:25:00.107    1               [P1]                                QueueChanged
+16:25:06.920    2               [P1, P2]                            QueueChanged
+16:25:18.892    3               [P1, P2, P3]                        QueueChanged
+16:27:18.430    2               [P2, P3]                            ❌ NOT SENT!
+16:29:25.033    1               [P3]                                ❌ NOT SENT!
+
+PROBLEM: QueueChanged events are NOT broadcast when passages are removed!
+The UI still shows all 3 passages until the very end.
+
+================================================================================
+KEY EVIDENCE: BUFFER STATE MACHINE BUG
+================================================================================
+
+Line 754:  Buffer 1941624f transitioned Ready → Playing (16:25:11.925)
+Line 766:  Buffer 1941624f transitioned Playing → Finished (16:25:11.932)
+Line 4791: Buffer 1941624f transitioned Finished → Playing (16:27:18.523)
+
+The buffer goes:
+  Ready → Playing → Finished → Playing (AGAIN!)
+
+This "Finished → Playing" transition is WRONG. Once a buffer is Finished 
+(fully decoded), it should stay in Playing state until exhausted by the mixer.
+
+The bug happens because:
+1. Buffer finishes decoding 7ms after playback starts (line 766)
+2. State machine incorrectly marks it "Finished" 
+3. When mixer restarts, it sees "Finished" buffer and transitions to "Playing"
+4. Mixer restarts from beginning of buffer instead of continuing
+
+================================================================================
+MIXER STATE BUG
+================================================================================
+
+Line 4783: "Mixer stopped after passage completion"
+
+This log appears when Passage 1 completes. But Passage 2 is STILL PLAYING
+due to the crossfade! The mixer should NOT be stopped if:
+- A crossfade is active
+- The incoming passage is still playing
+
+Current logic appears to be:
+```
+if current_passage.completed() {
+    mixer.stop();  // ⚠️ Wrong! What about crossfade?
+    queue.advance();
+}
+```
+
+Correct logic should be:
+```
+if current_passage.completed() {
+    if crossfade.is_active() {
+        // Crossfade passage becomes current passage
+        current_passage = crossfade.incoming_passage;
+    } else {
+        mixer.stop();
+    }
+    queue.advance();
+}
+```
+
+================================================================================
+ROOT CAUSE ANALYSIS
+================================================================================
+
+There are TWO bugs working together:
+
+BUG 1: Mixer stops when outgoing crossfade passage completes
+────────────────────────────────────────────────────────────
+Location: Line 4783 (wkmp-ap\src\playback\engine.rs:1514)
+Problem: When Passage 1 completes at 16:27:18.430, the mixer is stopped
+         even though Passage 2 (the incoming crossfade passage) is still
+         playing. The mixer stop logic doesn't check for active crossfades.
+
+Evidence:
+- P1 completes at 16:27:18.417
+- Mixer stopped at 16:27:18.430
+- P2 was started at 16:25:11.925 (already playing for 126.5 seconds!)
+
+Impact: The mixer stops, causing all audio output to halt temporarily.
+
+
+BUG 2: Mixer restart logic doesn't detect passage already playing
+─────────────────────────────────────────────────────────────────
+Location: Line 4790 (wkmp-ap\src\playback\engine.rs:1334)
+Problem: When process_queue() detects "Mixer idle: true" at 16:27:18.522,
+         it tries to start playback of the next passage in queue (P2).
+         But P2 is ALREADY the current passage! It was started during
+         crossfade and should continue playing.
+
+Evidence:
+- Line 4787: "Found current passage: 1941624f" (P2 is current!)
+- Line 4789: "Mixer idle: true" (Wrong! P2 is playing)
+- Line 4790: "Starting playback of passage...1941624f" (Duplicate start!)
+
+Impact: Passage 2 restarts from the beginning, playing a second time.
+
+
+BUG 3: Buffer state machine allows Finished → Playing transition
+────────────────────────────────────────────────────────────────
+Location: Line 4791 (buffer_manager.rs:340)
+Problem: The buffer state machine allows transitioning from Finished back
+         to Playing. This enables the duplicate playback of P2.
+
+Evidence:
+- Line 766: Buffer 1941624f → Finished (decode complete)
+- Line 4791: Buffer 1941624f Finished → Playing (restart!)
+
+Impact: Enables the mixer to restart a fully-decoded buffer from beginning.
+
+================================================================================
+HYPOTHESIS FOR FIX
+================================================================================
+
+The fix requires changes in the playback engine (engine.rs):
+
+1. When a crossfaded passage completes:
+   - Check if crossfade is active (incoming passage still playing)
+   - If yes: DON'T stop the mixer, transfer control to incoming passage
+   - If no: Stop mixer normally
+
+2. When detecting mixer idle:
+   - Check if current passage buffer is already Playing/Finished
+   - If yes: Continue playback, don't restart
+   - If no: Start new passage normally
+
+3. In buffer state machine:
+   - Don't allow Finished → Playing transitions
+   - Or: Track mixer position to prevent restart from beginning
+
+================================================================================
+ADDITIONAL OBSERVATIONS
+================================================================================
+
+Ring Buffer Underruns:
+Lines 4784-4786: Audio ring buffer underruns detected during the gap
+between P1 completion and P2 restart. This confirms audio stopped briefly.
+
+Total underruns: 842 by end of log (warning every 1000th underrun)
+
+Queue Display Lag:
+QueueChanged SSE events are NOT sent when passages are removed via
+queue.advance(). The UI doesn't update until all passages complete.
+
+This is a separate bug from the duplicate playback issue.
+
+Crossfade Timing:
+Passage 1 crossfades to Passage 2 at 6011ms (line 752), which is only
+5.5 seconds into P1's playback. Expected file duration is ~176 seconds,
+but P1 only plays for 132 seconds total.
+
+This suggests the crossfade logic intentionally truncates the outgoing
+passage, which is likely correct behavior for the crossfade feature.
+
+================================================================================
+REPRODUCTION STEPS
+================================================================================
+
+1. Start with empty queue
+2. Enqueue 3 passages back-to-back
+3. Wait for crossfade from P1 to P2 to begin
+4. Wait for P1 to complete (should happen during P2 playback)
+5. Observe: P2 restarts from beginning
+6. Observe: Queue display doesn't update until P2 completes second time
+
+================================================================================
+EXPECTED vs ACTUAL BEHAVIOR
+================================================================================
+
+Expected:
+- P1 plays for 5.5s, then crossfades to P2
+- P2 starts during crossfade and plays once for 137.6s
+- When P1 completes, P2 continues seamlessly
+- Queue updates immediately when P1 is removed
+- P3 starts after P2 completes
+- Total time: ~5.5s + 137.6s + 136.5s = 279.6s
+
+Actual:
+- P1 plays for 132s (including crossfade period)
+- P2 starts during crossfade and plays for 126.5s
+- When P1 completes, mixer stops and P2 RESTARTS
+- P2 plays AGAIN for another 126.5s (total 253s!)
+- Queue doesn't update until P2 finishes second playthrough
+- P3 starts after P2's second completion
+- Total time: 132s + 253s + 125.5s = 510.5s
+
+User hears Passage 2 TWICE!
+
+================================================================================
+FILES TO INVESTIGATE
+================================================================================
+
+1. wkmp-ap/src/playback/engine.rs
+   - Line 1496: Queue advance logic
+   - Line 1514: Mixer stop after passage completion
+   - Line 1334: Starting playback logic
+   - Line 1143: Crossfade trigger logic
+   - Line 1456: Passage completion detection
+
+2. wkmp-ap/src/playback/buffer_manager.rs
+   - Line 340: Buffer state transitions
+   - Line 288: Playing → Finished transition
+   - State machine that allows Finished → Playing
+
+3. wkmp-ap/src/playback/ring_buffer.rs
+   - Line 250: Underrun warnings (symptom of mixer stop)
+
+================================================================================
+END OF ANALYSIS
+================================================================================
