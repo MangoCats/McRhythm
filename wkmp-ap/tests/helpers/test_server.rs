@@ -262,6 +262,17 @@ impl TestServer {
 
         Ok(count as usize)
     }
+
+    /// Get playback state
+    pub async fn get_playback_state(&self) -> Result<Value, Box<dyn std::error::Error>> {
+        let (status, response) = self.request("GET", "/playback/state", None).await?;
+
+        if !status.is_success() {
+            return Err("Get playback state failed".into());
+        }
+
+        response.ok_or("Missing playback state response".into())
+    }
 }
 
 /// SSE event stream wrapper
@@ -271,6 +282,11 @@ pub struct EventStream {
 }
 
 impl EventStream {
+    /// Wait for next event (indefinitely)
+    pub async fn next(&mut self) -> Option<WkmpEvent> {
+        self.receiver.recv().await.ok()
+    }
+
     /// Wait for next event with timeout
     pub async fn next_timeout(&mut self, timeout: Duration) -> Option<WkmpEvent> {
         tokio::time::timeout(timeout, self.receiver.recv())

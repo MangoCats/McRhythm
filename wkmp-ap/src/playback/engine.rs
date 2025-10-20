@@ -1440,7 +1440,74 @@ impl PlaybackEngine {
             }
         }
 
-        // Check for passage completion
+        // **[XFD-COMP-010]** Check for crossfade completion BEFORE normal completion
+        // When a crossfade completes, the outgoing passage has finished fading out
+        // and the incoming passage continues playing as the new current passage.
+        // We must advance the queue WITHOUT stopping the mixer to avoid interrupting
+        // the already-playing incoming passage.
+        //
+        // **[XFD-COMP-020]** Critical: Do NOT call mixer.stop() in this path!
+        let crossfade_completed_id = {
+            let mut mixer = self.mixer.write().await;
+            mixer.take_crossfade_completed()
+        };
+
+        if let Some(completed_id) = crossfade_completed_id {
+            debug!("Processing crossfade completion for passage {}", completed_id);
+
+            // Verify this is the current passage in queue
+            let queue = self.queue.read().await;
+            if let Some(current) = queue.current() {
+                if current.queue_entry_id == completed_id {
+                    let passage_id_opt = current.passage_id;
+                    drop(queue);
+
+                    info!("Passage {} completed (via crossfade)", completed_id);
+
+                    // **[Event-PassageCompleted]** Emit completion event for OUTGOING passage
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
+                        passage_id: passage_id_opt.unwrap_or_else(|| Uuid::nil()),
+                        completed: true, // Crossfade completed naturally
+                        timestamp: chrono::Utc::now(),
+                    });
+
+                    // **[XFD-COMP-020]** Advance queue WITHOUT stopping mixer
+                    // The incoming passage is already playing as current in the mixer
+                    let mut queue_write = self.queue.write().await;
+                    queue_write.advance();
+                    drop(queue_write);
+
+                    // Remove completed passage from database to keep in sync
+                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        warn!("Failed to remove completed passage from database: {}", e);
+                    } else {
+                        info!("Queue advanced (crossfade) and synced to database (removed {})", completed_id);
+                    }
+
+                    // Update audio_expected flag
+                    self.update_audio_expected_flag().await;
+
+                    // **[XFD-COMP-020]** Clean up outgoing buffer (incoming continues playing)
+                    if let Some(p_id) = passage_id_opt {
+                        self.buffer_manager.remove(p_id).await;
+                    }
+
+                    // **[XFD-COMP-020]** CRITICAL: DO NOT stop mixer!
+                    // The incoming passage is already playing seamlessly in the mixer.
+                    // Stopping would interrupt playback and cause the bug we're fixing.
+                    debug!("Crossfade completion handled - mixer continues playing incoming passage");
+
+                    return Ok(()); // Exit early - do not fall through to normal completion
+                } else {
+                    warn!(
+                        "Crossfade completed ID {} doesn't match queue current {}",
+                        completed_id, current.queue_entry_id
+                    );
+                }
+            }
+        }
+
+        // Check for passage completion (normal case - no crossfade)
         // [SSD-MIX-060] Passage completion detection
         // [SSD-ENG-020] Queue processing and advancement
         let mixer = self.mixer.read().await;

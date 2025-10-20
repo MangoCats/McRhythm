@@ -140,6 +140,13 @@ pub struct CrossfadeMixer {
     /// **[XFD-PAUS-020]** Some when fading in from pause, None otherwise
     /// Tracks fade-in progress after resuming from pause
     resume_state: Option<ResumeState>,
+
+    /// Crossfade completion signaling
+    ///
+    /// **[XFD-COMP-010]** Passage ID of outgoing passage when crossfade just completed
+    /// Set by get_next_frame() when Crossfading → SinglePassage transition occurs
+    /// Consumed by engine via take_crossfade_completed()
+    crossfade_completed_passage: Option<Uuid>,
 }
 
 /// Mixer state machine
@@ -199,6 +206,7 @@ impl CrossfadeMixer {
             underrun_state: None,
             pause_state: None,    // [XFD-PAUS-010] Initially not paused
             resume_state: None,   // [XFD-PAUS-020] Initially no resume fade-in
+            crossfade_completed_passage: None, // [XFD-COMP-010] Initially no completion pending
         }
     }
 
@@ -389,6 +397,7 @@ impl CrossfadeMixer {
 
             MixerState::Crossfading {
                 current_buffer,
+                current_passage_id,
                 current_position,
                 fade_out_curve,
                 fade_out_duration_samples,
@@ -399,7 +408,6 @@ impl CrossfadeMixer {
                 fade_in_curve,
                 fade_in_duration_samples,
                 fade_in_progress,
-                ..
             } => {
                 // Read from both buffers
                 let mut current_frame = read_frame(current_buffer, *current_position).await;
@@ -438,6 +446,9 @@ impl CrossfadeMixer {
                 if *fade_out_progress >= *fade_out_duration_samples
                     && *fade_in_progress >= *fade_in_duration_samples
                 {
+                    // **[XFD-COMP-010]** Capture outgoing passage ID BEFORE transition
+                    let outgoing_passage_id = *current_passage_id;
+
                     // Transition to SinglePassage with next buffer
                     let new_passage_id = *next_passage_id;
                     let new_position = *next_position;
@@ -450,6 +461,14 @@ impl CrossfadeMixer {
                         fade_in_curve: None,
                         fade_in_duration_samples: 0,
                     };
+
+                    // **[XFD-COMP-010]** Signal completion to engine
+                    self.crossfade_completed_passage = Some(outgoing_passage_id);
+
+                    tracing::debug!(
+                        "[XFD-COMP-010] Crossfade completed: outgoing={}, incoming={} (outgoing faded out)",
+                        outgoing_passage_id, new_passage_id
+                    );
                 }
 
                 mixed
@@ -573,6 +592,38 @@ impl CrossfadeMixer {
     /// Transitions to None state, stopping all audio
     pub fn stop(&mut self) {
         self.state = MixerState::None;
+        // **[XFD-COMP-010]** Clear any pending crossfade completion signal
+        // (e.g., if user skips to next track during crossfade)
+        self.crossfade_completed_passage = None;
+    }
+
+    /// Check if a crossfade just completed and consume the signal
+    ///
+    /// **[XFD-COMP-010]** Crossfade completion detection
+    ///
+    /// Returns the passage ID of the outgoing passage that finished fading out.
+    /// This should be called before is_current_finished() in the engine loop.
+    ///
+    /// # Returns
+    /// - `Some(passage_id)` if a crossfade just completed
+    /// - `None` if no crossfade completion pending
+    ///
+    /// # Side Effects
+    /// Clears the internal flag, so subsequent calls return None until
+    /// the next crossfade completes.
+    ///
+    /// # Thread Safety
+    /// This method requires `&mut self`, so it's naturally serialized by
+    /// Rust's borrow checker. Only one thread can call this at a time.
+    pub fn take_crossfade_completed(&mut self) -> Option<Uuid> {
+        let result = self.crossfade_completed_passage.take();
+        if result.is_some() {
+            tracing::trace!(
+                "[XFD-COMP-010] Crossfade completion flag consumed: passage_id={:?}",
+                result
+            );
+        }
+        result
     }
 
     /// Enter pause state
