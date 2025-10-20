@@ -205,10 +205,10 @@ impl TestServer {
         }
 
         let queue_entry_id = response
-            .and_then(|v| v.get("queue_entry_id").and_then(|id| id.as_str()))
+            .and_then(|v| v.get("queue_entry_id").and_then(|id| id.as_str().map(String::from)))
             .ok_or("Missing queue_entry_id in response")?;
 
-        Ok(Uuid::parse_str(queue_entry_id)?)
+        Ok(Uuid::parse_str(&queue_entry_id)?)
     }
 
     /// Get current queue
@@ -349,10 +349,9 @@ pub struct PassageRequest {
 /// Queue entry response
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QueueEntry {
-    pub guid: String,
+    pub queue_entry_id: String,
+    pub passage_id: Option<String>,
     pub file_path: String,
-    pub passage_guid: Option<String>,
-    pub play_order: i64,
 }
 
 /// Builder for test passages

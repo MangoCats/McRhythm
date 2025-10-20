@@ -10,7 +10,7 @@ pub mod audio_capture;
 pub mod audio_analysis;
 
 // Re-export commonly used types
-pub use test_server::TestServer;
+pub use test_server::{TestServer, PassageBuilder, PassageRequest};
 pub use audio_capture::AudioCapture;
 pub use audio_analysis::{
     AudioAnalysisReport, ClickEvent, PopEvent, RmsContinuityReport,

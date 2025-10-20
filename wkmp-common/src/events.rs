@@ -71,3 +71,18 @@ impl std::fmt::Display for PlaybackState {
         }
     }
 }
+
+impl WkmpEvent {
+    /// Get event type as string for filtering
+    pub fn event_type(&self) -> &str {
+        match self {
+            WkmpEvent::PlaybackStateChanged { .. } => "PlaybackStateChanged",
+            WkmpEvent::PassageStarted { .. } => "PassageStarted",
+            WkmpEvent::PassageCompleted { .. } => "PassageCompleted",
+            WkmpEvent::CurrentSongChanged { .. } => "CurrentSongChanged",
+            WkmpEvent::PlaybackProgress { .. } => "PlaybackProgress",
+            WkmpEvent::QueueChanged { .. } => "QueueChanged",
+            WkmpEvent::VolumeChanged { .. } => "VolumeChanged",
+        }
+    }
+}
