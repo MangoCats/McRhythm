@@ -429,6 +429,7 @@ impl SerialDecoder {
         // Append samples in chunks to enable partial buffer playback
         // [DBD-PARAM-060] Chunk size: 8,192 samples per chunk
         // [DBD-DEC-070] Yield every chunk to check priority queue
+        // **[DBD-BUF-050]** Pause/resume backpressure when buffer full
         let total_samples = faded_samples.len();
         let total_chunks = (total_samples + DECODE_CHUNK_SIZE - 1) / DECODE_CHUNK_SIZE;
 
@@ -437,7 +438,8 @@ impl SerialDecoder {
             total_samples, total_chunks, DECODE_CHUNK_SIZE
         );
 
-        for chunk_idx in 0..total_chunks {
+        let mut chunk_idx = 0;
+        while chunk_idx < total_chunks {
             // **[DBD-DEC-070]** Check for higher-priority requests before each chunk
             if Self::should_yield_to_higher_priority(state, request.priority) {
                 warn!(
@@ -455,26 +457,64 @@ impl SerialDecoder {
             let end = (start + DECODE_CHUNK_SIZE).min(total_samples);
             let chunk = faded_samples[start..end].to_vec();
 
-            // Append chunk to buffer using BufferManager API
-            // This automatically triggers state transitions and ReadyForStart events
-            rt_handle.block_on(async {
-                match buffer_manager.push_samples(queue_entry_id, &chunk).await {
-                    Ok(frames_pushed) => {
-                        if frames_pushed < chunk.len() / 2 {
-                            warn!(
-                                "Partial chunk write: {} of {} frames pushed (buffer full)",
-                                frames_pushed, chunk.len() / 2
-                            );
+            // **[DBD-BUF-050]** Push chunk with pause/resume backpressure
+            // Retry pushing remaining samples until entire chunk is written
+            let mut chunk_offset = 0;
+            while chunk_offset < chunk.len() {
+                let remaining_chunk = &chunk[chunk_offset..];
+
+                // Try to push remaining samples
+                let frames_pushed = rt_handle.block_on(async {
+                    match buffer_manager.push_samples(queue_entry_id, remaining_chunk).await {
+                        Ok(count) => count,
+                        Err(e) => {
+                            warn!("Failed to push samples: {}", e);
+                            0
                         }
                     }
-                    Err(e) => {
-                        warn!("Failed to push samples: {}", e);
-                    }
+                });
+
+                if frames_pushed > 0 {
+                    // Advance offset by samples pushed (frames * 2 samples per frame)
+                    chunk_offset += frames_pushed * 2;
                 }
-            });
+
+                // If we didn't push all samples, buffer is full - wait for space
+                if chunk_offset < chunk.len() {
+                    debug!(
+                        "Ring buffer full: pushed {}/{} frames, waiting for space...",
+                        frames_pushed, remaining_chunk.len() / 2
+                    );
+
+                    // **[DBD-BUF-050]** Wait for buffer to have resume space (hysteresis)
+                    rt_handle.block_on(async {
+                        let mut wait_count = 0;
+                        loop {
+                            if let Some(can_resume) = buffer_manager.can_decoder_resume(queue_entry_id).await {
+                                if can_resume {
+                                    debug!("Buffer has space ({} waits), resuming decode", wait_count);
+                                    break;
+                                }
+                            }
+                            // Sleep briefly and check again
+                            // **[DBD-PARAM-070]** 10ms poll interval for resume check
+                            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            wait_count += 1;
+
+                            // Log periodic status during long waits
+                            if wait_count % 100 == 0 {
+                                debug!("Still waiting for buffer space ({} x 10ms = {}ms)...", wait_count, wait_count * 10);
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Move to next chunk only after current chunk is fully pushed
+            chunk_idx += 1;
 
             // Update progress
-            let progress = ((chunk_idx + 1) * 100 / total_chunks).min(100) as u8;
+            let progress = (chunk_idx * 100 / total_chunks).min(100) as u8;
             if progress % 10 == 0 || progress == 100 {
                 // Update every 10%
                 rt_handle.block_on(async {
@@ -482,10 +522,10 @@ impl SerialDecoder {
                 });
             }
 
-            if (chunk_idx + 1) % 10 == 0 || chunk_idx == total_chunks - 1 {
+            if chunk_idx % 10 == 0 || chunk_idx == total_chunks {
                 debug!(
                     "Appended chunk {}/{} ({:.1}%)",
-                    chunk_idx + 1,
+                    chunk_idx,
                     total_chunks,
                     progress as f32
                 );
