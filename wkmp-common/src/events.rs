@@ -280,9 +280,279 @@ impl WkmpEvent {
             WkmpEvent::QueueStateUpdate { .. } => "QueueStateUpdate",
             WkmpEvent::PlaybackPosition { .. } => "PlaybackPosition",
             WkmpEvent::VolumeChanged { .. } => "VolumeChanged",
-            WkmpEvent::InitialState { .. } => "InitialState",
+            WkmpEvent::InitialState { ..} => "InitialState",
             WkmpEvent::CrossfadeStarted { .. } => "CrossfadeStarted",
             WkmpEvent::BufferChainStatus { .. } => "BufferChainStatus",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// **[SPEC020-TEST-010]** Test queue position semantics (0-based indexing per SPEC008)
+    ///
+    /// Verifies that queue_position follows SPEC008 convention:
+    /// - Position 0 = "now playing" [SPEC020-MONITOR-050]
+    /// - Position 1 = "up next"
+    /// - Position 2+ = queued passages
+    /// - None = idle chain
+    #[test]
+    fn test_buffer_chain_info_queue_position_semantics() {
+        // Position 0 = "now playing" [SPEC020-MONITOR-050]
+        let chain_now_playing = BufferChainInfo {
+            slot_index: 0,
+            queue_entry_id: Some(uuid::Uuid::new_v4()),
+            passage_id: Some(uuid::Uuid::new_v4()),
+            file_name: Some("test.mp3".to_string()),
+            queue_position: Some(0),  // 0-BASED: now playing
+            decoder_state: Some(DecoderState::Decoding),
+            decode_progress_percent: Some(45),
+            is_actively_decoding: Some(true),
+            source_sample_rate: Some(44100),
+            resampler_active: Some(false),
+            target_sample_rate: 44100,
+            fade_stage: Some(FadeStage::Body),
+            buffer_state: Some("Playing".to_string()),
+            buffer_fill_percent: 65.5,
+            buffer_fill_samples: 28900,
+            buffer_capacity_samples: 44100,
+            playback_position_frames: 12000,
+            playback_position_ms: 272,
+            duration_ms: Some(180000),
+            is_active_in_mixer: true,
+            mixer_role: "Current".to_string(),
+            started_at: Some("2025-10-20T12:00:00Z".to_string()),
+        };
+
+        assert_eq!(
+            chain_now_playing.queue_position,
+            Some(0),
+            "[SPEC008] Position 0 should be 'now playing'"
+        );
+        assert!(chain_now_playing.is_active_in_mixer, "Now playing should be active in mixer");
+        assert_eq!(chain_now_playing.mixer_role, "Current");
+
+        // Position 1 = "up next" [SPEC020-MONITOR-050]
+        let chain_up_next = BufferChainInfo {
+            slot_index: 1,
+            queue_entry_id: Some(uuid::Uuid::new_v4()),
+            passage_id: Some(uuid::Uuid::new_v4()),
+            file_name: Some("next.mp3".to_string()),
+            queue_position: Some(1),  // 0-BASED: up next
+            decoder_state: Some(DecoderState::Decoding),
+            decode_progress_percent: Some(12),
+            is_actively_decoding: Some(true),
+            source_sample_rate: Some(48000),
+            resampler_active: Some(true),
+            target_sample_rate: 44100,
+            fade_stage: Some(FadeStage::PreStart),
+            buffer_state: Some("Filling".to_string()),
+            buffer_fill_percent: 15.2,
+            buffer_fill_samples: 6703,
+            buffer_capacity_samples: 44100,
+            playback_position_frames: 0,
+            playback_position_ms: 0,
+            duration_ms: Some(240000),
+            is_active_in_mixer: false,
+            mixer_role: "Idle".to_string(),
+            started_at: None,
+        };
+
+        assert_eq!(
+            chain_up_next.queue_position,
+            Some(1),
+            "[SPEC008] Position 1 should be 'up next'"
+        );
+        assert!(chain_up_next.resampler_active.unwrap(), "48kHz source should require resampling");
+
+        // Position 2+ = queued passages [SPEC020-MONITOR-050]
+        let chain_queued = BufferChainInfo {
+            slot_index: 2,
+            queue_entry_id: Some(uuid::Uuid::new_v4()),
+            passage_id: Some(uuid::Uuid::new_v4()),
+            file_name: Some("queued.mp3".to_string()),
+            queue_position: Some(2),  // 0-BASED: queued
+            decoder_state: Some(DecoderState::Decoding),
+            decode_progress_percent: Some(5),
+            is_actively_decoding: Some(true),
+            source_sample_rate: Some(44100),
+            resampler_active: Some(false),
+            target_sample_rate: 44100,
+            fade_stage: Some(FadeStage::PreStart),
+            buffer_state: Some("Filling".to_string()),
+            buffer_fill_percent: 3.1,
+            buffer_fill_samples: 1367,
+            buffer_capacity_samples: 44100,
+            playback_position_frames: 0,
+            playback_position_ms: 0,
+            duration_ms: Some(200000),
+            is_active_in_mixer: false,
+            mixer_role: "Idle".to_string(),
+            started_at: None,
+        };
+
+        assert_eq!(
+            chain_queued.queue_position,
+            Some(2),
+            "[SPEC008] Position 2+ should be queued passages"
+        );
+        assert!(!chain_queued.is_active_in_mixer, "Queued passages should not be in mixer");
+
+        // None = idle chain [SPEC020-MONITOR-050]
+        let idle_chain = BufferChainInfo::idle(5);
+        assert_eq!(
+            idle_chain.queue_position,
+            None,
+            "[SPEC008] Idle chain should have queue_position None"
+        );
+        assert_eq!(idle_chain.buffer_state, Some("Idle".to_string()));
+        assert_eq!(idle_chain.buffer_fill_percent, 0.0);
+        assert!(!idle_chain.is_active_in_mixer);
+    }
+
+    /// **[SPEC020-TEST-020]** Test BufferChainInfo::idle() constructor
+    ///
+    /// Verifies that idle chains are properly initialized with default values
+    #[test]
+    fn test_buffer_chain_info_idle_constructor() {
+        for slot in 0..12 {
+            let idle = BufferChainInfo::idle(slot);
+
+            assert_eq!(idle.slot_index, slot, "slot_index should match");
+            assert_eq!(idle.queue_entry_id, None, "idle chain has no queue_entry_id");
+            assert_eq!(idle.passage_id, None, "idle chain has no passage_id");
+            assert_eq!(idle.file_name, None, "idle chain has no file_name");
+            assert_eq!(idle.queue_position, None, "idle chain has no queue_position");
+            assert_eq!(idle.decoder_state, Some(DecoderState::Idle));
+            assert_eq!(idle.decode_progress_percent, Some(0));
+            assert_eq!(idle.is_actively_decoding, Some(false));
+            assert_eq!(idle.source_sample_rate, None);
+            assert_eq!(idle.resampler_active, Some(false));
+            assert_eq!(idle.target_sample_rate, 44100, "target rate always 44100 Hz");
+            assert_eq!(idle.fade_stage, None);
+            assert_eq!(idle.buffer_state, Some("Idle".to_string()));
+            assert_eq!(idle.buffer_fill_percent, 0.0);
+            assert_eq!(idle.buffer_fill_samples, 0);
+            assert_eq!(idle.buffer_capacity_samples, 0);
+            assert_eq!(idle.playback_position_frames, 0);
+            assert_eq!(idle.playback_position_ms, 0);
+            assert_eq!(idle.duration_ms, None);
+            assert!(!idle.is_active_in_mixer);
+            assert_eq!(idle.mixer_role, "Idle");
+            assert_eq!(idle.started_at, None);
+        }
+    }
+
+    /// **[SPEC020-TEST-030]** Test BufferChainInfo JSON serialization for SSE
+    ///
+    /// Verifies that BufferChainInfo serializes correctly for SSE BufferChainStatus events
+    #[test]
+    fn test_buffer_chain_info_serialization() {
+        let chain = BufferChainInfo {
+            slot_index: 0,
+            queue_entry_id: Some(uuid::Uuid::from_u128(0x12345678_1234_1234_1234_123456789abc)),
+            passage_id: Some(uuid::Uuid::from_u128(0x87654321_4321_4321_4321_cba987654321)),
+            file_name: Some("test.mp3".to_string()),
+            queue_position: Some(0),  // 0-based: now playing
+            decoder_state: Some(DecoderState::Decoding),
+            decode_progress_percent: Some(45),
+            is_actively_decoding: Some(true),
+            source_sample_rate: Some(48000),
+            resampler_active: Some(true),
+            target_sample_rate: 44100,
+            fade_stage: Some(FadeStage::FadeIn),
+            buffer_state: Some("Playing".to_string()),
+            buffer_fill_percent: 65.5,
+            buffer_fill_samples: 28900,
+            buffer_capacity_samples: 44100,
+            playback_position_frames: 12000,
+            playback_position_ms: 272,
+            duration_ms: Some(180000),
+            is_active_in_mixer: true,
+            mixer_role: "Current".to_string(),
+            started_at: Some("2025-10-20T12:00:00Z".to_string()),
+        };
+
+        // Serialize to JSON
+        let json = serde_json::to_string(&chain).expect("Serialization should succeed");
+
+        // Verify key fields in JSON
+        assert!(json.contains("\"slot_index\":0"), "slot_index should serialize");
+        assert!(json.contains("\"queue_position\":0"), "queue_position 0 (now playing) should serialize");
+        assert!(json.contains("\"buffer_fill_percent\":65.5"), "buffer_fill_percent should serialize");
+        assert!(json.contains("\"target_sample_rate\":44100"), "target_sample_rate should serialize");
+        assert!(json.contains("\"mixer_role\":\"Current\""), "mixer_role should serialize");
+        assert!(json.contains("\"decoder_state\":\"Decoding\""), "decoder_state should serialize");
+        assert!(json.contains("\"fade_stage\":\"FadeIn\""), "fade_stage should serialize");
+
+        // Deserialize back
+        let deserialized: BufferChainInfo = serde_json::from_str(&json).expect("Deserialization should succeed");
+
+        assert_eq!(deserialized.slot_index, 0);
+        assert_eq!(deserialized.queue_position, Some(0));
+        assert_eq!(deserialized.buffer_fill_percent, 65.5);
+        assert_eq!(deserialized.mixer_role, "Current");
+    }
+
+    /// **[SPEC020-TEST-040]** Test DecoderState enum variants
+    #[test]
+    fn test_decoder_state_enum() {
+        assert_eq!(DecoderState::Idle.to_string(), "Idle");
+        assert_eq!(DecoderState::Decoding.to_string(), "Decoding");
+        assert_eq!(DecoderState::Paused.to_string(), "Paused");
+
+        // Test equality
+        assert_eq!(DecoderState::Idle, DecoderState::Idle);
+        assert_ne!(DecoderState::Idle, DecoderState::Decoding);
+    }
+
+    /// **[SPEC020-TEST-050]** Test FadeStage enum variants
+    #[test]
+    fn test_fade_stage_enum() {
+        assert_eq!(FadeStage::PreStart.to_string(), "PreStart");
+        assert_eq!(FadeStage::FadeIn.to_string(), "FadeIn");
+        assert_eq!(FadeStage::Body.to_string(), "Body");
+        assert_eq!(FadeStage::FadeOut.to_string(), "FadeOut");
+        assert_eq!(FadeStage::PostEnd.to_string(), "PostEnd");
+
+        // Test equality
+        assert_eq!(FadeStage::Body, FadeStage::Body);
+        assert_ne!(FadeStage::FadeIn, FadeStage::FadeOut);
+    }
+
+    /// **[SPEC020-TEST-060]** Test BufferChainStatus SSE event structure
+    #[test]
+    fn test_buffer_chain_status_sse_event() {
+        use chrono::Utc;
+
+        let chains = vec![
+            BufferChainInfo::idle(0),
+            BufferChainInfo::idle(1),
+        ];
+
+        let event = WkmpEvent::BufferChainStatus {
+            timestamp: Utc::now(),
+            chains: chains.clone(),
+        };
+
+        assert_eq!(event.event_type(), "BufferChainStatus");
+
+        // Serialize event
+        let json = serde_json::to_string(&event).expect("Event serialization should succeed");
+        assert!(json.contains("\"type\":\"BufferChainStatus\""));
+        assert!(json.contains("\"chains\":"));
+
+        // Deserialize back
+        let deserialized: WkmpEvent = serde_json::from_str(&json).expect("Event deserialization should succeed");
+        match deserialized {
+            WkmpEvent::BufferChainStatus { chains: deserialized_chains, .. } => {
+                assert_eq!(deserialized_chains.len(), 2);
+                assert_eq!(deserialized_chains[0].slot_index, 0);
+                assert_eq!(deserialized_chains[1].slot_index, 1);
+            }
+            _ => panic!("Wrong event type deserialized"),
         }
     }
 }

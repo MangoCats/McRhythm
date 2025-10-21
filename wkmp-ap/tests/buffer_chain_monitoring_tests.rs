@@ -100,8 +100,8 @@ async fn test_buffer_chains_single_passage() {
     );
     assert_eq!(
         chains[0].queue_position,
-        Some(1),
-        "Chain 0 should have queue_position 1"
+        Some(0),
+        "Chain 0 should have queue_position 0 (now playing)"
     );
 
     // Chains 1-11 should be idle
@@ -156,16 +156,16 @@ async fn test_buffer_chains_two_passages() {
     // Should always return 12 chains
     assert_eq!(chains.len(), 12);
 
-    // Chains 0-1 (positions 1-2) should be active
+    // Chains 0-1 (positions 0-1) should be active
     assert_eq!(
         chains[0].queue_position,
-        Some(1),
-        "Chain 0 should be position 1 (now playing)"
+        Some(0),
+        "Chain 0 should be position 0 (now playing)"
     );
     assert_eq!(
         chains[1].queue_position,
-        Some(2),
-        "Chain 1 should be position 2 (playing next)"
+        Some(1),
+        "Chain 1 should be position 1 (playing next)"
     );
 
     // Chains 2-11 should be idle
@@ -227,10 +227,10 @@ async fn test_buffer_chains_full_queue() {
         );
         assert_eq!(
             chains[i].queue_position,
-            Some(i + 1), // 1-indexed positions
+            Some(i), // 0-indexed positions per [SPEC020-MONITOR-050]
             "Chain {} should have queue_position {}",
             i,
-            i + 1
+            i
         );
         // Buffer state should not be Idle
         assert_ne!(
@@ -289,10 +289,10 @@ async fn test_buffer_chains_exceeds_maximum() {
         );
         assert_eq!(
             chains[i].queue_position,
-            Some(i + 1),
+            Some(i),
             "Chain {} should have queue_position {}",
             i,
-            i + 1
+            i
         );
     }
 
@@ -336,8 +336,8 @@ async fn test_buffer_chains_passage_tracking_on_skip() {
     // Get initial buffer chains
     let chains_before = engine.get_buffer_chains().await;
 
-    // Capture queue_entry_id of passage at position 2 (next)
-    let next_qe_id = chains_before[1].queue_entry_id.expect("Position 2 should have ID");
+    // Capture queue_entry_id of passage at position 1 (next)
+    let next_qe_id = chains_before[1].queue_entry_id.expect("Position 1 should have ID");
 
     // Skip current passage
     engine.skip_next().await.unwrap();
@@ -346,18 +346,18 @@ async fn test_buffer_chains_passage_tracking_on_skip() {
     // Get buffer chains after skip
     let chains_after = engine.get_buffer_chains().await;
 
-    // The passage that was at position 2 should now be at position 1
+    // The passage that was at position 1 should now be at position 0
     // **[DBD-OV-080]** Chains follow passages via queue_entry_id
     assert_eq!(
         chains_after[0].queue_entry_id,
         Some(next_qe_id),
-        "Passage should move from position 2 to position 1 (queue_entry_id follows passage)"
+        "Passage should move from position 1 to position 0 (queue_entry_id follows passage)"
     );
 
     assert_eq!(
         chains_after[0].queue_position,
-        Some(1),
-        "queue_position should update to 1 (now playing)"
+        Some(0),
+        "queue_position should update to 0 (now playing)"
     );
 
     // Clean up

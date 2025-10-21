@@ -906,7 +906,7 @@ impl PlaybackEngine {
 
         // Create BufferChainInfo for each passage (up to maximum_decode_streams)
         for (slot_index, entry) in all_entries.iter().take(maximum_decode_streams).enumerate() {
-            let queue_position = slot_index + 1; // 1-indexed for display
+            let queue_position = slot_index; // 0-indexed per [SPEC020-MONITOR-050]
 
             // Get buffer information
             let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;

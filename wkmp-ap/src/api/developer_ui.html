@@ -214,97 +214,96 @@
             flex-direction: column;
             gap: 8px;
         }
-        .buffer-detailed {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        /* **[SPEC020-MONITOR-020]** Table-based buffer chain monitor */
+        .buffer-chain-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
         }
-        .buffer-chain-full {
+        .buffer-chain-table thead {
             background: #1a1a1a;
-            padding: 8px;
-            border-radius: 4px;
-            border-left: 4px solid;
+            position: sticky;
+            top: 0;
         }
-        .buffer-chain-full.pos-1 { border-left-color: #4ade80; }
-        .buffer-chain-full.pos-2 { border-left-color: #fbbf24; }
-        .chain-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-            padding-bottom: 4px;
+        .buffer-chain-table th {
+            padding: 8px;
+            text-align: left;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            border-bottom: 2px solid #333;
+        }
+        .buffer-chain-table td {
+            padding: 6px 8px;
             border-bottom: 1px solid #2a2a2a;
         }
-        .chain-title {
-            font-weight: bold;
-            font-size: 13px;
+        /* **[SPEC020-MONITOR-050]** Row color coding by queue position */
+        .chain-row.pos-0 {
+            background: rgba(74, 222, 128, 0.1);  /* Green for now playing */
+            border-left: 3px solid #4ade80;
         }
-        .chain-title.pos-1 { color: #4ade80; }
-        .chain-title.pos-2 { color: #fbbf24; }
-        .chain-filename {
+        .chain-row.pos-1 {
+            background: rgba(251, 191, 36, 0.1);  /* Yellow for up next */
+            border-left: 3px solid #fbbf24;
+        }
+        .chain-row.pos-queued {
+            background: rgba(59, 130, 246, 0.05); /* Blue for queued */
+            border-left: 3px solid #3b82f6;
+        }
+        .chain-row.idle {
+            background: transparent;
+            border-left: 3px solid #444;
+        }
+        .chain-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        /* Column-specific styles */
+        .chain-num {
             color: #888;
-            font-size: 11px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 400px;
+            font-weight: 600;
+            width: 60px;
         }
-        .chain-metrics {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            font-size: 11px;
-        }
-        .metric {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .metric-label {
-            color: #666;
-            font-size: 10px;
-            text-transform: uppercase;
-        }
-        .metric-value {
+        .queue-pos {
             color: #e0e0e0;
             font-weight: 500;
+            width: 140px;
         }
-        .buffer-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 6px;
-        }
-        .buffer-chain-compact {
-            background: #1a1a1a;
-            padding: 6px;
-            border-radius: 3px;
-            border-left: 3px solid;
+        .decoder, .resample, .fade, .mixer {
+            color: #e0e0e0;
             font-size: 10px;
         }
-        .buffer-chain-compact.queued { border-left-color: #3b82f6; }
-        .buffer-chain-compact.idle { border-left-color: #444; }
-        .compact-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
-        }
-        .compact-row:last-child { margin-bottom: 0; }
-        .compact-label { color: #666; }
-        .compact-value { color: #e0e0e0; font-weight: 500; }
-        .buffer-bar {
-            height: 4px;
+        /* **[SPEC020-MONITOR-090]** Buffer fill bar */
+        .buffer-bar-container {
+            position: relative;
+            height: 20px;
             background: #333;
-            border-radius: 2px;
-            margin-top: 4px;
+            border-radius: 3px;
             overflow: hidden;
+            min-width: 80px;
         }
         .buffer-bar-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
             height: 100%;
+            background: #3b82f6;
             transition: width 0.3s;
         }
-        .buffer-bar-fill.filling { background: #3b82f6; }
-        .buffer-bar-fill.ready { background: #10b981; }
-        .buffer-bar-fill.playing { background: #4ade80; }
+        .buffer-text {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 600;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
         .state-badge {
             display: inline-block;
             padding: 2px 6px;
@@ -808,143 +807,99 @@
                 }
             }
 
-            // Sort by queue_position to ensure proper ordering
-            allChains.sort((a, b) => {
-                if (a.queue_position && b.queue_position) {
-                    return a.queue_position - b.queue_position;
-                }
-                if (a.queue_position) return -1;
-                if (b.queue_position) return 1;
-                return a.slot_index - b.slot_index;
+            // **[SPEC020-MONITOR-020]** Sort by slot_index for uniform table display
+            allChains.sort((a, b) => a.slot_index - b.slot_index);
+
+            // **[SPEC020-MONITOR-030]** Build table with 7 columns
+            let html = `
+                <table class="buffer-chain-table">
+                    <thead>
+                        <tr>
+                            <th>Chain #</th>
+                            <th>Queue Pos</th>
+                            <th>Decoder</th>
+                            <th>Resample</th>
+                            <th>Fade</th>
+                            <th>Buffer</th>
+                            <th>Mixer</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Render all chains in order (0-11)
+            allChains.forEach(chain => {
+                html += renderChainRow(chain);
             });
 
-            let html = '<div class="buffer-monitor">';
-
-            // Detailed view for positions 1-2 (now playing and next)
-            const detailedChains = allChains.filter(c => c.queue_position === 1 || c.queue_position === 2);
-            if (detailedChains.length > 0) {
-                html += '<div class="buffer-detailed">';
-                detailedChains.forEach(chain => {
-                    html += renderChainFull(chain);
-                });
-                html += '</div>';
-            }
-
-            // Compact grid for positions 3-12 and idle chains
-            const compactChains = allChains.filter(c => !c.queue_position || c.queue_position > 2);
-            if (compactChains.length > 0) {
-                html += '<div class="buffer-grid">';
-                compactChains.forEach(chain => {
-                    html += renderChainCompact(chain);
-                });
-                html += '</div>';
-            }
-
-            html += '</div>';
+            html += `
+                    </tbody>
+                </table>
+            `;
             el.innerHTML = html;
         }
 
-        function renderChainFull(chain) {
-            const queuePos = chain.queue_position || 0;
-            const posClass = queuePos === 1 ? 'pos-1' : 'pos-2';
-            const fileName = chain.file_name || '(idle)';
-            const bufferPct = chain.buffer_fill_percent.toFixed(1);
-            const posMs = chain.playback_position_ms || 0;
-            const posSec = Math.floor(posMs / 1000);
-            const durMs = chain.duration_ms || 0;
-            const durSec = Math.floor(durMs / 1000);
-            const bufferState = chain.buffer_state || 'Empty';
-            const decoderState = chain.decoder_state || 'N/A';
-            const fadeStage = chain.fade_stage || 'N/A';
-            const decodeProgress = chain.decode_progress_percent || 0;
-
-            const title = queuePos === 1 ? 'NOW PLAYING (Position 1)' : 'UP NEXT (Position 2)';
-
-            return `
-                <div class="buffer-chain-full ${posClass}">
-                    <div class="chain-header">
-                        <div>
-                            <div class="chain-title ${posClass}">${title}</div>
-                            <div class="chain-filename" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</div>
-                        </div>
-                        <span class="state-badge state-${bufferState}">${bufferState}</span>
-                    </div>
-                    <div class="chain-metrics">
-                        <div class="metric">
-                            <div class="metric-label">Queue Position</div>
-                            <div class="metric-value" style="color: ${queuePos === 1 ? '#4ade80' : '#fbbf24'}; font-size: 18px;">
-                                #${queuePos}
-                            </div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Buffer Fill</div>
-                            <div class="metric-value">${bufferPct}%</div>
-                            <div style="color: #666; font-size: 9px;">${formatNumber(chain.buffer_fill_samples)} / ${formatNumber(chain.buffer_capacity_samples)} samples</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Playback Position</div>
-                            <div class="metric-value">${formatTime(posSec)} / ${formatTime(durSec)}</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Decoder State</div>
-                            <div class="metric-value decoder-state decoder-${decoderState}">${decoderState}</div>
-                            <div style="color: #666; font-size: 9px;">Progress: ${decodeProgress}%</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Fade Stage</div>
-                            <div class="metric-value">${fadeStage}</div>
-                        </div>
-                        <div class="metric">
-                            <div class="metric-label">Mixer Role</div>
-                            <div class="metric-value">${chain.mixer_role}</div>
-                            <div style="color: ${chain.is_active_in_mixer ? '#4ade80' : '#666'}; font-size: 9px;">
-                                ${chain.is_active_in_mixer ? '✓ Active' : '○ Inactive'}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderChainCompact(chain) {
+        // **[SPEC020-MONITOR-030]** Render single table row for a chain
+        function renderChainRow(chain) {
+            const slotIndex = chain.slot_index;
             const queuePos = chain.queue_position;
-            const isIdle = !queuePos;
-            const bufferState = chain.buffer_state || 'Empty';
-            const bufferPct = chain.buffer_fill_percent.toFixed(0);
-            const passageId = chain.passage_id ? chain.passage_id.substring(0, 8) : 'N/A';
+            const isIdle = queuePos === null || queuePos === undefined;
 
-            const stateClass = bufferState.toLowerCase();
-            const borderClass = isIdle ? 'idle' : 'queued';
+            // **[SPEC020-MONITOR-050]** Queue position: 0=now playing, 1=up next, 2+=queued, N/A=idle
+            let queuePosDisplay = 'N/A';
+            let rowClass = 'idle';
+            if (queuePos === 0) {
+                queuePosDisplay = '0 (Now Playing)';
+                rowClass = 'pos-0';
+            } else if (queuePos === 1) {
+                queuePosDisplay = '1 (Up Next)';
+                rowClass = 'pos-1';
+            } else if (queuePos !== null && queuePos !== undefined) {
+                queuePosDisplay = queuePos.toString();
+                rowClass = 'pos-queued';
+            }
 
-            let statusColor = '#666';
-            if (bufferState === 'Playing') statusColor = '#4ade80';
-            else if (bufferState === 'Ready') statusColor = '#10b981';
-            else if (bufferState === 'Filling') statusColor = '#3b82f6';
+            // **[SPEC020-MONITOR-060]** Decoder status
+            const decoderState = chain.decoder_state || 'Idle';
+            const decodeProgress = chain.decode_progress_percent || 0;
+            const decoderDisplay = isIdle ? 'Idle' : `${decoderState} ${decodeProgress}%`;
+
+            // **[SPEC020-MONITOR-070]** Resample status
+            const sampleRate = chain.sample_rate || 0;
+            const workingSampleRate = 44100; // Default from [DBD-PARAM-030]
+            const resampleDisplay = isIdle ? 'N/A' :
+                (sampleRate === workingSampleRate ? 'N/A' : `${sampleRate}→${workingSampleRate} Hz`);
+
+            // **[SPEC020-MONITOR-080]** Fade status
+            const fadeStage = chain.fade_stage || 'N/A';
+            const fadeCurve = chain.fade_in_curve || chain.fade_out_curve || '';
+            const fadeDisplay = isIdle ? '-' :
+                (fadeCurve ? `${fadeStage} (${fadeCurve})` : fadeStage);
+
+            // **[SPEC020-MONITOR-090]** Buffer fill
+            const bufferPct = chain.buffer_fill_percent?.toFixed(1) || '0.0';
+            const bufferDisplay = `${bufferPct}%`;
+
+            // **[SPEC020-MONITOR-100]** Mixer status
+            const mixerRole = chain.mixer_role || 'Idle';
+            const isActive = chain.is_active_in_mixer;
+            const mixerDisplay = isActive ? `${mixerRole} ✓` : mixerRole;
 
             return `
-                <div class="buffer-chain-compact ${borderClass}">
-                    <div class="compact-row">
-                        <span class="compact-label">Slot ${chain.slot_index}</span>
-                        <span class="compact-value" style="color: ${queuePos ? '#4a9eff' : '#666'};">
-                            ${queuePos ? 'Pos ' + queuePos : 'Idle'}
-                        </span>
-                    </div>
-                    <div class="compact-row">
-                        <span class="compact-label">Passage</span>
-                        <span class="compact-value" style="font-size: 9px;">${passageId}</span>
-                    </div>
-                    <div class="compact-row">
-                        <span class="compact-label">State</span>
-                        <span class="compact-value" style="color: ${statusColor};">${bufferState}</span>
-                    </div>
-                    <div class="compact-row">
-                        <span class="compact-label">Buffer</span>
-                        <span class="compact-value">${bufferPct}%</span>
-                    </div>
-                    <div class="buffer-bar">
-                        <div class="buffer-bar-fill ${stateClass}" style="width: ${bufferPct}%;"></div>
-                    </div>
-                </div>
+                <tr class="chain-row ${rowClass}">
+                    <td class="chain-num">${slotIndex}</td>
+                    <td class="queue-pos">${queuePosDisplay}</td>
+                    <td class="decoder">${decoderDisplay}</td>
+                    <td class="resample">${resampleDisplay}</td>
+                    <td class="fade">${fadeDisplay}</td>
+                    <td class="buffer">
+                        <div class="buffer-bar-container">
+                            <div class="buffer-bar-fill" style="width: ${bufferPct}%;"></div>
+                            <span class="buffer-text">${bufferDisplay}</span>
+                        </div>
+                    </td>
+                    <td class="mixer">${mixerDisplay}</td>
+                </tr>
             `;
         }
 
