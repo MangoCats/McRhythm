@@ -415,3 +415,170 @@ async fn test_no_chain_when_all_allocated() {
         std::fs::remove_file(passage).unwrap();
     }
 }
+
+/// **[DBD-LIFECYCLE-060]** Test chain assignment for database-restored queue
+///
+/// Verifies that passages loaded from database during engine initialization
+/// receive chain assignments, preventing "ghost passages" that appear in
+/// queue but not in buffer chain monitor.
+#[tokio::test]
+async fn test_database_restore_chain_assignment() {
+    // Create database with pre-populated queue
+    let pool = SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+
+    // Create schema
+    sqlx::query(
+        r#"
+        CREATE TABLE queue (
+            guid TEXT PRIMARY KEY,
+            file_path TEXT NOT NULL,
+            passage_guid TEXT,
+            play_order INTEGER NOT NULL,
+            start_time_ms INTEGER,
+            end_time_ms INTEGER,
+            lead_in_point_ms INTEGER,
+            lead_out_point_ms INTEGER,
+            fade_in_point_ms INTEGER,
+            fade_out_point_ms INTEGER,
+            fade_in_curve TEXT,
+            fade_out_curve TEXT
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    sqlx::query(
+        r#"
+        CREATE TABLE settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    sqlx::query("INSERT INTO settings (key, value) VALUES ('maximum_decode_streams', '12')")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    // Create temporary test files
+    let temp_dir = std::env::temp_dir();
+    let mut passages = Vec::new();
+    for i in 0..3 {
+        let passage = temp_dir.join(format!("test_db_restore_{}.mp3", i));
+        std::fs::write(&passage, b"").unwrap();
+        passages.push(passage);
+    }
+
+    // Populate queue with 3 passages (simulating previous app session)
+    for (i, passage) in passages.iter().enumerate() {
+        let guid = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            r#"
+            INSERT INTO queue (guid, file_path, play_order, start_time_ms, end_time_ms,
+                               lead_in_point_ms, lead_out_point_ms, fade_in_point_ms,
+                               fade_out_point_ms, fade_in_curve, fade_out_curve)
+            VALUES (?, ?, ?, 0, 180000, 0, 180000, 0, 180000, 'exponential', 'logarithmic')
+            "#,
+        )
+        .bind(&guid)
+        .bind(passage.to_str().unwrap())
+        .bind((i as i32 + 1) * 64) // play_order: 64, 128, 192
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+
+    // Verify queue has 3 entries before engine creation
+    let queue_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM queue")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(queue_count, 3, "Database should contain 3 queued passages");
+
+    // Create PlaybackEngine (simulates app startup with database restore)
+    // This triggers queue load from database
+    let state = Arc::new(SharedState::new());
+    let engine = PlaybackEngine::new(pool.clone(), state).await.unwrap();
+
+    // **[DBD-LIFECYCLE-060]** Call assign_chains_to_loaded_queue()
+    // This is the critical step that prevents ghost passages
+    engine.assign_chains_to_loaded_queue().await;
+
+    sleep(Duration::from_millis(100)).await;
+
+    // Get buffer chains
+    let chains = engine.get_buffer_chains().await;
+
+    // **[DBD-LIFECYCLE-060]** Verify all 3 loaded passages received chain assignments
+    let mut assigned_chains = 0;
+    for (i, chain) in chains.iter().enumerate() {
+        if chain.queue_entry_id.is_some() {
+            assigned_chains += 1;
+            println!(
+                "Chain {} assigned to queue_entry_id={}, queue_position={:?}",
+                i, chain.queue_entry_id.unwrap(), chain.queue_position
+            );
+        }
+    }
+
+    assert_eq!(
+        assigned_chains, 3,
+        "All 3 database-restored passages should receive chain assignments"
+    );
+
+    // Verify chain assignments follow lowest-first allocation (chains 0, 1, 2)
+    assert!(
+        chains[0].queue_entry_id.is_some(),
+        "Chain 0 should be assigned to first passage"
+    );
+    assert_eq!(
+        chains[0].queue_position,
+        Some(0),
+        "Chain 0 should track queue position 0"
+    );
+
+    assert!(
+        chains[1].queue_entry_id.is_some(),
+        "Chain 1 should be assigned to second passage"
+    );
+    assert_eq!(
+        chains[1].queue_position,
+        Some(1),
+        "Chain 1 should track queue position 1"
+    );
+
+    assert!(
+        chains[2].queue_entry_id.is_some(),
+        "Chain 2 should be assigned to third passage"
+    );
+    assert_eq!(
+        chains[2].queue_position,
+        Some(2),
+        "Chain 2 should track queue position 2"
+    );
+
+    // Verify idle chains (3-11) have no assignments
+    for i in 3..12 {
+        assert_eq!(
+            chains[i].queue_entry_id,
+            None,
+            "Chain {} should be idle",
+            i
+        );
+    }
+
+    // Clean up
+    for passage in &passages {
+        std::fs::remove_file(passage).unwrap();
+    }
+}

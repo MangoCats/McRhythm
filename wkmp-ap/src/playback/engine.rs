@@ -258,6 +258,40 @@ impl PlaybackEngine {
         })
     }
 
+    /// Assign chains to all queue entries loaded from database
+    ///
+    /// **[DBD-LIFECYCLE-060]** Post-load chain assignment for database restore path
+    ///
+    /// This method should be called after engine creation to assign chains to
+    /// passages that were loaded from database during initialization. Ensures
+    /// uniform handling of chain assignment regardless of enqueue source.
+    pub async fn assign_chains_to_loaded_queue(&self) {
+        let queue = self.queue.read().await;
+
+        // Collect all queue entry IDs
+        let mut queue_entry_ids = Vec::new();
+        if let Some(current) = queue.current() {
+            queue_entry_ids.push(current.queue_entry_id);
+        }
+        if let Some(next) = queue.next() {
+            queue_entry_ids.push(next.queue_entry_id);
+        }
+        for entry in queue.queued() {
+            queue_entry_ids.push(entry.queue_entry_id);
+        }
+        drop(queue);
+
+        // Save count before moving vector
+        let count = queue_entry_ids.len();
+
+        // Assign chains to each entry
+        for queue_entry_id in queue_entry_ids {
+            self.assign_chain(queue_entry_id).await;
+        }
+
+        info!("Assigned chains to {} loaded queue entries", count);
+    }
+
     /// Start playback engine background tasks
     ///
     /// [SSD-FLOW-010] Begin processing queue and managing buffers
@@ -1121,6 +1155,11 @@ impl PlaybackEngine {
     pub async fn reorder_queue_entry(&self, queue_entry_id: Uuid, new_position: i32) -> Result<()> {
         info!("Reorder queue request: entry={}, position={}", queue_entry_id, new_position);
 
+        // **[DBD-LIFECYCLE-060]** Save existing chain assignments before reload
+        // Reordering changes queue positions but not passage identities, so we
+        // preserve chain assignments to maintain buffer chain stability
+        let existing_assignments = self.chain_assignments.read().await.clone();
+
         // Call database reorder function
         crate::db::queue::reorder_queue(&self.db_pool, queue_entry_id, new_position).await?;
 
@@ -1128,6 +1167,12 @@ impl PlaybackEngine {
         let mut queue = self.queue.write().await;
         *queue = crate::playback::queue_manager::QueueManager::load_from_db(&self.db_pool).await?;
         drop(queue);
+
+        // **[DBD-LIFECYCLE-060]** Restore chain assignments after reload
+        // This ensures passages keep their assigned chains despite queue reordering
+        let mut assignments = self.chain_assignments.write().await;
+        *assignments = existing_assignments;
+        drop(assignments);
 
         info!("Queue reordered successfully");
 
@@ -2265,10 +2310,10 @@ impl PlaybackEngine {
         }
     }
 
-    /// Background task: Emit BufferChainStatus events every 1 second when data changes
+    /// Background task: Emit BufferChainStatus events every 1 second
     ///
     /// Tracks decoder-resampler-fade-buffer chain states for developer UI monitoring.
-    /// Only emits when data changes to reduce SSE traffic.
+    /// Emits unconditionally every 1 second to ensure real-time buffer fill updates.
     async fn buffer_chain_status_emitter(&self) {
         use tokio::time::interval;
         use std::time::Duration;
@@ -2276,7 +2321,6 @@ impl PlaybackEngine {
         info!("BufferChainStatus emitter started");
 
         let mut tick = interval(Duration::from_secs(1));
-        let mut last_chains: Option<Vec<wkmp_common::events::BufferChainInfo>> = None;
 
         loop {
             tick.tick().await;
@@ -2288,23 +2332,14 @@ impl PlaybackEngine {
             }
 
             // Get current buffer chain status
-            let current_chains = self.get_buffer_chains().await;
+            let chains = self.get_buffer_chains().await;
 
-            // Only emit if data has changed
-            let should_emit = match &last_chains {
-                None => true, // First emission
-                Some(prev) => prev != &current_chains, // Data changed
-            };
-
-            if should_emit {
-                // Emit BufferChainStatus event
-                self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferChainStatus {
-                    timestamp: chrono::Utc::now(),
-                    chains: current_chains.clone(),
-                });
-
-                last_chains = Some(current_chains);
-            }
+            // Always emit BufferChainStatus event every 1 second
+            // Ensures real-time updates of buffer fill percentages and playback state
+            self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferChainStatus {
+                timestamp: chrono::Utc::now(),
+                chains,
+            });
         }
     }
 

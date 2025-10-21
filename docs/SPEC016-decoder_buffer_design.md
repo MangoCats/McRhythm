@@ -95,6 +95,18 @@ Note: This diagram shows logical processing stages. In the implemented architect
 - These passages are queued but not visible in buffer chain monitor
 - When a chain becomes available, waiting passages are assigned chains (future enhancement - currently requires re-evaluation of queue processing logic)
 
+**[DBD-LIFECYCLE-060]** All passage enqueues must use uniform chain assignment regardless of source:
+- All enqueue sources (API, database restore, Program Director, etc.) must receive chain assignments
+- Chain assignment follows [DBD-LIFECYCLE-010] rules regardless of how passage entered queue
+- Prevents "ghost passages" that appear in queue but not in buffer chain monitor
+- Implementation ensures consistent state across queue restoration and API operations
+
+**Enqueue Sources:**
+- API endpoint (`POST /playback/enqueue`) → calls internal `enqueue_file()` method with chain assignment
+- Database restoration on startup → calls `assign_chains_to_loaded_queue()` after queue load
+- Queue reordering → preserves existing chain assignments across reload
+- Program Director automatic selection → uses same internal enqueue method (future)
+
 ### Terminology
 
 **Decoder-buffer chain** (design concept) = **PassageBuffer** (core data structure) wrapped in **ManagedBuffer** (lifecycle management).

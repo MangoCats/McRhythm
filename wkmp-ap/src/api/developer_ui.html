@@ -41,7 +41,7 @@
         }
         .header-right {
             color: #666;
-            font-size: 11px;
+            font-size: 16px;
             font-family: 'Courier New', monospace;
             text-align: right;
         }
@@ -214,6 +214,13 @@
             flex-direction: column;
             gap: 8px;
         }
+        /* Scrollable container for buffer chain table */
+        #buffer-chains {
+            overflow-y: auto;
+            max-height: 400px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
         /* **[SPEC020-MONITOR-020]** Table-based buffer chain monitor */
         .buffer-chain-table {
             width: 100%;
@@ -272,6 +279,14 @@
         .decoder, .resample, .fade, .mixer {
             color: #e0e0e0;
             font-size: 10px;
+        }
+        .file-name-cell {
+            color: #e0e0e0;
+            font-size: 10px;
+            max-width: 20%;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
         }
         /* **[SPEC020-MONITOR-090]** Buffer fill bar */
         .buffer-bar-container {
@@ -810,7 +825,7 @@
             // **[SPEC020-MONITOR-020]** Sort by slot_index for uniform table display
             allChains.sort((a, b) => a.slot_index - b.slot_index);
 
-            // **[SPEC020-MONITOR-030]** Build table with 7 columns
+            // **[SPEC020-MONITOR-030]** Build table with 8 columns
             let html = `
                 <table class="buffer-chain-table">
                     <thead>
@@ -822,6 +837,7 @@
                             <th>Fade</th>
                             <th>Buffer</th>
                             <th>Mixer</th>
+                            <th>File Name</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -885,6 +901,9 @@
             const isActive = chain.is_active_in_mixer;
             const mixerDisplay = isActive ? `${mixerRole} ✓` : mixerRole;
 
+            // File name display
+            const fileName = chain.file_name || '-';
+
             return `
                 <tr class="chain-row ${rowClass}">
                     <td class="chain-num">${slotIndex}</td>
@@ -899,6 +918,7 @@
                         </div>
                     </td>
                     <td class="mixer">${mixerDisplay}</td>
+                    <td class="file-name-cell">${fileName}</td>
                 </tr>
             `;
         }

@@ -886,6 +886,12 @@ See entity_definitions.md REQ-DEF-035 for ephemeral passage specification.
 - See [Crossfade Design](SPEC002-crossfade.md) for timing point semantics
 - `passage_guid` parameter is optional and used for song identification features (CurrentSongChanged events)
 
+**Chain Assignment:**
+- **[DBD-LIFECYCLE-060]** All enqueued passages receive decoder-buffer chain assignment
+- Chain assignment follows [SPEC016 DBD-LIFECYCLE-010](SPEC016-decoder_buffer_design.md#lifecycle) allocation rules
+- Ensures uniform handling regardless of enqueue source (API, database restore, queue reorder)
+- Chain assignment makes passage visible in buffer chain monitor and playback pipeline
+
 #### `DELETE /playback/queue/{passage_id}`
 Remove passage from queue by queue entry GUID.
 

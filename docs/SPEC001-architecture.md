@@ -257,8 +257,12 @@ See [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) for comple
 3. Read `initial_play_state` from settings (default: "playing")
 4. Set playback state according to setting
 5. Read queue from database (ORDER BY play_order)
-6. Read `last_played_passage_id` and `last_played_position` from settings
-7. Determine action:
+6. **Assign decoder-buffer chains to loaded queue entries** (see [SPEC016 DBD-LIFECYCLE-060](SPEC016-decoder_buffer_design.md#lifecycle))
+   - Each loaded queue entry receives chain assignment via same method as API enqueue
+   - Prevents "ghost passages" that appear in queue but not in buffer chain monitor
+   - Chain assignment follows [SPEC016 DBD-LIFECYCLE-010] allocation rules
+7. Read `last_played_passage_id` and `last_played_position` from settings
+8. Determine action:
    - **Queue empty + Playing**: Wait in Playing state (plays immediately when passage enqueued)
      - User-facing state: "playing"
      - Internal audio state: Audio output thread continues but receives silence from empty mixer
@@ -266,7 +270,7 @@ See [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md) for comple
    - **Queue empty + Paused**: Wait silently
    - **Queue has passages + Playing**: Begin playback
    - **Queue has passages + Paused**: Load first passage but don't play
-8. Starting position:
+9. Starting position:
    - If `last_played_passage_id` matches first queue entry AND `last_played_position` > 0: Resume from position
    - Otherwise: Start from passage `start_time_ms`
 

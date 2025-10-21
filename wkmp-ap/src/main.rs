@@ -114,6 +114,12 @@ async fn main() -> Result<()> {
     let engine = Arc::new(PlaybackEngine::new(db_pool.clone(), Arc::clone(&shared_state)).await?);
     info!("Playback engine created");
 
+    // **[DBD-LIFECYCLE-060]** Assign chains to queue entries loaded from database
+    // This ensures database-restored passages receive chain assignments, preventing
+    // "ghost passages" that appear in queue but not in buffer chain monitor
+    engine.assign_chains_to_loaded_queue().await;
+    info!("Chain assignments completed for loaded queue");
+
     // Start playback engine
     engine.start().await?;
     info!("Playback engine started");
