@@ -100,7 +100,7 @@ impl BufferManager {
     ///
     /// **[DBD-BUF-020]** Buffer starts in Empty state
     /// **[DBD-PARAM-070]** Default capacity: 661,941 samples (15.01s @ 44.1kHz)
-    /// **[DBD-PARAM-080]** Default headroom: 441 samples (0.01s @ 44.1kHz)
+    /// **[DBD-PARAM-080]** Default headroom: 4410 samples (0.1s @ 44.1kHz)
     pub async fn allocate_buffer(&self, queue_entry_id: Uuid) -> Arc<Mutex<PlayoutRingBuffer>> {
         let mut buffers = self.buffers.write().await;
 
@@ -112,11 +112,11 @@ impl BufferManager {
 
         // Create new playout ring buffer
         // TODO: Read capacity and headroom from settings database
-        // For now, use defaults from PlayoutRingBuffer (661,941 and 441)
+        // For now, use defaults from PlayoutRingBuffer (661,941 and 4410)
         let hysteresis = *self.resume_hysteresis.read().await;
         let buffer_arc = Arc::new(Mutex::new(PlayoutRingBuffer::new(
             None, // Use default capacity (661,941)
-            None, // Use default headroom (441)
+            None, // Use default headroom (4410)
             Some(hysteresis), // Use configured resume hysteresis
             Some(queue_entry_id),
         )));
@@ -362,11 +362,14 @@ impl BufferManager {
 
     /// Check if decoder can resume (hysteresis check)
     ///
-    /// **[DBD-BUF-050]** Resume when buffer has room for at least 2x headroom (hysteresis)
-    /// - Pause threshold: headroom ≤ 441 samples
-    /// - Resume threshold: headroom ≥ 882 samples (2x headroom)
+    /// **[DBD-BUF-050]** Resume when buffer has room for decoder_resume_hysteresis_samples + headroom
+    /// **[DBD-PARAM-085]** decoder_resume_hysteresis_samples (default: 44100)
+    /// **[DBD-PARAM-080]** playout_ringbuffer_headroom (default: 4410)
+    /// - Pause threshold: free_space ≤ playout_ringbuffer_headroom (4410 samples)
+    /// - Resume threshold: free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom (48510 samples)
+    /// - Hysteresis gap: decoder_resume_hysteresis_samples (44100 samples)
     ///
-    /// This hysteresis prevents rapid pause/resume oscillation.
+    /// Using the sum prevents issues where headroom could be set larger than hysteresis.
     ///
     /// # Arguments
     /// * `queue_entry_id` - Queue entry to check

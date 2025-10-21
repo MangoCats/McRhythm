@@ -630,8 +630,10 @@ impl DecoderPool {
     /// Check if any paused jobs can resume (buffer has space with hysteresis)
     ///
     /// **[DBD-BUF-050]** Hysteresis prevents rapid pause/resume oscillation:
-    /// - Pause at: capacity - headroom (661,500 samples)
-    /// - Resume at: capacity - (headroom * 2) (661,059 samples)
+    /// **[DBD-PARAM-085]** decoder_resume_hysteresis_samples (default: 44100)
+    /// **[DBD-PARAM-080]** playout_ringbuffer_headroom (default: 4410)
+    /// - Pause at: free_space ≤ playout_ringbuffer_headroom (4410 samples)
+    /// - Resume at: free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom (48510 samples)
     fn check_paused_jobs_for_resume(
         state: &Arc<SharedPoolState>,
         buffer_manager: &Arc<BufferManager>,

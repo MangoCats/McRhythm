@@ -185,6 +185,20 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 - **Default value:** 4410 samples
 - **Equivalent:** 0.1 seconds of audio at 44.1kHz
 
+### decoder_resume_hysteresis_samples
+
+**[DBD-PARAM-085]** The hysteresis gap (in stereo samples) between decoder pause and resume thresholds.
+
+- **Default value:** 44100 samples
+- **Equivalent:** 1.0 second of audio at 44.1kHz
+- **Range:** 882-88200 samples (0.02-2.0 seconds)
+- **Purpose:** Provides hysteresis between pause and resume thresholds to prevent rapid oscillation
+- **Behavior:**
+  - Decoder pauses when free_space ≤ playout_ringbuffer_headroom (4410 samples)
+  - Decoder resumes when free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom (48510 samples)
+  - Using the sum ensures proper hysteresis gap even if headroom is increased
+  - Actual gap = decoder_resume_hysteresis_samples (44100 samples = 1.0s)
+
 ### pause_decay_factor
 
 **[DBD-PARAM-090]** When in pause mode, instead of playing samples from the decoder-buffer chain(s), the mixer starts at the last played (stereo) sample values and recursively multiplies them by this pause_decay_factor at every subsequent sample.

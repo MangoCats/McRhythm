@@ -8,7 +8,7 @@
 //! - [DBD-BUF-050] Decoder pauses when buffer has ≤ headroom samples free
 //! - [DBD-BUF-060] Buffer signals completion when last sample removed
 //! - [DBD-PARAM-070] Default capacity: 661,941 samples (15.01s @ 44.1kHz)
-//! - [DBD-PARAM-080] Default headroom: 441 samples (0.01s @ 44.1kHz)
+//! - [DBD-PARAM-080] Default headroom: 4410 samples (0.1s @ 44.1kHz)
 //! - [CO-104] Requirement traceability in code comments
 //!
 //! This module provides a lock-free ring buffer for per-chain audio playout.
@@ -47,8 +47,8 @@ use uuid::Uuid;
 const DEFAULT_CAPACITY: usize = 661_941;
 
 /// Default headroom in stereo frames
-/// **[DBD-PARAM-080]** 441 samples = 0.01 seconds @ 44.1kHz
-const DEFAULT_HEADROOM: usize = 441;
+/// **[DBD-PARAM-080]** 4410 samples = 0.1 seconds @ 44.1kHz
+const DEFAULT_HEADROOM: usize = 4410;
 
 /// Error returned when attempting to push to a full buffer
 #[derive(Debug, Error)]
@@ -144,7 +144,7 @@ impl PlayoutRingBuffer {
     ///
     /// # Arguments
     /// * `capacity` - Buffer capacity in stereo frames (default: 661,941)
-    /// * `headroom` - Headroom threshold in frames (default: 441)
+    /// * `headroom` - Headroom threshold in frames (default: 4410)
     /// * `resume_hysteresis` - Resume threshold in frames (default: 44,100)
     /// * `passage_id` - Optional passage UUID this buffer is assigned to
     ///
@@ -390,7 +390,8 @@ impl PlayoutRingBuffer {
 
     /// Check if decoder can resume (hysteresis check)
     ///
-    /// **[DBD-BUF-050]** Decoder resumes when free space >= resume_hysteresis
+    /// **[DBD-BUF-050]** Decoder resumes when free space >= resume_hysteresis + headroom
+    /// **[DBD-PARAM-085]** Using the sum prevents issues where headroom > hysteresis
     ///
     /// # Returns
     /// * `true` - Buffer has enough free space to resume decoding
@@ -398,7 +399,7 @@ impl PlayoutRingBuffer {
     pub fn can_decoder_resume(&self) -> bool {
         let occupied = self.fill_level.load(Ordering::Acquire);
         let free_space = self.capacity.saturating_sub(occupied);
-        free_space >= self.resume_hysteresis
+        free_space >= self.resume_hysteresis.saturating_add(self.headroom)
     }
 
     /// Reset buffer to empty state (for reuse)
@@ -759,8 +760,8 @@ mod tests {
         // **[DBD-PARAM-070]** Default capacity: 661,941 samples = 15.01s @ 44.1kHz
         assert_eq!(buffer.capacity(), 661_941);
 
-        // **[DBD-PARAM-080]** Default headroom: 441 samples = 0.01s @ 44.1kHz
-        assert_eq!(buffer.headroom(), 441);
+        // **[DBD-PARAM-080]** Default headroom: 4410 samples = 0.1s @ 44.1kHz
+        assert_eq!(buffer.headroom(), 4410);
 
         // Verify duration calculation
         let duration_sec = buffer.capacity() as f64 / 44100.0;
@@ -852,15 +853,15 @@ mod tests {
     fn test_large_buffer_fill_drain_cycle() {
         let mut buffer = PlayoutRingBuffer::new(None, None, None, None); // Use defaults (661,941 frames)
 
-        // Fill to pause threshold (capacity - headroom = 661,500 frames)
-        // With default headroom of 441, this is 99.93% full
+        // Fill to pause threshold (capacity - headroom = 657,531 frames)
+        // With default headroom of 4410, this is 99.33% full
         let pause_threshold = buffer.capacity() - buffer.headroom();
         for i in 0..pause_threshold {
             let frame = AudioFrame::from_stereo((i % 1000) as f32, (i % 1000) as f32);
             buffer.push_frame(frame).unwrap();
         }
 
-        assert!(buffer.fill_percent() > 99.9);
+        assert!(buffer.fill_percent() > 99.3);
         assert!(buffer.should_decoder_pause());
 
         // Drain completely (mimics mixer playback)

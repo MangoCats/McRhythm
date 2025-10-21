@@ -281,11 +281,13 @@ pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) 
 
 /// Get decoder resume hysteresis in samples
 ///
-/// **[DBD-BUF-050]** Configurable hysteresis prevents decoder pause/resume oscillation
+/// **[DBD-PARAM-085]** Configurable hysteresis gap prevents decoder pause/resume oscillation
+/// **[DBD-BUF-050]** Resume when free_space >= decoder_resume_hysteresis_samples + playout_ringbuffer_headroom
 ///
-/// This value determines how many samples of free space must be available before
-/// resuming a paused decoder. The decoder pauses when free_space <= headroom (441 samples),
-/// and resumes when free_space >= hysteresis.
+/// This value determines the hysteresis gap between pause and resume thresholds.
+/// The decoder pauses when free_space <= playout_ringbuffer_headroom (default: 4410 samples),
+/// and resumes when free_space >= hysteresis + headroom (default: 44100 + 4410 = 48510 samples).
+/// Using the sum prevents issues where headroom is inadvertently set larger than hysteresis.
 ///
 /// # Returns
 /// Hysteresis threshold in samples (frames)
