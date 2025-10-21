@@ -654,6 +654,323 @@ impl SimpleDecoder {
     }
 }
 
+/// Streaming audio decoder supporting incremental chunk-based decoding.
+///
+/// **[DBD-DEC-090]** Implements streaming/incremental operation per SPEC016.
+/// **[DBD-DEC-110]** Decodes audio in ~1 second chunks to minimize latency and enable priority switching.
+/// **[DBD-DEC-130]** Preserves decoder state between chunks for pause/resume support.
+/// **[DBD-DEC-140]** Maintains stateful iterator over compressed audio packets.
+///
+/// # Architecture
+///
+/// Unlike `SimpleDecoder::decode_passage()` which decodes entire files at once,
+/// `StreamingDecoder` processes audio incrementally:
+///
+/// 1. Create decoder: Opens file, initializes format reader and codec
+/// 2. Decode chunk: Returns ~1 second of samples per call
+/// 3. Check status: `is_finished()` indicates when passage complete
+/// 4. Cleanup: Decoder automatically drops when finished
+///
+/// This architecture enables:
+/// - Progressive buffer filling (buffer shows incremental progress 0% → 100%)
+/// - Fast playback start (can begin after first few chunks, ~3 seconds)
+/// - Priority switching (can yield between chunks every ~1 second)
+/// - Memory efficiency (only one chunk in RAM at a time during processing)
+pub struct StreamingDecoder {
+    /// Symphonia format reader (keeps file open)
+    format: Box<dyn symphonia::core::formats::FormatReader>,
+
+    /// Symphonia codec decoder
+    decoder: Box<dyn symphonia::core::codecs::Decoder>,
+
+    /// Track ID being decoded
+    track_id: u32,
+
+    /// Original sample rate (before resampling)
+    sample_rate: u32,
+
+    /// Number of channels (1=mono, 2=stereo, etc.)
+    channels: u16,
+
+    /// Start time in samples (passage start point)
+    start_sample_idx: usize,
+
+    /// End time in samples (passage end point, usize::MAX = file end)
+    end_sample_idx: usize,
+
+    /// Current position in decoded samples (cumulative)
+    current_sample_idx: usize,
+
+    /// Whether decoder has finished (reached end or error)
+    finished: bool,
+
+    /// Passage start time in ticks (for endpoint discovery)
+    start_ticks: i64,
+
+    /// Whether we're decoding to undefined endpoint (for [DBD-DEC-090])
+    undefined_endpoint: bool,
+}
+
+impl StreamingDecoder {
+    /// Create a new streaming decoder for a passage.
+    ///
+    /// **[DBD-DEC-090]** Streaming decoder initialization.
+    ///
+    /// # Arguments
+    /// - `path`: Path to audio file
+    /// - `start_ms`: Passage start time in milliseconds
+    /// - `end_ms`: Passage end time in milliseconds (0 = file end, undefined endpoint)
+    ///
+    /// # Returns
+    /// `StreamingDecoder` ready to produce chunks via `decode_chunk()`
+    pub fn new(path: &PathBuf, start_ms: u64, end_ms: u64) -> Result<Self> {
+        debug!("Creating streaming decoder: {} ({}ms - {}ms)", path.display(), start_ms, end_ms);
+
+        // Open the file
+        let file = std::fs::File::open(path)
+            .map_err(|e| Error::Decode(format!("Failed to open file {}: {}", path.display(), e)))?;
+
+        let mss = MediaSourceStream::new(Box::new(file), Default::default());
+
+        // Create format hint
+        let mut hint = Hint::new();
+        if let Some(extension) = path.extension() {
+            if let Some(ext_str) = extension.to_str() {
+                hint.with_extension(ext_str);
+            }
+        }
+
+        // Probe the file
+        let format_opts = FormatOptions::default();
+        let metadata_opts = MetadataOptions::default();
+
+        let probed = symphonia::default::get_probe()
+            .format(&hint, mss, &format_opts, &metadata_opts)
+            .map_err(|e| Error::Decode(format!("Failed to probe format: {}", e)))?;
+
+        let format = probed.format;
+
+        // Get the default audio track
+        let track = format
+            .tracks()
+            .iter()
+            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+            .ok_or_else(|| Error::Decode("No audio track found".to_string()))?;
+
+        let track_id = track.id;
+        let codec_params = &track.codec_params;
+
+        // Get sample rate and channels
+        let sample_rate = codec_params
+            .sample_rate
+            .ok_or_else(|| Error::Decode("Sample rate not found".to_string()))?;
+
+        let channels = codec_params
+            .channels
+            .map(|c| c.count() as u16)
+            .ok_or_else(|| Error::Decode("Channel count not found".to_string()))?;
+
+        debug!("Streaming decoder format: sample_rate={}, channels={}", sample_rate, channels);
+
+        // Create decoder
+        let decoder_opts = DecoderOptions::default();
+        let decoder = get_codec_registry()
+            .make(&codec_params, &decoder_opts)
+            .map_err(|e| Error::Decode(format!("Failed to create decoder: {}", e)))?;
+
+        // Calculate target sample counts
+        let start_sample_idx = ((start_ms * sample_rate as u64) / 1000) as usize * channels as usize;
+        let undefined_endpoint = end_ms == 0;
+        let end_sample_idx = if undefined_endpoint {
+            usize::MAX // Decode to file end
+        } else {
+            ((end_ms * sample_rate as u64) / 1000) as usize * channels as usize
+        };
+
+        let start_ticks = wkmp_common::timing::ms_to_ticks(start_ms as i64);
+
+        Ok(Self {
+            format,
+            decoder,
+            track_id,
+            sample_rate,
+            channels,
+            start_sample_idx,
+            end_sample_idx,
+            current_sample_idx: 0,
+            finished: false,
+            start_ticks,
+            undefined_endpoint,
+        })
+    }
+
+    /// Decode the next chunk of audio (~1 second or less).
+    ///
+    /// **[DBD-DEC-110]** Chunk-based decoding - processes ~1 second worth of audio per call.
+    ///
+    /// # Arguments
+    /// - `chunk_duration_ms`: Target chunk duration in milliseconds (typically 1000ms)
+    ///
+    /// # Returns
+    /// - `Ok(Some(samples))`: Decoded f32 samples for this chunk (interleaved, trimmed to passage bounds)
+    /// - `Ok(None)`: Decoder finished (end of passage or file reached)
+    /// - `Err(...)`: Decode error
+    ///
+    /// **Note:** Returned samples are already trimmed to passage boundaries and converted to f32.
+    /// Caller must handle resampling and stereo conversion separately.
+    pub fn decode_chunk(&mut self, chunk_duration_ms: u64) -> Result<Option<Vec<f32>>> {
+        if self.finished {
+            return Ok(None);
+        }
+
+        // Calculate target samples for this chunk (in interleaved format)
+        let chunk_samples_target = ((chunk_duration_ms * self.sample_rate as u64) / 1000) as usize * self.channels as usize;
+        let chunk_end_sample = self.current_sample_idx + chunk_samples_target;
+
+        // Don't decode past passage end
+        let actual_chunk_end = chunk_end_sample.min(self.end_sample_idx);
+
+        let mut chunk_samples = Vec::new();
+
+        // Decode packets until we have enough samples for this chunk
+        while self.current_sample_idx < actual_chunk_end && !self.finished {
+            // Read next packet
+            let packet = match self.format.next_packet() {
+                Ok(packet) => packet,
+                Err(symphonia::core::errors::Error::IoError(ref e))
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                {
+                    debug!("Reached end of file at sample {}", self.current_sample_idx);
+                    self.finished = true;
+                    break;
+                }
+                Err(e) => {
+                    warn!("Error reading packet: {}", e);
+                    self.finished = true;
+                    return Err(Error::Decode(format!("Packet read error: {}", e)));
+                }
+            };
+
+            // Skip packets for other tracks
+            if packet.track_id() != self.track_id {
+                continue;
+            }
+
+            // Decode packet
+            match self.decoder.decode(&packet) {
+                Ok(decoded) => {
+                    let before_len = chunk_samples.len();
+                    SimpleDecoder::convert_samples_to_f32(&decoded, &mut chunk_samples);
+                    let decoded_count = chunk_samples.len() - before_len;
+                    self.current_sample_idx += decoded_count;
+
+                    // Stop if we've exceeded passage end
+                    if self.current_sample_idx >= self.end_sample_idx {
+                        debug!("Reached passage end at sample {}", self.current_sample_idx);
+                        self.finished = true;
+                        break;
+                    }
+                }
+                Err(e) => {
+                    warn!("Decode error: {}", e);
+                    continue;
+                }
+            }
+        }
+
+        // If we got no samples, we're done
+        if chunk_samples.is_empty() {
+            self.finished = true;
+            return Ok(None);
+        }
+
+        // Trim chunk to passage boundaries (important for start/end trimming)
+        let chunk_start_trim = if self.current_sample_idx - chunk_samples.len() < self.start_sample_idx {
+            // This chunk includes samples before passage start - trim them
+            let samples_before_start = self.start_sample_idx.saturating_sub(self.current_sample_idx - chunk_samples.len());
+            samples_before_start.min(chunk_samples.len())
+        } else {
+            0
+        };
+
+        let chunk_end_trim = if self.current_sample_idx > self.end_sample_idx {
+            // This chunk includes samples after passage end - trim them
+            self.current_sample_idx - self.end_sample_idx
+        } else {
+            0
+        };
+
+        let trimmed_start = chunk_start_trim;
+        let trimmed_end = chunk_samples.len().saturating_sub(chunk_end_trim);
+
+        if trimmed_start >= trimmed_end {
+            // Entire chunk was outside passage bounds
+            self.finished = true;
+            return Ok(None);
+        }
+
+        let trimmed_chunk = chunk_samples[trimmed_start..trimmed_end].to_vec();
+
+        debug!(
+            "Decoded chunk: {} samples (trimmed from {} to {}), position {}/{}",
+            trimmed_chunk.len(),
+            chunk_samples.len(),
+            trimmed_chunk.len(),
+            self.current_sample_idx,
+            if self.end_sample_idx == usize::MAX { "EOF".to_string() } else { self.end_sample_idx.to_string() }
+        );
+
+        Ok(Some(trimmed_chunk))
+    }
+
+    /// Check if decoder has finished.
+    ///
+    /// **[DBD-DEC-140]** State tracking for pause/resume support.
+    ///
+    /// # Returns
+    /// `true` if decoder has reached end of passage or encountered error
+    pub fn is_finished(&self) -> bool {
+        self.finished
+    }
+
+    /// Get format information.
+    pub fn format_info(&self) -> (u32, u16) {
+        (self.sample_rate, self.channels)
+    }
+
+    /// Calculate actual endpoint for undefined endpoints.
+    ///
+    /// **[DBD-DEC-090][DBD-DEC-095]** Endpoint discovery when end_time_ticks is NULL.
+    ///
+    /// Should only be called after decoder is finished and only if constructed with end_ms=0.
+    ///
+    /// # Returns
+    /// `Some(ticks)` if this was an undefined endpoint decode, `None` otherwise
+    pub fn get_discovered_endpoint(&self) -> Option<i64> {
+        if !self.undefined_endpoint || !self.finished {
+            return None;
+        }
+
+        // Calculate total frames decoded (accounting for trimming to start)
+        let total_decoded_samples = self.current_sample_idx.saturating_sub(self.start_sample_idx);
+        let frame_count = total_decoded_samples / self.channels as usize;
+
+        // Convert frames to ticks
+        let duration_ticks = wkmp_common::timing::samples_to_ticks(frame_count, self.sample_rate);
+        let endpoint_ticks = self.start_ticks + duration_ticks;
+
+        debug!(
+            "Endpoint discovered: start={}ticks, duration={}frames ({}ticks), end={}ticks",
+            self.start_ticks,
+            frame_count,
+            duration_ticks,
+            endpoint_ticks
+        );
+
+        Some(endpoint_ticks)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

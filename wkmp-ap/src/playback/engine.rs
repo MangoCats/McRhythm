@@ -138,6 +138,16 @@ pub struct PlaybackEngine {
     /// **[DBD-LIFECYCLE-030]** Min-heap for lowest-numbered chain allocation
     /// Chains are allocated in ascending order (0, 1, 2, ...) for visual consistency
     available_chains: Arc<RwLock<BinaryHeap<Reverse<usize>>>>,
+
+    /// Buffer chain monitor update rate (milliseconds)
+    /// **[SPEC020-MONITOR-120]** Client-controlled SSE emission rate
+    /// Values: 100 (fast), 1000 (normal), or 0 (manual/disabled)
+    buffer_monitor_rate_ms: Arc<RwLock<u64>>,
+
+    /// Force immediate buffer chain status emission
+    /// **[SPEC020-MONITOR-130]** Manual update trigger
+    /// Set to true to force one immediate emission, then automatically reset
+    buffer_monitor_update_now: Arc<AtomicBool>,
 }
 
 impl PlaybackEngine {
@@ -258,6 +268,8 @@ impl PlaybackEngine {
             maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
             chain_assignments: Arc::new(RwLock::new(HashMap::new())), // [DBD-LIFECYCLE-040] Track passage→chain mapping
             available_chains: Arc::new(RwLock::new(available_chains_heap)), // [DBD-LIFECYCLE-030] Min-heap for lowest-first allocation
+            buffer_monitor_rate_ms: Arc::new(RwLock::new(1000)), // [SPEC020-MONITOR-120] Default 1000ms update rate
+            buffer_monitor_update_now: Arc::new(AtomicBool::new(false)), // [SPEC020-MONITOR-130] Manual update trigger
         })
     }
 
@@ -342,7 +354,7 @@ impl PlaybackEngine {
             self_clone.playback_position_emitter().await;
         });
 
-        // Start BufferChainStatus emission task (every 1s, only when changed)
+        // Start BufferChainStatus emission task with client-controlled rate
         let self_clone = self.clone_handles();
         tokio::spawn(async move {
             self_clone.buffer_chain_status_emitter().await;
@@ -1084,6 +1096,7 @@ impl PlaybackEngine {
                     buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
                     buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
                     buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
+                    total_decoded_frames: buffer_info.as_ref().map(|b| b.total_decoded_frames).unwrap_or(0),
 
                     // Mixer stage
                     playback_position_frames,
@@ -2163,6 +2176,8 @@ impl PlaybackEngine {
             maximum_decode_streams: self.maximum_decode_streams, // [DBD-PARAM-050] Copy decode stream limit
             chain_assignments: Arc::clone(&self.chain_assignments), // [DBD-LIFECYCLE-040] Clone chain assignment tracking
             available_chains: Arc::clone(&self.available_chains), // [DBD-LIFECYCLE-030] Clone available chains pool
+            buffer_monitor_rate_ms: Arc::clone(&self.buffer_monitor_rate_ms), // [SPEC020-MONITOR-120] Clone monitor rate
+            buffer_monitor_update_now: Arc::clone(&self.buffer_monitor_update_now), // [SPEC020-MONITOR-130] Clone update trigger
         }
     }
 
@@ -2430,17 +2445,26 @@ impl PlaybackEngine {
         }
     }
 
-    /// Background task: Emit BufferChainStatus events every 1 second
+    /// Background task: Emit BufferChainStatus events at client-controlled rate
     ///
-    /// Tracks decoder-resampler-fade-buffer chain states for developer UI monitoring.
-    /// Emits unconditionally every 1 second to ensure real-time buffer fill updates.
+    /// **[SPEC020-MONITOR-120]** Client-controlled SSE emission rate
+    /// **[SPEC020-MONITOR-130]** Manual update trigger support
+    ///
+    /// The emission rate is controlled by `buffer_monitor_rate_ms`:
+    /// - 100: Fast updates (10Hz) for visualizing rapid buffer filling
+    /// - 1000: Normal updates (1Hz) for typical monitoring
+    /// - 0: Manual mode (no automatic updates, only on update_now trigger)
+    ///
+    /// The `buffer_monitor_update_now` flag forces immediate emission regardless of mode.
     async fn buffer_chain_status_emitter(&self) {
         use tokio::time::interval;
         use std::time::Duration;
 
-        info!("BufferChainStatus emitter started");
+        info!("BufferChainStatus emitter started (client-controlled rate)");
 
-        let mut tick = interval(Duration::from_secs(1));
+        let mut tick = interval(Duration::from_millis(10)); // Fast poll internal state (10ms)
+        let mut last_emission = std::time::Instant::now();
+        let mut last_chains: Option<Vec<wkmp_common::events::BufferChainInfo>> = None;
 
         loop {
             tick.tick().await;
@@ -2451,16 +2475,76 @@ impl PlaybackEngine {
                 break;
             }
 
-            // Get current buffer chain status
-            let chains = self.get_buffer_chains().await;
+            // Check current update rate
+            let rate_ms = *self.buffer_monitor_rate_ms.read().await;
+            let update_now = self.buffer_monitor_update_now.swap(false, Ordering::Relaxed);
 
-            // Always emit BufferChainStatus event every 1 second
-            // Ensures real-time updates of buffer fill percentages and playback state
-            self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferChainStatus {
-                timestamp: chrono::Utc::now(),
-                chains,
-            });
+            // Determine if we should emit
+            let should_emit = if update_now {
+                // Manual "update now" trigger
+                true
+            } else if rate_ms == 0 {
+                // Manual mode - no automatic updates
+                false
+            } else {
+                // Automatic mode - check if interval has elapsed
+                last_emission.elapsed().as_millis() >= rate_ms as u128
+            };
+
+            if should_emit {
+                // Get current buffer chain status
+                let chains = self.get_buffer_chains().await;
+
+                // Only emit if data has changed (or forced update_now)
+                let chains_changed = update_now || match &last_chains {
+                    None => true, // First iteration - always emit
+                    Some(prev) => {
+                        // Compare key fields that indicate meaningful changes
+                        prev.len() != chains.len() ||
+                        prev.iter().zip(chains.iter()).any(|(p, c)| {
+                            p.queue_position != c.queue_position ||
+                            p.buffer_state != c.buffer_state ||
+                            p.buffer_fill_percent != c.buffer_fill_percent ||
+                            p.total_decoded_frames != c.total_decoded_frames ||
+                            p.mixer_role != c.mixer_role ||
+                            p.is_active_in_mixer != c.is_active_in_mixer ||
+                            p.fade_stage != c.fade_stage ||
+                            p.playback_position_ms != c.playback_position_ms
+                        })
+                    }
+                };
+
+                if chains_changed {
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferChainStatus {
+                        timestamp: chrono::Utc::now(),
+                        chains: chains.clone(),
+                    });
+                    last_chains = Some(chains);
+                    last_emission = std::time::Instant::now();
+                }
+            }
         }
+    }
+
+    /// Set buffer chain monitor update rate
+    ///
+    /// **[SPEC020-MONITOR-120]** Client-controlled SSE emission rate
+    ///
+    /// # Arguments
+    /// * `rate_ms` - Update interval in milliseconds (100, 1000, or 0 for manual)
+    pub async fn set_buffer_monitor_rate(&self, rate_ms: u64) {
+        *self.buffer_monitor_rate_ms.write().await = rate_ms;
+        info!("Buffer monitor rate set to: {}ms", rate_ms);
+    }
+
+    /// Trigger immediate buffer chain status update
+    ///
+    /// **[SPEC020-MONITOR-130]** Manual update trigger
+    ///
+    /// Forces one immediate BufferChainStatus SSE emission, regardless of current mode.
+    pub fn trigger_buffer_monitor_update(&self) {
+        self.buffer_monitor_update_now.store(true, Ordering::Relaxed);
+        debug!("Buffer monitor update now triggered");
     }
 
     /// Background task: Emit PlaybackPosition events every 1 second

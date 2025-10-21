@@ -920,6 +920,45 @@ pub async fn get_build_info() -> Json<BuildInfoResponse> {
 }
 
 // ============================================================================
+// Buffer Chain Monitor Control
+// ============================================================================
+
+/// POST /playback/buffer_monitor/rate - Set buffer chain monitor update rate
+///
+/// **[SPEC020-MONITOR-120]** Client-controlled SSE emission rate
+///
+/// Sets the rate at which BufferChainStatus SSE events are emitted:
+/// - `rate_ms: 100` - Fast updates (10Hz) for visualizing rapid buffer filling
+/// - `rate_ms: 1000` - Normal updates (1Hz) for typical monitoring
+/// - `rate_ms: 0` - Manual mode (no automatic updates, only on explicit trigger)
+pub async fn set_buffer_monitor_rate(
+    State(ctx): State<AppContext>,
+    Json(payload): Json<SetBufferMonitorRateRequest>,
+) -> StatusCode {
+    ctx.engine.set_buffer_monitor_rate(payload.rate_ms).await;
+    StatusCode::OK
+}
+
+/// POST /playback/buffer_monitor/update - Trigger immediate buffer chain status update
+///
+/// **[SPEC020-MONITOR-130]** Manual update trigger
+///
+/// Forces one immediate BufferChainStatus SSE emission, regardless of current mode.
+/// Useful in manual mode or for forcing an update between automatic intervals.
+pub async fn trigger_buffer_monitor_update(
+    State(ctx): State<AppContext>,
+) -> StatusCode {
+    ctx.engine.trigger_buffer_monitor_update();
+    StatusCode::OK
+}
+
+#[derive(serde::Deserialize)]
+pub struct SetBufferMonitorRateRequest {
+    /// Update interval in milliseconds (100, 1000, or 0 for manual)
+    pub rate_ms: u64,
+}
+
+// ============================================================================
 // Developer UI
 // ============================================================================
 

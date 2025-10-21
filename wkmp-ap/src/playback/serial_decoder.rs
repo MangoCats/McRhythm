@@ -11,7 +11,7 @@
 //! - [DBD-FADE-030] Pre-buffer fade-in application
 //! - [DBD-FADE-050] Pre-buffer fade-out application
 
-use crate::audio::decoder::SimpleDecoder;
+use crate::audio::decoder::StreamingDecoder;
 use crate::audio::resampler::Resampler;
 use crate::db::passages::PassageWithTiming;
 use crate::error::{Error, Result};
@@ -276,8 +276,11 @@ impl SerialDecoder {
 
     /// Decode passage with serial execution and priority yields
     ///
+    /// **[DBD-DEC-090]** Streaming/incremental decoder operation with ~1 second chunks
+    /// **[DBD-DEC-100]** All-at-once decoding prohibited
+    /// **[DBD-DEC-110]** Chunk-based decoding process (decode → resample → append loop)
     /// [DBD-DEC-060] Decode-and-skip: Uses timing module to convert ticks → milliseconds for decoder
-    /// [DBD-DEC-070] Yields every DECODE_CHUNK_SIZE samples to check priority queue
+    /// [DBD-DEC-070] Yields between chunks to check priority queue
     /// [DBD-DEC-080] Sample-accurate positioning using tick-based timing
     /// [DBD-FADE-030] Pre-buffer fade-in application
     /// [DBD-FADE-050] Pre-buffer fade-out application
@@ -313,19 +316,167 @@ impl SerialDecoder {
             filename, start_time_ms, end_time_ms, request.full_decode
         );
 
-        // **[DBD-DEC-060]** Decode-and-skip: Decoder uses internal seek tables
-        // **[DBD-DEC-090]** Endpoint discovery: When end_ms=0, decoder returns actual_end_ticks
+        // **[DBD-DEC-090]** Create streaming decoder for incremental operation
         let decode_start = Instant::now();
-        let decode_result = SimpleDecoder::decode_passage(&passage.file_path, start_time_ms, end_time_ms)?;
+        let mut streaming_decoder = StreamingDecoder::new(
+            &passage.file_path,
+            start_time_ms,
+            end_time_ms
+        )?;
+
+        let (source_sample_rate, source_channels) = streaming_decoder.format_info();
+        let chunk_duration_ms = 1000; // **[DBD-DEC-110]** 1 second chunks per spec
+
+        debug!(
+            "Streaming decoder initialized: {}Hz, {}ch, chunk_duration={}ms",
+            source_sample_rate, source_channels, chunk_duration_ms
+        );
+
+        let mut total_frames_appended = 0;
+        let mut chunk_count = 0;
+        let expected_duration_ms = if end_time_ms > 0 {
+            end_time_ms.saturating_sub(start_time_ms)
+        } else {
+            0 // Unknown duration (full file decode)
+        };
+
+        // **[DBD-DEC-110]** Decode in chunks: decode → resample → stereo-convert → append loop
+        while !streaming_decoder.is_finished() {
+            // **[DBD-DEC-070]** Check priority queue between chunks
+            if Self::should_yield_to_higher_priority(state, request.priority) {
+                warn!(
+                    "Serial decoder yielding to higher priority (chunk {}, {}ms decoded)",
+                    chunk_count,
+                    chunk_count * chunk_duration_ms
+                );
+                // TODO: Save streaming_decoder state for resume (future enhancement)
+                // For now, decoder will restart from beginning if resumed
+                return Ok(());
+            }
+
+            // **[DBD-DEC-110] Step 1:** Decode next chunk (~1 second of audio)
+            let chunk_samples = match streaming_decoder.decode_chunk(chunk_duration_ms)? {
+                Some(samples) => samples,
+                None => {
+                    debug!("Streaming decoder finished (chunk {})", chunk_count);
+                    break;
+                }
+            };
+
+            if chunk_samples.is_empty() {
+                debug!("Empty chunk returned (chunk {}), finishing", chunk_count);
+                break;
+            }
+
+            // **[DBD-DEC-110] Step 2:** Resample chunk if needed
+            // [DBD-PARAM-020] Resample to 44.1kHz using rubato
+            let resampled_chunk = if source_sample_rate != STANDARD_SAMPLE_RATE {
+                Resampler::resample(&chunk_samples, source_sample_rate, source_channels)?
+            } else {
+                chunk_samples
+            };
+
+            // **[DBD-DEC-110] Step 3:** Convert to stereo
+            let stereo_chunk = if source_channels == 1 {
+                // Duplicate mono to both channels
+                let mut stereo = Vec::with_capacity(resampled_chunk.len() * 2);
+                for sample in resampled_chunk {
+                    stereo.push(sample);
+                    stereo.push(sample);
+                }
+                stereo
+            } else if source_channels == 2 {
+                resampled_chunk
+            } else {
+                // Downmix multi-channel to stereo (simple average)
+                Self::downmix_to_stereo(&resampled_chunk, source_channels)
+            };
+
+            // **[DBD-DEC-110] Step 4:** Append chunk to buffer
+            // TODO: Apply fades to chunk (only if chunk intersects fade regions)
+            // For now, fades will be applied in mixer (less optimal but functional)
+
+            // **[DBD-BUF-050]** Push chunk with pause/resume backpressure
+            let mut chunk_offset = 0;
+            while chunk_offset < stereo_chunk.len() {
+                let remaining = &stereo_chunk[chunk_offset..];
+
+                let frames_pushed = rt_handle.block_on(async {
+                    match buffer_manager.push_samples(queue_entry_id, remaining).await {
+                        Ok(count) => count,
+                        Err(e) => {
+                            warn!("Failed to push samples: {}", e);
+                            0
+                        }
+                    }
+                });
+
+                if frames_pushed == 0 {
+                    // Buffer full, wait briefly
+                    debug!("Ring buffer full at chunk {}, waiting for space...", chunk_count);
+                    rt_handle.block_on(async {
+                        let mut wait_count = 0;
+                        loop {
+                            if let Some(can_resume) = buffer_manager.can_decoder_resume(queue_entry_id).await {
+                                if can_resume {
+                                    debug!("Buffer has space ({} waits), resuming decode", wait_count);
+                                    break;
+                                }
+                            }
+                            // **[DBD-PARAM-070]** 10ms poll interval for resume check
+                            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            wait_count += 1;
+
+                            if wait_count % 100 == 0 {
+                                debug!("Still waiting for buffer space ({} x 10ms = {}ms)...", wait_count, wait_count * 10);
+                            }
+                        }
+                    });
+                } else {
+                    chunk_offset += frames_pushed * 2; // Stereo frames
+                    total_frames_appended += frames_pushed;
+                }
+            }
+
+            chunk_count += 1;
+
+            // **[DBD-DEC-110] Step 5:** Update progress
+            if expected_duration_ms > 0 {
+                let decoded_ms = chunk_count * chunk_duration_ms;
+                let progress = ((decoded_ms * 100) / expected_duration_ms).min(100) as u8;
+                if chunk_count % 5 == 0 || progress >= 100 {
+                    rt_handle.block_on(async {
+                        buffer_manager.update_decode_progress(queue_entry_id, progress).await;
+                    });
+                }
+            } else {
+                // Unknown duration, update every 10 chunks
+                if chunk_count % 10 == 0 {
+                    rt_handle.block_on(async {
+                        buffer_manager.update_decode_progress(queue_entry_id, 50).await;
+                    });
+                }
+            }
+
+            // Log progress periodically
+            if chunk_count % 10 == 0 {
+                debug!(
+                    "Streaming decode progress: chunk {}, {}ms decoded, {} frames appended",
+                    chunk_count,
+                    chunk_count * chunk_duration_ms,
+                    total_frames_appended
+                );
+            }
+        }
 
         let decode_elapsed = decode_start.elapsed();
         debug!(
-            "Raw decode completed in {:.2}ms: {} samples @ {}Hz {}ch",
-            decode_elapsed.as_millis(), decode_result.samples.len(), decode_result.sample_rate, decode_result.channels
+            "Streaming decode completed in {:.2}s: {} chunks, {} frames @ {}Hz stereo",
+            decode_elapsed.as_secs_f64(), chunk_count, total_frames_appended, STANDARD_SAMPLE_RATE
         );
 
-        // **[DBD-DEC-095]** Notify buffer manager of discovered endpoint
-        if let Some(actual_end_ticks) = decode_result.actual_end_ticks {
+        // **[DBD-DEC-095]** Handle endpoint discovery
+        if let Some(actual_end_ticks) = streaming_decoder.get_discovered_endpoint() {
             debug!(
                 "Endpoint discovered for {}: {}ticks ({}ms)",
                 queue_entry_id,
@@ -340,199 +491,43 @@ impl SerialDecoder {
             });
         }
 
-        // Update progress periodically during decode
+        // Final progress update
         rt_handle.block_on(async {
-            buffer_manager.update_decode_progress(queue_entry_id, 40).await;
+            buffer_manager.update_decode_progress(queue_entry_id, 100).await;
         });
-
-        // Resample to standard rate if needed
-        // [DBD-PARAM-020] Resample to 44.1kHz using rubato
-        let final_samples = if decode_result.sample_rate != STANDARD_SAMPLE_RATE {
-            debug!(
-                "Resampling from {} Hz to {} Hz",
-                decode_result.sample_rate, STANDARD_SAMPLE_RATE
-            );
-
-            let resampled = Resampler::resample(&decode_result.samples, decode_result.sample_rate, decode_result.channels)?;
-
-            rt_handle.block_on(async {
-                buffer_manager.update_decode_progress(queue_entry_id, 60).await;
-            });
-
-            resampled
-        } else {
-            decode_result.samples
-        };
-
-        // Convert to stereo if mono
-        let stereo_samples = if decode_result.channels == 1 {
-            // Duplicate mono to both channels
-            let mut stereo = Vec::with_capacity(final_samples.len() * 2);
-            for sample in final_samples {
-                stereo.push(sample);
-                stereo.push(sample);
-            }
-            stereo
-        } else if decode_result.channels == 2 {
-            final_samples
-        } else {
-            // Downmix multi-channel to stereo (simple average)
-            warn!(
-                "Downmixing {} channels to stereo (simple average)",
-                decode_result.channels
-            );
-            let frame_count = final_samples.len() / decode_result.channels as usize;
-            let mut stereo = Vec::with_capacity(frame_count * 2);
-
-            for frame_idx in 0..frame_count {
-                let base = frame_idx * decode_result.channels as usize;
-                let mut left = 0.0;
-                let mut right = 0.0;
-
-                // Average left channels (odd indices)
-                for ch in (0..decode_result.channels as usize).step_by(2) {
-                    left += final_samples[base + ch];
-                }
-                left /= (decode_result.channels / 2) as f32;
-
-                // Average right channels (even indices)
-                for ch in (1..decode_result.channels as usize).step_by(2) {
-                    right += final_samples[base + ch];
-                }
-                right /= (decode_result.channels / 2) as f32;
-
-                stereo.push(left);
-                stereo.push(right);
-            }
-
-            stereo
-        };
-
-        rt_handle.block_on(async {
-            buffer_manager.update_decode_progress(queue_entry_id, 70).await;
-        });
-
-        // **[DBD-FADE-030]** Apply fade-in curve to samples (pre-buffer)
-        // **[DBD-FADE-050]** Apply fade-out curve to samples (pre-buffer)
-        // **[DBD-FADE-065]** Pass discovered endpoint for fade-out calculation
-        let faded_samples = Self::apply_fades_to_samples(
-            stereo_samples,
-            passage,
-            STANDARD_SAMPLE_RATE,
-            decode_result.actual_end_ticks,
-        );
-
-        rt_handle.block_on(async {
-            buffer_manager.update_decode_progress(queue_entry_id, 80).await;
-        });
-
-        // Append samples in chunks to enable partial buffer playback
-        // [DBD-PARAM-060] Chunk size: 8,192 samples per chunk
-        // [DBD-DEC-070] Yield every chunk to check priority queue
-        // **[DBD-BUF-050]** Pause/resume backpressure when buffer full
-        let total_samples = faded_samples.len();
-        let total_chunks = (total_samples + DECODE_CHUNK_SIZE - 1) / DECODE_CHUNK_SIZE;
-
-        debug!(
-            "Appending {} samples in {} chunks (chunk_size={})",
-            total_samples, total_chunks, DECODE_CHUNK_SIZE
-        );
-
-        let mut chunk_idx = 0;
-        while chunk_idx < total_chunks {
-            // **[DBD-DEC-070]** Check for higher-priority requests before each chunk
-            if Self::should_yield_to_higher_priority(state, request.priority) {
-                warn!(
-                    "Serial decoder yielding: higher priority request available (current={:?})",
-                    request.priority
-                );
-
-                // Re-queue this request and return
-                let mut queue = state.queue.lock().unwrap();
-                queue.push(request.clone());
-                return Ok(());
-            }
-
-            let start = chunk_idx * DECODE_CHUNK_SIZE;
-            let end = (start + DECODE_CHUNK_SIZE).min(total_samples);
-            let chunk = faded_samples[start..end].to_vec();
-
-            // **[DBD-BUF-050]** Push chunk with pause/resume backpressure
-            // Retry pushing remaining samples until entire chunk is written
-            let mut chunk_offset = 0;
-            while chunk_offset < chunk.len() {
-                let remaining_chunk = &chunk[chunk_offset..];
-
-                // Try to push remaining samples
-                let frames_pushed = rt_handle.block_on(async {
-                    match buffer_manager.push_samples(queue_entry_id, remaining_chunk).await {
-                        Ok(count) => count,
-                        Err(e) => {
-                            warn!("Failed to push samples: {}", e);
-                            0
-                        }
-                    }
-                });
-
-                if frames_pushed > 0 {
-                    // Advance offset by samples pushed (frames * 2 samples per frame)
-                    chunk_offset += frames_pushed * 2;
-                }
-
-                // If we didn't push all samples, buffer is full - wait for space
-                if chunk_offset < chunk.len() {
-                    debug!(
-                        "Ring buffer full: pushed {}/{} frames, waiting for space...",
-                        frames_pushed, remaining_chunk.len() / 2
-                    );
-
-                    // **[DBD-BUF-050]** Wait for buffer to have resume space (hysteresis)
-                    rt_handle.block_on(async {
-                        let mut wait_count = 0;
-                        loop {
-                            if let Some(can_resume) = buffer_manager.can_decoder_resume(queue_entry_id).await {
-                                if can_resume {
-                                    debug!("Buffer has space ({} waits), resuming decode", wait_count);
-                                    break;
-                                }
-                            }
-                            // Sleep briefly and check again
-                            // **[DBD-PARAM-070]** 10ms poll interval for resume check
-                            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                            wait_count += 1;
-
-                            // Log periodic status during long waits
-                            if wait_count % 100 == 0 {
-                                debug!("Still waiting for buffer space ({} x 10ms = {}ms)...", wait_count, wait_count * 10);
-                            }
-                        }
-                    });
-                }
-            }
-
-            // Move to next chunk only after current chunk is fully pushed
-            chunk_idx += 1;
-
-            // Update progress
-            let progress = (chunk_idx * 100 / total_chunks).min(100) as u8;
-            if progress % 10 == 0 || progress == 100 {
-                // Update every 10%
-                rt_handle.block_on(async {
-                    buffer_manager.update_decode_progress(queue_entry_id, progress).await;
-                });
-            }
-
-            if chunk_idx % 10 == 0 || chunk_idx == total_chunks {
-                debug!(
-                    "Appended chunk {}/{} ({:.1}%)",
-                    chunk_idx,
-                    total_chunks,
-                    progress as f32
-                );
-            }
-        }
 
         Ok(())
+    }
+
+    /// Downmix multi-channel audio to stereo
+    ///
+    /// Simple averaging algorithm for channels > 2
+    fn downmix_to_stereo(samples: &[f32], channels: u16) -> Vec<f32> {
+        let frame_count = samples.len() / channels as usize;
+        let mut stereo = Vec::with_capacity(frame_count * 2);
+
+        for frame_idx in 0..frame_count {
+            let base = frame_idx * channels as usize;
+            let mut left = 0.0;
+            let mut right = 0.0;
+
+            // Average left channels (even indices: 0, 2, 4...)
+            for ch in (0..channels as usize).step_by(2) {
+                left += samples[base + ch];
+            }
+            left /= ((channels + 1) / 2) as f32; // Round up for odd channels
+
+            // Average right channels (odd indices: 1, 3, 5...)
+            for ch in (1..channels as usize).step_by(2) {
+                right += samples[base + ch];
+            }
+            right /= (channels / 2) as f32; // Round down for odd channels
+
+            stereo.push(left);
+            stereo.push(right);
+        }
+
+        stereo
     }
 
     /// Check if decoder should yield to a higher-priority request

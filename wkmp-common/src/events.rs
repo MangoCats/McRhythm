@@ -162,6 +162,8 @@ pub struct BufferChainInfo {
     pub buffer_fill_percent: f32,
     pub buffer_fill_samples: usize,
     pub buffer_capacity_samples: usize,
+    /// Total frames written to buffer (cumulative, for decode progress tracking)
+    pub total_decoded_frames: usize,
 
     // Mixer stage visibility
     pub playback_position_frames: usize,
@@ -196,6 +198,7 @@ impl BufferChainInfo {
             buffer_fill_percent: 0.0,
             buffer_fill_samples: 0,
             buffer_capacity_samples: 0,
+            total_decoded_frames: 0,
             playback_position_frames: 0,
             playback_position_ms: 0,
             duration_ms: None,
@@ -328,6 +331,7 @@ mod tests {
             buffer_fill_percent: 65.5,
             buffer_fill_samples: 28900,
             buffer_capacity_samples: 44100,
+            total_decoded_frames: 41000,
             playback_position_frames: 12000,
             playback_position_ms: 272,
             duration_ms: Some(180000),
@@ -362,6 +366,7 @@ mod tests {
             buffer_fill_percent: 15.2,
             buffer_fill_samples: 6703,
             buffer_capacity_samples: 44100,
+            total_decoded_frames: 6703,
             playback_position_frames: 0,
             playback_position_ms: 0,
             duration_ms: Some(240000),
@@ -395,6 +400,7 @@ mod tests {
             buffer_fill_percent: 3.1,
             buffer_fill_samples: 1367,
             buffer_capacity_samples: 44100,
+            total_decoded_frames: 1367,
             playback_position_frames: 0,
             playback_position_ms: 0,
             duration_ms: Some(200000),
@@ -477,6 +483,7 @@ mod tests {
             buffer_fill_percent: 65.5,
             buffer_fill_samples: 28900,
             buffer_capacity_samples: 44100,
+            total_decoded_frames: 41000,
             playback_position_frames: 12000,
             playback_position_ms: 272,
             duration_ms: Some(180000),

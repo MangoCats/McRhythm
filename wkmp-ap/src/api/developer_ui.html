@@ -519,7 +519,18 @@
 
             <!-- Buffer Chain Monitor -->
             <div class="panel" style="grid-column: 1 / -1;">
-                <h2>Buffer Chain Monitor</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">
+                    <h2 style="margin: 0;">Buffer Chain Monitor</h2>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="color: #888; font-size: 12px;">Update Rate:</label>
+                        <select id="chain-update-rate" style="width: auto; padding: 4px 8px; font-size: 12px;" onchange="setChainUpdateRate()">
+                            <option value="100">0.1s</option>
+                            <option value="1000" selected>1.0s</option>
+                            <option value="0">Manual</option>
+                        </select>
+                        <button style="width: auto; padding: 4px 12px; font-size: 12px; margin: 0;" onclick="forceChainUpdate()">Update</button>
+                    </div>
+                </div>
                 <div id="buffer-chains" style="font-family: 'Courier New', monospace; font-size: 12px;">
                     <div style="color: #888;">Waiting for buffer chain data...</div>
                 </div>
@@ -752,6 +763,7 @@
 
         function handleBufferChainStatus(data) {
             // Don't add to event log (too noisy)
+            // **[SPEC020-MONITOR-120]** Directly update display from SSE events
             updateBufferChainDisplay(data.chains);
         }
 
@@ -865,26 +877,29 @@
             let queuePosDisplay = 'N/A';
             let rowClass = 'idle';
             if (queuePos === 0) {
-                queuePosDisplay = '0 (Now Playing)';
+                queuePosDisplay = '0';
                 rowClass = 'pos-0';
             } else if (queuePos === 1) {
-                queuePosDisplay = '1 (Up Next)';
+                queuePosDisplay = '1';
                 rowClass = 'pos-1';
             } else if (queuePos !== null && queuePos !== undefined) {
                 queuePosDisplay = queuePos.toString();
                 rowClass = 'pos-queued';
             }
 
-            // **[SPEC020-MONITOR-060]** Decoder status
-            const decoderState = chain.decoder_state || 'Idle';
-            const decodeProgress = chain.decode_progress_percent || 0;
-            const decoderDisplay = isIdle ? 'Idle' : `${decoderState} ${decodeProgress}%`;
+            // **[SPEC020-MONITOR-060]** Decoder status - show decoded audio duration (MM:SS)
+            const totalDecodedFrames = chain.total_decoded_frames || 0;
+            const decodedSeconds = Math.floor(totalDecodedFrames / 44100); // 44.1kHz sample rate
+            const decodedMinutes = Math.floor(decodedSeconds / 60);
+            const decodedSecsRemainder = decodedSeconds % 60;
+            const decoderDisplay = isIdle ? '-' :
+                `${decodedMinutes}:${decodedSecsRemainder.toString().padStart(2, '0')}`;
 
             // **[SPEC020-MONITOR-070]** Resample status
-            const sampleRate = chain.sample_rate || 0;
+            const sampleRate = chain.source_sample_rate || 0;
             const workingSampleRate = 44100; // Default from [DBD-PARAM-030]
             const resampleDisplay = isIdle ? 'N/A' :
-                (sampleRate === workingSampleRate ? 'N/A' : `${sampleRate}→${workingSampleRate} Hz`);
+                (sampleRate === workingSampleRate || sampleRate === 0 ? `N/A ${workingSampleRate} Hz` : `From ${sampleRate} Hz`);
 
             // **[SPEC020-MONITOR-080]** Fade status
             const fadeStage = chain.fade_stage || 'N/A';
@@ -1206,6 +1221,55 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // **[SPEC020-MONITOR-120]** Buffer Chain Update Rate Control Functions
+
+        /**
+         * Set the buffer chain update rate on the server via API
+         * **[SPEC020-MONITOR-120]** Calls POST /playback/buffer_monitor/rate
+         */
+        async function setChainUpdateRate() {
+            const select = document.getElementById('chain-update-rate');
+            const rate_ms = parseInt(select.value);
+
+            try {
+                const response = await fetch(`${API_BASE}/playback/buffer_monitor/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rate_ms })
+                });
+
+                if (response.ok) {
+                    const modeStr = rate_ms === 0 ? 'Manual' : rate_ms === 100 ? '0.1s' : '1.0s';
+                    console.log(`Buffer monitor rate set to: ${modeStr}`);
+                } else {
+                    console.error('Failed to set buffer monitor rate');
+                }
+            } catch (err) {
+                console.error('Failed to set buffer monitor rate:', err);
+            }
+        }
+
+        /**
+         * Force an immediate update of buffer chain display via API
+         * **[SPEC020-MONITOR-130]** Calls POST /playback/buffer_monitor/update
+         */
+        async function forceChainUpdate() {
+            try {
+                const response = await fetch(`${API_BASE}/playback/buffer_monitor/update`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    console.log('Buffer monitor update triggered');
+                } else {
+                    console.error('Failed to trigger buffer monitor update');
+                }
+            } catch (err) {
+                console.error('Failed to trigger buffer monitor update:', err);
+            }
+        }
+
     </script>
 </body>
 </html>

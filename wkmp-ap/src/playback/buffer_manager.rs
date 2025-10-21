@@ -761,6 +761,7 @@ impl BufferManager {
         let capacity = buffer.capacity();
         let occupied = buffer.occupied();
         let fill_percent = buffer.fill_percent();
+        let stats = buffer.stats();
 
         Some(BufferMonitorInfo {
             fill_percent,
@@ -771,6 +772,7 @@ impl BufferManager {
             } else {
                 None
             },
+            total_decoded_frames: stats.total_written as usize,
         })
     }
 
@@ -788,6 +790,7 @@ pub struct BufferMonitorInfo {
     pub samples_buffered: usize,
     pub capacity_samples: usize,
     pub duration_ms: Option<u64>,
+    pub total_decoded_frames: usize,
 }
 
 impl Default for BufferManager {

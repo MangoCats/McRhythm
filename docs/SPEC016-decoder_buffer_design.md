@@ -165,10 +165,11 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 **[DBD-PARAM-060]** The number of wall clock milliseconds between decode job priority evaluation.
 
 - **Default value:** 5000ms
-- **Behavior:** Once every decode_work_period the currently working decoder is paused and the list of pending decode jobs is evaluated to determine the highest priority job and switch to decoding it
-- **Continuation:** If the currently working decoder is still the highest priority job, then it continues
+- **Behavior:** Once every decode_work_period (wall clock time), the currently working decoder pauses **within its decode loop** (between chunks per [DBD-DEC-110]) to check the priority queue. The decoder must support incremental operation such that it can yield between chunks without losing state. If a higher priority job is pending, the current decoder's state is saved and the higher priority decoder is resumed.
+- **Continuation:** If the currently working decoder is still the highest priority job, then it continues processing the next chunk
 - **Completion:** When a decoding job reaches the end of the passage, or receives a buffer full indication from the playout buffer it is filling, it pauses and the next highest priority decoding job is resumed immediately
-- **Purpose:** The decode_work_period serves to allow decodes to continue uninterrupted while still serving the highest priority jobs often enough to ensure their buffers do not run empty
+- **Purpose:** The decode_work_period serves to allow decodes to continue uninterrupted while still serving the highest priority jobs often enough to ensure their buffers do not run empty. This prevents low-priority long-duration decodes (e.g., 30-minute file) from starving high-priority decodes (e.g., "now playing" buffer).
+- **Implementation Note:** Decoders check the priority queue at each chunk boundary (typically every ~1 second of decoded audio). The decode_work_period may cause priority checks to occur less frequently than chunk boundaries if set > 1000ms, but never more frequently.
 
 ### playout_ringbuffer_size
 
@@ -251,6 +252,46 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 **[DBD-DEC-070]** Once the audio data has been decoded, it is "exact sample accurate" repeatable and predictable.
 
 **[DBD-DEC-080]** Timing for passage start, end, fade in, fade out, lead in and lead out is all handled with exact sample accuracy for repeatability and predictability.
+
+#### Incremental Decoding Architecture
+
+**[DBD-DEC-090]** Decoders MUST support streaming/incremental operation to minimize latency and enable cooperative multitasking between priority levels.
+
+**[DBD-DEC-100]** All-at-once decoding (decoding an entire file into memory before writing to buffer) is PROHIBITED. This mode creates:
+- Unacceptable startup delays (10+ seconds for long files)
+- Memory pressure (entire file in RAM simultaneously)
+- Priority inversion (low priority 30-minute decode blocks high priority work)
+- Poor user experience (buffer fill displays 0% then jumps to 99%)
+- Violation of decode_work_period cooperative scheduling requirements
+
+**[DBD-DEC-110]** Chunk-based decoding process - Each decoder processes audio in chunks of approximately **1 second duration** or less:
+
+1. **Decode chunk**: Process ~1 second worth of audio packets from source file
+2. **Resample chunk** (if needed): Convert chunk to standard sample rate (44.1kHz)
+3. **Apply fades to chunk** (if chunk intersects fade regions): Multiply samples by fade curve
+4. **Append chunk to buffer**: Write processed chunk to passage buffer
+5. **Yield point**: Check priority queue and decode_work_period timer
+6. **Priority check**: If higher priority work is pending, save decoder state and yield
+7. **Repeat**: Continue until passage complete or yielded to higher priority
+
+**[DBD-DEC-120]** Chunk duration rationale:
+- **~1 second**: Balances latency vs overhead
+- **Minimum latency**: Buffer fills progressively, playback can start after first few chunks (~3 seconds)
+- **Enables priority switching**: Decoder can yield to higher priority work every ~1 second
+- **Prevents starvation**: "Now playing" decoder not blocked by long background decodes
+- **Smooth monitoring**: Buffer fill percentage updates incrementally as chunks arrive
+
+**[DBD-DEC-130]** Decoder state preservation requirements:
+- When yielding to higher priority work, decoder state MUST be preserved
+- State includes: file position, decoder context, timestamps, buffer write position
+- Resumed decoder continues from exact packet/sample where it paused
+- No re-processing of previously decoded audio when resuming
+
+**[DBD-DEC-140]** Streaming decoder implementation requirements:
+- Decoder maintains stateful iterator over compressed audio packets
+- Each `decode_chunk()` call returns ~1 second of decoded samples
+- Decoder tracks cumulative decode position internally
+- Supports multiple pause/resume cycles without data loss
 
 ### Resampling
 

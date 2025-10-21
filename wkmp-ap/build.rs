@@ -36,7 +36,6 @@ fn main() {
     println!("cargo:rustc-env=BUILD_TIMESTAMP={}", build_timestamp);
     println!("cargo:rustc-env=BUILD_PROFILE={}", profile);
 
-    // Rebuild if git HEAD changes
-    println!("cargo:rerun-if-changed=../.git/HEAD");
-    println!("cargo:rerun-if-changed=../.git/refs/heads");
+    // Force rebuild on every build to update timestamp and git hash
+    // By not specifying any rerun-if-changed directives, Cargo will rerun this script every time
 }
