@@ -9,13 +9,14 @@
 //! - [DBD-BUF-080] Underrun recovery
 //! - [PERF-POLL-010] Event-driven buffer readiness notification
 
-use crate::audio::types::PassageBuffer;
+use crate::audio::types::AudioFrame;
 use crate::playback::buffer_events::{BufferEvent, BufferMetadata, BufferState};
+use crate::playback::playout_ring_buffer::{PlayoutRingBuffer, BufferFullError};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, Mutex, RwLock};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -27,8 +28,9 @@ const BUFFER_HEADROOM_THRESHOLD: usize = 220_500;
 
 /// Wrapper for buffer with state machine metadata
 struct ManagedBuffer {
-    /// The actual passage buffer
-    buffer: Arc<RwLock<PassageBuffer>>,
+    /// The actual playout ring buffer
+    /// **[DBD-BUF-010]** Fixed-capacity ring buffer holds playout_ringbuffer_size stereo samples
+    buffer: Arc<Mutex<PlayoutRingBuffer>>,
 
     /// Buffer state and position metadata
     metadata: BufferMetadata,
@@ -52,6 +54,10 @@ pub struct BufferManager {
     /// **[PERF-START-010]** Configurable minimum buffer for instant startup
     min_buffer_threshold_ms: Arc<RwLock<u64>>,
 
+    /// Resume hysteresis threshold in samples
+    /// **[DBD-BUF-050]** Configurable hysteresis prevents pause/resume oscillation
+    resume_hysteresis: Arc<RwLock<usize>>,
+
     /// Whether any passage has ever been played (for first-passage optimization)
     /// **[PERF-FIRST-010]** Use smaller buffer for first passage only
     ever_played: Arc<AtomicBool>,
@@ -64,6 +70,7 @@ impl BufferManager {
             buffers: Arc::new(RwLock::new(HashMap::new())),
             event_tx: Arc::new(RwLock::new(None)),
             min_buffer_threshold_ms: Arc::new(RwLock::new(3000)), // Default: 3 seconds
+            resume_hysteresis: Arc::new(RwLock::new(44100)), // Default: 1.0 second @ 44.1kHz
             ever_played: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -82,10 +89,19 @@ impl BufferManager {
         *self.min_buffer_threshold_ms.write().await = threshold_ms;
     }
 
+    /// Set decoder resume hysteresis threshold
+    ///
+    /// **[DBD-BUF-050]** Configurable hysteresis prevents pause/resume oscillation
+    pub async fn set_resume_hysteresis(&self, hysteresis_samples: usize) {
+        *self.resume_hysteresis.write().await = hysteresis_samples;
+    }
+
     /// Allocate new buffer (Empty state)
     ///
     /// **[DBD-BUF-020]** Buffer starts in Empty state
-    pub async fn allocate_buffer(&self, queue_entry_id: Uuid) -> Arc<RwLock<PassageBuffer>> {
+    /// **[DBD-PARAM-070]** Default capacity: 661,941 samples (15.01s @ 44.1kHz)
+    /// **[DBD-PARAM-080]** Default headroom: 441 samples (0.01s @ 44.1kHz)
+    pub async fn allocate_buffer(&self, queue_entry_id: Uuid) -> Arc<Mutex<PlayoutRingBuffer>> {
         let mut buffers = self.buffers.write().await;
 
         // Check if buffer already exists
@@ -94,12 +110,15 @@ impl BufferManager {
             return Arc::clone(&managed.buffer);
         }
 
-        // Create new buffer
-        let buffer_arc = Arc::new(RwLock::new(PassageBuffer::new(
-            queue_entry_id,
-            Vec::new(), // Empty initially
-            STANDARD_SAMPLE_RATE,
-            2, // Stereo
+        // Create new playout ring buffer
+        // TODO: Read capacity and headroom from settings database
+        // For now, use defaults from PlayoutRingBuffer (661,941 and 441)
+        let hysteresis = *self.resume_hysteresis.read().await;
+        let buffer_arc = Arc::new(Mutex::new(PlayoutRingBuffer::new(
+            None, // Use default capacity (661,941)
+            None, // Use default headroom (441)
+            Some(hysteresis), // Use configured resume hysteresis
+            Some(queue_entry_id),
         )));
 
         let managed = ManagedBuffer {
@@ -108,7 +127,7 @@ impl BufferManager {
         };
 
         buffers.insert(queue_entry_id, managed);
-        debug!("Allocated new buffer for {} (Empty state)", queue_entry_id);
+        debug!("Allocated new playout ring buffer for {} (Empty state)", queue_entry_id);
 
         buffer_arc
     }
@@ -267,6 +286,137 @@ impl BufferManager {
         threshold_ms as usize * STANDARD_SAMPLE_RATE as usize / 1000
     }
 
+    /// Push samples to ring buffer (decoder writes)
+    ///
+    /// **[DBD-BUF-010]** Pushes samples to playout ring buffer
+    /// Replaces PassageBuffer::append_samples() with ring buffer push operations
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - Queue entry to push samples to
+    /// * `samples` - Interleaved stereo samples [L, R, L, R, ...]
+    ///
+    /// # Returns
+    /// * `Ok(usize)` - Number of frames pushed successfully
+    /// * `Err(String)` - Error if buffer not found or buffer full
+    pub async fn push_samples(&self, queue_entry_id: Uuid, samples: &[f32]) -> Result<usize, String> {
+        // Get managed buffer
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)
+            .ok_or_else(|| format!("Buffer not found: {}", queue_entry_id))?;
+
+        let buffer_arc = Arc::clone(&managed.buffer);
+        drop(buffers); // Release lock before async operation
+
+        // Convert samples to AudioFrame iterator and push to ring buffer
+        let mut buffer = buffer_arc.lock().await;
+        let mut frames_pushed = 0;
+
+        // Iterate over samples in stereo pairs
+        for chunk in samples.chunks_exact(2) {
+            let frame = AudioFrame::from_stereo(chunk[0], chunk[1]);
+
+            match buffer.push_frame(frame) {
+                Ok(()) => {
+                    frames_pushed += 1;
+                }
+                Err(BufferFullError { capacity, occupied }) => {
+                    // Buffer full - decoder should pause
+                    debug!(
+                        "Ring buffer full for {}: pushed {}/{} frames (capacity={}, occupied={})",
+                        queue_entry_id, frames_pushed, samples.len() / 2, capacity, occupied
+                    );
+                    break;
+                }
+            }
+        }
+
+        // Notify samples appended for state machine transitions
+        drop(buffer); // Release lock before state machine update
+        self.notify_samples_appended(queue_entry_id, frames_pushed).await?;
+
+        Ok(frames_pushed)
+    }
+
+    /// Check if decoder should pause (buffer nearly full)
+    ///
+    /// **[DBD-BUF-050]** Returns true when buffer has ≤ headroom free space
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - Queue entry to check
+    ///
+    /// # Returns
+    /// * `Ok(true)` - Decoder should pause
+    /// * `Ok(false)` - Decoder can continue
+    /// * `Err(String)` - Buffer not found
+    pub async fn should_decoder_pause(&self, queue_entry_id: Uuid) -> Result<bool, String> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)
+            .ok_or_else(|| format!("Buffer not found: {}", queue_entry_id))?;
+
+        let buffer_arc = Arc::clone(&managed.buffer);
+        drop(buffers);
+
+        let buffer = buffer_arc.lock().await;
+        Ok(buffer.should_decoder_pause())
+    }
+
+    /// Check if decoder can resume (hysteresis check)
+    ///
+    /// **[DBD-BUF-050]** Resume when buffer has room for at least 2x headroom (hysteresis)
+    /// - Pause threshold: headroom ≤ 441 samples
+    /// - Resume threshold: headroom ≥ 882 samples (2x headroom)
+    ///
+    /// This hysteresis prevents rapid pause/resume oscillation.
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - Queue entry to check
+    ///
+    /// # Returns
+    /// * `Some(true)` - Decoder can resume
+    /// * `Some(false)` - Decoder should stay paused
+    /// * `None` - Buffer not found
+    pub async fn can_decoder_resume(&self, queue_entry_id: Uuid) -> Option<bool> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)?;
+
+        let buffer_arc = Arc::clone(&managed.buffer);
+        drop(buffers);
+
+        let buffer = buffer_arc.lock().await;
+
+        // **[DBD-BUF-050]** Use buffer's configurable hysteresis check
+        Some(buffer.can_decoder_resume())
+    }
+
+    /// Set discovered endpoint for passage with undefined end_time_ticks
+    ///
+    /// **[DBD-DEC-095]** Called by decoder when actual file duration is discovered
+    /// Emits EndpointDiscovered event for downstream processing
+    pub async fn set_discovered_endpoint(&self, queue_entry_id: Uuid, actual_end_ticks: i64) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+
+        let managed = buffers.get_mut(&queue_entry_id)
+            .ok_or_else(|| format!("Buffer not found: {}", queue_entry_id))?;
+
+        // Store discovered endpoint in metadata
+        managed.metadata.discovered_end_ticks = Some(actual_end_ticks);
+
+        debug!(
+            "Endpoint discovered for {}: {}ticks ({}ms)",
+            queue_entry_id,
+            actual_end_ticks,
+            wkmp_common::timing::ticks_to_ms(actual_end_ticks)
+        );
+
+        // Emit event
+        self.emit_event(BufferEvent::EndpointDiscovered {
+            queue_entry_id,
+            actual_end_ticks,
+        }).await;
+
+        Ok(())
+    }
+
     /// Finalize buffer after decode completes
     ///
     /// **[DBD-BUF-060]** Transitions: Filling/Ready/Playing → Finished
@@ -303,12 +453,12 @@ impl BufferManager {
             }).await;
         }
 
-        // Finalize the PassageBuffer (cache duration)
+        // Mark decode complete on the ring buffer
         let buffer = Arc::clone(&managed.buffer);
         drop(buffers); // Release lock before async operation
 
-        let mut buf = buffer.write().await;
-        buf.finalize();
+        let mut buf = buffer.lock().await;
+        buf.mark_decode_complete();
 
         Ok(())
     }
@@ -423,8 +573,8 @@ impl BufferManager {
         }
     }
 
-    /// Get buffer for playback (returns Arc to PassageBuffer)
-    pub async fn get_buffer(&self, queue_entry_id: Uuid) -> Option<Arc<RwLock<PassageBuffer>>> {
+    /// Get buffer for playback (returns Arc to PlayoutRingBuffer)
+    pub async fn get_buffer(&self, queue_entry_id: Uuid) -> Option<Arc<Mutex<PlayoutRingBuffer>>> {
         let buffers = self.buffers.read().await;
         buffers.get(&queue_entry_id).map(|m| Arc::clone(&m.buffer))
     }
@@ -450,9 +600,26 @@ impl BufferManager {
     }
 
     /// Remove buffer (cleanup)
+    ///
+    /// **[DBD-BUF-010]** Clears ring buffer before removal
     pub async fn remove(&self, queue_entry_id: Uuid) -> bool {
         let mut buffers = self.buffers.write().await;
-        buffers.remove(&queue_entry_id).is_some()
+
+        // Get buffer before removing
+        if let Some(managed) = buffers.get(&queue_entry_id) {
+            let buffer_arc = Arc::clone(&managed.buffer);
+
+            // Clear ring buffer
+            let mut buffer = buffer_arc.lock().await;
+            buffer.reset();
+            drop(buffer);
+
+            // Remove from map
+            buffers.remove(&queue_entry_id);
+            true
+        } else {
+            false
+        }
     }
 
     /// Clear all buffers
@@ -466,7 +633,7 @@ impl BufferManager {
     // They map to the new state machine architecture
 
     /// Register decoding (legacy API - maps to allocate_buffer)
-    pub async fn register_decoding(&self, queue_entry_id: Uuid) -> Arc<RwLock<PassageBuffer>> {
+    pub async fn register_decoding(&self, queue_entry_id: Uuid) -> Arc<Mutex<PlayoutRingBuffer>> {
         self.allocate_buffer(queue_entry_id).await
     }
 
@@ -524,10 +691,11 @@ impl BufferManager {
 
     /// Check if buffer has minimum playback buffer available (legacy API)
     pub async fn has_minimum_playback_buffer(&self, queue_entry_id: Uuid, min_duration_ms: u64) -> bool {
-        // Get buffer and check duration
+        // Get buffer and check duration based on occupied frames
         if let Some(buffer_arc) = self.get_buffer(queue_entry_id).await {
-            let buffer = buffer_arc.read().await;
-            let available_ms = buffer.duration_ms();
+            let buffer = buffer_arc.lock().await;
+            let occupied_frames = buffer.occupied();
+            let available_ms = (occupied_frames as u64 * 1000) / STANDARD_SAMPLE_RATE as u64;
             available_ms >= min_duration_ms
         } else {
             false
@@ -541,25 +709,62 @@ impl BufferManager {
             .map(|managed| managed.metadata.created_at.elapsed())
     }
 
+    /// Pop (drain) a frame from ring buffer
+    ///
+    /// **[DBD-BUF-040]** Returns last valid frame if buffer empty
+    pub async fn pop_frame(&self, queue_entry_id: Uuid) -> Option<AudioFrame> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)?;
+
+        let buffer_arc = Arc::clone(&managed.buffer);
+        drop(buffers); // Release lock before async operation
+
+        let mut buffer = buffer_arc.lock().await;
+        // pop_frame returns Result - convert to Option
+        match buffer.pop_frame() {
+            Ok(frame) => Some(frame),
+            Err(err) => {
+                // Buffer empty - return last frame from error
+                Some(err.last_frame)
+            }
+        }
+    }
+
+    /// Check if buffer is exhausted (decode complete AND drained to 0)
+    ///
+    /// **[DBD-BUF-060]** Returns true when passage end reached and all samples consumed
+    pub async fn is_buffer_exhausted(&self, queue_entry_id: Uuid) -> Option<bool> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)?;
+
+        let buffer_arc = Arc::clone(&managed.buffer);
+        drop(buffers);
+
+        let buffer = buffer_arc.lock().await;
+        Some(buffer.is_exhausted())
+    }
+
     /// Get buffer monitoring info for developer UI
+    ///
+    /// **[DBD-BUF-010]** Returns ring buffer fill percentage and capacity
     pub async fn get_buffer_info(&self, queue_entry_id: Uuid) -> Option<BufferMonitorInfo> {
         let buffers = self.buffers.read().await;
         let managed = buffers.get(&queue_entry_id)?;
 
-        let buffer = managed.buffer.read().await;
-        let capacity = buffer.samples.capacity() / 2; // Capacity in frames (stereo)
-        let fill_percent = if capacity > 0 {
-            (buffer.sample_count as f32 / capacity as f32) * 100.0
-        } else {
-            0.0
-        };
+        let buffer_arc = Arc::clone(&managed.buffer);
+        drop(buffers);
+
+        let buffer = buffer_arc.lock().await;
+        let capacity = buffer.capacity();
+        let occupied = buffer.occupied();
+        let fill_percent = buffer.fill_percent();
 
         Some(BufferMonitorInfo {
             fill_percent,
-            samples_buffered: buffer.sample_count,
+            samples_buffered: occupied,
             capacity_samples: capacity,
-            duration_ms: if buffer.sample_count > 0 {
-                Some(buffer.duration_ms())
+            duration_ms: if occupied > 0 {
+                Some((occupied as u64 * 1000) / STANDARD_SAMPLE_RATE as u64)
             } else {
                 None
             },

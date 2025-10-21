@@ -92,6 +92,15 @@ pub enum WkmpEvent {
         timestamp: chrono::DateTime<chrono::Utc>,
         chains: Vec<BufferChainInfo>,
     },
+
+    /// Endpoint discovered during decode
+    /// **[DBD-DEC-095]** Emitted when decoder discovers actual file duration for undefined endpoints
+    /// Sent by decoder → buffer manager when passage has NULL end_time_ticks
+    EndpointDiscovered {
+        queue_entry_id: Uuid,
+        actual_end_ticks: i64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -283,6 +292,7 @@ impl WkmpEvent {
             WkmpEvent::InitialState { ..} => "InitialState",
             WkmpEvent::CrossfadeStarted { .. } => "CrossfadeStarted",
             WkmpEvent::BufferChainStatus { .. } => "BufferChainStatus",
+            WkmpEvent::EndpointDiscovered { .. } => "EndpointDiscovered",
         }
     }
 }

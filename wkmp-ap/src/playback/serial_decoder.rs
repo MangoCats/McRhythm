@@ -236,8 +236,8 @@ impl SerialDecoder {
                         // Get total samples from buffer
                         let total_samples = rt_handle.block_on(async {
                             if let Some(buffer_arc) = buffer_manager.get_buffer(request.queue_entry_id).await {
-                                let buffer = buffer_arc.read().await;
-                                buffer.samples.len()
+                                let buffer = buffer_arc.lock().await;
+                                buffer.occupied()
                             } else {
                                 0
                             }
@@ -314,15 +314,31 @@ impl SerialDecoder {
         );
 
         // **[DBD-DEC-060]** Decode-and-skip: Decoder uses internal seek tables
+        // **[DBD-DEC-090]** Endpoint discovery: When end_ms=0, decoder returns actual_end_ticks
         let decode_start = Instant::now();
-        let (samples, sample_rate, channels) =
-            SimpleDecoder::decode_passage(&passage.file_path, start_time_ms, end_time_ms)?;
+        let decode_result = SimpleDecoder::decode_passage(&passage.file_path, start_time_ms, end_time_ms)?;
 
         let decode_elapsed = decode_start.elapsed();
         debug!(
             "Raw decode completed in {:.2}ms: {} samples @ {}Hz {}ch",
-            decode_elapsed.as_millis(), samples.len(), sample_rate, channels
+            decode_elapsed.as_millis(), decode_result.samples.len(), decode_result.sample_rate, decode_result.channels
         );
+
+        // **[DBD-DEC-095]** Notify buffer manager of discovered endpoint
+        if let Some(actual_end_ticks) = decode_result.actual_end_ticks {
+            debug!(
+                "Endpoint discovered for {}: {}ticks ({}ms)",
+                queue_entry_id,
+                actual_end_ticks,
+                wkmp_common::timing::ticks_to_ms(actual_end_ticks)
+            );
+
+            rt_handle.block_on(async {
+                if let Err(e) = buffer_manager.set_discovered_endpoint(queue_entry_id, actual_end_ticks).await {
+                    warn!("Failed to set discovered endpoint: {}", e);
+                }
+            });
+        }
 
         // Update progress periodically during decode
         rt_handle.block_on(async {
@@ -331,13 +347,13 @@ impl SerialDecoder {
 
         // Resample to standard rate if needed
         // [DBD-PARAM-020] Resample to 44.1kHz using rubato
-        let final_samples = if sample_rate != STANDARD_SAMPLE_RATE {
+        let final_samples = if decode_result.sample_rate != STANDARD_SAMPLE_RATE {
             debug!(
                 "Resampling from {} Hz to {} Hz",
-                sample_rate, STANDARD_SAMPLE_RATE
+                decode_result.sample_rate, STANDARD_SAMPLE_RATE
             );
 
-            let resampled = Resampler::resample(&samples, sample_rate, channels)?;
+            let resampled = Resampler::resample(&decode_result.samples, decode_result.sample_rate, decode_result.channels)?;
 
             rt_handle.block_on(async {
                 buffer_manager.update_decode_progress(queue_entry_id, 60).await;
@@ -345,11 +361,11 @@ impl SerialDecoder {
 
             resampled
         } else {
-            samples
+            decode_result.samples
         };
 
         // Convert to stereo if mono
-        let stereo_samples = if channels == 1 {
+        let stereo_samples = if decode_result.channels == 1 {
             // Duplicate mono to both channels
             let mut stereo = Vec::with_capacity(final_samples.len() * 2);
             for sample in final_samples {
@@ -357,33 +373,33 @@ impl SerialDecoder {
                 stereo.push(sample);
             }
             stereo
-        } else if channels == 2 {
+        } else if decode_result.channels == 2 {
             final_samples
         } else {
             // Downmix multi-channel to stereo (simple average)
             warn!(
                 "Downmixing {} channels to stereo (simple average)",
-                channels
+                decode_result.channels
             );
-            let frame_count = final_samples.len() / channels as usize;
+            let frame_count = final_samples.len() / decode_result.channels as usize;
             let mut stereo = Vec::with_capacity(frame_count * 2);
 
             for frame_idx in 0..frame_count {
-                let base = frame_idx * channels as usize;
+                let base = frame_idx * decode_result.channels as usize;
                 let mut left = 0.0;
                 let mut right = 0.0;
 
                 // Average left channels (odd indices)
-                for ch in (0..channels as usize).step_by(2) {
+                for ch in (0..decode_result.channels as usize).step_by(2) {
                     left += final_samples[base + ch];
                 }
-                left /= (channels / 2) as f32;
+                left /= (decode_result.channels / 2) as f32;
 
                 // Average right channels (even indices)
-                for ch in (1..channels as usize).step_by(2) {
+                for ch in (1..decode_result.channels as usize).step_by(2) {
                     right += final_samples[base + ch];
                 }
-                right /= (channels / 2) as f32;
+                right /= (decode_result.channels / 2) as f32;
 
                 stereo.push(left);
                 stereo.push(right);
@@ -398,21 +414,16 @@ impl SerialDecoder {
 
         // **[DBD-FADE-030]** Apply fade-in curve to samples (pre-buffer)
         // **[DBD-FADE-050]** Apply fade-out curve to samples (pre-buffer)
+        // **[DBD-FADE-065]** Pass discovered endpoint for fade-out calculation
         let faded_samples = Self::apply_fades_to_samples(
             stereo_samples,
             passage,
             STANDARD_SAMPLE_RATE,
+            decode_result.actual_end_ticks,
         );
 
         rt_handle.block_on(async {
             buffer_manager.update_decode_progress(queue_entry_id, 80).await;
-        });
-
-        // Get writable buffer handle
-        let buffer_handle = rt_handle.block_on(async {
-            // Buffer already registered in submit(), just get handle
-            buffer_manager.get_buffer(queue_entry_id).await
-                .expect("Buffer should exist (registered in submit)")
         });
 
         // Append samples in chunks to enable partial buffer playback
@@ -444,18 +455,21 @@ impl SerialDecoder {
             let end = (start + DECODE_CHUNK_SIZE).min(total_samples);
             let chunk = faded_samples[start..end].to_vec();
 
-            // Append chunk to buffer
-            let chunk_len = chunk.len();
+            // Append chunk to buffer using BufferManager API
+            // This automatically triggers state transitions and ReadyForStart events
             rt_handle.block_on(async {
-                let mut buffer = buffer_handle.write().await;
-                buffer.append_samples(chunk);
-            });
-
-            // **[PERF-POLL-010]** Notify buffer manager after appending
-            // This triggers ReadyForStart event when threshold is reached
-            rt_handle.block_on(async {
-                if let Err(e) = buffer_manager.notify_samples_appended(queue_entry_id, chunk_len).await {
-                    warn!("Failed to notify samples appended: {}", e);
+                match buffer_manager.push_samples(queue_entry_id, &chunk).await {
+                    Ok(frames_pushed) => {
+                        if frames_pushed < chunk.len() / 2 {
+                            warn!(
+                                "Partial chunk write: {} of {} frames pushed (buffer full)",
+                                frames_pushed, chunk.len() / 2
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to push samples: {}", e);
+                    }
                 }
             });
 
@@ -504,11 +518,13 @@ impl SerialDecoder {
     ///
     /// [DBD-FADE-030] Pre-buffer fade-in application using passage timing
     /// [DBD-FADE-050] Pre-buffer fade-out application using passage timing
+    /// [DBD-FADE-065] Use discovered endpoint for fade-out when endpoint is undefined
     /// [DBD-DEC-080] Sample-accurate fade timing
     fn apply_fades_to_samples(
         mut samples: Vec<f32>,
         passage: &PassageWithTiming,
         sample_rate: u32,
+        discovered_end_ticks: Option<i64>,
     ) -> Vec<f32> {
         let frame_count = samples.len() / 2; // Stereo: 2 samples per frame
 
@@ -518,7 +534,31 @@ impl SerialDecoder {
         let fade_in_duration_ticks = passage.fade_in_point_ticks.saturating_sub(passage.start_time_ticks);
         let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(fade_in_duration_ticks, sample_rate);
 
-        let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(10000));
+        // **[DBD-FADE-065]** Use discovered endpoint when passage endpoint is undefined
+        // This fixes the issue where fade-out was incorrectly applied at 7 seconds
+        // instead of near the actual file end for undefined endpoint passages.
+        let passage_end_ticks = if let Some(defined_end) = passage.end_time_ticks {
+            // Use user-defined endpoint
+            debug!(
+                "Using defined endpoint: {}ticks ({}ms)",
+                defined_end,
+                wkmp_common::timing::ticks_to_ms(defined_end)
+            );
+            defined_end
+        } else if let Some(discovered_end) = discovered_end_ticks {
+            // Use discovered endpoint from decoder
+            debug!(
+                "Using discovered endpoint for fades: {}ticks ({}ms)",
+                discovered_end,
+                wkmp_common::timing::ticks_to_ms(discovered_end)
+            );
+            discovered_end
+        } else {
+            // Fallback: should never happen in practice because decoder always discovers endpoint
+            warn!("No defined or discovered endpoint available, using 10-second fallback");
+            passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(10000)
+        };
+
         let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
         let passage_duration_samples = wkmp_common::timing::ticks_to_samples(passage_duration_ticks, sample_rate);
 
@@ -528,8 +568,15 @@ impl SerialDecoder {
         let fade_out_duration_samples = passage_duration_samples.saturating_sub(fade_out_start_samples);
 
         debug!(
-            "Applying fades: fade_in={}samples, fade_out_start={}samples, fade_out_duration={}samples, total_frames={}",
-            fade_in_duration_samples, fade_out_start_samples, fade_out_duration_samples, frame_count
+            "Applying fades: fade_in={}samples ({}ms), fade_out_start={}samples ({}ms), fade_out_duration={}samples ({}ms), total_frames={}, passage_duration={}ms",
+            fade_in_duration_samples,
+            wkmp_common::timing::ticks_to_ms(fade_in_duration_ticks),
+            fade_out_start_samples,
+            wkmp_common::timing::ticks_to_ms(fade_out_start_ticks),
+            fade_out_duration_samples,
+            wkmp_common::timing::ticks_to_ms(passage_duration_ticks.saturating_sub(fade_out_start_ticks)),
+            frame_count,
+            wkmp_common::timing::ticks_to_ms(passage_duration_ticks)
         );
 
         // Apply fades frame by frame
@@ -681,8 +728,8 @@ mod tests {
         // Create dummy samples (10 seconds @ 44.1kHz stereo = 882,000 samples)
         let dummy_samples = vec![0.5_f32; 882_000];
 
-        // Apply fades
-        let faded = SerialDecoder::apply_fades_to_samples(dummy_samples, &passage, 44100);
+        // Apply fades (no discovered endpoint needed since passage has defined endpoint)
+        let faded = SerialDecoder::apply_fades_to_samples(dummy_samples, &passage, 44100, None);
 
         // Verify first sample is near zero (fade-in start)
         assert!(faded[0].abs() < 0.05, "First sample should be faded in");
@@ -698,5 +745,66 @@ mod tests {
         let two_second_sample = two_second_frame * 2;
         assert!(faded[two_second_sample] > 0.45 && faded[two_second_sample] < 0.55,
             "Sample at 2s should be near full volume");
+    }
+
+    #[test]
+    fn test_fade_with_discovered_endpoint() {
+        use wkmp_common::timing::ms_to_ticks;
+
+        // **[DBD-FADE-065]** Test that fade-out uses discovered endpoint for undefined passages
+        // This is the critical fix: passages with undefined endpoints should use the discovered
+        // endpoint (actual file duration) instead of the 10-second fallback.
+
+        let passage = PassageWithTiming {
+            passage_id: Some(Uuid::new_v4()),
+            file_path: std::path::PathBuf::from("/test/audio.mp3"),
+            start_time_ticks: 0,
+            end_time_ticks: None,  // Undefined endpoint
+            lead_in_point_ticks: 0,
+            lead_out_point_ticks: None,  // Will use endpoint - 3s
+            fade_in_point_ticks: ms_to_ticks(2000),  // 2 second fade-in
+            fade_out_point_ticks: None,  // Will use lead-out (endpoint - 3s)
+            fade_in_curve: FadeCurve::Linear,
+            fade_out_curve: FadeCurve::Linear,
+        };
+
+        // Create dummy samples for a 30-second file @ 44.1kHz stereo = 2,646,000 samples
+        let dummy_samples = vec![0.5_f32; 2_646_000];
+
+        // Discovered endpoint: 30 seconds (simulating what decoder would discover)
+        let discovered_end = ms_to_ticks(30000);
+
+        // Apply fades with discovered endpoint
+        let faded = SerialDecoder::apply_fades_to_samples(dummy_samples, &passage, 44100, Some(discovered_end));
+
+        // Verify first sample is near zero (fade-in start)
+        assert!(faded[0].abs() < 0.05, "First sample should be faded in");
+
+        // Verify sample at 1 second is partially faded in
+        let one_second_frame = 44100;
+        let one_second_sample = one_second_frame * 2;
+        assert!(faded[one_second_sample] > 0.2 && faded[one_second_sample] < 0.8,
+            "Sample at 1s should be mid-fade");
+
+        // Verify sample at 2 seconds is fully faded in
+        let two_second_frame = 88200;
+        let two_second_sample = two_second_frame * 2;
+        assert!(faded[two_second_sample] > 0.45 && faded[two_second_sample] < 0.55,
+            "Sample at 2s should be near full volume");
+
+        // Verify sample at 15 seconds is still at full volume (not faded out yet)
+        // This is the key test: with the old code, fade-out would start at ~7s (10s - 3s)
+        // With the fix, fade-out should start at ~27s (30s - 3s)
+        let fifteen_second_frame = 661500;  // 15s * 44100
+        let fifteen_second_sample = fifteen_second_frame * 2;
+        assert!(faded[fifteen_second_sample] > 0.45 && faded[fifteen_second_sample] < 0.55,
+            "Sample at 15s should be at full volume (not faded out)");
+
+        // Verify sample at 27 seconds is starting to fade out
+        // Lead-out is at 27s (30s - 3s default), fade-out should be in progress
+        let twentyseven_second_frame = 1_190_700;  // 27s * 44100
+        let twentyseven_second_sample = twentyseven_second_frame * 2;
+        assert!(faded[twentyseven_second_sample] > 0.2 && faded[twentyseven_second_sample] < 0.8,
+            "Sample at 27s should be fading out");
     }
 }

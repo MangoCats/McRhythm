@@ -59,6 +59,10 @@ pub struct BufferMetadata {
     /// Total samples (known after decode complete)
     pub total_samples: Option<usize>,
 
+    /// Discovered endpoint for passages with undefined end_time_ticks
+    /// **[DBD-DEC-095]** Set when decoder discovers actual file duration
+    pub discovered_end_ticks: Option<i64>,
+
     /// When buffer was created
     pub created_at: Instant,
 
@@ -83,6 +87,7 @@ impl BufferMetadata {
             write_position: 0,
             read_position: 0,
             total_samples: None,
+            discovered_end_ticks: None,
             created_at: Instant::now(),
             first_sample_at: None,
             ready_at: None,
@@ -147,6 +152,13 @@ pub enum BufferEvent {
     Finished {
         queue_entry_id: Uuid,
         total_samples: usize,
+    },
+
+    /// Endpoint discovered during decode
+    /// **[DBD-DEC-095]** Emitted when decoder discovers actual file duration for undefined endpoints
+    EndpointDiscovered {
+        queue_entry_id: Uuid,
+        actual_end_ticks: i64,
     },
 }
 

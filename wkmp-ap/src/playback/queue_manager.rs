@@ -38,6 +38,11 @@ pub struct QueueEntry {
     pub fade_out_point_ms: Option<u64>,
     pub fade_in_curve: Option<String>,
     pub fade_out_curve: Option<String>,
+
+    /// Discovered endpoint in ticks (for undefined endpoints)
+    /// **[DBD-BUF-065]** Set when buffer manager discovers actual end of passage
+    /// **[DBD-COMP-015]** Propagated from buffer to queue for crossfade timing
+    pub discovered_end_ticks: Option<i64>,
 }
 
 impl QueueEntry {
@@ -74,6 +79,7 @@ impl QueueEntry {
             fade_out_point_ms,
             fade_in_curve: db_entry.fade_in_curve,
             fade_out_curve: db_entry.fade_out_curve,
+            discovered_end_ticks: None, // **[DBD-BUF-065]** Initialized as None
         })
     }
 }
@@ -263,6 +269,67 @@ impl QueueManager {
     pub fn len(&self) -> usize {
         self.total_count
     }
+
+    /// Set discovered endpoint for a queue entry
+    ///
+    /// **[DBD-BUF-065]** Store discovered endpoint in ticks
+    /// **[DBD-COMP-015]** Enables crossfade timing with undefined endpoints
+    ///
+    /// Returns true if the entry was found and updated.
+    pub fn set_discovered_endpoint(&mut self, queue_entry_id: Uuid, end_ticks: i64) -> bool {
+        // Check current passage
+        if let Some(ref mut current) = self.current {
+            if current.queue_entry_id == queue_entry_id {
+                current.discovered_end_ticks = Some(end_ticks);
+                return true;
+            }
+        }
+
+        // Check next passage
+        if let Some(ref mut next) = self.next {
+            if next.queue_entry_id == queue_entry_id {
+                next.discovered_end_ticks = Some(end_ticks);
+                return true;
+            }
+        }
+
+        // Check queued passages
+        if let Some(entry) = self.queued.iter_mut().find(|e| e.queue_entry_id == queue_entry_id) {
+            entry.discovered_end_ticks = Some(end_ticks);
+            return true;
+        }
+
+        false
+    }
+
+    /// Get effective end ticks for a queue entry
+    ///
+    /// **[DBD-BUF-065]** Returns discovered endpoint if available
+    /// **[DBD-COMP-015]** Falls back to passage end_time_ticks if no discovery
+    ///
+    /// Returns None if entry not found or no endpoint information available.
+    pub fn get_discovered_endpoint(&self, queue_entry_id: Uuid) -> Option<i64> {
+        // Check current passage
+        if let Some(ref current) = self.current {
+            if current.queue_entry_id == queue_entry_id {
+                return current.discovered_end_ticks;
+            }
+        }
+
+        // Check next passage
+        if let Some(ref next) = self.next {
+            if next.queue_entry_id == queue_entry_id {
+                return next.discovered_end_ticks;
+            }
+        }
+
+        // Check queued passages
+        if let Some(entry) = self.queued.iter().find(|e| e.queue_entry_id == queue_entry_id) {
+            return entry.discovered_end_ticks;
+        }
+
+        None
+    }
 }
 
 impl Default for QueueManager {
@@ -289,6 +356,7 @@ mod tests {
             fade_out_point_ms: None,
             fade_in_curve: None,
             fade_out_curve: None,
+            discovered_end_ticks: None,
         }
     }
 

@@ -24,12 +24,12 @@ fn create_test_passage(start_ms: u64, end_ms: u64) -> PassageWithTiming {
     PassageWithTiming {
         passage_id: Some(Uuid::new_v4()),
         file_path: PathBuf::from("/nonexistent/test.mp3"),  // Won't actually decode
-        start_time_ticks: start_ms,
-        end_time_ticks: Some(end_ms),
-        lead_in_point_ticks: start_ms,
-        lead_out_point_ticks: Some(end_ms),
-        fade_in_point_ticks: start_ms,
-        fade_out_point_ticks: Some(end_ms),
+        start_time_ticks: start_ms as i64,
+        end_time_ticks: Some(end_ms as i64),
+        lead_in_point_ticks: start_ms as i64,
+        lead_out_point_ticks: Some(end_ms as i64),
+        fade_in_point_ticks: start_ms as i64,
+        fade_out_point_ticks: Some(end_ms as i64),
         fade_in_curve: FadeCurve::Linear,
         fade_out_curve: FadeCurve::Linear,
     }

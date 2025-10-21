@@ -9,59 +9,82 @@
 //! - [XFD-COMP-030] State consistency during transition
 
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use uuid::Uuid;
-use wkmp_ap::audio::types::PassageBuffer;
+use wkmp_ap::audio::types::AudioFrame;
+use wkmp_ap::playback::buffer_manager::BufferManager;
 use wkmp_ap::playback::pipeline::mixer::CrossfadeMixer;
 use wkmp_common::FadeCurve;
 
-/// Create a test buffer with sine wave samples
+/// Create test mixer with buffer manager configured
+///
+/// **[DBD-BUF-010]** Returns mixer with BufferManager for new API
+async fn create_test_crossfade_mixer() -> (CrossfadeMixer, Arc<BufferManager>) {
+    let buffer_manager = Arc::new(BufferManager::new());
+    let mut mixer = CrossfadeMixer::new();
+    mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+    (mixer, buffer_manager)
+}
+
+/// Populate a test buffer with sine wave samples
 ///
 /// **[PCF-DUR-010][PCF-COMP-010]** Test buffers are finalized (simulates completed decode)
-fn create_test_buffer(passage_id: Uuid, sample_count: usize, amplitude: f32) -> Arc<RwLock<PassageBuffer>> {
-    let mut samples = Vec::with_capacity(sample_count * 2);
-    for i in 0..sample_count {
-        let value = amplitude * (i as f32 * 0.01).sin();
-        samples.push(value); // left
-        samples.push(value); // right
+async fn populate_test_buffer(
+    buffer_manager: &Arc<BufferManager>,
+    passage_id: Uuid,
+    sample_count: usize,
+    amplitude: f32,
+) {
+    // Allocate buffer via BufferManager
+    let buffer_arc = buffer_manager.allocate_buffer(passage_id).await;
+
+    // Push sine wave samples
+    {
+        let mut buffer = buffer_arc.lock().await;
+        for i in 0..sample_count {
+            let value = amplitude * (i as f32 * 0.01).sin();
+            let frame = AudioFrame {
+                left: value,
+                right: value,
+            };
+            let _ = buffer.push_frame(frame);
+        }
+
+        // Mark decode complete
+        buffer.mark_decode_complete();
     }
 
-    let mut buffer = PassageBuffer::new(
-        passage_id,
-        samples,
-        44100,
-        2,
-    );
-
-    // Finalize buffer (test buffers are complete, like a finished decode)
-    buffer.finalize();
-
-    Arc::new(RwLock::new(buffer))
+    // Finalize buffer
+    buffer_manager
+        .finalize_buffer(passage_id, sample_count)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
 async fn test_crossfade_sets_completion_flag() {
     // **[XFD-COMP-010]** Test that crossfade completion sets flag
-    let mut mixer = CrossfadeMixer::new();
+    let (mut mixer, bm) = create_test_crossfade_mixer().await;
     let passage1_id = Uuid::new_v4();
     let passage2_id = Uuid::new_v4();
 
-    // Create test buffers (0.5 seconds each @ 44.1kHz)
-    let buffer1 = create_test_buffer(passage1_id, 22050, 0.5);
-    let buffer2 = create_test_buffer(passage2_id, 22050, 0.5);
+    // Create test buffers (0.5 seconds each @ 44.1kHz = 22050 frames)
+    populate_test_buffer(&bm, passage1_id, 22050, 0.5).await;
+    populate_test_buffer(&bm, passage2_id, 22050, 0.5).await;
 
     // Start passage 1
-    mixer.start_passage(buffer1, passage1_id, None, 0).await;
+    mixer.start_passage(passage1_id, None, 0).await;
 
     // Start crossfade (0.1 seconds = 4410 samples)
-    mixer.start_crossfade(
-        buffer2,
-        passage2_id,
-        FadeCurve::Logarithmic,
-        4410, // 100ms in samples
-        FadeCurve::Logarithmic,
-        4410,
-    ).await.unwrap();
+    mixer
+        .start_crossfade(
+            passage2_id,
+            FadeCurve::Logarithmic,
+            4410, // 100ms in samples
+            FadeCurve::Logarithmic,
+            4410,
+        )
+        .await
+        .unwrap();
 
     // Read frames until crossfade completes (state becomes SinglePassage)
     let mut frames_read = 0;
@@ -70,7 +93,10 @@ async fn test_crossfade_sets_completion_flag() {
         frames_read += 1;
 
         // Safety check to prevent infinite loop
-        assert!(frames_read < 10000, "Crossfade did not complete within expected time");
+        assert!(
+            frames_read < 10000,
+            "Crossfade did not complete within expected time"
+        );
     }
 
     // Call take_crossfade_completed()
@@ -96,25 +122,21 @@ async fn test_crossfade_sets_completion_flag() {
 #[tokio::test]
 async fn test_stop_clears_completion_flag() {
     // **[XFD-COMP-010]** Test that stop() clears completion flag
-    let mut mixer = CrossfadeMixer::new();
+    let (mut mixer, bm) = create_test_crossfade_mixer().await;
     let passage1_id = Uuid::new_v4();
     let passage2_id = Uuid::new_v4();
 
-    let buffer1 = create_test_buffer(passage1_id, 22050, 0.5);
-    let buffer2 = create_test_buffer(passage2_id, 22050, 0.5);
+    populate_test_buffer(&bm, passage1_id, 22050, 0.5).await;
+    populate_test_buffer(&bm, passage2_id, 22050, 0.5).await;
 
     // Start passage 1
-    mixer.start_passage(buffer1, passage1_id, None, 0).await;
+    mixer.start_passage(passage1_id, None, 0).await;
 
     // Start crossfade
-    mixer.start_crossfade(
-        buffer2,
-        passage2_id,
-        FadeCurve::Linear,
-        4410,
-        FadeCurve::Linear,
-        4410,
-    ).await.unwrap();
+    mixer
+        .start_crossfade(passage2_id, FadeCurve::Linear, 4410, FadeCurve::Linear, 4410)
+        .await
+        .unwrap();
 
     // Complete crossfade
     while mixer.is_crossfading() {
@@ -126,15 +148,11 @@ async fn test_stop_clears_completion_flag() {
 
     // Start another crossfade
     let passage3_id = Uuid::new_v4();
-    let buffer3 = create_test_buffer(passage3_id, 22050, 0.5);
-    mixer.start_crossfade(
-        buffer3,
-        passage3_id,
-        FadeCurve::Linear,
-        4410,
-        FadeCurve::Linear,
-        4410,
-    ).await.unwrap();
+    populate_test_buffer(&bm, passage3_id, 22050, 0.5).await;
+    mixer
+        .start_crossfade(passage3_id, FadeCurve::Linear, 4410, FadeCurve::Linear, 4410)
+        .await
+        .unwrap();
 
     // Complete second crossfade
     while mixer.is_crossfading() {
@@ -146,33 +164,25 @@ async fn test_stop_clears_completion_flag() {
 
     // Call take_crossfade_completed()
     let completed = mixer.take_crossfade_completed();
-    assert_eq!(
-        completed,
-        None,
-        "Flag should be cleared by stop()"
-    );
+    assert_eq!(completed, None, "Flag should be cleared by stop()");
 }
 
 #[tokio::test]
 async fn test_crossfade_completion_flag_atomicity() {
     // **[XFD-COMP-010]** Test that flag is consumed atomically (only one consumer gets it)
-    let mut mixer = CrossfadeMixer::new();
+    let (mut mixer, bm) = create_test_crossfade_mixer().await;
     let passage1_id = Uuid::new_v4();
     let passage2_id = Uuid::new_v4();
 
-    let buffer1 = create_test_buffer(passage1_id, 22050, 0.5);
-    let buffer2 = create_test_buffer(passage2_id, 22050, 0.5);
+    populate_test_buffer(&bm, passage1_id, 22050, 0.5).await;
+    populate_test_buffer(&bm, passage2_id, 22050, 0.5).await;
 
     // Start crossfade
-    mixer.start_passage(buffer1, passage1_id, None, 0).await;
-    mixer.start_crossfade(
-        buffer2,
-        passage2_id,
-        FadeCurve::Linear,
-        4410,
-        FadeCurve::Linear,
-        4410,
-    ).await.unwrap();
+    mixer.start_passage(passage1_id, None, 0).await;
+    mixer
+        .start_crossfade(passage2_id, FadeCurve::Linear, 4410, FadeCurve::Linear, 4410)
+        .await
+        .unwrap();
 
     // Complete crossfade
     while mixer.is_crossfading() {
@@ -187,7 +197,8 @@ async fn test_crossfade_completion_flag_atomicity() {
     assert!(
         (result1.is_some() && result2.is_none()) || (result1.is_none() && result2.is_some()),
         "Exactly one call should return Some(id). Got result1={:?}, result2={:?}",
-        result1, result2
+        result1,
+        result2
     );
 
     // The one that succeeded should return passage1_id

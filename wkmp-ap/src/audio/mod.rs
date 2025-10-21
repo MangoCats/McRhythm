@@ -18,4 +18,8 @@ pub mod decoder;
 pub mod resampler;
 pub mod output;
 
-pub use types::AudioFrame;
+// Re-exports for external use (tests, other modules)
+pub use decoder::SimpleDecoder;
+pub use output::AudioOutput;
+pub use resampler::Resampler;
+pub use types::{AudioFrame, PassageBuffer};

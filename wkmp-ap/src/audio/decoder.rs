@@ -18,6 +18,26 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use tracing::{debug, warn};
 
+/// Result from decoding a passage
+///
+/// **[DBD-DEC-090]** Endpoint discovery support for undefined endpoints
+#[derive(Debug, Clone)]
+pub struct DecodeResult {
+    /// Decoded PCM samples (interleaved)
+    pub samples: Vec<f32>,
+
+    /// Original sample rate (before resampling)
+    pub sample_rate: u32,
+
+    /// Number of channels in source (1=mono, 2=stereo, etc.)
+    pub channels: u16,
+
+    /// Actual endpoint discovered when decoding to EOF
+    /// **[DBD-DEC-095]** Set when passage has NULL end_time_ticks
+    /// Contains actual file duration in ticks
+    pub actual_end_ticks: Option<i64>,
+}
+
 // Import Opus adapter to register codec with symphonia
 // [REQ-TECH-022A]: Opus support via libopus C library FFI
 use symphonia::core::codecs::CodecRegistry;
@@ -54,15 +74,17 @@ impl SimpleDecoder {
     /// **[SSD-DEC-011]** Decodes from file start, returns all samples.
     ///
     /// # Returns
+    /// `DecodeResult` containing:
     /// - `samples`: Interleaved stereo f32 samples (converted from source format)
     /// - `sample_rate`: Original sample rate (before resampling)
     /// - `channels`: Number of channels in source (1=mono, 2=stereo, etc.)
+    /// - `actual_end_ticks`: None (not applicable for full file decode)
     ///
     /// # Errors
     /// - Failed to open file
     /// - Unsupported audio format
     /// - Decode error
-    pub fn decode_file(path: &PathBuf) -> Result<(Vec<f32>, u32, u16)> {
+    pub fn decode_file(path: &PathBuf) -> Result<DecodeResult> {
         debug!("Decoding entire file: {}", path.display());
 
         // Open the file
@@ -165,28 +187,39 @@ impl SimpleDecoder {
             samples.len() / channels as usize
         );
 
-        Ok((samples, sample_rate, channels))
+        Ok(DecodeResult {
+            samples,
+            sample_rate,
+            channels,
+            actual_end_ticks: None, // Not applicable for full file decode
+        })
     }
 
     /// Decode passage with start/end time trimming.
     ///
     /// **[SSD-DEC-012]** Decode-and-skip: decode from start, discard before start_time,
     /// stop at end_time.
+    /// **[DBD-DEC-090]** Endpoint discovery: When end_ms=0 (undefined endpoint), returns
+    /// actual_end_ticks calculated from decoded sample count.
     ///
     /// # Arguments
     /// - `path`: Path to audio file
     /// - `start_ms`: Passage start time in milliseconds (0 = file start)
-    /// - `end_ms`: Passage end time in milliseconds (0 = file end)
+    /// - `end_ms`: Passage end time in milliseconds (0 = file end, undefined endpoint)
     ///
     /// # Returns
+    /// `DecodeResult` containing:
     /// - `samples`: Trimmed interleaved stereo f32 samples
     /// - `sample_rate`: Original sample rate (before resampling)
     /// - `channels`: Number of channels in source
+    /// - `actual_end_ticks`: Discovered endpoint when end_ms=0, None otherwise
+    ///
+    /// **[DBD-DEC-095]** Calculates actual_end_ticks = start_ticks + samples_to_ticks(sample_count)
     pub fn decode_passage(
         path: &PathBuf,
         start_ms: u64,
         end_ms: u64,
-    ) -> Result<(Vec<f32>, u32, u16)> {
+    ) -> Result<DecodeResult> {
         debug!(
             "Decoding passage: {} ({}ms - {}ms)",
             path.display(),
@@ -335,7 +368,44 @@ impl SimpleDecoder {
             all_samples.len().saturating_sub(actual_end_sample)
         );
 
-        Ok((passage_samples, sample_rate, channels))
+        // **[DBD-DEC-090][DBD-DEC-095]** Calculate actual_end_ticks for undefined endpoints
+        // When end_ms=0 (undefined endpoint), we decoded to EOF and need to report the
+        // actual duration discovered from the file.
+        let actual_end_ticks = if end_ms == 0 {
+            // Calculate actual endpoint from decoded samples
+            // passage_samples.len() = total interleaved stereo samples
+            // Frame count = samples / 2 (stereo)
+            let frame_count = passage_samples.len() / 2;
+
+            // Convert frames to ticks at source sample rate
+            let duration_ticks = wkmp_common::timing::samples_to_ticks(frame_count, sample_rate);
+
+            // Add to start time to get absolute endpoint
+            let start_ticks = wkmp_common::timing::ms_to_ticks(start_ms as i64);
+            let endpoint_ticks = start_ticks + duration_ticks;
+
+            debug!(
+                "Endpoint discovered: start={}ms ({}ticks), duration={}frames ({}ticks), end={}ticks ({}ms)",
+                start_ms,
+                start_ticks,
+                frame_count,
+                duration_ticks,
+                endpoint_ticks,
+                wkmp_common::timing::ticks_to_ms(endpoint_ticks)
+            );
+
+            Some(endpoint_ticks)
+        } else {
+            // Defined endpoint - no discovery needed
+            None
+        };
+
+        Ok(DecodeResult {
+            samples: passage_samples,
+            sample_rate,
+            channels,
+            actual_end_ticks,
+        })
     }
 
     /// Convert symphonia AudioBufferRef to f32 samples.

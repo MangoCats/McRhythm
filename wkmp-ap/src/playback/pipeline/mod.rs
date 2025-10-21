@@ -7,3 +7,6 @@
 pub mod mixer;
 pub mod timing;
 
+// Re-exports for external use (tests, other modules)
+pub use mixer::CrossfadeMixer;
+

@@ -14,7 +14,8 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 use wkmp_ap::audio::types::{AudioFrame, PassageBuffer};
 use wkmp_ap::playback::buffer_manager::BufferManager;
-use wkmp_ap::playback::decoder_pool::{DecoderPool, DecodeRequest, DecodePriority};
+use wkmp_ap::playback::decoder_pool::{DecoderPool, DecodeRequest};
+use wkmp_ap::playback::types::DecodePriority;
 use wkmp_ap::db::passages::PassageWithTiming;
 use wkmp_common::FadeCurve;
 

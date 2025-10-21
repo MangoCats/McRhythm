@@ -13,7 +13,7 @@ use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, val
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::buffer_events::BufferEvent;
-use crate::playback::decoder_pool::DecoderPool;
+use crate::playback::serial_decoder::SerialDecoder;
 use crate::playback::events::PlaybackEvent;
 use crate::playback::pipeline::mixer::CrossfadeMixer;
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
@@ -80,8 +80,8 @@ pub struct PlaybackEngine {
     /// Buffer manager (manages buffer lifecycle)
     buffer_manager: Arc<BufferManager>,
 
-    /// Decoder pool (multi-threaded decoder)
-    decoder_pool: Arc<RwLock<Option<DecoderPool>>>,
+    /// Serial decoder (single-threaded decoder with priority queue)
+    serial_decoder: Arc<SerialDecoder>,
 
     /// Crossfade mixer (sample-accurate mixing)
     /// [SSD-MIX-010] Mixer component for audio frame generation
@@ -152,13 +152,14 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
             crate::db::settings::load_ring_buffer_grace_period(&db_pool),
             crate::db::settings::load_mixer_thread_config(&db_pool),
             crate::db::settings::load_maximum_decode_streams(&db_pool),
+            crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
         );
         let db_elapsed = db_start.elapsed();
 
@@ -168,6 +169,7 @@ impl PlaybackEngine {
         let _grace_period_ms = grace_period_ms?;  // Loaded in parallel for performance
         let _mixer_config = mixer_config?;  // Loaded in parallel for performance
         let maximum_decode_streams = maximum_decode_streams?;
+        let resume_hysteresis = resume_hysteresis?;
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -188,9 +190,10 @@ impl PlaybackEngine {
         // **[PERF-POLL-010]** Configure buffer manager with event channel and threshold
         buffer_manager.set_event_channel(buffer_event_tx).await;
         buffer_manager.set_min_buffer_threshold(min_buffer_threshold).await;
+        buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
 
-        // Create decoder pool
-        let decoder_pool = DecoderPool::new(Arc::clone(&buffer_manager));
+        // Create serial decoder
+        let serial_decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
 
         // **[REV002]** Create position event channel
         let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
@@ -242,7 +245,7 @@ impl PlaybackEngine {
             state,
             queue: Arc::new(RwLock::new(queue_manager)),
             buffer_manager,
-            decoder_pool: Arc::new(RwLock::new(Some(decoder_pool))),
+            serial_decoder: Arc::new(serial_decoder),
             mixer,
             position: PlaybackPosition::new(), // [ISSUE-8] Direct initialization, Arcs inside
             running: Arc::new(RwLock::new(false)),
@@ -266,30 +269,40 @@ impl PlaybackEngine {
     /// passages that were loaded from database during initialization. Ensures
     /// uniform handling of chain assignment regardless of enqueue source.
     pub async fn assign_chains_to_loaded_queue(&self) {
+        debug!("🔍 assign_chains_to_loaded_queue: START");
         let queue = self.queue.read().await;
+        debug!("🔍 assign_chains_to_loaded_queue: Acquired queue read lock");
 
         // Collect all queue entry IDs
         let mut queue_entry_ids = Vec::new();
         if let Some(current) = queue.current() {
+            debug!("🔍 assign_chains_to_loaded_queue: Found current entry: {}", current.queue_entry_id);
             queue_entry_ids.push(current.queue_entry_id);
         }
         if let Some(next) = queue.next() {
+            debug!("🔍 assign_chains_to_loaded_queue: Found next entry: {}", next.queue_entry_id);
             queue_entry_ids.push(next.queue_entry_id);
         }
         for entry in queue.queued() {
+            debug!("🔍 assign_chains_to_loaded_queue: Found queued entry: {}", entry.queue_entry_id);
             queue_entry_ids.push(entry.queue_entry_id);
         }
         drop(queue);
+        debug!("🔍 assign_chains_to_loaded_queue: Dropped queue lock");
 
         // Save count before moving vector
         let count = queue_entry_ids.len();
+        debug!("🔍 assign_chains_to_loaded_queue: Will assign chains to {} entries", count);
 
         // Assign chains to each entry
-        for queue_entry_id in queue_entry_ids {
-            self.assign_chain(queue_entry_id).await;
+        for (idx, queue_entry_id) in queue_entry_ids.iter().enumerate() {
+            debug!("🔍 assign_chains_to_loaded_queue: Processing entry {}/{}: {}", idx + 1, count, queue_entry_id);
+            self.assign_chain(*queue_entry_id).await;
+            debug!("🔍 assign_chains_to_loaded_queue: Completed entry {}/{}", idx + 1, count);
         }
 
         info!("Assigned chains to {} loaded queue entries", count);
+        debug!("🔍 assign_chains_to_loaded_queue: DONE");
     }
 
     /// Start playback engine background tasks
@@ -551,15 +564,20 @@ impl PlaybackEngine {
         // Mark as not running
         *self.running.write().await = false;
 
-        // Shutdown decoder pool
+        // Shutdown serial decoder
         // [ISSUE-12] Log errors but don't propagate them (continue shutdown)
-        if let Some(decoder_pool) = self.decoder_pool.write().await.take() {
-            if let Err(e) = decoder_pool.shutdown() {
-                error!("Decoder pool shutdown error (continuing anyway): {}", e);
+        // Note: SerialDecoder::shutdown() consumes self, so we need to clone the Arc
+        // and use Arc::try_unwrap to get ownership
+        let serial_decoder_arc = Arc::clone(&self.serial_decoder);
+        if let Ok(decoder) = Arc::try_unwrap(serial_decoder_arc) {
+            if let Err(e) = decoder.shutdown() {
+                error!("Serial decoder shutdown error (continuing anyway): {}", e);
                 // Continue shutdown - don't propagate error
             } else {
-                info!("Decoder pool shut down successfully");
+                info!("Serial decoder shut down successfully");
             }
+        } else {
+            warn!("Serial decoder still has multiple references, skipping shutdown");
         }
 
         info!("Playback engine stopped");
@@ -839,17 +857,18 @@ impl PlaybackEngine {
         }
 
         let buffer = buffer_ref.unwrap();
-        let buf_read = buffer.read().await;
-        let sample_rate = buf_read.sample_rate;
+        let buf_lock = buffer.lock().await;
+        let sample_rate = 44100; // [DBD-BUF-010] Fixed 44.1kHz sample rate
 
         // Convert milliseconds to frames
         let position_frames = ((position_ms as f32 / 1000.0) * sample_rate as f32) as usize;
 
         // Clamp to buffer bounds
-        let max_frames = buf_read.sample_count;
+        let stats = buf_lock.stats();
+        let max_frames = stats.total_written as usize;
         let clamped_position = position_frames.min(max_frames.saturating_sub(1));
 
-        drop(buf_read);
+        drop(buf_lock);
         drop(buffer);
 
         // Update mixer position
@@ -861,11 +880,15 @@ impl PlaybackEngine {
         if let Some(passage_id) = current.passage_id {
             let actual_position_ms = ((clamped_position as f32 / sample_rate as f32) * 1000.0) as u64;
 
-            // Get buffer again to read duration
-            let buffer_ref = self.buffer_manager.get_buffer(current.queue_entry_id).await;
-            if let Some(buffer) = buffer_ref {
-                let buf_read = buffer.read().await;
-                let duration_ms = buf_read.duration_ms();
+            // Get passage timing to calculate duration
+            if let Ok(passage) = self.get_passage_timing(&current).await {
+                let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
+                    end_ticks - passage.start_time_ticks
+                } else {
+                    // If end_time is None, calculate from buffer total_written
+                    wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
+                };
+                let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
 
                 self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
                     passage_id,
@@ -1021,6 +1044,21 @@ impl PlaybackEngine {
                     (0, 0)
                 };
 
+                // **[DBD-BUF-065]** Calculate duration from discovered endpoint if available
+                // **[DBD-COMP-015]** Ensures UI displays accurate duration instead of growing estimate
+                let duration_ms = if let Some(discovered_ticks) = self.queue.read().await.get_discovered_endpoint(entry.queue_entry_id) {
+                    // Use discovered endpoint for duration calculation
+                    let duration = wkmp_common::timing::ticks_to_ms(discovered_ticks) as u64;
+                    debug!(
+                        "Using discovered endpoint for duration display: {} ticks = {} ms",
+                        discovered_ticks, duration
+                    );
+                    Some(duration)
+                } else {
+                    // Fall back to buffer duration (samples buffered)
+                    buffer_info.as_ref().and_then(|b| b.duration_ms)
+                };
+
                 chain_tuples.push((chain_index, BufferChainInfo {
                     slot_index: chain_index, // Use assigned chain_index, not enumerate position
                     queue_entry_id: Some(entry.queue_entry_id),
@@ -1050,7 +1088,7 @@ impl PlaybackEngine {
                     // Mixer stage
                     playback_position_frames,
                     playback_position_ms,
-                    duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
+                    duration_ms,
                     is_active_in_mixer,
                     mixer_role,
                     started_at: None, // TODO: Track start time
@@ -1282,6 +1320,7 @@ impl PlaybackEngine {
             fade_out_point_ms: passage.fade_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t) as u64),
             fade_in_curve: Some(passage.fade_in_curve.to_db_string().to_string()),
             fade_out_curve: Some(passage.fade_out_curve.to_db_string().to_string()),
+            discovered_end_ticks: None, // **[DBD-BUF-065]** Will be set when endpoint discovered
         };
 
         self.queue.write().await.enqueue(entry);
@@ -1301,14 +1340,33 @@ impl PlaybackEngine {
     /// [ISSUE-7] Extracted helper method to reduce complexity
     /// [XFD-IMPL-070] Crossfade timing calculation
     /// [SRC-TICK-020] Uses tick-based passage timing
-    fn calculate_crossfade_start_ms(&self, passage: &PassageWithTiming) -> u64 {
+    /// **[DBD-BUF-065]** Uses discovered endpoint if available
+    /// **[DBD-COMP-015]** Enables crossfade timing with undefined endpoints
+    async fn calculate_crossfade_start_ms(&self, passage: &PassageWithTiming, queue_entry_id: Uuid) -> u64 {
         // Convert fade_out_point from ticks to ms
         if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
             wkmp_common::timing::ticks_to_ms(fade_out_ticks) as u64
         } else {
             // If no explicit fade_out_point, calculate from end
             // Default: start crossfade 5 seconds before end
-            if let Some(end_ticks) = passage.end_time_ticks {
+
+            // **[DBD-BUF-065]** Check for discovered endpoint first
+            let queue = self.queue.read().await;
+            let discovered_end = queue.get_discovered_endpoint(queue_entry_id);
+            drop(queue);
+
+            let end_ticks = if let Some(discovered) = discovered_end {
+                debug!(
+                    "Using discovered endpoint for crossfade calculation: {} ticks ({} ms)",
+                    discovered,
+                    wkmp_common::timing::ticks_to_ms(discovered)
+                );
+                Some(discovered)
+            } else {
+                passage.end_time_ticks
+            };
+
+            if let Some(end_ticks) = end_ticks {
                 let end_ms = wkmp_common::timing::ticks_to_ms(end_ticks) as u64;
                 if end_ms > 5000 {
                     end_ms - 5000
@@ -1419,7 +1477,6 @@ impl PlaybackEngine {
             .write()
             .await
             .start_crossfade(
-                next_buffer,
                 next.queue_entry_id,
                 current_passage.fade_out_curve,
                 fade_out_duration_samples,
@@ -1605,7 +1662,6 @@ impl PlaybackEngine {
 
                         // Start mixer
                         self.mixer.write().await.start_passage(
-                            buffer,
                             current.queue_entry_id,
                             Some(fade_in_curve),
                             fade_in_duration_samples,
@@ -1651,14 +1707,14 @@ impl PlaybackEngine {
                     if current.queue_entry_id == current_id {
                         // Get passage timing and buffer to calculate position
                         if let Ok(passage) = self.get_passage_timing(current).await {
-                            if let Some(buffer_ref) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
+                            if let Some(_buffer_ref) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
                                 // Convert frame position to milliseconds
-                                let buffer = buffer_ref.read().await;
-                                let position_ms = (mixer_position_frames as u64 * 1000) / buffer.sample_rate as u64;
-                                drop(buffer);
+                                // [DBD-BUF-010] Fixed 44.1kHz sample rate
+                                let position_ms = (mixer_position_frames as u64 * 1000) / 44100;
 
                                 // Calculate when crossfade should start
-                                let crossfade_start_ms = self.calculate_crossfade_start_ms(&passage);
+                                // **[DBD-BUF-065]** Pass queue_entry_id to check for discovered endpoint
+                                let crossfade_start_ms = self.calculate_crossfade_start_ms(&passage, current.queue_entry_id).await;
 
                                 // Check if conditions are met for crossfade
                                 if self.should_trigger_crossfade(current_id, position_ms, crossfade_start_ms).await {
@@ -1905,15 +1961,18 @@ impl PlaybackEngine {
         // Get passage timing
         let passage = self.get_passage_timing(entry).await?;
 
-        // Submit to decoder pool (now async - registers buffer immediately)
-        if let Some(decoder_pool) = self.decoder_pool.read().await.as_ref() {
-            decoder_pool.submit(
-                entry.queue_entry_id,
-                passage,
-                priority,
-                full_decode,
-            ).await?;
-        }
+        // Submit to serial decoder (async - registers buffer immediately)
+        self.serial_decoder.submit(
+            entry.queue_entry_id,
+            passage,
+            priority,
+            full_decode,
+        ).await?;
+
+        debug!(
+            "Submitted decode request for queue_entry_id={}, priority={:?}, full={}",
+            entry.queue_entry_id, priority, full_decode
+        );
 
         Ok(())
     }
@@ -1994,29 +2053,44 @@ impl PlaybackEngine {
                     if position_ms >= last_progress_position_ms + progress_interval_ms {
                         last_progress_position_ms = position_ms;
 
-                        // Get duration from buffer
-                        if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
-                            let buffer = buffer_ref.read().await;
-                            let duration_ms = buffer.duration_ms();
+                        // Get passage_id and timing for duration calculation
+                        let queue = self.queue.read().await;
+                        let current = queue.current().cloned();
+                        drop(queue);
 
-                            // Get passage_id for event
-                            let queue = self.queue.read().await;
-                            let passage_id = queue.current()
-                                .and_then(|e| e.passage_id)
-                                .unwrap_or_else(|| uuid::Uuid::nil());
-                            drop(queue);
+                        if let Some(current) = current {
+                            if current.queue_entry_id == queue_entry_id {
+                                // Calculate duration from passage timing
+                                if let Ok(passage) = self.get_passage_timing(&current).await {
+                                    let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
+                                        end_ticks - passage.start_time_ticks
+                                    } else {
+                                        // If end_time is None, estimate from buffer stats
+                                        if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                                            let buffer = buffer_ref.lock().await;
+                                            let stats = buffer.stats();
+                                            wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
+                                        } else {
+                                            0
+                                        }
+                                    };
+                                    let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
 
-                            debug!(
-                                "PlaybackProgress: position={}ms, duration={}ms",
-                                position_ms, duration_ms
-                            );
+                                    let passage_id = current.passage_id.unwrap_or_else(|| uuid::Uuid::nil());
 
-                            self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
-                                passage_id,
-                                position_ms,
-                                duration_ms,
-                                timestamp: chrono::Utc::now(),
-                            });
+                                    debug!(
+                                        "PlaybackProgress: position={}ms, duration={}ms",
+                                        position_ms, duration_ms
+                                    );
+
+                                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
+                                        passage_id,
+                                        position_ms,
+                                        duration_ms,
+                                        timestamp: chrono::Utc::now(),
+                                    });
+                                }
+                            }
                         }
                     }
 
@@ -2024,9 +2098,21 @@ impl PlaybackEngine {
                     let queue = self.queue.read().await;
                     if let Some(current) = queue.current() {
                         if current.queue_entry_id == queue_entry_id {
-                            if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
-                                let buffer = buffer_ref.read().await;
-                                let duration_ms = buffer.duration_ms();
+                            // Calculate duration from passage timing
+                            if let Ok(passage) = self.get_passage_timing(current).await {
+                                let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
+                                    end_ticks - passage.start_time_ticks
+                                } else {
+                                    // If end_time is None, estimate from buffer stats
+                                    if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                                        let buffer = buffer_ref.lock().await;
+                                        let stats = buffer.stats();
+                                        wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
+                                    } else {
+                                        0
+                                    }
+                                };
+                                let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
 
                                 let current_passage = CurrentPassage {
                                     queue_entry_id: current.queue_entry_id,
@@ -2064,7 +2150,7 @@ impl PlaybackEngine {
             state: Arc::clone(&self.state),
             queue: Arc::clone(&self.queue),
             buffer_manager: Arc::clone(&self.buffer_manager),
-            decoder_pool: Arc::clone(&self.decoder_pool),
+            serial_decoder: Arc::clone(&self.serial_decoder),
             mixer: Arc::clone(&self.mixer),
             position: self.position.clone_handles(), // [ISSUE-8] Clone inner Arcs
             running: Arc::clone(&self.running),
@@ -2096,15 +2182,21 @@ impl PlaybackEngine {
     /// * `Some(chain_index)` - The chain index (0..maximum_decode_streams) assigned
     /// * `None` - No chains available (all maximum_decode_streams chains in use)
     async fn assign_chain(&self, queue_entry_id: Uuid) -> Option<usize> {
+        debug!("🔍 assign_chain: START for {}", queue_entry_id);
+        debug!("🔍 assign_chain: Acquiring available_chains write lock...");
         let mut available = self.available_chains.write().await;
+        debug!("🔍 assign_chain: Acquired available_chains write lock, {} chains available", available.len());
         if let Some(Reverse(chain_index)) = available.pop() {
+            debug!("🔍 assign_chain: Popped chain_index {}, acquiring chain_assignments write lock...", chain_index);
             let mut assignments = self.chain_assignments.write().await;
+            debug!("🔍 assign_chain: Acquired chain_assignments write lock");
             assignments.insert(queue_entry_id, chain_index);
             debug!(
                 queue_entry_id = %queue_entry_id,
                 chain_index = chain_index,
                 "Assigned decoder-buffer chain to passage"
             );
+            debug!("🔍 assign_chain: DONE - returning Some({})", chain_index);
             Some(chain_index)
         } else {
             warn!(
@@ -2112,6 +2204,7 @@ impl PlaybackEngine {
                 "No available chains for assignment (all {} chains in use)",
                 self.maximum_decode_streams
             );
+            debug!("🔍 assign_chain: DONE - returning None");
             None
         }
     }
@@ -2270,7 +2363,6 @@ impl PlaybackEngine {
 
                     // Start mixer immediately
                     self.mixer.write().await.start_passage(
-                        buffer,
                         queue_entry_id,
                         Some(fade_in_curve),
                         fade_in_duration_samples,
@@ -2300,6 +2392,34 @@ impl PlaybackEngine {
                 Some(BufferEvent::Finished { .. }) => {
                     // Future: Handle other buffer events
                     // For now, only ReadyForStart is used for instant mixer start
+                }
+
+                Some(BufferEvent::EndpointDiscovered { queue_entry_id, actual_end_ticks }) => {
+                    // **[DBD-DEC-095]** Endpoint discovery notification
+                    // **[DBD-BUF-065]** Propagate discovered endpoint to queue manager
+                    // **[DBD-COMP-015]** Enables crossfade timing with undefined endpoints
+                    info!(
+                        "Endpoint discovered for {}: {} ticks ({} ms)",
+                        queue_entry_id,
+                        actual_end_ticks,
+                        wkmp_common::timing::ticks_to_ms(actual_end_ticks)
+                    );
+
+                    // Update queue manager with discovered endpoint
+                    let mut queue = self.queue.write().await;
+                    if queue.set_discovered_endpoint(queue_entry_id, actual_end_ticks) {
+                        info!(
+                            "Queue updated with discovered endpoint for {}: {} ticks ({} ms)",
+                            queue_entry_id,
+                            actual_end_ticks,
+                            wkmp_common::timing::ticks_to_ms(actual_end_ticks)
+                        );
+                    } else {
+                        warn!(
+                            "Failed to update queue with discovered endpoint for {}: entry not found",
+                            queue_entry_id
+                        );
+                    }
                 }
 
                 None => {

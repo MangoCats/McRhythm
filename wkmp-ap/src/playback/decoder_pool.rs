@@ -9,16 +9,14 @@
 
 use crate::audio::decoder::SimpleDecoder;
 use crate::audio::resampler::Resampler;
-use crate::audio::types::PassageBuffer;
 use crate::db::passages::PassageWithTiming;
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::types::DecodePriority;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
-use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -28,18 +26,18 @@ const STANDARD_SAMPLE_RATE: u32 = 44100;
 
 /// Decode request with priority
 #[derive(Debug, Clone)]
-struct DecodeRequest {
+pub struct DecodeRequest {
     /// Passage identifier
-    passage_id: Uuid,
+    pub passage_id: Uuid,
 
     /// Passage timing information
-    passage: PassageWithTiming,
+    pub passage: PassageWithTiming,
 
     /// Request priority (lower value = higher priority)
-    priority: DecodePriority,
+    pub priority: DecodePriority,
 
     /// True = full decode, False = partial (15 seconds)
-    full_decode: bool,
+    pub full_decode: bool,
 }
 
 /// Priority ordering for BinaryHeap (lower priority value = higher priority)
@@ -74,6 +72,10 @@ struct SharedPoolState {
 
     /// Stop flag for shutdown
     stop_flag: AtomicBool,
+
+    /// Jobs paused due to full buffers, awaiting resume
+    /// **[DBD-BUF-050]** Maps passage_id → (DecodeRequest, samples_already_processed)
+    paused_jobs: Mutex<HashMap<Uuid, (DecodeRequest, usize)>>,
 }
 
 /// Multi-threaded decoder pool
@@ -99,6 +101,7 @@ impl DecoderPool {
             queue: Mutex::new(BinaryHeap::new()),
             condvar: Condvar::new(),
             stop_flag: AtomicBool::new(false),
+            paused_jobs: Mutex::new(HashMap::new()),
         });
 
         // Capture Tokio runtime handle before spawning std::threads
@@ -187,26 +190,43 @@ impl DecoderPool {
         debug!("Worker {} started", worker_id);
 
         loop {
-            // Get next request from queue
-            let request = {
-                let mut queue = state.queue.lock().unwrap();
+            // **[DBD-BUF-050]** Check if any paused jobs can resume (hysteresis check)
+            let (request, resume_from_sample) = if let Some((resumed_request, resume_pos)) =
+                Self::check_paused_jobs_for_resume(&state, &buffer_manager, &rt_handle)
+            {
+                info!(
+                    "▶️  Worker {} resuming paused decode job for {} from sample {}",
+                    worker_id, resumed_request.passage_id, resume_pos
+                );
+                (resumed_request, resume_pos)
+            } else {
+                // No paused jobs ready to resume - get next request from queue
+                let request = {
+                    let mut queue = state.queue.lock().unwrap();
 
-                // Wait for work or shutdown signal
-                while queue.is_empty() && !state.stop_flag.load(Ordering::Relaxed) {
-                    queue = state.condvar.wait(queue).unwrap();
+                    // Wait for work or shutdown signal
+                    while queue.is_empty() && !state.stop_flag.load(Ordering::Relaxed) {
+                        queue = state.condvar.wait(queue).unwrap();
+                    }
+
+                    // Check if we should exit
+                    if state.stop_flag.load(Ordering::Relaxed) {
+                        debug!("Worker {} received shutdown signal", worker_id);
+                        break;
+                    }
+
+                    // Pop highest priority request
+                    queue.pop()
+                };
+
+                if let Some(req) = request {
+                    (req, 0) // Fresh job, start from beginning
+                } else {
+                    continue;
                 }
-
-                // Check if we should exit
-                if state.stop_flag.load(Ordering::Relaxed) {
-                    debug!("Worker {} received shutdown signal", worker_id);
-                    break;
-                }
-
-                // Pop highest priority request
-                queue.pop()
             };
 
-            if let Some(request) = request {
+            {
                 // Extract filename for human-readable logging
                 let filename = request.passage.file_path.file_name()
                     .and_then(|n| n.to_str())
@@ -217,22 +237,30 @@ impl DecoderPool {
                     worker_id, filename, request.passage_id, request.priority
                 );
 
-                // Register with buffer manager and get writable buffer handle
+                // Register with buffer manager (allocates ring buffer)
                 // [SSD-PBUF-028] Incremental buffer filling
                 let passage_id = request.passage_id;
-                let buffer_handle = rt_handle.block_on(async {
+                rt_handle.block_on(async {
                     buffer_manager.register_decoding(passage_id).await
                 });
 
-                // Perform decode with incremental buffer appending
-                match Self::decode_passage(&request, buffer_handle, Arc::clone(&buffer_manager), &rt_handle) {
+                // Perform decode with incremental buffer appending and pause support
+                match Self::decode_passage_internal(
+                    &request,
+                    Arc::clone(&buffer_manager),
+                    &state,
+                    &rt_handle,
+                    resume_from_sample,
+                ) {
                     Ok(()) => {
                         // **[PCF-DUR-010][PCF-COMP-010]** Finalize buffer (cache duration + total_frames)
-                        // Get total samples from buffer
+                        // Get total samples from ring buffer
                         let total_samples = rt_handle.block_on(async {
                             if let Some(buffer_arc) = buffer_manager.get_buffer(passage_id).await {
-                                let buffer = buffer_arc.read().await;
-                                buffer.samples.len()
+                                let buffer = buffer_arc.lock().await;
+                                // Ring buffer tracks frames written (stereo pairs)
+                                // Convert to sample count (frames * 2 for stereo)
+                                (buffer.stats().total_written * 2) as usize
                             } else {
                                 0
                             }
@@ -273,11 +301,20 @@ impl DecoderPool {
     /// [SSD-DEC-015] Continue decoding until passage end
     /// [SSD-DEC-016] Resample to 44.1kHz if needed
     /// [SSD-PBUF-028] Append samples incrementally to enable partial buffer playback
-    fn decode_passage(
+    /// [DBD-BUF-050] Check should_decoder_pause() after each chunk, pause if buffer nearly full
+    ///
+    /// # Arguments
+    /// * `request` - Decode request with passage metadata
+    /// * `buffer_manager` - Buffer manager for state tracking
+    /// * `state` - Shared pool state for paused job tracking
+    /// * `rt_handle` - Tokio runtime handle for async operations
+    /// * `resume_from_sample` - Sample position to resume from (0 for fresh jobs)
+    fn decode_passage_internal(
         request: &DecodeRequest,
-        buffer_handle: Arc<RwLock<PassageBuffer>>,
         buffer_manager: Arc<BufferManager>,
+        state: &Arc<SharedPoolState>,
         rt_handle: &tokio::runtime::Handle,
+        resume_from_sample: usize,
     ) -> Result<()> {
         let passage = &request.passage;
         let passage_id = request.passage_id;
@@ -307,8 +344,23 @@ impl DecoderPool {
 
         // Decode passage from file
         // [SSD-DEC-013] Decoder always starts from file beginning
-        let (samples, sample_rate, channels) =
-            SimpleDecoder::decode_passage(&passage.file_path, start_ms, end_ms)?;
+        // **[DBD-DEC-090]** Endpoint discovery support
+        let decode_result = SimpleDecoder::decode_passage(&passage.file_path, start_ms, end_ms)?;
+
+        // **[DBD-DEC-095]** Notify buffer manager of discovered endpoint (if applicable)
+        if let Some(actual_end_ticks) = decode_result.actual_end_ticks {
+            debug!(
+                "Endpoint discovered for {}: {}ticks ({}ms)",
+                passage_id,
+                actual_end_ticks,
+                wkmp_common::timing::ticks_to_ms(actual_end_ticks)
+            );
+
+            // Note: decoder_pool doesn't have access to queue_entry_id, so it can't call
+            // buffer_manager.set_discovered_endpoint(). This is fine because decoder_pool
+            // is being phased out in favor of SerialDecoder which does have this support.
+            // For now, we just log the discovery.
+        }
 
         // Update progress periodically during decode
         // (For simplicity, we update at decode completion)
@@ -318,21 +370,21 @@ impl DecoderPool {
 
         // Resample to standard rate if needed
         // [SSD-DEC-016] Resample to 44.1kHz using rubato
-        let final_samples = if sample_rate != STANDARD_SAMPLE_RATE {
+        let final_samples = if decode_result.sample_rate != STANDARD_SAMPLE_RATE {
             debug!(
                 "Resampling from {} Hz to {} Hz",
-                sample_rate, STANDARD_SAMPLE_RATE
+                decode_result.sample_rate, STANDARD_SAMPLE_RATE
             );
 
-            let resampled = Resampler::resample(&samples, sample_rate, channels)?;
+            let resampled = Resampler::resample(&decode_result.samples, decode_result.sample_rate, decode_result.channels)?;
 
             resampled
         } else {
-            samples
+            decode_result.samples
         };
 
         // Convert to stereo if mono
-        let stereo_samples = if channels == 1 {
+        let stereo_samples = if decode_result.channels == 1 {
             // Duplicate mono to both channels
             let mut stereo = Vec::with_capacity(final_samples.len() * 2);
             for sample in final_samples {
@@ -340,33 +392,33 @@ impl DecoderPool {
                 stereo.push(sample);
             }
             stereo
-        } else if channels == 2 {
+        } else if decode_result.channels == 2 {
             final_samples
         } else {
             // Downmix multi-channel to stereo (simple average)
             warn!(
                 "Downmixing {} channels to stereo (simple average)",
-                channels
+                decode_result.channels
             );
-            let frame_count = final_samples.len() / channels as usize;
+            let frame_count = final_samples.len() / decode_result.channels as usize;
             let mut stereo = Vec::with_capacity(frame_count * 2);
 
             for frame_idx in 0..frame_count {
-                let base = frame_idx * channels as usize;
+                let base = frame_idx * decode_result.channels as usize;
                 let mut left = 0.0;
                 let mut right = 0.0;
 
                 // Average left channels (odd indices)
-                for ch in (0..channels as usize).step_by(2) {
+                for ch in (0..decode_result.channels as usize).step_by(2) {
                     left += final_samples[base + ch];
                 }
-                left /= (channels / 2) as f32;
+                left /= (decode_result.channels / 2) as f32;
 
                 // Average right channels (even indices)
-                for ch in (1..channels as usize).step_by(2) {
+                for ch in (1..decode_result.channels as usize).step_by(2) {
                     right += final_samples[base + ch];
                 }
-                right /= (channels / 2) as f32;
+                right /= (decode_result.channels / 2) as f32;
 
                 stereo.push(left);
                 stereo.push(right);
@@ -377,30 +429,53 @@ impl DecoderPool {
 
         // Append samples in chunks to enable partial buffer playback
         // [SSD-PBUF-028] Incremental buffer filling
+        // [DBD-BUF-050] Check should_decoder_pause() after each chunk
         // Chunk size: 1 second = 44100 frames = 88200 samples (stereo)
         const CHUNK_SIZE: usize = 88200; // 1 second of stereo audio @ 44.1kHz
         let total_samples = stereo_samples.len();
         let total_chunks = (total_samples + CHUNK_SIZE - 1) / CHUNK_SIZE;
 
-        for chunk_idx in 0..total_chunks {
+        // **[DBD-BUF-050]** If resuming, skip already-processed chunks
+        let start_chunk = resume_from_sample / CHUNK_SIZE;
+
+        for chunk_idx in start_chunk..total_chunks {
             let start = chunk_idx * CHUNK_SIZE;
             let end = (start + CHUNK_SIZE).min(total_samples);
-            let chunk = stereo_samples[start..end].to_vec();
+            let chunk = &stereo_samples[start..end];
 
-            // Append chunk to buffer
-            let chunk_len = chunk.len();
-            rt_handle.block_on(async {
-                let mut buffer = buffer_handle.write().await;
-                buffer.append_samples(chunk);
-            });
-
-            // **[PERF-POLL-010]** Notify buffer manager after appending
-            // This triggers ReadyForStart event when threshold is reached
-            rt_handle.block_on(async {
-                if let Err(e) = buffer_manager.notify_samples_appended(passage_id, chunk_len).await {
-                    warn!("Failed to notify samples appended: {}", e);
+            // Push chunk to ring buffer
+            // [DBD-BUF-010] push_samples() converts samples to AudioFrame and pushes to ring buffer
+            let frames_pushed = rt_handle.block_on(async {
+                match buffer_manager.push_samples(passage_id, chunk).await {
+                    Ok(count) => count,
+                    Err(e) => {
+                        warn!("Failed to push samples for {}: {}", passage_id, e);
+                        0
+                    }
                 }
             });
+
+            // **[DBD-BUF-050]** Check if decoder should pause (buffer nearly full)
+            let should_pause = rt_handle.block_on(async {
+                buffer_manager.should_decoder_pause(passage_id).await.unwrap_or(false)
+            });
+
+            if should_pause {
+                // Calculate samples processed so far
+                let samples_processed = end; // Current position in stereo_samples
+
+                // Store paused job for later resume
+                let mut paused = state.paused_jobs.lock().unwrap();
+                paused.insert(passage_id, (request.clone(), samples_processed));
+                drop(paused);
+
+                info!(
+                    "⏸️  Decoder paused for {} at {}/{} samples (buffer nearly full)",
+                    passage_id, samples_processed, total_samples
+                );
+
+                return Ok(()); // Exit decode loop, worker will pick next job
+            }
 
             // Update progress
             let progress = ((chunk_idx + 1) * 100 / total_chunks).min(100) as u8;
@@ -412,10 +487,11 @@ impl DecoderPool {
             }
 
             debug!(
-                "Appended chunk {}/{} ({:.1}%)",
+                "Pushed chunk {}/{} ({:.1}%, {} frames)",
                 chunk_idx + 1,
                 total_chunks,
-                progress as f32
+                progress as f32,
+                frames_pushed
             );
         }
 
@@ -425,11 +501,15 @@ impl DecoderPool {
     /// Shutdown decoder pool
     ///
     /// [SSD-DEC-033] Signal stop, wait for threads with 5-second timeout.
+    /// **[DBD-BUF-050]** Clear paused jobs on shutdown
     pub fn shutdown(self) -> Result<()> {
         info!("Shutting down decoder pool");
 
         // Set stop flag
         self.state.stop_flag.store(true, Ordering::Relaxed);
+
+        // Clear paused jobs (no longer needed)
+        self.state.paused_jobs.lock().unwrap().clear();
 
         // Notify all workers
         self.state.condvar.notify_all();
@@ -454,6 +534,174 @@ impl DecoderPool {
     /// Get queue length (for diagnostics)
     pub fn queue_len(&self) -> usize {
         self.state.queue.lock().unwrap().len()
+    }
+
+    // ============================================================================
+    // Deprecated Methods (stubs for backward compatibility during test migration)
+    // ============================================================================
+
+    /// **DEPRECATED:** Use `submit()` instead - API changed in ring buffer refactor
+    ///
+    /// This method was removed during the pause/resume refactoring.
+    /// Tests should be updated to use the new `submit()` API.
+    #[deprecated(note = "Use submit() instead - API changed in ring buffer refactor")]
+    #[allow(dead_code)]
+    pub async fn enqueue_decode(&self, _request: DecodeRequest) -> Result<()> {
+        warn!("enqueue_decode() is deprecated - use submit() instead");
+        Err(Error::Playback(
+            "enqueue_decode removed in ring buffer refactor - use submit()".to_string(),
+        ))
+    }
+
+    /// **DEPRECATED:** Monitoring API changed in ring buffer refactor
+    ///
+    /// The concept of "active decoder count" no longer applies with the
+    /// new pause/resume architecture where decoders can be paused.
+    #[deprecated(note = "Monitoring API changed - no longer applicable")]
+    #[allow(dead_code)]
+    pub async fn get_active_decoder_count(&self) -> usize {
+        warn!("get_active_decoder_count() is deprecated - monitoring API changed");
+        0 // Stub return - always report 0 active decoders
+    }
+
+    /// **DEPRECATED:** Debug API removed in ring buffer refactor
+    ///
+    /// Activity logging is no longer tracked in the decoder pool.
+    /// Use BufferManager state inspection instead.
+    #[deprecated(note = "Debug API removed - use BufferManager state inspection")]
+    #[allow(dead_code)]
+    pub async fn get_decoder_activity_log(&self) -> Vec<String> {
+        warn!("get_decoder_activity_log() is deprecated - debug API removed");
+        vec![] // Stub return - empty activity log
+    }
+
+    /// **DEPRECATED:** Test helper removed in ring buffer refactor
+    ///
+    /// Execution order tracking is no longer available.
+    /// Tests should verify behavior through BufferManager state.
+    #[deprecated(note = "Test helper removed - use BufferManager state inspection")]
+    #[allow(dead_code)]
+    pub async fn get_execution_order(&self) -> Vec<Uuid> {
+        warn!("get_execution_order() is deprecated - test helper removed");
+        vec![] // Stub return - empty execution order
+    }
+
+    /// **DEPRECATED:** Wait for decode complete - no longer supported
+    ///
+    /// Use BufferManager's state inspection to wait for buffer ready state.
+    #[deprecated(note = "Use BufferManager state inspection instead")]
+    #[allow(dead_code)]
+    pub async fn wait_for_decode_complete(&self, _passage_id: Uuid) {
+        warn!("wait_for_decode_complete() is deprecated - use BufferManager state");
+    }
+
+    /// **DEPRECATED:** Get decode start time - no longer tracked
+    ///
+    /// Timing information is no longer tracked by DecoderPool.
+    #[deprecated(note = "Timing tracking removed")]
+    #[allow(dead_code)]
+    pub async fn get_decode_start_time(&self, _passage_id: Uuid) -> std::time::Instant {
+        warn!("get_decode_start_time() is deprecated - timing no longer tracked");
+        std::time::Instant::now() // Stub return
+    }
+
+    /// **DEPRECATED:** Public decode passage wrapper - API changed
+    ///
+    /// This public async wrapper was used by tests but is no longer applicable.
+    /// Use `submit()` to queue decode requests instead.
+    ///
+    /// Note: The internal function `decode_passage_internal()` is still used by
+    /// workers, but this public async API has been removed.
+    #[deprecated(note = "Use submit() instead - public API removed")]
+    #[allow(dead_code)]
+    pub async fn decode_passage(
+        &self,
+        _passage: &PassageWithTiming,
+        _buffer_manager: &Arc<BufferManager>,
+    ) {
+        warn!("decode_passage() is deprecated - use submit() instead");
+        // No-op stub
+    }
+
+    // ============================================================================
+    // End of Deprecated Methods
+    // ============================================================================
+
+    /// Check if any paused jobs can resume (buffer has space with hysteresis)
+    ///
+    /// **[DBD-BUF-050]** Hysteresis prevents rapid pause/resume oscillation:
+    /// - Pause at: capacity - headroom (661,500 samples)
+    /// - Resume at: capacity - (headroom * 2) (661,059 samples)
+    fn check_paused_jobs_for_resume(
+        state: &Arc<SharedPoolState>,
+        buffer_manager: &Arc<BufferManager>,
+        rt_handle: &tokio::runtime::Handle,
+    ) -> Option<(DecodeRequest, usize)> {
+        let paused = state.paused_jobs.lock().unwrap();
+
+        // Track jobs with removed buffers for cleanup
+        let mut removed_jobs = Vec::new();
+
+        // Check each paused job in priority order
+        let mut best_resumable: Option<(DecodeRequest, usize, DecodePriority)> = None;
+
+        for (passage_id, (request, resume_sample)) in paused.iter() {
+            // Check if buffer still exists
+            let buffer_exists = rt_handle.block_on(async {
+                buffer_manager.is_managed(*passage_id).await
+            });
+
+            if !buffer_exists {
+                // Buffer was removed - mark for cleanup
+                removed_jobs.push(*passage_id);
+                continue;
+            }
+
+            // Check if buffer has enough space to resume (hysteresis)
+            let can_resume = rt_handle.block_on(async {
+                buffer_manager
+                    .can_decoder_resume(*passage_id)
+                    .await
+                    .unwrap_or(false)
+            });
+
+            if can_resume {
+                // This job can resume - check if it's highest priority so far
+                match best_resumable {
+                    None => {
+                        best_resumable = Some((request.clone(), *resume_sample, request.priority));
+                    }
+                    Some((_, _, current_priority)) => {
+                        if request.priority < current_priority {
+                            best_resumable = Some((request.clone(), *resume_sample, request.priority));
+                        }
+                    }
+                }
+            }
+        }
+
+        drop(paused); // Release lock before modifications
+
+        // Clean up removed jobs
+        if !removed_jobs.is_empty() {
+            let mut paused_mut = state.paused_jobs.lock().unwrap();
+            for passage_id in removed_jobs {
+                paused_mut.remove(&passage_id);
+                debug!("Cleaned up paused job for removed buffer: {}", passage_id);
+            }
+        }
+
+        // Return best resumable job
+        if let Some((request, resume_pos, _)) = best_resumable {
+            let passage_id = request.passage_id;
+
+            // Remove from paused_jobs
+            state.paused_jobs.lock().unwrap().remove(&passage_id);
+
+            Some((request, resume_pos))
+        } else {
+            None
+        }
     }
 }
 

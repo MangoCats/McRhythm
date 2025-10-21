@@ -182,8 +182,8 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 **[DBD-PARAM-080]** The number of (stereo) samples that the buffer reserves to handle additional samples that may arrive from the resampler after the decoder pauses due to a buffer full condition.
 
-- **Default value:** 441 samples
-- **Equivalent:** 0.01 seconds of audio at 44.1kHz
+- **Default value:** 4410 samples
+- **Equivalent:** 0.1 seconds of audio at 44.1kHz
 
 ### pause_decay_factor
 

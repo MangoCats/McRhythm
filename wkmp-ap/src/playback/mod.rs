@@ -11,8 +11,17 @@ pub mod serial_decoder;
 pub mod engine;
 pub mod events;
 pub mod pipeline;
+pub mod playout_ring_buffer;
 pub mod queue_manager;
 pub mod ring_buffer;
 pub mod song_timeline;
 pub mod types;
+
+// Re-exports for external use (tests, other modules)
+pub use buffer_manager::BufferManager;
+pub use serial_decoder::SerialDecoder;
+pub use types::DecodePriority;
+
+// Export from pipeline submodule
+pub use pipeline::CrossfadeMixer;
 

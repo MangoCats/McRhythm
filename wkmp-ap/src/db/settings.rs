@@ -279,6 +279,43 @@ pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) 
     set_setting(db, "minimum_buffer_threshold_ms", clamped).await
 }
 
+/// Get decoder resume hysteresis in samples
+///
+/// **[DBD-BUF-050]** Configurable hysteresis prevents decoder pause/resume oscillation
+///
+/// This value determines how many samples of free space must be available before
+/// resuming a paused decoder. The decoder pauses when free_space <= headroom (441 samples),
+/// and resumes when free_space >= hysteresis.
+///
+/// # Returns
+/// Hysteresis threshold in samples (frames)
+/// Default: 44100 samples (1.0 second @ 44.1kHz) - Large gap prevents oscillation
+/// Range: 882-88200 samples (0.02-2.0 seconds)
+pub async fn get_decoder_resume_hysteresis(db: &Pool<Sqlite>) -> Result<usize> {
+    match get_setting::<u64>(db, "decoder_resume_hysteresis_samples").await? {
+        Some(samples) => {
+            // Clamp to valid range: 882-88200 samples (0.02-2.0 seconds)
+            // Too low = oscillation, too high = delayed resume
+            Ok(samples.clamp(882, 88200) as usize)
+        }
+        None => {
+            // Default: 44100 samples (1.0 second @ 44.1kHz) - Prevents oscillation
+            Ok(44100)
+        }
+    }
+}
+
+/// Set decoder resume hysteresis in samples
+///
+/// **[DBD-BUF-050]** Configure decoder resume threshold
+///
+/// # Arguments
+/// * `samples` - Hysteresis threshold in samples (will be clamped to 882-88200)
+pub async fn set_decoder_resume_hysteresis(db: &Pool<Sqlite>, samples: usize) -> Result<()> {
+    let clamped = (samples as u64).clamp(882, 88200);
+    set_setting(db, "decoder_resume_hysteresis_samples", clamped).await
+}
+
 /// Load mixer thread configuration from settings table
 ///
 /// **[SSD-MIX-020]** Mixer thread parameters
