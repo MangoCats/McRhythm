@@ -68,6 +68,33 @@ Note: This diagram shows logical processing stages. In the implemented architect
 
 **[DBD-OV-080]** Note that each decoder-buffer chain is NOT associated with a particular position in the queue. Each decoder-buffer chain is assigned to a passage in the queue and remains associated with that passage as the passage advances toward the now playing queue position.
 
+### Chain Assignment Lifecycle
+
+**[DBD-LIFECYCLE-010]** Chain assignment occurs when:
+1. A passage is enqueued AND a chain is available (immediate assignment)
+2. A chain becomes available AND passages are waiting (deferred assignment - future enhancement)
+
+**[DBD-LIFECYCLE-020]** Chain release occurs when:
+1. Passage completes playback (mixer signals completion via crossfade or normal completion)
+2. Passage is removed from queue before playback starts (user skip)
+3. Passage is removed from queue for any other reason (error, cancellation, etc.)
+
+**[DBD-LIFECYCLE-030]** Chain allocation strategy:
+- Use lowest-numbered available chain (0, 1, 2, ...)
+- Maintains visual consistency in developer UI
+- Implemented via min-heap priority queue (BinaryHeap<Reverse<usize>>)
+
+**[DBD-LIFECYCLE-040]** Chain tracking mechanism:
+- PlaybackEngine maintains HashMap<QueueEntryId, ChainIndex> for passage→chain mapping
+- Chain assignments persist throughout passage lifecycle (enqueue → playback → completion)
+- BufferManager uses QueueEntryId as primary key for buffer operations
+- get_buffer_chains() reports stable chain indices based on HashMap, not queue position
+
+**[DBD-LIFECYCLE-050]** Passages without assigned chains:
+- When all maximum_decode_streams chains are allocated, newly enqueued passages wait without chains
+- These passages are queued but not visible in buffer chain monitor
+- When a chain becomes available, waiting passages are assigned chains (future enhancement - currently requires re-evaluation of queue processing logic)
+
 ### Terminology
 
 **Decoder-buffer chain** (design concept) = **PassageBuffer** (core data structure) wrapped in **ManagedBuffer** (lifecycle management).
@@ -279,13 +306,21 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Created:** 2025-10-19
+**Last Updated:** 2025-10-20
 **Status:** Current
 **Tier:** 2 - Design Specification
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.1 (2025-10-20): Added Chain Assignment Lifecycle section
+  - Added [DBD-LIFECYCLE-010] through [DBD-LIFECYCLE-050] requirements
+  - Clarified when chains are assigned (on enqueue)
+  - Clarified when chains are released (completion, skip, removal)
+  - Specified lowest-numbered chain allocation strategy
+  - Documented chain tracking mechanism (HashMap-based persistence)
+  - Addressed documentation gaps identified in chain persistence fix
 - v1.0 (2025-10-19): Initial specification with requirement IDs
   - Renamed from NEW-decoder_buffer_design.md to SPEC016-decoder_buffer_design.md
   - Applied GOV001 tier designation (Tier 2 - Design Specification)

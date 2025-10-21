@@ -30,6 +30,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+use std::collections::{HashMap, BinaryHeap};
+use std::cmp::Reverse;
 
 /// Playback position tracking with lock-free atomic frame position
 ///
@@ -126,6 +128,16 @@ pub struct PlaybackEngine {
     /// Maximum number of decoder-resampler-fade-buffer chains
     /// **[DBD-PARAM-050]** Configurable maximum decode streams (default: 12)
     maximum_decode_streams: usize,
+
+    /// Chain assignment tracking
+    /// **[DBD-LIFECYCLE-040]** Maps queue_entry_id to chain_index for persistent association
+    /// Implements requirement that chains remain associated with passages throughout lifecycle
+    chain_assignments: Arc<RwLock<HashMap<Uuid, usize>>>,
+
+    /// Available chain pool
+    /// **[DBD-LIFECYCLE-030]** Min-heap for lowest-numbered chain allocation
+    /// Chains are allocated in ascending order (0, 1, 2, ...) for visual consistency
+    available_chains: Arc<RwLock<BinaryHeap<Reverse<usize>>>>,
 }
 
 impl PlaybackEngine {
@@ -208,6 +220,17 @@ impl PlaybackEngine {
             queue_manager.len()
         );
 
+        // **[DBD-LIFECYCLE-030]** Initialize available chains pool with all chain indices
+        // Implements lowest-numbered allocation strategy (0, 1, 2, ...)
+        let mut available_chains_heap = BinaryHeap::new();
+        for i in 0..maximum_decode_streams {
+            available_chains_heap.push(Reverse(i));
+        }
+        debug!(
+            "Initialized {} decoder-buffer chains for assignment pool",
+            maximum_decode_streams
+        );
+
         let total_elapsed = engine_start.elapsed();
         info!(
             "✅ Playback engine created in {:.2}ms",
@@ -230,6 +253,8 @@ impl PlaybackEngine {
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
             buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
             maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
+            chain_assignments: Arc::new(RwLock::new(HashMap::new())), // [DBD-LIFECYCLE-040] Track passage→chain mapping
+            available_chains: Arc::new(RwLock::new(available_chains_heap)), // [DBD-LIFECYCLE-030] Min-heap for lowest-first allocation
         })
     }
 
@@ -667,6 +692,10 @@ impl PlaybackEngine {
 
         info!("Mixer stopped and buffer cleaned up");
 
+        // **[DBD-LIFECYCLE-020]** Release decoder-buffer chain before removing from queue
+        // Implements requirement that chains are freed when passage is removed (skip counts as removal)
+        self.release_chain(current.queue_entry_id).await;
+
         // Advance queue to next passage
         let mut queue_write = self.queue.write().await;
         queue_write.advance();
@@ -879,8 +908,6 @@ impl PlaybackEngine {
         // **[DBD-PARAM-050]** Loaded from settings (default: 12)
         let maximum_decode_streams = self.maximum_decode_streams;
 
-        let mut chains = Vec::with_capacity(maximum_decode_streams);
-
         // Get mixer state to determine active passages
         let mixer = self.mixer.read().await;
         let mixer_state = mixer.get_state_info();
@@ -904,97 +931,114 @@ impl PlaybackEngine {
         all_entries.extend(queue.queued().iter().cloned());
         drop(queue);
 
-        // Create BufferChainInfo for each passage (up to maximum_decode_streams)
-        for (slot_index, entry) in all_entries.iter().take(maximum_decode_streams).enumerate() {
-            let queue_position = slot_index; // 0-indexed per [SPEC020-MONITOR-050]
+        // **[DBD-OV-080]** Chains remain associated with passages via persistent mapping
+        // **[DBD-LIFECYCLE-040]** Look up chain assignments from HashMap
+        let assignments = self.chain_assignments.read().await;
 
-            // Get buffer information
-            let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
-            let buffer_state = self.buffer_manager.get_buffer_state(entry.queue_entry_id).await;
+        // Build chain infos for all assigned chains
+        // Use Vec<(chain_index, BufferChainInfo)> to maintain chain→passage association
+        let mut chain_tuples: Vec<(usize, BufferChainInfo)> = Vec::new();
 
-            // Extract file name
-            let file_name = entry.file_path.file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string());
+        for (queue_position, entry) in all_entries.iter().enumerate() {
+            // Check if this entry has an assigned chain
+            if let Some(&chain_index) = assignments.get(&entry.queue_entry_id) {
+                // Get buffer information
+                let buffer_info = self.buffer_manager.get_buffer_info(entry.queue_entry_id).await;
+                let buffer_state = self.buffer_manager.get_buffer_state(entry.queue_entry_id).await;
 
-            // Determine mixer role
-            let is_active_in_mixer = if slot_index == 0 {
-                mixer_state.current_passage_id == entry.passage_id
-            } else if slot_index == 1 {
-                mixer_state.next_passage_id == entry.passage_id
-            } else {
-                false
-            };
+                // Extract file name
+                let file_name = entry.file_path.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|s| s.to_string());
 
-            let mixer_role = if slot_index == 0 {
-                if mixer_state.is_crossfading {
-                    "Crossfading".to_string()
+                // Determine mixer role based on queue_position (not chain_index!)
+                let is_active_in_mixer = if queue_position == 0 {
+                    mixer_state.current_passage_id == entry.passage_id
+                } else if queue_position == 1 {
+                    mixer_state.next_passage_id == entry.passage_id
                 } else {
-                    "Current".to_string()
-                }
-            } else if slot_index == 1 {
-                if mixer_state.is_crossfading {
-                    "Crossfading".to_string()
+                    false
+                };
+
+                let mixer_role = if queue_position == 0 {
+                    if mixer_state.is_crossfading {
+                        "Crossfading".to_string()
+                    } else {
+                        "Current".to_string()
+                    }
+                } else if queue_position == 1 {
+                    if mixer_state.is_crossfading {
+                        "Crossfading".to_string()
+                    } else {
+                        "Next".to_string()
+                    }
                 } else {
-                    "Next".to_string()
-                }
-            } else {
-                "Queued".to_string()
-            };
+                    "Queued".to_string()
+                };
 
-            // Get playback position (only for current passage)
-            let (playback_position_frames, playback_position_ms) = if slot_index == 0 {
-                (mixer_state.current_position_frames,
-                 (mixer_state.current_position_frames as u64 * 1000) / 44100)
-            } else if slot_index == 1 && mixer_state.is_crossfading {
-                (mixer_state.next_position_frames,
-                 (mixer_state.next_position_frames as u64 * 1000) / 44100)
-            } else {
-                (0, 0)
-            };
+                // Get playback position (only for current passage)
+                let (playback_position_frames, playback_position_ms) = if queue_position == 0 {
+                    (mixer_state.current_position_frames,
+                     (mixer_state.current_position_frames as u64 * 1000) / 44100)
+                } else if queue_position == 1 && mixer_state.is_crossfading {
+                    (mixer_state.next_position_frames,
+                     (mixer_state.next_position_frames as u64 * 1000) / 44100)
+                } else {
+                    (0, 0)
+                };
 
-            chains.push(BufferChainInfo {
-                slot_index,
-                queue_entry_id: Some(entry.queue_entry_id),
-                passage_id: entry.passage_id,
-                file_name,
-                queue_position: Some(queue_position),
+                chain_tuples.push((chain_index, BufferChainInfo {
+                    slot_index: chain_index, // Use assigned chain_index, not enumerate position
+                    queue_entry_id: Some(entry.queue_entry_id),
+                    passage_id: entry.passage_id,
+                    file_name,
+                    queue_position: Some(queue_position), // 0-indexed per [SPEC020-MONITOR-050]
 
-                // Decoder stage (stubbed for Phase 3c)
-                decoder_state: None, // TODO: Query decoder pool status
-                decode_progress_percent: None,
-                is_actively_decoding: None,
+                    // Decoder stage (stubbed for Phase 3c)
+                    decoder_state: None, // TODO: Query decoder pool status
+                    decode_progress_percent: None,
+                    is_actively_decoding: None,
 
-                // Resampler stage (stubbed for Phase 3c)
-                source_sample_rate: None, // TODO: Get from decoder
-                resampler_active: None,
-                target_sample_rate: 44100, // **[DBD-PARAM-020]** working_sample_rate
+                    // Resampler stage (stubbed for Phase 3c)
+                    source_sample_rate: None, // TODO: Get from decoder
+                    resampler_active: None,
+                    target_sample_rate: 44100, // **[DBD-PARAM-020]** working_sample_rate
 
-                // Fade stage (stubbed for Phase 3c)
-                fade_stage: None, // TODO: Get from decoder
+                    // Fade stage (stubbed for Phase 3c)
+                    fade_stage: None, // TODO: Get from decoder
 
-                // Buffer stage **[DBD-BUF-020]** through **[DBD-BUF-060]**
-                buffer_state: buffer_state.map(|s| s.to_string()),
-                buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
-                buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
-                buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
+                    // Buffer stage **[DBD-BUF-020]** through **[DBD-BUF-060]**
+                    buffer_state: buffer_state.map(|s| s.to_string()),
+                    buffer_fill_percent: buffer_info.as_ref().map(|b| b.fill_percent).unwrap_or(0.0),
+                    buffer_fill_samples: buffer_info.as_ref().map(|b| b.samples_buffered).unwrap_or(0),
+                    buffer_capacity_samples: buffer_info.as_ref().map(|b| b.capacity_samples).unwrap_or(0),
 
-                // Mixer stage
-                playback_position_frames,
-                playback_position_ms,
-                duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
-                is_active_in_mixer,
-                mixer_role,
-                started_at: None, // TODO: Track start time
-            });
+                    // Mixer stage
+                    playback_position_frames,
+                    playback_position_ms,
+                    duration_ms: buffer_info.as_ref().and_then(|b| b.duration_ms),
+                    is_active_in_mixer,
+                    mixer_role,
+                    started_at: None, // TODO: Track start time
+                }));
+            }
         }
 
-        // Fill remaining slots with idle chains (up to maximum_decode_streams)
-        while chains.len() < maximum_decode_streams {
-            chains.push(BufferChainInfo::idle(chains.len()));
+        drop(assignments); // Release read lock
+
+        // **[DBD-LIFECYCLE-030]** Fill idle chains for all unassigned chain indices
+        // Implements requirement to report all chains 0..(maximum_decode_streams-1)
+        for chain_idx in 0..maximum_decode_streams {
+            if !chain_tuples.iter().any(|(idx, _)| *idx == chain_idx) {
+                chain_tuples.push((chain_idx, BufferChainInfo::idle(chain_idx)));
+            }
         }
 
-        chains
+        // Sort by chain_index for consistent display order
+        chain_tuples.sort_by_key(|(idx, _)| *idx);
+
+        // Extract BufferChainInfo from tuples and return
+        chain_tuples.into_iter().map(|(_, info)| info).collect()
     }
 
 
@@ -1199,6 +1243,10 @@ impl PlaybackEngine {
 
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;
+
+        // **[DBD-LIFECYCLE-010]** Assign decoder-buffer chain on enqueue if available
+        // Implements requirement that chains are assigned immediately when passage is enqueued
+        self.assign_chain(queue_entry_id).await;
 
         Ok(queue_entry_id)
     }
@@ -1645,6 +1693,10 @@ impl PlaybackEngine {
                         timestamp: chrono::Utc::now(),
                     });
 
+                    // **[DBD-LIFECYCLE-020]** Release decoder-buffer chain before removing from queue
+                    // Passage completed via crossfade, free chain for reassignment
+                    self.release_chain(completed_id).await;
+
                     // **[XFD-COMP-020]** Advance queue WITHOUT stopping mixer
                     // The incoming passage is already playing as current in the mixer
                     let mut queue_write = self.queue.write().await;
@@ -1739,6 +1791,10 @@ impl PlaybackEngine {
                     let queue_read = self.queue.read().await;
                     queue_read.current().map(|c| c.queue_entry_id)
                 };
+
+                // **[DBD-LIFECYCLE-020]** Release decoder-buffer chain before removing from queue
+                // Passage completed normally, free chain for reassignment
+                self.release_chain(queue_entry_id).await;
 
                 // Advance queue to next passage (in-memory)
                 // This removes the completed passage and moves next → current
@@ -1974,6 +2030,74 @@ impl PlaybackEngine {
             audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
             buffer_event_rx: Arc::clone(&self.buffer_event_rx), // **[PERF-POLL-010]** Clone buffer event receiver
             maximum_decode_streams: self.maximum_decode_streams, // [DBD-PARAM-050] Copy decode stream limit
+            chain_assignments: Arc::clone(&self.chain_assignments), // [DBD-LIFECYCLE-040] Clone chain assignment tracking
+            available_chains: Arc::clone(&self.available_chains), // [DBD-LIFECYCLE-030] Clone available chains pool
+        }
+    }
+
+    /// Assign a decoder-buffer chain to a queue entry
+    ///
+    /// **[DBD-LIFECYCLE-010]** Chain assignment on enqueue
+    /// **[DBD-LIFECYCLE-030]** Lowest-numbered available chain allocation
+    ///
+    /// Allocates the lowest-numbered available chain from the pool and assigns it
+    /// to the given queue entry. Returns the assigned chain index, or None if all
+    /// chains are currently allocated.
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - UUID of the queue entry to assign a chain to
+    ///
+    /// # Returns
+    /// * `Some(chain_index)` - The chain index (0..maximum_decode_streams) assigned
+    /// * `None` - No chains available (all maximum_decode_streams chains in use)
+    async fn assign_chain(&self, queue_entry_id: Uuid) -> Option<usize> {
+        let mut available = self.available_chains.write().await;
+        if let Some(Reverse(chain_index)) = available.pop() {
+            let mut assignments = self.chain_assignments.write().await;
+            assignments.insert(queue_entry_id, chain_index);
+            debug!(
+                queue_entry_id = %queue_entry_id,
+                chain_index = chain_index,
+                "Assigned decoder-buffer chain to passage"
+            );
+            Some(chain_index)
+        } else {
+            warn!(
+                queue_entry_id = %queue_entry_id,
+                "No available chains for assignment (all {} chains in use)",
+                self.maximum_decode_streams
+            );
+            None
+        }
+    }
+
+    /// Release a decoder-buffer chain from a queue entry
+    ///
+    /// **[DBD-LIFECYCLE-020]** Chain release on completion
+    /// **[DBD-LIFECYCLE-030]** Return chain to available pool for reuse
+    ///
+    /// Removes the passage→chain mapping and returns the chain to the available pool
+    /// for assignment to future queue entries. This is called when a passage completes
+    /// playback or is removed from the queue.
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - UUID of the queue entry whose chain should be released
+    async fn release_chain(&self, queue_entry_id: Uuid) {
+        let mut assignments = self.chain_assignments.write().await;
+        if let Some(chain_index) = assignments.remove(&queue_entry_id) {
+            let mut available = self.available_chains.write().await;
+            available.push(Reverse(chain_index));
+            debug!(
+                queue_entry_id = %queue_entry_id,
+                chain_index = chain_index,
+                "Released decoder-buffer chain from passage"
+            );
+        } else {
+            // Not an error - passage may have been queued when all chains were allocated
+            debug!(
+                queue_entry_id = %queue_entry_id,
+                "No chain to release (passage was not assigned a chain)"
+            );
         }
     }
 
@@ -2596,29 +2720,36 @@ mod tests {
         // Verify we have 12 chains total
         assert_eq!(chains_before.len(), 12);
 
-        // Capture queue_entry_id of passage in position 2 (next)
-        let next_qe_id = chains_before[1].queue_entry_id;
-        assert!(next_qe_id.is_some(), "Position 2 should have queue_entry_id");
+        // **[DBD-OV-080]** Passages stay in their assigned chains
+        // Before skip: Passage1=chain0(pos0), Passage2=chain1(pos1), Passage3=chain2(pos2)
+        let passage2_qe_id = chains_before[1].queue_entry_id;
+        assert!(passage2_qe_id.is_some(), "Chain 1 should have passage");
 
-        // Skip current passage (advance queue)
+        // Skip current passage (advance queue - passage1 in chain 0)
         engine.skip_next().await.unwrap();
 
         // Get buffer chains again after queue advance
         let chains_after = engine.get_buffer_chains().await;
 
-        // The passage that was in position 2 should now be in position 1
-        // **[DBD-OV-080]** Chains follow passages, not positions
+        // **[DBD-OV-080]** After skip: chain0=idle, Passage2 STILL in chain1 (now pos0), Passage3 STILL in chain2 (now pos1)
         assert_eq!(
             chains_after[0].queue_entry_id,
-            next_qe_id,
-            "Passage-based association: queue_entry_id should follow passage to new position"
+            None,
+            "Chain 0 should be idle after passage was skipped and chain released"
         );
 
-        // Position should update (was 2, now 1)
+        // Passage2 should STILL be in chain 1 (chains remain associated with passages)
         assert_eq!(
-            chains_after[0].queue_position,
-            Some(1),
-            "queue_position should update to 1 (now playing)"
+            chains_after[1].queue_entry_id,
+            passage2_qe_id,
+            "Passage-based association: passage should stay in same chain 1"
+        );
+
+        // Passage2's queue_position should have changed from 1 to 0
+        assert_eq!(
+            chains_after[1].queue_position,
+            Some(0),
+            "queue_position should update to 0 (now playing)"
         );
 
         // Clean up
@@ -2655,34 +2786,34 @@ mod tests {
         // Get buffer chains
         let chains = engine.get_buffer_chains().await;
 
-        // Verify queue_position values (1-indexed for display)
-        // **[DBD-OV-060]** Position 1 = "now playing"
+        // Verify queue_position values (0-indexed per [SPEC020-MONITOR-050])
+        // **[DBD-OV-060]** Position 0 = "now playing"
         assert_eq!(
             chains[0].queue_position,
-            Some(1),
-            "Current passage should have queue_position 1 (now playing)"
+            Some(0),
+            "Current passage should have queue_position 0 (now playing)"
         );
 
-        // **[DBD-OV-070]** Position 2 = "playing next"
+        // **[DBD-OV-070]** Position 1 = "playing next"
         assert_eq!(
             chains[1].queue_position,
-            Some(2),
-            "Next passage should have queue_position 2 (playing next)"
+            Some(1),
+            "Next passage should have queue_position 1 (playing next)"
         );
 
-        // Positions 3-4 = "queued passages"
+        // Positions 2-3 = "queued passages"
         assert_eq!(
             chains[2].queue_position,
-            Some(3),
-            "Queued passage should have queue_position 3"
+            Some(2),
+            "Queued passage should have queue_position 2"
         );
         assert_eq!(
             chains[3].queue_position,
-            Some(4),
-            "Queued passage should have queue_position 4"
+            Some(3),
+            "Queued passage should have queue_position 3"
         );
 
-        // Positions 5-12 = idle (no queue_position)
+        // Positions 4-11 = idle (no queue_position)
         for i in 4..12 {
             assert_eq!(
                 chains[i].queue_position,

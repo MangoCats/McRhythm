@@ -336,28 +336,37 @@ async fn test_buffer_chains_passage_tracking_on_skip() {
     // Get initial buffer chains
     let chains_before = engine.get_buffer_chains().await;
 
-    // Capture queue_entry_id of passage at position 1 (next)
-    let next_qe_id = chains_before[1].queue_entry_id.expect("Position 1 should have ID");
+    // **[DBD-OV-080]** Passages stay in their assigned chains
+    // Before skip: Passage1=chain0(pos0), Passage2=chain1(pos1), Passage3=chain2(pos2)
+    let passage2_qe_id = chains_before[1].queue_entry_id.expect("Chain 1 should have passage");
 
-    // Skip current passage
+    // Skip current passage (passage1 in chain 0)
     engine.skip_next().await.unwrap();
     sleep(Duration::from_millis(50)).await;
 
     // Get buffer chains after skip
     let chains_after = engine.get_buffer_chains().await;
 
-    // The passage that was at position 1 should now be at position 0
-    // **[DBD-OV-080]** Chains follow passages via queue_entry_id
+    // **[DBD-OV-080]** After skip: chain0=idle, Passage2 STILL in chain1 (now pos0), Passage3 STILL in chain2 (now pos1)
+    // Chain 0 should be freed/idle after skip
     assert_eq!(
         chains_after[0].queue_entry_id,
-        Some(next_qe_id),
-        "Passage should move from position 1 to position 0 (queue_entry_id follows passage)"
+        None,
+        "Chain 0 should be idle after passage was skipped and chain released"
     );
 
+    // Passage2 should STILL be in chain 1 (chains remain associated with passages)
     assert_eq!(
-        chains_after[0].queue_position,
+        chains_after[1].queue_entry_id,
+        Some(passage2_qe_id),
+        "Passage should stay in same chain 1 (chain persistence per [DBD-OV-080])"
+    );
+
+    // Passage2's queue_position should have changed from 1 to 0
+    assert_eq!(
+        chains_after[1].queue_position,
         Some(0),
-        "queue_position should update to 0 (now playing)"
+        "Passage in chain 1 should now be at queue_position 0 (now playing)"
     );
 
     // Clean up
