@@ -13,7 +13,7 @@ use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, val
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::buffer_events::BufferEvent;
-use crate::playback::serial_decoder::SerialDecoder;
+use crate::playback::decoder_worker::DecoderWorker;
 use crate::playback::events::PlaybackEvent;
 use crate::playback::pipeline::mixer::CrossfadeMixer;
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
@@ -80,8 +80,8 @@ pub struct PlaybackEngine {
     /// Buffer manager (manages buffer lifecycle)
     buffer_manager: Arc<BufferManager>,
 
-    /// Serial decoder (single-threaded decoder with priority queue)
-    serial_decoder: Arc<SerialDecoder>,
+    /// Decoder worker (single-threaded decoder using DecoderChain architecture)
+    decoder_worker: Arc<DecoderWorker>,
 
     /// Crossfade mixer (sample-accurate mixing)
     /// [SSD-MIX-010] Mixer component for audio frame generation
@@ -202,8 +202,8 @@ impl PlaybackEngine {
         buffer_manager.set_min_buffer_threshold(min_buffer_threshold).await;
         buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
 
-        // Create serial decoder
-        let serial_decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
+        // Create decoder worker
+        let decoder_worker = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
 
         // **[REV002]** Create position event channel
         let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
@@ -255,7 +255,7 @@ impl PlaybackEngine {
             state,
             queue: Arc::new(RwLock::new(queue_manager)),
             buffer_manager,
-            serial_decoder: Arc::new(serial_decoder),
+            decoder_worker,
             mixer,
             position: PlaybackPosition::new(), // [ISSUE-8] Direct initialization, Arcs inside
             running: Arc::new(RwLock::new(false)),
@@ -327,6 +327,10 @@ impl PlaybackEngine {
 
         // Mark as running
         *self.running.write().await = true;
+
+        // Start decoder worker
+        Arc::clone(&self.decoder_worker).start();
+        info!("Decoder worker started");
 
         // Start playback loop in background
         let self_clone = self.clone_handles();
@@ -576,21 +580,9 @@ impl PlaybackEngine {
         // Mark as not running
         *self.running.write().await = false;
 
-        // Shutdown serial decoder
-        // [ISSUE-12] Log errors but don't propagate them (continue shutdown)
-        // Note: SerialDecoder::shutdown() consumes self, so we need to clone the Arc
-        // and use Arc::try_unwrap to get ownership
-        let serial_decoder_arc = Arc::clone(&self.serial_decoder);
-        if let Ok(decoder) = Arc::try_unwrap(serial_decoder_arc) {
-            if let Err(e) = decoder.shutdown() {
-                error!("Serial decoder shutdown error (continuing anyway): {}", e);
-                // Continue shutdown - don't propagate error
-            } else {
-                info!("Serial decoder shut down successfully");
-            }
-        } else {
-            warn!("Serial decoder still has multiple references, skipping shutdown");
-        }
+        // Shutdown decoder worker
+        Arc::clone(&self.decoder_worker).shutdown().await;
+        info!("Decoder worker shut down successfully");
 
         info!("Playback engine stopped");
         Ok(())
@@ -1974,13 +1966,10 @@ impl PlaybackEngine {
         // Get passage timing
         let passage = self.get_passage_timing(entry).await?;
 
-        // Submit to serial decoder (async - registers buffer immediately)
-        self.serial_decoder.submit(
-            entry.queue_entry_id,
-            passage,
-            priority,
-            full_decode,
-        ).await?;
+        // Submit to decoder worker (async - registers buffer immediately)
+        self.decoder_worker
+            .submit(entry.queue_entry_id, passage, priority, full_decode)
+            .await?;
 
         debug!(
             "Submitted decode request for queue_entry_id={}, priority={:?}, full={}",
@@ -2163,7 +2152,7 @@ impl PlaybackEngine {
             state: Arc::clone(&self.state),
             queue: Arc::clone(&self.queue),
             buffer_manager: Arc::clone(&self.buffer_manager),
-            serial_decoder: Arc::clone(&self.serial_decoder),
+            decoder_worker: Arc::clone(&self.decoder_worker),
             mixer: Arc::clone(&self.mixer),
             position: self.position.clone_handles(), // [ISSUE-8] Clone inner Arcs
             running: Arc::clone(&self.running),

@@ -12,6 +12,12 @@ Defines HOW crossfade timing and behavior are designed. Derived from [requiremen
 
 **[XFD-OV-010]** WKMP supports sophisticated crossfading between passages, allowing smooth transitions with configurable fade curves and overlap timing. Each passage has six timing points that control how it begins, ends, and overlaps with adjacent passages.
 
+**[XFD-OV-020] Zero-Duration Timing Behavior:** When timing points are equal (zero-duration intervals), specific operational behaviors apply:
+- **Fade Duration = 0** (Fade-In Point = Start OR Fade-Out Point = End): Fader operates in pass-through mode with no fade curve applied; passage plays at constant volume (1.0) during that phase
+- **Lead-Out Duration = 0** (Lead-Out Point = End): No overlap with next passage; crossfade duration is 0
+- **Lead-In Duration = 0** (Lead-In Point = Start): No overlap with previous passage; previous passage completes fully before this passage starts
+- **All Timing Points Equal**: Passage plays from start to end at constant volume with no crossfade overlap with adjacent passages (see [REQ002 ENT-MP-035] for "Audio file as Passage" use case)
+
 ## Timing Points
 
 **[XFD-TP-010]** Each passage has six timing points defined relative to the audio file:

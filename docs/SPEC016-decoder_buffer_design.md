@@ -58,7 +58,7 @@ graph LR
     style BufferDots fill:none,stroke:none
 ```
 
-Note: This diagram shows logical processing stages. In the implemented architecture (see [SPEC014 Single Stream Design](SPEC014-single_stream_design.md)), Decoder, Resampler, and Fade Handler are all performed within DecoderPool worker threads. See [SPEC013 Single Stream Playback](SPEC013-single_stream_playback.md) and [SPEC014](SPEC014-single_stream_design.md) for component-level architecture.
+Note: This diagram shows logical processing stages. In the implemented architecture, each decoder-buffer chain is encapsulated in a `DecoderChain` object that integrates StreamingDecoder → StatefulResampler → Fader → Buffer into a unified pipeline. A single-threaded `DecoderWorker` processes all chains serially for optimal cache coherency [DBD-DEC-040]. See [Implementation Details](#implementation-architecture) below for the concrete architecture.
 
 **[DBD-OV-050]** The system allocates maximum_decode_streams decoder-buffer chains. Each chain is assigned 1:1 to a passage in the queue, when the passage is maximum_decode_streams or less from the first position in the queue.
 
@@ -171,6 +171,18 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 - **Purpose:** The decode_work_period serves to allow decodes to continue uninterrupted while still serving the highest priority jobs often enough to ensure their buffers do not run empty. This prevents low-priority long-duration decodes (e.g., 30-minute file) from starving high-priority decodes (e.g., "now playing" buffer).
 - **Implementation Note:** Decoders check the priority queue at each chunk boundary (typically every ~1 second of decoded audio). The decode_work_period may cause priority checks to occur less frequently than chunk boundaries if set > 1000ms, but never more frequently.
 
+### decode_chunk_size
+
+**[DBD-PARAM-065]** The number of samples OUTPUT FROM THE RESAMPLER for each chunk of decoded audio output from the decoder.
+
+- **Default value:** 25000
+
+When the audio file is encoded at the same sample rate as the resampler - fader - buffer - mixer - output is working at (aka the working_sample rate) then this is a 1:1 translation for the maximum (and typical) number of samples each in each chunk of audio sent from the decoder to the resampler.
+
+When the audio file is encoded at a higher sample rate, for example 88200 Hz with a working_sample_rate of 44100 Hz, then the decoder _may_ send larger chunks to the resampler, twice as large in this example, because the decoder will be downsampling to smaller chunks for the rest of the processing chain.  Similarly, when the audio file is encoded at a lower sample rate than the working sample rate then the calculation: "decoder output actual maximum chunk size" = decode_chunk_size * "audio file sample rate" / working_sample_rate ; yields a smaller number.
+
+This calculated "decoder output actual maximum chunk size" is the maximum number of samples the decoder is allowed to send to the resampler in a single chunk.  If the decoder has reached the end time of the passage with less samples to send than the maximum chunk size, then it will send just those remaining samples.  Usually the decoder accumulates samples until it reaches at or near the maximum chunk size before sending the chunk to the resampler.
+
 ### playout_ringbuffer_size
 
 **[DBD-PARAM-070]** The number of (stereo) samples that the decoded / resampled audio buffers contain.
@@ -199,6 +211,22 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
   - Decoder resumes when free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom (48510 samples)
   - Using the sum ensures proper hysteresis gap even if headroom is increased
   - Actual gap = decoder_resume_hysteresis_samples (44100 samples = 1.0s)
+
+### mixer_min_start_level
+
+**[DBD-PARAM-088]** The number of samples required to be in a chain's buffer before the mixer will start playing from it.
+
+- **Default value:** 44100 samples
+- **Equivalent:** 1.0 second of audio at 44.1kHz
+- **Range:** 8820-220500 samples (0.5-5.0 seconds)
+- **Purpose:** Protects against buffer empty during playback conditions.
+- **Behavior:**
+  - When a chain is eligible for playback, the mixer will check its buffer fill state before starting playback and wait until
+    at least mixer_min_start_level samples are available in the buffer before starting.
+  - Once started, the mixer may draw all available samples out of a chain's buffer and any underruns will be logged as errors
+    and may be heard as gaps in the playback.
+  - At end of passage playback it is expected that the mixer will draw all available samples from the buffer until it is completely
+    empty.
 
 ### pause_decay_factor
 
@@ -233,6 +261,10 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 **[DBD-FLOW-100]** The wkmp-ap audio player is given passage definitions to enqueue via the API, either from the user interface, the program director, or other sources.
 
+**[DBD-FLOW-102]** The wkmp-ap audio player restores the persisted queue from the database once on startup.  As each passage is read from the persisted queue it is handled through the same processing chain as a passage enqueued through the API is handled.
+
+**[DBD-FLOW-104]** The wkmp-ap audio player never enqueues new passages from any other sources other than the database at startup and the API.
+
 **[DBD-FLOW-110]** This queue of passage definitions is served in a First In First Out (FIFO) order for decoding and buffering.
 
 ### Decoders
@@ -242,6 +274,8 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 **[DBD-DEC-020]** When a passage's position in the queue comes up within maximum_decode_streams of the first (now playing) position, an available decoder-buffer chain is assigned to it and it becomes eligible for decoding.
 
 **[DBD-DEC-030]** Each passage gets a dedicated decoder instance which works through the audio file, pausing when its buffer is full, resuming as data is read from the buffer into the mixer.
+
+**[DBD-DEC-035]** Once a passage is assigned to a decode-buffer chain, its decoder is never freed or reset, it works through the passage's audio file until the end time, yielding immediately to other waiting chains when its buffer is full or waiting for hysteresis and yielding to higher priority (closer to queue position 0) chains at decode_work_period intervals.
 
 **[DBD-DEC-040]** Decoding is handled serially in priority order, only one decode runs at a time to preserve cache coherency and reduce maximum processor loads, to avoid spinning up the cooling fans.
 
@@ -292,6 +326,66 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 - Each `decode_chunk()` call returns ~1 second of decoded samples
 - Decoder tracks cumulative decode position internally
 - Supports multiple pause/resume cycles without data loss
+
+**[DBD-DEC-150]** Decoder yielding priorities - Decoders MUST yield control under the following conditions, in order of priority:
+
+1. **Immediate yield on hysteresis**: When a decoder reaches buffer headroom limit (free_space ≤ playout_ringbuffer_headroom per [DBD-PARAM-080]) and enters hysteresis wait state, it MUST yield immediately (not wait for decode_work_period).
+   - **Rationale**: Decoder is blocked waiting for mixer to drain buffer past resume threshold; no CPU benefit to keeping it "active"
+   - **Behavior**: Decoder re-queues itself and allows other decoders with buffers needing samples to run
+   - **Resume**: When buffer free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom ([DBD-PARAM-085]), decoder is eligible to resume
+
+2. **Time-based yield**: Every decode_work_period (default 5000ms per [DBD-PARAM-060]), decoder checks priority queue
+   - **Purpose**: Fairness between decoders at same priority level (round-robin)
+   - **Applies to**: Lower priority passages doing lengthy decode before reaching passage start time
+   - **Behavior**: Decoder yields to allow other pending decode requests to make progress
+
+3. **Priority-based yield**: If higher priority decode request is pending, current decoder yields immediately
+   - **Comparison**: Higher priority = lower DecodePriority enum value (Immediate < Next < Prefetch)
+   - **Behavior**: Current decoder state saved, higher priority decoder resumed
+   - **Purpose**: Ensures "now playing" buffer never starves due to background prefetch
+
+**[DBD-DEC-160]** Decoder scheduling algorithm:
+
+```
+while !decoder.is_finished() {
+    // Decode next chunk (~1 second)
+    let chunk = decoder.decode_chunk(1000)?;
+
+    // Try to append to buffer
+    match buffer.push_samples(chunk) {
+        Ok(_) => { /* chunk appended successfully */ }
+        Err(BufferFull) => {
+            // [DBD-DEC-150.1] IMMEDIATE YIELD: Buffer full, entering hysteresis
+            debug!("Buffer full, yielding to hysteresis");
+            requeue_self_and_yield();
+            return; // Allow other decoders to run
+        }
+    }
+
+    // [DBD-DEC-150.3] Check for higher priority work
+    if has_higher_priority_request() {
+        warn!("Yielding to higher priority decoder");
+        requeue_self_and_yield();
+        return;
+    }
+
+    // [DBD-DEC-150.2] Time-based yield every decode_work_period
+    if elapsed_since_last_yield() >= decode_work_period {
+        if has_equal_or_lower_priority_requests() {
+            debug!("Time-based yield (decode_work_period elapsed)");
+            requeue_self_and_yield();
+            return;
+        }
+        last_yield_time = now();
+    }
+}
+```
+
+**[DBD-DEC-170]** Hysteresis-aware decoder re-queueing:
+- When decoder yields due to buffer full (hysteresis), it MUST re-queue with same priority
+- Scheduler MUST NOT immediately re-select same decoder (would cause tight loop)
+- Scheduler evaluates all pending decode requests, selects highest priority with buffer space available
+- If no decoders have buffer space, scheduler waits for mixer drain event before resuming any decoder
 
 ### Resampling
 
@@ -359,6 +453,8 @@ SPEC016 defines HOW mixer implements crossfade overlap; SPEC002 defines WHEN ove
 - **[DBD-MIX-051]** This reduces the "pop" effect that can occur from an instant transition to zero
 - **[DBD-MIX-052]** Each entry to pause mode starts at the last playing mode (stereo) sample values and decays through the duration of the pause until the absolute value of the current sample value is less than the pause_decay_floor, at which point the mixer simply outputs zeroes
 
+**[DBD-MIX-060]** When starting input from a new chain, the mixer will not begin drawing from the chain until its buffer has at least mixer_min_start_level **[DBD-PARAM-088]** samples in the buffer.
+
 ### Output
 
 **[DBD-OUT-010]** The mixer creates a single output stream which is fed to the output ring buffer for consumption by the cpal audio output library.
@@ -371,16 +467,87 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 **[DBD-FMT-020]** This is the preferred format both for the symphonia decoder and for the cpal output handler.
 
+## Implementation Architecture
+
+**[DBD-IMPL-010]** The decoder-buffer pipeline is implemented using a single-threaded worker architecture for optimal cache coherency and simplified state management.
+
+### DecoderChain
+
+**[DBD-IMPL-020]** Each decoder-buffer chain is encapsulated in a `DecoderChain` object (`src/playback/pipeline/decoder_chain.rs`) that integrates the full pipeline:
+
+1. **StreamingDecoder** - Chunk-based audio decoding using Symphonia
+2. **StatefulResampler** - Sample rate conversion with preserved filter state
+3. **Fader** - Sample-accurate fade-in/fade-out application
+4. **BufferManager** - Lock-free ring buffer management
+
+**[DBD-IMPL-030]** DecoderChain maintains state across chunks:
+- Decoder position and EOF detection
+- Resampler filter coefficients (prevents phase discontinuities)
+- Fader frame position (sample-accurate crossfading)
+- Total frames pushed (for buffer finalization)
+
+**[DBD-IMPL-040]** DecoderChain processing returns structured results:
+- `Processed { frames_pushed }` - Chunk successfully processed
+- `BufferFull { frames_pushed }` - Yield required (buffer at capacity)
+- `Finished { total_frames }` - Decoding complete
+
+### DecoderWorker
+
+**[DBD-IMPL-050]** A single-threaded `DecoderWorker` (`src/playback/decoder_worker.rs`) processes all decoder chains serially, implementing [DBD-DEC-040] serial decoding for cache coherency.
+
+**[DBD-IMPL-060]** Worker state machine:
+- **Pending Requests** - Priority queue of decode requests (Immediate > Next > Prefetch)
+- **Active Chains** - Chains currently being processed
+- **Yielded Chains** - Chains waiting for buffer space
+
+**[DBD-IMPL-070]** Worker loop operation (single iteration):
+1. **Resume** - Check yielded chains, move to active if buffer drained
+2. **Start** - Create DecoderChains for pending requests
+3. **Process** - Process one chunk from one active chain
+4. **Yield** - Move chain to yielded set if buffer full
+
+**[DBD-IMPL-080]** Serial processing benefits:
+- Cache coherency - Single decode operation at a time reduces cache misses
+- Simplified state - No locking required between chains
+- Predictable performance - Deterministic processing order
+- Lower CPU load - No thread pool overhead or contention
+
+### Pipeline Components
+
+**[DBD-IMPL-090]** Fader module (`src/playback/pipeline/fader.rs`):
+- Maintains frame position across chunks
+- Zero-duration pass-through mode [XFD-OV-020]
+- Sample-accurate fade timing [DBD-DEC-080]
+
+**[DBD-IMPL-100]** StatefulResampler (`src/audio/resampler.rs`):
+- Wraps rubato `FastFixedIn` with state preservation
+- Pass-through mode when input_rate == output_rate
+- Eliminates phase discontinuities between chunks
+
+**[DBD-IMPL-110]** Architecture replaced:
+- Obsolete: `DecoderPool` (multi-threaded pool architecture)
+- Obsolete: `SerialDecoder` (complex threading with yield loops)
+- Removed: 2,128 lines of threading complexity
+- Net reduction: ~1,000 lines of code
+
 ---
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Created:** 2025-10-19
-**Last Updated:** 2025-10-20
+**Last Updated:** 2025-10-21
 **Status:** Current
 **Tier:** 2 - Design Specification
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.2 (2025-10-21): Documented new DecoderWorker/DecoderChain architecture
+  - Added Implementation Architecture section
+  - Added [DBD-IMPL-010] through [DBD-IMPL-110] requirements
+  - Documented DecoderChain pipeline encapsulation
+  - Documented DecoderWorker single-threaded serial processing
+  - Documented Fader and StatefulResampler components
+  - Updated overview note to reference new architecture
+  - Removed references to obsolete DecoderPool/SerialDecoder (2,128 lines removed)
 - v1.1 (2025-10-20): Added Chain Assignment Lifecycle section
   - Added [DBD-LIFECYCLE-010] through [DBD-LIFECYCLE-050] requirements
   - Clarified when chains are assigned (on enqueue)

@@ -17,7 +17,139 @@ use tracing::debug;
 /// **[SSD-FBUF-020]**
 pub const TARGET_SAMPLE_RATE: u32 = 44100;
 
+/// Stateful audio resampler that maintains filter state across chunks
+///
+/// Prevents phase discontinuities by reusing the same rubato resampler instance
+/// across multiple chunk processing calls. This is critical for high-quality
+/// streaming audio where chunks are processed sequentially.
+///
+/// **Architecture:** Used in the new single-threaded decoder pipeline to ensure
+/// seamless resampling across chunk boundaries.
+pub enum StatefulResampler {
+    /// No resampling needed (input rate == output rate)
+    ///
+    /// Simply copies input to output without processing.
+    PassThrough { channels: u16 },
+
+    /// Active resampling with maintained filter state
+    ///
+    /// Reuses the same rubato resampler instance to preserve filter state.
+    Active {
+        resampler: FastFixedIn<f32>,
+        input_rate: u32,
+        output_rate: u32,
+        channels: u16,
+        chunk_size: usize,
+    },
+}
+
+impl StatefulResampler {
+    /// Create a new stateful resampler
+    ///
+    /// # Arguments
+    /// * `input_rate` - Input sample rate (e.g., 48000 Hz)
+    /// * `output_rate` - Output sample rate (typically 44100 Hz)
+    /// * `channels` - Number of channels (typically 2 for stereo)
+    /// * `chunk_size` - Expected chunk size in frames (for pre-allocation)
+    ///
+    /// # Returns
+    /// Resampler instance (either PassThrough or Active based on rates)
+    pub fn new(
+        input_rate: u32,
+        output_rate: u32,
+        channels: u16,
+        chunk_size: usize,
+    ) -> Result<Self> {
+        if input_rate == output_rate {
+            debug!(
+                "Creating pass-through resampler ({}Hz, {} channels)",
+                input_rate, channels
+            );
+            Ok(Self::PassThrough { channels })
+        } else {
+            debug!(
+                "Creating stateful resampler: {}Hz -> {}Hz ({} channels, chunk_size={})",
+                input_rate, output_rate, channels, chunk_size
+            );
+            let resampler = Resampler::create_resampler(
+                input_rate,
+                output_rate,
+                channels,
+                chunk_size,
+            )?;
+            Ok(Self::Active {
+                resampler,
+                input_rate,
+                output_rate,
+                channels,
+                chunk_size,
+            })
+        }
+    }
+
+    /// Process a chunk of audio, maintaining filter state
+    ///
+    /// # Arguments
+    /// * `input` - Interleaved audio samples to process
+    ///
+    /// # Returns
+    /// Resampled audio at output rate (or copy if pass-through)
+    ///
+    /// # Notes
+    /// - Filter state is preserved between calls for seamless streaming
+    /// - **Input chunk size must match the chunk_size specified in `new()`** for Active resamplers
+    /// - PassThrough mode accepts any chunk size
+    pub fn process_chunk(&mut self, input: &[f32]) -> Result<Vec<f32>> {
+        match self {
+            Self::PassThrough { .. } => {
+                // No resampling needed, just copy
+                Ok(input.to_vec())
+            }
+            Self::Active {
+                resampler,
+                channels,
+                ..
+            } => {
+                // De-interleave samples for rubato
+                let planar_input = Resampler::deinterleave(input, *channels);
+
+                // Process through stateful resampler
+                let planar_output = resampler
+                    .process(&planar_input, None)
+                    .map_err(|e| Error::Decode(format!("Resampling failed: {}", e)))?;
+
+                // Re-interleave output
+                Ok(Resampler::interleave(planar_output))
+            }
+        }
+    }
+
+    /// Check if this resampler is in pass-through mode
+    pub fn is_pass_through(&self) -> bool {
+        matches!(self, Self::PassThrough { .. })
+    }
+
+    /// Get the output rate for this resampler
+    pub fn output_rate(&self) -> u32 {
+        match self {
+            Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
+            Self::Active { output_rate, .. } => *output_rate,
+        }
+    }
+
+    /// Get the input rate for this resampler
+    pub fn input_rate(&self) -> u32 {
+        match self {
+            Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
+            Self::Active { input_rate, .. } => *input_rate,
+        }
+    }
+}
+
 /// Audio resampler using rubato for high-quality sample rate conversion.
+///
+/// **Note:** For streaming use cases, prefer `StatefulResampler` to maintain
+/// filter state across chunks and avoid phase discontinuities.
 pub struct Resampler;
 
 impl Resampler {
@@ -249,5 +381,68 @@ mod tests {
         let interleaved = Resampler::interleave(planar);
 
         assert_eq!(interleaved, Vec::<f32>::new());
+    }
+
+    // StatefulResampler tests
+    #[test]
+    fn test_stateful_resampler_pass_through() {
+        let mut resampler = StatefulResampler::new(44100, 44100, 2, 1000).unwrap();
+
+        assert!(resampler.is_pass_through());
+        assert_eq!(resampler.input_rate(), 44100);
+        assert_eq!(resampler.output_rate(), 44100);
+
+        let input = vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
+        let output = resampler.process_chunk(&input).unwrap();
+
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn test_stateful_resampler_active() {
+        let mut resampler = StatefulResampler::new(48000, 44100, 2, 1000).unwrap();
+
+        assert!(!resampler.is_pass_through());
+        assert_eq!(resampler.input_rate(), 48000);
+        assert_eq!(resampler.output_rate(), 44100);
+    }
+
+    #[test]
+    fn test_stateful_resampler_maintains_state_across_chunks() {
+        let mut resampler = StatefulResampler::new(48000, 44100, 2, 1000).unwrap();
+
+        // Process multiple chunks
+        for _ in 0..5 {
+            let input = vec![0.1; 2000]; // 1000 stereo frames
+            let output = resampler.process_chunk(&input).unwrap();
+
+            // Output should be resampled (roughly 44100/48000 ratio)
+            let expected_frames = (1000.0 * 44100.0 / 48000.0) as usize;
+            let output_frames = output.len() / 2;
+
+            // Allow variance for filter state
+            assert!(
+                output_frames >= expected_frames - 50 && output_frames <= expected_frames + 50,
+                "Expected ~{} frames, got {}",
+                expected_frames,
+                output_frames
+            );
+        }
+    }
+
+    #[test]
+    fn test_stateful_resampler_consistent_chunk_size() {
+        let chunk_size = 1000;
+        let mut resampler = StatefulResampler::new(48000, 44100, 2, chunk_size).unwrap();
+
+        // Process multiple chunks of consistent size
+        // Note: FastFixedIn requires consistent chunk sizes
+        for _ in 0..5 {
+            let input = vec![0.5; chunk_size * 2]; // Stereo
+            let output = resampler.process_chunk(&input).unwrap();
+
+            // Should process successfully
+            assert!(!output.is_empty());
+        }
     }
 }

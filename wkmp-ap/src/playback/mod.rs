@@ -6,8 +6,9 @@
 
 pub mod buffer_events;
 pub mod buffer_manager;
-pub mod decoder_pool;
-pub mod serial_decoder;
+// Removed: decoder_pool (obsolete - replaced by DecoderWorker)
+pub mod decoder_worker; // New single-threaded worker
+// Removed: serial_decoder (obsolete - replaced by DecoderWorker)
 pub mod engine;
 pub mod events;
 pub mod pipeline;
@@ -19,7 +20,7 @@ pub mod types;
 
 // Re-exports for external use (tests, other modules)
 pub use buffer_manager::BufferManager;
-pub use serial_decoder::SerialDecoder;
+pub use decoder_worker::DecoderWorker;
 pub use types::DecodePriority;
 
 // Export from pipeline submodule

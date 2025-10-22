@@ -780,11 +780,14 @@ impl StreamingDecoder {
 
         // Calculate target sample counts
         let start_sample_idx = ((start_ms * sample_rate as u64) / 1000) as usize * channels as usize;
-        let undefined_endpoint = end_ms == 0;
+        let undefined_endpoint = end_ms == 0 || end_ms == u64::MAX;
         let end_sample_idx = if undefined_endpoint {
             usize::MAX // Decode to file end
         } else {
-            ((end_ms * sample_rate as u64) / 1000) as usize * channels as usize
+            // Use saturating arithmetic to prevent overflow
+            ((end_ms * sample_rate as u64) / 1000)
+                .saturating_mul(channels as u64)
+                .min(usize::MAX as u64) as usize
         };
 
         let start_ticks = wkmp_common::timing::ms_to_ticks(start_ms as i64);

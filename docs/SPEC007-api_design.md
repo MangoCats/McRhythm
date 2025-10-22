@@ -1206,6 +1206,7 @@ See [architecture.md - Health check and respawning](SPEC001-architecture.md#laun
   "status": "healthy",
   "module": "audio_player",
   "version": "1.0.0",
+  "build_id": "v0.1.0 [7e22005e] 2025-10-22T02:39:00Z (debug)",
   "uptime_seconds": 3600,
   "checks": {
     "database": "ok",
@@ -1221,6 +1222,7 @@ See [architecture.md - Health check and respawning](SPEC001-architecture.md#laun
   "status": "unhealthy",
   "module": "audio_player",
   "version": "1.0.0",
+  "build_id": "v0.1.0 [7e22005e] 2025-10-22T02:39:00Z (debug)",
   "uptime_seconds": 120,
   "checks": {
     "database": "ok",
@@ -1234,6 +1236,7 @@ See [architecture.md - Health check and respawning](SPEC001-architecture.md#laun
 - `status` (string): "healthy" or "unhealthy"
 - `module` (string): Module name ("audio_player", "user_interface", "program_director", etc.)
 - `version` (string): Module version string
+- `build_id` (string): Build ID string (same as output to the console log and shown on the developer UI)
 - `uptime_seconds` (integer): Seconds since module started
 - `checks` (object): Health status of critical subsystems
   - `database` (string): "ok" if database accessible, "failed" otherwise

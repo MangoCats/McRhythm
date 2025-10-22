@@ -259,17 +259,20 @@ impl PlayoutRingBuffer {
             let new_level = self.fill_level.fetch_sub(1, Ordering::Relaxed).saturating_sub(1);
             self.total_frames_read.fetch_add(1, Ordering::Relaxed);
 
-            // **[DBD-BUF-050]** Clear pause flag if buffer has space again
+            // **[DBD-BUF-050]** **[DBD-PARAM-085]** Clear pause flag if buffer has space again
+            // Pause when: free_space ≤ headroom (4410)
+            // Resume when: free_space ≥ resume_hysteresis + headroom (48510)
             let free_space = self.capacity.saturating_sub(new_level);
-            if free_space > self.headroom && self.decoder_should_pause.load(Ordering::Relaxed) {
+            let resume_threshold = self.resume_hysteresis.saturating_add(self.headroom);
+            if free_space >= resume_threshold && self.decoder_should_pause.load(Ordering::Relaxed) {
                 self.decoder_should_pause.store(false, Ordering::Relaxed);
                 trace!(
-                    "Playout buffer resume threshold reached: fill={}/{} ({:.1}%), free={}, headroom={}",
+                    "Playout buffer resume threshold reached: fill={}/{} ({:.1}%), free={}, resume_threshold={}",
                     new_level,
                     self.capacity,
                     self.fill_percent(),
                     free_space,
-                    self.headroom
+                    resume_threshold
                 );
             }
 
@@ -399,7 +402,15 @@ impl PlayoutRingBuffer {
     pub fn can_decoder_resume(&self) -> bool {
         let occupied = self.fill_level.load(Ordering::Acquire);
         let free_space = self.capacity.saturating_sub(occupied);
-        free_space >= self.resume_hysteresis.saturating_add(self.headroom)
+        let resume_threshold = self.resume_hysteresis.saturating_add(self.headroom);
+        let can_resume = free_space >= resume_threshold;
+
+        debug!(
+            "can_decoder_resume: occupied={}, free_space={}, capacity={}, resume_threshold={} (hysteresis={} + headroom={}), result={}",
+            occupied, free_space, self.capacity, resume_threshold, self.resume_hysteresis, self.headroom, can_resume
+        );
+
+        can_resume
     }
 
     /// Reset buffer to empty state (for reuse)
