@@ -56,6 +56,9 @@ reqwest = { version = "0.11", features = ["json"] }
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 # File searching for tests
 walkdir = "2.4"
+# Audio test file generation (for pipeline integrity tests)
+hound = "3.5"
+tempfile = "3.8"
 
 # Performance Benchmarks
 # See docs/validation/IMPL-TESTS-003-performance-benchmarks.md

@@ -162,7 +162,7 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
@@ -170,6 +170,7 @@ impl PlaybackEngine {
             crate::db::settings::load_mixer_thread_config(&db_pool),
             crate::db::settings::load_maximum_decode_streams(&db_pool),
             crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
+            crate::db::settings::load_mixer_min_start_level(&db_pool), // [DBD-PARAM-088]
         );
         let db_elapsed = db_start.elapsed();
 
@@ -180,6 +181,7 @@ impl PlaybackEngine {
         let _mixer_config = mixer_config?;  // Loaded in parallel for performance
         let maximum_decode_streams = maximum_decode_streams?;
         let resume_hysteresis = resume_hysteresis?;
+        let mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088]
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -220,6 +222,9 @@ impl PlaybackEngine {
 
         // **[SSD-UND-010]** Configure mixer with buffer manager for underrun detection
         mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+
+        // **[DBD-PARAM-088]** **[DBD-MIX-060]** Configure minimum buffer level before playback start
+        mixer.set_mixer_min_start_level(mixer_min_start_level);
 
         let mixer = Arc::new(RwLock::new(mixer));
 
@@ -2588,6 +2593,70 @@ impl PlaybackEngine {
                 });
             }
         }
+    }
+
+    /// Get pipeline metrics for integrity validation
+    ///
+    /// **[PHASE1-INTEGRITY]** Returns aggregated metrics from buffer manager and mixer
+    ///
+    /// # Returns
+    /// PipelineMetrics with buffer statistics and mixer frame count
+    ///
+    /// # Note
+    /// Decoder statistics are not yet integrated in this initial implementation.
+    /// Validation will use buffer write counters as proxy for decoder output.
+    pub async fn get_pipeline_metrics(&self) -> crate::playback::PipelineMetrics {
+        use crate::playback::PassageMetrics;
+        use std::collections::HashMap;
+
+        // Get all buffer statistics
+        let buffer_stats = self.buffer_manager.get_all_buffer_statistics().await;
+
+        // Convert buffer stats to passage metrics
+        // Note: decoder_frames_pushed is approximated from buffer_samples_written / 2
+        // This is acceptable since the validation checks buffer integrity primarily
+        let mut passages = HashMap::new();
+        for (queue_entry_id, buf_stats) in buffer_stats {
+            let passage_metrics = PassageMetrics::new(
+                queue_entry_id,
+                (buf_stats.total_samples_written / 2) as usize, // Approximate decoder frames from buffer writes
+                buf_stats.total_samples_written,
+                buf_stats.total_samples_read,
+                None, // file_path not available from buffer stats
+            );
+            passages.insert(queue_entry_id, passage_metrics);
+        }
+
+        // Get mixer total frames mixed
+        let mixer_total_frames_mixed = self.mixer.write().await.get_total_frames_mixed();
+
+        crate::playback::PipelineMetrics::new(passages, mixer_total_frames_mixed)
+    }
+
+    /// Start automatic validation service
+    ///
+    /// **[ARCH-AUTO-VAL-001]** Starts periodic pipeline integrity validation
+    ///
+    /// Creates and starts a ValidationService background task that runs every
+    /// 10 seconds during playback, emitting validation events via SSE.
+    ///
+    /// # Arguments
+    /// * `engine` - Arc reference to self (PlaybackEngine)
+    ///
+    /// # Note
+    /// This should be called once during engine initialization. The validation
+    /// service will continue running in the background until the engine is dropped.
+    pub fn start_validation_service(engine: Arc<Self>) {
+        use crate::playback::validation_service::{ValidationConfig, ValidationService};
+
+        let config = ValidationConfig::default();
+        let validation_service = Arc::new(ValidationService::new(
+            config,
+            engine.clone(),
+            engine.state.clone(),
+        ));
+
+        validation_service.run();
     }
 }
 

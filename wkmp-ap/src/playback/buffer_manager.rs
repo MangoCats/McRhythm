@@ -776,7 +776,7 @@ impl BufferManager {
         let capacity = buffer_arc.capacity();
         let occupied = buffer_arc.occupied();
         let fill_percent = buffer_arc.fill_percent();
-        let stats = buffer_arc.stats();
+        let stats = buffer_arc.get_statistics();
 
         Some(BufferMonitorInfo {
             fill_percent,
@@ -787,7 +787,7 @@ impl BufferManager {
             } else {
                 None
             },
-            total_decoded_frames: stats.total_written as usize,
+            total_decoded_frames: (stats.total_samples_written / 2) as usize, // Convert samples to frames
         })
     }
 
@@ -795,6 +795,24 @@ impl BufferManager {
     pub async fn get_buffer_state(&self, queue_entry_id: Uuid) -> Option<BufferState> {
         let buffers = self.buffers.read().await;
         buffers.get(&queue_entry_id).map(|managed| managed.metadata.state)
+    }
+
+    /// Get all buffer statistics for pipeline integrity validation
+    ///
+    /// **[PHASE1-INTEGRITY]** Returns HashMap of passage_id -> BufferStatistics
+    ///
+    /// # Returns
+    /// HashMap with statistics for all currently managed buffers
+    pub async fn get_all_buffer_statistics(&self) -> HashMap<Uuid, crate::playback::playout_ring_buffer::BufferStatistics> {
+        let buffers = self.buffers.read().await;
+        let mut stats_map = HashMap::new();
+
+        for (queue_entry_id, managed) in buffers.iter() {
+            let buffer_stats = managed.buffer.get_statistics();
+            stats_map.insert(*queue_entry_id, buffer_stats);
+        }
+
+        stats_map
     }
 }
 

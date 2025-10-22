@@ -16,6 +16,7 @@ use crate::audio::types::{AudioFrame, BufferStatus};
 use crate::error::Error;
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::events::PlaybackEvent;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc;
@@ -133,6 +134,21 @@ pub struct CrossfadeMixer {
     /// **[SSD-UND-010]** Used for underrun detection and buffer status queries
     buffer_manager: Option<Arc<BufferManager>>,
 
+    /// Minimum buffer samples required before starting playback
+    ///
+    /// **[DBD-PARAM-088]** **[DBD-MIX-060]** Minimum samples in buffer before mixer starts drawing
+    /// Default: 44100 samples (1.0 second @ 44.1kHz)
+    /// Range: 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
+    mixer_min_start_level: usize,
+
+    /// Total frames mixed since mixer creation (monotonic counter)
+    ///
+    /// **[PHASE1-INTEGRITY]** Used for end-to-end sample integrity validation
+    /// Incremented on every get_next_frame() call regardless of mixer state
+    /// This counter tracks every stereo frame output by the mixer for pipeline diagnostics
+    /// Ordering: Relaxed (statistics only, not used for synchronization)
+    total_frames_mixed: AtomicU64,
+
     /// Underrun state tracking
     ///
     /// **[SSD-UND-016]** Tracks if mixer is paused due to underrun
@@ -210,6 +226,8 @@ impl CrossfadeMixer {
             frame_counter: 0,
             position_event_interval_frames: 44100, // Default: 1 second
             buffer_manager: None,
+            mixer_min_start_level: 44100, // [DBD-PARAM-088] Default: 1.0 second @ 44.1kHz
+            total_frames_mixed: AtomicU64::new(0), // [PHASE1-INTEGRITY] Start at zero
             underrun_state: None,
             pause_state: None,    // [XFD-PAUS-010] Initially not paused
             resume_state: None,   // [XFD-PAUS-020] Initially no resume fade-in
@@ -225,6 +243,22 @@ impl CrossfadeMixer {
     /// * `buffer_manager` - Arc to buffer manager for status queries
     pub fn set_buffer_manager(&mut self, buffer_manager: Arc<BufferManager>) {
         self.buffer_manager = Some(buffer_manager);
+    }
+
+    /// Set minimum buffer samples required before starting playback
+    ///
+    /// **[DBD-PARAM-088]** **[DBD-MIX-060]** Configure minimum start level
+    ///
+    /// # Arguments
+    /// * `min_level` - Minimum number of samples (will be clamped to 8820-220500)
+    pub fn set_mixer_min_start_level(&mut self, min_level: usize) {
+        // Clamp to valid range per [DBD-PARAM-088]
+        self.mixer_min_start_level = min_level.clamp(8820, 220500);
+        tracing::debug!(
+            "[DBD-PARAM-088] Mixer minimum start level set to {} samples ({:.2}s @ 44.1kHz)",
+            self.mixer_min_start_level,
+            self.mixer_min_start_level as f64 / 44100.0
+        );
     }
 
     /// Set event channel for position updates
@@ -282,6 +316,7 @@ impl CrossfadeMixer {
     /// **[SSD-MIX-040]** Transitions from SinglePassage to Crossfading state
     /// **[DBD-MIX-020]** Accepts sample-based durations (not milliseconds)
     /// **[DBD-BUF-040]** Uses drain operations from both buffers
+    /// **[DBD-PARAM-088]** **[DBD-MIX-060]** Checks next passage buffer has minimum samples
     ///
     /// # Arguments
     /// * `next_passage_id` - UUID of next passage (buffer retrieved via buffer_manager)
@@ -291,7 +326,7 @@ impl CrossfadeMixer {
     /// * `fade_in_duration_samples` - Fade-in duration in samples
     ///
     /// # Returns
-    /// Ok if crossfade started, Err if no passage is currently playing
+    /// Ok if crossfade started, Err if no passage is currently playing or next buffer not ready
     pub async fn start_crossfade(
         &mut self,
         next_passage_id: Uuid,
@@ -302,6 +337,36 @@ impl CrossfadeMixer {
     ) -> Result<(), Error> {
         match &self.state {
             MixerState::SinglePassage { passage_id, .. } => {
+                // **[DBD-PARAM-088]** **[DBD-MIX-060]** Check if next passage buffer has minimum samples
+                if let Some(ref buffer_manager) = self.buffer_manager {
+                    if let Some(next_buffer) = buffer_manager.get_buffer(next_passage_id).await {
+                        let occupied = next_buffer.occupied();
+
+                        if occupied < self.mixer_min_start_level {
+                            tracing::warn!(
+                                "[DBD-MIX-060] Crossfade delayed: next passage buffer not ready (occupied={}, required={})",
+                                occupied,
+                                self.mixer_min_start_level
+                            );
+                            return Err(Error::InvalidState(format!(
+                                "Next passage buffer not ready for crossfade (occupied={}, required={})",
+                                occupied, self.mixer_min_start_level
+                            )));
+                        }
+
+                        tracing::debug!(
+                            "[DBD-MIX-060] Starting crossfade: next passage buffer ready (occupied={}, required={})",
+                            occupied,
+                            self.mixer_min_start_level
+                        );
+                    } else {
+                        return Err(Error::InvalidState(format!(
+                            "Next passage buffer not found: {}",
+                            next_passage_id
+                        )));
+                    }
+                }
+
                 self.state = MixerState::Crossfading {
                     current_passage_id: *passage_id,
                     fade_out_curve,
@@ -369,6 +434,41 @@ impl CrossfadeMixer {
             } => {
                 // **[DBD-BUF-040]** Drain frame from buffer via buffer_manager
                 if let Some(ref buffer_manager) = self.buffer_manager {
+                    // **[DBD-PARAM-088]** **[DBD-MIX-060]** Check minimum start level before drawing first frame
+                    if *frame_count == 0 {
+                        // This is the first frame - check if buffer has enough samples
+                        if let Some(buffer_arc) = buffer_manager.get_buffer(*passage_id).await {
+                            let occupied = buffer_arc.occupied();
+
+                            if occupied < self.mixer_min_start_level {
+                                // Buffer doesn't have enough samples yet - wait
+                                tracing::debug!(
+                                    "[DBD-MIX-060] Waiting for min start level: passage={}, occupied={}, required={}",
+                                    passage_id,
+                                    occupied,
+                                    self.mixer_min_start_level
+                                );
+                                // Return silence and don't increment frame_count (stay at 0)
+                                return AudioFrame::zero();
+                            } else {
+                                // Buffer has enough samples - start playback
+                                tracing::info!(
+                                    "[DBD-MIX-060] Starting playback: passage={}, buffer_samples={} (min_required={})",
+                                    passage_id,
+                                    occupied,
+                                    self.mixer_min_start_level
+                                );
+                            }
+                        } else {
+                            // No buffer - wait
+                            tracing::warn!(
+                                "[DBD-MIX-060] No buffer found for passage={}, waiting...",
+                                passage_id
+                            );
+                            return AudioFrame::zero();
+                        }
+                    }
+
                     let mut frame = pop_buffer_frame(buffer_manager, *passage_id).await;
 
                     // Apply fade-in if active
@@ -495,6 +595,9 @@ impl CrossfadeMixer {
         // **[REV002]** Emit position events periodically
         // This runs after frame generation to include position in the event
         self.frame_counter += 1;
+
+        // **[PHASE1-INTEGRITY]** Track total frames for pipeline diagnostics
+        self.total_frames_mixed.fetch_add(1, Ordering::Relaxed);
 
         if self.frame_counter >= self.position_event_interval_frames {
             self.frame_counter = 0; // Reset counter
@@ -801,6 +904,16 @@ impl CrossfadeMixer {
     /// true if in Crossfading state
     pub fn is_crossfading(&self) -> bool {
         matches!(self.state, MixerState::Crossfading { .. })
+    }
+
+    /// Get total frames mixed since mixer creation
+    ///
+    /// **[PHASE1-INTEGRITY]** Returns monotonic counter for pipeline diagnostics
+    ///
+    /// # Returns
+    /// Total stereo frames output by mixer (not samples - each frame = 2 samples)
+    pub fn get_total_frames_mixed(&self) -> u64 {
+        self.total_frames_mixed.load(Ordering::Relaxed)
     }
 
     // Helper methods

@@ -1142,6 +1142,96 @@ pub async fn bulk_update_settings(
 }
 
 // ============================================================================
+// Pipeline Diagnostics
+// ============================================================================
+
+/// Response structure for pipeline diagnostics endpoint
+#[derive(Debug, Serialize)]
+pub struct DiagnosticsResponse {
+    /// Validation passed or failed
+    pub passed: bool,
+
+    /// Number of passages validated
+    pub passage_count: usize,
+
+    /// Total decoder samples processed
+    pub total_decoder_samples: u64,
+
+    /// Total samples written to buffers
+    pub total_buffer_written: u64,
+
+    /// Total samples read from buffers
+    pub total_buffer_read: u64,
+
+    /// Total frames mixed
+    pub total_mixer_frames: u64,
+
+    /// Validation errors (empty if passed)
+    pub errors: Vec<String>,
+
+    /// Timestamp of validation
+    pub timestamp: String,
+}
+
+/// Get pipeline integrity diagnostics
+///
+/// **[PHASE1-INTEGRITY]** Returns current pipeline metrics and validation status
+///
+/// **Endpoint:** `GET /playback/diagnostics`
+///
+/// **Response:**
+/// ```json
+/// {
+///   "passed": true,
+///   "passage_count": 2,
+///   "total_decoder_samples": 176400,
+///   "total_buffer_written": 176400,
+///   "total_buffer_read": 176400,
+///   "total_mixer_frames": 88200,
+///   "errors": [],
+///   "timestamp": "2025-10-22T10:30:00Z"
+/// }
+/// ```
+pub async fn get_pipeline_diagnostics(
+    State(ctx): State<AppContext>,
+) -> Result<Json<DiagnosticsResponse>, (StatusCode, Json<StatusResponse>)> {
+    info!("Pipeline diagnostics request");
+
+    // Get metrics from engine
+    let metrics = ctx.engine.get_pipeline_metrics().await;
+
+    // Validate with tolerance (8192 samples = ~0.18s @ 44.1kHz stereo)
+    let validation = metrics.validate(8192);
+
+    // Format errors as strings
+    let errors: Vec<String> = validation
+        .errors
+        .iter()
+        .map(|e| e.format())
+        .collect();
+
+    let response = DiagnosticsResponse {
+        passed: validation.passed(),
+        passage_count: validation.passage_count,
+        total_decoder_samples: validation.total_decoder_samples,
+        total_buffer_written: validation.total_buffer_written,
+        total_buffer_read: validation.total_buffer_read,
+        total_mixer_frames: validation.total_mixer_frames,
+        errors,
+        timestamp: chrono::Utc::now().to_rfc3339(),
+    };
+
+    info!(
+        "Pipeline diagnostics: {} (passages: {}, errors: {})",
+        if response.passed { "PASS" } else { "FAIL" },
+        response.passage_count,
+        response.errors.len()
+    );
+
+    Ok(Json(response))
+}
+
+// ============================================================================
 // Developer UI
 // ============================================================================
 

@@ -77,6 +77,9 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
         .route("/playback/buffer_monitor/rate", post(super::handlers::set_buffer_monitor_rate))
         .route("/playback/buffer_monitor/update", post(super::handlers::trigger_buffer_monitor_update))
 
+        // Pipeline diagnostics
+        .route("/playback/diagnostics", get(super::handlers::get_pipeline_diagnostics))
+
         // SSE event stream
         .route("/events", get(super::sse::event_stream))
 

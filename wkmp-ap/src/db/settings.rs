@@ -474,6 +474,30 @@ pub async fn load_maximum_decode_streams(db: &Pool<Sqlite>) -> Result<usize> {
     }
 }
 
+/// Load mixer minimum start level from database
+///
+/// **[DBD-PARAM-088]** Minimum buffer samples required before mixer starts playback
+///
+/// # Returns
+/// Number of samples (default: 44100 = 1.0 second @ 44.1kHz)
+///
+/// # Range
+/// 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
+pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
+    match get_setting::<usize>(db, "mixer_min_start_level").await? {
+        Some(min_level) => {
+            // Clamp to valid range: 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
+            // Per [DBD-PARAM-088] range specification
+            Ok(min_level.clamp(8820, 220500))
+        }
+        None => {
+            // Default: 44100 samples (1.0 second @ 44.1kHz)
+            // Per [DBD-PARAM-088] default value
+            Ok(44100)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

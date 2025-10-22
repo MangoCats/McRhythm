@@ -124,6 +124,11 @@ async fn main() -> Result<()> {
     engine.start().await?;
     info!("Playback engine started");
 
+    // Start automatic validation service
+    // **[ARCH-AUTO-VAL-001]** Periodic pipeline integrity validation
+    PlaybackEngine::start_validation_service(Arc::clone(&engine));
+    info!("Validation service started");
+
     // Create Config struct for API server (temporary bridge to old config system)
     let config = Config {
         database_path: db_path.clone(),

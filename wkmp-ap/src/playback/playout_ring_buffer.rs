@@ -68,6 +68,21 @@ pub struct BufferEmptyError {
     pub last_frame: AudioFrame,
 }
 
+/// Buffer statistics for pipeline integrity validation
+///
+/// **[PHASE1-INTEGRITY]** Snapshot of buffer counters for diagnostics
+#[derive(Debug, Clone, Copy)]
+pub struct BufferStatistics {
+    /// Total samples written to buffer (frames × 2 channels)
+    pub total_samples_written: u64,
+
+    /// Total samples read from buffer (frames × 2 channels)
+    pub total_samples_read: u64,
+
+    /// Associated passage ID
+    pub passage_id: Option<Uuid>,
+}
+
 /// Playout ring buffer for per-chain audio buffering
 ///
 /// **[DBD-BUF-010]** Holds playout_ringbuffer_size stereo samples in a lock-free ring buffer.
@@ -391,6 +406,20 @@ impl PlayoutRingBuffer {
         let decode_done = self.decode_complete.load(Ordering::Acquire);
         let buffer_empty = self.fill_level.load(Ordering::Relaxed) == 0;
         decode_done && buffer_empty
+    }
+
+    /// Get buffer statistics for pipeline integrity validation
+    ///
+    /// **[PHASE1-INTEGRITY]** Returns snapshot of buffer counters for diagnostics
+    ///
+    /// # Returns
+    /// BufferStatistics with total samples written/read and passage ID
+    pub fn get_statistics(&self) -> BufferStatistics {
+        BufferStatistics {
+            total_samples_written: self.total_frames_written.load(Ordering::Relaxed) * 2,
+            total_samples_read: self.total_frames_read.load(Ordering::Relaxed) * 2,
+            passage_id: self.passage_id,
+        }
     }
 
     /// Mark passage decode as complete

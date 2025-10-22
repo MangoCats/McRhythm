@@ -101,6 +101,41 @@ pub enum WkmpEvent {
         actual_end_ticks: i64,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+
+    /// Pipeline validation succeeded (periodic check)
+    /// **[ARCH-AUTO-VAL-001]** Automatic validation service - success result
+    ValidationSuccess {
+        timestamp: chrono::DateTime<chrono::Utc>,
+        passage_count: usize,
+        total_decoder_samples: u64,
+        total_buffer_written: u64,
+        total_buffer_read: u64,
+        total_mixer_frames: u64,
+    },
+
+    /// Pipeline validation failed (conservation law violated)
+    /// **[ARCH-AUTO-VAL-001]** Automatic validation service - failure result
+    ValidationFailure {
+        timestamp: chrono::DateTime<chrono::Utc>,
+        passage_count: usize,
+        total_decoder_samples: u64,
+        total_buffer_written: u64,
+        total_buffer_read: u64,
+        total_mixer_frames: u64,
+        errors: Vec<String>,
+    },
+
+    /// Pipeline validation warning (approaching tolerance threshold)
+    /// **[ARCH-AUTO-VAL-001]** Automatic validation service - warning result (>80% of tolerance)
+    ValidationWarning {
+        timestamp: chrono::DateTime<chrono::Utc>,
+        passage_count: usize,
+        total_decoder_samples: u64,
+        total_buffer_written: u64,
+        total_buffer_read: u64,
+        total_mixer_frames: u64,
+        warnings: Vec<String>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -296,6 +331,9 @@ impl WkmpEvent {
             WkmpEvent::CrossfadeStarted { .. } => "CrossfadeStarted",
             WkmpEvent::BufferChainStatus { .. } => "BufferChainStatus",
             WkmpEvent::EndpointDiscovered { .. } => "EndpointDiscovered",
+            WkmpEvent::ValidationSuccess { .. } => "ValidationSuccess",
+            WkmpEvent::ValidationFailure { .. } => "ValidationFailure",
+            WkmpEvent::ValidationWarning { .. } => "ValidationWarning",
         }
     }
 }
