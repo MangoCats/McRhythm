@@ -166,6 +166,11 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     // Audio Ingest settings (Full version)
     ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
 
+    // Validation service settings **[ARCH-AUTO-VAL-001]**
+    ensure_setting(pool, "validation_enabled", "true").await?;
+    ensure_setting(pool, "validation_interval_secs", "10").await?;
+    ensure_setting(pool, "validation_tolerance_samples", "8192").await?;
+
     info!("Default settings initialized");
     Ok(())
 }

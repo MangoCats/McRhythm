@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
 
     // Start automatic validation service
     // **[ARCH-AUTO-VAL-001]** Periodic pipeline integrity validation
-    PlaybackEngine::start_validation_service(Arc::clone(&engine));
+    PlaybackEngine::start_validation_service(Arc::clone(&engine), db_pool.clone()).await;
     info!("Validation service started");
 
     // Create Config struct for API server (temporary bridge to old config system)

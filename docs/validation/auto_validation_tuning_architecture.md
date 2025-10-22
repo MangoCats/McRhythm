@@ -91,12 +91,15 @@ pub struct ValidationConfig {
 
 ## Implementation Phases
 
-### Phase 1: Validation Service (Current)
-- [x] Core validation logic (`diagnostics.rs`)
+### Phase 1: Validation Service (✅ COMPLETE)
+- [x] Core validation logic (`diagnostics.rs` - 351 lines, 6 tests)
 - [x] Engine metrics API (`get_pipeline_metrics()`)
-- [ ] ValidationService background task
-- [ ] API endpoints for diagnostics
-- [ ] Event emission
+- [x] ValidationService background task (`validation_service.rs` - 331 lines, 2 tests)
+- [x] API endpoints for diagnostics (`GET /playback/diagnostics`)
+- [x] Event emission (ValidationSuccess, ValidationFailure, ValidationWarning)
+- [x] Database settings integration (3 configurable parameters)
+- [x] Automatic startup on engine initialization
+- [x] SSE event broadcasting tested and verified
 
 ### Phase 2: Auto-Tuning (Future)
 - [ ] Hardware detection
@@ -119,6 +122,105 @@ pub struct ValidationConfig {
 | `validation_interval_secs` | `10` | Validation check interval |
 | `validation_tolerance_samples` | `8192` | Sample count tolerance |
 
+## Implementation Details (Phase 1)
+
+### File Structure
+
+```
+wkmp-common/
+  src/db/init.rs              # Database settings initialization
+  src/events.rs               # Validation SSE events
+
+wkmp-ap/src/playback/
+  validation_service.rs       # ValidationService (331 lines)
+  diagnostics.rs              # Validation logic (351 lines)
+  engine.rs                   # Service integration
+
+wkmp-ap/src/
+  main.rs                     # Automatic startup
+```
+
+### Database Settings
+
+| Setting | Default | Type | Description |
+|---------|---------|------|-------------|
+| `validation_enabled` | `true` | boolean | Enable/disable automatic validation |
+| `validation_interval_secs` | `10` | integer | Validation check interval (seconds) |
+| `validation_tolerance_samples` | `8192` | integer | Sample count tolerance (~0.18s @ 44.1kHz) |
+
+### API Endpoints
+
+**GET `/playback/diagnostics`**
+- Returns current pipeline validation results
+- Response includes all metrics and any errors
+- Used for manual/on-demand validation checks
+
+### SSE Events
+
+**ValidationSuccess**
+```json
+{
+  "type": "ValidationSuccess",
+  "timestamp": "2025-10-22T16:09:51Z",
+  "passage_count": 3,
+  "total_decoder_samples": 4770638,
+  "total_buffer_written": 4770638,
+  "total_buffer_read": 880000,
+  "total_mixer_frames": 440000
+}
+```
+
+**ValidationFailure**
+```json
+{
+  "type": "ValidationFailure",
+  "timestamp": "2025-10-22T16:09:51Z",
+  "passage_count": 1,
+  "total_decoder_samples": 1000,
+  "total_buffer_written": 1000,
+  "total_buffer_read": 1500,
+  "total_mixer_frames": 750,
+  "errors": [
+    "Buffer FIFO Violation (Rule 2): Read 500 more samples than written"
+  ]
+}
+```
+
+**ValidationWarning**
+```json
+{
+  "type": "ValidationWarning",
+  "timestamp": "2025-10-22T16:09:51Z",
+  "passage_count": 1,
+  "total_decoder_samples": 100000,
+  "total_buffer_written": 107000,
+  "total_buffer_read": 50000,
+  "total_mixer_frames": 25000,
+  "warnings": [
+    "Approaching tolerance threshold: 7000 samples (85% of limit)"
+  ]
+}
+```
+
+### Test Results
+
+**Verified Functionality:**
+- ✅ Database settings loaded correctly
+- ✅ Service starts automatically on engine init
+- ✅ Validation runs every 10 seconds during playback
+- ✅ SSE events emitted successfully
+- ✅ Conservation laws validated correctly
+- ✅ No performance impact (lock-free metrics)
+
+**Test Output:**
+```
+[INFO] Initialized setting 'validation_enabled' with default value: true
+[INFO] Initialized setting 'validation_interval_secs' with default value: 10
+[INFO] Initialized setting 'validation_tolerance_samples' with default value: 8192
+[INFO] Starting ValidationService (interval: 10s, tolerance: 8192 samples)
+[DEBUG] ValidationService: PASS (passages: 3, errors: 0)
+```
+
 ## Safety Considerations
 
 1. **FIFO Violation = Critical**:
@@ -128,3 +230,8 @@ pub struct ValidationConfig {
 2. **Conservative Approach**:
    - Start with observation only (no auto-tuning)
    - Log all validation results for analysis
+
+3. **Zero-Overhead Design**:
+   - Lock-free atomic counters (Relaxed ordering)
+   - Validation only runs during playback
+   - No impact on audio callback thread

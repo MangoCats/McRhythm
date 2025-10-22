@@ -9,6 +9,7 @@
 
 use crate::playback::engine::PlaybackEngine;
 use crate::state::{PlaybackState, SharedState};
+use sqlx::{Pool, Sqlite};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
@@ -39,6 +40,57 @@ impl Default for ValidationConfig {
             enabled: true,
             history_size: 100,
         }
+    }
+}
+
+impl ValidationConfig {
+    /// Load validation configuration from database settings
+    ///
+    /// **[ARCH-AUTO-VAL-001]** Loads settings from database, falls back to defaults
+    ///
+    /// # Arguments
+    /// * `db_pool` - Database connection pool
+    ///
+    /// # Returns
+    /// ValidationConfig loaded from database settings
+    pub async fn from_database(db_pool: &Pool<Sqlite>) -> Self {
+        let mut config = Self::default();
+
+        // Load validation_enabled
+        if let Ok(enabled_str) = sqlx::query_scalar::<_, String>(
+            "SELECT value FROM settings WHERE key = 'validation_enabled'"
+        )
+        .fetch_one(db_pool)
+        .await
+        {
+            config.enabled = enabled_str.to_lowercase() == "true";
+        }
+
+        // Load validation_interval_secs
+        if let Ok(interval_str) = sqlx::query_scalar::<_, String>(
+            "SELECT value FROM settings WHERE key = 'validation_interval_secs'"
+        )
+        .fetch_one(db_pool)
+        .await
+        {
+            if let Ok(interval) = interval_str.parse::<u64>() {
+                config.interval_secs = interval;
+            }
+        }
+
+        // Load validation_tolerance_samples
+        if let Ok(tolerance_str) = sqlx::query_scalar::<_, String>(
+            "SELECT value FROM settings WHERE key = 'validation_tolerance_samples'"
+        )
+        .fetch_one(db_pool)
+        .await
+        {
+            if let Ok(tolerance) = tolerance_str.parse::<u64>() {
+                config.tolerance_samples = tolerance;
+            }
+        }
+
+        config
     }
 }
 

@@ -2637,19 +2637,23 @@ impl PlaybackEngine {
     ///
     /// **[ARCH-AUTO-VAL-001]** Starts periodic pipeline integrity validation
     ///
-    /// Creates and starts a ValidationService background task that runs every
-    /// 10 seconds during playback, emitting validation events via SSE.
+    /// Creates and starts a ValidationService background task that loads its
+    /// configuration from database settings and runs periodic validations,
+    /// emitting validation events via SSE.
     ///
     /// # Arguments
     /// * `engine` - Arc reference to self (PlaybackEngine)
+    /// * `db_pool` - Database connection pool for loading configuration
     ///
     /// # Note
     /// This should be called once during engine initialization. The validation
     /// service will continue running in the background until the engine is dropped.
-    pub fn start_validation_service(engine: Arc<Self>) {
+    pub async fn start_validation_service(engine: Arc<Self>, db_pool: Pool<Sqlite>) {
         use crate::playback::validation_service::{ValidationConfig, ValidationService};
 
-        let config = ValidationConfig::default();
+        // Load config from database
+        let config = ValidationConfig::from_database(&db_pool).await;
+
         let validation_service = Arc::new(ValidationService::new(
             config,
             engine.clone(),
