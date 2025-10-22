@@ -445,13 +445,40 @@ impl PlaybackEngine {
                     continue;
                 }
 
-                // Mixer IS playing - use graduated filling strategy
+                // **[BUGFIX]** Graduated filling strategy with underrun prevention
                 // [SSD-MIX-020] Use configurable batch sizes from database
+                //
+                // Three-tier strategy to prevent ring buffer underruns:
+                // - CRITICAL (< 25%): Fill aggressively without sleeping (underrun imminent!)
+                // - LOW (25-50%): Fill moderately with minimal sleep
+                // - OPTIMAL (50-75%): Top up conservatively
+                // - HIGH (> 75%): Just sleep and wait
+
+                let occupied = producer.occupied_len();
+                let capacity = producer.capacity();
+                let fill_percent = occupied as f32 / capacity as f32;
+
                 let needs_filling = producer.needs_frames(); // < 50%
                 let is_optimal = producer.is_fill_optimal(); // 50-75%
+                let is_critical = fill_percent < 0.25; // < 25% = underrun risk!
 
-                if needs_filling {
-                    // Buffer < 50% - fill moderately
+                if is_critical {
+                    // **[BUGFIX]** Buffer CRITICALLY low (< 25%) - UNDERRUN IMMINENT!
+                    // Fill aggressively WITHOUT sleeping to prevent gaps in audio
+                    let mut mixer = mixer_clone.write().await;
+
+                    // Push larger batch when critical
+                    let critical_batch_size = batch_size_low * 2;
+                    for _ in 0..critical_batch_size {
+                        let frame = mixer.get_next_frame().await;
+                        if !producer.push(frame) {
+                            break;
+                        }
+                    }
+                    // NO SLEEP - loop immediately to refill!
+
+                } else if needs_filling {
+                    // Buffer LOW (25-50%) - fill moderately
                     let mut mixer = mixer_clone.write().await;
 
                     for _ in 0..batch_size_low {
@@ -462,10 +489,11 @@ impl PlaybackEngine {
                     }
                     // Lock released here
 
-                    // Yield to allow audio callback to consume
+                    // Minimal sleep when buffer is low
                     check_interval.tick().await;
+
                 } else if is_optimal {
-                    // Buffer 50-75% - top up conservatively
+                    // Buffer OPTIMAL (50-75%) - top up conservatively
                     check_interval.tick().await;
 
                     let mut mixer = mixer_clone.write().await;
@@ -476,7 +504,7 @@ impl PlaybackEngine {
                         }
                     }
                 } else {
-                    // Buffer > 75% - just yield and wait for consumption
+                    // Buffer HIGH (> 75%) - just yield and wait for consumption
                     check_interval.tick().await;
                 }
             }
