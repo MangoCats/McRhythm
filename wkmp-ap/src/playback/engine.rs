@@ -861,19 +861,16 @@ impl PlaybackEngine {
         }
 
         let buffer = buffer_ref.unwrap();
-        let buf_lock = buffer.lock().await;
+        // No lock needed - buffer methods use &self with atomics
         let sample_rate = 44100; // [DBD-BUF-010] Fixed 44.1kHz sample rate
 
         // Convert milliseconds to frames
         let position_frames = ((position_ms as f32 / 1000.0) * sample_rate as f32) as usize;
 
         // Clamp to buffer bounds
-        let stats = buf_lock.stats();
+        let stats = buffer.stats();
         let max_frames = stats.total_written as usize;
         let clamped_position = position_frames.min(max_frames.saturating_sub(1));
-
-        drop(buf_lock);
-        drop(buffer);
 
         // Update mixer position
         let mut mixer = self.mixer.write().await;
@@ -1379,7 +1376,10 @@ impl PlaybackEngine {
                     end_ms
                 }
             } else {
-                0
+                // No endpoint known yet - return max value to prevent premature crossfade
+                // Crossfade will be triggered once discovered endpoint is available
+                debug!("No endpoint available for crossfade calculation, delaying crossfade");
+                u64::MAX
             }
         }
     }
@@ -1456,10 +1456,19 @@ impl PlaybackEngine {
         );
 
         // Calculate crossfade durations (in ticks)
-        let fade_out_duration_ticks = if let Some(end_ticks) = current_passage.end_time_ticks {
-            end_ticks.saturating_sub(wkmp_common::timing::ms_to_ticks(crossfade_start_ms as i64))
+        // **BUG FIX**: Duration should be (end - fade_out_point), NOT (end - crossfade_start_ms)
+        // Using crossfade_start_ms causes ticks→ms→ticks conversion loss and incorrect duration
+        let fade_out_duration_ticks = if let Some(fade_out_ticks) = current_passage.fade_out_point_ticks {
+            // Use discovered or defined endpoint
+            let end_ticks = if let Some(discovered) = self.queue.read().await.get_discovered_endpoint(current.queue_entry_id) {
+                discovered
+            } else {
+                current_passage.end_time_ticks.unwrap_or(fade_out_ticks)
+            };
+            end_ticks.saturating_sub(fade_out_ticks)
         } else {
-            wkmp_common::timing::ms_to_ticks(5000) // Default 5-second crossfade
+            // No fade_out_point set - use default crossfade duration (5 seconds)
+            wkmp_common::timing::ms_to_ticks(5000)
         };
 
         let fade_in_duration_ticks = next_passage
@@ -2069,8 +2078,8 @@ impl PlaybackEngine {
                                     } else {
                                         // If end_time is None, estimate from buffer stats
                                         if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
-                                            let buffer = buffer_ref.lock().await;
-                                            let stats = buffer.stats();
+                                            // No lock needed - stats() uses atomics
+                                            let stats = buffer_ref.stats();
                                             wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
                                         } else {
                                             0
@@ -2107,8 +2116,8 @@ impl PlaybackEngine {
                                 } else {
                                     // If end_time is None, estimate from buffer stats
                                     if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
-                                        let buffer = buffer_ref.lock().await;
-                                        let stats = buffer.stats();
+                                        // No lock needed - stats() uses atomics
+                                        let stats = buffer_ref.stats();
                                         wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
                                     } else {
                                         0

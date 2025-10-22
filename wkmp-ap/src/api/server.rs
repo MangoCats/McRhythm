@@ -86,6 +86,10 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
         // File browser
         .route("/files/browse", get(super::handlers::browse_files))
 
+        // Settings management
+        .route("/settings/all", get(super::handlers::get_all_settings))
+        .route("/settings/bulk_update", post(super::handlers::bulk_update_settings))
+
         // Enable CORS for local access
         .layer(CorsLayer::permissive())
 

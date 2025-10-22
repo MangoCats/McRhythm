@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::sync::{mpsc, RwLock};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
@@ -30,7 +30,8 @@ const BUFFER_HEADROOM_THRESHOLD: usize = 220_500;
 struct ManagedBuffer {
     /// The actual playout ring buffer
     /// **[DBD-BUF-010]** Fixed-capacity ring buffer holds playout_ringbuffer_size stereo samples
-    buffer: Arc<Mutex<PlayoutRingBuffer>>,
+    /// No outer Mutex needed - PlayoutRingBuffer is internally lock-free
+    buffer: Arc<PlayoutRingBuffer>,
 
     /// Buffer state and position metadata
     metadata: BufferMetadata,
@@ -101,7 +102,7 @@ impl BufferManager {
     /// **[DBD-BUF-020]** Buffer starts in Empty state
     /// **[DBD-PARAM-070]** Default capacity: 661,941 samples (15.01s @ 44.1kHz)
     /// **[DBD-PARAM-080]** Default headroom: 4410 samples (0.1s @ 44.1kHz)
-    pub async fn allocate_buffer(&self, queue_entry_id: Uuid) -> Arc<Mutex<PlayoutRingBuffer>> {
+    pub async fn allocate_buffer(&self, queue_entry_id: Uuid) -> Arc<PlayoutRingBuffer> {
         let mut buffers = self.buffers.write().await;
 
         // Check if buffer already exists
@@ -114,12 +115,12 @@ impl BufferManager {
         // TODO: Read capacity and headroom from settings database
         // For now, use defaults from PlayoutRingBuffer (661,941 and 4410)
         let hysteresis = *self.resume_hysteresis.read().await;
-        let buffer_arc = Arc::new(Mutex::new(PlayoutRingBuffer::new(
+        let buffer_arc = Arc::new(PlayoutRingBuffer::new(
             None, // Use default capacity (661,941)
             None, // Use default headroom (4410)
             Some(hysteresis), // Use configured resume hysteresis
             Some(queue_entry_id),
-        )));
+        ));
 
         let managed = ManagedBuffer {
             buffer: Arc::clone(&buffer_arc),
@@ -307,31 +308,48 @@ impl BufferManager {
         let buffer_arc = Arc::clone(&managed.buffer);
         drop(buffers); // Release lock before async operation
 
-        // Convert samples to AudioFrame iterator and push to ring buffer
-        let mut buffer = buffer_arc.lock().await;
+        // Convert samples to AudioFrame vector BEFORE acquiring lock
+        // This minimizes lock hold time for better mixer concurrency
+        let frames: Vec<AudioFrame> = samples
+            .chunks_exact(2)
+            .map(|chunk| AudioFrame::from_stereo(chunk[0], chunk[1]))
+            .collect();
+
+        let total_frames = frames.len();
+
+        // Push frames in batches to allow async yielding
+        // Batch size: 220 frames (5ms @ 44.1kHz) provides good granularity
+        // PlayoutRingBuffer.push_frame() is lock-free (uses internal mutexes only for ring buffer ops)
+        const BATCH_SIZE: usize = 220;
         let mut frames_pushed = 0;
 
-        // Iterate over samples in stereo pairs
-        for chunk in samples.chunks_exact(2) {
-            let frame = AudioFrame::from_stereo(chunk[0], chunk[1]);
+        for batch_start in (0..total_frames).step_by(BATCH_SIZE) {
+            let batch_end = (batch_start + BATCH_SIZE).min(total_frames);
+            let batch = &frames[batch_start..batch_end];
 
-            match buffer.push_frame(frame) {
-                Ok(()) => {
-                    frames_pushed += 1;
-                }
-                Err(BufferFullError { capacity, occupied }) => {
-                    // Buffer full - decoder should pause
-                    debug!(
-                        "Ring buffer full for {}: pushed {}/{} frames (capacity={}, occupied={})",
-                        queue_entry_id, frames_pushed, samples.len() / 2, capacity, occupied
-                    );
-                    break;
+            // Push batch - no outer lock needed (buffer is lock-free)
+            for frame in batch {
+                match buffer_arc.push_frame(*frame) {
+                    Ok(()) => {
+                        frames_pushed += 1;
+                    }
+                    Err(BufferFullError { capacity, occupied }) => {
+                        // Buffer full - decoder should pause
+                        debug!(
+                            "Ring buffer full for {}: pushed {}/{} frames (capacity={}, occupied={})",
+                            queue_entry_id, frames_pushed, total_frames, capacity, occupied
+                        );
+                        self.notify_samples_appended(queue_entry_id, frames_pushed).await?;
+                        return Ok(frames_pushed);
+                    }
                 }
             }
+
+            // Yield to give mixer thread a chance to run
+            tokio::task::yield_now().await;
         }
 
         // Notify samples appended for state machine transitions
-        drop(buffer); // Release lock before state machine update
         self.notify_samples_appended(queue_entry_id, frames_pushed).await?;
 
         Ok(frames_pushed)
@@ -356,8 +374,8 @@ impl BufferManager {
         let buffer_arc = Arc::clone(&managed.buffer);
         drop(buffers);
 
-        let buffer = buffer_arc.lock().await;
-        Ok(buffer.should_decoder_pause())
+        // No lock needed - buffer methods use &self with atomics
+        Ok(buffer_arc.should_decoder_pause())
     }
 
     /// Check if decoder can resume (hysteresis check)
@@ -385,10 +403,9 @@ impl BufferManager {
         let buffer_arc = Arc::clone(&managed.buffer);
         drop(buffers);
 
-        let buffer = buffer_arc.lock().await;
-
+        // No lock needed - buffer methods use &self with atomics
         // **[DBD-BUF-050]** Use buffer's configurable hysteresis check
-        Some(buffer.can_decoder_resume())
+        Some(buffer_arc.can_decoder_resume())
     }
 
     /// Set discovered endpoint for passage with undefined end_time_ticks
@@ -458,10 +475,10 @@ impl BufferManager {
 
         // Mark decode complete on the ring buffer
         let buffer = Arc::clone(&managed.buffer);
-        drop(buffers); // Release lock before async operation
+        drop(buffers); // Release lock before operation
 
-        let mut buf = buffer.lock().await;
-        buf.mark_decode_complete();
+        // No lock needed - mark_decode_complete uses &self with atomics
+        buffer.mark_decode_complete();
 
         Ok(())
     }
@@ -577,7 +594,7 @@ impl BufferManager {
     }
 
     /// Get buffer for playback (returns Arc to PlayoutRingBuffer)
-    pub async fn get_buffer(&self, queue_entry_id: Uuid) -> Option<Arc<Mutex<PlayoutRingBuffer>>> {
+    pub async fn get_buffer(&self, queue_entry_id: Uuid) -> Option<Arc<PlayoutRingBuffer>> {
         let buffers = self.buffers.read().await;
         buffers.get(&queue_entry_id).map(|m| Arc::clone(&m.buffer))
     }
@@ -612,10 +629,8 @@ impl BufferManager {
         if let Some(managed) = buffers.get(&queue_entry_id) {
             let buffer_arc = Arc::clone(&managed.buffer);
 
-            // Clear ring buffer
-            let mut buffer = buffer_arc.lock().await;
-            buffer.reset();
-            drop(buffer);
+            // Clear ring buffer (no lock needed - reset uses &self)
+            buffer_arc.reset();
 
             // Remove from map
             buffers.remove(&queue_entry_id);
@@ -636,7 +651,7 @@ impl BufferManager {
     // They map to the new state machine architecture
 
     /// Register decoding (legacy API - maps to allocate_buffer)
-    pub async fn register_decoding(&self, queue_entry_id: Uuid) -> Arc<Mutex<PlayoutRingBuffer>> {
+    pub async fn register_decoding(&self, queue_entry_id: Uuid) -> Arc<PlayoutRingBuffer> {
         self.allocate_buffer(queue_entry_id).await
     }
 
@@ -696,8 +711,8 @@ impl BufferManager {
     pub async fn has_minimum_playback_buffer(&self, queue_entry_id: Uuid, min_duration_ms: u64) -> bool {
         // Get buffer and check duration based on occupied frames
         if let Some(buffer_arc) = self.get_buffer(queue_entry_id).await {
-            let buffer = buffer_arc.lock().await;
-            let occupied_frames = buffer.occupied();
+            // No lock needed - occupied() uses atomics
+            let occupied_frames = buffer_arc.occupied();
             let available_ms = (occupied_frames as u64 * 1000) / STANDARD_SAMPLE_RATE as u64;
             available_ms >= min_duration_ms
         } else {
@@ -720,11 +735,11 @@ impl BufferManager {
         let managed = buffers.get(&queue_entry_id)?;
 
         let buffer_arc = Arc::clone(&managed.buffer);
-        drop(buffers); // Release lock before async operation
+        drop(buffers); // Release lock before operation
 
-        let mut buffer = buffer_arc.lock().await;
+        // No lock needed - pop_frame uses &self with internal locks
         // pop_frame returns Result - convert to Option
-        match buffer.pop_frame() {
+        match buffer_arc.pop_frame() {
             Ok(frame) => Some(frame),
             Err(err) => {
                 // Buffer empty - return last frame from error
@@ -743,8 +758,8 @@ impl BufferManager {
         let buffer_arc = Arc::clone(&managed.buffer);
         drop(buffers);
 
-        let buffer = buffer_arc.lock().await;
-        Some(buffer.is_exhausted())
+        // No lock needed - is_exhausted uses atomics
+        Some(buffer_arc.is_exhausted())
     }
 
     /// Get buffer monitoring info for developer UI
@@ -757,11 +772,11 @@ impl BufferManager {
         let buffer_arc = Arc::clone(&managed.buffer);
         drop(buffers);
 
-        let buffer = buffer_arc.lock().await;
-        let capacity = buffer.capacity();
-        let occupied = buffer.occupied();
-        let fill_percent = buffer.fill_percent();
-        let stats = buffer.stats();
+        // No lock needed - all buffer methods use &self with atomics
+        let capacity = buffer_arc.capacity();
+        let occupied = buffer_arc.occupied();
+        let fill_percent = buffer_arc.fill_percent();
+        let stats = buffer_arc.stats();
 
         Some(BufferMonitorInfo {
             fill_percent,

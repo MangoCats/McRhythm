@@ -959,6 +959,189 @@ pub struct SetBufferMonitorRateRequest {
 }
 
 // ============================================================================
+// Settings Management
+// ============================================================================
+
+#[derive(Debug, Serialize)]
+pub struct SettingInfo {
+    pub key: String,
+    pub value: String,
+    pub data_type: String,
+    pub description: String,
+    pub validation: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AllSettingsResponse {
+    pub settings: Vec<SettingInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkUpdateSettingsRequest {
+    pub settings: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BulkUpdateSettingsResponse {
+    pub updated_count: usize,
+    pub message: String,
+}
+
+/// GET /settings/all - Get all wkmp-ap database settings with metadata
+///
+/// Returns all settings used by wkmp-ap with their current values, types,
+/// descriptions, and validation rules.
+///
+/// **Traceability:** Developer UI - Settings management table
+pub async fn get_all_settings(
+    State(ctx): State<AppContext>,
+) -> Result<Json<AllSettingsResponse>, (StatusCode, Json<StatusResponse>)> {
+    use crate::db::settings;
+
+    // Define all wkmp-ap settings with metadata
+    let setting_definitions = vec![
+        // Audio Output & Volume
+        ("volume_level", "f32", "Audio output volume [DBD-PARAM-010]", Some("0.0-1.0")),
+        ("audio_sink", "String", "Audio output device identifier", Some("Valid device name or 'default'")),
+
+        // Crossfade Settings
+        ("global_crossfade_time", "f64", "Default crossfade duration in seconds", Some("0.1-10.0")),
+        ("global_fade_curve", "String", "Default fade curve shape", Some("linear, exponential, cosine, exponential_logarithmic")),
+
+        // Event Intervals
+        ("position_event_interval_ms", "u32", "Interval for position event updates (ms)", Some("100-5000")),
+        ("playback_progress_interval_ms", "u64", "Minimum interval between progress SSE events (ms)", Some("1000-60000")),
+
+        // SPEC016 [DBD-PARAM-020] - Working Sample Rate
+        ("working_sample_rate", "u32", "[DBD-PARAM-020] Sample rate for decoded audio (Hz)", Some("44100, 48000, 88200, 96000")),
+
+        // SPEC016 [DBD-PARAM-030] - Output Ring Buffer
+        ("output_ringbuffer_size", "usize", "[DBD-PARAM-030] Max samples in output ring buffer", Some("2048-16384")),
+
+        // SPEC016 [DBD-PARAM-040] - Output Refill Period
+        ("output_refill_period", "u64", "[DBD-PARAM-040] Milliseconds between mixer checks (ms)", Some("10-500")),
+
+        // SPEC016 [DBD-PARAM-050] - Maximum Decode Streams
+        ("maximum_decode_streams", "usize", "[DBD-PARAM-050] Maximum number of parallel decoder chains", Some("2-32")),
+
+        // SPEC016 [DBD-PARAM-060] - Decode Work Period
+        ("decode_work_period", "u64", "[DBD-PARAM-060] Decode job priority evaluation period (ms)", Some("1000-10000")),
+
+        // SPEC016 [DBD-PARAM-065] - Decode Chunk Size
+        ("decode_chunk_size", "usize", "[DBD-PARAM-065] Samples per decode chunk (at working rate)", Some("10000-100000")),
+
+        // SPEC016 [DBD-PARAM-070] - Playout Ring Buffer Size
+        ("playout_ringbuffer_size", "usize", "[DBD-PARAM-070] Decoded audio buffer size (samples)", Some("220500-1323000")),
+
+        // SPEC016 [DBD-PARAM-080] - Playout Buffer Headroom
+        ("playout_ringbuffer_headroom", "usize", "[DBD-PARAM-080] Buffer headroom for late resampler samples", Some("1000-10000")),
+
+        // SPEC016 [DBD-PARAM-085] - Decoder Resume Hysteresis
+        ("decoder_resume_hysteresis_samples", "u64", "[DBD-PARAM-085] Hysteresis for decoder pause/resume (samples)", Some("882-88200")),
+
+        // SPEC016 [DBD-PARAM-088] - Mixer Minimum Start Level
+        ("mixer_min_start_level", "usize", "[DBD-PARAM-088] Min samples before mixer starts playback", Some("8820-220500")),
+
+        // SPEC016 [DBD-PARAM-090] - Pause Decay Factor
+        ("pause_decay_factor", "f64", "[DBD-PARAM-090] Exponential decay factor in pause mode", Some("0.90-0.99")),
+
+        // SPEC016 [DBD-PARAM-100] - Pause Decay Floor
+        ("pause_decay_floor", "f64", "[DBD-PARAM-100] Minimum level before outputting zero", Some("0.0001-0.001")),
+
+        // Resume from Pause
+        ("resume_from_pause_fade_in_duration", "u64", "Fade-in duration when resuming from pause (ms)", Some("0-2000")),
+        ("resume_from_pause_fade_in_curve", "String", "Fade curve for resume from pause", Some("linear, exponential, cosine")),
+
+        // Ring Buffer & Mixer (legacy/experimental)
+        ("audio_ring_buffer_grace_period_ms", "u64", "Grace period before ring buffer underrun detection (ms)", Some("0-10000")),
+        ("mixer_check_interval_us", "u64", "Mixer thread buffer check interval (microseconds)", Some("1-1000")),
+        ("mixer_batch_size_low", "usize", "Mixer batch size when buffer < 50% (frames)", Some("1-32")),
+        ("mixer_batch_size_optimal", "usize", "Mixer batch size when buffer 50-75% (frames)", Some("1-16")),
+        ("minimum_buffer_threshold_ms", "u64", "Minimum buffer level before playback start (ms)", Some("500-5000")),
+    ];
+
+    let mut settings = Vec::new();
+
+    for (key, data_type, description, validation) in setting_definitions {
+        match settings::get_setting::<String>(&ctx.db_pool, key).await {
+            Ok(Some(value)) => {
+                settings.push(SettingInfo {
+                    key: key.to_string(),
+                    value,
+                    data_type: data_type.to_string(),
+                    description: description.to_string(),
+                    validation: validation.map(String::from),
+                });
+            }
+            Ok(None) => {
+                // Setting doesn't exist in DB yet - this is fine, defaults will be used
+                settings.push(SettingInfo {
+                    key: key.to_string(),
+                    value: "(not set)".to_string(),
+                    data_type: data_type.to_string(),
+                    description: description.to_string(),
+                    validation: validation.map(String::from),
+                });
+            }
+            Err(e) => {
+                warn!("Failed to fetch setting {}: {}", key, e);
+            }
+        }
+    }
+
+    Ok(Json(AllSettingsResponse { settings }))
+}
+
+/// POST /settings/bulk_update - Update multiple settings and trigger graceful shutdown
+///
+/// Updates the provided settings in the database and schedules a graceful shutdown
+/// of the application after 2 seconds to allow the response to be sent.
+///
+/// **Important:** Most wkmp-ap settings are loaded at startup and used as constants
+/// during runtime. Therefore, the application must be restarted for changes to take effect.
+///
+/// **Traceability:** Developer UI - Settings management table
+pub async fn bulk_update_settings(
+    State(ctx): State<AppContext>,
+    Json(req): Json<BulkUpdateSettingsRequest>,
+) -> Result<Json<BulkUpdateSettingsResponse>, (StatusCode, Json<StatusResponse>)> {
+    use crate::db::settings;
+
+    info!("Bulk settings update request: {} settings to update", req.settings.len());
+
+    let mut updated_count = 0;
+
+    // Update each setting in the database
+    for (key, value) in &req.settings {
+        match settings::set_setting(&ctx.db_pool, key, value.clone()).await {
+            Ok(_) => {
+                info!("Updated setting: {} = {}", key, value);
+                updated_count += 1;
+            }
+            Err(e) => {
+                error!("Failed to update setting {}: {}", key, e);
+            }
+        }
+    }
+
+    // Schedule graceful shutdown after delay to allow response to be sent
+    tokio::spawn(async {
+        info!("Settings updated. Scheduling shutdown in 2 seconds...");
+        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        info!("Exiting to apply new settings. Please restart the application.");
+        std::process::exit(0);
+    });
+
+    Ok(Json(BulkUpdateSettingsResponse {
+        updated_count,
+        message: format!(
+            "Updated {} settings. Application will shut down in 2 seconds. Please restart to apply changes.",
+            updated_count
+        ),
+    }))
+}
+
+// ============================================================================
 // Developer UI
 // ============================================================================
 

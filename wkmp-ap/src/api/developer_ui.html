@@ -517,6 +517,38 @@
                 </div>
             </div>
 
+            <!-- Settings Management -->
+            <div class="panel" style="grid-column: 1 / -1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">
+                    <h2 style="margin: 0;">Database Settings</h2>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button style="width: auto; padding: 4px 12px; font-size: 12px; margin: 0; background: #d97706; border: 1px solid #b45309;" onclick="saveAllSettings()">💾 Save All & Restart</button>
+                        <button style="width: auto; padding: 4px 12px; font-size: 12px; margin: 0;" onclick="loadSettings()">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div id="settings-status" style="padding: 4px; margin-bottom: 6px; border-radius: 3px; display: none; font-size: 12px;"></div>
+                <div style="overflow-y: auto; max-height: 300px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                        <thead style="position: sticky; top: 0; background: #2a2a2a; z-index: 1;">
+                            <tr style="border-bottom: 2px solid #4a9eff;">
+                                <th style="padding: 6px; text-align: left; color: #4a9eff; font-weight: 600; width: 25%;">Parameter</th>
+                                <th style="padding: 6px; text-align: left; color: #4a9eff; font-weight: 600; width: 10%;">Type</th>
+                                <th style="padding: 6px; text-align: left; color: #4a9eff; font-weight: 600; width: 15%;">Current Value</th>
+                                <th style="padding: 6px; text-align: left; color: #4a9eff; font-weight: 600; width: 15%;">New Value</th>
+                                <th style="padding: 6px; text-align: left; color: #4a9eff; font-weight: 600; width: 35%;">Description & Validation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="settings-table-body">
+                            <tr>
+                                <td colspan="5" style="padding: 12px; text-align: center; color: #666;">
+                                    Loading settings...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Buffer Chain Monitor -->
             <div class="panel" style="grid-column: 1 / -1;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">
@@ -621,6 +653,9 @@
                     const bufferData = await bufferResponse.json();
                     updateBufferChainDisplay(bufferData.chains);
                 }
+
+                // Load settings
+                await loadSettings();
             } catch (err) {
                 console.error('Failed to fetch initial state:', err);
             }
@@ -1119,6 +1154,186 @@
                 resultEl.innerHTML = '<div class="error">✗ Error: ' + err.message + '</div>';
             }
             setTimeout(() => resultEl.innerHTML = '', 3000);
+        }
+
+        // ============================================================================
+        // Settings Management Functions
+        // ============================================================================
+
+        // Load all settings from the API
+        async function loadSettings() {
+            const tableBody = document.getElementById('settings-table-body');
+            const statusEl = document.getElementById('settings-status');
+
+            try {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#3b82f6';
+                statusEl.textContent = 'Loading settings...';
+
+                const response = await fetch(`${API_BASE}/settings/all`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch settings');
+                }
+
+                const data = await response.json();
+
+                // Clear table
+                tableBody.innerHTML = '';
+
+                // Populate table with settings
+                data.settings.forEach(setting => {
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid #333';
+
+                    // Parameter name
+                    const nameCell = document.createElement('td');
+                    nameCell.style.padding = '8px 6px';
+                    nameCell.style.fontFamily = "'Courier New', monospace";
+                    nameCell.style.fontSize = '11px';
+                    nameCell.style.color = '#a5f3fc';
+                    nameCell.textContent = setting.key;
+                    row.appendChild(nameCell);
+
+                    // Type
+                    const typeCell = document.createElement('td');
+                    typeCell.style.padding = '8px 6px';
+                    typeCell.style.color = '#fbbf24';
+                    typeCell.style.fontSize = '11px';
+                    typeCell.textContent = setting.data_type;
+                    row.appendChild(typeCell);
+
+                    // Current value
+                    const currentCell = document.createElement('td');
+                    currentCell.style.padding = '8px 6px';
+                    currentCell.style.fontFamily = "'Courier New', monospace";
+                    currentCell.style.color = '#4ade80';
+                    currentCell.style.fontSize = '11px';
+                    currentCell.textContent = setting.value;
+                    row.appendChild(currentCell);
+
+                    // New value input
+                    const inputCell = document.createElement('td');
+                    inputCell.style.padding = '4px 6px';
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = `setting-${setting.key}`;
+                    input.placeholder = setting.value;
+                    input.style.width = '100%';
+                    input.style.padding = '4px 6px';
+                    input.style.background = '#1a1a1a';
+                    input.style.border = '1px solid #3a3a3a';
+                    input.style.borderRadius = '3px';
+                    input.style.color = '#e0e0e0';
+                    input.style.fontSize = '11px';
+                    input.style.fontFamily = "'Courier New', monospace";
+                    inputCell.appendChild(input);
+                    row.appendChild(inputCell);
+
+                    // Description and validation
+                    const descCell = document.createElement('td');
+                    descCell.style.padding = '8px 6px';
+                    descCell.style.fontSize = '11px';
+                    descCell.style.color = '#999';
+                    const desc = document.createElement('div');
+                    desc.textContent = setting.description;
+                    descCell.appendChild(desc);
+                    if (setting.validation) {
+                        const valid = document.createElement('div');
+                        valid.style.color = '#666';
+                        valid.style.fontSize = '10px';
+                        valid.style.marginTop = '2px';
+                        valid.textContent = `Valid: ${setting.validation}`;
+                        descCell.appendChild(valid);
+                    }
+                    row.appendChild(descCell);
+
+                    tableBody.appendChild(row);
+                });
+
+                statusEl.style.background = '#10b981';
+                statusEl.textContent = `✓ Loaded ${data.settings.length} settings`;
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+
+            } catch (err) {
+                console.error('Failed to load settings:', err);
+                statusEl.style.background = '#ef4444';
+                statusEl.textContent = '✗ Error loading settings: ' + err.message;
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="padding: 12px; text-align: center; color: #f87171;">
+                            Error loading settings: ${err.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Save all modified settings
+        async function saveAllSettings() {
+            const statusEl = document.getElementById('settings-status');
+
+            try {
+                // Collect all modified settings
+                const modifiedSettings = {};
+                const inputs = document.querySelectorAll('[id^="setting-"]');
+
+                inputs.forEach(input => {
+                    const value = input.value.trim();
+                    if (value !== '') {
+                        const key = input.id.replace('setting-', '');
+                        modifiedSettings[key] = value;
+                    }
+                });
+
+                // Check if any settings were modified
+                if (Object.keys(modifiedSettings).length === 0) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = '#f59e0b';
+                    statusEl.textContent = '⚠ No settings modified. Enter new values in the "New Value" column.';
+                    setTimeout(() => {
+                        statusEl.style.display = 'none';
+                    }, 4000);
+                    return;
+                }
+
+                // Confirm before saving and restarting
+                const confirmMsg = `You are about to update ${Object.keys(modifiedSettings).length} setting(s).\n\nThe application will shut down in 2 seconds after saving.\n\nYou will need to manually restart it.\n\nContinue?`;
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#3b82f6';
+                statusEl.textContent = `Saving ${Object.keys(modifiedSettings).length} settings...`;
+
+                const response = await fetch(`${API_BASE}/settings/bulk_update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: modifiedSettings })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save settings');
+                }
+
+                const data = await response.json();
+
+                statusEl.style.background = '#10b981';
+                statusEl.textContent = `✓ ${data.message}`;
+
+                // Disable all inputs and buttons
+                document.querySelectorAll('input, button').forEach(el => {
+                    el.disabled = true;
+                });
+
+            } catch (err) {
+                console.error('Failed to save settings:', err);
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#ef4444';
+                statusEl.textContent = '✗ Error saving settings: ' + err.message;
+            }
         }
 
         function formatTime(seconds) {

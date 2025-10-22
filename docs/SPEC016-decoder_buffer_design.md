@@ -142,8 +142,8 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 **[DBD-PARAM-030]** The maximum number of (stereo) samples that the output ring buffer (between the mixer and the output) can contain.
 
-- **Default value:** 8192 samples
-- **Equivalent:** 185ms of audio at 44.1kHz
+- **Default value:** 88200 samples
+- **Equivalent:** 2000ms of audio at 44.1kHz
 
 ### output_refill_period
 

@@ -26,7 +26,10 @@
       "Bash(xargs -r kill -9 sleep 2 ps aux)",
       "Bash(/tmp/run_diagnostic.sh)",
       "Bash(bash:*)",
-      "Bash(timeout 10 ./target/debug/wkmp-ap:*)"
+      "Bash(timeout 10 ./target/debug/wkmp-ap:*)",
+      "Bash(cargo doc:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.rs)"
     ],
     "deny": [],
     "ask": []

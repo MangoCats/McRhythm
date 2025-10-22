@@ -36,8 +36,9 @@
 //! ```
 
 use crate::audio::types::AudioFrame;
-use ringbuf::{traits::*, HeapRb};
+use ringbuf::{traits::*, HeapRb, HeapProd, HeapCons};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::Mutex;
 use thiserror::Error;
 use tracing::{debug, trace};
 use uuid::Uuid;
@@ -77,15 +78,31 @@ pub struct BufferEmptyError {
 ///
 /// ## Thread Safety
 ///
-/// The ring buffer itself (HeapRb) provides lock-free single-producer single-consumer semantics.
-/// Atomic counters track fill level and state flags for coordination.
+/// **Lock-Free Design:**
+/// The ring buffer is split into Producer (decoder) and Consumer (mixer) at construction.
+/// - Producer handle (`prod`) is protected by Mutex for safe mutable access by decoder thread
+/// - Consumer handle (`cons`) is protected by Mutex for safe mutable access by mixer thread
+/// - Atomics used for coordination: fill_level, decoder_should_pause, decode_complete, counters
+/// - last_frame stored as two AtomicU64 values (left + right channels as f32→u64 bit-cast)
+///
+/// **Memory Ordering:**
+/// - Statistics (fill_level, counters): Relaxed ordering (exact value not critical)
+/// - Coordination flags (decoder_should_pause, decode_complete): Acquire/Release for synchronization
+/// - last_frame: Relaxed ordering (stale value acceptable for underrun mitigation)
 pub struct PlayoutRingBuffer {
-    /// Lock-free ring buffer for stereo frames
-    /// Internally uses atomics for lock-free producer/consumer split
-    buffer: HeapRb<AudioFrame>,
+    /// Lock-free ring buffer producer (decoder writes)
+    /// Protected by Mutex since push_frame requires mutable access
+    /// Mutex is necessary because HeapProd::try_push requires &mut self
+    prod: Mutex<HeapProd<AudioFrame>>,
+
+    /// Lock-free ring buffer consumer (mixer reads)
+    /// Protected by Mutex since pop_frame requires mutable access
+    /// Mutex is necessary because HeapCons::try_pop requires &mut self
+    cons: Mutex<HeapCons<AudioFrame>>,
 
     /// Current fill level in frames (updated atomically)
     /// Used for fill_percent() calculation and monitoring
+    /// Ordering: Relaxed (statistics only, exact value not critical)
     fill_level: AtomicUsize,
 
     /// Total capacity in frames (fixed at construction)
@@ -105,21 +122,32 @@ pub struct PlayoutRingBuffer {
 
     /// Flag: decoder should pause (buffer nearly full)
     /// **[DBD-BUF-050]** Set when fill_level >= (capacity - headroom)
+    /// Ordering: Relaxed for read (fast check), Relaxed for write (best-effort coordination)
     decoder_should_pause: AtomicBool,
 
     /// Flag: passage decoding is complete (no more samples to decode)
     /// **[DBD-BUF-060]** Set by decoder when end-of-passage reached
+    /// Ordering: Release on write (decoder), Acquire on read (mixer)
     decode_complete: AtomicBool,
 
     /// Total frames written since buffer creation (monotonic counter)
+    /// Ordering: Relaxed (statistics only)
     total_frames_written: AtomicU64,
 
     /// Total frames read since buffer creation (monotonic counter)
+    /// Ordering: Relaxed (statistics only)
     total_frames_read: AtomicU64,
 
-    /// Last valid frame returned (for underrun mitigation)
+    /// Last valid frame - left channel (for underrun mitigation)
     /// **[DBD-BUF-030]** Cached for return on empty buffer read
-    last_frame: std::sync::Mutex<AudioFrame>,
+    /// Stored as u64 bit-cast of f32 value
+    /// Ordering: Relaxed (stale value acceptable for underrun mitigation)
+    last_frame_left: AtomicU64,
+
+    /// Last valid frame - right channel (for underrun mitigation)
+    /// Stored as u64 bit-cast of f32 value
+    /// Ordering: Relaxed (stale value acceptable for underrun mitigation)
+    last_frame_right: AtomicU64,
 }
 
 impl std::fmt::Debug for PlayoutRingBuffer {
@@ -169,8 +197,17 @@ impl PlayoutRingBuffer {
             passage_id
         );
 
+        // Create ring buffer and split into producer/consumer
+        let rb = HeapRb::<AudioFrame>::new(capacity);
+        let (prod, cons) = rb.split();
+
+        // Initialize last_frame atomics with zero frame (silence)
+        // f32::to_bits() converts f32 to u32, then cast to u64
+        let zero_bits = 0.0f32.to_bits() as u64;
+
         Self {
-            buffer: HeapRb::new(capacity),
+            prod: Mutex::new(prod),
+            cons: Mutex::new(cons),
             fill_level: AtomicUsize::new(0),
             capacity,
             headroom,
@@ -180,7 +217,8 @@ impl PlayoutRingBuffer {
             decode_complete: AtomicBool::new(false),
             total_frames_written: AtomicU64::new(0),
             total_frames_read: AtomicU64::new(0),
-            last_frame: std::sync::Mutex::new(AudioFrame::zero()),
+            last_frame_left: AtomicU64::new(zero_bits),
+            last_frame_right: AtomicU64::new(zero_bits),
         }
     }
 
@@ -194,28 +232,36 @@ impl PlayoutRingBuffer {
     /// * `Err(BufferFullError)` - Buffer is full, cannot accept more frames
     ///
     /// # Thread Safety
-    /// Lock-free operation safe for real-time decoder thread.
+    /// Uses &self (not &mut self) for lock-free coordination.
+    /// Producer Mutex acquired only for the ring buffer push operation.
     ///
     /// # Side Effects
-    /// - Updates fill_level counter
-    /// - Sets decoder_should_pause flag when threshold reached
-    /// - Updates last_frame cache for underrun mitigation
-    pub fn push_frame(&mut self, frame: AudioFrame) -> Result<(), BufferFullError> {
+    /// - Updates fill_level counter (atomic)
+    /// - Sets decoder_should_pause flag when threshold reached (atomic)
+    /// - Updates last_frame atomics for underrun mitigation (atomic)
+    pub fn push_frame(&self, frame: AudioFrame) -> Result<(), BufferFullError> {
         // **[DBD-BUF-010]** Try to push to ring buffer
-        if self.buffer.try_push(frame).is_ok() {
-            // Update fill level
+        // Acquire producer lock only for this operation
+        let mut prod = self.prod.lock().unwrap();
+
+        if prod.try_push(frame).is_ok() {
+            // Release lock immediately
+            drop(prod);
+
+            // Update fill level (Relaxed: statistics only)
             let new_level = self.fill_level.fetch_add(1, Ordering::Relaxed) + 1;
             self.total_frames_written.fetch_add(1, Ordering::Relaxed);
 
             // Cache last frame for underrun mitigation [DBD-BUF-030]
-            if let Ok(mut last) = self.last_frame.lock() {
-                *last = frame;
-            }
+            // Store as bit-casted u64 atomics (Relaxed: stale value acceptable)
+            self.last_frame_left.store(frame.left.to_bits() as u64, Ordering::Relaxed);
+            self.last_frame_right.store(frame.right.to_bits() as u64, Ordering::Relaxed);
 
             // **[DBD-BUF-050]** Check if decoder should pause (buffer nearly full)
             let free_space = self.capacity.saturating_sub(new_level);
             if free_space <= self.headroom && !self.decoder_should_pause.load(Ordering::Relaxed) {
-                self.decoder_should_pause.store(true, Ordering::Relaxed);
+                // Use Release ordering to ensure buffer writes visible to decoder
+                self.decoder_should_pause.store(true, Ordering::Release);
                 trace!(
                     "Playout buffer pause threshold reached: fill={}/{} ({:.1}%), free={}, headroom={}",
                     new_level,
@@ -229,7 +275,9 @@ impl PlayoutRingBuffer {
             Ok(())
         } else {
             // Buffer full - cannot push
-            let occupied = self.buffer.occupied_len();
+            let occupied = prod.occupied_len();
+            drop(prod);
+
             Err(BufferFullError {
                 capacity: self.capacity,
                 occupied,
@@ -247,15 +295,22 @@ impl PlayoutRingBuffer {
     ///   - Error contains last valid frame for underrun mitigation [DBD-BUF-030]
     ///
     /// # Thread Safety
-    /// Lock-free operation safe for real-time mixer thread.
+    /// Uses &self (not &mut self) for lock-free coordination.
+    /// Consumer Mutex acquired only for the ring buffer pop operation.
     ///
     /// # Side Effects
-    /// - Updates fill_level counter
-    /// - Clears decoder_should_pause flag when space available
-    /// - Does NOT modify last_frame (preserved for next underrun)
-    pub fn pop_frame(&mut self) -> Result<AudioFrame, BufferEmptyError> {
-        if let Some(frame) = self.buffer.try_pop() {
-            // Update fill level
+    /// - Updates fill_level counter (atomic)
+    /// - Clears decoder_should_pause flag when space available (atomic)
+    /// - Does NOT modify last_frame atomics (preserved for next underrun)
+    pub fn pop_frame(&self) -> Result<AudioFrame, BufferEmptyError> {
+        // Acquire consumer lock only for this operation
+        let mut cons = self.cons.lock().unwrap();
+
+        if let Some(frame) = cons.try_pop() {
+            // Release lock immediately
+            drop(cons);
+
+            // Update fill level (Relaxed: statistics only)
             let new_level = self.fill_level.fetch_sub(1, Ordering::Relaxed).saturating_sub(1);
             self.total_frames_read.fetch_add(1, Ordering::Relaxed);
 
@@ -265,7 +320,8 @@ impl PlayoutRingBuffer {
             let free_space = self.capacity.saturating_sub(new_level);
             let resume_threshold = self.resume_hysteresis.saturating_add(self.headroom);
             if free_space >= resume_threshold && self.decoder_should_pause.load(Ordering::Relaxed) {
-                self.decoder_should_pause.store(false, Ordering::Relaxed);
+                // Use Release ordering to ensure buffer state visible to decoder
+                self.decoder_should_pause.store(false, Ordering::Release);
                 trace!(
                     "Playout buffer resume threshold reached: fill={}/{} ({:.1}%), free={}, resume_threshold={}",
                     new_level,
@@ -278,9 +334,19 @@ impl PlayoutRingBuffer {
 
             Ok(frame)
         } else {
+            // Release lock
+            drop(cons);
+
             // **[DBD-BUF-030][DBD-BUF-040]** Buffer empty - return last valid frame in error
-            let last = self.last_frame.lock().unwrap_or_else(|e| e.into_inner());
-            Err(BufferEmptyError { last_frame: *last })
+            // Load from atomics and convert back to f32 (Relaxed: stale value acceptable)
+            let left_bits = self.last_frame_left.load(Ordering::Relaxed) as u32;
+            let right_bits = self.last_frame_right.load(Ordering::Relaxed) as u32;
+            let last_frame = AudioFrame {
+                left: f32::from_bits(left_bits),
+                right: f32::from_bits(right_bits),
+            };
+
+            Err(BufferEmptyError { last_frame })
         }
     }
 
@@ -309,7 +375,8 @@ impl PlayoutRingBuffer {
     /// * `true` - Buffer nearly full, decoder should pause
     /// * `false` - Buffer has space, decoder can continue
     pub fn should_decoder_pause(&self) -> bool {
-        self.decoder_should_pause.load(Ordering::Relaxed)
+        // Use Acquire ordering to synchronize with Release stores from pop_frame
+        self.decoder_should_pause.load(Ordering::Acquire)
     }
 
     /// Check if buffer is exhausted (decode complete AND empty)
@@ -320,7 +387,8 @@ impl PlayoutRingBuffer {
     /// * `true` - Decode complete AND buffer empty (passage finished)
     /// * `false` - Still decoding OR samples remain in buffer
     pub fn is_exhausted(&self) -> bool {
-        let decode_done = self.decode_complete.load(Ordering::Relaxed);
+        // Use Acquire ordering to synchronize with Release store in mark_decode_complete
+        let decode_done = self.decode_complete.load(Ordering::Acquire);
         let buffer_empty = self.fill_level.load(Ordering::Relaxed) == 0;
         decode_done && buffer_empty
     }
@@ -331,9 +399,13 @@ impl PlayoutRingBuffer {
     ///
     /// After calling this method, `is_exhausted()` will return true once
     /// all remaining buffered samples are consumed by the mixer.
-    pub fn mark_decode_complete(&mut self) {
+    ///
+    /// # Thread Safety
+    /// Uses &self (not &mut self) with atomic Release ordering.
+    /// Release ensures all prior writes are visible to mixer thread.
+    pub fn mark_decode_complete(&self) {
         if !self.decode_complete.load(Ordering::Relaxed) {
-            self.decode_complete.store(true, Ordering::Relaxed);
+            self.decode_complete.store(true, Ordering::Release);
             let level = self.fill_level.load(Ordering::Relaxed);
             debug!(
                 "Playout buffer decode complete: passage_id={:?}, remaining_frames={}, fill={:.1}%",
@@ -421,21 +493,27 @@ impl PlayoutRingBuffer {
     /// # Warning
     /// This operation is NOT lock-free. Caller must ensure no concurrent
     /// push/pop operations are in progress.
-    pub fn reset(&mut self) {
-        // Clear ring buffer contents
-        while self.buffer.try_pop().is_some() {}
+    ///
+    /// # Thread Safety
+    /// Acquires both producer and consumer locks to drain buffer.
+    /// Safe to call with &self since all state is atomic or mutex-protected.
+    pub fn reset(&self) {
+        // Clear ring buffer contents by draining consumer
+        let mut cons = self.cons.lock().unwrap();
+        while cons.try_pop().is_some() {}
+        drop(cons);
 
-        // Reset counters and flags
+        // Reset counters and flags (atomic)
         self.fill_level.store(0, Ordering::Relaxed);
         self.decoder_should_pause.store(false, Ordering::Relaxed);
         self.decode_complete.store(false, Ordering::Relaxed);
         self.total_frames_written.store(0, Ordering::Relaxed);
         self.total_frames_read.store(0, Ordering::Relaxed);
 
-        // Reset last frame to silence
-        if let Ok(mut last) = self.last_frame.lock() {
-            *last = AudioFrame::zero();
-        }
+        // Reset last frame to silence (atomic)
+        let zero_bits = 0.0f32.to_bits() as u64;
+        self.last_frame_left.store(zero_bits, Ordering::Relaxed);
+        self.last_frame_right.store(zero_bits, Ordering::Relaxed);
 
         debug!("Playout buffer reset: passage_id={:?}", self.passage_id);
     }

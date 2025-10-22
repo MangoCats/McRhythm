@@ -262,14 +262,14 @@ impl DecoderChain {
             .push_samples(self.queue_entry_id, &faded_samples)
             .await
         {
-            Ok(pushed_samples) => {
-                let frames = pushed_samples / 2;
-                self.total_frames_pushed += frames;
+            Ok(frames_pushed) => {
+                // push_samples returns frames count, not samples
+                self.total_frames_pushed += frames_pushed;
                 debug!(
                     "[Chain {}] Pushed {} frames to buffer (total: {})",
-                    self.chain_index, frames, self.total_frames_pushed
+                    self.chain_index, frames_pushed, self.total_frames_pushed
                 );
-                frames
+                frames_pushed
             }
             Err(e) if e.contains("BufferFullError") => {
                 // Buffer is full
