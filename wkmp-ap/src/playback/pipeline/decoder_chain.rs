@@ -76,6 +76,13 @@ pub struct DecoderChain {
 
     // For logging
     file_path: PathBuf,
+
+    /// Pending samples from previous chunk that couldn't be pushed due to buffer full
+    ///
+    /// **[BUGFIX]** Critical fix for audio skipping issue.
+    /// When ring buffer is full, we must save decoded samples and retry on next call
+    /// instead of discarding them and decoding the next chunk (which causes skipping).
+    pending_samples: Option<Vec<f32>>,
 }
 
 impl DecoderChain {
@@ -160,6 +167,7 @@ impl DecoderChain {
             total_frames_pushed: 0,
             chunk_duration_ms,
             file_path: passage.file_path.clone(),
+            pending_samples: None, // **[BUGFIX]** Initialize pending buffer
         })
     }
 
@@ -186,7 +194,7 @@ impl DecoderChain {
         buffer_manager: &BufferManager,
     ) -> Result<ChunkProcessResult> {
         // Check if already finished
-        if self.decoder.is_finished() {
+        if self.decoder.is_finished() && self.pending_samples.is_none() {
             debug!(
                 "[Chain {}] Already finished, total frames: {}",
                 self.chain_index, self.total_frames_pushed
@@ -196,68 +204,84 @@ impl DecoderChain {
             });
         }
 
-        self.chunk_count += 1;
+        // **[BUGFIX]** Step 1: Check for pending samples from previous call
+        let faded_samples = if let Some(pending) = self.pending_samples.take() {
+            // Retrying push of samples that were decoded but couldn't be pushed last time
+            debug!(
+                "[Chain {}] Retrying push of {} pending samples (from previous buffer-full)",
+                self.chain_index,
+                pending.len()
+            );
+            pending
+        } else {
+            // No pending samples - decode new chunk
+            self.chunk_count += 1;
 
-        // **[DBD-DEC-110] Step 1:** Decode chunk
-        debug!(
-            "[Chain {}] Decoding chunk {} ({}ms)",
-            self.chain_index, self.chunk_count, self.chunk_duration_ms
-        );
+            // **[DBD-DEC-110] Step 1a:** Decode chunk
+            debug!(
+                "[Chain {}] Decoding chunk {} ({}ms)",
+                self.chain_index, self.chunk_count, self.chunk_duration_ms
+            );
 
-        let chunk_samples = match self.decoder.decode_chunk(self.chunk_duration_ms)? {
-            Some(samples) => samples,
-            None => {
-                // Decoder finished
-                info!(
-                    "[Chain {}] Decoding complete after {} chunks, {} frames total",
-                    self.chain_index, self.chunk_count, self.total_frames_pushed
-                );
-
-                // Get discovered endpoint if available
-                if let Some(discovered_end_ticks) = self.decoder.get_discovered_endpoint() {
-                    debug!(
-                        "[Chain {}] Discovered endpoint: {}ticks ({}ms)",
-                        self.chain_index,
-                        discovered_end_ticks,
-                        wkmp_common::timing::ticks_to_ms(discovered_end_ticks)
+            let chunk_samples = match self.decoder.decode_chunk(self.chunk_duration_ms)? {
+                Some(samples) => samples,
+                None => {
+                    // Decoder finished
+                    info!(
+                        "[Chain {}] Decoding complete after {} chunks, {} frames total",
+                        self.chain_index, self.chunk_count, self.total_frames_pushed
                     );
-                }
 
-                return Ok(ChunkProcessResult::Finished {
-                    total_frames: self.total_frames_pushed,
-                });
+                    // Get discovered endpoint if available
+                    if let Some(discovered_end_ticks) = self.decoder.get_discovered_endpoint() {
+                        debug!(
+                            "[Chain {}] Discovered endpoint: {}ticks ({}ms)",
+                            self.chain_index,
+                            discovered_end_ticks,
+                            wkmp_common::timing::ticks_to_ms(discovered_end_ticks)
+                        );
+                    }
+
+                    return Ok(ChunkProcessResult::Finished {
+                        total_frames: self.total_frames_pushed,
+                    });
+                }
+            };
+
+            let decoded_frames = chunk_samples.len() / 2; // Stereo
+            debug!(
+                "[Chain {}] Decoded {} frames",
+                self.chain_index, decoded_frames
+            );
+
+            // **[DBD-DEC-110] Step 2:** Resample to 44.1kHz
+            let resampled_samples = self.resampler.process_chunk(&chunk_samples)?;
+            let resampled_frames = resampled_samples.len() / 2;
+
+            if !self.resampler.is_pass_through() {
+                debug!(
+                    "[Chain {}] Resampled {} frames -> {} frames",
+                    self.chain_index, decoded_frames, resampled_frames
+                );
             }
+
+            // **[DBD-FADE-030/050] Step 3:** Apply fades
+            let faded = self.fader.process_chunk(resampled_samples);
+
+            if !self.fader.is_pass_through() {
+                debug!(
+                    "[Chain {}] Applied fades (frame position: {})",
+                    self.chain_index,
+                    self.fader.current_frame()
+                );
+            }
+
+            faded
         };
 
-        let decoded_frames = chunk_samples.len() / 2; // Stereo
-        debug!(
-            "[Chain {}] Decoded {} frames",
-            self.chain_index, decoded_frames
-        );
+        // **[BUGFIX] Step 2:** Try to push to buffer (with retry support)
+        let total_frames_in_chunk = faded_samples.len() / 2;
 
-        // **[DBD-DEC-110] Step 2:** Resample to 44.1kHz
-        let resampled_samples = self.resampler.process_chunk(&chunk_samples)?;
-        let resampled_frames = resampled_samples.len() / 2;
-
-        if !self.resampler.is_pass_through() {
-            debug!(
-                "[Chain {}] Resampled {} frames -> {} frames",
-                self.chain_index, decoded_frames, resampled_frames
-            );
-        }
-
-        // **[DBD-FADE-030/050] Step 3:** Apply fades
-        let faded_samples = self.fader.process_chunk(resampled_samples);
-
-        if !self.fader.is_pass_through() {
-            debug!(
-                "[Chain {}] Applied fades (frame position: {})",
-                self.chain_index,
-                self.fader.current_frame()
-            );
-        }
-
-        // **Step 4:** Push to buffer
         let frames_pushed = match buffer_manager
             .push_samples(self.queue_entry_id, &faded_samples)
             .await
@@ -272,12 +296,12 @@ impl DecoderChain {
                 frames_pushed
             }
             Err(e) if e.contains("BufferFullError") => {
-                // Buffer is full
+                // **[BUGFIX]** Buffer is completely full - save samples for retry
                 debug!(
-                    "[Chain {}] Buffer full at chunk {}, yielding",
-                    self.chain_index, self.chunk_count
+                    "[Chain {}] Buffer full at chunk {}, saving {} samples for retry",
+                    self.chain_index, self.chunk_count, faded_samples.len()
                 );
-                // Note: We didn't push any frames this iteration
+                self.pending_samples = Some(faded_samples);
                 return Ok(ChunkProcessResult::BufferFull { frames_pushed: 0 });
             }
             Err(e) => {
@@ -288,12 +312,23 @@ impl DecoderChain {
             }
         };
 
-        // Check if we pushed partial data (buffer became full mid-chunk)
-        if frames_pushed < resampled_frames {
+        // **[BUGFIX] Step 3:** Check if we pushed partial data (buffer became full mid-chunk)
+        if frames_pushed < total_frames_in_chunk {
             warn!(
                 "[Chain {}] Partial push: {} of {} frames (buffer filling up)",
-                self.chain_index, frames_pushed, resampled_frames
+                self.chain_index, frames_pushed, total_frames_in_chunk
             );
+
+            // Save remaining samples for next retry
+            let samples_pushed = frames_pushed * 2; // Convert frames to samples (stereo)
+            self.pending_samples = Some(faded_samples[samples_pushed..].to_vec());
+
+            debug!(
+                "[Chain {}] Saved {} remaining samples for next push",
+                self.chain_index,
+                self.pending_samples.as_ref().unwrap().len()
+            );
+
             return Ok(ChunkProcessResult::BufferFull { frames_pushed });
         }
 
