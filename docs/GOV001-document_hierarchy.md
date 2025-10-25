@@ -2,8 +2,6 @@
 
 > **All project documents reference this hierarchy specification**
 
-> **DRAFT NOTE (2025-10-25):** This document contains DRAFT "Document Size and Structure Standards" section (pending Phase 2 formal approval per PLAN003).
-
 ---
 
 **⚖️ TIER 0 - GOVERNANCE (META)**
@@ -880,8 +878,8 @@ Cascade: Update implementation_order.md with optimization task
 
 ## Document Size and Structure Standards
 
-**Effective:** 2025-10-25 (Phase 1 implementation)
-**Status:** Draft (pending Phase 2 formal approval)
+**Effective:** 2025-10-25
+**Status:** Active (approved Phase 2, PLAN003)
 **Rationale:** Context window optimization for AI and human readers (PLAN003)
 
 ### Size Thresholds
@@ -1030,7 +1028,7 @@ Cascade: Update implementation_order.md with optimization task
 **Maintained By:** Technical Lead
 
 **Change Log:**
-- v1.6-DRAFT (2025-10-25): Added "Document Size and Structure Standards" section (DRAFT pending Phase 2 approval per PLAN003)
+- v1.6 (2025-10-25): Added "Document Size and Structure Standards" section (Phase 2 approved per PLAN003)
   - Added size thresholds for documents (300-1200 lines, >1200 lines)
   - Defined modular folder structure requirements for large documents
   - Specified progressive disclosure requirements
