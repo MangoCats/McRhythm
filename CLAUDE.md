@@ -12,13 +12,137 @@
 
 ---
 
-# Agent Guidance
+# Development Workflows
 
-- **docu-spec:** Use for reviewing and improving project documentation in the `docs/` directory.
-- **project-architect:** Use for architectural planning and resolving discrepancies identified in documentation.
-- **microservice-planner:** User for creating detailed implementation plans for WKMP microservices.
-- **ui-ux-designer:** Use for frontend design tasks, including UI components and SSE data visualization.
-- **code-implementer:** Use for writing, refactoring, and debugging core application code.
+WKMP uses automated workflows via Claude Code custom commands. See [.claude/commands/README.md](.claude/commands/README.md) for complete documentation.
+
+**Core Workflows:**
+- **/commit** - Multi-step commit with automatic change history tracking and archive synchronization
+- **/doc-name** - Assign CAT### prefixes to documents following governance system
+- **/think** - Multi-agent analysis for complex questions and architectural decisions
+- **/plan** - Create specification-driven implementation plans with test-first approach
+- **/archive** - Move completed documents to archive branch (context window optimization)
+- **/archive-plan** - Batch archive completed implementation plans
+
+**Quick Start:** See [workflows/DWI001_workflow_quickstart.md](workflows/DWI001_workflow_quickstart.md)
+
+**Key Principles:**
+- Always use `/commit` for commits (maintains change_history.md automatically)
+- Use `/think` before major architectural decisions (evidence-based choices)
+- Use `/plan` for non-trivial features (test-first, spec verification)
+- Archive completed work regularly (clean context, preserved history)
+
+---
+
+# Implementation Workflow - MANDATORY
+
+**For all features requiring >5 requirements OR novel/complex features:**
+- MUST run `/plan [specification_document]` before implementing
+- MUST resolve all CRITICAL specification issues before coding
+- MUST achieve 100% test coverage per traceability matrix
+- MUST pass all acceptance tests before considering increment complete
+
+**Rationale:** Proactive specification verification prevents costly rework. Research shows "most agent failures are context failures" - `/plan` workflow catches specification gaps, ambiguities, and conflicts BEFORE implementation begins.
+
+**When to use `/plan`:**
+- Feature has >5 requirements (non-trivial)
+- Feature involves novel/complex technical elements
+- Feature affects multiple microservices
+- Specification complexity detected (ambiguous requirements, missing details)
+
+**What `/plan` provides:**
+- Specification completeness verification (Phase 2)
+- Acceptance test definitions (Phase 3)
+- Traceability matrix (100% requirement coverage)
+- Automatic `/think` integration if complexity warrants deeper analysis
+
+---
+
+# Document Generation Verbosity Standards
+
+**All document generation MUST follow these standards:**
+
+## Quantified Targets
+
+- Aim for 20-40% shorter than comprehensive first draft
+- Executive summaries: <300 lines
+- Detailed sections: <300 lines each
+- Commit messages: <10 lines
+- Analysis documents: Use modular structure if >1200 lines
+
+## Stylistic Guidelines
+
+- **Use bullet points** instead of paragraphs for lists
+- **One concept per sentence** - avoid run-on explanations
+- **Link to existing documentation** instead of repeating content
+- **Prefer tables** over prose for structured data
+- **Remove hedging language** ('possibly,' 'might,' 'could potentially')
+- **Be direct:** "To implement X" not "In order to accomplish the task of implementing X"
+
+## Examples
+
+❌ **Verbose:** "In order to accomplish the task of implementing this feature, it is necessary to first consider the architectural implications and then proceed with the design phase before moving on to implementation." (34 words)
+
+✅ **Concise:** "To implement this feature: consider architecture, design, then implement." (10 words, 70% shorter)
+
+❌ **Verbose:** "It might be possible that we could potentially consider using approach A, though approach B might also possibly work."
+
+✅ **Concise:** "Consider approach A or B."
+
+## Priority
+
+**Clarity first, then conciseness.** If in doubt, err on the side of clarity. The goal is efficient communication, not cryptic brevity.
+
+## Success Metrics
+
+- Document size reduced 20-40% from unoptimized draft
+- Meaning preserved (no information loss)
+- Improved readability (easier to scan and understand)
+
+---
+
+# Documentation Reading Protocol - MANDATORY
+
+**For ALL documentation access, follow this protocol:**
+
+## 1. Always Start with Summaries
+
+- If document has executive summary, read ONLY summary first
+- If no summary exists, read first 50-100 lines for overview
+- Do NOT load full document initially
+
+## 2. Drill Down Strategically
+
+- Based on summary, identify which sections are relevant to current task
+- Read ONLY those sections (reference by line number ranges when possible)
+- Ignore irrelevant sections entirely
+
+## 3. Never Load Full Specifications Into Context
+
+- For SPEC###, REQ###, IMPL### documents: use targeted section reading
+- Reference sections by line number (e.g., "per SPEC002:45-78")
+- Keep detailed specification content out of context unless actively implementing that specific feature
+- Exception: If document <300 lines, may read in full
+
+## 4. Use Line Number References
+
+- When referencing specifications, cite line numbers (e.g., "per SPEC002:45-78")
+- Allows future readers to locate exact content without loading full document
+- Supports efficient context window usage
+
+## Examples
+
+✅ **Good:** Read GOV001 lines 1-50 (overview) → Identify relevant section → Read GOV001 lines 200-250 (modular structure section only)
+
+❌ **Bad:** Load entire GOV001 (997 lines) into context to answer question about one section
+
+✅ **Good:** "Per REQ001-requirements.md lines 340-365, crossfade timing must be sample-accurate"
+
+❌ **Bad:** Load all of REQ001 to check one requirement
+
+## Rationale
+
+**Context window capacity is finite.** Loading unnecessary content reduces focus and increases risk of missing critical details ("lost in the middle" phenomenon). Summary-first reading with targeted drill-down optimizes both AI and human comprehension.
 
 ---
 
@@ -27,6 +151,14 @@
 - **`docs/`**: All technical documentation (requirements, architecture, design specs)
   - Start with [Document Hierarchy](docs/GOV001-document_hierarchy.md) for documentation governance
   - See [Requirements](docs/REQ001-requirements.md) for complete feature specifications
+- **`workflows/`**: Development workflow procedures and process documentation
+  - [DWI001_workflow_quickstart.md](workflows/DWI001_workflow_quickstart.md) - Quick start guide
+  - [REG001_number_registry.md](workflows/REG001_number_registry.md) - Document number tracking
+  - [REG002_archive_index.md](workflows/REG002_archive_index.md) - Archive retrieval index
+  - [REG003_category_definitions.md](workflows/REG003_category_definitions.md) - 13-category system
+- **`project_management/`**: Project tracking and audit trail
+  - [change_history.md](project_management/change_history.md) - Automatic change tracking via /commit
+- **`wip/`**: Work-in-progress documents (analysis, plans, drafts)
 - **`common/`**: Shared library crate (`wkmp-common`) for database models, events, utilities
 - **`wkmp-ap/`**: Audio Player microservice (playback engine, queue, crossfading)
 - **`wkmp-ui/`**: User Interface microservice (web UI, authentication, proxying)

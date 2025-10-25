@@ -2,6 +2,8 @@
 
 > **All project documents reference this hierarchy specification**
 
+> **DRAFT NOTE (2025-10-25):** This document contains DRAFT "Document Size and Structure Standards" section (pending Phase 2 formal approval per PLAN003).
+
 ---
 
 **⚖️ TIER 0 - GOVERNANCE (META)**
@@ -876,6 +878,69 @@ Cascade: Update implementation_order.md with optimization task
 - [ ] Verify requirement IDs are present (per GOV002-requirements_enumeration.md)
 - [ ] Check if implementation_order.md needs updating
 
+## Document Size and Structure Standards
+
+**Effective:** 2025-10-25 (Phase 1 implementation)
+**Status:** Draft (pending Phase 2 formal approval)
+**Rationale:** Context window optimization for AI and human readers (PLAN003)
+
+### Size Thresholds
+
+**For documents 300-1200 lines:**
+- **Required:** Executive summary section (<300 lines) at document beginning
+- **Required:** Clear section headers with brief summaries
+- **Optional:** Modular file structure (single file acceptable)
+
+**For documents >1200 lines:**
+- **MANDATORY:** Modular folder structure
+- **Folder format:** `[document_name]/`
+- **Structure:**
+  ```
+  [document_name]/
+  ├── 00_SUMMARY.md               # <500 lines - READ THIS FIRST
+  ├── 01_[topic].md               # <300 lines per section
+  ├── 02_[topic].md               # <300 lines per section
+  ├── ...
+  └── FULL_DOCUMENT.md            # Consolidated (archival/search only)
+  ```
+
+**Exemptions:**
+- README.md files
+- Quick reference guides (<100 lines)
+- Templates
+- User-facing documentation (separate structure rules apply)
+
+### Progressive Disclosure Requirements
+
+**All modular documents MUST provide:**
+- Summary with navigation links to detailed sections
+- Each section self-contained (brief context, content, references)
+- Full document used only for archival, comprehensive review, or search
+
+**Target reading loads:**
+- Quick overview: Summary only (~300-500 lines)
+- Focused reading: Summary + 1-2 relevant sections (~600-1100 lines)
+- Comprehensive: FULL_DOCUMENT.md (only when necessary)
+
+### Templates
+
+**Use:** [templates/modular_document/](../../templates/modular_document/)
+- README.md - Usage guide
+- 00_SUMMARY.md - Executive summary template
+- 01_section_template.md - Section file template
+
+### Enforcement
+
+**Workflow integration:**
+- `/doc-name` workflow checks document size and recommends structure
+- `/think` and `/plan` workflows output modular structures automatically
+- Code reviews verify new documents follow standards
+
+**Migration:**
+- Legacy documents (GOV001, SPEC001-017, REQ001-002) grandfathered
+- Refactoring to modular structure optional (defer to Phase 3 if context issues persist)
+- New documents created after 2025-10-25 MUST follow these standards
+
 ## Common Pitfalls to Avoid
 
 ❌ **Don't:** Update requirements.md because implementation is easier a different way<br/>
@@ -960,11 +1025,18 @@ Cascade: Update implementation_order.md with optimization task
 
 ---
 
-**Document Version:** 1.5
-**Last Updated:** 2025-10-19
+**Document Version:** 1.6-DRAFT
+**Last Updated:** 2025-10-25
 **Maintained By:** Technical Lead
 
 **Change Log:**
+- v1.6-DRAFT (2025-10-25): Added "Document Size and Structure Standards" section (DRAFT pending Phase 2 approval per PLAN003)
+  - Added size thresholds for documents (300-1200 lines, >1200 lines)
+  - Defined modular folder structure requirements for large documents
+  - Specified progressive disclosure requirements
+  - Added template references for modular documents
+  - Defined enforcement and migration strategy
+  - Added DRAFT note at document top
 - v1.5 (2025-10-19): Added SPEC016 and SPEC017 documents
   - Added SPEC013-single_stream_playback.md to Tier 2 section
   - Added SPEC014-single_stream_design.md to Tier 2 section
