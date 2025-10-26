@@ -352,16 +352,58 @@ If Phase 2 discovers:
 
 **Status:** Specified in analysis, to be implemented Week 2
 
-**Objective:** Choose implementation approach that best meets requirements with acceptable risk/effort
+**Objective:** Choose implementation approach with minimal failure risk; acknowledge effort
 
-**Brief:**
-- Identify 2-3 viable approaches
-- Evaluate each (advantages, disadvantages, risks, effort)
-- Create comparison matrix
-- Document selected approach as ADR
-- Justify decision with evidence
+**Process:**
+1. **Identify 2-3 viable approaches** that could satisfy requirements
+2. **For each approach:**
+   a. Perform risk assessment (see templates/risk_assessment.md):
+      - Identify failure modes with probability and impact
+      - Define mitigation strategies
+      - Calculate residual risk after mitigation
+   b. Evaluate quality characteristics:
+      - Maintainability
+      - Test coverage achievable
+      - Architectural alignment
+   c. Document effort and dependencies:
+      - Implementation effort estimate
+      - Required dependencies
+      - Technical complexity
+3. **Rank approaches by residual risk** (after mitigation) - lowest risk = highest priority
+4. **Select lowest-risk approach** as recommended approach
+5. **If multiple approaches have equivalent risk:**
+   - Use quality characteristics as tiebreaker
+   - Choose approach with best maintainability/test coverage/architecture fit
+6. **If multiple approaches have equivalent risk AND quality:**
+   - Use effort as final tiebreaker
+   - Choose lower-effort approach among equivalent-risk/quality options
+7. **Document decision as ADR** with explicit risk-based justification:
+   - Use Nygard ADR template format (Status, Date, Context, Decision, Consequences)
+   - Justification MUST reference risk assessment
+   - Include inline in `03_approach_selection.md`
 
-**Output:** `03_approach_selection.md` including ADR
+**Output:** `03_approach_selection.md` including risk assessments and ADR
+
+**Example Decision Justification:**
+```
+RECOMMENDATION: Approach B (Incremental Migration)
+
+RISK-BASED JUSTIFICATION:
+Approach B has lowest residual risk (Low) after mitigation:
+- Failure modes identified: data loss (Low prob), partial migration (Low impact)
+- Mitigations: Automated backups, validation checkpoints, rollback capability
+- Residual risk: Low
+
+Approach A (Big Bang Migration) has higher risk (Medium):
+- Single point of failure, difficult rollback, higher impact if issues occur
+
+Quality characteristics equivalent between A and B (both High maintainability).
+
+Effort: Approach B requires 40 hours vs. Approach A's 25 hours.
+The 15-hour effort differential is acceptable given risk reduction from Medium to Low.
+
+Per CLAUDE.md Decision-Making Framework: Risk (primary) → Quality (secondary) → Effort (tertiary).
+```
 
 ---
 

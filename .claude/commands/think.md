@@ -316,30 +316,81 @@ Next Steps: Run /plan to create detailed implementation plan
 
 **❓ User asks: "How should we implement X?"**
 
-**CORRECT Response (Analysis):**
+**CORRECT Response (Risk-First Analysis):**
 ```
 "Three approaches exist to implement X:
 
 **Approach A: Manual process**
-- Description: Users manually perform steps following documented procedure
-- Advantages: No tooling needed, full control
-- Disadvantages: Error-prone, time-consuming
-- Effort: High for initial migration, low for ongoing
+
+Risk Assessment:
+  - Failure Risk: Medium
+  - Failure Modes:
+    1. Human error during manual steps - Probability: High - Impact: Medium
+    2. Inconsistent execution across users - Probability: Medium - Impact: Medium
+  - Mitigation: Detailed procedure documentation, checklists, peer review
+  - Residual Risk: Low-Medium
+
+Quality Characteristics:
+  - Maintainability: High (simple, well-understood)
+  - Test Coverage: Medium (manual testing only)
+  - Architectural Alignment: Strong (no new components)
+
+Implementation Considerations:
+  - Effort: Low upfront (documentation only), High per-use (manual execution)
+  - Dependencies: None
+  - Complexity: Low
 
 **Approach B: Semi-automated**
-- Description: Script assists but requires user validation at checkpoints
-- Advantages: Reduces errors, maintains user oversight
-- Disadvantages: Requires script development
-- Effort: Medium upfront, low ongoing
+
+Risk Assessment:
+  - Failure Risk: Low
+  - Failure Modes:
+    1. Script bugs during edge cases - Probability: Low - Impact: Low
+    2. User bypasses validation checkpoints - Probability: Low - Impact: Medium
+  - Mitigation: Comprehensive script testing, clear validation prompts
+  - Residual Risk: Low
+
+Quality Characteristics:
+  - Maintainability: Medium (script maintenance required)
+  - Test Coverage: High (automated tests possible)
+  - Architectural Alignment: Strong (follows established patterns)
+
+Implementation Considerations:
+  - Effort: Medium upfront (script development + testing)
+  - Dependencies: Scripting environment
+  - Complexity: Medium
 
 **Approach C: Fully automated**
-- Description: Workflow command handles entire process
-- Advantages: Consistent, fast, scalable
-- Disadvantages: Complex development, less flexibility
-- Effort: High upfront, very low ongoing
 
-To develop a detailed implementation plan for your chosen approach,
-use the /plan workflow."
+Risk Assessment:
+  - Failure Risk: Medium-High (until proven)
+  - Failure Modes:
+    1. Automation handles edge cases incorrectly - Probability: Medium - Impact: High
+    2. Complex logic difficult to debug - Probability: Medium - Impact: Medium
+  - Mitigation: Extensive testing, gradual rollout, rollback capability
+  - Residual Risk: Low (after thorough testing)
+
+Quality Characteristics:
+  - Maintainability: Low (complex automation logic)
+  - Test Coverage: High (automated testing required)
+  - Architectural Alignment: Moderate (adds complexity)
+
+Implementation Considerations:
+  - Effort: High upfront (complex development + extensive testing)
+  - Dependencies: Workflow framework
+  - Complexity: High
+
+RISK-BASED RANKING:
+1. Approach B (Semi-automated) - Lowest residual risk (Low)
+2. Approach A (Manual) - Medium residual risk (Low-Medium)
+3. Approach C (Fully automated) - Highest initial risk (Medium-High, reduces to Low after testing)
+
+RECOMMENDATION:
+Choose Approach B (Semi-automated) due to lowest failure risk (Low residual risk).
+While Approach A has lower effort upfront, its higher per-use risk (human error) and
+Approach C's higher initial risk justify the medium development effort of Approach B.
+
+To develop a detailed implementation plan for Approach B, use the /plan workflow."
 ```
 
 **WRONG Response (Implementation Planning):**
@@ -430,25 +481,38 @@ For each problem/change with multiple approaches:
 TOPIC: [Problem/Change description]
 
 APPROACH 1: [Name/Description]
-Advantages:
-- [Advantage 1 with justification]
-- [Advantage 2 with justification]
-Disadvantages:
-- [Disadvantage 1 with justification]
-- [Disadvantage 2 with justification]
-Technical Considerations:
-- [Consideration 1]
-Effort Estimate: [Qualitative: Low/Medium/High]
-Risk Level: [Low/Medium/High with explanation]
-Architecture Impact: [Description]
-Alignment with Project: [How well it fits existing patterns]
+
+Risk Assessment:
+  - Failure Risk: [Low/Medium/High/Critical]
+  - Failure Modes:
+    1. [Specific failure mode 1] - Probability: [Low/Med/High] - Impact: [Low/Med/High]
+    2. [Specific failure mode 2] - Probability: [Low/Med/High] - Impact: [Low/Med/High]
+  - Mitigation Strategies:
+    - [Specific mitigation for FM-01]
+    - [Specific mitigation for FM-02]
+  - Residual Risk After Mitigation: [Low/Medium/High/Critical]
+
+Quality Characteristics:
+  - Maintainability: [Low/Medium/High - justification]
+  - Test Coverage Achievable: [percentage or Low/Med/High with justification]
+  - Architectural Alignment: [Strong/Moderate/Weak - justification]
+
+Implementation Considerations:
+  - Effort: [Qualitative: Low/Medium/High]
+  - Dependencies: [list]
+  - Complexity: [Low/Medium/High]
 
 APPROACH 2: [Name/Description]
 [Same structure as Approach 1]
 
-RECOMMENDATION FACTORS:
-- [Factor 1: consideration for decision]
-- [Factor 2: consideration for decision]
+RISK-BASED RANKING:
+1. [Approach name] - Lowest residual risk ([risk level])
+2. [Approach name] - Medium residual risk ([risk level])
+3. [Approach name] - Highest residual risk ([risk level])
+
+RECOMMENDATION:
+Choose [Approach name] due to lowest failure risk ([specific risk level]).
+[If effort differential exists:] Effort differential ([X hours/percentage]) is secondary to risk reduction.
 
 Note: This analysis provides options; decision authority remains with stakeholders.
 ```

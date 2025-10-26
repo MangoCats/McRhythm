@@ -2,8 +2,8 @@
 
 **Document Type:** Tier 2 - Design Specification
 **Version:** 1.0
-**Date:** 2025-10-20
-**Status:** Draft → Implementation
+**Date:** 2025-10-25
+**Status:** Approved
 **Author:** System Architecture Team
 
 ---
@@ -36,11 +36,17 @@
 
 This specification addresses a critical gap in the crossfade state machine: **coordination between mixer-level crossfade completion and engine-level queue advancement**.
 
-**Problem:** When a crossfade completes (fade-out and fade-in finish), the mixer correctly transitions the incoming passage to be the new current passage. However, the engine remains unaware of this transition, leading to incorrect queue advancement that stops and restarts the incoming passage.
+**Problem:** When a crossfade completes (currently playing passage reaches its end sample), the mixer correctly transitions the incoming passage to be the new current passage. However, the engine remains unaware of this transition, leading to incorrect queue advancement that stops and restarts the incoming passage.
 
 **Solution:** Implement explicit crossfade completion signaling from mixer to engine, allowing queue advancement to occur **without interrupting** the incoming passage that is already playing.
 
 **Impact:** Fixes BUG-003 (wrong passage playing) and ensures seamless crossfade-to-single playback transitions.
+
+**Key Terminology:**
+- **Lead-Out Duration:** Time window at end of passage when next passage may start simultaneously (see [SPEC002 XFD-DUR-030])
+- **Lead-In Duration:** Time window at start of passage when previous passage may still be playing (see [SPEC002 XFD-DUR-020])
+- **Fade-In/Fade-Out:** Volume envelopes applied to passage audio BEFORE buffering (see [SPEC016 DBD-FADE-030/050])
+- **Crossfade Duration:** min(lead-out duration of current passage, lead-in duration of next passage) (see [SPEC002 XFD-IMPL-020])
 
 ---
 
@@ -55,10 +61,13 @@ This specification addresses a critical gap in the crossfade state machine: **co
 
 **Crossfade Completion Logic (Current):**
 
+When the currently playing passage reaches its end sample (end_time has been sent to playout buffer):
+
 ```rust
 // mixer.rs:437-453
-if fade_out_progress >= fade_out_duration_samples
-    && fade_in_progress >= fade_in_duration_samples
+// Note: Crossfade overlap is determined by lead-in/lead-out durations,
+// NOT fade-in/fade-out durations. Fades are applied to audio BEFORE buffering.
+if current_passage_end_reached
 {
     self.state = MixerState::SinglePassage {
         buffer: next_buffer,
@@ -70,6 +79,13 @@ if fade_out_progress >= fade_out_duration_samples
 ```
 
 This internal transition is **correct** but **not visible** to the engine.
+
+**Key Architectural Fact:** The mixer reads pre-faded audio directly from buffers. Fade-in and fade-out curves are applied by the Fader component ([SPEC016 DBD-FADE-030/050]) BEFORE audio enters the buffer. During crossfade overlap, the mixer simply:
+1. Reads samples from current passage buffer
+2. Reads samples from next passage buffer
+3. Sums them ([SPEC016 DBD-MIX-040])
+
+The lead-in and lead-out points define WHEN overlap occurs; fade points define the volume envelope applied to each passage before mixing.
 
 ### The Gap
 
@@ -87,7 +103,7 @@ pub async fn is_current_finished(&self) -> bool {
 }
 ```
 
-**Consequence:** The engine never knows when the outgoing passage finishes during a crossfade, leading to timing bugs.
+**Consequence:** The engine never knows when the currently playing passage's end sample has been sent to the playout buffer during a crossfade, leading to timing bugs where queue advancement doesn't occur at the correct time.
 
 ---
 
@@ -97,24 +113,28 @@ pub async fn is_current_finished(&self) -> bool {
 
 #### [XFD-COMP-010] Crossfade Completion Detection
 **Priority:** Critical
-**Description:** The engine MUST be notified when a crossfade transition completes, identifying which passage has finished fading out.
+**Description:** The engine MUST be notified when a crossfade transition completes, identifying which passage has reached its end sample.
 
 **Acceptance Criteria:**
 - Engine receives signal when `Crossfading → SinglePassage` transition occurs
-- Signal includes the outgoing passage ID (the one that faded out)
+- Signal includes the currently playing passage ID (the one that reached its end)
 - Signal is delivered exactly once per crossfade completion
 - Signal is delivered atomically with the mixer state transition
+
+**Note:** "Crossfade completion" occurs when the currently playing passage's end sample has been placed in the playout buffer by the mixer. At this point, queue advancement should occur to remove the completed passage, leaving the incoming passage as the new current passage.
 
 #### [XFD-COMP-020] Queue Advancement Without Mixer Restart
 **Priority:** Critical
 **Description:** When a crossfade completes, the engine MUST advance the queue WITHOUT stopping and restarting the mixer.
 
 **Acceptance Criteria:**
-- Queue advancement removes the outgoing passage
+- Queue advancement removes the currently playing passage (the one that reached its end)
 - Incoming passage continues playing seamlessly (no stop/restart)
-- Buffer cleanup happens for outgoing passage only
-- PassageCompleted event emitted for outgoing passage
+- Buffer cleanup happens for completed passage only
+- PassageCompleted event emitted for completed passage
 - No duplicate PassageStarted events for incoming passage
+
+**Note:** The "outgoing" passage is the currently playing passage that is being removed from queue. The "incoming" passage is the next passage that is already playing during the crossfade overlap and will become the new current passage after queue advancement.
 
 #### [XFD-COMP-030] State Consistency During Transition
 **Priority:** High
@@ -123,8 +143,10 @@ pub async fn is_current_finished(&self) -> bool {
 **Acceptance Criteria:**
 - Mixer's current passage ID matches queue's current entry after advancement
 - Buffer manager holds buffer for incoming passage
-- Outgoing passage's buffer is removed after cleanup
+- Completed passage's buffer is removed after cleanup
 - No intermediate "idle" state where mixer.current_passage_id is None
+
+**Note:** After queue advancement, the queue's "current" position will contain what was previously the "next" passage, matching the mixer's new current_passage_id.
 
 ### Non-Functional Requirements
 
@@ -202,8 +224,9 @@ pub struct CrossfadeMixer {
     event_tx: Option<broadcast::Sender<PlaybackEvent>>,
 
     // NEW: Crossfade completion signaling
-    /// Passage ID of outgoing passage when crossfade just completed
-    /// Set by get_next_frame() when Crossfading → SinglePassage
+    /// Passage ID of passage that reached its end sample during crossfade
+    /// Set by get_next_frame() when Crossfading → SinglePassage transition occurs
+    /// (when current passage end sample has been placed in playout buffer)
     /// Consumed by engine via take_crossfade_completed()
     crossfade_completed_passage: Option<Uuid>,
 
@@ -214,9 +237,11 @@ pub struct CrossfadeMixer {
 **Rationale:**
 - `Option<Uuid>` represents three states:
   - `None` - No crossfade completion pending
-  - `Some(passage_id)` - Outgoing passage completed, needs queue advancement
+  - `Some(passage_id)` - Current passage reached end sample during crossfade, needs queue advancement
 - Simple atomic operation via `take()` method
 - No heap allocation, minimal memory overhead (16 bytes)
+
+**Note:** "Outgoing passage" and "current passage" refer to the same passage - the one that was playing and reached its end sample. After queue advancement, what was the "incoming" or "next" passage becomes the new current passage.
 
 ### API Changes
 
@@ -229,7 +254,7 @@ impl CrossfadeMixer {
     ///
     /// **[XFD-COMP-010]** Crossfade completion detection
     ///
-    /// Returns the passage ID of the outgoing passage that finished fading out.
+    /// Returns the passage ID of the passage that reached its end sample.
     /// This should be called before is_current_finished() in the engine loop.
     ///
     /// # Returns
@@ -274,34 +299,35 @@ drop(mixer);
 **Modification:**
 
 ```rust
-// Current code:
-if *fade_out_progress >= *fade_out_duration_samples
-    && *fade_in_progress >= *fade_in_duration_samples
+// Current code (conceptual - actual implementation may differ):
+// Crossfade completes when current passage reaches its end sample
+if current_passage_end_reached
 {
     let new_passage_id = *next_passage_id;
     let new_position = *next_position;
     let new_buffer = next_buffer.clone();
 
-    // NEW: Store outgoing passage ID before transition
-    let outgoing_passage_id = *current_passage_id;
+    // NEW: Store completed passage ID before transition
+    let completed_passage_id = *current_passage_id;
 
     self.state = MixerState::SinglePassage {
         buffer: new_buffer,
         passage_id: new_passage_id,
         position: new_position,
-        fade_in_curve: None,
-        fade_in_duration_samples: 0,
+        // No fade curves needed - fades already applied to buffered audio
     };
 
     // NEW: Signal completion to engine
-    self.crossfade_completed_passage = Some(outgoing_passage_id);
+    self.crossfade_completed_passage = Some(completed_passage_id);
 
     debug!(
-        "Crossfade completed: {} → {} (outgoing faded out)",
-        outgoing_passage_id, new_passage_id
+        "Crossfade completed: {} → {} (current passage reached end)",
+        completed_passage_id, new_passage_id
     );
 }
 ```
+
+**Implementation Note:** The mixer detects crossfade completion when the currently playing passage's end sample (defined by passage.end_time from [SPEC002 XFD-PT-060]) has been placed in the playout buffer. Lead-in and lead-out durations determine the crossfade overlap timing, but completion is triggered by reaching the end sample, not by fade curve completion.
 
 **Traceability:**
 - **[XFD-COMP-010]** - Sets completion flag atomically with transition
@@ -315,7 +341,7 @@ if *fade_out_progress >= *fade_out_duration_samples
 
 ```rust
 // **[XFD-COMP-010]** Check for crossfade completion BEFORE normal completion
-// This handles the case where outgoing passage finished during an active crossfade
+// This handles the case where current passage reached its end during crossfade overlap
 let crossfade_completed_id = {
     let mut mixer = self.mixer.write().await;
     mixer.take_crossfade_completed()
@@ -331,7 +357,7 @@ if let Some(completed_id) = crossfade_completed_id {
             let passage_id_opt = current.passage_id;
             drop(queue);
 
-            info!("Passage {} completed (via crossfade)", completed_id);
+            info!("Passage {} completed (via crossfade - end sample reached)", completed_id);
 
             // **[Event-PassageCompleted]** Emit completion event
             self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
@@ -341,11 +367,12 @@ if let Some(completed_id) = crossfade_completed_id {
             });
 
             // **[XFD-COMP-020]** Advance queue WITHOUT stopping mixer
+            // This removes the completed passage and makes the incoming passage the new current
             let mut queue_write = self.queue.write().await;
             queue_write.advance();
             drop(queue_write);
 
-            // Remove from database
+            // Remove completed passage from database
             if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
                 warn!("Failed to remove completed passage from database: {}", e);
             } else {
@@ -355,12 +382,14 @@ if let Some(completed_id) = crossfade_completed_id {
             // Update audio_expected flag
             self.update_audio_expected_flag().await;
 
-            // **[XFD-COMP-020]** Clean up outgoing buffer (incoming continues playing)
+            // **[XFD-COMP-020]** Clean up completed passage's buffer
+            // (incoming passage buffer remains active - it's already playing)
             if let Some(p_id) = passage_id_opt {
                 self.buffer_manager.remove(p_id).await;
             }
 
-            // ✅ CRITICAL: DO NOT stop mixer - incoming passage is still playing!
+            // ✅ CRITICAL: DO NOT stop mixer - incoming passage is already playing!
+            // The mixer has already transitioned to SinglePassage state with the incoming passage
             debug!("Crossfade completion handled - mixer continues playing incoming passage");
 
             return Ok(());
@@ -446,22 +475,22 @@ async fn test_crossfade_sets_completion_flag() {
     let passage1_id = Uuid::new_v4();
     let passage2_id = Uuid::new_v4();
 
+    // Create buffers with pre-applied fades (as would be done by Fader component)
     let buffer1 = create_test_buffer(passage1_id, 44100, 0.5); // 1 second
     let buffer2 = create_test_buffer(passage2_id, 44100, 0.5);
 
     // Start passage 1
     mixer.start_passage(buffer1, passage1_id, None, 0).await;
 
-    // Start crossfade (5 seconds = 220,500 frames)
+    // Start crossfade (based on lead-in/lead-out durations from SPEC002)
+    // Note: Crossfade timing is determined by lead durations, not fade durations
     mixer.start_crossfade(
         buffer2,
         passage2_id,
-        FadeCurve::Logarithmic,
-        FadeCurve::Logarithmic,
-        5000, // 5 seconds
+        crossfade_duration_samples, // min(lead_out_duration, lead_in_duration)
     ).await.unwrap();
 
-    // Read frames until crossfade completes
+    // Read frames until passage 1 reaches its end sample
     while matches!(mixer.get_state(), MixerState::Crossfading { .. }) {
         mixer.get_next_frame().await;
     }
@@ -471,7 +500,7 @@ async fn test_crossfade_sets_completion_flag() {
     assert_eq!(
         completed,
         Some(passage1_id),
-        "Should signal passage 1 (outgoing) completed"
+        "Should signal passage 1 (current passage that reached end) completed"
     );
 
     // Verify flag consumed (subsequent calls return None)

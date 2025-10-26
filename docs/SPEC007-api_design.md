@@ -892,6 +892,13 @@ See entity_definitions.md REQ-DEF-035 for ephemeral passage specification.
 - Ensures uniform handling regardless of enqueue source (API, database restore, queue reorder)
 - Chain assignment makes passage visible in buffer chain monitor and playback pipeline
 
+**Queue Persistence:**
+- **[API-QUEUE-PERSIST-010]** Queue entry persists to database **immediately** on successful enqueue
+- Write occurs after validation passes but before response sent to client
+- Ensures queue state survives crashes (eventual consistency acceptable)
+- Database write includes: queue entry GUID, passage GUID, user GUID, play_order, enqueued_at timestamp
+- See [SPEC016 DBD-STARTUP-010](SPEC016-decoder_buffer_design.md#queue-restoration) for startup restoration logic
+
 #### `DELETE /playback/queue/{passage_id}`
 Remove passage from queue by queue entry GUID.
 

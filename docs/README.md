@@ -54,29 +54,13 @@ See [docs/user/README.md](user/README.md) for complete user documentation index.
 
 Technical documents use systematic naming conventions (see [GOV003-filename_convention.md](GOV003-filename_convention.md)):
 
-- **GOV###:** Governance and meta-documentation
-- **REQ###:** Requirements and entity definitions
-- **SPEC###:** Design specifications
-- **IMPL###:** Implementation details
-- **EXEC###:** Execution plans and roadmaps
-- **REV###:** Design reviews and architectural changes
-- **CHANGELOG-*:** Detailed change tracking
-- **ADDENDUM-*:** Temporary clarifications
-- **MIGRATION-*:** Migration guides
-
 ---
 
 ## Architecture Overview
 
 ### Playback Architecture
 
-1. **[architecture-comparison.md](archive/ARCH003-architecture_comparison.md)** - **Historical Reference**
-   - Side-by-side comparison of Dual Pipeline vs Single Stream approaches
-   - Detailed analysis of implementation complexity, performance, and deployment
-   - Recommendation table with scores
-   - Best for: Decision making and understanding trade-offs
-
-2. **[single-stream-design.md](SPEC013-single_stream_playback.md)** - **Current Design**
+ **[single-stream-design.md](SPEC013-single_stream_playback.md)** - **Current Design**
    - Manual buffer management with sample-accurate crossfading
    - Pure Rust implementation using symphonia, rubato, and cpal
    - Detailed component design and implementation phases
@@ -90,39 +74,8 @@ Technical documents use systematic naming conventions (see [GOV003-filename_conv
 4. Reference: Code examples and algorithm pseudocode
 
 #### For Audio Engineers
-1. Read: Crossfade Quality sections in `architecture-comparison.md`
-2. Review: Fade curve algorithms in `single-stream-design.md`
-3. Compare: Timing precision (sample-accurate vs property-based)
-
-### ðŸ—ï¸ Architecture Diagram
-
-#### Single Stream (Manual Buffers)
-```
-Application
-├── Decoder Pool (parallel decoding)
-│   └── Uses symphonia + rubato
-├── Passage Buffer Manager
-│   └── 15-second PCM buffers per passage
-├── Crossfade Mixer
-│   └── Sample-accurate mixing with fade curves
-└── Audio Output (cpal)
-    └── Ring buffer → audio device
-```
-
-
-### ðŸš€ Getting Started
-
-**To plan Single Stream migration:**
-```bash
-# Read the detailed design
-cat docs/single-stream-design.md
-
-# Review comparison
-cat docs/architecture-comparison.md
-
-# Check implementation phases
-grep -A 20 "## Implementation Phases" docs/single-stream-design.md
-```
+1. Review: Fade curve algorithms in `single-stream-design.md`
+2. Compare: Timing precision (sample-accurate vs property-based)
 
 ### ðŸ¤ Contributing
 
@@ -133,7 +86,7 @@ When updating these documents:
 4. Maintain code examples with actual implementation
 5. Update this README if adding new documents
 
-### 📝§ Questions?
+### 📝 Questions?
 
 For technical questions about:
 - **Single Stream**: See `single-stream-design.md` "Challenges and Solutions"

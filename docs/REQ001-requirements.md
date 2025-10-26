@@ -23,13 +23,13 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 **[REQ-CF-010]** Plays passages from local files (.mp3, .opus, .aac, .flac and similar)
   - **[REQ-CF-011]** Identifies one or multiple passage start / stop points and crossfade points within each music file
 
-**[REQ-CF-020]** Records when songs within passages are played to avoid repetition
+**[REQ-CF-020]** Records when songs within passages are played
 
 **[REQ-CF-030]** Cross references passages to the MusicBrainz database for:
   - **[REQ-CF-031]** identification of the song(s) contained in the passage (see Definitions for definition of song in this context)
   - **[REQ-CF-032]** identification of other relationships that may influence selection of passages for enqueueing
 
-**[REQ-CF-040]** Cross references passages to the AcousticBrainz database when possible, identifying musical character of each passage.
+**[REQ-CF-040]** Cross references recordings within passages to the AcousticBrainz database when possible, identifying musical character of each passage.
 
   **AcousticBrainz Status (as of 2024):**
   - The AcousticBrainz project ceased accepting new submissions in 2022

@@ -107,11 +107,34 @@ Note: This diagram shows logical processing stages. In the implemented architect
 - Queue reordering → preserves existing chain assignments across reload
 - Program Director automatic selection → uses same internal enqueue method (future)
 
-### Terminology
+### Queue Restoration from Database
 
-**Decoder-buffer chain** (design concept) = **PassageBuffer** (core data structure) wrapped in **ManagedBuffer** (lifecycle management).
+**[DBD-STARTUP-010]** On wkmp-ap startup, PlaybackEngine restores queue state from database:
 
-See [SPEC013 Single Stream Playback](SPEC013-single_stream_playback.md) and [REV004 Incremental Buffer Implementation](REV004-incremental_buffer_implementation.md) for implementation details.
+1. **Load queue entries** from database (ORDER BY play_order ASC)
+2. **Validate each entry:**
+   - Check passage_guid exists in passages table
+   - Check file_path exists on filesystem (resolve relative to root_folder setting)
+   - If passage missing: Remove from queue + log warning "Queue entry {queue_entry_id} removed: passage {passage_guid} not found in database"
+   - If file missing: Remove from queue + log warning "Queue entry {queue_entry_id} removed: file {file_path} not found on filesystem"
+3. **Assign decoder chains** to valid entries per [DBD-LIFECYCLE-010]
+4. **Rebuild runtime state:**
+   - Populate HashMap<QueueEntryId, ChainIndex> for passage→chain mapping
+   - Initialize decoder state for each assigned chain
+5. **Emit event:** QueueChanged SSE event with trigger "startup_restore"
+
+**[DBD-STARTUP-020]** Queue corruption recovery:
+- If database queue table is corrupted (invalid schema, constraint violations, etc.): Clear queue entirely
+- Log error: "Queue table corrupted, clearing all entries"
+- Emit QueueChanged SSE event with trigger "corruption_recovery" and empty queue
+- System continues with empty queue (user can re-enqueue passages via UI)
+
+**[DBD-STARTUP-030]** Consistency guarantees:
+- Eventual consistency acceptable: If crash occurred during enqueue, queue entry may be missing from database
+- Users experience seamless recovery: Invalid entries removed transparently with log messages only
+- No user notification required for individual entry removal (batch notification if >10 entries removed)
+
+See [SPEC007 API-QUEUE-PERSIST-010](SPEC007-api_design.md#post-playbackenqueue) for enqueue persistence behavior.
 
 ## Related Documents
 
@@ -441,10 +464,31 @@ SPEC016 applies curves before buffering (pre-buffer); SPEC002 defines curve form
 **[DBD-MIX-040]** When in play mode:
 - Takes samples from the "now playing" passage buffer
 - When in a lead-out / lead-in crossfade, also takes samples from the "playing next" passage buffer and adds them to the "now playing" sample values
+- **Note:** Fade-in and fade-out curves have already been applied to samples by the Fader component ([DBD-FADE-030/050]) before buffering. The mixer reads **pre-faded audio samples** from buffers and simply sums them during crossfade overlap. No runtime fade curve calculations are performed by the mixer.
 - Multiplies the sample values by the master volume level
 - When "fading in after pause" also multiplies the sample values by the current fade in curve value
 
+**[DBD-MIX-041]** Crossfade mixing operation (during overlap):
+```
+// Both passages have fade curves already applied to buffered samples
+sample_current = read_from_buffer(current_passage_buffer)  // Pre-faded by Fader
+sample_next = read_from_buffer(next_passage_buffer)        // Pre-faded by Fader
+
+// Simple addition - no fade curve calculations needed
+mixed_sample = sample_current + sample_next
+
+// Apply master volume and resume-from-pause fade (if active)
+output_sample = mixed_sample * master_volume * resume_fade_level
+```
+
+**[DBD-MIX-042]** Architectural separation of concerns:
+- **Fader component** ([DBD-FADE-030/050]): Applies passage-specific fade-in/fade-out curves to samples BEFORE buffering
+- **Buffer component** ([DBD-BUF-010]): Stores pre-faded audio samples
+- **Mixer component** ([DBD-MIX-040]): Reads pre-faded samples and sums during overlap; applies master volume
+
 For crossfade timing calculation (WHEN crossfades occur), see [SPEC002 Crossfade Design - Implementation Algorithm](SPEC002-crossfade.md#implementation-algorithm) ([XFD-IMPL-010] through [XFD-IMPL-050]).
+
+For fade vs lead point orthogonality, see [SPEC002 Fade Points vs Lead Points](SPEC002-crossfade.md#fade-points-vs-lead-points-orthogonal-concepts) ([XFD-ORTH-010] through [XFD-ORTH-025]).
 
 SPEC016 defines HOW mixer implements crossfade overlap; SPEC002 defines WHEN overlap occurs.
 
@@ -532,14 +576,21 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 ---
 
-**Document Version:** 1.2
+**Document Version:** 1.3
 **Created:** 2025-10-19
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-25
 **Status:** Current
 **Tier:** 2 - Design Specification
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.3 (2025-10-25): Clarified mixer crossfade behavior and architectural separation
+  - Enhanced [DBD-MIX-040] with note explaining Fader applies curves BEFORE buffering
+  - Added [DBD-MIX-041] pseudocode showing mixer reads pre-faded samples and sums them
+  - Added [DBD-MIX-042] documenting architectural separation: Fader → Buffer → Mixer
+  - Clarified that mixer performs NO runtime fade curve calculations during crossfade
+  - Added cross-references to SPEC002 fade vs lead orthogonality section
+  - Addresses specification gap identified during SPEC018 terminology review
 - v1.2 (2025-10-21): Documented new DecoderWorker/DecoderChain architecture
   - Added Implementation Architecture section
   - Added [DBD-IMPL-010] through [DBD-IMPL-110] requirements

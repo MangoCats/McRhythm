@@ -116,6 +116,84 @@ operation to take place.
   - **Fade-Out before Lead-Out** (Fade-Out ≤ Lead-Out): Use when passage should start fading out before next passage begins crossfading in
   - **Lead-Out before Fade-Out** (Lead-Out ≤ Fade-Out): Use when next passage should start while current passage is still at full volume
 
+---
+
+## Fade Points vs Lead Points: Orthogonal Concepts
+
+**[XFD-ORTH-010]** Fade points and lead points serve independent purposes in the audio processing architecture:
+
+### Lead Points (Overlap Timing)
+
+- **[XFD-ORTH-011] Lead-In Point:** Latest time the previous passage may still be playing
+- **[XFD-ORTH-012] Lead-Out Point:** Earliest time the next passage may start playing
+- **[XFD-ORTH-013] Purpose:** Define WHEN the mixer plays two passages simultaneously
+- **[XFD-ORTH-014] Processing location:** Mixer component ([SPEC016 DBD-MIX-040])
+- **[XFD-ORTH-015] Operational impact:** Determines crossfade overlap duration via min(lead_out_duration, lead_in_duration)
+
+### Fade Points (Volume Envelope)
+
+- **[XFD-ORTH-021] Fade-In Point:** When volume reaches 100%
+- **[XFD-ORTH-022] Fade-Out Point:** When volume begins decreasing
+- **[XFD-ORTH-023] Purpose:** Define volume envelope applied to passage audio
+- **[XFD-ORTH-024] Processing location:** Fader component, BEFORE buffering ([SPEC016 DBD-FADE-030/050])
+- **[XFD-ORTH-025] Operational impact:** Modifies sample amplitudes before they reach the buffer
+
+### Key Architectural Fact
+
+**[XFD-ORTH-020]** By the time audio reaches the mixer's buffers, fade curves have ALREADY been applied:
+
+1. **Decoder** → decodes audio from file
+2. **Resampler** → converts to working sample rate
+3. **Fader** → applies fade-in/fade-out curves to samples ([SPEC016 DBD-FADE-030/050])
+4. **Buffer** → stores pre-faded audio samples
+5. **Mixer** → reads pre-faded samples from buffers and sums during overlap ([SPEC016 DBD-MIX-040])
+
+During crossfade overlap, the mixer simply reads pre-faded samples from both buffers and adds them together. Lead points determine the **timing** of this overlap; fade points determine the **volume envelope** of each passage (already baked into the buffered audio).
+
+### Practical Example
+
+**Scenario:** Passage A transitioning to Passage B
+
+**Passage A:**
+- Duration: 60 seconds
+- Lead-Out Duration: 5 seconds (last 5 seconds)
+- Fade-Out Duration: 3 seconds (last 3 seconds)
+
+**Passage B:**
+- Duration: 50 seconds
+- Lead-In Duration: 4 seconds (first 4 seconds)
+- Fade-In Duration: 2 seconds (first 2 seconds)
+
+**What happens:**
+
+1. **Fade Application (Pre-Buffer):**
+   - Passage A: Fader applies fade-out curve to last 3 seconds, writes to buffer
+   - Passage B: Fader applies fade-in curve to first 2 seconds, writes to buffer
+   - Result: Buffered audio already has volume envelopes applied
+
+2. **Crossfade Timing Calculation:**
+   - Crossfade duration = min(5s lead-out, 4s lead-in) = **4 seconds**
+   - Passage B starts when Passage A has 4 seconds remaining
+
+3. **Mixer Operation During 4-Second Overlap:**
+   - **Seconds 56-58 of A (0-2 of B):**
+     - A: Full volume samples (fade-out hasn't started yet)
+     - B: Fading-in samples (fade curve already applied to buffered audio)
+     - Mixer: Reads both, sums them, outputs mixed audio
+
+   - **Seconds 58-60 of A (2-4 of B):**
+     - A: Fading-out samples (fade curve already applied to buffered audio)
+     - B: Full volume samples (fade-in complete)
+     - Mixer: Reads both, sums them, outputs mixed audio
+
+4. **After Overlap:**
+   - Passage A reaches end_time (60s), queue advances
+   - Passage B continues playing solo from second 4 onward
+
+**Key Insight:** The mixer doesn't calculate or apply fade curves - it simply sums pre-faded audio. All fade calculations happen in the Fader component before audio enters the buffer.
+
+---
+
 ## Fade Curves
 
 ### Per-Passage Curve Selection
@@ -459,6 +537,57 @@ The algorithm automatically handles all three cases:
 - **Case 1** (passage_a_lead_out_duration ≤ passage_b_lead_in_duration): `crossfade_duration = passage_a_lead_out_duration`
 - **Case 2** (passage_a_lead_out_duration > passage_b_lead_in_duration): `crossfade_duration = passage_b_lead_in_duration`
 - **Case 3** (both durations = 0): `crossfade_duration = 0` (no overlap, passages play sequentially)
+
+---
+
+## Queue Advancement Timing
+
+This section specifies WHEN queue advancement occurs during playback and crossfades.
+
+**[XFD-QUEUE-ADV-010]** Queue advancement occurs when the currently playing passage reaches its **end sample**.
+
+**Definition:** The "end sample" is the audio sample corresponding to the passage's `end_time` ([XFD-PT-060]). This is the last sample of audio data that will be played for this passage.
+
+**[XFD-QUEUE-ADV-020]** During normal (non-crossfade) playback:
+- Passage plays from `start_time` to `end_time`
+- When the sample at `end_time` has been placed in the playout buffer, passage playback is complete
+- Queue advancement occurs immediately after completion
+- Next passage (if any) begins playing from its `start_time`
+
+**[XFD-QUEUE-ADV-030]** During crossfade overlap:
+- Current passage continues playing until `end_time` is reached
+- Next passage starts playing based on lead-in/lead-out calculation ([XFD-IMPL-020])
+- Both passages play simultaneously during the crossfade overlap period
+- When current passage `end_time` sample has been placed in playout buffer, queue advancement occurs
+- After queue advancement, what was the "next" passage becomes the new "current" passage
+- The new current passage continues playing seamlessly (no interruption)
+
+**[XFD-QUEUE-ADV-040]** Queue advancement timing ensures:
+- No interruption of incoming passage playback during crossfade
+- Clean transition from `Crossfading` to `SinglePassage` mixer state
+- Consistent queue state with mixer state
+- Completed passage buffer can be released for cleanup
+
+**[XFD-QUEUE-ADV-050]** Implementation coordination:
+
+Queue advancement requires coordination between multiple components:
+
+1. **Buffer Component** ([SPEC016 DBD-BUF-060]): "When the sample corresponding to the passage end time is removed from the buffer, the buffer informs the queue that passage playout has completed"
+
+2. **Mixer Component** ([SPEC018]): Detects crossfade completion when current passage reaches `end_time`, signals engine via completion flag
+
+3. **Engine Component** ([SPEC018]): Polls for completion signals, advances queue when notified, cleans up completed passage buffer
+
+**[XFD-QUEUE-ADV-060]** Timing precision:
+
+Queue advancement timing uses the tick-based timing system ([SPEC017]):
+- `end_time_ticks`: Exact sample position where passage ends
+- No floating-point rounding errors
+- Sample-accurate queue advancement
+
+See [SPEC018 Crossfade Completion Coordination](SPEC018-crossfade_completion_coordination.md) for detailed implementation of crossfade completion signaling between mixer and engine.
+
+---
 
 ### Pre-Loading Strategy
 
@@ -1129,10 +1258,19 @@ See [database_schema.md#settings](IMPL001-database_schema.md#settings) for the d
 ----
 End of document - Crossfade Design
 
-**Document Version:** 1.1
-**Last Updated:** 2025-10-17
+**Document Version:** 1.2
+**Last Updated:** 2025-10-25
 
 **Change Log:**
+- v1.2 (2025-10-25): Added architectural clarifications for fade vs lead orthogonality and queue advancement timing
+  - Added "Fade Points vs Lead Points: Orthogonal Concepts" section with requirements [XFD-ORTH-010] through [XFD-ORTH-025]
+  - Clarified that Fader applies fade curves BEFORE buffering, mixer simply sums pre-faded audio during overlap
+  - Added practical example showing fade application timeline vs crossfade overlap timing
+  - Added "Queue Advancement Timing" section with requirements [XFD-QUEUE-ADV-010] through [XFD-QUEUE-ADV-060]
+  - Specified that queue advancement occurs when current passage reaches end_time sample
+  - Documented coordination between Buffer, Mixer, and Engine components for completion detection
+  - Cross-referenced SPEC016 (buffer completion) and SPEC018 (crossfade completion coordination)
+  - Addresses specification gaps identified during SPEC018 terminology review
 - v1.1 (2025-10-17): Added three-phase validation strategy specification
   - Added new "Validation Responsibility" section after timing validation algorithm
   - Defined Phase 1 (Enqueue-time), Phase 2 (Database read), and Phase 3 (Pre-decode) validation

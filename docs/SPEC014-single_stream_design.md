@@ -1,10 +1,18 @@
 # Single Stream Design for Audio Playback with Crossfading
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Requirements](REQ001-requirements.md) | [Crossfade Design](SPEC002-crossfade.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | [Decoder Buffer Design](SPEC016-decoder_buffer_design.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)
+**🔔 IMPORTANT NOTICE:**
+**SPEC016 Decoder Buffer Design is the authoritative specification for the audio pipeline architecture.**
+This document (SPEC014) provides supplementary context and design rationale. For implementation details, decoder behavior, buffer management, mixer operation, and fade application, refer to [SPEC016-decoder_buffer_design.md](SPEC016-decoder_buffer_design.md).
+
+> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Requirements](REQ001-requirements.md) | [Crossfade Design](SPEC002-crossfade.md) | [Single Stream Playback](SPEC013-single_stream_playback.md) | **[Decoder Buffer Design](SPEC016-decoder_buffer_design.md)** ← **Authoritative** | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md)
+
+---
 
 ## Overview
 
-The Single Stream architecture uses manual buffer management and direct audio mixing to achieve continuous playback with seamless crossfading between passages. Unlike the dual pipeline approach, this design decodes audio into memory buffers and performs sample-accurate mixing in application code before sending to the audio device.
+The Single Stream architecture uses serial decode execution and lock-free ring buffers to achieve continuous playback with seamless crossfading between passages. Audio is decoded, resampled, and faded before buffering. The mixer reads pre-faded samples and sums them during crossfade overlap.
+
+**For complete architecture details, see [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md).**
 
 ## Motivation
 
@@ -23,265 +31,68 @@ Refer to [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md#overvi
 
 ### Component Structure
 
-#### 1. Decoder Thread Pool
+#### 1. Decoder Architecture
 
-**Purpose:** Decode audio files into raw PCM format in parallel.
+**[SSD-DEC-010]** Decoder architecture specified in [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md).
 
-**Rust Structure:**
-```rust
-pub struct DecoderPool {
-    workers: Vec<DecoderWorker>,
-    work_queue: Arc<RwLock<VecDeque<DecodeRequest>>>,
-    buffer_manager: Arc<PassageBufferManager>,
-}
-
-struct DecodeRequest {
-    passage_id: Uuid,
-    file_path: PathBuf,
-    start_sample: u64,
-    end_sample: u64,
-    priority: DecodePriority,
-}
-
-enum DecodePriority {
-    Immediate, // Currently playing
-    Next,      // Next in queue
-    Prefetch,  // Future passages
-}
-```
-
-**Decoding Flow:**
-
-**[SSD-DEC-010]** Decoder uses decode-and-skip approach for sample-accurate positioning. See [SPEC016 Decoders](SPEC016-decoder_buffer_design.md#decoders) for complete specification:
-- [DBD-DEC-050]: Decode from file start
-- [DBD-DEC-060]: Skip samples before passage start
-- [DBD-DEC-070]: Buffer samples until end
-- [DBD-DEC-080]: Sample-accurate timing (~0.02ms @ 44.1kHz)
-
-Original detailed flow (superseded by SPEC016):
-1. **[SSD-DEC-011]** Receive decode request from buffer manager (with passage start/end times)
-2. **[SSD-DEC-012]** Open file using `symphonia` decoder
-3. **[SSD-DEC-013]** Always decode from the beginning of the audio file (never use compressed seek)
-4. **[SSD-DEC-014]** Skip samples until reaching passage start time
-5. **[SSD-DEC-015]** Continue decoding and buffering until passage end time
-6. **[SSD-DEC-016]** Resample to standard rate (44.1kHz) if needed using `rubato`
-7. **[SSD-DEC-017]** Write PCM data to passage buffer
-8. **[SSD-DEC-018]** Notify buffer manager of completion
-
-### Decoder Pool Lifecycle Specification
-
-**[SSD-DEC-030]** Pool Sizing:
-
-**NOTE: Design evolved to serial decode execution (SPEC016 [DBD-DEC-040]).**
-
-**CLARIFICATION:** This section describes the original 2-thread pool design. SPEC016 specifies maximum_decode_streams = 12 ([DBD-PARAM-050]), which controls buffer allocation (not thread count). The serial decode approach ([DBD-DEC-040]) uses one decoder at a time.
-
-Terminology:
-- **Decoder threads** (2 in original design): Physical worker threads
-- **Decode streams** (12 max per SPEC016): Decoder-buffer chain allocations
-
-See [SPEC016](SPEC016-decoder_buffer_design.md) for current authoritative design.
-
-Original design: 2-thread parallel decoder pool.
-
-New design: Serial decode execution with priority-based switching (one decoder at a time) for improved CPU cache coherency and reduced maximum processor load.
-
-Original design rationale (superseded):
-- Fixed pool: 2 decoder threads
-- Rationale: Sufficient for current + next passage full decode (SSD-FBUF-010)
-- Hardware constraint: Raspberry Pi Zero2W resource limits (REQ-TECH-011)
-
-**[SSD-DEC-031]** Thread Creation:
-- Lazy initialization: Threads created on first decode request
-- Persistent: Threads remain alive until module shutdown
-- No dynamic scaling: Pool size fixed at 2 for entire session
-
-**[SSD-DEC-032]** Priority Queue Management:
-- Implementation: Ordered `VecDeque<DecodeRequest>`
-- Insertion: Insert at position based on priority value
-  - Priority 0 (Immediate): Currently playing passage (buffer underrun recovery)
-  - Priority 1 (Next): Next-to-play passage
-  - Priority 2 (Prefetch): Queued passages after next
-- Dequeue: Always pop front (highest priority first)
-
-**[SSD-DEC-033]** Shutdown Behavior:
-- Signal: Set `AtomicBool` stop flag read by all threads
-- Join: Wait for all threads with 5-second timeout
-- Timeout handling: Log warning and proceed (non-critical at shutdown)
-- In-flight decodes: Abandoned (buffers discarded)
-
-**Memory Impact:** 2 threads × ~8KB stack = ~16KB overhead (negligible)
+**Key Design Points:**
+- **Serial decode execution:** One decoder processes at a time ([DBD-DEC-040])
+- **Priority-based switching:** Higher priority passages interrupt lower priority ([DBD-DEC-110])
+- **Decode-and-skip approach:** Sample-accurate positioning ([DBD-DEC-050] through [DBD-DEC-080])
+- **Maximum decode streams:** 12 decoder-buffer chains ([DBD-PARAM-050])
+- **DecoderWorker:** Single-threaded serial processing for cache coherency ([DBD-IMPL-040])
 
 **Dependencies:**
 - `symphonia` - Pure Rust audio decoding (MP3, FLAC, AAC, Vorbis, etc.)
-- `rubato` - Pure Rust resampling library. See [SPEC016 Resampling - DBD-RSMP-010] for resampling behavior (resample when != working_sample_rate, bypass when == working_sample_rate).
+- `rubato` - Pure Rust resampling ([DBD-RSMP-010]: resample when != working_sample_rate, bypass when == working_sample_rate)
 
-#### 2. Passage Buffer Manager
+#### 2. Buffer Management
 
-**Purpose:** Manage PCM buffers for queued passages, coordinate decoding.
+**[SSD-BUF-005]** Buffer architecture specified in [SPEC016 Buffers](SPEC016-decoder_buffer_design.md#buffers).
 
-**Rust Structure:**
-```rust
-pub struct PassageBufferManager {
-    passages: Arc<RwLock<HashMap<Uuid, PassageBuffer>>>,
-    decoder_pool: Arc<DecoderPool>,
-    buffer_duration: Duration, // Default: 15 seconds
-}
+**Key Design Points:**
+- **Ring buffers:** Lock-free circular buffers per passage ([DBD-BUF-010])
+- **Buffer size:** 661,941 samples (15.01 seconds @ 44.1kHz) ([DBD-PARAM-070])
+- **Backpressure:** Decoder pauses when buffer nearly full ([DBD-BUF-050])
+- **Completion detection:** Buffer signals when end sample consumed ([DBD-BUF-060])
+- **Fade application:** Pre-buffer by Fader component ([DBD-FADE-030/050])
 
-// See [SPEC016 Buffers - DBD-BUF-010] for authoritative buffer specification
-pub struct PassageBuffer {
-    passage_id: Uuid,
-    pcm_data: Vec<f32>, // Interleaved stereo: [L, R, L, R, ...]
-    sample_rate: u32,   // working_sample_rate ([DBD-PARAM-020], default 44100Hz)
-    channels: u16,      // 2 (stereo)
-    status: BufferStatus, // Buffer lifecycle states defined in [DBD-BUF-020] through [DBD-BUF-060]
-    fade_in_curve: FadeCurve,
-    fade_out_curve: FadeCurve,
-    fade_in_samples: u64,
-    fade_out_samples: u64,
-}
+**Fade Curves:** Per [SPEC002 Fade Curves](SPEC002-crossfade.md#fade-curves):
+- Linear, Exponential (fade-in), Logarithmic (fade-out), Cosine, Equal-power
 
-enum BufferStatus {
-    Decoding,
-    Ready,
-    Playing,
-    Exhausted,
-}
+**Chain Assignment Strategy:**
 
-pub enum FadeCurve {
-    Linear,
-    Logarithmic,
-    Exponential,
-    SCurve,
-}
-```
-
-**Buffer Management Strategy:**
-
-**[SSD-BUF-010]** The system uses two distinct buffering strategies based on passage playback state:
-
-**[SSD-FBUF-010] 1. Currently Playing or Next-to-Play Passage - Full Decode Strategy:**
-
-See [SPEC016 Overview - DBD-OV-050] for complete decoder-buffer chain allocation strategy. Maximum allocation controlled by [DBD-PARAM-050] maximum_decode_streams (default: 12).
-
-Original specification:
-- **[SSD-FBUF-011]** When a passage is in the currently playing OR next-to-be-played position in the queue, the ENTIRE passage is completely decoded into raw waveforms buffered in RAM ready to be played
-- **[SSD-FBUF-012]** Purpose: Enable instant, sample-accurate seeking anywhere within the passage
-- **[SSD-FBUF-013]** Rationale: Compressed file decoder seek-to-time performance is unreliable across formats
+**[SSD-BUF-010]** Chain allocation per [SPEC016 Chain Assignment Lifecycle - DBD-LIFECYCLE-010]:
+- Up to 12 passages assigned decoder-buffer chains ([DBD-PARAM-050])
+- Chains assigned on enqueue when available
+- Lowest-numbered chain allocated first
+- Chain persists with passage until completion/removal
 
 **Decoding Process:**
-- **[SSD-FBUF-020]** Resampling: When necessary, resample to the standard 44.1kHz sample rate using `rubato`
-- **[SSD-FBUF-021]** Decode-and-skip approach: See [DBD-DEC-050] for decode-and-skip specification.
-  - **[SSD-FBUF-025]** Continue decoding until passage end time is reached
-  - **[SSD-FBUF-026]** If no end time is specified, implicit end time is at the end of the audio file
-  - **[SSD-FBUF-027]** When the end time of the passage is before the end of the audio file, decoding may stop as soon as the end time uncompressed audio has been buffered - no need to decode to the end of the audio file
-
-**Fade Curve Application:**
-- **[SSD-FADE-010]** Fade-in curve: May be applied to the buffered data as soon as the decoding process has passed the fade-in point
-- **[SSD-FADE-011]** Fade-out curve: May be applied to the buffered data as soon as the decoding process has reached the end time
-- **[SSD-FADE-012]** **Updated specification:** Fades applied during decode (pre-buffer) per [SPEC016 Fade In/Out handlers - DBD-FADE-030]. This eliminates per-sample multiplication overhead during playback. See [SPEC016](SPEC016-decoder_buffer_design.md#fade-inout-handlers) for rationale.
+- **Decode-and-skip:** Start from file beginning, skip to passage start ([DBD-DEC-050/060])
+- **Resampling:** Convert to working_sample_rate (44.1kHz) when needed ([DBD-RSMP-010])
+- **Fade application:** Fader applies curves during decode, before buffering ([DBD-FADE-030/050])
+- **End detection:** Stop when passage end_time reached ([DBD-FADE-060])
 
 **Benefits:**
-- **[SSD-FBUF-030]** Sample-accurate positioning at any point in the passage
-- **[SSD-FBUF-031]** Repeatable, exact time points within the audio file
-- **[SSD-FBUF-032]** No dependency on format-specific seeking capabilities
-- **[SSD-FBUF-033]** Eliminates seeking latency during playback
-
-**[SSD-PBUF-010] 2. Queued Passages (After Next) - Partial Buffer Strategy (Configurable):**
-- **[SSD-PBUF-011]** Passages in the queue AFTER the next-to-be-played position are partially decoded to obtain a short buffer of audio ready to be played immediately in case the user skips ahead in the queue
-- **[SSD-PBUF-012]** Default: 15-second buffer (configurable)
-- **[SSD-PBUF-013]** Purpose: Facilitate instant skip to queued passages without audio dropout
-- **[SSD-PBUF-014]** Gives sufficient time to fully decode the entire passage before playback buffer starvation
-- **[SSD-PBUF-015]** Prevents audio glitches during passage transitions
-
-**Partial Buffer Playback Handling:**
-
-**[SSD-PBUF-020]** When a buffer starts playing that does not contain the entire passage:
-
-1. **[SSD-PBUF-021]** If decoding is currently in process when buffer starts playing:
-   - **[SSD-PBUF-022]** Decoding continues to complete the buffer
-   - **[SSD-PBUF-023]** Playback proceeds from partial buffer while decode completes in background
-
-2. **[SSD-PBUF-024]** If decoding is not currently in process when buffer starts playing:
-   - **[SSD-PBUF-025]** A new buffer is created by restarting the decoding process
-   - **[SSD-PBUF-026]** When the currently playing buffer reaches the end of its cleanly decoded audio data, playback is seamlessly switched to the same sample point in the buffer that is being completely filled through decoding, whether decoding is complete yet or not
+- Sample-accurate positioning at any point in the passage
+- Repeatable, exact time points within the audio file
+- No dependency on format-specific seeking capabilities
+- Eliminates seeking latency during playback
 
 **Buffer Underrun Handling:**
 
-**[SSD-UND-010]** Buffer underrun detection follows [SPEC016 Buffers - DBD-BUF-040] with auto-pause/resume behavior:
-- Detection: Mixer attempts to read from empty buffer ([DBD-BUF-040])
-- Response: Auto-pause with exponential decay to flatline ([DBD-MIX-050] through [DBD-MIX-052])
-- Recovery: Auto-resume when buffer refills
+**[SSD-UND-010]** Per [SPEC016 Mixer - Pause Mode](SPEC016-decoder_buffer_design.md#mixer):
+- **Detection:** Mixer reads from empty buffer
+- **Response:** Auto-pause with exponential decay ([DBD-MIX-050/051/052])
+- **Recovery:** Auto-resume when buffer refills to mixer_min_start_level
 
-See [SPEC016 Mixer - Pause Mode](SPEC016-decoder_buffer_design.md#mixer) for pause behavior specification.
+**Memory Usage:**
 
-Original detailed specification (superseded by SPEC016):
-- **[SSD-UND-011]** Log warning describing buffer status, skip activity, decode speed
-- **[SSD-UND-016]** Pause playback until at least one second of buffered data available
-- **[SSD-UND-017]** Pause implemented by re-feeding same audio output level (flatline)
-- **[SSD-UND-018]** Automatically resume once sufficient buffer is available
-
-**[SSD-UND-020]** If playback should reach the fade-out point of a buffer before the fade-out curve has been applied to the data in the buffer:
-- **[SSD-UND-021]** Log warning describing:
-  - **[SSD-UND-022]** Current buffer status
-  - **[SSD-UND-023]** Recent skip activity
-  - **[SSD-UND-024]** Current decoding speed relative to playback speed
-- **[SSD-UND-025]** Pause playback until the fade-out curve has been completely applied
-- **[SSD-UND-026]** Automatically resume once fade-out curve is applied
-
-**Additional Buffer Management:**
-- **Background decoding** for next 2-3 passages in queue
-- **On-demand decoding** for skip targets
-- **Buffer recycling** - reuse memory after passage completes
-
-**Memory Calculation:**
-```
-Partial buffer: [DBD-PARAM-070] playout_ringbuffer_size (661941 samples = 15.01s @ 44.1kHz) = ~5.3 MB
-Full passage buffer: Varies by passage duration (e.g., 3 minutes = ~63 MB)
-For 5 passages (1 playing + 1 next + 3 queued):
-  - 2 fully decoded: 2 × ~63 MB = ~126 MB
-  - 3 partially buffered: 3 × 5.3 MB = ~16 MB
-  - Total: ~142 MB typical
-```
-
-### Partial to Complete Buffer Handoff Mechanism
-
-**[SSD-PBUF-030]** Handoff Architecture:
-
-When a partial buffer starts playing before complete decode finishes, the system seamlessly transitions to the complete buffer.
-
-**Buffer References:**
-- `partial_buffer_ref`: Initial 15-second buffer (available immediately for skip-ahead)
-- `complete_buffer_ref`: Full passage buffer (populated during background decode)
-
-**Handoff Procedure:**
-
-1. **Initial State:**
-   - Mixer starts reading from `partial_buffer_ref`
-   - Decoder fills `complete_buffer_ref` in background
-   - Both buffers share sample position tracking
-
-2. **Decode Completion:**
-   - Decoder signals completion
-   - Atomically swap: `partial_buffer_ref = complete_buffer_ref`
-   - Swap occurs at mixer cycle boundary (not mid-sample)
-
-3. **Continued Playback:**
-   - Sample position tracking continues uninterrupted
-   - Mixer transparently reads from new buffer reference
-   - No audible discontinuity (references point to same underlying data once decode completes)
-
-**[SSD-PBUF-031]** Synchronization Mechanism:
-- Buffer storage: `Arc<RwLock<PassageBuffer>>`
-- Atomic reference updates: Write lock for swap, read lock for mixer access
-- No sample-level synchronization needed (buffers contain identical data after decode)
-- Lock contention: Minimal (swap occurs once per passage, mixer read locks are brief)
-
-**[SSD-PBUF-032]** Edge Case - Playback Completes Before Full Decode:
-- If partial buffer exhausts before complete buffer ready: Normal underrun handling (SSD-UND-015)
-- Auto-pause applies if needed
-- Complete buffer swap still occurs when decode finishes
-- Subsequent seeks/replays use complete buffer
+Per [SPEC016 Operating Parameters - DBD-PARAM-070]:
+- Buffer size per passage: 661,941 samples (15.01s @ 44.1kHz) ≈ 5.3 MB
+- Maximum 12 buffers: 60 MB total
+- Typical usage (3-5 active passages): 16-27 MB
 
 ### Buffer State Event Emission
 
@@ -524,156 +335,55 @@ Ring buffer: [DBD-PARAM-030] output_ringbuffer_size (8192 samples = 185ms @ 44.1
 Mix buffer: 2048 samples * 2 channels = 4096 samples (~46ms @ 44.1kHz)
 ```
 
-## Sample-Accurate Mixing Architecture
+## Audio Pipeline Architecture
 
 ### Overview
 
-The system achieves sample-accurate crossfading by operating at the buffer level rather than using wall-clock timing. This ensures precise audio alignment regardless of CPU scheduling or system load.
+The audio pipeline processes audio from file to output using a chain of components. See [SPEC016 Decoder Buffer Design](SPEC016-decoder_buffer_design.md#overview) for complete architecture.
 
-### Key Principles
+### Processing Chain
 
-**1. Buffer Position-Based Triggering**
-- Crossfades are triggered by buffer position (sample count), not time delays
-- Eliminates variable latency from CPU scheduling
-- Achieves ~10ms precision (467 samples at 44.1kHz) in testing
-- No dependency on tokio::sleep() or wall-clock timing
+Per [SPEC016 DBD-OV-040](SPEC016-decoder_buffer_design.md#overview):
+1. **Decoder:** Decode compressed audio to PCM
+2. **Resampler:** Convert to working_sample_rate (44.1kHz)
+3. **Fader:** Apply fade-in/fade-out curves to samples
+4. **Buffer:** Store pre-faded PCM audio
+5. **Mixer:** Sum samples from multiple buffers during crossfade
+6. **Output:** Send to audio device via cpal
 
-**2. Pre-Calculated Mixing**
-- All fade calculations happen before audio callback
-- Audio output thread performs simple buffer copy
-- Reduces risk of audio underruns and glitches
-- Real-time audio thread remains deterministic
+### Key Architectural Fact
 
-**3. Independent Position Tracking**
-- Each passage maintains its own buffer position counter
-- Current passage position: tracks playback in active passage buffer
-- Next passage position: tracks crossfade progress in queued passage buffer
-- Positions reset when passages transition
-- Prevents buffer read errors during crossfades
+**Fades Applied Pre-Buffer:** Per [SPEC002 XFD-ORTH-020](SPEC002-crossfade.md#fade-points-vs-lead-points-orthogonal-concepts) and [SPEC016 DBD-FADE-030/050](SPEC016-decoder_buffer_design.md#fade-inout-handlers):
+- Fade curves applied by Fader component BEFORE buffering
+- Buffered audio already has volume envelopes applied
+- Mixer simply sums pre-faded samples during crossfade overlap
+- No runtime fade calculations needed during playback
 
-### Complete Data Flow
+### Data Flow Summary
 
-The following six-step process describes the end-to-end buffer flow from enqueue to audio output:
+1. **Enqueue:** Passage added to queue, chain assigned if available ([DBD-LIFECYCLE-010])
+2. **Decode:** Decoder processes file via decode-and-skip ([DBD-DEC-050/060/070])
+3. **Resample:** Convert to 44.1kHz if needed ([DBD-RSMP-010])
+4. **Fade:** Apply fade curves to samples ([DBD-FADE-030/050])
+5. **Buffer:** Store pre-faded PCM in ring buffer ([DBD-BUF-010])
+6. **Mix:** Read and sum pre-faded samples during crossfade ([DBD-MIX-040])
+7. **Output:** Send to cpal audio device ([DBD-OUT-010])
 
-#### Step 1: Decode Initiation
+### Crossfade Timing
 
-Audio file decode must start with sufficient lead time to ensure passage buffers are ready before needed.
+**When Crossfade Occurs:** Per [SPEC002 Implementation Algorithm - XFD-IMPL-020](SPEC002-crossfade.md#implementation-algorithm):
+- Crossfade duration = min(lead_out_duration of current, lead_in_duration of next)
+- Next passage starts when current passage has crossfade_duration time remaining
+- Both passages play simultaneously during overlap period
 
-**For first passage:** Decode on demand when playback starts
-**For queued passages:** Prefetch during previous passage playback
-
-**Implementation:** `/home/sw/Dev/McRhythm/wkmp-ap/src/playback/engine.rs:237-303`
-
-```rust
-// When user enqueues a passage:
-// 1. Create queue entry with UUID
-// 2. Convert timing from ms to samples (44.1kHz)
-// 3. Create DecodeRequest with start/end samples
-// 4. Submit to decoder pool with priority
+**How Mixing Works:** Per [SPEC016 Mixer - DBD-MIX-041](SPEC016-decoder_buffer_design.md#mixer):
 ```
+// Both passages have fade curves already applied to buffered samples
+sample_current = read_from_buffer(current_passage_buffer)  // Pre-faded
+sample_next = read_from_buffer(next_passage_buffer)        // Pre-faded
 
-#### Step 2: Passage Buffer Population
-
-Decoder reads compressed audio file and populates PCM buffer.
-
-**Decode-and-Skip Approach:** For sample-accurate positioning
-- Always decode from beginning of file (never use compressed seek)
-- Skip samples until passage start time
-- Continue decoding until passage end time
-- Ensures exact, repeatable time points
-
-**Buffering Strategy:**
-
-1. **Currently Playing or Next-to-Play Passage - Full Decode:**
-   - ENTIRE passage decoded into RAM when entering "currently playing" OR "next-to-be-played" status
-   - Enables instant, sample-accurate seeking anywhere within passage
-   - Memory: ~63 MB for 3-minute passage @ 44.1kHz stereo
-   - Eliminates dependency on unreliable compressed file seeking
-
-2. **Queued Passages (After Next) - Partial Buffer (Configurable):**
-   - Only first 15 seconds buffered for passages AFTER the next-to-be-played position
-   - Provides instant skip capability
-   - Sufficient time to complete full decode before playback starts
-   - Memory: ~5.3 MB per passage @ 44.1kHz stereo
-
-**Buffer Contents:**
-- PCM data (f32 stereo, interleaved: [L, R, L, R, ...])
-- Fade parameters (curve type, duration in samples)
-- Sample count and status flags
-
-**Implementation:** `/home/sw/Dev/McRhythm/wkmp-ap/src/playback/pipeline/single_stream/decoder.rs`
-
-#### Step 3: Crossfade Trigger Calculation
-
-When next passage is queued, calculate the exact sample position to start crossfade.
-
-**Trigger Calculation:**
-```
-trigger_sample = passage_duration_samples - overlap_samples
-```
-
-**Example:**
-- Passage duration: 20 seconds = 882,765 samples @ 44.1kHz
-- Overlap: 8 seconds = 352,800 samples
-- Trigger: 882,765 - 352,800 = 529,965 samples
-
-**Storage:** Stored in mixer's `crossfade_start_sample` field
-
-**Implementation:** `/home/sw/Dev/McRhythm/wkmp-ap/src/playback/pipeline/single_stream/mixer.rs:223-254`
-
-```rust
-// In queue_next_passage():
-let passage_duration_samples = buffer.sample_count();
-let overlap_samples = (overlap_ms * STANDARD_SAMPLE_RATE as f64 / 1000.0) as u64;
-let start_sample = passage_duration_samples.saturating_sub(overlap_samples);
-*self.crossfade_start_sample.write().await = Some(start_sample);
-```
-
-#### Step 4: Sample-Accurate Crossfade Triggering
-
-Mixer's `process_audio()` checks current buffer position on each call.
-
-**Auto-Trigger Logic:**
-```rust
-if current_passage_position >= crossfade_start_sample {
-    // Auto-start crossfade at exact sample position
-    self.start_crossfade().await
-}
-```
-
-**Performance:**
-- Achieved ~10ms latency in testing (467 samples at 44.1kHz)
-- No wall-clock timing or sleep() calls
-- Deterministic and repeatable
-
-**Implementation:** `/home/sw/Dev/McRhythm/wkmp-ap/src/playback/pipeline/single_stream/mixer.rs:273-292`
-
-#### Step 5: Playout Buffer Creation
-
-Mixer reads from both passage buffers simultaneously and creates mixed output.
-
-**Per-Frame Processing:**
-
-For each audio frame (stereo sample pair):
-
-1. **Calculate fade gains** using configured curves:
-   - Fade-out gain: `calculate_fade_gain(curve, progress, false)`
-   - Fade-in gain: `calculate_fade_gain(curve, progress, true)`
-   - Progress: `current_sample / total_crossfade_samples`
-
-2. **Read samples** from both passages:
-   - Current passage: Read at `current_passage_position`
-   - Next passage: Read at `next_passage_position`
-   - Independent position tracking prevents buffer errors
-
-3. **Apply fade gains:**
-   - `current_sample * fade_out_gain`
-   - `next_sample * fade_in_gain`
-
-4. **Sum overlapping values:**
-   - `output = (current * fade_out_gain) + (next * fade_in_gain)`
-
-5. **Clamp to prevent clipping:**
+// Simple addition - no fade curve calculations needed
+mixed_sample = sample_current + sample_next
    - `output.clamp(-1.0, 1.0)`
 
 6. **Advance positions:**
@@ -1265,40 +975,29 @@ This section provides a comprehensive index of all traceability IDs assigned to 
 
 ---
 
-**Document Version:** 1.4
+---
+
+**Document Version:** 2.0
 **Created:** 2025-10-16
-**Last Updated:** 2025-10-18
-**Status:** Current Architecture (Selected for Implementation)
-**Note:** This single-stream architecture has been selected as the current implementation approach. See [architecture.md](SPEC001-architecture.md) for integration details.
-**Related:** `dual-pipeline-design.md` (archived), `architecture-comparison.md`, `single-stream-playback.md`
+**Last Updated:** 2025-10-25
+**Status:** Supplementary - See SPEC016 for Authoritative Design
+**Note:** SPEC016 Decoder Buffer Design is the authoritative specification. This document provides design rationale and historical context.
+**Related:** [SPEC016-decoder_buffer_design.md](SPEC016-decoder_buffer_design.md) (authoritative), [SPEC001-architecture.md](SPEC001-architecture.md), [SPEC013-single_stream_playback.md](SPEC013-single_stream_playback.md)
 
 **Change Log:**
-- v1.4 (2025-10-18): Added Ring Buffer Underrun Logging Classification with Runtime-Configurable Grace Period
-  - Added subsection "Ring Buffer Underrun Logging Classification" after Challenge 7
-  - Added 6 new requirement IDs (SSD-RBUF-010 through SSD-RBUF-015)
-  - Documents context-aware logging: TRACE for expected underruns, WARN for concerning ones
-  - Specifies runtime-configurable grace period via `audio_ring_buffer_grace_period_ms` setting (default 2s, range 0-10s)
-  - Specifies `audio_expected` flag updates when passages finish or queue changes
-  - Specifies lock-free atomic flags and timestamp for real-time audio thread safety
-- v1.2 (2025-10-17): Added requirement traceability IDs
-  - Added document code `SSD` (Single Stream Design) to requirements_enumeration.md
-  - Added category codes: DEC, BUF, FBUF, PBUF, UND, FADE, CLIP, and others
-  - Assigned 79 traceability IDs to specifications throughout document
-  - Created comprehensive traceability index section organized by category
-  - All v1.1 specifications now have unique, traceable requirement IDs
+- v2.0 (2025-10-25): Harmonized with SPEC016 - Removed Contradictions and Applied DRY Principle
+  - **BREAKING:** This document is now supplementary to SPEC016 (authoritative)
+  - Removed obsolete 2-thread parallel decoder pool design (superseded by SPEC016 serial decode [DBD-DEC-040])
+  - Removed redundant buffer management details (defer to SPEC016 [DBD-BUF-xxx])
+  - Removed redundant fade application details (defer to SPEC016 [DBD-FADE-xxx] and SPEC002 [XFD-ORTH-xxx])
+  - Removed redundant mixer operation details (defer to SPEC016 [DBD-MIX-xxx])
+  - Replaced detailed specifications with cross-references to authoritative sources
+  - Applied DRY principle throughout: removed content duplicated in SPEC016, SPEC002, SPEC017
+  - Added prominent notice directing readers to SPEC016 for implementation details
+  - Addresses specification gap: SPEC014 vs SPEC016 contradiction (identified in requirements review analysis)
+  - Document now serves as design rationale and historical context, not implementation specification
+- v1.4 (2025-10-18): Added Ring Buffer Underrun Logging Classification
 - v1.3 (2025-10-17): Architectural decision specifications from wkmp-ap design review
-  - Added "Decoder Pool Lifecycle Specification" section with pool sizing, thread creation, priority queue management, and shutdown behavior
-  - Added "Crossfade Timing Calculation Ownership" section specifying CrossfadeMixer responsibility
-  - Added "Partial to Complete Buffer Handoff Mechanism" section with handoff procedure and synchronization details
-  - Added "Buffer State Event Emission" section with four transition points and decode progress updates
-  - Supports architectural decisions from wkmp-ap design review (ISSUE-5, ISSUE-7, ISSUE-8, ISSUE-1)
+- v1.2 (2025-10-17): Added requirement traceability IDs
 - v1.1 (2025-10-17): Enhanced buffer management specifications
-  - Clarified that both "currently playing" AND "next-to-be-played" passages receive full decode
-  - Added detailed decode-and-skip process with implicit start/end time handling
-  - Specified fade curve application timing (during decode or at read-time)
-  - Added partial buffer playback handling for skip-ahead scenarios
-  - Added buffer underrun handling with automatic pause/resume behavior
-  - Added crossfade summation and clipping detection specifications
-  - Added Challenge 6 (Buffer Underruns) and Challenge 7 (Fade Curve Timing)
-  - Updated memory calculations to reflect 2 fully-decoded passages
 - v1.0 (2025-10-16): Initial version

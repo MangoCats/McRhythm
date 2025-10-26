@@ -58,6 +58,70 @@ WKMP uses automated workflows via Claude Code custom commands. See [.claude/comm
 
 ---
 
+# Decision-Making Framework - MANDATORY
+
+**All design and implementation decisions MUST follow this framework:**
+
+## 1. Risk Assessment (Primary Criterion)
+
+Evaluate failure risk FIRST for every approach:
+- Identify specific failure modes (what could go wrong)
+- Quantify probability and impact for each failure mode
+- Define mitigation strategies
+- Evaluate residual risk after mitigation
+- Rank approaches by failure risk (lowest risk = highest priority)
+
+**Risk is the primary decision factor.** Choose the approach with lowest residual risk.
+
+## 2. Quality Characteristics (Secondary Criterion)
+
+Among approaches with **equivalent risk**, evaluate quality:
+- Maintainability: How easy to modify, extend, debug
+- Test coverage: Can we achieve adequate testing
+- Architectural alignment: Fits with existing patterns and standards
+
+**Quality is the tiebreaker when risks are equivalent.**
+
+## 3. Implementation Effort (Tertiary Consideration)
+
+Among approaches with **equivalent risk AND equivalent quality**, consider effort:
+- Implementation time (design, coding, testing)
+- Dependencies and complexity
+- Resource requirements
+
+**Effort is acknowledged but NOT a decision factor unless risk and quality are equivalent.**
+
+**Critical Rule:** If the lowest-risk approach requires 2x effort versus a higher-risk approach, **choose the lowest-risk approach.** Effort differential is secondary to risk reduction.
+
+---
+
+## Equivalent Risk Definition
+
+Approaches have **equivalent risk** when their residual risk (after mitigation) falls in the same category:
+
+- **Low = Low** (equivalent)
+- **Low-Medium = Low-Medium** (equivalent)
+- **Low ≠ Low-Medium** (NOT equivalent - choose Low)
+
+For borderline cases (e.g., "high-end Low" vs. "low-end Low-Medium"):
+- Use engineering judgment
+- Document rationale in decision record
+- When in doubt, choose more conservative (lower) risk
+
+---
+
+## Rationale
+
+**Project charter goals ([PCH001](PCH001_project_charter.md)) are quality-absolute:**
+- "Flawless audio playback" - Zero-defect goal, NOT effort-bounded
+- "Listener experience reminiscent of 1970s FM radio" - Reference quality standard
+
+**Risk of failure to achieve these goals outweighs implementation time.**
+
+This framework ensures decisions align with charter by prioritizing approaches that minimize risk of failing to deliver quality-absolute goals.
+
+---
+
 # Document Generation Verbosity Standards
 
 **All document generation MUST follow these standards:**
