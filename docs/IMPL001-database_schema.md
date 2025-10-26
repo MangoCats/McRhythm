@@ -366,25 +366,31 @@ Associates passages with the songs they contain, including timing information fo
 |--------|------|-------------|-------------|
 | passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage identifier |
 | song_id | TEXT | NOT NULL REFERENCES songs(guid) ON DELETE CASCADE | Song identifier |
-| start_time_ms | INTEGER | NOT NULL | Song start time within passage (milliseconds from passage start) |
-| end_time_ms | INTEGER | NOT NULL | Song end time within passage (milliseconds from passage start) |
+| start_time_ticks | INTEGER | NOT NULL | Song start time within passage (ticks from passage start) |
+| end_time_ticks | INTEGER | NOT NULL | Song end time within passage (ticks from passage start) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
+
+**Tick-Based Timing:**
+- All timing fields use INTEGER ticks for sample-accurate precision
+- Times are relative to passage start (passage.start_time_ticks = 0 for this table)
+- Conversion: ticks = seconds * 28,224,000 ([SPEC017 SRC-TICK-020])
+- See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage) for tick system details
 
 **Constraints:**
 - PRIMARY KEY: `(passage_id, song_id)`
-- CHECK: `start_time_ms >= 0`
-- CHECK: `end_time_ms > start_time_ms`
+- CHECK: `start_time_ticks >= 0`
+- CHECK: `end_time_ticks > start_time_ticks`
 
 **Indexes:**
 - `idx_passage_songs_passage` on `passage_id`
 - `idx_passage_songs_song` on `song_id`
-- `idx_passage_songs_timing` on `(passage_id, start_time_ms)`
+- `idx_passage_songs_timing` on `(passage_id, start_time_ticks)`
 
 **Notes:**
-- Times are relative to passage start (passage.start_time = 0ms for this table)
 - Used by Audio Player to detect song boundary crossings during playback
 - Enables CurrentSongChanged event emission at correct positions
 - Multiple songs may exist within a passage with gaps between them
+- Developer-facing layer: Uses ticks per SPEC017 architecture
 
 ### `song_artists`
 
@@ -543,10 +549,16 @@ Records each time a song is played. Used primarily for cooldown calculations by 
 | guid | TEXT | PRIMARY KEY | Unique play record (UUID) |
 | song_id | TEXT | NOT NULL REFERENCES songs(guid) ON DELETE CASCADE | Song played |
 | passage_id | TEXT | REFERENCES passages(guid) ON DELETE SET NULL | Passage context (may be NULL if passage deleted) |
-| start_timestamp_ms | INTEGER | NOT NULL | Unix milliseconds UTC when song started |
-| stop_timestamp_ms | INTEGER | NOT NULL | Unix milliseconds UTC when song stopped |
-| audio_played_ms | INTEGER | NOT NULL | Milliseconds of audio actually played |
-| pause_duration_ms | INTEGER | NOT NULL DEFAULT 0 | Milliseconds spent in Pause state during this play |
+| start_timestamp_ms | INTEGER | NOT NULL | Unix milliseconds UTC when song started (system time) |
+| stop_timestamp_ms | INTEGER | NOT NULL | Unix milliseconds UTC when song stopped (system time) |
+| audio_played_ticks | INTEGER | NOT NULL | Ticks of audio actually played (audio duration) |
+| pause_duration_ticks | INTEGER | NOT NULL DEFAULT 0 | Ticks spent in Pause state during this play (audio duration) |
+
+**Timing Field Types:**
+- **System timestamps** (start_timestamp_ms, stop_timestamp_ms): Unix milliseconds UTC (system time)
+- **Audio durations** (audio_played_ticks, pause_duration_ticks): Ticks (audio timing, sample-accurate)
+- Conversion: ticks = seconds * 28,224,000 ([SPEC017 SRC-TICK-020])
+- See [SPEC017 Time Representation](SPEC017-sample_rate_conversion.md#time-representation-by-layer)
 
 **Indexes:**
 - `idx_song_play_history_song` on `song_id`
@@ -556,10 +568,11 @@ Records each time a song is played. Used primarily for cooldown calculations by 
 - One record per song per play (passage with 3 songs → 3 records)
 - **Primary use**: Program Director cooldown calculations (per-song timing)
 - **Secondary uses**:
-  - Skip detection: `audio_played_ms` < expected song duration
-  - Rewind detection: `audio_played_ms` > (stop_timestamp_ms - start_timestamp_ms - pause_duration_ms)
-  - Clock drift analysis: Compare wall time to audio time accounting for pause
-- All timestamps are signed 64-bit integers (Unix milliseconds UTC)
+  - Skip detection: `audio_played_ticks` < expected song duration (in ticks)
+  - Rewind detection: `audio_played_ticks` > `(stop_timestamp_ms - start_timestamp_ms - pause_duration_ticks/28224) * 28224`
+  - Clock drift analysis: Compare wall time (timestamps) to audio time (ticks) accounting for pause
+- System timestamps use milliseconds (standard Unix time format)
+- Audio durations use ticks (sample-accurate precision per SPEC017)
 - `passage_id` may be NULL if passage definition deleted after play
 - Single table for all songs (not one table per song)
 
@@ -754,7 +767,7 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `initial_play_state` | TEXT | `"playing"` | Playback state on app launch ("playing" or "paused") | wkmp-ap | All |
 | `currently_playing_passage_id` | TEXT (UUID) | NULL | UUID of passage currently playing | wkmp-ap | All |
 | `last_played_passage_id` | TEXT (UUID) | NULL | UUID of last played passage | wkmp-ap | All |
-| `last_played_position` | INTEGER (ms) | 0 | Position in milliseconds (updated only on clean shutdown, reset to 0 on queue change) | wkmp-ap | All |
+| `last_played_position_ticks` | INTEGER | 0 | Position in ticks (audio timing, updated only on clean shutdown, reset to 0 on queue change) | wkmp-ap | All |
 | **Audio Configuration** |
 | `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (HTTP API also uses 0.0-1.0; UI displays 0-100 with conversion: `display = round(volume * 100.0)`) | wkmp-ap | All |
 | `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
@@ -929,38 +942,44 @@ The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrid
 ```json
 {
   "queue-entry-uuid-1": {
-    "start_time_ms": 1000,
-    "end_time_ms": 180000,
-    "lead_in_point_ms": 2000,
-    "lead_out_point_ms": 175000,
-    "fade_in_point_ms": 500,
-    "fade_out_point_ms": 179500,
+    "start_time_ticks": 28224000,
+    "end_time_ticks": 5080320000,
+    "lead_in_point_ticks": 56448000,
+    "lead_out_point_ticks": 4939200000,
+    "fade_in_point_ticks": 14112000,
+    "fade_out_point_ticks": 5066208000,
     "fade_in_curve": "linear",
     "fade_out_curve": "cosine"
   },
   "queue-entry-uuid-2": {
-    "end_time_ms": 120000,
+    "end_time_ticks": 3386880000,
     "fade_in_curve": "exponential"
   }
 }
 ```
 
+**Tick-Based Timing:**
+- All timing fields use INTEGER ticks for sample-accurate precision
+- Conversion: ticks = seconds * 28,224,000 ([SPEC017 SRC-TICK-020])
+- Developer-facing layer: API uses ticks per SPEC017 architecture
+- See [SPEC017 Database Storage](SPEC017-sample_rate_conversion.md#database-storage)
+
 **Field Definitions:**
-- `start_time_ms` (integer, optional): Override passage start time (milliseconds from file start)
-- `end_time_ms` (integer, optional): Override passage end time (milliseconds from file start)
-- `lead_in_point_ms` (integer, optional): Override lead-in point (milliseconds from passage start)
-- `lead_out_point_ms` (integer, optional): Override lead-out point (milliseconds from passage start)
-- `fade_in_point_ms` (integer, optional): Override fade-in point (milliseconds from passage start)
-- `fade_out_point_ms` (integer, optional): Override fade-out point (milliseconds from passage start)
+- `start_time_ticks` (integer, optional): Override passage start time (ticks from file start)
+- `end_time_ticks` (integer, optional): Override passage end time (ticks from file start)
+- `lead_in_point_ticks` (integer, optional): Override lead-in point (ticks from passage start)
+- `lead_out_point_ticks` (integer, optional): Override lead-out point (ticks from passage start)
+- `fade_in_point_ticks` (integer, optional): Override fade-in point (ticks from passage start)
+- `fade_out_point_ticks` (integer, optional): Override fade-out point (ticks from passage start)
 - `fade_in_curve` (string, optional): Override fade-in curve ("linear", "exponential", "cosine")
 - `fade_out_curve` (string, optional): Override fade-out curve ("linear", "logarithmic", "cosine")
 
 **Notes:**
 - Empty object `{}` means no overrides (use passage defaults from `passages` table)
 - Missing fields mean "use passage default for this field"
-- Partial overrides are supported (e.g., override only `end_time_ms` and `fade_in_curve`)
+- Partial overrides are supported (e.g., override only `end_time_ticks` and `fade_in_curve`)
 - When queue entry is removed, its override entry should be deleted from this JSON object
-- Timing points relative to passage start (not file start), except `start_time_ms` and `end_time_ms`
+- Timing points relative to passage start (not file start), except `start_time_ticks` and `end_time_ticks`
 - See [api_design.md - POST /playback/enqueue](SPEC007-api_design.md#post-playbackenqueue) for override semantics during enqueue
 
 > See [Deployment - HTTP Server Configuration](IMPL004-deployment.md#13-http-server-configuration) for details on port selection algorithm, duplicate instance detection, and bind address configuration.
@@ -1229,6 +1248,16 @@ Potential schema additions (not yet specified):
 - ✅ `images` table for multi-type image storage (songs, passages, albums, artists, works)
 - ✅ `song_play_counts` view for efficient time-range play count queries
 - ✅ `passages.user_title` column for user-defined passage titles
+
+---
+
+## Change Log
+
+| Date | Version | Changes | Reason |
+|------|---------|---------|--------|
+| 2025-10-26 | 1.1 | **Tick conversion for audio timing fields**: Changed `passage_songs.start_time_ms/end_time_ms` → `start_time_ticks/end_time_ticks`, `song_play_history.audio_played_ms/pause_duration_ms` → `audio_played_ticks/pause_duration_ticks`, `settings.last_played_position` → `last_played_position_ticks`, `queue_entry_timing_overrides` JSON schema fields (all `*_ms` → `*_ticks`). Added clear distinction between system timestamps (milliseconds) and audio durations/positions (ticks). | Align with SPEC017 architecture (developer-facing layers use ticks). Ensures sample-accurate precision throughout database. |
+
+**Last Reviewed:** 2025-10-26 (Comprehensive review for tick consistency with SPEC017 approved changes)
 
 ----
 End of document - WKMP Database Schema

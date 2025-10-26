@@ -5,6 +5,7 @@
 **Test Type:** System/End-to-End Test
 **Priority:** High
 **Est. Effort:** 4 hours (2h test implementation + 2h verification tooling)
+**Last Reviewed:** 2025-10-26 (Tick consistency - updated all timing fields to use ticks per SPEC017)
 
 ---
 
@@ -28,18 +29,18 @@ Verify that crossfade is triggered at exactly the sample-accurate fade_out_start
 
 1. **Database Setup:**
    - Queue table contains 2 passages (Passage A and Passage B)
-   - Passage A:
-     - `start_time_ms`: 0
-     - `end_time_ms`: 60000 (60 seconds)
-     - `fade_out_start_time_ms`: 55000 (55 seconds)
-     - `fade_out_duration_ms`: 5000 (5 seconds)
-     - `lead_out_point_ms`: 60000
-   - Passage B:
-     - `start_time_ms`: 0
-     - `end_time_ms`: 60000
-     - `fade_in_start_time_ms`: 0
-     - `fade_in_duration_ms`: 5000
-     - `lead_in_point_ms`: 0
+   - Passage A (all timing in ticks per SPEC017):
+     - `start_time_ticks`: 0
+     - `end_time_ticks`: 1693440000 (60 seconds × 28,224,000 ticks/s)
+     - `fade_out_start_time_ticks`: 1552320000 (55 seconds)
+     - `fade_out_duration_ticks`: 141120000 (5 seconds)
+     - `lead_out_point_ticks`: 1693440000
+   - Passage B (all timing in ticks):
+     - `start_time_ticks`: 0
+     - `end_time_ticks`: 1693440000
+     - `fade_in_start_time_ticks`: 0
+     - `fade_in_duration_ticks`: 141120000
+     - `lead_in_point_ticks`: 0
    - Queue entries:
      - Entry 1 → Passage A, play_order: 10
      - Entry 2 → Passage B, play_order: 20
@@ -82,7 +83,7 @@ Verify that crossfade is triggered at exactly the sample-accurate fade_out_start
 2. **Event Sequence:**
    ```
    T+0.0s:   PassageStarted(passage_a)
-   T+54.5s:  PlaybackProgress(passage_a, position_ms=54500) [last before crossfade]
+   T+54.5s:  PlaybackProgress(passage_a, position_ticks=1538208000) [last before crossfade]
    T+55.0s:  CrossfadeStarted(outgoing=passage_a, incoming=passage_b) [TIMING CRITICAL]
    T+55.0s:  PassageStarted(passage_b) [overlaps during crossfade]
    T+60.0s:  PassageCompleted(passage_a)
@@ -132,7 +133,7 @@ async fn test_sample_accurate_crossfade_timing() {
     let crossfade_started = find_event(&events, |e| matches!(e, CrossfadeStarted { .. }));
 
     let crossfade_offset = crossfade_started.0 - passage_a_started.0;
-    let expected_offset_ms = 55000;
+    let expected_offset_ticks = 1552320000; // 55 seconds
     let tolerance_ms = 1; // ±1ms
 
     assert!(

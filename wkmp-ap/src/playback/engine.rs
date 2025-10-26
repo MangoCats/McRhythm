@@ -650,7 +650,8 @@ impl PlaybackEngine {
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
-            state: wkmp_common::events::PlaybackState::Playing,
+            old_state: old_state,
+            new_state: wkmp_common::events::PlaybackState::Playing,
             timestamp: chrono::Utc::now(),
         });
 
@@ -712,7 +713,8 @@ impl PlaybackEngine {
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
-            state: wkmp_common::events::PlaybackState::Paused,
+            old_state: old_state,
+            new_state: wkmp_common::events::PlaybackState::Paused,
             timestamp: chrono::Utc::now(),
         });
 
@@ -762,6 +764,7 @@ impl PlaybackEngine {
         // Emit PassageCompleted event with completed=false (skipped)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
             passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+            duration_played: 0.0, // Skipped - not played
             completed: false, // false = skipped
             timestamp: chrono::Utc::now(),
         });
@@ -849,8 +852,10 @@ impl PlaybackEngine {
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;
 
-        // Emit QueueChanged event
+        // Emit QueueChanged event (queue is now empty)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+            queue: Vec::new(),
+            trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
             timestamp: chrono::Utc::now(),
         });
 
@@ -1660,6 +1665,7 @@ impl PlaybackEngine {
                                         self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                             passage_id,
                                             song_id: initial_song_id,
+                                            song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
                                             position_ms: 0,
                                             timestamp: chrono::Utc::now(),
                                         });
@@ -1837,6 +1843,7 @@ impl PlaybackEngine {
                     // **[Event-PassageCompleted]** Emit completion event for OUTGOING passage
                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
                         passage_id: passage_id_opt.unwrap_or_else(|| Uuid::nil()),
+                        duration_played: 0.0, // TODO: Calculate actual duration from passage timing
                         completed: true, // Crossfade completed naturally
                         timestamp: chrono::Utc::now(),
                     });
@@ -1921,6 +1928,7 @@ impl PlaybackEngine {
                 // [Event-PassageCompleted] Passage playback finished
                 self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
                     passage_id: current_pid.unwrap_or_else(|| Uuid::nil()),
+                    duration_played: 0.0, // TODO: Calculate actual duration from passage timing
                     completed: true, // true = finished naturally, false = skipped/interrupted
                     timestamp: chrono::Utc::now(),
                 });
@@ -2086,6 +2094,7 @@ impl PlaybackEngine {
                             self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                 passage_id,
                                 song_id: new_song_id,
+                                song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
                                 position_ms,
                                 timestamp: chrono::Utc::now(),
                             });
@@ -2374,6 +2383,7 @@ impl PlaybackEngine {
                                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                         passage_id,
                                         song_id: initial_song_id,
+                                        song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
                                         position_ms: 0,
                                         timestamp: chrono::Utc::now(),
                                     });

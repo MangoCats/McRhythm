@@ -291,12 +291,12 @@ Comprehensive analysis of 8 specifications identified **48 issues** affecting im
     "queue_entry_id": "uuid-of-queue-entry",
     "play_order": 30,
     "applied_timing": {
-      "start_time_ms": 0,
-      "end_time_ms": 234500,
-      "fade_in_point_ms": 2000,
-      "fade_out_point_ms": 232500,
-      "lead_in_point_ms": 0,
-      "lead_out_point_ms": 234500,
+      "start_time_ticks": 0,
+      "end_time_ticks": 6618528000,
+      "fade_in_point_ticks": 56448000,
+      "fade_out_point_ticks": 6562080000,
+      "lead_in_point_ticks": 0,
+      "lead_out_point_ticks": 6618528000,
       "fade_in_curve": "cosine",
       "fade_out_curve": "cosine"
     }
@@ -615,3 +615,4 @@ Comprehensive analysis of 8 specifications identified **48 issues** affecting im
 **Status:** ✅ All critical specification issues resolved with documented implementation decisions
 **Recommendation:** ✅ APPROVED - Proceed with implementation following documented decisions
 **Last Updated:** 2025-10-26 (SPEC fixes completed: SPEC007, SPEC017, SPEC011, SPEC021, SPEC022)
+**Last Reviewed:** 2025-10-26 (Tick consistency review - updated API response examples to use ticks)

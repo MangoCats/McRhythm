@@ -8,7 +8,12 @@
       "Bash(find:*)",
       "Bash(if not exist \"c:\\Users\\Mango Cat\\Dev\\McRhythm\\templates\" mkdir \"c:\\Users\\Mango Cat\\Dev\\McRhythm\\templates\")",
       "Bash(test:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cargo check:*)",
+      "Bash(grep:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo build:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

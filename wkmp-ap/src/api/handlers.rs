@@ -287,7 +287,8 @@ pub async fn set_volume(
 
     // Emit VolumeChanged event
     ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::VolumeChanged {
-        volume: req.volume as f64,
+        old_volume: old_volume,
+        new_volume: req.volume,
         timestamp: chrono::Utc::now(),
     });
 
@@ -319,13 +320,20 @@ pub async fn enqueue_passage(
         Ok(queue_entry_id) => {
             info!("Successfully enqueued passage: {}", queue_entry_id);
 
+            // **[SSE-UI-020]** Get queue for events
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
+
             // Emit QueueChanged event
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids.clone(),
+                trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
                 timestamp: chrono::Utc::now(),
             });
 
             // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
-            let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -369,13 +377,20 @@ pub async fn remove_from_queue(
         Ok(_) => {
             info!("Successfully removed queue entry: {}", queue_entry_id);
 
+            // **[SSE-UI-020]** Get queue for events
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
+
             // Emit QueueChanged event
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids.clone(),
+                trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
                 timestamp: chrono::Utc::now(),
             });
 
             // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
-            let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -659,13 +674,20 @@ pub async fn reorder_queue_entry(
         Ok(_) => {
             info!("Queue reordered successfully");
 
-            // Emit QueueChanged event
+            // **[SSE-UI-020]** Get queue for events
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
+
+            // Emit QueueChanged event (reorder is user-initiated queue modification)
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids.clone(),
+                trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
                 timestamp: chrono::Utc::now(),
             });
 
             // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
-            let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,

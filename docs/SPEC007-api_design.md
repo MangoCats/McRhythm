@@ -56,8 +56,11 @@ Once authenticated, the browser stores the user UUID in localStorage with a roll
 - Users not logged in are handled as described in **[API-AUTH-010]**
 
 **[API-AUTH-020]** Internal Module APIs (Audio Player, Program Director, Audio Ingest, Lyric Editor):
-- No authentication required (assumed to be on trusted local network)
-- Security relies primarily on network isolation
+- No **user UUID authentication** required (no user login/identification needed)
+- **API-level authentication** (timestamp + hash per API-AUTH-025) **IS REQUIRED**
+- Security relies on network isolation + shared secret validation
+- Internal modules may restrict access to some functions based on UUID, all API calls must prove possession of shared secret
+  - wkmp-ap does not have any UUID based access restrictions
 
 **[API-AUTH-021]** Other module UIs read UI stored authentication
 - Lyric Editor is launched on-demand by User Interface when needed
@@ -80,6 +83,16 @@ Once authenticated, the browser stores the user UUID in localStorage with a roll
 - Acceptable messages shall have a timestamp no more than 1000 milliseconds in the past and no more than 1 millisecond in the future of the receiver's read of system clock time
   - timestamps can also be used for API processing speed performance testing, logging calculated delivery and handling time.  This is a testing mode, not normal operation.
 - prevents simple hacking (hacker must know how to calculate checksum and have access to shared secret in database)
+
+**[API-AUTH-025-NOTE]** Scope of "every API command":
+- **Applies to ALL HTTP requests** including:
+  - POST/PUT/DELETE endpoints (control operations that modify state)
+  - GET endpoints (status queries: /playback/queue, /playback/state, /playback/position, /audio/device, /audio/volume, etc.)
+  - GET /health (health check endpoint)
+  - GET /events (Server-Sent Events stream initial connection)
+- **Does NOT apply to:**
+  - Server-Sent Events pushed from server to client (server-initiated, not API commands from client)
+- **Rationale:** "API command" means any client→server HTTP request. Server→client push notifications (SSE events) are not commands.
 
 **[API-AUTH-026]** API hash checking may be disabled
 - when the shared secret is set to a value of 0, hash and timestamp checking are disabled:

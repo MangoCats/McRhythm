@@ -27,21 +27,51 @@ WKMP uses a Cargo workspace with multiple binary crates and a shared common libr
   - `wkmp-pd/` - Program Director binary
   - `wkmp-ai/` - Audio Ingest binary (Full version only)
 
-- **CO-007:** Shared code shall be implemented in the `common/` library:
+- **CO-007:** Shared code shall be implemented in the `common/` library using the following decision criteria:
+
+  **Decision Criteria - Code belongs in `wkmp-common` if it meets ANY of:**
+  1. **Cross-Module Communication**: Used for communication between modules (Events, API types)
+  2. **Identical Implementation**: Same logic needed by 2+ modules with no variations
+  3. **Domain Model**: Core business entities used across modules (Passage, Song, Recording, etc.)
+  4. **Infrastructure Pattern**: Repeated pattern across modules (EventBus, authentication, configuration loading)
+  5. **Security-Critical**: Authentication, authorization, cryptography (must be identical for security)
+
+  **Current Shared Components** (see [DRY-STRATEGY.md](DRY-STRATEGY.md) for complete catalog):
   - Database models and queries
-  - Event types (`WkmpEvent` enum)
+  - Event system (EventBus, WkmpEvent enum, supporting types)
+  - API authentication (timestamp/hash validation)
   - API request/response types
+  - Configuration loading (RootFolderResolver, platform defaults)
   - Flavor calculation algorithms
   - Cooldown calculation logic
   - UUID and timestamp utilities
-  - Module configuration loading
+  - Fade curve definitions
+
+- **CO-007A:** Before implementing new functionality, developers shall:
+  1. Check `wkmp-common/src/` for existing implementations
+  2. Review [DRY-STRATEGY.md](DRY-STRATEGY.md) decision matrix
+  3. If similar logic exists in another module, consolidate to `wkmp-common` first
+
+- **CO-007B:** Cross-module code duplication triggers:
+  - Same logic appears in 2+ modules → Consolidate immediately
+  - Similar pattern with minor variations → Parameterize and consolidate
+  - Module-specific today but planned for other modules → Proactively move to common
+
+- **CO-007C:** When consolidating code to `wkmp-common`:
+  1. Ensure existing module tests still pass
+  2. Add comprehensive tests to `wkmp-common`
+  3. Update [DRY-STRATEGY.md](DRY-STRATEGY.md) with the new shared component
+  4. Document in module's re-export (e.g., `pub use wkmp_common::events::EventBus;`)
+
+  **Rationale:** See [REV003-dry_guidance_review.md](REV003-dry_guidance_review.md) for comprehensive analysis of DRY guidance enhancements and decision criteria validation.
 
 - **CO-008:** Module-specific code shall remain in respective binary crates:
-  - HTTP server setup (module-specific)
+  - HTTP server setup (module-specific ports, routes)
   - Audio pipeline code (Audio Player only)
   - Password hashing (User Interface only)
   - Selection algorithm (Program Director only)
   - File scanning (Audio Ingest only)
+  - Module-specific business logic (not shared with other modules)
 
 - **CO-009:** Binary names shall follow the `wkmp-` prefix convention:
   - `wkmp-ap` - Audio Player

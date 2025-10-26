@@ -110,6 +110,7 @@ These documents track the evolution of WKMP documentation and identify gaps requ
 **Examples:**
 - REV001-wkmp_ap_design_review.md - Quality assurance review identifying 5 critical issues
 - REV002-event_driven_architecture_update.md - Architectural change from timer-driven to event-driven
+- REV003-dry_guidance_review.md - DRY guidance completeness analysis and enhancement recommendations
 
 **Update Policy:**
 - ✅ Created for major architectural changes

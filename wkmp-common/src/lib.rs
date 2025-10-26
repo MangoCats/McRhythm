@@ -1,6 +1,7 @@
 //! # WKMP Common Library
 //!
 //! Shared code for all WKMP microservices including:
+//! - API authentication (timestamp/hash validation)
 //! - Database models and queries
 //! - Event types (WkmpEvent enum)
 //! - API request/response types
@@ -8,6 +9,7 @@
 //! - Utility functions
 //! - Fade curve definitions and calculations
 
+pub mod api;
 pub mod config;
 pub mod db;
 pub mod error;
@@ -18,4 +20,8 @@ pub mod timing;
 pub mod uuid_utils;
 
 pub use error::{Error, Result};
+pub use events::{
+    BufferStatus, EnqueueSource, EventBus, PlaybackState, QueueChangeTrigger, UserActionType,
+    WkmpEvent,
+};
 pub use fade_curves::FadeCurve;

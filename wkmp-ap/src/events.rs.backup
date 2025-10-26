@@ -1,0 +1,724 @@
+//! Event system for wkmp-ap Audio Player
+//!
+//! Implements event-driven communication per SPEC011-event_system.md
+//!
+//! # Architecture
+//!
+//! WKMP uses hybrid communication:
+//! - **EventBus** (tokio::broadcast): One-to-many event broadcasting
+//! - **Command channels** (tokio::mpsc): Request → single handler
+//! - **Shared state** (Arc<RwLock<T>>): Read-heavy access
+//!
+//! This module implements EventBus and event type definitions.
+
+use std::time::{Duration, SystemTime};
+use tokio::sync::broadcast;
+use uuid::Uuid;
+
+// ========================================
+// Event Types
+// ========================================
+
+/// Global event types for cross-component communication
+///
+/// Events are broadcast via the EventBus and can be subscribed to by any component.
+/// Each event is self-contained and includes all necessary context.
+///
+/// Per SPEC011: All events use this central enum for type safety and exhaustive matching.
+#[derive(Debug, Clone)]
+pub enum WkmpEvent {
+    // ═══════════════════════════════════════════════════════════════
+    // Playback Events
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Emitted when a passage begins playback
+    ///
+    /// Triggers:
+    /// - Historian: Record play start
+    /// - SSE: Update all connected UIs
+    /// - Lyrics Display: Show passage lyrics
+    PassageStarted {
+        passage_id: Uuid,
+        timestamp: SystemTime,
+        queue_position: u32,
+    },
+
+    /// Emitted when a passage finishes or is skipped
+    ///
+    /// Triggers:
+    /// - Historian: Record play completion
+    /// - Queue Manager: Advance queue
+    /// - SSE: Update UI playback state
+    PassageCompleted {
+        passage_id: Uuid,
+        duration_played: f64,
+        completed: bool, // false if skipped
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when playback state changes (Playing/Paused)
+    ///
+    /// Triggers:
+    /// - SSE: Update UI controls
+    /// - State Persistence: Save current state
+    /// - Platform Integration: Update MPRIS/media keys
+    PlaybackStateChanged {
+        old_state: PlaybackState,
+        new_state: PlaybackState,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted periodically during playback
+    ///
+    /// Frequency controlled by `playback_progress_interval_ms` setting (default: 5000ms)
+    /// Also emitted once when Pause initiated, once when Play initiated (resume)
+    ///
+    /// NOTE: Configurable-frequency event. Subscribers should process quickly.
+    ///
+    /// Triggers:
+    /// - SSE: Update progress bar
+    /// - NOT persisted to database during playback (only transmitted via SSE)
+    /// - Database persistence only on clean shutdown via settings.last_played_position_ticks
+    PlaybackProgress {
+        passage_id: Uuid,
+        position_ms: u64,  // Current position in milliseconds
+        duration_ms: u64,  // Total passage duration in milliseconds
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when volume changes
+    ///
+    /// Triggers:
+    /// - SSE: Update volume slider
+    /// - State Persistence: Save volume preference
+    VolumeChanged {
+        old_volume: f32, // 0.0-1.0 (system-level scale for precision)
+        new_volume: f32, // 0.0-1.0 (system-level scale for precision)
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when current song within passage changes
+    ///
+    /// NOTE: This is distinct from PassageStarted (which is for passage transitions)
+    /// This event fires when crossing song boundaries within a single passage
+    ///
+    /// Triggers:
+    /// - UI: Update album art display to reflect new song
+    /// - UI: Reset album rotation timer if song has multiple albums
+    /// - UI: Update now playing song information
+    CurrentSongChanged {
+        passage_id: Uuid,
+        song_id: Option<Uuid>, // None if in a gap between songs
+        song_albums: Vec<Uuid>, // All albums associated with this song, ordered by release date (newest first)
+        position: f64,          // Current position in passage (seconds)
+    },
+
+    /// Emitted when passage buffer state transitions
+    ///
+    /// Purpose: Notify clients of passage buffer decode/playback state changes
+    /// for monitoring and debugging
+    ///
+    /// Triggers:
+    /// - Developer UI: Show buffer state transitions for debugging
+    /// - Performance monitoring: Track decode speed vs. playback speed
+    /// - UI display: Show decode progress for large files
+    BufferStateChanged {
+        passage_id: Uuid,
+        old_state: BufferStatus,
+        new_state: BufferStatus,
+        decode_progress_percent: Option<f32>, // Only for Decoding state
+        timestamp: SystemTime,
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // Queue Events
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Emitted when the queue contents change
+    ///
+    /// Triggers:
+    /// - SSE: Update queue display
+    /// - Auto-replenishment: Check if refill needed
+    QueueChanged {
+        queue: Vec<Uuid>,
+        trigger: QueueChangeTrigger,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when a passage is added to queue
+    ///
+    /// Triggers:
+    /// - SSE: Animate new queue entry
+    /// - Analytics: Track auto vs manual enqueue
+    PassageEnqueued {
+        passage_id: Uuid,
+        position: usize,
+        source: EnqueueSource,
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when a passage is removed from queue
+    ///
+    /// Triggers:
+    /// - SSE: Update queue display
+    PassageDequeued {
+        passage_id: Uuid,
+        was_playing: bool,
+    },
+
+    /// Emitted when queue becomes empty
+    ///
+    /// NOTE: This does NOT change Play/Pause state automatically
+    ///
+    /// Triggers:
+    /// - SSE: Update UI to show empty queue state
+    /// - UI: May show "Queue Empty" message
+    /// - Automatic selector: Already stopped (no valid candidates)
+    QueueEmpty {
+        timestamp: SystemTime,
+        playback_state: PlaybackState, // Current Play/Pause state (unchanged)
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // User Interaction Events
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Emitted when user performs an action (satisfies REQ-CF-082, REQ-CF-082A)
+    ///
+    /// Used for multi-user synchronization and edge case handling:
+    /// - Skip throttling (5-second window, REQ-CF-085A, REQ-CF-085B, REQ-CF-085C)
+    /// - Concurrent operation handling
+    ///
+    /// Triggers:
+    /// - SSE: Broadcast to all other connected clients
+    /// - Skip Throttle: Track recent skip actions
+    /// - Analytics: User interaction tracking
+    UserAction {
+        action: UserActionType,
+        user_id: String, // User's persistent UUID
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when user likes a passage (Full/Lite versions only)
+    ///
+    /// Triggers:
+    /// - Database: Record like associated with user UUID
+    /// - Taste Manager: Update user's taste profile
+    /// - SSE: Update like button state for all connected clients
+    PassageLiked {
+        passage_id: Uuid,
+        user_id: Uuid, // UUID of user who liked (may be Anonymous UUID)
+        timestamp: SystemTime,
+    },
+
+    /// Emitted when user dislikes a passage (Full/Lite versions only)
+    ///
+    /// Triggers:
+    /// - Database: Record dislike associated with user UUID
+    /// - Taste Manager: Update user's taste profile
+    /// - SSE: Update dislike button state for all connected clients
+    /// - Program Director: Adjust selection probability (Phase 2)
+    PassageDisliked {
+        passage_id: Uuid,
+        user_id: Uuid, // UUID of user who disliked (may be Anonymous UUID)
+        timestamp: SystemTime,
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // Musical Flavor Events
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Emitted when user sets temporary flavor override
+    ///
+    /// Implements REQ-FLV-020: Temporary override behavior
+    ///
+    /// Triggers:
+    /// - Queue Manager: Flush existing queue
+    /// - Playback Controller: Skip remaining time on current passage
+    /// - Program Director: Use new target for selection
+    /// - SSE: Show override indicator in UI
+    TemporaryFlavorOverride {
+        target_flavor: Vec<f64>, // FlavorVector: 8-dimensional AcousticBrainz vector
+        expiration: SystemTime,
+        duration: Duration,
+    },
+
+    /// Emitted when temporary override expires
+    ///
+    /// Triggers:
+    /// - Program Director: Revert to timeslot-based target
+    /// - SSE: Remove override indicator
+    TemporaryFlavorOverrideExpired { timestamp: SystemTime },
+
+    /// Emitted when timeslot changes (e.g., midnight → morning)
+    ///
+    /// NOTE: Does NOT affect currently queued passages (REQ-FLV-030)
+    ///
+    /// Triggers:
+    /// - Program Director: Update target flavor for new selections
+    /// - SSE: Update current timeslot indicator
+    TimeslotChanged {
+        old_timeslot_id: Uuid,
+        new_timeslot_id: Uuid,
+        new_target_flavor: Vec<f64>, // FlavorVector
+        timestamp: SystemTime,
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // System Events
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Emitted when network connectivity status changes
+    ///
+    /// Implements REQ-NET-010: Network error handling
+    ///
+    /// Triggers:
+    /// - External API clients: Pause/resume requests
+    /// - SSE: Show offline indicator
+    NetworkStatusChanged {
+        available: bool,
+        retry_count: u32,
+    },
+
+    /// Emitted when library scan completes (Full version only)
+    ///
+    /// Triggers:
+    /// - SSE: Update library stats
+    /// - Program Director: Refresh available passages
+    LibraryScanCompleted {
+        files_added: usize,
+        files_updated: usize,
+        files_removed: usize,
+        duration: Duration,
+    },
+
+    /// Emitted when database error occurs
+    ///
+    /// Triggers:
+    /// - Error logging
+    /// - SSE: Show error notification
+    /// - Retry logic: Attempt recovery
+    DatabaseError {
+        operation: String,
+        error: String,
+        retry_attempted: bool,
+    },
+}
+
+// ========================================
+// Supporting Enums
+// ========================================
+
+/// Why a user action occurred
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UserActionType {
+    Skip,
+    Play,
+    Pause,
+    Seek,
+    VolumeChange,
+    QueueAdd,
+    QueueRemove,
+    Like,
+    Dislike,
+    TemporaryOverride,
+}
+
+/// Why the queue changed
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QueueChangeTrigger {
+    AutomaticReplenishment,
+    UserEnqueue,
+    UserDequeue,
+    PassageCompletion,
+    TemporaryOverride,
+}
+
+/// How a passage was enqueued
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnqueueSource {
+    Automatic,
+    Manual,
+}
+
+/// Playback state
+///
+/// WKMP has only two playback states controlled by the user.
+/// There is no "stopped" state - the system is always either playing or paused.
+///
+/// Per SPEC011:
+/// - System always starts in `Playing` state on app launch
+/// - Only two states exist: `Playing` and `Paused`
+/// - No "stopped" state (traditional media player concept doesn't apply)
+/// - User controls state via Play/Pause commands
+/// - State persists independently of queue contents
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaybackState {
+    /// Audio plays when passages are available in queue
+    Playing,
+    /// Audio paused by user, regardless of queue state
+    Paused,
+}
+
+/// Buffer status for passage decode/playback lifecycle
+///
+/// Per SPEC016 Buffers:
+/// - DBD-BUF-020: Empty on start
+/// - DBD-BUF-030: Mixer can't read empty buffer
+/// - DBD-BUF-040: Returns last sample if empty
+/// - DBD-BUF-050: Decoder pauses when nearly full
+/// - DBD-BUF-060: Informs queue on completion
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BufferStatus {
+    /// Buffer currently being populated from audio file
+    Decoding,
+    /// Buffer fully decoded and ready for playback
+    Ready,
+    /// Buffer currently being read for audio output
+    Playing,
+    /// Buffer playback completed
+    Exhausted,
+}
+
+// ========================================
+// Internal Events (wkmp-ap only)
+// ========================================
+
+/// Mixer state context for position events
+///
+/// Per SPEC011 EVT-CTX-010: Added in v1.4 specification update
+#[derive(Debug, Clone)]
+pub enum MixerStateContext {
+    /// Single passage playing (no crossfade active)
+    Immediate,
+
+    /// Crossfade in progress
+    Crossfading {
+        /// Queue entry ID of incoming passage
+        incoming_queue_entry_id: Uuid,
+    },
+}
+
+/// Internal playback events (not exposed via SSE)
+///
+/// These events are private implementation details within wkmp-ap:
+/// - NOT serialized or sent via SSE
+/// - One-to-one MPSC pattern (mixer → handler)
+/// - Non-blocking emission (`try_send()` to avoid blocking audio thread)
+///
+/// Per SPEC011: Used for event-driven position tracking without timer polling
+#[derive(Debug, Clone)]
+pub enum PlaybackEvent {
+    /// Position update from mixer
+    ///
+    /// Emitted at configurable interval (database setting: position_event_interval_ms, default: 1000ms)
+    /// Example: At 44.1kHz with 1000ms interval → every 44,100 frames (~1 second of audio)
+    PositionUpdate {
+        /// Queue entry ID of current passage
+        queue_entry_id: Uuid,
+
+        /// Frame position within buffer
+        position_frames: usize,
+
+        /// Sample rate (for ms conversion)
+        sample_rate: u32,
+
+        /// Mixer state context
+        state: MixerStateContext,
+    },
+
+    /// Mixer state changed (e.g., started crossfade)
+    StateChanged {
+        queue_entry_id: Uuid,
+        new_state: MixerStateContext,
+    },
+}
+
+// ========================================
+// EventBus Implementation
+// ========================================
+
+/// Central event distribution bus for application-wide events
+///
+/// The EventBus uses tokio::broadcast internally, providing:
+/// - Non-blocking publish (slow subscribers don't block producers)
+/// - Multiple concurrent subscribers
+/// - Automatic cleanup when subscribers drop
+/// - Lagged message detection for slow subscribers
+///
+/// Per SPEC011: Recommended capacity values:
+/// - Development/Desktop: 1000
+/// - Raspberry Pi Zero2W: 500
+/// - Testing: 10-100
+///
+/// # Examples
+///
+/// ```
+/// use wkmp_ap::events::{EventBus, WkmpEvent, PlaybackState};
+/// use std::sync::Arc;
+/// use std::time::SystemTime;
+///
+/// let event_bus = Arc::new(EventBus::new(1000));
+///
+/// // Subscribe to events
+/// let mut rx = event_bus.subscribe();
+///
+/// // Emit an event
+/// event_bus.emit(WkmpEvent::PlaybackStateChanged {
+///     old_state: PlaybackState::Paused,
+///     new_state: PlaybackState::Playing,
+///     timestamp: SystemTime::now(),
+/// }).ok();
+///
+/// // Receive events (in async context)
+/// // while let Ok(event) = rx.recv().await {
+/// //     match event {
+/// //         WkmpEvent::PlaybackStateChanged { .. } => {
+/// //             // Handle state change
+/// //         }
+/// //         _ => {}
+/// //     }
+/// // }
+/// ```
+pub struct EventBus {
+    tx: broadcast::Sender<WkmpEvent>,
+    capacity: usize,
+}
+
+impl EventBus {
+    /// Creates a new EventBus with specified channel capacity
+    ///
+    /// # Arguments
+    ///
+    /// * `capacity` - Number of events to buffer before dropping old events
+    ///
+    ///   Recommended values (per SPEC011):
+    ///   - Development/Desktop: 1000
+    ///   - Raspberry Pi Zero2W: 500
+    ///   - Testing: 10-100
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_ap::events::EventBus;
+    ///
+    /// let event_bus = EventBus::new(1000);
+    /// ```
+    pub fn new(capacity: usize) -> Self {
+        let (tx, _) = broadcast::channel(capacity);
+        Self { tx, capacity }
+    }
+
+    /// Subscribe to all future events
+    ///
+    /// Returns a receiver that will receive all events emitted after subscription.
+    /// Events emitted before subscription are not received.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_ap::events::EventBus;
+    /// use std::sync::Arc;
+    ///
+    /// let event_bus = Arc::new(EventBus::new(1000));
+    /// let mut rx = event_bus.subscribe();
+    ///
+    /// // In async context:
+    /// // tokio::spawn(async move {
+    /// //     while let Ok(event) = rx.recv().await {
+    /// //         println!("Received event: {:?}", event);
+    /// //     }
+    /// // });
+    /// ```
+    pub fn subscribe(&self) -> broadcast::Receiver<WkmpEvent> {
+        self.tx.subscribe()
+    }
+
+    /// Emit an event to all subscribers
+    ///
+    /// Returns `Ok(subscriber_count)` if at least one subscriber exists.
+    /// Returns `Err` if no subscribers are listening.
+    ///
+    /// Per SPEC011 EVT-ERR-PROP-010: The first component to detect an error emits the event.
+    /// Errors are NOT propagated through multiple layers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_ap::events::{EventBus, WkmpEvent};
+    /// use std::time::SystemTime;
+    ///
+    /// let event_bus = EventBus::new(100);
+    ///
+    /// // Critical event - log if no subscribers
+    /// let event = WkmpEvent::DatabaseError {
+    ///     operation: "INSERT".to_string(),
+    ///     error: "Connection lost".to_string(),
+    ///     retry_attempted: false,
+    /// };
+    ///
+    /// if let Err(_) = event_bus.emit(event) {
+    ///     eprintln!("Warning: No subscribers for critical event");
+    /// }
+    /// ```
+    pub fn emit(
+        &self,
+        event: WkmpEvent,
+    ) -> Result<usize, broadcast::error::SendError<WkmpEvent>> {
+        self.tx.send(event)
+    }
+
+    /// Emit an event, ignoring if no subscribers are listening
+    ///
+    /// This is useful for non-critical events where it's acceptable if
+    /// no component is currently listening.
+    ///
+    /// Per SPEC011 EVT-ERR-PROP-020: If emit fails (no subscribers), log error locally, continue operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_ap::events::{EventBus, WkmpEvent};
+    /// use std::time::SystemTime;
+    /// use uuid::Uuid;
+    ///
+    /// let event_bus = EventBus::new(100);
+    ///
+    /// // Position updates - OK if no one is listening
+    /// event_bus.emit_lossy(WkmpEvent::PlaybackProgress {
+    ///     passage_id: Uuid::new_v4(),
+    ///     position_ms: 42000,
+    ///     duration_ms: 180000,
+    ///     timestamp: SystemTime::now(),
+    /// });
+    /// ```
+    pub fn emit_lossy(&self, event: WkmpEvent) {
+        let _ = self.tx.send(event);
+    }
+
+    /// Get the current number of active subscribers
+    ///
+    /// Useful for debugging and monitoring
+    pub fn subscriber_count(&self) -> usize {
+        self.tx.receiver_count()
+    }
+
+    /// Get the configured channel capacity
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+}
+
+// ========================================
+// Tests
+// ========================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_eventbus_new() {
+        let bus = EventBus::new(100);
+        assert_eq!(bus.capacity(), 100);
+        assert_eq!(bus.subscriber_count(), 0);
+    }
+
+    #[test]
+    fn test_eventbus_subscribe() {
+        let bus = EventBus::new(100);
+        let _rx = bus.subscribe();
+        assert_eq!(bus.subscriber_count(), 1);
+
+        let _rx2 = bus.subscribe();
+        assert_eq!(bus.subscriber_count(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_eventbus_emit_no_subscribers() {
+        let bus = EventBus::new(100);
+        let event = WkmpEvent::PlaybackStateChanged {
+            old_state: PlaybackState::Paused,
+            new_state: PlaybackState::Playing,
+            timestamp: SystemTime::now(),
+        };
+
+        // Should return error when no subscribers
+        assert!(bus.emit(event).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_eventbus_emit_with_subscriber() {
+        let bus = Arc::new(EventBus::new(100));
+        let mut rx = bus.subscribe();
+
+        let event = WkmpEvent::PlaybackStateChanged {
+            old_state: PlaybackState::Paused,
+            new_state: PlaybackState::Playing,
+            timestamp: SystemTime::now(),
+        };
+
+        // Should succeed with subscriber
+        assert!(bus.emit(event.clone()).is_ok());
+
+        // Should receive event
+        let received = rx.recv().await.unwrap();
+        match received {
+            WkmpEvent::PlaybackStateChanged {
+                old_state,
+                new_state,
+                ..
+            } => {
+                assert_eq!(old_state, PlaybackState::Paused);
+                assert_eq!(new_state, PlaybackState::Playing);
+            }
+            _ => panic!("Wrong event type received"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_eventbus_emit_lossy() {
+        let bus = EventBus::new(100);
+        let event = WkmpEvent::PlaybackProgress {
+            passage_id: Uuid::new_v4(),
+            position_ms: 1000,
+            duration_ms: 60000,
+            timestamp: SystemTime::now(),
+        };
+
+        // Should not panic even without subscribers
+        bus.emit_lossy(event);
+    }
+
+    #[test]
+    fn test_playback_state_equality() {
+        assert_eq!(PlaybackState::Playing, PlaybackState::Playing);
+        assert_ne!(PlaybackState::Playing, PlaybackState::Paused);
+    }
+
+    #[test]
+    fn test_buffer_status_equality() {
+        assert_eq!(BufferStatus::Decoding, BufferStatus::Decoding);
+        assert_ne!(BufferStatus::Decoding, BufferStatus::Ready);
+    }
+
+    #[test]
+    fn test_mixer_state_context() {
+        let immediate = MixerStateContext::Immediate;
+        let crossfading = MixerStateContext::Crossfading {
+            incoming_queue_entry_id: Uuid::new_v4(),
+        };
+
+        // Just verify they can be constructed
+        match immediate {
+            MixerStateContext::Immediate => {}
+            _ => panic!("Expected Immediate"),
+        }
+
+        match crossfading {
+            MixerStateContext::Crossfading { .. } => {}
+            _ => panic!("Expected Crossfading"),
+        }
+    }
+}
