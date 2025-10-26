@@ -1,6 +1,6 @@
 ﻿# WKMP API Design
 
-**ðŸŒ TIER 2 - DESIGN SPECIFICATION**
+**TIER 2 - DESIGN SPECIFICATION**
 
 Defines REST API structure and Server-Sent Events interface. Derived from [requirements.md](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
@@ -50,13 +50,95 @@ Defines REST API structure and Server-Sent Events interface. Derived from [requi
 
 Once authenticated, the browser stores the user UUID in localStorage with a rolling one-year expiration. See [User Identity and Authentication](SPEC010-user_identity.md) for complete flow.
 
+**[API-AUTH-015]** Anonymous user is considered authenticated like any other user
+- Anonymous will not be prompted to login just because they are Anonymous
+- Anonymous may logout like any other user
+- Users not logged in are handled as described in **[API-AUTH-010]**
+
 **[API-AUTH-020]** Internal Module APIs (Audio Player, Program Director, Audio Ingest, Lyric Editor):
 - No authentication required (assumed to be on trusted local network)
-- Minimal HTML/JavaScript developer UIs for debugging (served via HTTP)
-- Security relies on network isolation
-- Lyric Editor is launched on-demand by User Interface when needed
+- Security relies primarily on network isolation
 
-**[API-AUTH-030]** Content-Type: `application/json` for all request/response bodies across all modules
+**[API-AUTH-021]** Other module UIs read UI stored authentication
+- Lyric Editor is launched on-demand by User Interface when needed
+  - reads browser stored UUID
+    - when not present, automatically stores and uses Anonymous UUID (will be read from browser storage by all modules)
+  - requires non-anonymous UUID to store lyric changes
+- Program Director and Audio Ingest UIs
+  - read browser stored UUID
+    - when not present, automatically stores and uses Anonymous UUID (will be read from browser storage by all modules)
+  - some functions may be configured as inaccessible for Anonymous
+- Minimal HTML/JavaScript developer UIs for debugging (served via HTTP) always fully accessible regardless of UUID presence or value
+
+**[API-AUTH-025]** Timestamp and hash present in every API command
+- basic security protecting against simple hacking and replay attacks
+- shared secret: single i64 random number key stored in database settings table
+- i64 Unix epoch time in milliseconds timestamp present in every API message
+  - timestamp is the system clock time at the time the message is created
+- SHA-256 hash is calculated from the API message with a dummy hash value of all zeroes + shared secret appended.  Calculated hash values then replaces the dummy hash value in the API message before transmission
+- Receiver re-calculates the hash by: replacing the hash with all zeroes and calculating by same algorithm with shared secret it has read from the database
+- Acceptable messages shall have a timestamp no more than 1000 milliseconds in the past and no more than 1 millisecond in the future of the receiver's read of system clock time
+  - timestamps can also be used for API processing speed performance testing, logging calculated delivery and handling time.  This is a testing mode, not normal operation.
+- prevents simple hacking (hacker must know how to calculate checksum and have access to shared secret in database)
+
+**[API-AUTH-026]** API hash checking may be disabled
+- when the shared secret is set to a value of 0, hash and timestamp checking are disabled:
+  - hashes are not calculated, the dummy hash of all zeroes is what gets transmitted in the API call
+  - receivers accept API calls with or without timestamp and hash fields
+  - when hash and/or timestamp fields are present, they are not evaluated
+
+**[API-AUTH-027]** Hash calculation algorithm specification:
+- **Message format:** Canonical JSON representation with fields sorted alphabetically by key
+- **Dummy hash:** 64 hexadecimal zero characters ("0000000000000000000000000000000000000000000000000000000000000000")
+- **Calculation steps:**
+  1. Create JSON message with all fields except hash field contains dummy hash value
+  2. Convert JSON to canonical string (alphabetically sorted keys, no whitespace)
+  3. Append shared secret as decimal string representation of i64
+  4. Calculate SHA-256 hash of concatenated string
+  5. Replace dummy hash with calculated hash (64 hexadecimal characters)
+- **Example pseudocode:**
+  ```
+  message_json = {"timestamp": 1730000000000, "file_path": "music.mp3", "hash": "0000...0000"}
+  canonical = sort_keys(message_json).to_string()  // {"file_path":"music.mp3","hash":"0000...0000","timestamp":1730000000000}
+  to_hash = canonical + shared_secret.to_string()
+  calculated_hash = sha256(to_hash).to_hex()
+  message_json["hash"] = calculated_hash
+  ```
+
+**[API-AUTH-028]** Shared secret management:
+- **Storage:** Database settings table, key: `api_shared_secret`, value: i64
+- **Generation:** On first boot, generate cryptographically random i64 (non-zero)
+- **Scope:** Single shared secret used by all modules (wkmp-ap, wkmp-pd, wkmp-ui, wkmp-ai, wkmp-le)
+- **Modification:** Can be changed via settings API (requires existing valid authentication)
+- **Special value 0:** Disables hash checking per [API-AUTH-026]
+
+**[API-AUTH-029]** Timestamp validation error responses:
+- **401 Unauthorized:** When timestamp outside acceptable window (>1000ms past or >1ms future)
+- **Response body:**
+  ```json
+  {
+    "error": "timestamp_invalid",
+    "message": "Request timestamp outside acceptable window",
+    "request_timestamp": 1730000000000,
+    "server_timestamp": 1730000005000,
+    "delta_ms": 5000
+  }
+  ```
+- **403 Forbidden:** When hash validation fails (incorrect hash)
+- **Response body:**
+  ```json
+  {
+    "error": "hash_invalid",
+    "message": "Request hash does not match calculated hash"
+  }
+  ```
+
+**[API-AUTH-030]** Clock skew rationale:
+- **1000ms past tolerance:** Allows for modest processing delay by server, addresses replay attack vector
+- **1ms future tolerance:** Allows for clock drift between modules.
+- **Asymmetry intentional:** Near-past messages acceptable (processing time), future messages suspicious
+
+**[API-AUTH-031]** Content-Type: `application/json` for all request/response bodies across all modules
 
 ---
 
@@ -825,9 +907,31 @@ When determining timing values for the enqueued passage, the following precedenc
 {
   "status": "ok",
   "queue_entry_id": "uuid-of-queue-entry",
-  "play_order": 30
+  "play_order": 30,
+  "applied_timing": {
+    "start_time": 0,
+    "end_time": 6618528000,
+    "fade_in_start_time": 0,
+    "fade_in_point": 56448000,
+    "fade_in_duration": 56448000,
+    "fade_out_start_time": 6474752000,
+    "fade_out_point": 6562080000,
+    "fade_out_duration": 141120000,
+    "lead_in_point": 0,
+    "lead_out_point": 6618528000,
+    "fade_in_curve_type": "equal_power",
+    "fade_out_curve_type": "equal_power"
+  }
 }
 ```
+
+**[API-ENQUEUE-TIMING-010]** The `applied_timing` object contains the final timing values that will be used during playback:
+- All timing values are in **ticks** (i64) per SPEC017 [SRC-API-010]
+- If timing overrides were provided in the request, those values appear here
+- If passage defaults were used (via `passage_guid`), those values appear here
+- If global defaults were used (NULL timing points), computed effective values appear here (after clamping per SPEC002 [XFD-DEF-060])
+- This allows clients to verify exactly what timing configuration was applied without making additional GET requests
+- Example: `end_time: 6618528000` ticks = 234.5 seconds (6618528000 ÷ 28,224,000)
 
 **Error Responses:**
 - **400 Bad Request**: Invalid timing parameters (Phase 1 validation)
@@ -1179,6 +1283,15 @@ Retrieve current buffer decode/playback status for all passages in queue.
 - `sample_count`: Number of samples currently buffered
 - `sample_rate`: Sample rate (Hz) after resampling
 
+**[API-BUFFER-PROGRESS-010]** Decode progress calculation:
+- **Formula:** `(decoded_ticks / total_ticks) × 100`
+- **Decoded ticks:** Sum of all decoded audio samples converted to ticks at source sample rate
+- **Total ticks:** Passage `end_time - start_time` (in ticks from database)
+- **Update frequency:** Recalculated every `decode_work_period` (per SPEC016 [DBD-PARAM-060], default 5000ms in wall-clock time)
+- **Null handling:** Field omitted (not present) when status is not "Decoding"
+- **Streaming sources:** For unknown duration, uses estimated total based on bitrate and file size
+- **Note:** All timing internally uses ticks (sample-accurate), no lossy conversions to milliseconds
+
 **Error Responses:**
 - 503 Service Unavailable: Audio playback subsystem not initialized
 
@@ -1272,12 +1385,39 @@ Server-Sent Events stream for real-time playback updates.
 - `VolumeChanged`
 - `QueueChanged`
 - `PlaybackStateChanged`
-- `PlaybackProgress` (interval configurable via `playback_progress_interval_ms` setting, default 5000ms)
+- `PlaybackProgress` (interval configurable via `playback_progress_interval_ms` setting, default 500ms per SPEC011 [EVT-PROG-010])
 - `PassageStarted`
 - `PassageCompleted`
 - `CurrentSongChanged`
 
 **Event Format:** All events follow standard SSE format with `event:` and `data:` fields. The `data:` field contains JSON.
+
+**[API-SSE-ORDERING-010]** Event Delivery Guarantees:
+- Events delivered in **FIFO order** (same order emitted by internal EventBus)
+- No events are reordered during transmission to clients
+- If network issues cause event loss, client should reconcile state via GET /playback/queue and GET /playback/position
+
+**[API-SSE-MULTI-010]** Multiple Client Support:
+- Unlimited concurrent SSE connections supported
+- Each client receives independent event stream
+- No shared state between clients (each gets full event history from connection time)
+
+**Example Event (PlaybackProgress):**
+```
+event: playback_progress
+data: {"passage_id": "550e8400-e29b-41d4-a716-446655440000", "position": 1276252800, "duration": 6618528000}
+
+```
+Note: `position: 1276252800` ticks = 45.23 seconds, `duration: 6618528000` ticks = 234.5 seconds
+
+**Example Event (PassageStarted):**
+```
+event: passage_started
+data: {"passage_id": "550e8400-e29b-41d4-a716-446655440001", "queue_entry_id": "660e8400-e29b-41d4-a716-446655440100", "started_at": "2025-10-26T12:34:56Z"}
+
+```
+
+**Complete Event Schemas:** See SPEC011 [Event System](SPEC011-event_system.md) for detailed event field definitions and WkmpEvent enum specification.
 
 ---
 

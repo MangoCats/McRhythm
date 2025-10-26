@@ -215,9 +215,17 @@ pub enum WkmpEvent {
     CurrentSongChanged {
         passage_id: PassageId,
         song_id: Option<SongId>,  // None if in a gap between songs
-        song_albums: Vec<AlbumId>,  // All albums associated with this song
+        song_albums: Vec<AlbumId>,  // All albums associated with this song, ordered by release date (newest first)
         position: f64,  // Current position in passage (seconds)
     },
+    ///
+    /// **[EVT-SONG-ALBUMS-010]** song_albums field specification:
+    /// - **Source:** Query `recording_albums` table joining on `song_id`
+    /// - **Ordering:** Albums ordered by `release_date DESC` (newest first)
+    /// - **Empty case:** Empty vec if song has no associated albums
+    /// - **UI display:** Display first album's artwork (song_albums[0]) or fallback to default
+    /// - **Multiple albums:** UI may rotate through albums if multiple present
+    ///
 
     /// Emitted when passage buffer state transitions
     ///
@@ -599,6 +607,21 @@ WKMP uses two distinct event systems with different scopes:
 **Event Types:**
 
 ```rust
+/// Mixer state context for position events
+#[derive(Debug, Clone)]
+pub enum MixerStateContext {
+    /// Single passage playing (no crossfade active)
+    Immediate,
+
+    /// Crossfade in progress
+    Crossfading {
+        /// Queue entry ID of incoming passage
+        incoming_queue_entry_id: Uuid,
+    },
+}
+```
+
+```rust
 /// Internal playback events (not exposed via SSE)
 #[derive(Debug, Clone)]
 pub enum PlaybackEvent {
@@ -809,6 +832,55 @@ impl EventBus {
     }
 }
 ```
+
+### Error Event Propagation
+
+**[EVT-ERR-PROP-010]** Error event emission rules:
+- **Who emits:** The **first component to detect** the error emits the event
+- **No propagation:** Errors are NOT propagated through multiple layers
+- **Example:** If database layer detects query failure, database layer emits `DatabaseError` event directly
+- **Rationale:** Prevents duplicate error events, simplifies debugging
+
+**[EVT-ERR-PROP-020]** Error event emission failure handling:
+- **If emit fails (no subscribers):** Log error locally, continue operation
+- **No cascading:** Event emission failure does NOT trigger additional error events
+- **Non-critical degradation:** Acceptable to lose error event if no listeners
+- **Logging fallback:** All errors logged to structured logger regardless of event emission success
+
+**[EVT-ERR-PROP-030]** Error cascading prevention:
+- Database errors do NOT cascade to component failures
+- Component continues operating even if error event emission fails
+- Error events are informational, not control flow
+- **Example:** Database write fails → emit DatabaseError event → component retries or degrades, does NOT stop
+
+### Event Ordering Guarantees
+
+**[EVT-ORDER-010]** EventBus delivery guarantees:
+- **FIFO ordering:** Events delivered in same order they were emitted
+- **Per-subscriber:** Each subscriber receives events in order (tokio::broadcast guarantee)
+- **No reordering:** Events never arrive out of order for a single subscriber
+- **Cross-subscriber:** No ordering guarantee between different subscribers
+
+**[EVT-ORDER-020]** Event loss conditions:
+- **Slow subscriber:** If subscriber lags behind by more than channel capacity, oldest events dropped
+- **tokio::broadcast behavior:** `RecvError::Lagged` indicates missed events
+- **Recovery:** Subscriber should reconcile state via API queries when lagged
+
+**[EVT-ORDER-030]** Lagged subscriber handling:
+- **Detection:** `rx.recv().await` returns `Err(RecvError::Lagged(count))`
+- **Required action:** Log warning with missed event count
+- **State reconciliation:** Query GET /playback/queue and GET /playback/position to rebuild current state
+- **Example code:**
+  ```rust
+  match rx.recv().await {
+      Ok(event) => handle_event(event),
+      Err(RecvError::Lagged(n)) => {
+          tracing::warn!("Subscriber lagged, missed {} events", n);
+          reconcile_state_from_api().await;
+      }
+      Err(RecvError::Closed) => break,
+  }
+  ```
 
 ### Component Integration Pattern
 

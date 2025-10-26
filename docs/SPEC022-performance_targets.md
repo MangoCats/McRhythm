@@ -59,6 +59,13 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 - Test at various sample rates (44.1 kHz, 48 kHz, 96 kHz)
 - Measure on actual Pi Zero 2W hardware
 
+**[PERF-MEASURE-010]** Initial Playback Start Measurement Point:
+- **Start:** Timestamp when HTTP POST /playback/enqueue request arrives at wkmp-ap server
+- **End:** Timestamp when first PCM sample is sent to audio output device (cpal stream)
+- **Includes:** HTTP parsing, database write, decode task spawn, initial decode, buffer fill to minimum threshold, mixer state change, audio callback first invocation
+- **Excludes:** Network latency (client → server), user action time (button click → HTTP request)
+- **Instrumentation:** Add high-resolution timestamps (`std::time::Instant`) at both measurement points
+
 **Acceptance Criteria:**
 - 90% of passages meet target latency
 - 100% of passages meet maximum tolerable latency
@@ -91,6 +98,15 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 - Calculate average, p50, p95, p99, max
 - Test with continuous playback (10+ crossfades)
 
+**[PERF-CPU-010]** CPU Percentage Calculation Method:
+- **Aggregate CPU:** Sum of CPU usage across all 4 cores (NOT average)
+- **Example:** 25% core1 + 20% core2 + 10% core3 + 5% core4 = 60% aggregate
+- **Range:** 0% (all cores idle) to 400% (all cores 100% busy)
+- **Target interpretation:** "≤30% average aggregate" = sum of all cores ≤30% on average
+- **Peak interpretation:** "≤60% peak aggregate" = sum of all cores ≤60% during transient spikes
+- **Rationale:** Aggregate sum represents total CPU capacity consumed, matches standard Linux `top` reporting for multi-threaded processes
+- **Idle baseline:** Measure system idle baseline (OS + other services) and subtract from wkmp-ap measurements to isolate application CPU usage
+
 **Acceptance Criteria:**
 - Average aggregate CPU ≤ target during 90% of playback session
 - Peak aggregate CPU ≤ maximum tolerable during all operations
@@ -122,8 +138,20 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 - Calculate average, max
 - Test with varying queue lengths (1, 5, 20 passages)
 
+**[PERF-MEM-010]** Memory Baseline Measurement Requirement:
+- **CRITICAL:** The 150 MB target is an **estimate** based on theoretical calculations (see Appendix A)
+- **Baseline required:** Measure actual memory usage on Pi Zero 2W hardware during Phase 8 (Performance Optimization & Validation) of implementation plan
+- **Test conditions:**
+  - Clean system (no other services running)
+  - Queue with 10 passages
+  - Continuous playback for 30 minutes
+  - Measure baseline (empty queue) + average (active playback) + peak (crossfade)
+- **Target adjustment:** If empirical measurements significantly differ from 150 MB estimate (>20% variance), update this specification with actual baseline + 20% headroom
+- **Acceptance threshold:** Empirically measured average ≤ baseline + 20% headroom, peak ≤ baseline + 40% headroom
+- **Rationale:** Memory usage depends on implementation details (buffer allocation strategy, library overhead) that cannot be precisely predicted upfront
+
 **Acceptance Criteria:**
-- Average memory usage ≤ target
+- Average memory usage ≤ empirically established target
 - Maximum memory usage ≤ maximum tolerable
 - No memory leaks (stable usage over extended playback)
 - Buffers released promptly when passages complete
@@ -185,6 +213,22 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 - Exclude network latency (measure on localhost)
 - Sample 1000+ requests per endpoint
 - Calculate p50, p95, p99, max percentiles
+
+**[PERF-API-010]** API Response Time Test Conditions:
+- **Load:** Single concurrent request (no concurrency stress testing)
+- **Network:** Localhost (127.0.0.1) - eliminates network latency
+- **Database state:** Pre-populated with 1000 passages, queue with 10 entries
+- **System state:** wkmp-ap running in steady-state (not during decode/crossfade)
+- **Sample size:** 1000 requests per endpoint category
+- **Request distribution:**
+  - 40% GET /queue (most common read operation)
+  - 20% GET /status
+  - 20% POST /playback/enqueue
+  - 10% POST /playback/play, POST /playback/pause
+  - 10% POST /playback/skip, DELETE /queue/:id
+- **Timing measurement:** High-resolution timestamps using `std::time::Instant` at HTTP request arrival and response send
+- **Warmup:** Discard first 100 requests (JIT warmup, cache warmup)
+- **Rationale:** Single-user scenario focuses on implementation efficiency; concurrency testing out of scope for performance targets
 
 **Acceptance Criteria:**
 - p50 response time ≤ target for all endpoint categories
@@ -358,6 +402,7 @@ If implementation fails to meet targets, optimize in this order:
 | Date | Version | Changes | Author |
 |------|---------|---------|--------|
 | 2025-10-25 | 1.0 | Initial specification - comprehensive performance targets | Claude |
+| 2025-10-26 | 1.1 | Added measurement methodology clarifications: [PERF-MEASURE-010] Initial playback start measurement point, [PERF-CPU-010] CPU percentage calculation method, [PERF-MEM-010] Memory baseline measurement requirement, [PERF-API-010] API response time test conditions | Claude |
 
 ---
 

@@ -152,42 +152,64 @@ max_years ≈ 10.36 years
 
 **[SRC-DB-020]** NULL values indicate use of global defaults (see **[XFD-DEF-020]** Crossfade Design).
 
+## Time Representation by Layer
+
+**[SRC-LAYER-010]** WKMP distinguishes between developer-facing and user-facing layers:
+
+### Developer-Facing Layers (Use TICKS)
+
+**[SRC-LAYER-011]** Developer-facing layers use **ticks** (i64) for sample-accurate precision:
+- **REST API** (wkmp-ap, wkmp-pd, wkmp-ui, wkmp-ai, wkmp-le endpoints)
+- **Database** (SQLite tables: passages, queue, settings)
+- **Developer UI** (displays both ticks AND seconds for developer inspection)
+- **SSE Events** (internal event fields use ticks)
+- **Rationale:** Developers can handle ticks; precision is critical for audio accuracy
+
+### User-Facing Layers (Use SECONDS)
+
+**[SRC-LAYER-012]** User-facing layers display **seconds** (f64) with appropriate decimal precision:
+- **End-user UI** (web interface for music listeners)
+- **User-visible displays** (playback position, passage duration, etc.)
+- **Decimal precision:** Typically 1-2 decimal places (e.g., "45.2s" or "3:45.23"), can extend to microseconds (e.g. "45.234987s") when appropriate
+- **Rationale:** Users cannot intuitively understand ticks; seconds are human-readable
+
+**[SRC-LAYER-020]** No lossy conversions between developer-facing layers:
+- API → Database: Direct storage (both use ticks)
+- Database → API: Direct retrieval (both use ticks)
+- Database → Developer UI: Display ticks + computed seconds
+
+**[SRC-LAYER-030]** Conversion only occurs at user-facing boundary:
+- Database → End-user UI: `seconds = ticks ÷ 28,224,000`
+- End-user UI → Database: `ticks = seconds × 28,224,000` (when user edits timing)
+
 ## API Representation
 
-**[SRC-API-010]** The REST API uses **milliseconds** (unsigned integers) for human readability:
+**[SRC-API-010]** The REST API uses **ticks** (64-bit signed integers) for sample-accurate precision:
 
-**[SRC-API-020]** API-to-database conversion:
+**[SRC-API-020]** API and database both use ticks - no conversion needed:
+- Developer-facing layers (API, database, developer UI) communicate in ticks
+- User-facing layers (end-user UI) display time in seconds with appropriate decimal precision
+- No lossy conversions between developer-facing layers
 
-```
-ticks = milliseconds × 28,224
-```
-
-**[SRC-API-030]** Database-to-API conversion:
-
-```
-milliseconds = ticks ÷ 28,224  (rounded to nearest integer)
-```
-
-**[SRC-API-040]** Example API request:
+**[SRC-API-030]** Example API request (developer-facing):
 
 ```json
 {
   "file_path": "path/to/file.mp3",
-  "start_time_ms": 0,
-  "end_time_ms": 234500,
-  "fade_in_point_ms": 2000,
-  "fade_out_point_ms": 232500
+  "start_time": 0,
+  "end_time": 6618528000,
+  "fade_in_point": 56448000,
+  "fade_out_point": 6562080000
 }
 ```
 
-**[SRC-API-050]** Internal storage (after conversion):
+**[SRC-API-040]** API timing values are ticks (i64):
+- `start_time`: 0 ticks (file start)
+- `end_time`: 6,618,528,000 ticks (234.5 seconds at tick rate 28,224,000 Hz)
+- `fade_in_point`: 56,448,000 ticks (2.0 seconds)
+- `fade_out_point`: 6,562,080,000 ticks (232.5 seconds)
 
-```
-start_time: 0 ticks
-end_time: 6,618,528,000 ticks (234500ms × 28224)
-fade_in_point: 56,448,000 ticks (2000ms × 28224)
-fade_out_point: 6,562,080,000 ticks (232500ms × 28224)
-```
+**[SRC-API-050]** Database storage is identical to API representation (both use ticks)
 
 ## Working Sample Rate
 

@@ -194,6 +194,13 @@ Errors are classified along two dimensions:
 5. Continue playback
 ```
 
+**[ERH-DEC-035]** 50% Threshold Rationale:
+- **User experience balance:** ≥50% provides enough musical content to be meaningful
+- **Configurable future:** Threshold may become user-configurable in future versions (current: hard-coded 50%)
+- **Boundary cases:** Exactly 50.0% allowed to play (threshold is inclusive: >=50% plays)
+- **Design trade-off:** Higher threshold (e.g., 75%) would skip more playable content; lower threshold (e.g., 25%) would play too-short fragments
+- **Industry reference:** Similar to streaming service behavior (play if >50% downloaded)
+
 **Retry Policy:** None (truncated file won't improve on retry)
 
 **Traceability:** [REQ-AP-ERR-012] (Partial file handling)
@@ -222,12 +229,27 @@ Errors are classified along two dimensions:
    - panic_message: String
    - timestamp: DateTime<Utc>
 
-3. Remove passage from queue
+3. **Immediately flush associated buffer:**
+   - Discard all partially decoded samples in buffer for failed passage
+   - Prevents corrupted audio from reaching mixer
+   - Release buffer resources (free memory, close file handles)
 
-4. Restart decoder chain (recreate decoder worker)
+4. Remove passage from queue
 
-5. Continue with next passage
+5. Restart decoder chain (recreate decoder worker):
+   - **Scope:** Restart entire DecoderChain (Decoder→Resampler→Fader→Buffer pipeline)
+   - **State lost:** All in-flight decode state, buffer contents, resampler state
+   - **Chain assignment:** Release chain assignment for failed passage, make available for reallocation
+   - **New chain:** Fresh DecoderChain allocated for next passage in queue
+
+6. Continue with next passage
 ```
+
+**[ERH-DEC-045]** Panic Recovery State Management:
+- **Buffer flush timing:** BEFORE emitting PassageDecoderPanic event (prevents race condition)
+- **Event ordering:** PassageDecoderPanic → PassageCompleted(reason="decoder_panic") → PassageStarted(next_passage)
+- **No audio glitches:** Flushing buffer prevents playing corrupted samples
+- **Chain isolation:** Panic in one chain does NOT affect other active chains
 
 **Retry Policy:** None (panic indicates bug, not transient condition)
 
@@ -263,7 +285,8 @@ Errors are classified along two dimensions:
 
 4. Emergency buffer refill:
    - Request priority decode from decoder worker
-   - Wait up to 500ms for buffer to reach mixer_min_start_level
+   - Wait up to buffer_underrun_recovery_timeout_ms for buffer to reach mixer_min_start_level
+   - Default timeout: 500ms (configurable via database settings table)
 
 5. If buffer refills successfully:
    - Resume mixer output
@@ -275,7 +298,17 @@ Errors are classified along two dimensions:
    - Continue with next passage
 ```
 
-**Retry Policy:** 1 emergency refill attempt, 500ms timeout
+**[ERH-BUF-015]** Underrun Recovery Timeout Configuration:
+- **Setting:** `buffer_underrun_recovery_timeout_ms` in database settings table
+- **Default:** 500ms
+- **Range:** 100ms - 5000ms
+- **Rationale:** Timeout must be:
+  - Shorter than user perception threshold (~1 second)
+  - Longer than typical decode_work_period (default 5000ms) to allow one decode cycle
+  - Validated during Phase 8 performance testing on Pi Zero 2W
+- **Platform tuning:** May need adjustment for slow hardware (Pi Zero 2W may require 1000-2000ms)
+
+**Retry Policy:** 1 emergency refill attempt, timeout per configuration
 
 **Root Cause Analysis:** Log contributing factors:
 - Decoder delay reason (CPU overload, I/O stall, thread scheduling)
@@ -1000,6 +1033,8 @@ When errors prevent full operation, system operates in degraded modes:
 - Action: Dynamically reduce maximum_decode_streams from 12 to 6 or 3
 - Effect: Longer pre-load time, reduced queue lookahead
 - Recovery: Reset to full chain count after 5 minutes without errors
+- **Maximum iterations:** 2 reductions maximum (12→6→3). If file handle exhaustion occurs at chain_count=3, transition to Mode 2 (Single Passage Playback)
+- **Exit condition:** After 5 minutes of stable operation (no file handle errors), increase chain count by one step (3→6→12)
 
 **Mode 2: Single Passage Playback**
 - Trigger: Persistent buffer underruns (3+ in 60 seconds)
