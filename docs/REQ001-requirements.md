@@ -8,7 +8,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 > See [Document Hierarchy](GOV001-document_hierarchy.md) for complete update policies and change control process.
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [API Design](SPEC007-api_design.md) | [UI Specification](SPEC009-ui_specification.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Program Director](SPEC005-program_director.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
+> **Related Documentation:** [API Design](SPEC007-api_design.md) | [UI Specification](SPEC009-ui_specification.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Program Director](SPEC005-program_director.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
 
 ---
 

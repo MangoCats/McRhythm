@@ -362,31 +362,28 @@ impl BlockingMixer {
 
     fn start_passage(
         &self,
-        buffer: Arc<tokio::sync::RwLock<PassageBuffer>>,
         passage_id: Uuid,
         fade_in_curve: Option<FadeCurve>,
-        fade_in_duration_ms: u32,
+        fade_in_duration_ms: usize,
     ) {
         self.runtime.block_on(async {
             let mut m = self.mixer.write().await;
-            m.start_passage(buffer, passage_id, fade_in_curve, fade_in_duration_ms)
+            m.start_passage(passage_id, fade_in_curve, fade_in_duration_ms)
                 .await
         })
     }
 
     fn start_crossfade(
         &self,
-        next_buffer: Arc<tokio::sync::RwLock<PassageBuffer>>,
         next_passage_id: Uuid,
         fade_out_curve: FadeCurve,
-        fade_out_duration_ms: u32,
+        fade_out_duration_ms: usize,
         fade_in_curve: FadeCurve,
-        fade_in_duration_ms: u32,
+        fade_in_duration_ms: usize,
     ) -> Result<(), wkmp_ap::error::Error> {
         self.runtime.block_on(async {
             let mut m = self.mixer.write().await;
             m.start_crossfade(
-                next_buffer,
                 next_passage_id,
                 fade_out_curve,
                 fade_out_duration_ms,
@@ -455,7 +452,7 @@ fn test_audible_crossfade() {
         println!("Decoding file {}...", i + 1);
 
         // Decode
-        let (samples, sample_rate, channels) = match SimpleDecoder::decode_file(file) {
+        let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = match SimpleDecoder::decode_file(file) {
             Ok(result) => result,
             Err(e) => {
                 println!("ERROR: Failed to decode file: {}", e);
@@ -582,10 +579,9 @@ fn test_audible_crossfade() {
     {
         let passage_id = runtime.block_on(async { buffers[0].read().await.passage_id });
         mixer.lock().unwrap().start_passage(
-            buffers[0].clone(),
             passage_id,
             Some(configs[0].fade_in_curve), // Exponential for Cycle 1
-            crossfade_duration_ms,
+            crossfade_duration_ms as usize,
         );
     }
 
@@ -713,12 +709,11 @@ fn test_audible_crossfade() {
                 let next_passage_id = runtime.block_on(async { buffers[1].read().await.passage_id });
 
                 if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                    buffers[1].clone(),
                     next_passage_id,
                     config.fade_out_curve,
-                    crossfade_duration_ms,
+                    crossfade_duration_ms as usize,
                     config.fade_in_curve,
-                    crossfade_duration_ms,
+                    crossfade_duration_ms as usize,
                 ) {
                     println!("ERROR: Failed to start crossfade: {}", e);
                 }
@@ -746,12 +741,11 @@ fn test_audible_crossfade() {
                 let next_passage_id = runtime.block_on(async { buffers[2].read().await.passage_id });
 
                 if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                    buffers[2].clone(),
                     next_passage_id,
                     config.fade_out_curve,
-                    crossfade_duration_ms,
+                    crossfade_duration_ms as usize,
                     config.fade_in_curve,
-                    crossfade_duration_ms,
+                    crossfade_duration_ms as usize,
                 ) {
                     println!("ERROR: Failed to start crossfade: {}", e);
                 }
@@ -789,12 +783,11 @@ fn test_audible_crossfade() {
                     let next_config = &configs[cycle_idx + 1];
 
                     if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                        buffers[0].clone(),
                         next_passage_id,
                         config.fade_out_curve,
-                        crossfade_duration_ms,
+                        crossfade_duration_ms as usize,
                         next_config.fade_in_curve,
-                        crossfade_duration_ms,
+                        crossfade_duration_ms as usize,
                     ) {
                         println!("ERROR: Failed to start crossfade: {}", e);
                     }
@@ -815,12 +808,11 @@ fn test_audible_crossfade() {
                     )));
 
                     if let Err(e) = mixer.lock().unwrap().start_crossfade(
-                        silent_buffer,
                         Uuid::new_v4(),
                         config.fade_out_curve,
-                        fade_out_duration_ms,
+                        fade_out_duration_ms as usize,
                         FadeCurve::Linear, // Fade in silence (doesn't matter)
-                        fade_out_duration_ms,
+                        fade_out_duration_ms as usize,
                     ) {
                         println!("ERROR: Failed to start fade-out: {}", e);
                     }

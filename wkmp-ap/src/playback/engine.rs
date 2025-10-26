@@ -205,7 +205,12 @@ impl PlaybackEngine {
         buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
 
         // Create decoder worker
-        let decoder_worker = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+        // **[Phase 7]** Pass shared_state and db_pool for error handling
+        let decoder_worker = Arc::new(DecoderWorker::new(
+            Arc::clone(&buffer_manager),
+            Arc::clone(&state),
+            db_pool.clone(),
+        ));
 
         // **[REV002]** Create position event channel
         let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
@@ -2040,6 +2045,133 @@ impl PlaybackEngine {
         }
     }
 
+    /// Handle buffer underrun with emergency refill
+    ///
+    /// **[REQ-AP-ERR-020]** Buffer underrun emergency refill with timeout
+    ///
+    /// # Strategy
+    /// 1. Emit BufferUnderrun event
+    /// 2. Request immediate priority decode (emergency refill)
+    /// 3. Wait up to timeout for buffer to reach minimum threshold
+    /// 4. If recovered: emit BufferUnderrunRecovered event
+    /// 5. If timeout: skip passage and continue
+    async fn handle_buffer_underrun(&self, queue_entry_id: uuid::Uuid, headroom: usize) {
+        warn!(
+            "⚠️  Buffer underrun: queue_entry={}, headroom={} samples",
+            queue_entry_id, headroom
+        );
+
+        // Get current passage info for event emission
+        let queue = self.queue.read().await;
+        let current_entry = queue.current().cloned();
+        drop(queue);
+
+        let passage_id = current_entry
+            .as_ref()
+            .and_then(|e| e.passage_id)
+            .unwrap_or_else(|| uuid::Uuid::nil());
+
+        // Calculate buffer fill percent
+        // **[DBD-PARAM-080]** buffer capacity = playout_ringbuffer_size (from settings)
+        // For now, use standard 10-second buffer = 441,000 samples @ 44.1kHz stereo
+        const STANDARD_BUFFER_CAPACITY: usize = 441_000;
+        let buffer_fill_percent = (headroom as f32 / STANDARD_BUFFER_CAPACITY as f32) * 100.0;
+
+        // **[ERH-BUF-010]** Emit BufferUnderrun event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferUnderrun {
+            passage_id,
+            buffer_fill_percent,
+            timestamp: chrono::Utc::now(),
+        });
+
+        // **[ERH-BUF-015]** Load recovery timeout from database settings
+        let recovery_timeout_ms = match crate::db::settings::load_buffer_underrun_timeout(&self.db_pool).await {
+            Ok(timeout) => timeout,
+            Err(e) => {
+                warn!("Failed to load buffer_underrun_recovery_timeout_ms from settings: {}, using default 2000ms", e);
+                2000 // Default: 2 seconds (spec says 500ms, but summary indicated 2000ms for slow hardware)
+            }
+        };
+
+        debug!(
+            "Buffer underrun recovery: timeout={}ms, requesting emergency decode",
+            recovery_timeout_ms
+        );
+
+        // **[ERH-BUF-010]** Request immediate priority decode (emergency refill)
+        if let Some(entry) = current_entry {
+            match self.request_decode(&entry, DecodePriority::Immediate, false).await {
+                Ok(_) => {
+                    debug!("Emergency decode request submitted for queue_entry={}", queue_entry_id);
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to request emergency decode for queue_entry={}: {}",
+                        queue_entry_id, e
+                    );
+                    // Continue with timeout logic anyway - buffer may already be refilling
+                }
+            }
+
+            // Wait for buffer recovery with timeout
+            let recovery_start = std::time::Instant::now();
+            let timeout_duration = std::time::Duration::from_millis(recovery_timeout_ms);
+
+            // **[DBD-PARAM-070]** mixer_min_start_level (configurable, default ~500ms)
+            // For recovery, we need at least this much buffered to resume playback
+            let min_buffer_threshold_ms = self.buffer_manager.get_min_buffer_threshold().await;
+            let min_buffer_samples = (min_buffer_threshold_ms as usize * 44100 / 1000) * 2; // Stereo
+
+            loop {
+                // Check if buffer has refilled to minimum threshold
+                if let Some(buffer) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                    let available = buffer.occupied();
+                    if available >= min_buffer_samples {
+                        let recovery_time_ms = recovery_start.elapsed().as_millis() as u64;
+                        info!(
+                            "✅ Buffer underrun recovered: queue_entry={}, recovery_time={}ms, available={} samples",
+                            queue_entry_id, recovery_time_ms, available
+                        );
+
+                        // **[ERH-BUF-010]** Emit BufferUnderrunRecovered event
+                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferUnderrunRecovered {
+                            passage_id,
+                            recovery_time_ms,
+                            timestamp: chrono::Utc::now(),
+                        });
+
+                        return; // Recovery successful
+                    }
+                }
+
+                // Check timeout
+                if recovery_start.elapsed() >= timeout_duration {
+                    error!(
+                        "❌ Buffer underrun recovery timeout after {}ms: queue_entry={}, skipping passage",
+                        recovery_timeout_ms, queue_entry_id
+                    );
+
+                    // **[ERH-BUF-010]** Timeout: skip passage and continue
+                    match self.skip_next().await {
+                        Ok(_) => {
+                            info!("Skipped to next passage after buffer underrun timeout");
+                        }
+                        Err(e) => {
+                            error!("Failed to skip passage after underrun timeout: {}", e);
+                        }
+                    }
+
+                    return;
+                }
+
+                // Sleep briefly before next check (10ms polling interval)
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+        } else {
+            warn!("No current passage found during buffer underrun, cannot request emergency decode");
+        }
+    }
+
     /// Position event handler (replaces position_tracking_loop)
     ///
     /// **[REV002]** Event-driven position tracking
@@ -2443,8 +2575,12 @@ impl PlaybackEngine {
                     );
                 }
 
+                Some(BufferEvent::Exhausted { queue_entry_id, headroom }) => {
+                    // **[REQ-AP-ERR-020]** Buffer underrun emergency refill
+                    self.handle_buffer_underrun(queue_entry_id, headroom).await;
+                }
+
                 Some(BufferEvent::StateChanged { .. }) |
-                Some(BufferEvent::Exhausted { .. }) |
                 Some(BufferEvent::Finished { .. }) => {
                     // Future: Handle other buffer events
                     // For now, only ReadyForStart is used for instant mixer start

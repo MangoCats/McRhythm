@@ -9,6 +9,7 @@
 //! - [REQ-TECH-022A] Opus codec via C library FFI (symphonia-adapter-libopus)
 
 use crate::error::{Error, Result};
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
@@ -61,6 +62,18 @@ fn get_codec_registry() -> &'static CodecRegistry {
         registry.register_all::<symphonia::default::codecs::AacDecoder>();
         registry
     })
+}
+
+/// Convert panic payload to human-readable string
+/// **[REQ-AP-ERR-013]** Helper for panic error messages
+fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "Unknown panic payload".to_string()
+    }
 }
 
 /// Simple audio decoder using symphonia.
@@ -709,6 +722,10 @@ pub struct StreamingDecoder {
 
     /// Whether we're decoding to undefined endpoint (for [DBD-DEC-090])
     undefined_endpoint: bool,
+
+    /// File path being decoded
+    /// **[REQ-AP-ERR-013]** For error reporting
+    file_path: PathBuf,
 }
 
 impl StreamingDecoder {
@@ -727,8 +744,28 @@ impl StreamingDecoder {
         debug!("Creating streaming decoder: {} ({}ms - {}ms)", path.display(), start_ms, end_ms);
 
         // Open the file
+        // **[REQ-AP-ERR-010]** File read errors detected and reported
+        // **[REQ-AP-ERR-071]** File handle exhaustion detected
         let file = std::fs::File::open(path)
-            .map_err(|e| Error::Decode(format!("Failed to open file {}: {}", path.display(), e)))?;
+            .map_err(|e| {
+                // Check for file handle exhaustion specifically
+                // EMFILE (24) on Unix, ERROR_TOO_MANY_OPEN_FILES on Windows
+                #[cfg(unix)]
+                const TOO_MANY_FILES_ERROR: i32 = 24; // EMFILE
+                #[cfg(windows)]
+                const TOO_MANY_FILES_ERROR: i32 = 4; // ERROR_TOO_MANY_OPEN_FILES
+
+                if e.raw_os_error() == Some(TOO_MANY_FILES_ERROR) {
+                    Error::FileHandleExhaustion {
+                        path: path.clone(),
+                    }
+                } else {
+                    Error::FileReadError {
+                        path: path.clone(),
+                        source: e,
+                    }
+                }
+            })?;
 
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -744,18 +781,26 @@ impl StreamingDecoder {
         let format_opts = FormatOptions::default();
         let metadata_opts = MetadataOptions::default();
 
+        // **[REQ-AP-ERR-011]** Unsupported codec detection
         let probed = symphonia::default::get_probe()
             .format(&hint, mss, &format_opts, &metadata_opts)
-            .map_err(|e| Error::Decode(format!("Failed to probe format: {}", e)))?;
+            .map_err(|e| Error::UnsupportedCodec {
+                path: path.clone(),
+                codec: format!("{:?}", e)
+            })?;
 
         let format = probed.format;
 
         // Get the default audio track
+        // **[REQ-AP-ERR-011]** No audio track = unsupported codec
         let track = format
             .tracks()
             .iter()
             .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-            .ok_or_else(|| Error::Decode("No audio track found".to_string()))?;
+            .ok_or_else(|| Error::UnsupportedCodec {
+                path: path.clone(),
+                codec: "No audio track found".to_string()
+            })?;
 
         let track_id = track.id;
         let codec_params = &track.codec_params;
@@ -773,10 +818,14 @@ impl StreamingDecoder {
         debug!("Streaming decoder format: sample_rate={}, channels={}", sample_rate, channels);
 
         // Create decoder
+        // **[REQ-AP-ERR-011]** Codec creation failure = unsupported codec
         let decoder_opts = DecoderOptions::default();
         let decoder = get_codec_registry()
             .make(&codec_params, &decoder_opts)
-            .map_err(|e| Error::Decode(format!("Failed to create decoder: {}", e)))?;
+            .map_err(|e| Error::UnsupportedCodec {
+                path: path.clone(),
+                codec: format!("{:?}", e)
+            })?;
 
         // Calculate target sample counts
         let start_sample_idx = ((start_ms * sample_rate as u64) / 1000) as usize * channels as usize;
@@ -804,6 +853,7 @@ impl StreamingDecoder {
             finished: false,
             start_ticks,
             undefined_endpoint,
+            file_path: path.clone(), // **[REQ-AP-ERR-013]** Store for error reporting
         })
     }
 
@@ -860,6 +910,7 @@ impl StreamingDecoder {
             }
 
             // Decode packet
+            // **[REQ-AP-ERR-013]** Panics caught at tokio spawn level
             match self.decoder.decode(&packet) {
                 Ok(decoded) => {
                     let before_len = chunk_samples.len();
@@ -939,6 +990,48 @@ impl StreamingDecoder {
     /// Get format information.
     pub fn format_info(&self) -> (u32, u16) {
         (self.sample_rate, self.channels)
+    }
+
+    /// Check if this was a partial decode (truncated file)
+    ///
+    /// **[REQ-AP-ERR-012]** Partial decode detection.
+    ///
+    /// Should be called after decoder is finished.
+    ///
+    /// # Returns
+    /// `Some((expected_ms, actual_ms, percentage))` if partial decode detected, `None` otherwise
+    pub fn get_partial_decode_info(&self) -> Option<(u64, u64, f64)> {
+        // Only applies to defined endpoints (not undefined endpoint decodes)
+        if !self.finished || self.undefined_endpoint {
+            return None;
+        }
+
+        // Check if we finished early
+        if self.current_sample_idx >= self.end_sample_idx {
+            return None; // Completed full decode
+        }
+
+        // Calculate expected duration
+        let expected_samples = self.end_sample_idx.saturating_sub(self.start_sample_idx);
+        let expected_ms = (expected_samples as u64 * 1000) / (self.sample_rate as u64 * self.channels as u64);
+
+        // Calculate actual decoded duration
+        let actual_samples = self.current_sample_idx.saturating_sub(self.start_sample_idx);
+        let actual_ms = (actual_samples as u64 * 1000) / (self.sample_rate as u64 * self.channels as u64);
+
+        // Calculate percentage
+        let percentage = if expected_samples > 0 {
+            (actual_samples as f64 / expected_samples as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        debug!(
+            "Partial decode detected: expected={}ms, actual={}ms, percentage={:.1}%",
+            expected_ms, actual_ms, percentage
+        );
+
+        Some((expected_ms, actual_ms, percentage))
     }
 
     /// Calculate actual endpoint for undefined endpoints.

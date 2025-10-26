@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex as TokioMutex;
 use uuid::Uuid;
-use wkmp_ap::playback::{BufferManager, SerialDecoder, PlaybackEngine};
+use wkmp_ap::playback::{BufferManager, DecoderWorker};
 use wkmp_ap::playback::types::DecodePriority;
 use wkmp_ap::db::passages::PassageWithTiming;
 use wkmp_common::FadeCurve;
@@ -126,8 +126,6 @@ fn check_test_file() -> String {
     }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore] // Run with: cargo test --test comprehensive_playback_test -- --ignored --nocapture
 async fn test_scenario_1_single_passage_30s() {
     println!("\n╔════════════════════════════════════════════════════════════╗");
     println!("║  SCENARIO 1: Single Passage Playback (30 seconds)        ║");
@@ -140,7 +138,7 @@ async fn test_scenario_1_single_passage_30s() {
 
     // Create buffer manager and decoder
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
 
     // Create passage (0-40s to have buffer for 30s playback)
     let passage_id = Uuid::new_v4();
@@ -158,9 +156,8 @@ async fn test_scenario_1_single_passage_30s() {
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         if let Some(buffer) = buffer_manager.get_buffer(passage_id).await {
-            let state = buffer.lock().await;
-            let occupied = state.occupied();
-            let stats = state.stats();
+            let occupied = buffer.occupied();
+            let stats = buffer.stats();
 
             if i % 5 == 0 {
                 println!("[{}s] Buffer: {} samples ({:.1}% full)",
@@ -177,7 +174,7 @@ async fn test_scenario_1_single_passage_30s() {
     }
 
     // Shutdown and print summary
-    decoder.shutdown().expect("Shutdown should succeed");
+    decoder.shutdown().await;
     collector.print_summary().await;
 
     assert!(!collector.has_errors().await,
@@ -187,8 +184,6 @@ async fn test_scenario_1_single_passage_30s() {
     println!("\n✅ Scenario 1 Complete\n");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore]
 async fn test_scenario_2_two_passages_with_delay() {
     println!("\n╔════════════════════════════════════════════════════════════╗");
     println!("║  SCENARIO 2: Two Passages, 2 Second Delay (30s each)     ║");
@@ -199,7 +194,7 @@ async fn test_scenario_2_two_passages_with_delay() {
 
     let collector = LogCollector::new();
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
 
     // Enqueue first passage
     let passage1_id = Uuid::new_v4();
@@ -230,20 +225,18 @@ async fn test_scenario_2_two_passages_with_delay() {
 
         if i % 5 == 0 {
             if let Some(buffer1) = buffer_manager.get_buffer(passage1_id).await {
-                let state1 = buffer1.lock().await;
                 println!("[{}s] Passage 1: {} samples ({:.1}% full)",
-                    i + 1, state1.occupied(), state1.stats().fill_percent * 100.0);
+                    i + 1, buffer1.occupied(), buffer1.stats().fill_percent * 100.0);
             }
 
             if let Some(buffer2) = buffer_manager.get_buffer(passage2_id).await {
-                let state2 = buffer2.lock().await;
                 println!("[{}s] Passage 2: {} samples ({:.1}% full)",
-                    i + 1, state2.occupied(), state2.stats().fill_percent * 100.0);
+                    i + 1, buffer2.occupied(), buffer2.stats().fill_percent * 100.0);
             }
         }
     }
 
-    decoder.shutdown().expect("Shutdown should succeed");
+    decoder.shutdown().await;
     collector.print_summary().await;
 
     assert!(!collector.has_errors().await,
@@ -253,8 +246,6 @@ async fn test_scenario_2_two_passages_with_delay() {
     println!("\n✅ Scenario 2 Complete\n");
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore]
 async fn test_scenario_3_three_passages_with_skip() {
     println!("\n╔════════════════════════════════════════════════════════════╗");
     println!("║  SCENARIO 3: Three Passages with Skip After 30s          ║");
@@ -265,7 +256,7 @@ async fn test_scenario_3_three_passages_with_skip() {
 
     let collector = LogCollector::new();
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
 
     // Enqueue three passages
     let passage_ids: Vec<Uuid> = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
@@ -299,9 +290,8 @@ async fn test_scenario_3_three_passages_with_skip() {
         if i % 5 == 0 {
             for (idx, &pid) in passage_ids.iter().enumerate() {
                 if let Some(buffer) = buffer_manager.get_buffer(pid).await {
-                    let state = buffer.lock().await;
                     println!("[{}s] Passage {}: {} samples ({:.1}% full)",
-                        i + 1, idx + 1, state.occupied(), state.stats().fill_percent * 100.0);
+                        i + 1, idx + 1, buffer.occupied(), buffer.stats().fill_percent * 100.0);
                 }
             }
         }
@@ -317,14 +307,13 @@ async fn test_scenario_3_three_passages_with_skip() {
 
         if i % 5 == 0 {
             if let Some(buffer) = buffer_manager.get_buffer(passage_ids[1]).await {
-                let state = buffer.lock().await;
                 println!("[{}s] Passage 2: {} samples ({:.1}% full)",
-                    i + 1, state.occupied(), state.stats().fill_percent * 100.0);
+                    i + 1, buffer.occupied(), buffer.stats().fill_percent * 100.0);
             }
         }
     }
 
-    decoder.shutdown().expect("Shutdown should succeed");
+    decoder.shutdown().await;
     collector.print_summary().await;
 
     assert!(!collector.has_errors().await,

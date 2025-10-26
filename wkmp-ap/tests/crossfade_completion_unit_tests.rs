@@ -38,20 +38,17 @@ async fn populate_test_buffer(
     let buffer_arc = buffer_manager.allocate_buffer(passage_id).await;
 
     // Push sine wave samples
-    {
-        let mut buffer = buffer_arc.lock().await;
-        for i in 0..sample_count {
-            let value = amplitude * (i as f32 * 0.01).sin();
-            let frame = AudioFrame {
-                left: value,
-                right: value,
-            };
-            let _ = buffer.push_frame(frame);
-        }
-
-        // Mark decode complete
-        buffer.mark_decode_complete();
+    for i in 0..sample_count {
+        let value = amplitude * (i as f32 * 0.01).sin();
+        let frame = AudioFrame {
+            left: value,
+            right: value,
+        };
+        let _ = buffer_arc.push_frame(frame);
     }
+
+    // Mark decode complete
+    buffer_arc.mark_decode_complete();
 
     // Finalize buffer
     buffer_manager

@@ -90,6 +90,13 @@ impl BufferManager {
         *self.min_buffer_threshold_ms.write().await = threshold_ms;
     }
 
+    /// Get minimum buffer threshold
+    ///
+    /// **[REQ-AP-ERR-020]** Used for buffer underrun recovery threshold
+    pub async fn get_min_buffer_threshold(&self) -> u64 {
+        *self.min_buffer_threshold_ms.read().await
+    }
+
     /// Set decoder resume hysteresis threshold
     ///
     /// **[DBD-BUF-050]** Configurable hysteresis prevents pause/resume oscillation

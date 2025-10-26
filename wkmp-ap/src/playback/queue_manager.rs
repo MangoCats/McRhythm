@@ -9,8 +9,11 @@
 
 use crate::db::queue;
 use crate::error::{Error, Result};
+use crate::state::SharedState;
 use sqlx::{Pool, Sqlite};
 use std::path::PathBuf;
+use std::sync::Arc;
+use tracing::{warn, debug};
 use uuid::Uuid;
 use wkmp_common::db::QueueEntry as DbQueueEntry;
 
@@ -121,32 +124,140 @@ impl QueueManager {
     /// Load queue from database
     ///
     /// [DB-QUEUE-010] Read queue table ordered by play_order
+    /// **[REQ-AP-ERR-040]** Validates queue entries and auto-removes invalid ones
     pub async fn load_from_db(db: &Pool<Sqlite>) -> Result<Self> {
         let db_entries = queue::get_queue(db).await?;
 
         // Convert database entries to playback entries
-        let mut entries: Vec<QueueEntry> = db_entries
+        let entries: Vec<QueueEntry> = db_entries
             .into_iter()
             .map(QueueEntry::from_db)
             .collect::<Result<Vec<_>>>()?;
 
+        // **[REQ-AP-ERR-040]** Validate entries (returns only valid ones)
+        let validated_entries = Self::validate_entries(db, &entries, None).await;
+
         // Split into current, next, and queued
         let mut manager = Self::new();
+        let mut validated_iter = validated_entries.into_iter();
 
-        if !entries.is_empty() {
-            manager.current = Some(entries.remove(0));
+        if let Some(entry) = validated_iter.next() {
+            manager.current = Some(entry);
             manager.total_count += 1; // [ISSUE-10] Update count
         }
 
-        if !entries.is_empty() {
-            manager.next = Some(entries.remove(0));
+        if let Some(entry) = validated_iter.next() {
+            manager.next = Some(entry);
             manager.total_count += 1; // [ISSUE-10] Update count
         }
 
-        manager.total_count += entries.len(); // [ISSUE-10] Add queued count
-        manager.queued = entries;
+        let remaining: Vec<QueueEntry> = validated_iter.collect();
+        manager.total_count += remaining.len(); // [ISSUE-10] Add queued count
+        manager.queued = remaining;
 
         Ok(manager)
+    }
+
+    /// Validate queue entries
+    ///
+    /// **[REQ-AP-ERR-040]** Queue validation with auto-removal of invalid entries
+    /// **[ERH-QUEUE-010]** Invalid queue entry handling
+    ///
+    /// # Validation checks:
+    /// - File path exists
+    /// - Timing constraints: start < end (if both present)
+    /// - No invalid values
+    ///
+    /// # Arguments
+    /// - `db`: Database connection pool
+    /// - `entries`: Queue entries to validate
+    /// - `shared_state`: Optional shared state for event emission
+    ///
+    /// # Returns
+    /// Vector containing only valid entries
+    async fn validate_entries(
+        db: &Pool<Sqlite>,
+        entries: &[QueueEntry],
+        shared_state: Option<&Arc<SharedState>>,
+    ) -> Vec<QueueEntry> {
+        let mut valid_entries = Vec::new();
+
+        for entry in entries {
+            if let Some(reason) = Self::validate_entry(entry).await {
+                // **[ERH-QUEUE-010]** Log warning and emit event
+                warn!(
+                    "Invalid queue entry detected: queue_entry_id={}, passage_id={:?}, reason={}",
+                    entry.queue_entry_id, entry.passage_id, reason
+                );
+
+                // Emit QueueValidationError event if shared_state available
+                if let Some(state) = shared_state {
+                    state.broadcast_event(wkmp_common::events::WkmpEvent::QueueValidationError {
+                        queue_entry_id: entry.queue_entry_id,
+                        passage_id: entry.passage_id,
+                        validation_error: reason.clone(),
+                        timestamp: chrono::Utc::now(),
+                    });
+                }
+
+                // **[ERH-QUEUE-010]** Remove invalid entry from database
+                if let Err(e) = queue::remove_from_queue(db, entry.queue_entry_id).await {
+                    warn!(
+                        "Failed to auto-remove invalid queue entry {}: {}",
+                        entry.queue_entry_id, e
+                    );
+                }
+
+                debug!("Auto-removed invalid queue entry: {}", entry.queue_entry_id);
+            } else {
+                // Entry is valid
+                valid_entries.push(entry.clone());
+            }
+        }
+
+        let removed_count = entries.len() - valid_entries.len();
+        if removed_count > 0 {
+            warn!(
+                "Queue validation complete: {} invalid entries auto-removed, {} valid entries remain",
+                removed_count,
+                valid_entries.len()
+            );
+        }
+
+        valid_entries
+    }
+
+    /// Validate a single queue entry
+    ///
+    /// # Returns
+    /// - None if entry is valid
+    /// - Some(reason) if entry is invalid, with description of validation failure
+    async fn validate_entry(entry: &QueueEntry) -> Option<String> {
+        // **[ERH-QUEUE-010]** Check file path is not empty
+        if entry.file_path.as_os_str().is_empty() {
+            return Some("file_path is empty".to_string());
+        }
+
+        // **[ERH-QUEUE-010]** Check file exists
+        if !entry.file_path.exists() {
+            return Some(format!(
+                "file does not exist: {}",
+                entry.file_path.display()
+            ));
+        }
+
+        // **[ERH-QUEUE-010]** Check timing constraints
+        if let (Some(start), Some(end)) = (entry.start_time_ms, entry.end_time_ms) {
+            if start >= end {
+                return Some(format!(
+                    "invalid timing: start_time ({}) >= end_time ({})",
+                    start, end
+                ));
+            }
+        }
+
+        // Entry is valid
+        None
     }
 
     /// Advance to next passage

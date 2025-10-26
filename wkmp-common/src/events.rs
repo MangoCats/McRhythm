@@ -361,6 +361,207 @@ pub enum WkmpEvent {
         total_mixer_frames: u64,
         warnings: Vec<String>,
     },
+
+    // ========================================================================
+    // Error Events (Phase 7 - Error Handling & Recovery)
+    // Per SPEC021 ERH-EVENT-010
+    // ========================================================================
+
+    /// Passage decode failed (file read error)
+    /// **[REQ-AP-ERR-010]** Decode errors skip passage, continue with next
+    PassageDecodeFailed {
+        passage_id: Option<Uuid>,
+        error_type: String,
+        error_message: String,
+        file_path: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Passage has unsupported codec
+    /// **[REQ-AP-ERR-011]** Unsupported codecs marked to prevent re-queue
+    PassageUnsupportedCodec {
+        passage_id: Option<Uuid>,
+        file_path: String,
+        codec_hint: Option<String>,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Passage partially decoded (truncated file)
+    /// **[REQ-AP-ERR-012]** Partial decode ≥50% allows playback
+    PassagePartialDecode {
+        passage_id: Option<Uuid>,
+        file_path: String,
+        expected_duration_ms: u64,
+        actual_duration_ms: u64,
+        percentage: f64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Decoder panicked during decode
+    /// **[REQ-AP-ERR-013]** Decoder panics caught and recovered
+    PassageDecoderPanic {
+        passage_id: Option<Uuid>,
+        file_path: String,
+        panic_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Buffer underrun detected
+    /// **[REQ-AP-ERR-020]** Buffer underrun emergency refill with timeout
+    BufferUnderrun {
+        passage_id: Uuid,
+        buffer_fill_percent: f32,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Buffer underrun recovered
+    /// **[REQ-AP-ERR-020]** Underrun recovery successful
+    BufferUnderrunRecovered {
+        passage_id: Uuid,
+        recovery_time_ms: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device lost (disconnected)
+    /// **[REQ-AP-ERR-030]** Device disconnect retry 30s before fallback
+    AudioDeviceLost {
+        device_name: String,
+        device_id: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device restored after disconnection
+    /// **[REQ-AP-ERR-030]** Device reconnected successfully
+    AudioDeviceRestored {
+        device_name: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device fallback (original device unavailable)
+    /// **[REQ-AP-ERR-030]** Fallback to system default device
+    AudioDeviceFallback {
+        original_device: String,
+        fallback_device: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device unavailable (all attempts failed)
+    /// **[REQ-AP-ERR-030]** No audio device available
+    AudioDeviceUnavailable {
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device configuration error
+    /// **[REQ-AP-ERR-031]** Device config errors attempt 4 fallback configs
+    AudioDeviceConfigError {
+        device_name: String,
+        requested_config: String,
+        error_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device configuration fallback succeeded
+    /// **[REQ-AP-ERR-031]** Fallback configuration successful
+    AudioDeviceConfigFallback {
+        device_name: String,
+        fallback_config: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device incompatible (all configs failed)
+    /// **[REQ-AP-ERR-031]** Device incompatible with all configurations
+    AudioDeviceIncompatible {
+        device_name: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Queue validation error (invalid entry)
+    /// **[REQ-AP-ERR-040]** Invalid queue entries auto-removed with logging
+    QueueValidationError {
+        queue_entry_id: Uuid,
+        passage_id: Option<Uuid>,
+        validation_error: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Queue depth warning (all chains busy)
+    /// **[REQ-AP-ERR-040]** Queue depth exceeds available chains
+    QueueDepthWarning {
+        queue_depth: usize,
+        available_chains: usize,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Resampling failed (initialization)
+    /// **[REQ-AP-ERR-050]** Resampling init fails, skip passage or bypass
+    ResamplingFailed {
+        passage_id: Uuid,
+        source_rate: u32,
+        target_rate: u32,
+        error_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Resampling runtime error
+    /// **[REQ-AP-ERR-051]** Resampling runtime errors skip passage
+    ResamplingRuntimeError {
+        passage_id: Uuid,
+        position_ms: u64,
+        error_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Timing system failure (fatal)
+    /// **[SPEC021 ERH-TIME-010]** Tick overflow or timing corruption
+    TimingSystemFailure {
+        error_type: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Position drift warning
+    /// **[REQ-AP-ERR-060]** Position drift <100 samples auto-corrected
+    PositionDriftWarning {
+        passage_id: Uuid,
+        expected_position_ms: u64,
+        actual_position_ms: u64,
+        delta_ms: i64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System resource exhausted
+    /// **[REQ-AP-ERR-070]** Resource exhaustion cleanup and retry
+    SystemResourceExhausted {
+        resource_type: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System resource recovered
+    /// **[REQ-AP-ERR-070]** Resource exhaustion resolved
+    SystemResourceRecovered {
+        resource_type: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// File handle exhaustion
+    /// **[REQ-AP-ERR-071]** File handle exhaustion, reduce chain count
+    FileHandleExhaustion {
+        attempted_file: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System degraded mode activated
+    /// **[REQ-AP-DEGRADE-010/020/030]** Graceful degradation
+    SystemDegradedMode {
+        reason: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System shutdown required (fatal error)
+    /// **[SPEC021 ERH-TAX-010]** FATAL error requires shutdown
+    SystemShutdownRequired {
+        reason: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -570,6 +771,31 @@ impl WkmpEvent {
             WkmpEvent::ValidationSuccess { .. } => "ValidationSuccess",
             WkmpEvent::ValidationFailure { .. } => "ValidationFailure",
             WkmpEvent::ValidationWarning { .. } => "ValidationWarning",
+            // Error events (Phase 7)
+            WkmpEvent::PassageDecodeFailed { .. } => "PassageDecodeFailed",
+            WkmpEvent::PassageUnsupportedCodec { .. } => "PassageUnsupportedCodec",
+            WkmpEvent::PassagePartialDecode { .. } => "PassagePartialDecode",
+            WkmpEvent::PassageDecoderPanic { .. } => "PassageDecoderPanic",
+            WkmpEvent::BufferUnderrun { .. } => "BufferUnderrun",
+            WkmpEvent::BufferUnderrunRecovered { .. } => "BufferUnderrunRecovered",
+            WkmpEvent::AudioDeviceLost { .. } => "AudioDeviceLost",
+            WkmpEvent::AudioDeviceRestored { .. } => "AudioDeviceRestored",
+            WkmpEvent::AudioDeviceFallback { .. } => "AudioDeviceFallback",
+            WkmpEvent::AudioDeviceUnavailable { .. } => "AudioDeviceUnavailable",
+            WkmpEvent::AudioDeviceConfigError { .. } => "AudioDeviceConfigError",
+            WkmpEvent::AudioDeviceConfigFallback { .. } => "AudioDeviceConfigFallback",
+            WkmpEvent::AudioDeviceIncompatible { .. } => "AudioDeviceIncompatible",
+            WkmpEvent::QueueValidationError { .. } => "QueueValidationError",
+            WkmpEvent::QueueDepthWarning { .. } => "QueueDepthWarning",
+            WkmpEvent::ResamplingFailed { .. } => "ResamplingFailed",
+            WkmpEvent::ResamplingRuntimeError { .. } => "ResamplingRuntimeError",
+            WkmpEvent::TimingSystemFailure { .. } => "TimingSystemFailure",
+            WkmpEvent::PositionDriftWarning { .. } => "PositionDriftWarning",
+            WkmpEvent::SystemResourceExhausted { .. } => "SystemResourceExhausted",
+            WkmpEvent::SystemResourceRecovered { .. } => "SystemResourceRecovered",
+            WkmpEvent::FileHandleExhaustion { .. } => "FileHandleExhaustion",
+            WkmpEvent::SystemDegradedMode { .. } => "SystemDegradedMode",
+            WkmpEvent::SystemShutdownRequired { .. } => "SystemShutdownRequired",
         }
     }
 }

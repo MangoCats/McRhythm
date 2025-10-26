@@ -24,8 +24,9 @@ use crate::db::passages::PassageWithTiming;
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::pipeline::Fader;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 /// Result of processing one chunk through the decoder chain
@@ -60,6 +61,7 @@ pub enum ChunkProcessResult {
 pub struct DecoderChain {
     // Identification
     queue_entry_id: Uuid,
+    passage_id: Option<Uuid>, // **[Phase 7]** For error event emission
     chain_index: usize,
 
     // Pipeline components
@@ -159,6 +161,7 @@ impl DecoderChain {
 
         Ok(Self {
             queue_entry_id,
+            passage_id: passage.passage_id, // **[Phase 7]** Store for error events
             chain_index,
             decoder,
             resampler,
@@ -223,10 +226,15 @@ impl DecoderChain {
                 self.chain_index, self.chunk_count, self.chunk_duration_ms
             );
 
-            let chunk_samples = match self.decoder.decode_chunk(self.chunk_duration_ms)? {
-                Some(samples) => samples,
-                None => {
-                    // Decoder finished
+            // **[REQ-AP-ERR-013]** Wrap decode_chunk in panic catching
+            let decode_result = catch_unwind(AssertUnwindSafe(|| {
+                self.decoder.decode_chunk(self.chunk_duration_ms)
+            }));
+
+            let chunk_samples = match decode_result {
+                Ok(Ok(Some(samples))) => samples,
+                Ok(Ok(None)) => {
+                    // Decoder finished normally
                     info!(
                         "[Chain {}] Decoding complete after {} chunks, {} frames total",
                         self.chain_index, self.chunk_count, self.total_frames_pushed
@@ -246,6 +254,30 @@ impl DecoderChain {
                         total_frames: self.total_frames_pushed,
                     });
                 }
+                Ok(Err(e)) => {
+                    // Decode error (already typed errors from StreamingDecoder)
+                    return Err(e);
+                }
+                Err(panic_payload) => {
+                    // Decoder panicked - convert to DecoderPanic error
+                    let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "Unknown panic in decoder".to_string()
+                    };
+
+                    error!(
+                        "[Chain {}] Decoder panicked: {}",
+                        self.chain_index, panic_msg
+                    );
+
+                    return Err(Error::DecoderPanic {
+                        path: self.file_path.clone(),
+                        message: panic_msg,
+                    });
+                }
             };
 
             let decoded_frames = chunk_samples.len() / 2; // Stereo
@@ -255,7 +287,20 @@ impl DecoderChain {
             );
 
             // **[DBD-DEC-110] Step 2:** Resample to 44.1kHz
-            let resampled_samples = self.resampler.process_chunk(&chunk_samples)?;
+            // **[REQ-AP-ERR-051]** Catch resampling runtime errors and add position context
+            let resampled_samples = self.resampler.process_chunk(&chunk_samples).map_err(|e| {
+                // Calculate current position in milliseconds for error reporting
+                let position_ms = (self.fader.current_frame() as u64 * 1000) / 44100;
+                match e {
+                    Error::Decode(msg) if msg.contains("Resampling failed") => {
+                        Error::ResamplingRuntimeError {
+                            position_ms,
+                            message: msg,
+                        }
+                    }
+                    other => other, // Other errors pass through unchanged
+                }
+            })?;
             let resampled_frames = resampled_samples.len() / 2;
 
             if !self.resampler.is_pass_through() {
@@ -293,6 +338,50 @@ impl DecoderChain {
                     "[Chain {}] Pushed {} frames to buffer (total: {})",
                     self.chain_index, frames_pushed, self.total_frames_pushed
                 );
+
+                // **[REQ-AP-ERR-060]** Position drift detection
+                // Only check when we pushed the full chunk (no partial push)
+                if frames_pushed == total_frames_in_chunk {
+                    let expected_position = self.fader.current_frame();
+                    let actual_position = self.total_frames_pushed;
+                    let drift = expected_position.abs_diff(actual_position);
+
+                    if drift > 0 {
+                        if drift < 100 {
+                            // Minor drift (< 3ms @ 44.1kHz) - log only
+                            debug!(
+                                "[Chain {}] Minor position drift: expected={}, actual={}, delta={} frames",
+                                self.chain_index, expected_position, actual_position, drift
+                            );
+                        } else if drift >= 44100 {
+                            // Severe drift (> 1 second) - critical error
+                            error!(
+                                "[Chain {}] SEVERE position drift: expected={}, actual={}, delta={} frames ({}ms) - position corrupted",
+                                self.chain_index, expected_position, actual_position, drift, (drift * 1000) / 44100
+                            );
+                            // Return error to trigger passage skip
+                            return Err(Error::Decode(format!(
+                                "Position corrupted: drift {} frames ({}ms)",
+                                drift, (drift * 1000) / 44100
+                            )));
+                        } else {
+                            // Moderate drift (>= 100 samples, < 1 second) - emit warning
+                            let drift_ms = (drift * 1000) as u64 / 44100;
+                            warn!(
+                                "[Chain {}] Position drift detected: expected={}, actual={}, delta={} frames ({}ms)",
+                                self.chain_index, expected_position, actual_position, drift, drift_ms
+                            );
+                            // Return error for decoder_worker to handle and emit event
+                            return Err(Error::PositionDrift {
+                                expected_frames: expected_position,
+                                actual_frames: actual_position,
+                                drift_frames: drift,
+                                drift_ms,
+                            });
+                        }
+                    }
+                }
+
                 frames_pushed
             }
             Err(e) if e.contains("BufferFullError") => {
@@ -350,6 +439,12 @@ impl DecoderChain {
         self.chain_index
     }
 
+    /// Get passage ID (may be None for ephemeral passages)
+    /// **[Phase 7]** Used for error event emission
+    pub fn passage_id(&self) -> Option<Uuid> {
+        self.passage_id
+    }
+
     /// Get total frames pushed so far
     pub fn total_frames_pushed(&self) -> usize {
         self.total_frames_pushed
@@ -363,6 +458,18 @@ impl DecoderChain {
     /// Get file path being decoded
     pub fn file_path(&self) -> &PathBuf {
         &self.file_path
+    }
+
+    /// Check if this was a partial decode (truncated file)
+    ///
+    /// **[REQ-AP-ERR-012]** Partial decode detection.
+    ///
+    /// Should be called after decoding is complete (Finished result returned).
+    ///
+    /// # Returns
+    /// `Some((expected_ms, actual_ms, percentage))` if partial decode detected, `None` otherwise
+    pub fn get_partial_decode_info(&self) -> Option<(u64, u64, f64)> {
+        self.decoder.get_partial_decode_info()
     }
 }
 

@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
-use wkmp_ap::playback::{BufferManager, SerialDecoder};
+use wkmp_ap::playback::{BufferManager, DecoderWorker};
 use wkmp_ap::playback::types::DecodePriority;
 use wkmp_ap::db::passages::PassageWithTiming;
 use wkmp_common::FadeCurve;
@@ -108,7 +108,7 @@ async fn test_real_audio_decode_and_monitor_logs() {
 
     // Create buffer manager and decoder
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
 
     // Submit first passage (0-30 seconds)
     let passage1_id = Uuid::new_v4();
@@ -145,16 +145,14 @@ async fn test_real_audio_decode_and_monitor_logs() {
     println!("\n=== Checking Buffer States ===");
 
     if let Some(buffer1) = buffer_manager.get_buffer(passage1_id).await {
-        let state1 = buffer1.lock().await;
         println!("Passage 1: {} samples occupied",
-            state1.occupied()
+            buffer1.occupied()
         );
     }
 
     if let Some(buffer2) = buffer_manager.get_buffer(passage2_id).await {
-        let state2 = buffer2.lock().await;
         println!("Passage 2: {} samples occupied",
-            state2.occupied()
+            buffer2.occupied()
         );
     }
 
@@ -195,7 +193,7 @@ async fn test_real_audio_decode_and_monitor_logs() {
     }
 
     // Shutdown
-    decoder.shutdown().expect("Shutdown should succeed");
+    decoder.shutdown().await;
 
     println!("\n=== Test Complete ===");
 
@@ -224,7 +222,7 @@ async fn test_single_passage_decode() {
     );
 
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = SerialDecoder::new(Arc::clone(&buffer_manager));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
 
     // Submit single passage (first 15 seconds)
     let passage_id = Uuid::new_v4();
@@ -242,8 +240,7 @@ async fn test_single_passage_decode() {
 
     // Check buffer was filled
     if let Some(buffer) = buffer_manager.get_buffer(passage_id).await {
-        let state = buffer.lock().await;
-        let occupied = state.occupied();
+        let occupied = buffer.occupied();
         println!("Buffer filled with {} samples", occupied);
 
         assert!(
@@ -254,6 +251,6 @@ async fn test_single_passage_decode() {
         panic!("Buffer not found for passage");
     }
 
-    decoder.shutdown().expect("Shutdown should succeed");
+    decoder.shutdown().await;
     println!("=== Single Passage Test Complete ===");
 }

@@ -532,6 +532,8 @@ Implementation follows dependency order: foundation → database → audio primi
 
 **Validation Platform:** Raspberry Pi Zero 2W (ARM Cortex-A53, 512MB RAM)
 
+**NOTE (2025-10-26):** Pi Zero 2W testing is **deferred** for the time being. Performance validation will initially focus on development systems. Pi Zero 2W validation will be conducted in a future iteration when deployment hardware is available. Performance targets remain valid as goals but will not block Phase 8 completion.
+
 **/plan Invocation:**
 ```bash
 /plan docs/SPEC022-performance_targets.md
@@ -564,8 +566,8 @@ Implementation is complete when ALL criteria below are satisfied:
 ### Validation Testing
 
 - [ ] Manual testing on development system (Linux/macOS/Windows)
-- [ ] Manual testing on Pi Zero 2W deployment target
-- [ ] 24-hour continuous playback test (no crashes, no leaks)
+- [ ] ~~Manual testing on Pi Zero 2W deployment target~~ (DEFERRED - 2025-10-26)
+- [ ] ~~24-hour continuous playback test (no crashes, no leaks)~~ (DEFERRED - 2025-10-26)
 - [ ] Crossfade accuracy test (sample-accurate timing verification)
 - [ ] Multi-client SSE test (multiple browsers connected)
 - [ ] Error recovery test (decode failures, device removal, database errors)

@@ -211,6 +211,8 @@ impl Resampler {
     ///
     /// Uses FastFixedIn for efficiency (good quality/performance tradeoff).
     /// For highest quality, could use SincFixedIn but with higher CPU cost.
+    ///
+    /// **[REQ-AP-ERR-050]** Returns ResamplingInitFailed on initialization errors
     fn create_resampler(
         input_rate: u32,
         output_rate: u32,
@@ -226,7 +228,11 @@ impl Resampler {
             chunk_size,
             channels as usize,
         )
-        .map_err(|e| Error::Decode(format!("Failed to create resampler: {}", e)))?;
+        .map_err(|e| Error::ResamplingInitFailed {
+            source_rate: input_rate,
+            target_rate: output_rate,
+            message: format!("Failed to create resampler: {}", e),
+        })?;
 
         Ok(resampler)
     }

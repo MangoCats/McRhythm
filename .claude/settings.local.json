@@ -13,7 +13,19 @@
       "Bash(grep:*)",
       "Bash(cargo test:*)",
       "Bash(cargo build:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(RUST_LOG=debug cargo test:*)",
+      "Bash(tee:*)",
+      "Bash(xargs:*)",
+      "Bash(for test in audio_format_tests audio_subsystem_test chain_persistence_tests startup_performance_test)",
+      "Bash(do echo \"=== Testing $test ===\" cargo test -p wkmp-ap --test $test)",
+      "Read(//tmp/**)",
+      "Read(//home/sw/Music/**)",
+      "Bash(RUST_LOG=info cargo test:*)",
+      "Bash(git log:*)",
+      "Bash(timeout 30 cargo test:*)",
+      "SlashCommand(/plan:*)",
+      "Bash(rustc:*)"
     ],
     "deny": [],
     "ask": []

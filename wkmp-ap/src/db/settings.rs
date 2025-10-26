@@ -203,6 +203,24 @@ pub async fn load_progress_interval(db: &Pool<Sqlite>) -> Result<u64> {
     }
 }
 
+/// Load buffer_underrun_recovery_timeout_ms from settings table
+///
+/// **[REQ-AP-ERR-020]** Buffer underrun recovery timeout
+/// **[ERH-BUF-015]** Configurable timeout for emergency refill
+pub async fn load_buffer_underrun_timeout(db: &Pool<Sqlite>) -> Result<u64> {
+    match get_setting::<u64>(db, "buffer_underrun_recovery_timeout_ms").await? {
+        Some(timeout) => {
+            // Clamp to valid range: 100-5000ms (0.1-5 seconds per spec)
+            Ok(timeout.clamp(100, 5000))
+        }
+        None => {
+            // Default: 2000ms (2 seconds)
+            // Spec says 500ms but we use 2000ms for slow hardware (Pi Zero 2W)
+            Ok(2000)
+        }
+    }
+}
+
 /// Load audio_ring_buffer_grace_period_ms from settings table
 ///
 /// **[SSD-RBUF-014]** Ring buffer startup grace period
