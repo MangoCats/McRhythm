@@ -16,7 +16,7 @@
 | IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
-| GUIDE | 002 | Guides (implementation guides, tutorials) |
+| GUIDE | 003 | Guides (implementation guides, tutorials) |
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
