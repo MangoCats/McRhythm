@@ -278,7 +278,7 @@ impl DecoderWorker {
 
             if can_resume {
                 if let Some(chain) = state.yielded_chains.remove(&queue_entry_id) {
-                    info!("[Chain {}] Resuming (buffer drained)", chain.chain_index());
+                    debug!("[Chain {}] Resuming (buffer drained)", chain.chain_index());
                     state.active_chains.insert(queue_entry_id, chain);
                 }
             }

@@ -480,7 +480,7 @@ SSE: Connected
 **Table structure:**
 - Fixed header with sticky positioning
 - Scrollable body (max-height: 300px)
-- 5 columns: Parameter, Type, Current Value, New Value, Description & Validation
+- 7 columns: Parameter, Type, Default, Current Value, Valid Range, New Value, Description
 
 ### 6.3 Table Columns
 
@@ -488,15 +488,27 @@ SSE: Connected
 
 | Column | Header | Width | Content |
 |--------|--------|-------|---------|
-| 1 | Parameter | 25% | Setting key name (cyan monospace font) |
-| 2 | Type | 10% | Data type (yellow text: f32, u32, String, etc.) |
-| 3 | Current Value | 15% | Database value or "(not set)" (green monospace font) |
-| 4 | New Value | 15% | Text input for user edits (empty by default) |
-| 5 | Description & Validation | 35% | Setting description + valid range/enum values (gray text, 11px) |
+| 1 | Parameter | 20% | Setting key name (cyan monospace font, 11px) |
+| 2 | Type | 8% | Data type (yellow text, 11px: f32, u32, String, etc.) |
+| 3 | Default | 12% | Default value from code (gray monospace font, **13px, right-aligned**) |
+| 4 | Current Value | 12% | Database value or "(not set)" (green monospace font, **13px**, **highlighted orange if differs from default**) |
+| 5 | Valid Range | 15% | Valid range or enum values (blue monospace font, **13px**) |
+| 6 | New Value | 12% | Text input for user edits (empty by default) |
+| 7 | Description | 21% | Setting description only (gray text, 11px) |
+
+**[SPEC016-SETTINGS-031]** Non-default value highlighting:
+- When `current_value ≠ default_value`, the Current Value cell MUST have orange background (#854d0e) with yellow text (#fef08a)
+- This provides immediate visual feedback about which settings have been customized from defaults
+- Helps users identify configuration changes when troubleshooting
+
+**[SPEC016-SETTINGS-032]** Typography and alignment:
+- Default, Current Value, and Valid Range columns use **13px font** (larger than 11px baseline) for improved readability of critical configuration values
+- Default column is **right-aligned** to facilitate numerical comparison with Current Value column
+- Monospace font for all value columns ensures proper alignment of numerical data
 
 ### 6.4 Supported Settings
 
-**[SPEC016-SETTINGS-040]** Settings panel MUST display all wkmp-ap database settings (24+ parameters):
+**[SPEC016-SETTINGS-040]** Settings panel MUST display all wkmp-ap database settings (26+ parameters):
 
 **SPEC016 Decoder/Buffer Parameters:**
 - `working_sample_rate` [DBD-PARAM-020]
@@ -511,6 +523,8 @@ SSE: Connected
 - `mixer_min_start_level` [DBD-PARAM-088]
 - `pause_decay_factor` [DBD-PARAM-090]
 - `pause_decay_floor` [DBD-PARAM-100]
+- `audio_buffer_size` [DBD-PARAM-110]
+- `mixer_check_interval_ms` [DBD-PARAM-111]
 
 **Audio Output:**
 - `volume_level` [DBD-PARAM-010]
@@ -910,7 +924,7 @@ SSE: Connected
 **[SPEC016-LAYOUT-020]** Scrolling:
 - **Buffer Chain Monitor:** Vertical scroll if N > 20 chains
 - **Queue Contents:** Vertical scroll if queue > 10 entries
-- **Settings Management Panel:** Vertical scroll for 24+ parameters
+- **Settings Management Panel:** Vertical scroll for 26+ parameters
 - **Event Stream Monitor:** Vertical scroll for event log
 - **File Browser Modal:** Vertical scroll for file list
 

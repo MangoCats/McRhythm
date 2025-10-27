@@ -296,21 +296,21 @@ pub async fn load_mixer_thread_config(db: &Pool<Sqlite>) -> Result<MixerThreadCo
     // [DBD-PARAM-111] Load mixer check interval from database (in milliseconds)
     // Clamp to valid range: 1-100ms
     // Too low = async overhead dominates, too high = buffer underruns
-    // Default: 5ms - Balances responsiveness vs overhead
-    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, 5u64).await?;
+    // Default: 10ms - Conservative value for VeryHigh stability confidence (empirically tuned)
+    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, 10u64).await?;
 
     // Convert milliseconds to microseconds for tokio::time::interval
     let check_interval_us = check_interval_ms * 1000;
 
-    // Clamp to valid range: 16-256 frames
+    // Clamp to valid range: 16-1024 frames
     // Too low = slow recovery, too high = excessive lock hold time
-    // Default: 128 frames - Aggressive recovery when buffer low
-    let batch_size_low = load_clamped_setting(db, "mixer_batch_size_low", 16usize, 256usize, 128usize).await?;
+    // Default: 512 frames - Tuned to keep output ring buffer filled under 2048-frame callback loads
+    let batch_size_low = load_clamped_setting(db, "mixer_batch_size_low", 16usize, 1024usize, 512usize).await?;
 
-    // Clamp to valid range: 16-128 frames
+    // Clamp to valid range: 16-512 frames
     // Too low = async overhead dominates, too high = overshooting
-    // Default: 64 frames - Steady state operation
-    let batch_size_optimal = load_clamped_setting(db, "mixer_batch_size_optimal", 16usize, 128usize, 64usize).await?;
+    // Default: 256 frames - Tuned to match audio callback drain rate (~441 frames/10ms)
+    let batch_size_optimal = load_clamped_setting(db, "mixer_batch_size_optimal", 16usize, 512usize, 256usize).await?;
 
     Ok(MixerThreadConfig {
         check_interval_us,
@@ -466,12 +466,13 @@ pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
 /// **[DBD-PARAM-110]** Audio output buffer size in frames per callback
 ///
 /// # Returns
-/// Buffer size in frames (default: 512)
-/// Clamped to valid range: 64-8192 frames (typical range for audio devices)
+/// Buffer size in frames (default: 2208 - empirically tuned for stability)
+/// Clamped to valid range: 64-65536 frames
 /// - Smaller buffers: Lower latency but higher CPU usage
 /// - Larger buffers: Higher latency but more stable on slow systems
+/// - Default (2208 frames = 50.1ms) provides VeryHigh stability confidence
 pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
-    load_clamped_setting(db, "audio_buffer_size", 64, 8192, 512).await
+    load_clamped_setting(db, "audio_buffer_size", 64, 65536, 2208).await
 }
 
 #[cfg(test)]

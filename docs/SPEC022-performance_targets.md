@@ -54,7 +54,7 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 - Initial playback start target optimizes perceived responsiveness
 
 **Measurement Methodology:**
-- Measure wall-clock time from decode task spawn to buffer ready state
+- Measure monotonic elapsed time from decode task spawn to buffer ready state (see [SPEC023](SPEC023-timing_terminology.md))
 - Test with various audio formats (FLAC, MP3, Opus, AAC)
 - Test at various sample rates (44.1 kHz, 48 kHz, 96 kHz)
 - Measure on actual Pi Zero 2W hardware
@@ -257,7 +257,7 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 - Target ensures responsive user experience
 
 **Measurement Methodology:**
-- Measure wall-clock time from skip command to first audio output
+- Measure monotonic elapsed time from skip command to first audio output (see [SPEC023](SPEC023-timing_terminology.md))
 - Test buffered case (crossfade in progress, next passage ready)
 - Test unbuffered case (next passage not yet decoded)
 - Test arbitrary skip (random queue position selection)
@@ -307,7 +307,7 @@ Define quantified performance targets for WKMP Audio Player (wkmp-ap) to ensure 
 
 **Phase 1: Component-Level Performance (During Implementation)**
 - Unit test each component with performance assertions
-- Decode: Measure wall-clock time for 100 passages
+- Decode: Measure monotonic elapsed time for 100 passages (see [SPEC023](SPEC023-timing_terminology.md))
 - Resample: Measure CPU time for various sample rate conversions
 - Mixer: Measure tick processing time (must be < tick duration)
 

@@ -109,9 +109,9 @@ ticks = 220,500 × 640 = 141,120,000 ticks
 - 40,000 samples at 8kHz
 - All with zero conversion error
 
-## Tick-to-Time Conversion
+## Tick-to-Duration Conversion
 
-**[SRC-TIME-010]** To convert ticks to wall-clock seconds:
+**[SRC-TIME-010]** To convert ticks to duration in seconds (see [SPEC023 Audio Timeline](SPEC023-timing_terminology.md#3-audio-timeline-time-ticks)):
 
 ```
 seconds = ticks ÷ 28,224,000

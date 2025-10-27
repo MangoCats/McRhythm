@@ -1300,7 +1300,7 @@ Retrieve current buffer decode/playback status for all passages in queue.
 - **Formula:** `(decoded_ticks / total_ticks) × 100`
 - **Decoded ticks:** Sum of all decoded audio samples converted to ticks at source sample rate
 - **Total ticks:** Passage `end_time - start_time` (in ticks from database)
-- **Update frequency:** Recalculated every `decode_work_period` (per SPEC016 [DBD-PARAM-060], default 5000ms in wall-clock time)
+- **Update frequency:** Recalculated every `decode_work_period` (per SPEC016 [DBD-PARAM-060], default 5000ms monotonic elapsed time, see [SPEC023](SPEC023-timing_terminology.md))
 - **Null handling:** Field omitted (not present) when status is not "Decoding"
 - **Streaming sources:** For unknown duration, uses estimated total based on bitrate and file size
 - **Note:** All timing internally uses ticks (sample-accurate), no lossy conversions to milliseconds

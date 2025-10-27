@@ -268,8 +268,8 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 **[DBD-PARAM-110]** The audio output buffer size in frames per callback.
 
-- **Default value:** 8192 frames
-- **Equivalent:** ~186ms of audio at 44.1kHz
+- **Default value:** 2208 frames
+- **Equivalent:** 50.1ms of audio at 44.1kHz
 - **Range:** 64-65536 frames
 - **Purpose:** Controls the tradeoff between latency and system stability
 - **Behavior:**
@@ -278,12 +278,16 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
   - Buffer size determines how frequently the audio callback is invoked
 - **Configuration:** Stored in database settings table (`audio_buffer_size`)
 - **Application:** Applied to cpal StreamConfig as BufferSize::Fixed(audio_buffer_size)
+- **Empirical Data (Intel Core i7-8650U @ 1.90GHz):**
+  - Minimum stable at 5ms interval: 352 frames (8.0ms)
+  - Minimum stable at 10ms interval: 736 frames (16.7ms)
+  - Default uses 3x safety margin for maximum stability under variable load
 
 ### mixer_check_interval_ms
 
 **[DBD-PARAM-111]** The mixer thread check interval in milliseconds.
 
-- **Default value:** 5 ms
+- **Default value:** 10 ms
 - **Range:** 1-100 ms
 - **Purpose:** Controls the frequency at which the mixer thread wakes to fill the output ring buffer
 - **Behavior:**
@@ -291,8 +295,113 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
   - Larger intervals: Lower CPU usage but requires larger batch sizes to maintain throughput
   - Trade-off with batch sizes: interval × batch_size must exceed audio consumption rate (44,032 frames/sec @ 44.1kHz)
 - **Configuration:** Stored in database settings table (`mixer_check_interval_ms`)
-- **Performance:** At 5ms interval with 64 frame batches: 12,800 frames/sec (requires ~4 wake-ups/sec to meet 44,032 frames/sec)
-- **Related:** Works in conjunction with [mixer_batch_size_optimal] and [mixer_batch_size_low]
+- **Performance:** At 10ms interval with 256 frame batches: 25,600 frames/sec (exceeds 44,100 Hz working sample rate when buffer 50-75% full)
+- **Related:** Works in conjunction with **[DBD-PARAM-113]** mixer_batch_size_optimal and **[DBD-PARAM-112]** mixer_batch_size_low
+- **Empirical Data (Intel Core i7-8650U @ 1.90GHz):**
+  - 5ms interval: Stable with 352+ frame buffer (Primary recommendation: 704 frames with 2x safety)
+  - 10ms interval: Stable with 736+ frame buffer (Conservative recommendation: 2208 frames with 3x safety)
+  - 20ms+ intervals: Unstable on test system
+  - Default uses 10ms conservative interval for "VeryHigh" confidence stability under variable load
+
+### Default Value Rationale
+
+**[DBD-PARAM-120]** The default values for `audio_buffer_size` and `mixer_check_interval_ms` were determined through empirical buffer auto-tuning on representative hardware (Intel Core i7-8650U @ 1.90GHz, 4 cores).
+
+**Design Principle:** Prioritize stability over latency for out-of-box experience.
+
+**Choice Rationale:**
+- **Primary recommendation (5ms interval, 704 frames, 16.0ms latency):**
+  - Lowest stable configuration
+  - Minimal latency (16.0ms acceptable for music playback)
+  - Suitable for aggressive performance tuning
+  - Confidence: High
+
+- **Conservative recommendation (10ms interval, 2208 frames, 50.1ms latency) - SELECTED AS DEFAULT:**
+  - 3x safety margin provides headroom for system load variation
+  - 50.1ms latency still imperceptible for music listening (well below 100ms threshold)
+  - Higher mixer interval (10ms) reduces CPU wake-up frequency
+  - More stable under variable system load (background processes, CPU frequency scaling, etc.)
+  - Confidence: VeryHigh
+  - **Aligns with quality-absolute project charter (flawless audio playback)**
+
+**Trade-offs Accepted:**
+- 34ms additional latency (50.1ms vs 16.0ms) is imperceptible in music playback context
+- Slightly higher memory usage (2208 vs 704 frames = ~12KB additional buffer per stream)
+- Lower CPU wake-up frequency reduces overall system overhead
+
+**Alternative Configurations:**
+- Users on high-performance systems can tune down to 5ms/704 frames for minimum latency
+- Users on lower-performance systems can run `tune-buffers` utility to find optimal values for their hardware
+- Database settings allow runtime configuration without recompilation
+
+### mixer_batch_size_low
+
+**[DBD-PARAM-112]** The number of frames the mixer fills per wake-up when the output ring buffer is below 50% capacity.
+
+- **Default value:** 512 frames
+- **Range:** 16-1024 frames
+- **Purpose:** Aggressive recovery when output ring buffer is depleting
+- **Behavior:**
+  - Larger batches: Faster buffer recovery but higher lock hold time per mixer wake-up
+  - Smaller batches: Lower lock hold time but slower recovery, may not keep pace with audio callback drain rate
+  - Must be sized to match or exceed audio consumption rate during the check interval
+- **Configuration:** Stored in database settings table (`mixer_batch_size_low`)
+- **Performance:** With 2048-frame audio_buffer_size @ 44.1kHz and 10ms mixer_check_interval_ms:
+  - Audio callback drains ~441 frames per 10ms interval
+  - 512-frame batches provide adequate fill rate with margin for system jitter
+  - At <50% buffer level (critical threshold), aggressive filling prevents underrun cascade
+
+### mixer_batch_size_optimal
+
+**[DBD-PARAM-113]** The number of frames the mixer fills per wake-up when the output ring buffer is between 50-75% capacity.
+
+- **Default value:** 256 frames
+- **Range:** 16-512 frames
+- **Purpose:** Steady-state operation maintaining optimal buffer fill level
+- **Behavior:**
+  - Larger batches: Higher throughput but risk overshooting 75% target
+  - Smaller batches: More precise fill level control but higher async overhead
+  - Should approximate audio consumption rate during the check interval
+- **Configuration:** Stored in database settings table (`mixer_batch_size_optimal`)
+- **Performance:** With 2048-frame audio_buffer_size @ 44.1kHz and 10ms mixer_check_interval_ms:
+  - Audio callback drains ~441 frames per 10ms interval
+  - 256-frame batches maintain buffer level without large swings
+  - Provides ~58% fill rate match, preventing slow buffer depletion while avoiding overfill
+
+### Mixer Batch Size Rationale
+
+**[DBD-PARAM-114]** The default values for `mixer_batch_size_low` and `mixer_batch_size_optimal` were determined through analysis of output ring buffer underrun behavior with empirically-tuned `audio_buffer_size` and `mixer_check_interval_ms` settings.
+
+**Design Principle:** Batch sizes must maintain output ring buffer fill level against audio callback drain rate.
+
+**Critical Constraint:**
+- Audio callback with `audio_buffer_size = 2048` frames @ 44.1kHz drains buffer every ~46.4ms
+- Mixer with `mixer_check_interval_ms = 10ms` wakes 4.64 times per callback interval
+- Each mixer wake must fill enough frames to prevent net depletion: 2048 ÷ 4.64 ≈ 441 frames minimum per wake
+
+**Choice Rationale:**
+- **mixer_batch_size_low = 512 frames:**
+  - Exceeds minimum 441 frames/interval drain rate by 16%
+  - Provides catch-up capacity when buffer drops below 50% (critical threshold)
+  - Allows recovery from transient system delays (scheduler jitter, CPU frequency scaling)
+  - Confidence: High
+
+- **mixer_batch_size_optimal = 256 frames:**
+  - Provides 58% of drain rate (256 ÷ 441)
+  - Intentionally lower than drain rate to allow gradual buffer depletion from 75% toward 50% target
+  - Prevents oscillation between batch_size_optimal and batch_size_low thresholds
+  - Maintains buffer in 50-75% range under steady-state conditions
+  - Confidence: Medium (may require field tuning based on actual usage patterns)
+
+**Trade-offs Accepted:**
+- Higher batch sizes increase lock hold time during mixer operations (acceptable for non-real-time mixer thread)
+- Larger batches reduce async/tokio scheduling overhead compared to smaller more frequent fills
+- Buffer level intentionally drifts between 50-75% rather than tightly regulating to single target
+
+**Alternative Configurations:**
+- Systems experiencing underruns despite default settings: Increase batch sizes or decrease mixer_check_interval_ms
+- Systems with different audio_buffer_size values: Scale batch sizes proportionally (e.g., 4096-frame buffer → 1024/512 batch sizes)
+- Database settings allow runtime configuration without recompilation
 
 ## Dataflow
 

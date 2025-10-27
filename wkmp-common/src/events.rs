@@ -422,6 +422,25 @@ pub enum WkmpEvent {
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
+    /// Audio callback underrun (real-time detection)
+    /// Emitted EVERY time the audio callback finds the ring buffer empty
+    /// This provides immediate detection of gaps/stutters
+    AudioCallbackUnderrun {
+        underrun_count: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio callback irregular interval detected
+    /// Emitted when callback timing deviates significantly from expected
+    /// (throttled to avoid spam - max once per 5 seconds)
+    AudioCallbackIrregular {
+        actual_interval_ms: u64,
+        expected_interval_ms: u64,
+        deviation_ms: u64,
+        total_irregular_count: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
     /// Audio device lost (disconnected)
     /// **[REQ-AP-ERR-030]** Device disconnect retry 30s before fallback
     AudioDeviceLost {
@@ -778,6 +797,8 @@ impl WkmpEvent {
             WkmpEvent::PassageDecoderPanic { .. } => "PassageDecoderPanic",
             WkmpEvent::BufferUnderrun { .. } => "BufferUnderrun",
             WkmpEvent::BufferUnderrunRecovered { .. } => "BufferUnderrunRecovered",
+            WkmpEvent::AudioCallbackUnderrun { .. } => "AudioCallbackUnderrun",
+            WkmpEvent::AudioCallbackIrregular { .. } => "AudioCallbackIrregular",
             WkmpEvent::AudioDeviceLost { .. } => "AudioDeviceLost",
             WkmpEvent::AudioDeviceRestored { .. } => "AudioDeviceRestored",
             WkmpEvent::AudioDeviceFallback { .. } => "AudioDeviceFallback",

@@ -11,6 +11,10 @@ path = "src/lib.rs"
 name = "wkmp-ap"
 path = "src/main.rs"
 
+[[bin]]
+name = "tune-buffers"
+path = "src/bin/tune_buffers.rs"
+
 [dependencies]
 wkmp-common = { path = "../wkmp-common" }
 tokio = { workspace = true }

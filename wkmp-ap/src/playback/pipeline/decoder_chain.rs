@@ -403,7 +403,7 @@ impl DecoderChain {
 
         // **[BUGFIX] Step 3:** Check if we pushed partial data (buffer became full mid-chunk)
         if frames_pushed < total_frames_in_chunk {
-            warn!(
+            debug!(
                 "[Chain {}] Partial push: {} of {} frames (buffer filling up)",
                 self.chain_index, frames_pushed, total_frames_in_chunk
             );

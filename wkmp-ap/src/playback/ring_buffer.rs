@@ -16,11 +16,10 @@ use crate::audio::types::AudioFrame;
 use ringbuf::{traits::*, HeapRb};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{warn, debug, trace};
+use tracing::{warn, debug};
 
 /// Ring buffer configuration
-const DEFAULT_BUFFER_SIZE: usize = 2048; // ~46ms @ 44.1kHz
+const DEFAULT_BUFFER_SIZE: usize = 8192; // ~186ms @ 44.1kHz - Increased for stability
 const TARGET_FILL_MIN_PERCENT: f32 = 0.50; // 50% target minimum
 const TARGET_FILL_MAX_PERCENT: f32 = 0.75; // 75% target maximum
 
@@ -135,19 +134,10 @@ impl AudioProducer {
     pub fn push(&mut self, frame: AudioFrame) -> bool {
         match self.producer.try_push(frame) {
             Ok(_) => {
-                // Check if buffer has reached optimal fill level
-                // This flag helps distinguish startup underruns from steady-state underruns
+                // Track if buffer has reached optimal fill level (for monitoring)
                 if !self.buffer_has_been_filled.load(Ordering::Relaxed) && self.is_fill_optimal() {
                     self.buffer_has_been_filled.store(true, Ordering::Relaxed);
-
-                    // Record timestamp for grace period calculation
-                    let now_ms = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-                    self.buffer_filled_timestamp_ms.store(now_ms, Ordering::Relaxed);
-
-                    debug!("Audio ring buffer filled to optimal level at {}ms (startup grace period active)", now_ms);
+                    debug!("Audio ring buffer filled to optimal level");
                 }
                 true
             }
@@ -206,55 +196,18 @@ impl AudioConsumer {
     /// Pop an audio frame from the buffer
     ///
     /// Returns Some(frame) if available, None if buffer empty (underrun).
-    /// Lock-free operation safe for real-time audio callback.
+    /// **REAL-TIME SAFE**: Only atomic operations, no logging, no system calls (CO-257).
     ///
     /// On underrun, returns None and increments underrun counter.
     /// Caller should output silence in this case.
     ///
-    /// Log level classification:
-    /// - TRACE: Expected underruns (startup, paused, or empty queue)
-    /// - WARN: Unexpected underruns (active playback with audio in queue)
+    /// **Note:** Underrun monitoring/logging handled by separate monitoring thread (CO-259).
     pub fn pop(&mut self) -> Option<AudioFrame> {
         match self.consumer.try_pop() {
             Some(frame) => Some(frame),
             None => {
-                // Buffer empty - underrun
-                let count = self.underruns.fetch_add(1, Ordering::Relaxed) + 1;
-
-                // Log every 1000th underrun to avoid spam
-                if count % 1000 == 0 {
-                    let buffer_filled = self.buffer_has_been_filled.load(Ordering::Relaxed);
-                    // Use Acquire ordering to ensure we see the latest value from other threads
-                    let audio_expected = self.audio_expected.load(Ordering::Acquire);
-
-                    if !buffer_filled {
-                        // Startup underruns - expected behavior (buffer not yet filled)
-                        trace!("Audio ring buffer underrun during startup (total: {})", count);
-                    } else if !audio_expected {
-                        // Paused or empty queue - expected behavior
-                        trace!("Audio ring buffer underrun while paused/idle (total: {})", count);
-                    } else {
-                        // Check if we're still in the startup grace period
-                        let filled_timestamp = self.buffer_filled_timestamp_ms.load(Ordering::Relaxed);
-                        let now_ms = SystemTime::now()
-                            .duration_since(UNIX_EPOCH)
-                            .unwrap_or_default()
-                            .as_millis() as u64;
-
-                        if filled_timestamp == 0 || now_ms < filled_timestamp + self.grace_period_ms {
-                            // Still in startup grace period - expected behavior
-                            trace!("Audio ring buffer underrun during startup stabilization (total: {})", count);
-                        } else {
-                            // Past grace period - active playback underrun is concerning!
-                            // DEBUG: Log flag value to diagnose issue
-                            warn!(
-                                "Audio ring buffer underrun during active playback (total: {}, audio_expected={}) - \
-                                 CPU may not be keeping up with decoding",
-                                count, audio_expected
-                            );
-                        }
-                    }
-                }
+                // Buffer empty - underrun (ONLY increment counter, no logging per CO-257)
+                self.underruns.fetch_add(1, Ordering::Relaxed);
                 None
             }
         }
@@ -372,36 +325,23 @@ mod tests {
         assert!(!prod.needs_frames());
     }
 
-    /// Test grace period timestamp tracking
-    /// [SSD-RBUF-014] Grace period calculation
+    /// Test buffer filled flag tracking
+    /// [SSD-RBUF-014] Buffer state tracking
     #[test]
-    fn test_grace_period_timestamp_tracking() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
+    fn test_buffer_filled_flag_tracking() {
         let audio_expected = Arc::new(AtomicBool::new(true));
         let grace_period_ms = 2000;
         let rb = AudioRingBuffer::new(Some(100), grace_period_ms, audio_expected);
         let (mut prod, _cons) = rb.split();
-
-        // Initially, buffer_filled_timestamp should be 0
-        assert_eq!(prod.buffer_filled_timestamp_ms.load(Ordering::Relaxed), 0);
 
         // Fill buffer to optimal level (50-75%)
         for _ in 0..60 {
             prod.push(AudioFrame::zero());
         }
 
-        // After reaching optimal fill, timestamp should be set
-        let timestamp = prod.buffer_filled_timestamp_ms.load(Ordering::Relaxed);
-        assert!(timestamp > 0, "Buffer filled timestamp should be set after reaching optimal fill");
-
-        // Verify timestamp is recent (within last 10 seconds)
-        let now_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
-
-        assert!(now_ms - timestamp < 10000, "Timestamp should be recent");
+        // After reaching optimal fill, buffer_has_been_filled flag should be set
+        assert!(prod.buffer_has_been_filled.load(Ordering::Relaxed),
+            "Buffer filled flag should be set after reaching optimal fill");
     }
 
     /// Test underrun behavior when audio_expected=false
@@ -442,14 +382,14 @@ mod tests {
         // Set audio_expected to true (simulating active playback)
         audio_expected.store(true, Ordering::Release);
 
-        // Fill buffer to optimal (this sets buffer_filled_timestamp)
+        // Fill buffer to optimal (this sets buffer_has_been_filled flag)
         for _ in 0..60 {
             prod.push(AudioFrame::zero());
         }
 
-        // Verify timestamp is set
-        let filled_timestamp = cons.buffer_filled_timestamp_ms.load(Ordering::Relaxed);
-        assert!(filled_timestamp > 0, "Timestamp should be set after filling");
+        // Verify flag is set
+        assert!(prod.buffer_has_been_filled.load(Ordering::Relaxed),
+            "Buffer filled flag should be set after filling");
 
         // Drain buffer completely to trigger underrun
         while cons.pop().is_some() {}

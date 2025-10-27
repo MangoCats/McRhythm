@@ -25,8 +25,9 @@ fn main() {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    // Capture build timestamp in ISO 8601 format
-    let build_timestamp = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    // Capture build timestamp in ISO 8601 format with local timezone
+    // Format: YYYY-MM-DDTHH:MM:SS±HH:MM (e.g., 2025-10-26T14:30:45-05:00)
+    let build_timestamp = chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, false);
 
     // Determine build profile
     let profile = std::env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string());
