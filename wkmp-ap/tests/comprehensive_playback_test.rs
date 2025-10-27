@@ -20,7 +20,9 @@ use uuid::Uuid;
 use wkmp_ap::playback::{BufferManager, DecoderWorker};
 use wkmp_ap::playback::types::DecodePriority;
 use wkmp_ap::db::passages::PassageWithTiming;
+use wkmp_ap::state::SharedState;
 use wkmp_common::FadeCurve;
+use sqlx::sqlite::SqlitePoolOptions;
 
 /// Test audio file path
 const TEST_AUDIO_FILE: &str = "/home/sw/Music/Bigger,_Better,_Faster,_More/(4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3";
@@ -94,6 +96,18 @@ impl LogCollector {
     }
 }
 
+/// Helper to create test dependencies for DecoderWorker
+async fn create_test_deps() -> (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) {
+    let buffer_manager = Arc::new(BufferManager::new());
+    let shared_state = Arc::new(SharedState::new());
+    let db_pool = SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .expect("Failed to create in-memory database");
+
+    (buffer_manager, shared_state, db_pool)
+}
+
 /// Create passage for real audio file
 fn create_passage(file_path: &str, start_ms: u64, end_ms: Option<u64>) -> PassageWithTiming {
     let end_ticks = end_ms.map(|ms| wkmp_common::timing::ms_to_ticks(ms as i64));
@@ -137,8 +151,8 @@ async fn test_scenario_1_single_passage_30s() {
     let collector = LogCollector::new();
 
     // Create buffer manager and decoder
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Create passage (0-40s to have buffer for 30s playback)
     let passage_id = Uuid::new_v4();
@@ -193,8 +207,8 @@ async fn test_scenario_2_two_passages_with_delay() {
     println!("Using test file: {}", test_file);
 
     let collector = LogCollector::new();
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Enqueue first passage
     let passage1_id = Uuid::new_v4();
@@ -255,8 +269,8 @@ async fn test_scenario_3_three_passages_with_skip() {
     println!("Using test file: {}", test_file);
 
     let collector = LogCollector::new();
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Enqueue three passages
     let passage_ids: Vec<Uuid> = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
