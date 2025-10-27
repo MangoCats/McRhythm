@@ -2,8 +2,8 @@
 
 **Document Classification:** Tier 2 (Design Specification)
 **Status:** Active
-**Version:** 2.0
-**Last Updated:** 2025-10-22
+**Version:** 2.4
+**Last Updated:** 2025-10-27
 
 ---
 
@@ -13,10 +13,14 @@
 This document specifies the design of the Audio Player (wkmp-ap) Developer UI, a diagnostic interface for monitoring internal audio processing pipeline state in real-time.
 
 ### Scope
+- Overall page structure and layout (header + scrollable content grid)
+- Panel height constraints and scrolling behavior
+- **API authentication implementation (timestamp + hash per SPEC007)**
 - Buffer chain monitor table layout and data presentation (8-column table)
 - Module status panel design
 - Playback controls interface
-- Queue contents display and enqueue controls
+- Queue contents display with individual entry removal buttons
+- Enqueue controls and file browser integration
 - Settings management panel (database configuration editor)
 - Event stream monitor (SSE event log with controls)
 - File browser modal (interactive audio file selection)
@@ -25,8 +29,8 @@ This document specifies the design of the Audio Player (wkmp-ap) Developer UI, a
 
 ### Related Documents
 - **[GOV001]** Document Hierarchy (governance framework)
+- **[SPEC007]** API Design (API authentication [API-AUTH-025 through API-AUTH-028-A], SSE event definitions)
 - **[SPEC016]** Decoder-Buffer Design (buffer chain architecture)
-- **[SPEC007]** API Design (SSE event definitions)
 - **[REQ001]** Requirements (user interface requirements)
 
 ### Change Control
@@ -51,6 +55,68 @@ The Developer UI provides real-time visibility into the wkmp-ap audio processing
 - **Frontend:** Vanilla JavaScript (no framework dependencies)
 - **Styling:** Inline CSS (self-contained single-file HTML)
 - **Data Format:** JSON (SSE event payloads)
+
+### 1.4 Page Structure
+
+**[SPEC016-LAYOUT-005]** The Developer UI page consists of the following components in order:
+
+**Header Row:**
+- Title: "WKMP Audio Player"
+- Connection status indicator
+- Build information (version, git hash, timestamp, profile)
+
+**Main Content Grid:**
+- **Row 1:** Three panels side-by-side
+  - Module Status (playback state, position, volume, device) - no scrolling
+  - Playback Controls (play/pause buttons, volume/device inputs) - no scrolling
+  - Queue Contents (queue display with remove buttons + enqueue controls, queue display area max-height: 400px)
+- **Row 2:** Buffer Chain Monitor (full-width, table max-height: 400px)
+- **Row 3:** Database Settings panel (full-width, table max-height: 400px)
+- **Row 4:** Event Stream Monitor (full-width, log max-height: 600px)
+
+**Modal Overlay (On-Demand):**
+- File Browser Modal (appears when Browse button clicked)
+
+**Layout Characteristics:**
+- **Page scrolls at window level** when total content height exceeds viewport
+- Header scrolls with page content (not fixed)
+- Individual panels with large content scroll internally when exceeding max-height
+- Grid uses CSS Grid layout: `grid-template-columns: auto auto 1fr`
+
+### 1.5 API Authentication
+
+**[SPEC016-AUTH-010]** The Developer UI MUST implement API authentication per [SPEC007 API-AUTH-025].
+
+**Shared Secret Distribution:**
+- Per [SPEC007 API-AUTH-028-A], shared secret is embedded in HTML when serving the page
+- Server handler reads `api_shared_secret` from database during page render
+- Secret embedded as JavaScript constant: `const API_SHARED_SECRET = 123456789;`
+- JavaScript uses secret to calculate SHA-256 hash for all API requests
+
+**API Request Authentication:**
+- All API requests (POST, GET, DELETE) MUST include:
+  - `timestamp`: i64 Unix epoch milliseconds
+  - `hash`: 64-character hex SHA-256 hash
+- Hash calculation per [SPEC007 API-AUTH-027]:
+  1. Create JSON with dummy hash (64 zeros)
+  2. Convert to canonical form (sorted keys, no whitespace)
+  3. Append shared secret as decimal string
+  4. Calculate SHA-256
+  5. Replace dummy hash with calculated hash
+
+**Exceptions:**
+- Initial page load (GET `/`) does NOT require authentication (bootstraps secret)
+- Server-Sent Events (SSE) messages from server do NOT require authentication (server-initiated)
+
+**JavaScript Implementation:**
+- Utility functions: `calculateHash(jsonObj, secret)`, `toCanonicalJSON(obj)`
+- Wrapper for fetch(): `authenticatedFetch(url, options)` adds timestamp/hash
+- Uses browser SubtleCrypto API for SHA-256 calculation
+
+**Authentication Bypass:**
+- Per [SPEC007 API-AUTH-026], when `api_shared_secret = 0`, authentication is disabled
+- Developer UI must handle both authenticated and bypass modes
+- Bypass mode: Send dummy hash (64 zeros) with any timestamp
 
 ---
 
@@ -404,29 +470,40 @@ SSE: Connected
 
 ### 5.3 Queue Entry Display
 
-**Each queue entry card MUST show:**
-1. **File Path** - Full file path (top line)
-2. **Queue Entry ID** - UUID in smaller gray text (bottom line, prefixed with "ID: ")
+**[SPEC016-QUEUE-030]** Each queue entry card MUST show:
+1. **File Path** - Full file path (left side, top line)
+2. **Queue Entry ID** - UUID in smaller gray text (left side, bottom line, prefixed with "ID: ")
+3. **Remove Button** - Compact red "✕" button (right side, 24×24px)
 
 **Visual treatment:**
-- Each entry: Dark background card with rounded corners
+- Each entry: Dark background card with rounded corners, flexbox layout
+- Content area (file path + ID): Flex-grow to fill available width
+- Remove button: Fixed 24×24px red button, right-aligned
 - Padding: 6px vertical, 6px horizontal
+- Gap: 8px between content and button
 - Margin: 4px between entries
 - Font: 12px for file path, 10px for ID
+
+**Remove button styling:**
+- Size: 24×24px square
+- Background: Red (#dc2626)
+- Hover: Darker red (#b91c1c)
+- Icon: "✕" (multiplication sign)
+- Tooltip: "Remove from queue"
 
 **Empty queue:**
 - Display: "Queue is empty" in gray italic text
 
 **Example:**
 ```
-┌────────────────────────────────────────┐
-│ /home/music/track1.mp3                 │
-│ ID: 550e8400-e29b-41d4-a716-446655440000│
-└────────────────────────────────────────┘
-┌────────────────────────────────────────┐
-│ /home/music/track2.flac                │
-│ ID: 6ba7b810-9dad-11d1-80b4-00c04fd430c8│
-└────────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│ /home/music/track1.mp3                    [✕] │
+│ ID: 550e8400-e29b-41d4-a716-446655440000       │
+└────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────┐
+│ /home/music/track2.flac                   [✕] │
+│ ID: 6ba7b810-9dad-11d1-80b4-00c04fd430c8       │
+└────────────────────────────────────────────────┘
 ```
 
 **Implementation note:** Queue position is implicit (top-to-bottom order). Position 0 = first card, position 1 = second card, etc.
@@ -459,9 +536,21 @@ SSE: Connected
 
 ### 5.5 Interactive Features
 
-**[SPEC016-QUEUE-040]** Queue clearing is handled by "Clear Queue" button in Playback Controls (Section 4).
+**[SPEC016-QUEUE-040]** Queue modification controls:
 
-**Individual entry removal:** Not implemented in current version (future enhancement)
+**Individual Entry Removal:**
+- Each queue entry has a remove button ("✕") on the right side
+- Click action: Calls `DELETE /playback/queue/{queue_entry_id}` API endpoint
+- No confirmation dialog (single entry removal is low-risk)
+- Queue updates automatically via SSE `QueueStateUpdate` event
+- Behavior per API specification:
+  - If removing currently playing passage: Skips to next passage (or stops if queue becomes empty)
+  - If removing future passage: Queue updated, no playback interruption
+  - Removal persists to database immediately
+
+**Queue Clearing:**
+- Handled by "Clear Queue" button in Playback Controls (Section 4)
+- Requires confirmation dialog ("Clear entire queue? This will remove all passages.")
 
 ---
 
@@ -919,16 +1008,29 @@ SSE: Connected
 
 **Rationale:** Developer interface prioritizes information density over mobile responsiveness.
 
-### 10.2 Scrolling Behavior
+### 10.2 Scrolling Behavior and Panel Heights
 
-**[SPEC016-LAYOUT-020]** Scrolling:
-- **Buffer Chain Monitor:** Vertical scroll if N > 20 chains
-- **Queue Contents:** Vertical scroll if queue > 10 entries
-- **Settings Management Panel:** Vertical scroll for 26+ parameters
-- **Event Stream Monitor:** Vertical scroll for event log
-- **File Browser Modal:** Vertical scroll for file list
+**[SPEC016-LAYOUT-020]** Page structure and scrolling:
 
-**Note:** Buffer Chain table has 8 columns (not 7), requiring slightly more horizontal space.
+**Window-Level Scrolling:**
+- Body element uses `min-height: 100vh` and `overflow-y: auto` to allow window scrolling
+- Page scrolls at window level when total content height exceeds viewport
+- All content (header and grid) scrolls together naturally
+
+**Panel Height Constraints:**
+- **Module Status:** No max-height constraint, no scrolling (content is minimal and static)
+- **Playback Controls:** No max-height constraint, no scrolling (content is minimal and static)
+- **Queue Contents:** Queue display area has max-height 400px with vertical scroll when queue exceeds ~10 entries
+- **Database Settings Panel:** Table area has max-height 400px with vertical scroll for settings table
+- **Buffer Chain Monitor:** Table area has max-height 400px with vertical scroll when displaying many chains
+- **Event Stream Monitor:** Event log has max-height 600px with vertical scroll for event history
+- **File Browser Modal:** File list has max-height 400px with vertical scroll
+
+**Rationale:**
+- Window-level scrolling provides natural page navigation behavior
+- Module Status and Playback Controls have minimal, fixed content that never needs scrolling
+- Individual panel scrolling prevents large datasets (queue, settings, events) from making the page excessively long
+- Max-height constraints ensure large panels remain scannable without excessive scrolling
 
 ---
 
@@ -1004,8 +1106,7 @@ SSE: Connected
 3. **Fade curve visualization** - Graphical representation of fade curves
 4. **Buffer waveform preview** - Mini waveform display per chain
 5. **Performance graphs** - Historical CPU/memory/latency charts
-6. **Individual queue entry removal** - Delete button per entry
-7. **Seek controls** - Position slider for current passage
+6. **Seek controls** - Position slider for current passage
 
 ### 13.2 Export Capabilities
 

@@ -7,3 +7,4 @@
 pub mod server;
 pub mod handlers;
 pub mod sse;
+pub mod auth_middleware;
