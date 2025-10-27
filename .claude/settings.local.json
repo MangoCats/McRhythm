@@ -25,7 +25,9 @@
       "Bash(git log:*)",
       "Bash(timeout 30 cargo test:*)",
       "SlashCommand(/plan:*)",
-      "Bash(rustc:*)"
+      "Bash(rustc:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

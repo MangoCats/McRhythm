@@ -16,7 +16,9 @@ use uuid::Uuid;
 use wkmp_ap::playback::{BufferManager, DecoderWorker};
 use wkmp_ap::playback::types::DecodePriority;
 use wkmp_ap::db::passages::PassageWithTiming;
+use wkmp_ap::state::SharedState;
 use wkmp_common::FadeCurve;
+use sqlx::sqlite::SqlitePoolOptions;
 
 /// Create test passage with specified timing
 fn create_test_passage(start_ms: u64, end_ms: u64) -> PassageWithTiming {
@@ -35,11 +37,23 @@ fn create_test_passage(start_ms: u64, end_ms: u64) -> PassageWithTiming {
     }
 }
 
+/// Helper to create test dependencies for DecoderWorker
+async fn create_test_deps() -> (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) {
+    let buffer_manager = Arc::new(BufferManager::new());
+    let shared_state = Arc::new(SharedState::new());
+    let db_pool = SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .expect("Failed to create in-memory database");
+
+    (buffer_manager, shared_state, db_pool)
+}
+
 #[tokio::test]
 async fn test_serial_decoder_creation() {
     // [DBD-DEC-040] Verify serial decoder can be created
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Decoder created successfully - no way to check internal queue state
     // (implementation detail not exposed in API)
@@ -51,8 +65,8 @@ async fn test_serial_decoder_creation() {
 #[tokio::test]
 async fn test_priority_queue_ordering() {
     // [DBD-DEC-050] Verify priority queue orders requests correctly
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Submit requests in reverse priority order
     let prefetch_id = Uuid::new_v4();
@@ -90,8 +104,8 @@ async fn test_priority_queue_ordering() {
 #[tokio::test]
 async fn test_buffer_manager_integration() {
     // [DBD-BUF-020] Verify serial decoder integrates with buffer manager
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     let passage_id = Uuid::new_v4();
 
@@ -116,8 +130,8 @@ async fn test_buffer_manager_integration() {
 #[tokio::test]
 async fn test_duplicate_submission_prevention() {
     // **Fix for queue flooding:** Verify duplicate submissions are prevented
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     let passage_id = Uuid::new_v4();
     let passage = create_test_passage(0, 5000);
@@ -147,8 +161,8 @@ async fn test_duplicate_submission_prevention() {
 #[tokio::test]
 async fn test_shutdown_with_pending_requests() {
     // [DBD-DEC-033] Verify graceful shutdown with pending requests
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Submit multiple requests
     for _ in 0..5 {
@@ -179,8 +193,8 @@ async fn test_shutdown_with_pending_requests() {
 #[tokio::test]
 async fn test_decoder_respects_full_decode_flag() {
     // Verify decoder respects full_decode vs partial decode flag
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     let full_id = Uuid::new_v4();
     let partial_id = Uuid::new_v4();
@@ -210,8 +224,8 @@ async fn test_decoder_respects_full_decode_flag() {
 async fn test_serial_execution_characteristic() {
     // [DBD-DEC-040] Verify serial execution characteristics
     // This test verifies the decoder processes one request at a time
-    let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Submit 3 requests
     let ids: Vec<Uuid> = (0..3).map(|_| Uuid::new_v4()).collect();
@@ -240,14 +254,14 @@ async fn test_serial_execution_characteristic() {
 #[tokio::test]
 async fn test_buffer_event_notifications() {
     // [PERF-POLL-010] Verify buffer event notifications are sent during decode
-    let buffer_manager = Arc::new(BufferManager::new());
+    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
 
     // Set up event channel
     let (event_tx, mut event_rx) = tokio::sync::mpsc::unbounded_channel();
     buffer_manager.set_event_channel(event_tx).await;
     buffer_manager.set_min_buffer_threshold(1000).await; // 1 second threshold
 
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Note: Without real audio files, we can't test actual buffer filling
     // This test verifies the infrastructure is in place

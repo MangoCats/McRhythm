@@ -170,7 +170,7 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 ### output_refill_period
 
-**[DBD-PARAM-040]** The number of wall clock milliseconds between mixer checks of the output ring buffer state.
+**[DBD-PARAM-040]** The monotonic elapsed time interval (milliseconds) between mixer checks of the output ring buffer state. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
 
 - **Default value:** 90ms
 - **Behavior:** Each output_refill_period the mixer passes enough (stereo) samples to fill the output ring buffer from the active decoder-buffer chain(s) and its mixer algorithms
@@ -185,10 +185,10 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 ### decode_work_period
 
-**[DBD-PARAM-060]** The number of wall clock milliseconds between decode job priority evaluation.
+**[DBD-PARAM-060]** The monotonic elapsed time interval (milliseconds) between decode job priority evaluation. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
 
 - **Default value:** 5000ms
-- **Behavior:** Once every decode_work_period (wall clock time), the currently working decoder pauses **within its decode loop** (between chunks per [DBD-DEC-110]) to check the priority queue. The decoder must support incremental operation such that it can yield between chunks without losing state. If a higher priority job is pending, the current decoder's state is saved and the higher priority decoder is resumed.
+- **Behavior:** Once every decode_work_period the currently working decoder pauses **within its decode loop** (between chunks per [DBD-DEC-110]) to check the priority queue. The decoder must support incremental operation such that it can yield between chunks without losing state. If a higher priority job is pending, the current decoder's state is saved and the higher priority decoder is resumed.
 - **Continuation:** If the currently working decoder is still the highest priority job, then it continues processing the next chunk
 - **Completion:** When a decoding job reaches the end of the passage, or receives a buffer full indication from the playout buffer it is filling, it pauses and the next highest priority decoding job is resumed immediately
 - **Purpose:** The decode_work_period serves to allow decodes to continue uninterrupted while still serving the highest priority jobs often enough to ensure their buffers do not run empty. This prevents low-priority long-duration decodes (e.g., 30-minute file) from starving high-priority decodes (e.g., "now playing" buffer).
@@ -239,9 +239,9 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 **[DBD-PARAM-088]** The number of samples required to be in a chain's buffer before the mixer will start playing from it.
 
-- **Default value:** 44100 samples
-- **Equivalent:** 1.0 second of audio at 44.1kHz
-- **Range:** 8820-220500 samples (0.5-5.0 seconds)
+- **Default value:** 22050 samples
+- **Equivalent:** 0.5 second of audio at 44.1kHz
+- **Range:** 4410-220500 samples (0.1-5.0 seconds)
 - **Purpose:** Protects against buffer empty during playback conditions.
 - **Behavior:**
   - When a chain is eligible for playback, the mixer will check its buffer fill state before starting playback and wait until
@@ -263,6 +263,36 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 **[DBD-PARAM-100]** When the absolute value of the pause mode output sample values drop below this pause_decay_floor, the mixer no longer bothers doing the multiplication and simply outputs 0.0
 
 - **Default value:** 0.0001778
+
+### audio_buffer_size
+
+**[DBD-PARAM-110]** The audio output buffer size in frames per callback.
+
+- **Default value:** 8192 frames
+- **Equivalent:** ~186ms of audio at 44.1kHz
+- **Range:** 64-65536 frames
+- **Purpose:** Controls the tradeoff between latency and system stability
+- **Behavior:**
+  - Smaller buffers: Lower latency but higher CPU usage and more susceptible to timing jitter
+  - Larger buffers: Higher latency but more stable on slower systems or under high load
+  - Buffer size determines how frequently the audio callback is invoked
+- **Configuration:** Stored in database settings table (`audio_buffer_size`)
+- **Application:** Applied to cpal StreamConfig as BufferSize::Fixed(audio_buffer_size)
+
+### mixer_check_interval_ms
+
+**[DBD-PARAM-111]** The mixer thread check interval in milliseconds.
+
+- **Default value:** 5 ms
+- **Range:** 1-100 ms
+- **Purpose:** Controls the frequency at which the mixer thread wakes to fill the output ring buffer
+- **Behavior:**
+  - Smaller intervals: More responsive but higher CPU usage due to frequent async/tokio overhead
+  - Larger intervals: Lower CPU usage but requires larger batch sizes to maintain throughput
+  - Trade-off with batch sizes: interval × batch_size must exceed audio consumption rate (44,032 frames/sec @ 44.1kHz)
+- **Configuration:** Stored in database settings table (`mixer_check_interval_ms`)
+- **Performance:** At 5ms interval with 64 frame batches: 12,800 frames/sec (requires ~4 wake-ups/sec to meet 44,032 frames/sec)
+- **Related:** Works in conjunction with [mixer_batch_size_optimal] and [mixer_batch_size_low]
 
 ## Dataflow
 
