@@ -21,7 +21,43 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-26 22:36:34 -0400
+### 2025-10-27 18:26:07 -0400
+
+**Add comprehensive audio pipeline diagrams (GUIDE003) with DBD-PARAM mapping**
+
+**Summary:**
+Created visual developer guide documenting the complete audio processing chain from API enqueue through queue management, decoder chains, buffer management, mixer, and audio output.
+
+**Contents:**
+- 4 diagram formats for different use cases:
+  * Mermaid flowcharts (high-level pipeline, component architecture)
+  * Mermaid sequence diagrams (enqueue-to-playback flow, event-driven architecture)
+  * Mermaid state machines (buffer lifecycle, decoder pause/resume, mixer modes)
+  * ASCII diagram (comprehensive reference with universal compatibility)
+- Complete DBD-PARAM parameter mapping:
+  * Overview table of all 17 parameters (DBD-PARAM-020 through DBD-PARAM-113)
+  * Visual parameter mapping showing application points
+  * Detailed descriptions of each parameter's role in the pipeline
+  * Parameter interdependencies and configuration access patterns
+- Cross-references to SPEC016, SPEC013, SPEC014, SPEC002
+
+**Purpose:**
+Supplements existing specifications with visual explanations to improve developer understanding of the audio pipeline architecture. Mermaid diagrams render natively on GitHub while ASCII provides universal fallback.
+
+**Document Details:**
+- Category: GUIDE (User & Developer Guides)
+- Number: 003
+- Size: 1141 lines
+- Location: docs/GUIDE003_audio_pipeline_diagrams.md
+
+**Registry Updated:**
+- Next available: GUIDE 004
+- Document count: 2
+- History entry added: 2025-10-27
+
+---
+
+### 2025-10-26 22:36:34 -0400 | Commit: ee4bc54c2cbc442ed8ead47f6699380b749857ac
 
 **Implement DRY refactoring for database parameter loading (settings.rs)**
 

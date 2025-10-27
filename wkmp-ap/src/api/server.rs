@@ -76,6 +76,7 @@ pub async fn run(config: Config, state: Arc<SharedState>, engine: Arc<PlaybackEn
         .route("/playback/buffer_chains", get(super::handlers::get_buffer_chains))
         .route("/playback/buffer_monitor/rate", post(super::handlers::set_buffer_monitor_rate))
         .route("/playback/buffer_monitor/update", post(super::handlers::trigger_buffer_monitor_update))
+        .route("/playback/callback_stats", get(super::handlers::get_callback_stats))
 
         // Pipeline diagnostics
         .route("/playback/diagnostics", get(super::handlers::get_pipeline_diagnostics))

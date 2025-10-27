@@ -380,10 +380,14 @@ The `common/` library crate shall be organized as follows:
 - **CO-226:** Each binary shall log build identification information at startup at INFO level containing:
   - Cargo package version from `Cargo.toml`
   - Git commit hash (short form, 8 characters)
-  - Build timestamp (ISO 8601 format)
+  - Build timestamp (ISO 8601 format with local timezone offset, e.g., `2025-10-26T14:30:45-05:00`)
   - Build profile (debug/release)
-  - Example output: `wkmp-ap v0.1.0 [a1b2c3d4] built 2025-10-19T12:34:56Z (debug)`
-  - This enables unambiguous determination of which code version is running
+
+  **Timestamp Format:** Use `chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, false)` to capture build time in local timezone with `±HH:MM` offset format. This allows correlation with local development activities and provides clear timezone information.
+
+  **Example output:** `Starting WKMP Audio Player (wkmp-ap) v0.1.0 [2bd1628e] built 2025-10-26T14:30:45-05:00 (debug)`
+
+  **Rationale:** Local timezone with offset enables unambiguous determination of build time while allowing developers to correlate with their local work schedule. The `±HH:MM` format clearly indicates timezone without ambiguity.
 
 ### Testing Conventions
 
@@ -417,6 +421,58 @@ The `common/` library crate shall be organized as follows:
 - **CO-252:** Database queries in loops shall be batched when possible
 - **CO-253:** Musical flavor distance calculations shall be optimized for the top-100 selection
 - **CO-255:** Memory allocations in audio callback paths shall be minimized
+
+**CO-256: Real-Time Audio Constraints**
+
+Audio callback functions execute on a real-time thread with strict latency requirements (~11.6ms @ 44.1kHz/512 frames). Violating these constraints causes audible gaps, stutters, and dropouts.
+
+- **CO-257:** Audio callback code SHALL NOT perform ANY of the following operations:
+  - **Logging/Tracing:** `info!()`, `debug!()`, `warn!()`, `error!()` macros
+    - **Why:** Terminal I/O blocks for 10-50ms (exceeds callback deadline)
+    - **Alternative:** Use atomic counters; separate monitoring thread polls and logs
+  - **System Calls:** `SystemTime::now()`, `chrono::Utc::now()`, file I/O
+    - **Why:** Kernel transitions are unpredictable (can take >10ms)
+    - **Alternative:** Use `Instant` (monotonic, fast) or pre-calculated values
+  - **Event Emission:** `broadcast_event()`, channel sends with backpressure
+    - **Why:** Can block if receiver slow or buffer full
+    - **Alternative:** Separate monitoring thread emits events based on atomic state
+  - **Lock Acquisition:** `Mutex::lock()`, `RwLock::read()`, `RwLock::write()`
+    - **Why:** Blocking can exceed callback deadline if lock contended
+    - **Alternative:** Lock-free data structures (atomics, ring buffers)
+  - **Memory Allocation:** `Vec::push()`, `String::new()`, `Box::new()`
+    - **Why:** Allocator can block during heap operations
+    - **Alternative:** Pre-allocate buffers, use fixed-size arrays
+
+- **CO-258:** Real-time safe operations (permitted in audio callback):
+  - **Atomic operations:** `AtomicU64::fetch_add()`, `AtomicBool::load()`, etc. (Relaxed ordering)
+  - **Lock-free data structures:** Ring buffers with atomic head/tail pointers
+  - **Simple arithmetic:** Integer math, floating-point operations
+  - **Monotonic time:** `Instant::elapsed()` (does not require system call)
+
+- **CO-259:** Instrumentation/monitoring pattern for real-time code:
+  ```rust
+  // Audio callback: ONLY atomic operations
+  pub fn record_event(&self) {
+      self.event_count.fetch_add(1, Ordering::Relaxed);
+  }
+
+  // Separate monitoring thread: polls atomics and emits logs/events
+  pub fn spawn_monitoring_task(self: Arc<Self>) -> Arc<AtomicBool> {
+      let shutdown = Arc::new(AtomicBool::new(false));
+      tokio::spawn(async move {
+          while !shutdown.load(Ordering::Relaxed) {
+              tokio::time::sleep(Duration::from_millis(100)).await;
+              let count = self.event_count.load(Ordering::Relaxed);
+              if count > last_count {
+                  warn!("Events detected: {}", count); // Safe: not in audio callback
+              }
+          }
+      });
+      shutdown
+  }
+  ```
+
+  **Rationale:** Separation of measurement (real-time thread) from reporting (background thread) ensures instrumentation never causes the problems it's trying to detect.
 
 **CO-260: Raspberry Pi Optimization**
 

@@ -413,7 +413,7 @@ Audio output continuously polls mixer for samples and sends to audio device.
 ### Advantages of This Architecture
 
 **Sample Accuracy:**
-- Wall-clock timing (tokio::sleep) has variable latency due to CPU scheduling
+- Timer-based scheduling (`tokio::sleep`) has variable latency due to CPU scheduling (see [SPEC023](SPEC023-timing_terminology.md))
 - Buffer position is deterministic and precise
 - Crossfades start at exact sample positions, not approximate times
 - At 44.1kHz: precision = 0.0227ms per sample

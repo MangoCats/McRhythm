@@ -11,6 +11,7 @@
 
 use crate::audio::AudioFrame;
 use crate::error::{Error, Result};
+use crate::playback::callback_monitor::CallbackMonitor;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream, StreamConfig};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -75,20 +76,26 @@ impl AudioOutput {
     /// If the requested device fails to open, will attempt to use the default device.
     /// [ARCH-ERRH-080] Audio device error handling
     pub fn new(device_name: Option<String>) -> Result<Self> {
-        Self::new_with_volume(device_name, None)
+        Self::new_with_volume(device_name, None, None)
     }
 
     /// Open audio device for output with shared volume control.
     ///
     /// **[ARCH-VOL-020]** Master volume control with shared Arc
+    /// **[DBD-PARAM-110]** Configurable audio buffer size
     ///
     /// # Arguments
     /// - `device_name`: Optional device name (None = default device)
     /// - `volume`: Optional shared volume Arc (None = create new at 1.0)
+    /// - `buffer_size`: Optional buffer size in frames (None = device default)
     ///
     /// # Returns
     /// AudioOutput instance ready to start playback
-    pub fn new_with_volume(device_name: Option<String>, volume: Option<Arc<Mutex<f32>>>) -> Result<Self> {
+    pub fn new_with_volume(
+        device_name: Option<String>,
+        volume: Option<Arc<Mutex<f32>>>,
+        buffer_size: Option<u32>,
+    ) -> Result<Self> {
         let host = cpal::default_host();
 
         // Try to get requested device, with fallback to default
@@ -130,11 +137,20 @@ impl AudioOutput {
         };
 
         // Get supported configuration
-        let (config, sample_format) = Self::get_best_config(&device)?;
+        let (mut config, sample_format) = Self::get_best_config(&device)?;
+
+        // Apply requested buffer size if provided
+        // [DBD-PARAM-110] Audio output buffer size configuration
+        if let Some(size) = buffer_size {
+            config.buffer_size = cpal::BufferSize::Fixed(size);
+            debug!("Using requested buffer size: {} frames", size);
+        } else {
+            debug!("Using device default buffer size");
+        }
 
         debug!(
-            "Audio config: sample_rate={}, channels={}, format={:?}",
-            config.sample_rate.0, config.channels, sample_format
+            "Audio config: sample_rate={}, channels={}, format={:?}, buffer_size={:?}",
+            config.sample_rate.0, config.channels, sample_format, config.buffer_size
         );
 
         // Use provided volume Arc or create new one at 1.0
@@ -200,7 +216,7 @@ impl AudioOutput {
     /// - Callback runs on a real-time audio thread (avoid blocking operations)
     /// - Volume control is applied automatically in the audio callback
     /// - Underruns (callback too slow) will output silence without crashing
-    pub fn start<F>(&mut self, callback: F) -> Result<()>
+    pub fn start<F>(&mut self, callback: F, monitor: Option<Arc<CallbackMonitor>>) -> Result<()>
     where
         F: FnMut() -> AudioFrame + Send + 'static,
     {
@@ -211,13 +227,13 @@ impl AudioOutput {
 
         let stream = match self.sample_format {
             SampleFormat::F32 => {
-                self.build_stream_f32(callback, volume)?
+                self.build_stream_f32(callback, volume, monitor)?
             }
             SampleFormat::I16 => {
-                self.build_stream_i16(callback, volume)?
+                self.build_stream_i16(callback, volume, monitor)?
             }
             SampleFormat::U16 => {
-                self.build_stream_u16(callback, volume)?
+                self.build_stream_u16(callback, volume, monitor)?
             }
             sample_format => {
                 return Err(Error::AudioOutput(format!(
@@ -243,6 +259,7 @@ impl AudioOutput {
         &self,
         callback: Arc<Mutex<dyn FnMut() -> AudioFrame + Send + 'static>>,
         volume: Arc<Mutex<f32>>,
+        monitor: Option<Arc<CallbackMonitor>>,
     ) -> Result<Stream> {
         let channels = self.config.channels as usize;
         let error_flag = Arc::clone(&self.error_flag);
@@ -253,6 +270,11 @@ impl AudioOutput {
             .build_output_stream(
                 &self.config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    // Record callback timing ONCE per buffer (not per frame)
+                    if let Some(ref mon) = monitor {
+                        mon.record_callback();
+                    }
+
                     let mut callback = callback.lock().unwrap();
                     let current_volume = *volume.lock().unwrap();
 
@@ -289,6 +311,7 @@ impl AudioOutput {
         &self,
         callback: Arc<Mutex<dyn FnMut() -> AudioFrame + Send + 'static>>,
         volume: Arc<Mutex<f32>>,
+        monitor: Option<Arc<CallbackMonitor>>,
     ) -> Result<Stream> {
         let channels = self.config.channels as usize;
         let error_flag = Arc::clone(&self.error_flag);
@@ -299,6 +322,11 @@ impl AudioOutput {
             .build_output_stream(
                 &self.config,
                 move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
+                    // Record callback timing ONCE per buffer (not per frame)
+                    if let Some(ref mon) = monitor {
+                        mon.record_callback();
+                    }
+
                     let mut callback = callback.lock().unwrap();
                     let current_volume = *volume.lock().unwrap();
 
@@ -334,6 +362,7 @@ impl AudioOutput {
         &self,
         callback: Arc<Mutex<dyn FnMut() -> AudioFrame + Send + 'static>>,
         volume: Arc<Mutex<f32>>,
+        monitor: Option<Arc<CallbackMonitor>>,
     ) -> Result<Stream> {
         let channels = self.config.channels as usize;
         let error_flag = Arc::clone(&self.error_flag);
@@ -344,6 +373,11 @@ impl AudioOutput {
             .build_output_stream(
                 &self.config,
                 move |data: &mut [u16], _: &cpal::OutputCallbackInfo| {
+                    // Record callback timing ONCE per buffer (not per frame)
+                    if let Some(ref mon) = monitor {
+                        mon.record_callback();
+                    }
+
                     let mut callback = callback.lock().unwrap();
                     let current_volume = *volume.lock().unwrap();
 
@@ -417,6 +451,22 @@ impl AudioOutput {
     /// Get sample rate.
     pub fn sample_rate(&self) -> u32 {
         self.config.sample_rate.0
+    }
+
+    /// Get buffer size (frames per callback).
+    ///
+    /// Returns the actual buffer size used by the audio device.
+    /// This may differ from requested size depending on device capabilities.
+    pub fn buffer_size(&self) -> u32 {
+        match &self.config.buffer_size {
+            cpal::BufferSize::Fixed(size) => *size,
+            cpal::BufferSize::Default => {
+                // cpal default is typically 512-2048 frames depending on device
+                // Log a warning since we can't determine the exact size
+                warn!("Audio device using default buffer size (unknown exact value)");
+                512 // Reasonable guess for logging purposes
+            }
+        }
     }
 
     /// Get channel count.
@@ -512,8 +562,8 @@ impl AudioOutput {
             }
         }
 
-        // Try to restart stream with callback
-        match self.start(callback) {
+        // Try to restart stream with callback (no monitoring during recovery)
+        match self.start(callback, None) {
             Ok(()) => {
                 info!("Audio stream recovery successful");
                 self.clear_error();

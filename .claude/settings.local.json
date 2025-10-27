@@ -27,7 +27,21 @@
       "SlashCommand(/plan:*)",
       "Bash(rustc:*)",
       "Bash(git merge:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(timeout 2 cargo run:*)",
+      "Bash(cargo clean:*)",
+      "Bash(timeout:*)",
+      "Bash(export RUST_LOG=info)",
+      "Bash(echo:*)",
+      "Bash(export RUST_LOG=debug)",
+      "Bash(git rev-parse:*)",
+      "Bash(git fetch:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(cat:*)",
+      "Bash(RUST_BACKTRACE=1 cargo test:*)",
+      "Bash(cargo run:*)"
     ],
     "deny": [],
     "ask": []

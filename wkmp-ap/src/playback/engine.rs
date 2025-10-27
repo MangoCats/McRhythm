@@ -120,6 +120,10 @@ pub struct PlaybackEngine {
     /// Shared with audio ring buffer consumer for context-aware logging
     audio_expected: Arc<AtomicBool>,
 
+    /// Audio callback monitor (for gap/stutter detection)
+    /// Created in audio thread, stored here for API access
+    callback_monitor: Arc<RwLock<Option<Arc<crate::playback::callback_monitor::CallbackMonitor>>>>,
+
     /// Buffer event channel receiver for instant mixer start
     /// **[PERF-POLL-010]** Event-driven buffer readiness
     /// Receives ReadyForStart events when buffers reach minimum threshold
@@ -148,6 +152,10 @@ pub struct PlaybackEngine {
     /// **[SPEC020-MONITOR-130]** Manual update trigger
     /// Set to true to force one immediate emission, then automatically reset
     buffer_monitor_update_now: Arc<AtomicBool>,
+
+    /// Audio output buffer size in frames per callback
+    /// **[DBD-PARAM-110]** Configurable audio buffer size (default: 512)
+    audio_buffer_size: u32,
 }
 
 impl PlaybackEngine {
@@ -162,7 +170,7 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
@@ -171,6 +179,7 @@ impl PlaybackEngine {
             crate::db::settings::load_maximum_decode_streams(&db_pool),
             crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
             crate::db::settings::load_mixer_min_start_level(&db_pool), // [DBD-PARAM-088]
+            crate::db::settings::load_audio_buffer_size(&db_pool), // [DBD-PARAM-110]
         );
         let db_elapsed = db_start.elapsed();
 
@@ -182,6 +191,7 @@ impl PlaybackEngine {
         let maximum_decode_streams = maximum_decode_streams?;
         let resume_hysteresis = resume_hysteresis?;
         let mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088]
+        let audio_buffer_size = audio_buffer_size?; // [DBD-PARAM-110]
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -274,12 +284,14 @@ impl PlaybackEngine {
             position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
             current_song_timeline: Arc::new(RwLock::new(None)),
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
+            callback_monitor: Arc::new(RwLock::new(None)), // Created later in audio thread
             buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
             maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
             chain_assignments: Arc::new(RwLock::new(HashMap::new())), // [DBD-LIFECYCLE-040] Track passage→chain mapping
             available_chains: Arc::new(RwLock::new(available_chains_heap)), // [DBD-LIFECYCLE-030] Min-heap for lowest-first allocation
             buffer_monitor_rate_ms: Arc::new(RwLock::new(1000)), // [SPEC020-MONITOR-120] Default 1000ms update rate
             buffer_monitor_update_now: Arc::new(AtomicBool::new(false)), // [SPEC020-MONITOR-130] Manual update trigger
+            audio_buffer_size, // [DBD-PARAM-110] Configurable audio buffer size
         })
     }
 
@@ -525,14 +537,21 @@ impl PlaybackEngine {
         info!("Initializing audio output with lock-free callback");
         let running_clone2 = Arc::clone(&self.running);
         let volume_clone = Arc::clone(&self.volume); // [ARCH-VOL-020] Share volume with audio output
+        let state_clone = Arc::clone(&self.state); // For callback monitor event emission
+        let callback_monitor_slot = Arc::clone(&self.callback_monitor);
 
         // Capture runtime handle while we're still in async context
         let rt_handle = tokio::runtime::Handle::current();
 
+        // Use buffer size already loaded from database
+        // [DBD-PARAM-110] Audio buffer size configuration
+        let buffer_size = self.audio_buffer_size;
+
         std::thread::spawn(move || {
             // Create audio output (must be done on non-async thread for cpal)
             // [ARCH-VOL-020] Pass shared volume Arc for synchronized control
-            let mut audio_output = match AudioOutput::new_with_volume(None, Some(volume_clone)) {
+            // [DBD-PARAM-110] Pass configurable buffer size
+            let mut audio_output = match AudioOutput::new_with_volume(None, Some(volume_clone), Some(buffer_size)) {
                 Ok(output) => output,
                 Err(e) => {
                     error!("Failed to create audio output: {}", e);
@@ -540,19 +559,54 @@ impl PlaybackEngine {
                 }
             };
 
+            // Create callback monitor for gap/stutter detection with actual device configuration
+            let actual_sample_rate = audio_output.sample_rate();
+            let actual_buffer_size = audio_output.buffer_size();
+
+            info!(
+                "Audio device config: {}Hz, {} frames per callback ({:.2}ms interval)",
+                actual_sample_rate,
+                actual_buffer_size,
+                (actual_buffer_size as f64 / actual_sample_rate as f64) * 1000.0
+            );
+
+            let monitor = Arc::new(crate::playback::callback_monitor::CallbackMonitor::new(
+                actual_sample_rate,
+                actual_buffer_size,
+                Some(state_clone),
+            ));
+
+            // Store monitor in engine for API access and clone for monitoring task
+            rt_handle.block_on(async {
+                *callback_monitor_slot.write().await = Some(Arc::clone(&monitor));
+            });
+
+            // Clone for monitoring task (spawn_monitoring_task takes ownership)
+            let monitor_for_task = Arc::clone(&monitor);
+
+            // Spawn monitoring task for logging and event emission
+            // Runs on tokio runtime, separate from real-time audio callback
+            let monitor_shutdown = monitor_for_task.spawn_monitoring_task(rt_handle.clone());
+
+            let monitor_clone = Arc::clone(&monitor);
+
             // Lock-free audio callback - reads from ring buffer only
             // [SSD-OUT-012] Real-time audio callback with no locks
             // [ISSUE-1] Fixed: No more try_write() or block_on() in audio callback
             let audio_callback = move || {
                 // Lock-free read from ring buffer
-                consumer.pop().unwrap_or_else(|| {
-                    // Buffer underrun - return silence
-                    // This is logged automatically by the ring buffer
-                    AudioFrame::zero()
-                })
+                match consumer.pop() {
+                    Some(frame) => frame,
+                    None => {
+                        // Buffer underrun - record and return silence
+                        monitor_clone.record_underrun();
+                        AudioFrame::zero()
+                    }
+                }
             };
 
-            if let Err(e) = audio_output.start(audio_callback) {
+            // Pass monitor to AudioOutput so it can record callback timing once per buffer
+            if let Err(e) = audio_output.start(audio_callback, Some(monitor.clone())) {
                 error!("Failed to start audio output: {}", e);
                 return;
             }
@@ -576,7 +630,18 @@ impl PlaybackEngine {
                 }
             }
 
-            info!("Audio output stopped");
+            // Shutdown monitoring task
+            monitor_shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
+
+            // Log final callback statistics
+            let stats = monitor.stats();
+            info!(
+                "Audio output stopped - Callback stats: {} total callbacks, {} underruns, {} irregular intervals ({:.1}% irregular)",
+                stats.callback_count,
+                stats.underrun_count,
+                stats.irregular_intervals,
+                (stats.irregular_intervals as f64 / stats.callback_count.max(1) as f64) * 100.0
+            );
         });
 
         info!("Playback engine started with lock-free audio architecture");
@@ -956,6 +1021,17 @@ impl PlaybackEngine {
     /// Cloned Arc to volume Mutex - can be used to update volume from API handlers
     pub fn get_volume_arc(&self) -> Arc<Mutex<f32>> {
         Arc::clone(&self.volume)
+    }
+
+    /// Get callback monitor statistics
+    ///
+    /// Returns callback timing statistics for gap/stutter analysis.
+    /// Returns None if audio thread hasn't started yet.
+    ///
+    /// [API] GET /playback/callback_stats
+    pub async fn get_callback_stats(&self) -> Option<crate::playback::callback_monitor::CallbackStats> {
+        let monitor_guard = self.callback_monitor.read().await;
+        monitor_guard.as_ref().map(|m| m.stats())
     }
 
     /// Get current queue length
@@ -1378,6 +1454,84 @@ impl PlaybackEngine {
         self.assign_chain(queue_entry_id).await;
 
         Ok(queue_entry_id)
+    }
+
+    /// Remove queue entry from in-memory queue
+    ///
+    /// [API] DELETE /playback/queue/{queue_entry_id}
+    /// **Traceability:** Removes entry from in-memory queue manager to match database deletion
+    ///
+    /// Returns true if entry was found and removed, false if not found
+    pub async fn remove_queue_entry(&self, queue_entry_id: Uuid) -> bool {
+        info!("Removing queue entry from in-memory queue: {}", queue_entry_id);
+
+        // [BUG001] Check if removed entry is currently playing
+        // If yes, must perform lifecycle cleanup: release chain, stop mixer, start next
+        let is_current = {
+            let queue = self.queue.read().await;
+            queue.current().map(|c| c.queue_entry_id) == Some(queue_entry_id)
+        };
+
+        if is_current {
+            // Currently playing passage - perform full lifecycle cleanup
+            // [REQ-FIX-010] Stop playback immediately
+            // [REQ-FIX-020] Release decoder chain resources
+            // [REQ-FIX-030] Clear mixer state
+            info!("Removing currently playing passage - performing lifecycle cleanup");
+
+            // 1. Release decoder-buffer chain (free resources, allow reassignment)
+            // [REQ-FIX-020] Release decoder chain resources
+            self.release_chain(queue_entry_id).await;
+
+            // 2. Stop mixer (clear playback state)
+            // [REQ-FIX-030] Clear mixer state
+            // [REQ-FIX-010] Stop playback immediately
+            self.mixer.write().await.stop();
+            info!("Mixer stopped for removed passage");
+
+            // 3. Remove from queue structure
+            // [REQ-FIX-040] Update queue structure
+            let removed = self.queue.write().await.remove(queue_entry_id);
+
+            if removed {
+                info!("Successfully removed current passage {} from queue", queue_entry_id);
+
+                // Update audio_expected flag for ring buffer underrun classification
+                self.update_audio_expected_flag().await;
+
+                // 4. Start next passage if queue has one
+                // [REQ-FIX-050] Start next passage if queue non-empty
+                // [REQ-FIX-080] New passage starts correctly after removal
+                let has_current = self.queue.read().await.current().is_some();
+                if has_current {
+                    info!("Starting next passage after current removed");
+                    // Trigger process_queue to start the next passage immediately
+                    // This replicates the behavior from natural passage completion (line 2105)
+                    // where next iteration starts new current passage
+                    if let Err(e) = self.process_queue().await {
+                        warn!("Failed to start next passage after removal: {}", e);
+                    }
+                } else {
+                    info!("Queue empty after removing current passage");
+                }
+            }
+
+            removed
+        } else {
+            // Non-current passage - simple removal (existing behavior)
+            // [REQ-FIX-060] No disruption when removing non-current passage
+            let removed = self.queue.write().await.remove(queue_entry_id);
+
+            if removed {
+                info!("Successfully removed queue entry {} from in-memory queue", queue_entry_id);
+                // Update audio_expected flag for ring buffer underrun classification
+                self.update_audio_expected_flag().await;
+            } else {
+                warn!("Queue entry {} not found in in-memory queue", queue_entry_id);
+            }
+
+            removed
+        }
     }
 
     /// Calculate crossfade start position in milliseconds
@@ -2117,7 +2271,7 @@ impl PlaybackEngine {
             let recovery_start = std::time::Instant::now();
             let timeout_duration = std::time::Duration::from_millis(recovery_timeout_ms);
 
-            // **[DBD-PARAM-070]** mixer_min_start_level (configurable, default ~500ms)
+            // **[DBD-PARAM-110]** mixer_min_start_level (configurable, default ~500ms)
             // For recovery, we need at least this much buffered to resume playback
             let min_buffer_threshold_ms = self.buffer_manager.get_min_buffer_threshold().await;
             let min_buffer_samples = (min_buffer_threshold_ms as usize * 44100 / 1000) * 2; // Stereo
@@ -2350,6 +2504,8 @@ impl PlaybackEngine {
             available_chains: Arc::clone(&self.available_chains), // [DBD-LIFECYCLE-030] Clone available chains pool
             buffer_monitor_rate_ms: Arc::clone(&self.buffer_monitor_rate_ms), // [SPEC020-MONITOR-120] Clone monitor rate
             buffer_monitor_update_now: Arc::clone(&self.buffer_monitor_update_now), // [SPEC020-MONITOR-130] Clone update trigger
+            callback_monitor: Arc::clone(&self.callback_monitor), // Clone callback monitor for gap detection
+            audio_buffer_size: self.audio_buffer_size, // [DBD-PARAM-110] Copy audio buffer size
         }
     }
 
