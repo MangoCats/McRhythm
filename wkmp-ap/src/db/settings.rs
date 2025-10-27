@@ -170,17 +170,9 @@ pub async fn load_queue_state(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
 ///
 /// # Returns
 /// Interval in milliseconds (default: 1000ms if not set)
+/// Clamped to valid range: 100-5000ms
 pub async fn load_position_event_interval(db: &Pool<Sqlite>) -> Result<u32> {
-    match get_setting::<u32>(db, "position_event_interval_ms").await? {
-        Some(interval) => {
-            // Clamp to valid range: 100-5000ms
-            Ok(interval.clamp(100, 5000))
-        }
-        None => {
-            // Default: 1000ms (1 second)
-            Ok(1000)
-        }
-    }
+    load_clamped_setting(db, "position_event_interval_ms", 100, 5000, 1000).await
 }
 
 /// Load playback_progress_interval_ms from settings table
@@ -190,35 +182,22 @@ pub async fn load_position_event_interval(db: &Pool<Sqlite>) -> Result<u32> {
 ///
 /// # Returns
 /// Interval in milliseconds (default: 5000ms if not set)
+/// Clamped to valid range: 1000-60000ms (1-60 seconds)
 pub async fn load_progress_interval(db: &Pool<Sqlite>) -> Result<u64> {
-    match get_setting::<u64>(db, "playback_progress_interval_ms").await? {
-        Some(interval) => {
-            // Clamp to valid range: 1000-60000ms (1-60 seconds)
-            Ok(interval.clamp(1000, 60000))
-        }
-        None => {
-            // Default: 5000ms (5 seconds)
-            Ok(5000)
-        }
-    }
+    load_clamped_setting(db, "playback_progress_interval_ms", 1000, 60000, 5000).await
 }
 
 /// Load buffer_underrun_recovery_timeout_ms from settings table
 ///
 /// **[REQ-AP-ERR-020]** Buffer underrun recovery timeout
 /// **[ERH-BUF-015]** Configurable timeout for emergency refill
+///
+/// # Returns
+/// Timeout in milliseconds (default: 2000ms)
+/// Clamped to valid range: 100-5000ms (0.1-5 seconds per spec)
+/// Note: Default is 2000ms (not spec's 500ms) for slow hardware (Pi Zero 2W)
 pub async fn load_buffer_underrun_timeout(db: &Pool<Sqlite>) -> Result<u64> {
-    match get_setting::<u64>(db, "buffer_underrun_recovery_timeout_ms").await? {
-        Some(timeout) => {
-            // Clamp to valid range: 100-5000ms (0.1-5 seconds per spec)
-            Ok(timeout.clamp(100, 5000))
-        }
-        None => {
-            // Default: 2000ms (2 seconds)
-            // Spec says 500ms but we use 2000ms for slow hardware (Pi Zero 2W)
-            Ok(2000)
-        }
-    }
+    load_clamped_setting(db, "buffer_underrun_recovery_timeout_ms", 100, 5000, 2000).await
 }
 
 /// Load audio_ring_buffer_grace_period_ms from settings table
@@ -227,18 +206,9 @@ pub async fn load_buffer_underrun_timeout(db: &Pool<Sqlite>) -> Result<u64> {
 ///
 /// # Returns
 /// Grace period in milliseconds (default: 2000ms if not set)
+/// Clamped to valid range: 0-10000ms (0-10 seconds)
 pub async fn load_ring_buffer_grace_period(db: &Pool<Sqlite>) -> Result<u64> {
-    match get_setting::<u64>(db, "audio_ring_buffer_grace_period_ms").await? {
-        Some(grace_ms) => {
-            // Clamp to valid range: 0-10000ms (0-10 seconds)
-            // 0 = no grace period, 10s = maximum
-            Ok(grace_ms.clamp(0, 10000))
-        }
-        None => {
-            // Default: 2000ms (2 seconds)
-            Ok(2000)
-        }
-    }
+    load_clamped_setting(db, "audio_ring_buffer_grace_period_ms", 0, 10000, 2000).await
 }
 
 /// Mixer thread configuration parameters
@@ -271,19 +241,9 @@ pub struct MixerThreadConfig {
 /// # Returns
 /// Minimum buffer duration in milliseconds before starting playback
 /// Default: 3000ms (3 seconds) - Conservative for Raspberry Pi Zero2W
-/// Range: 500-5000ms (0.5-5 seconds)
+/// Clamped to valid range: 500-5000ms (0.5-5 seconds)
 pub async fn load_minimum_buffer_threshold(db: &Pool<Sqlite>) -> Result<u64> {
-    match get_setting::<u64>(db, "minimum_buffer_threshold_ms").await? {
-        Some(threshold) => {
-            // Clamp to valid range: 500-5000ms
-            // Too low = risk of underruns, too high = slow startup
-            Ok(threshold.clamp(500, 5000))
-        }
-        None => {
-            // Default: 3000ms (3 seconds) - Conservative for target hardware
-            Ok(3000)
-        }
-    }
+    load_clamped_setting(db, "minimum_buffer_threshold_ms", 500, 5000, 3000).await
 }
 
 /// Set minimum buffer threshold
@@ -310,19 +270,9 @@ pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) 
 /// # Returns
 /// Hysteresis threshold in samples (frames)
 /// Default: 44100 samples (1.0 second @ 44.1kHz) - Large gap prevents oscillation
-/// Range: 882-88200 samples (0.02-2.0 seconds)
+/// Clamped to valid range: 882-88200 samples (0.02-2.0 seconds)
 pub async fn get_decoder_resume_hysteresis(db: &Pool<Sqlite>) -> Result<usize> {
-    match get_setting::<u64>(db, "decoder_resume_hysteresis_samples").await? {
-        Some(samples) => {
-            // Clamp to valid range: 882-88200 samples (0.02-2.0 seconds)
-            // Too low = oscillation, too high = delayed resume
-            Ok(samples.clamp(882, 88200) as usize)
-        }
-        None => {
-            // Default: 44100 samples (1.0 second @ 44.1kHz) - Prevents oscillation
-            Ok(44100)
-        }
-    }
+    Ok(load_clamped_setting(db, "decoder_resume_hysteresis_samples", 882u64, 88200u64, 44100u64).await? as usize)
 }
 
 /// Set decoder resume hysteresis in samples
@@ -343,47 +293,65 @@ pub async fn set_decoder_resume_hysteresis(db: &Pool<Sqlite>, samples: usize) ->
 /// # Returns
 /// Mixer thread configuration with validated defaults
 pub async fn load_mixer_thread_config(db: &Pool<Sqlite>) -> Result<MixerThreadConfig> {
-    let check_interval_us = match get_setting::<u64>(db, "mixer_check_interval_us").await? {
-        Some(interval) => {
-            // Clamp to valid range: 1-1000μs
-            // Too low = busy-waiting, too high = buffer underruns
-            interval.clamp(1, 1000)
-        }
-        None => {
-            // Default: 10μs - Tuned to eliminate underruns/overruns
-            10
-        }
-    };
+    // [DBD-PARAM-111] Load mixer check interval from database (in milliseconds)
+    // Clamp to valid range: 1-100ms
+    // Too low = async overhead dominates, too high = buffer underruns
+    // Default: 5ms - Balances responsiveness vs overhead
+    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, 5u64).await?;
 
-    let batch_size_low = match get_setting::<usize>(db, "mixer_batch_size_low").await? {
-        Some(size) => {
-            // Clamp to valid range: 1-32 frames
-            // Too low = slow recovery, too high = overshooting
-            size.clamp(1, 32)
-        }
-        None => {
-            // Default: 8 frames - Moderately aggressive when buffer low
-            8
-        }
-    };
+    // Convert milliseconds to microseconds for tokio::time::interval
+    let check_interval_us = check_interval_ms * 1000;
 
-    let batch_size_optimal = match get_setting::<usize>(db, "mixer_batch_size_optimal").await? {
-        Some(size) => {
-            // Clamp to valid range: 1-16 frames
-            // Too low = frequent lock acquisition, too high = overshooting
-            size.clamp(1, 16)
-        }
-        None => {
-            // Default: 2 frames - Conservative when buffer in optimal range
-            2
-        }
-    };
+    // Clamp to valid range: 16-256 frames
+    // Too low = slow recovery, too high = excessive lock hold time
+    // Default: 128 frames - Aggressive recovery when buffer low
+    let batch_size_low = load_clamped_setting(db, "mixer_batch_size_low", 16usize, 256usize, 128usize).await?;
+
+    // Clamp to valid range: 16-128 frames
+    // Too low = async overhead dominates, too high = overshooting
+    // Default: 64 frames - Steady state operation
+    let batch_size_optimal = load_clamped_setting(db, "mixer_batch_size_optimal", 16usize, 128usize, 64usize).await?;
 
     Ok(MixerThreadConfig {
         check_interval_us,
         batch_size_low,
         batch_size_optimal,
     })
+}
+
+/// Load a clamped setting from the database with a default fallback
+///
+/// Generic helper for loading numeric settings that require validation via clamping.
+/// This eliminates repetitive code across parameter loading functions.
+///
+/// # Type Parameters
+/// - `T`: The type of the setting value (must implement FromStr, Ord, Copy)
+///
+/// # Arguments
+/// - `db`: Database pool
+/// - `key`: Settings table key name
+/// - `min`: Minimum valid value (inclusive)
+/// - `max`: Maximum valid value (inclusive)
+/// - `default`: Default value if key doesn't exist
+///
+/// # Returns
+/// The setting value, clamped to [min, max], or default if not set
+///
+/// **Traceability:** DB-SETTINGS-075 (DRY helper for clamped parameters)
+pub async fn load_clamped_setting<T>(
+    db: &Pool<Sqlite>,
+    key: &str,
+    min: T,
+    max: T,
+    default: T,
+) -> Result<T>
+where
+    T: FromStr + Ord + Copy,
+{
+    match get_setting::<T>(db, key).await? {
+        Some(value) => Ok(value.clamp(min, max)),
+        None => Ok(default),
+    }
 }
 
 /// Generic setting getter
@@ -475,21 +443,11 @@ pub async fn load_resume_fade_in_curve(db: &Pool<Sqlite>) -> Result<String> {
 ///
 /// # Returns
 /// Maximum decode streams (default: 12 if not set)
+/// Clamped to valid range: 2-32 (minimum 2 for current+next passages)
 ///
 /// **Traceability:** DBD-PARAM-050
 pub async fn load_maximum_decode_streams(db: &Pool<Sqlite>) -> Result<usize> {
-    match get_setting::<usize>(db, "maximum_decode_streams").await? {
-        Some(max_streams) => {
-            // Clamp to valid range: 2-32
-            // Minimum 2 for current+next passages
-            // Maximum 32 to prevent excessive memory usage
-            Ok(max_streams.clamp(2, 32))
-        }
-        None => {
-            // Default: 12 streams (current + next + 10 queued)
-            Ok(12)
-        }
-    }
+    load_clamped_setting(db, "maximum_decode_streams", 2usize, 32usize, 12usize).await
 }
 
 /// Load mixer minimum start level from database
@@ -498,22 +456,22 @@ pub async fn load_maximum_decode_streams(db: &Pool<Sqlite>) -> Result<usize> {
 ///
 /// # Returns
 /// Number of samples (default: 44100 = 1.0 second @ 44.1kHz)
-///
-/// # Range
-/// 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
+/// Clamped to valid range: 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
 pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
-    match get_setting::<usize>(db, "mixer_min_start_level").await? {
-        Some(min_level) => {
-            // Clamp to valid range: 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
-            // Per [DBD-PARAM-088] range specification
-            Ok(min_level.clamp(8820, 220500))
-        }
-        None => {
-            // Default: 44100 samples (1.0 second @ 44.1kHz)
-            // Per [DBD-PARAM-088] default value
-            Ok(44100)
-        }
-    }
+    load_clamped_setting(db, "mixer_min_start_level", 8820usize, 220500usize, 44100usize).await
+}
+
+/// Load audio buffer size from database
+///
+/// **[DBD-PARAM-110]** Audio output buffer size in frames per callback
+///
+/// # Returns
+/// Buffer size in frames (default: 512)
+/// Clamped to valid range: 64-8192 frames (typical range for audio devices)
+/// - Smaller buffers: Lower latency but higher CPU usage
+/// - Larger buffers: Higher latency but more stable on slow systems
+pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
+    load_clamped_setting(db, "audio_buffer_size", 64, 8192, 512).await
 }
 
 #[cfg(test)]
@@ -881,5 +839,90 @@ mod tests {
             .unwrap();
         let max_streams = load_maximum_decode_streams(&db).await.unwrap();
         assert_eq!(max_streams, 10, "maximum_decode_streams should not clamp valid values");
+    }
+
+    /// **[DB-SETTINGS-075]** Test load_clamped_setting helper with u32 type
+    #[tokio::test]
+    async fn test_load_clamped_setting_u32() {
+        let db = setup_test_db().await;
+
+        // Test missing key (should return default)
+        let value = load_clamped_setting(&db, "test_clamped_u32", 10u32, 100u32, 50u32).await.unwrap();
+        assert_eq!(value, 50, "Missing key should return default value");
+
+        // Test value within range (should return value unchanged)
+        set_setting(&db, "test_clamped_u32", 75u32).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u32", 10u32, 100u32, 50u32).await.unwrap();
+        assert_eq!(value, 75, "Value within range should be returned unchanged");
+
+        // Test value below min (should clamp to min)
+        set_setting(&db, "test_clamped_u32", 5u32).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u32", 10u32, 100u32, 50u32).await.unwrap();
+        assert_eq!(value, 10, "Value below min should clamp to min");
+
+        // Test value above max (should clamp to max)
+        set_setting(&db, "test_clamped_u32", 150u32).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u32", 10u32, 100u32, 50u32).await.unwrap();
+        assert_eq!(value, 100, "Value above max should clamp to max");
+
+        // Test value at min boundary (should return min)
+        set_setting(&db, "test_clamped_u32", 10u32).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u32", 10u32, 100u32, 50u32).await.unwrap();
+        assert_eq!(value, 10, "Value at min boundary should return min");
+
+        // Test value at max boundary (should return max)
+        set_setting(&db, "test_clamped_u32", 100u32).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u32", 10u32, 100u32, 50u32).await.unwrap();
+        assert_eq!(value, 100, "Value at max boundary should return max");
+    }
+
+    /// **[DB-SETTINGS-075]** Test load_clamped_setting helper with u64 type
+    #[tokio::test]
+    async fn test_load_clamped_setting_u64() {
+        let db = setup_test_db().await;
+
+        // Test missing key (should return default)
+        let value = load_clamped_setting(&db, "test_clamped_u64", 1000u64, 60000u64, 5000u64).await.unwrap();
+        assert_eq!(value, 5000, "Missing key should return default value");
+
+        // Test value within range (should return value unchanged)
+        set_setting(&db, "test_clamped_u64", 30000u64).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u64", 1000u64, 60000u64, 5000u64).await.unwrap();
+        assert_eq!(value, 30000, "Value within range should be returned unchanged");
+
+        // Test value below min (should clamp to min)
+        set_setting(&db, "test_clamped_u64", 500u64).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u64", 1000u64, 60000u64, 5000u64).await.unwrap();
+        assert_eq!(value, 1000, "Value below min should clamp to min");
+
+        // Test value above max (should clamp to max)
+        set_setting(&db, "test_clamped_u64", 100000u64).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_u64", 1000u64, 60000u64, 5000u64).await.unwrap();
+        assert_eq!(value, 60000, "Value above max should clamp to max");
+    }
+
+    /// **[DB-SETTINGS-075]** Test load_clamped_setting helper with usize type
+    #[tokio::test]
+    async fn test_load_clamped_setting_usize() {
+        let db = setup_test_db().await;
+
+        // Test missing key (should return default)
+        let value = load_clamped_setting(&db, "test_clamped_usize", 2usize, 32usize, 12usize).await.unwrap();
+        assert_eq!(value, 12, "Missing key should return default value");
+
+        // Test value within range (should return value unchanged)
+        set_setting(&db, "test_clamped_usize", 16usize).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_usize", 2usize, 32usize, 12usize).await.unwrap();
+        assert_eq!(value, 16, "Value within range should be returned unchanged");
+
+        // Test value below min (should clamp to min)
+        set_setting(&db, "test_clamped_usize", 1usize).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_usize", 2usize, 32usize, 12usize).await.unwrap();
+        assert_eq!(value, 2, "Value below min should clamp to min");
+
+        // Test value above max (should clamp to max)
+        set_setting(&db, "test_clamped_usize", 64usize).await.unwrap();
+        let value = load_clamped_setting(&db, "test_clamped_usize", 2usize, 32usize, 12usize).await.unwrap();
+        assert_eq!(value, 32, "Value above max should clamp to max");
     }
 }
