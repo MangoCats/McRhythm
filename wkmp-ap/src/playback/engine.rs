@@ -1456,6 +1456,84 @@ impl PlaybackEngine {
         Ok(queue_entry_id)
     }
 
+    /// Remove queue entry from in-memory queue
+    ///
+    /// [API] DELETE /playback/queue/{queue_entry_id}
+    /// **Traceability:** Removes entry from in-memory queue manager to match database deletion
+    ///
+    /// Returns true if entry was found and removed, false if not found
+    pub async fn remove_queue_entry(&self, queue_entry_id: Uuid) -> bool {
+        info!("Removing queue entry from in-memory queue: {}", queue_entry_id);
+
+        // [BUG001] Check if removed entry is currently playing
+        // If yes, must perform lifecycle cleanup: release chain, stop mixer, start next
+        let is_current = {
+            let queue = self.queue.read().await;
+            queue.current().map(|c| c.queue_entry_id) == Some(queue_entry_id)
+        };
+
+        if is_current {
+            // Currently playing passage - perform full lifecycle cleanup
+            // [REQ-FIX-010] Stop playback immediately
+            // [REQ-FIX-020] Release decoder chain resources
+            // [REQ-FIX-030] Clear mixer state
+            info!("Removing currently playing passage - performing lifecycle cleanup");
+
+            // 1. Release decoder-buffer chain (free resources, allow reassignment)
+            // [REQ-FIX-020] Release decoder chain resources
+            self.release_chain(queue_entry_id).await;
+
+            // 2. Stop mixer (clear playback state)
+            // [REQ-FIX-030] Clear mixer state
+            // [REQ-FIX-010] Stop playback immediately
+            self.mixer.write().await.stop();
+            info!("Mixer stopped for removed passage");
+
+            // 3. Remove from queue structure
+            // [REQ-FIX-040] Update queue structure
+            let removed = self.queue.write().await.remove(queue_entry_id);
+
+            if removed {
+                info!("Successfully removed current passage {} from queue", queue_entry_id);
+
+                // Update audio_expected flag for ring buffer underrun classification
+                self.update_audio_expected_flag().await;
+
+                // 4. Start next passage if queue has one
+                // [REQ-FIX-050] Start next passage if queue non-empty
+                // [REQ-FIX-080] New passage starts correctly after removal
+                let has_current = self.queue.read().await.current().is_some();
+                if has_current {
+                    info!("Starting next passage after current removed");
+                    // Trigger process_queue to start the next passage immediately
+                    // This replicates the behavior from natural passage completion (line 2105)
+                    // where next iteration starts new current passage
+                    if let Err(e) = self.process_queue().await {
+                        warn!("Failed to start next passage after removal: {}", e);
+                    }
+                } else {
+                    info!("Queue empty after removing current passage");
+                }
+            }
+
+            removed
+        } else {
+            // Non-current passage - simple removal (existing behavior)
+            // [REQ-FIX-060] No disruption when removing non-current passage
+            let removed = self.queue.write().await.remove(queue_entry_id);
+
+            if removed {
+                info!("Successfully removed queue entry {} from in-memory queue", queue_entry_id);
+                // Update audio_expected flag for ring buffer underrun classification
+                self.update_audio_expected_flag().await;
+            } else {
+                warn!("Queue entry {} not found in in-memory queue", queue_entry_id);
+            }
+
+            removed
+        }
+    }
+
     /// Calculate crossfade start position in milliseconds
     ///
     /// [ISSUE-7] Extracted helper method to reduce complexity
