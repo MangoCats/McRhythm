@@ -226,6 +226,28 @@ impl TestServer {
         Ok(serde_json::from_value(queue_array)?)
     }
 
+    /// Start playback
+    pub async fn play(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let (status, _) = self.request("POST", "/playback/play", None).await?;
+
+        if !status.is_success() {
+            return Err("Play failed".into());
+        }
+
+        Ok(())
+    }
+
+    /// Pause playback
+    pub async fn pause(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let (status, _) = self.request("POST", "/playback/pause", None).await?;
+
+        if !status.is_success() {
+            return Err("Pause failed".into());
+        }
+
+        Ok(())
+    }
+
     /// Skip to next passage
     pub async fn skip_next(&self) -> Result<(), Box<dyn std::error::Error>> {
         let (status, _) = self.request("POST", "/playback/next", None).await?;
@@ -277,8 +299,8 @@ impl TestServer {
 
 /// SSE event stream wrapper
 pub struct EventStream {
-    receiver: broadcast::Receiver<WkmpEvent>,
-    start_time: Instant,
+    pub receiver: broadcast::Receiver<WkmpEvent>,
+    pub start_time: Instant,
 }
 
 impl EventStream {
