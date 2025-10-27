@@ -12,13 +12,13 @@
             color: #e0e0e0;
             padding: 8px;
             line-height: 1.4;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-y: auto;
         }
         .container {
-            height: 100%;
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
         h1 {
             color: #4a9eff;
@@ -49,8 +49,6 @@
             display: grid;
             grid-template-columns: auto auto 1fr;
             gap: 8px;
-            flex: 1;
-            overflow: hidden;
         }
         .panel {
             background: #2a2a2a;
@@ -60,6 +58,10 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+        #queue-display {
+            max-height: 400px;
+            overflow-y: auto;
         }
         h2 {
             color: #4a9eff;
@@ -85,8 +87,38 @@
             margin: 4px 0;
             border-radius: 3px;
             font-size: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .queue-item-content {
+            flex: 1;
+            min-width: 0;
         }
         .queue-item-id { color: #888; font-size: 10px; }
+        .queue-item-remove {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            margin: 0;
+            background: #dc2626;
+            border: none;
+            border-radius: 3px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .queue-item-remove:hover {
+            background: #b91c1c;
+        }
+        .queue-item-remove:active {
+            background: #991b1b;
+        }
         .queue-empty { color: #666; font-style: italic; padding: 6px 0; }
         .control-group { margin-bottom: 6px; }
         .control-group label {
@@ -133,7 +165,7 @@
             border: 1px solid #333;
             border-radius: 3px;
             padding: 6px;
-            flex: 1;
+            max-height: 600px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 12px;
@@ -517,7 +549,26 @@
                 </div>
             </div>
 
-            <!-- Settings Management -->
+            <!-- Buffer Chain Monitor -->
+            <div class="panel" style="grid-column: 1 / -1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">
+                    <h2 style="margin: 0;">Buffer Chain Monitor</h2>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="color: #888; font-size: 12px;">Update Rate:</label>
+                        <select id="chain-update-rate" style="width: auto; padding: 4px 8px; font-size: 12px;" onchange="setChainUpdateRate()">
+                            <option value="100">0.1s</option>
+                            <option value="1000" selected>1.0s</option>
+                            <option value="0">Manual</option>
+                        </select>
+                        <button style="width: auto; padding: 4px 12px; font-size: 12px; margin: 0;" onclick="forceChainUpdate()">Update</button>
+                    </div>
+                </div>
+                <div id="buffer-chains" style="font-family: 'Courier New', monospace; font-size: 12px;">
+                    <div style="color: #888;">Waiting for buffer chain data...</div>
+                </div>
+            </div>
+
+            <!-- Database Settings -->
             <div class="panel" style="grid-column: 1 / -1;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">
                     <h2 style="margin: 0;">Database Settings</h2>
@@ -527,7 +578,7 @@
                     </div>
                 </div>
                 <div id="settings-status" style="padding: 4px; margin-bottom: 6px; border-radius: 3px; display: none; font-size: 12px;"></div>
-                <div style="overflow-y: auto; max-height: 300px;">
+                <div style="overflow-y: auto; max-height: 400px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                         <thead style="position: sticky; top: 0; background: #2a2a2a; z-index: 1;">
                             <tr style="border-bottom: 2px solid #4a9eff;">
@@ -548,25 +599,6 @@
                             </tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <!-- Buffer Chain Monitor -->
-            <div class="panel" style="grid-column: 1 / -1;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #3a3a3a; padding-bottom: 4px;">
-                    <h2 style="margin: 0;">Buffer Chain Monitor</h2>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <label style="color: #888; font-size: 12px;">Update Rate:</label>
-                        <select id="chain-update-rate" style="width: auto; padding: 4px 8px; font-size: 12px;" onchange="setChainUpdateRate()">
-                            <option value="100">0.1s</option>
-                            <option value="1000" selected>1.0s</option>
-                            <option value="0">Manual</option>
-                        </select>
-                        <button style="width: auto; padding: 4px 12px; font-size: 12px; margin: 0;" onclick="forceChainUpdate()">Update</button>
-                    </div>
-                </div>
-                <div id="buffer-chains" style="font-family: 'Courier New', monospace; font-size: 12px;">
-                    <div style="color: #888;">Waiting for buffer chain data...</div>
                 </div>
             </div>
 
@@ -605,16 +637,135 @@
 
     <script>
         const API_BASE = '';
+        const API_SHARED_SECRET = "{{SHARED_SECRET}}"; // Replaced by server during page render (as string to preserve precision)
         let eventSource = null;
         const maxEvents = 100;
         const eventHistory = []; // Store all events for export
         let eventsPaused = false;
 
+        // ========================================
+        // API Authentication (SPEC007 API-AUTH-025)
+        // ========================================
+
+        /**
+         * Convert JSON object to canonical form (sorted keys, no whitespace)
+         * Per SPEC007 API-AUTH-027
+         */
+        function toCanonicalJSON(obj) {
+            if (obj === null) return 'null';
+            if (typeof obj === 'boolean') return obj.toString();
+            if (typeof obj === 'number') return obj.toString();
+            if (typeof obj === 'string') {
+                // Escape backslashes and quotes
+                const escaped = obj.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                return `"${escaped}"`;
+            }
+            if (Array.isArray(obj)) {
+                const items = obj.map(toCanonicalJSON);
+                return `[${items.join(',')}]`;
+            }
+            if (typeof obj === 'object') {
+                const keys = Object.keys(obj).sort();
+                const pairs = keys.map(k => `"${k}":${toCanonicalJSON(obj[k])}`);
+                return `{${pairs.join(',')}}`;
+            }
+            return 'null';
+        }
+
+        /**
+         * Calculate SHA-256 hash for API authentication
+         * Per SPEC007 API-AUTH-027
+         */
+        async function calculateHash(jsonObj, sharedSecret) {
+            // Step 1: Clone object and replace hash with dummy hash (64 zeros)
+            const objWithDummyHash = { ...jsonObj };
+            objWithDummyHash.hash = '0000000000000000000000000000000000000000000000000000000000000000';
+
+            // Step 2: Convert to canonical JSON (sorted keys, no whitespace)
+            const canonical = toCanonicalJSON(objWithDummyHash);
+
+            // Step 3: Append shared secret as decimal string
+            const toHash = canonical + sharedSecret.toString();
+
+            // Step 4: Calculate SHA-256 using SubtleCrypto API
+            const encoder = new TextEncoder();
+            const data = encoder.encode(toHash);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+            // Step 5: Convert to 64 hex characters
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            return hashHex;
+        }
+
+        /**
+         * Wrapper for fetch() that adds timestamp and hash authentication
+         * Per SPEC007 API-AUTH-025
+         */
+        async function authenticatedFetch(url, options = {}) {
+            // Check if authentication is disabled (shared_secret = 0)
+            if (API_SHARED_SECRET === "0") {
+                // Bypass mode: send dummy hash
+                const timestamp = Date.now();
+                const dummyHash = '0000000000000000000000000000000000000000000000000000000000000000';
+
+                if (options.method && (options.method === 'POST' || options.method === 'PUT')) {
+                    // Add to body for POST/PUT
+                    if (options.body) {
+                        const bodyObj = JSON.parse(options.body);
+                        bodyObj.timestamp = timestamp;
+                        bodyObj.hash = dummyHash;
+                        options.body = JSON.stringify(bodyObj);
+                    } else {
+                        options.body = JSON.stringify({ timestamp, hash: dummyHash });
+                    }
+                } else {
+                    // Add to query string for GET/DELETE
+                    const separator = url.includes('?') ? '&' : '?';
+                    url = `${url}${separator}timestamp=${timestamp}&hash=${dummyHash}`;
+                }
+
+                return fetch(url, options);
+            }
+
+            // Normal authenticated mode
+            const timestamp = Date.now();
+
+            if (options.method && (options.method === 'POST' || options.method === 'PUT')) {
+                // POST/PUT: Add timestamp and hash to body
+                let bodyObj = {};
+                if (options.body) {
+                    bodyObj = JSON.parse(options.body);
+                }
+                bodyObj.timestamp = timestamp;
+
+                // Calculate hash
+                const hash = await calculateHash(bodyObj, API_SHARED_SECRET);
+                bodyObj.hash = hash;
+
+                options.body = JSON.stringify(bodyObj);
+                options.headers = options.headers || {};
+                options.headers['Content-Type'] = 'application/json';
+
+                return fetch(url, options);
+            } else {
+                // GET/DELETE: Add timestamp and hash to query string
+                const queryObj = { timestamp, hash: 'dummy' };
+                const hash = await calculateHash(queryObj, API_SHARED_SECRET);
+
+                const separator = url.includes('?') ? '&' : '?';
+                url = `${url}${separator}timestamp=${timestamp}&hash=${hash}`;
+
+                return fetch(url, options);
+            }
+        }
+
         // Fetch initial state from API
         async function fetchInitialState() {
             try {
                 // Fetch build info
-                const buildResponse = await fetch(`${API_BASE}/build_info`);
+                const buildResponse = await authenticatedFetch(`${API_BASE}/build_info`);
                 if (buildResponse.ok) {
                     const buildData = await buildResponse.json();
                     const buildInfo = `v${buildData.version} [${buildData.git_hash}] ${buildData.build_timestamp} (${buildData.build_profile})`;
@@ -622,35 +773,35 @@
                 }
 
                 // Fetch playback state
-                const stateResponse = await fetch(`${API_BASE}/playback/state`);
+                const stateResponse = await authenticatedFetch(`${API_BASE}/playback/state`);
                 if (stateResponse.ok) {
                     const stateData = await stateResponse.json();
                     updatePlaybackState(stateData.state);
                 }
 
                 // Fetch queue
-                const queueResponse = await fetch(`${API_BASE}/playback/queue`);
+                const queueResponse = await authenticatedFetch(`${API_BASE}/playback/queue`);
                 if (queueResponse.ok) {
                     const queueData = await queueResponse.json();
                     updateQueueDisplay(queueData.queue);
                 }
 
                 // Fetch position
-                const positionResponse = await fetch(`${API_BASE}/playback/position`);
+                const positionResponse = await authenticatedFetch(`${API_BASE}/playback/position`);
                 if (positionResponse.ok) {
                     const positionData = await positionResponse.json();
                     updatePosition(positionData);
                 }
 
                 // Fetch volume
-                const volumeResponse = await fetch(`${API_BASE}/audio/volume`);
+                const volumeResponse = await authenticatedFetch(`${API_BASE}/audio/volume`);
                 if (volumeResponse.ok) {
                     const volumeData = await volumeResponse.json();
                     updateVolumeDisplay(volumeData.volume);
                 }
 
                 // Fetch buffer chains
-                const bufferResponse = await fetch(`${API_BASE}/playback/buffer_chains`);
+                const bufferResponse = await authenticatedFetch(`${API_BASE}/playback/buffer_chains`);
                 if (bufferResponse.ok) {
                     const bufferData = await bufferResponse.json();
                     updateBufferChainDisplay(bufferData.chains);
@@ -698,7 +849,10 @@
             });
 
             eventSource.addEventListener('QueueStateUpdate', (e) => {
-                handleQueueStateUpdate(JSON.parse(e.data));
+                console.log('QueueStateUpdate SSE event received, raw data:', e.data);
+                const parsedData = JSON.parse(e.data);
+                console.log('Parsed QueueStateUpdate data:', parsedData);
+                handleQueueStateUpdate(parsedData);
             });
 
             eventSource.addEventListener('PlaybackPosition', (e) => {
@@ -761,8 +915,11 @@
         }
 
         function handleQueueStateUpdate(data) {
+            console.log('handleQueueStateUpdate called with data:', data);
             addEvent('QueueStateUpdate', `Queue updated: ${data.queue.length} entries`);
+            console.log('About to call updateQueueDisplay with queue:', data.queue);
             updateQueueDisplay(data.queue);
+            console.log('updateQueueDisplay completed');
         }
 
         function handlePlaybackPosition(data) {
@@ -813,12 +970,20 @@
                 return;
             }
 
-            queueEl.innerHTML = queue.map(item => `
+            console.log('Updating queue display with entries:', queue);
+
+            queueEl.innerHTML = queue.map(item => {
+                console.log('Queue item:', item);
+                return `
                 <div class="queue-item">
-                    <div>${item.file_path || 'Unknown'}</div>
-                    <div class="queue-item-id">ID: ${item.queue_entry_id || 'N/A'}</div>
+                    <div class="queue-item-content">
+                        <div>${item.file_path || 'Unknown'}</div>
+                        <div class="queue-item-id">ID: ${item.queue_entry_id || 'N/A'}</div>
+                    </div>
+                    <button class="queue-item-remove" onclick="removeQueueEntry('${item.queue_entry_id}')" title="Remove from queue">✕</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function updatePosition(position) {
@@ -1053,7 +1218,7 @@
         // Playback control
         async function controlPlayback(action) {
             try {
-                const response = await fetch(`${API_BASE}/playback/${action}`, { method: 'POST' });
+                const response = await authenticatedFetch(`${API_BASE}/playback/${action}`, { method: 'POST' });
                 if (!response.ok) {
                     console.error(`Failed to ${action}`);
                 }
@@ -1065,7 +1230,7 @@
         // Skip current passage
         async function skipCurrentPassage() {
             try {
-                const response = await fetch(`${API_BASE}/playback/next`, { method: 'POST' });
+                const response = await authenticatedFetch(`${API_BASE}/playback/next`, { method: 'POST' });
                 if (!response.ok) {
                     console.error('Failed to skip passage');
                 }
@@ -1080,12 +1245,34 @@
                 return;
             }
             try {
-                const response = await fetch(`${API_BASE}/playback/queue/clear`, { method: 'POST' });
+                const response = await authenticatedFetch(`${API_BASE}/playback/queue/clear`, { method: 'POST' });
                 if (!response.ok) {
                     console.error('Failed to clear queue');
                 }
             } catch (err) {
                 console.error('Failed to clear queue:', err);
+            }
+        }
+
+        // Remove single queue entry
+        async function removeQueueEntry(queueEntryId) {
+            if (!queueEntryId) {
+                console.error('No queue entry ID provided');
+                return;
+            }
+            console.log('Attempting to remove queue entry:', queueEntryId);
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/playback/queue/${queueEntryId}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Failed to remove queue entry:', queueEntryId, 'Error:', errorText);
+                    addEvent('system', `Failed to remove queue entry: ${errorText}`);
+                } else {
+                    console.log('Successfully removed queue entry:', queueEntryId);
+                }
+            } catch (err) {
+                console.error('Failed to remove queue entry:', queueEntryId, 'Exception:', err);
+                addEvent('system', `Error removing queue entry: ${err.message}`);
             }
         }
 
@@ -1095,7 +1282,7 @@
             try {
                 const userVolume = parseInt(document.getElementById('volume-input').value);
                 const apiVolume = userVolume / 100.0;
-                const response = await fetch(`${API_BASE}/audio/volume`, {
+                const response = await authenticatedFetch(`${API_BASE}/audio/volume`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ volume: apiVolume })
@@ -1116,7 +1303,7 @@
             const resultEl = document.getElementById('device-result');
             try {
                 const device = document.getElementById('device-input').value;
-                const response = await fetch(`${API_BASE}/audio/device`, {
+                const response = await authenticatedFetch(`${API_BASE}/audio/device`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device })
@@ -1141,7 +1328,7 @@
                     resultEl.innerHTML = '<div class="error">✗ Enter a file path</div>';
                     return;
                 }
-                const response = await fetch(`${API_BASE}/playback/enqueue`, {
+                const response = await authenticatedFetch(`${API_BASE}/playback/enqueue`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ file_path: filePath })
@@ -1172,7 +1359,7 @@
                 statusEl.style.background = '#3b82f6';
                 statusEl.textContent = 'Loading settings...';
 
-                const response = await fetch(`${API_BASE}/settings/all`);
+                const response = await authenticatedFetch(`${API_BASE}/settings/all`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch settings');
                 }
@@ -1330,7 +1517,7 @@
                 statusEl.style.background = '#3b82f6';
                 statusEl.textContent = `Saving ${Object.keys(modifiedSettings).length} settings...`;
 
-                const response = await fetch(`${API_BASE}/settings/bulk_update`, {
+                const response = await authenticatedFetch(`${API_BASE}/settings/bulk_update`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ settings: modifiedSettings })
@@ -1389,7 +1576,7 @@
                     ? `${API_BASE}/files/browse?path=${encodeURIComponent(path)}`
                     : `${API_BASE}/files/browse`;
 
-                const response = await fetch(url);
+                const response = await authenticatedFetch(url);
                 if (!response.ok) {
                     const error = await response.json();
                     fileList.innerHTML = `<div class="file-item" style="color: #f87171;">Error: ${error.status || 'Failed to load directory'}</div>`;
@@ -1470,7 +1657,7 @@
             const rate_ms = parseInt(select.value);
 
             try {
-                const response = await fetch(`${API_BASE}/playback/buffer_monitor/rate`, {
+                const response = await authenticatedFetch(`${API_BASE}/playback/buffer_monitor/rate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ rate_ms })
@@ -1493,7 +1680,7 @@
          */
         async function forceChainUpdate() {
             try {
-                const response = await fetch(`${API_BASE}/playback/buffer_monitor/update`, {
+                const response = await authenticatedFetch(`${API_BASE}/playback/buffer_monitor/update`, {
                     method: 'POST'
                 });
 

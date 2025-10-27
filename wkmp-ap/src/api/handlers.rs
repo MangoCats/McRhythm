@@ -4,6 +4,7 @@
 //!
 //! **Traceability:** API Design - Audio Player API endpoints
 
+use crate::api::auth_middleware::Authenticated;
 use crate::api::server::AppContext;
 use crate::state::PlaybackState;
 use axum::{
@@ -249,6 +250,7 @@ pub async fn set_audio_device(
 ///
 /// **Traceability:** API Design - GET /audio/volume
 pub async fn get_volume(
+    _auth: Authenticated,  // Authentication required (per SPEC007 API-AUTH-025)
     State(ctx): State<AppContext>,
 ) -> Json<VolumeResponse> {
     let volume = ctx.state.get_volume().await;
@@ -372,12 +374,15 @@ pub async fn remove_from_queue(
 ) -> Result<StatusCode, (StatusCode, Json<StatusResponse>)> {
     info!("Remove from queue request: {}", queue_entry_id);
 
-    // Remove from database
+    // Remove from database first
     match crate::db::queue::remove_from_queue(&ctx.db_pool, queue_entry_id).await {
         Ok(_) => {
-            info!("Successfully removed queue entry: {}", queue_entry_id);
+            info!("Successfully removed queue entry from database: {}", queue_entry_id);
 
-            // **[SSE-UI-020]** Get queue for events
+            // Remove from in-memory queue
+            ctx.engine.remove_queue_entry(queue_entry_id).await;
+
+            // **[SSE-UI-020]** Get updated queue for events
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
@@ -398,6 +403,7 @@ pub async fn remove_from_queue(
                     file_path: e.file_path.to_string_lossy().to_string(),
                 })
                 .collect();
+            info!("Broadcasting QueueStateUpdate with {} entries", queue_info.len());
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
                 timestamp: chrono::Utc::now(),
                 queue: queue_info,
@@ -406,7 +412,7 @@ pub async fn remove_from_queue(
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            error!("Failed to remove queue entry: {}", e);
+            error!("Failed to remove queue entry from database: {}", e);
             Err((
                 StatusCode::NOT_FOUND,
                 Json(StatusResponse {
@@ -1292,6 +1298,8 @@ pub async fn get_pipeline_diagnostics(
 /// Serve developer UI HTML (bundled at compile time)
 ///
 /// **[ARCH-PC-010]** Developer UI with status display, API testing, and event monitoring
+///
+/// TODO: This currently serves static HTML. Need to implement dynamic shared_secret embedding.
 pub async fn developer_ui() -> Html<&'static str> {
     Html(include_str!("developer_ui.html"))
 }

@@ -92,7 +92,12 @@ Once authenticated, the browser stores the user UUID in localStorage with a roll
   - GET /events (Server-Sent Events stream initial connection)
 - **Does NOT apply to:**
   - Server-Sent Events pushed from server to client (server-initiated, not API commands from client)
-- **Rationale:** "API command" means any client→server HTTP request. Server→client push notifications (SSE events) are not commands.
+  - HTML page serving endpoints (GET `/`, GET `/ui`, etc.) - these serve web interfaces with embedded shared_secret per [API-AUTH-028-A]
+  - Static asset serving (CSS, images, fonts) if applicable
+- **Rationale:**
+  - "API command" means any client→server HTTP request that invokes API functionality
+  - Server→client push notifications (SSE events) are not commands
+  - HTML serving is the bootstrapping mechanism that provides shared_secret to web clients
 
 **[API-AUTH-026]** API hash checking may be disabled
 - when the shared secret is set to a value of 0, hash and timestamp checking are disabled:
@@ -124,6 +129,29 @@ Once authenticated, the browser stores the user UUID in localStorage with a roll
 - **Scope:** Single shared secret used by all modules (wkmp-ap, wkmp-pd, wkmp-ui, wkmp-ai, wkmp-le)
 - **Modification:** Can be changed via settings API (requires existing valid authentication)
 - **Special value 0:** Disables hash checking per [API-AUTH-026]
+
+**[API-AUTH-028-A]** Shared secret distribution to web clients:
+- **MUST NOT** be exposed via API endpoint (no GET /api/shared_secret endpoint)
+- **MUST** be embedded in HTML/JavaScript when serving web interfaces
+- **Distribution method:** Embedded as JavaScript variable in served HTML document
+- **Security model:**
+  - Initial page load over trusted connection (localhost or authenticated HTTPS)
+  - Shared secret included in HTML response
+  - JavaScript uses secret to calculate hash for subsequent API calls
+- **Applies to:**
+  - Developer UI (wkmp-ap: `/` endpoint)
+  - User Interface main page (wkmp-ui)
+  - Program Director UI (wkmp-pd)
+  - Audio Ingest UI (wkmp-ai)
+  - Lyric Editor UI (wkmp-le)
+- **Implementation:**
+  - Server reads `api_shared_secret` from database
+  - Template/handler embeds secret in `<script>` tag: `const API_SHARED_SECRET = 123456789;`
+  - JavaScript uses secret for hash calculation via crypto library
+- **Rationale:**
+  - Avoids chicken-and-egg problem (can't auth to get secret for auth)
+  - HTML serving is typically over localhost (trusted) or authenticated channel
+  - Simpler than OAuth/JWT for internal microservices architecture
 
 **[API-AUTH-029]** Timestamp validation error responses:
 - **401 Unauthorized:** When timestamp outside acceptable window (>1000ms past or >1ms future)
