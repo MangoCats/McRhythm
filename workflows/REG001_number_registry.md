@@ -2,7 +2,7 @@
 
 **Purpose:** Track document number assignments and maintain next-available counters
 **Maintained by:** /doc-name workflow (automated)
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-10-27
 
 ---
 
@@ -16,7 +16,7 @@
 | IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
-| GUIDE | 003 | Guides (implementation guides, tutorials) |
+| GUIDE | 004 | Guides (implementation guides, tutorials) |
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
@@ -111,6 +111,7 @@
 | REG002 | archive_index.md | 2025-10-25 | REG | Manual | Archive retrieval index |
 | SPEC021 | SPEC021-error_handling.md | 2025-10-25 | SPEC | Manual | Comprehensive error handling strategy specification |
 | SPEC022 | SPEC022-performance_targets.md | 2025-10-25 | SPEC | Manual | Performance targets for wkmp-ap (Pi Zero 2W deployment) |
+| GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
 
 <!-- /doc-name workflow will append entries below -->
 
@@ -126,7 +127,7 @@
 | IMPL | 7 | Existing |
 | EXEC | 1 | Existing |
 | REV | 4 | Existing |
-| GUIDE | 1 | Existing |
+| GUIDE | 2 | 2025-10-27 |
 | RPT | 0 | New |
 | DWI | 0 | New |
 | TMPL | 0 | New |
