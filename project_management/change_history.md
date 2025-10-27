@@ -21,7 +21,30 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-27 18:44:40 -0400
+### 2025-10-27 18:52:28 -0400
+
+**Fix Mermaid rendering in GUIDE003 PDF**
+
+**Problem:**
+Original PDF contained Mermaid syntax errors with version 10.6.0, displaying "Syntax error in text" instead of rendered diagrams.
+
+**Solution:**
+- Upgraded Mermaid from v10.6.0 to v11.2.0 (latest stable with improved syntax compatibility)
+- Extended Chrome virtual time budget to 30 seconds for complete diagram rendering
+- Implemented proper async handling with 1-second DOM settling delay
+- Used ES module import syntax for better browser compatibility
+
+**Technical Changes:**
+- Regenerated PDF using Chrome headless with `--virtual-time-budget=30000`
+- File size increased from 427 KB to 474 KB (indicates successful diagram rendering)
+- All Mermaid diagrams now render correctly: flowcharts, sequence diagrams, state machines
+
+**Impact:**
+Enables offline viewing of complete audio pipeline documentation with fully-rendered visual diagrams.
+
+---
+
+### 2025-10-27 18:44:40 -0400 | Commit: 43712ea780d5b179fab0550a2b239bee66b6533b
 
 **Add PDF rendering of GUIDE003 audio pipeline diagrams**
 
