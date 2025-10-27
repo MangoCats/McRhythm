@@ -21,7 +21,29 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-27 18:31:44 -0400
+### 2025-10-27 18:44:40 -0400
+
+**Add PDF rendering of GUIDE003 audio pipeline diagrams**
+
+**Summary:**
+Created PDF version of GUIDE003_audio_pipeline_diagrams.md for offline reference and printing. The PDF preserves all visual content including Mermaid diagrams (flowcharts, sequence diagrams, state machines) and comprehensive DBD-PARAM parameter mappings.
+
+**Technical Implementation:**
+- HTML wrapper with marked.js (markdown parser) and mermaid.js (diagram rendering)
+- Chrome headless with extended rendering time for complete diagram processing
+- A4 page size with optimized print styles
+- 8 pages, 427 KB file size
+
+**Files Changed:**
+- docs/GUIDE003_audio_pipeline_diagrams.pdf (new, 427 KB)
+- .claude/settings.local.json (permissions: WebSearch, WebFetch, curl, process management, sqlite3, python3, google-chrome)
+
+**Purpose:**
+Enables offline access to complete audio pipeline documentation with fully-rendered diagrams, suitable for printing or distribution without requiring GitHub or markdown viewer.
+
+---
+
+### 2025-10-27 18:31:44 -0400 | Commit: 8136c5588cf0809620453a30d3b4d2ccf20714e7
 
 **Implement buffer autotuning system with authentication and developer UI enhancements**
 

@@ -41,7 +41,19 @@
       "Bash(git push:*)",
       "Bash(cat:*)",
       "Bash(RUST_BACKTRACE=1 cargo test:*)",
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(killall:*)",
+      "Bash(pgrep:*)",
+      "Bash(sqlite3:*)",
+      "SlashCommand(/doc-name wip/audio_pipeline_diagrams.md)",
+      "Bash(git mv:*)",
+      "Bash(apt-cache policy:*)",
+      "Bash(python3:*)",
+      "Bash(google-chrome:*)"
     ],
     "deny": [],
     "ask": []
