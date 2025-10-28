@@ -21,7 +21,59 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-27 20:57:19 -0400
+### 2025-10-27 21:45:57 -0400
+
+**Fix idle log spam by demoting monitoring warnings to TRACE when no audio expected**
+
+**Problem:**
+When the audio player has no passages in queue (idle state), the callback monitor and validation service flooded logs with WARN and ERROR messages every 100ms and 10s respectively. These "failures" were expected behavior during idle - not actual problems requiring attention.
+
+**Root Cause:**
+Original implementation checked `current_passage` to detect idle state, but this failed when:
+1. Queue is empty from startup
+2. Last passage removed from queue while playing (current_passage remains set until playback finishes)
+
+**Solution:**
+Leveraged existing `audio_expected` AtomicBool flag from PlaybackEngine that correctly tracks playback state:
+- **true**: Playing with non-empty queue (audio output expected)
+- **false**: Paused or queue empty (audio output NOT expected)
+
+This flag properly handles queue-emptied-during-playback scenario because it updates immediately when queue becomes empty.
+
+**Changes Made:**
+
+**1. callback_monitor.rs** (wkmp-ap/src/playback/callback_monitor.rs):
+- Added `audio_expected: Arc<AtomicBool>` field to CallbackMonitor struct
+- Updated `new()` constructor to accept audio_expected parameter
+- Monitoring loop checks `audio_expected.load()` instead of `current_passage`
+- Idle (!audio_expected): underruns logged at TRACE, no events emitted
+- Active (audio_expected): underruns logged at WARN, events emitted
+
+**2. engine.rs** (wkmp-ap/src/playback/engine.rs):
+- Pass `audio_expected` Arc to CallbackMonitor in audio thread spawn
+- Added `is_audio_expected()` public getter method for validation service
+
+**3. validation_service.rs** (wkmp-ap/src/playback/validation_service.rs):
+- Use `engine.is_audio_expected()` instead of checking passage_count/current_passage
+- Idle (!audio_expected): validation failures/warnings logged at TRACE
+- Active (audio_expected): validation failures/warnings logged at ERROR/WARN
+
+**4. test_harness.rs** (wkmp-ap/src/tuning/test_harness.rs):
+- Pass existing audio_expected flag to CallbackMonitor constructor
+
+**Test Results:**
+- ✅ No WARN/ERROR during idle (empty queue)
+- ✅ No WARN/ERROR during queue drain (last passage finishing)
+- ✅ Logs correctly at TRACE level when audio not expected
+- ✅ Warnings still logged at WARN/ERROR during active playback if problems occur
+
+**Additional Changes:**
+- Added wip/_user_story.md: User story document for audio import feature planning
+- Updated .claude/settings.local.json: Added RUST_LOG command to allowed list
+
+---
+
+### 2025-10-27 20:57:19 -0400 | Commit: ae8bd962549cd653ad4db0cab2827061b414987f
 
 **Regenerate GUIDE003 PDF with professional vector graphics (Graphviz + PlantUML)**
 

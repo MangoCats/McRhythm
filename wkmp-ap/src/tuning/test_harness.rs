@@ -195,6 +195,7 @@ impl TestHarness {
             44100, // sample rate
             self.config.audio_buffer_size,
             None,  // No event emission needed for tuning
+            audio_expected.clone(), // Pass audio_expected flag for idle detection
         ));
 
         // Start monitoring task

@@ -11,7 +11,8 @@
       "Bash(05_mixer_modes.pdf )",
       "Bash(03_parameter_mapping.pdf )",
       "Bash(04_configuration_flow.pdf )",
-      "Bash(GUIDE003_audio_pipeline_diagrams_COMPLETE.pdf)"
+      "Bash(GUIDE003_audio_pipeline_diagrams_COMPLETE.pdf)",
+      "Bash(RUST_LOG=info target/debug/wkmp-ap:*)"
     ],
     "deny": [],
     "ask": []
