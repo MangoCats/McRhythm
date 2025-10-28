@@ -432,6 +432,22 @@ User-Agent: WKMP/1.0.0 ( contact@example.com )
 
 **[LIB-MPF-010]** WKMP supports the segmentation of a single audio file (e.g., a full album rip) into multiple, distinct Passages. The detailed workflow for this process, including automatic silence detection, MusicBrainz release matching, and manual user review, is specified in the [Audio File Segmentation](IMPL005-audio_file_segmentation.md) document.
 
+## Amplitude-Based Timing Point Detection
+
+**[LIB-AMP-010]** For automatic detection of passage lead-in and lead-out points, WKMP performs amplitude analysis of the audio signal.
+
+**Process:**
+1. Calculate RMS (Root Mean Square) envelope with sliding window (default: 100ms)
+2. Apply A-weighting filter for perceptual accuracy (optional, enabled by default)
+3. Detect slow amplitude ramps (long lead-in/lead-out) vs. quick attacks/releases (short/zero lead-in/lead-out)
+4. Use configurable thresholds: 1/4 intensity (default: -12dB below peak) for detection
+
+**Purpose:** This complements silence-based segmentation (for finding passage boundaries) with amplitude-based analysis (for finding optimal crossfade timing points within passages).
+
+**Integration:** Amplitude analysis runs during import workflow after passage boundaries have been identified via silence detection.
+
+> **See [Amplitude Analysis](SPEC025-amplitude_analysis.md) for complete algorithm specification including RMS calculation, A-weighting, quick-ramp detection, and parameter definitions.**
+
 ## AcousticBrainz Integration
 
 ### Fetching Musical Flavor Data

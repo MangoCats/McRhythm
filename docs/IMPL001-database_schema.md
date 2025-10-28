@@ -169,6 +169,8 @@ Audio passages (playable segments) extracted from files.
 | artist | TEXT | | Artist from file tags |
 | album | TEXT | | Album from file tags |
 | musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values (see Musical Flavor Vector Storage) |
+| import_metadata | TEXT | | JSON blob of import analysis data (RMS profile, parameters used, timestamps) |
+| additional_metadata | TEXT | | JSON blob for extensible metadata (seasonal_holiday, profanity_level, etc.) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
@@ -195,6 +197,54 @@ Audio passages (playable segments) extracted from files.
 - These fields may become stale if MusicBrainz data is updated
 - `user_title` always takes precedence over `title` when set for display purposes
 - Both `user_title` and `title` are subject to the "only when different" display logic (see [UI Specification](SPEC009-ui_specification.md#passage-title-display))
+
+**Import Metadata Format (`import_metadata` column):**
+
+Stores analysis data from audio import process (JSON). Provides audit trail for how passage timing was determined.
+
+```json
+{
+  "amplitude_analysis": {
+    "peak_rms": 0.95,
+    "lead_in_detected_s": 2.3,
+    "lead_out_detected_s": 3.2,
+    "quick_ramp_up": false,
+    "quick_ramp_down": false,
+    "parameters_used": {
+      "rms_window_ms": 100,
+      "lead_in_threshold_db": -12.0,
+      "lead_out_threshold_db": -12.0,
+      "quick_ramp_threshold": 0.75,
+      "quick_ramp_duration_s": 1.0,
+      "max_lead_in_duration_s": 5.0,
+      "max_lead_out_duration_s": 5.0,
+      "apply_a_weighting": true
+    },
+    "analyzed_at": "2025-10-27T12:34:56Z"
+  }
+}
+```
+
+> **See:** [Amplitude Analysis](SPEC025-amplitude_analysis.md) for algorithm specification and [Parameter Management](IMPL010-parameter_management.md) for parameter definitions.
+
+**Additional Metadata Format (`additional_metadata` column):**
+
+Stores extensible metadata parameters (JSON). Schema-less design allows arbitrary parameters without database migrations.
+
+```json
+{
+  "seasonal_holiday": 0.0,   // 0.0 = not seasonal, 1.0 = Christmas/holiday song
+  "profanity_level": 0.0,    // 0.0 = clean lyrics, 1.0 = explicit
+  "energy_level": 0.85,      // Automatic (Essentia) or manual assessment
+  "danceability": 0.72       // Automatic (Essentia) or manual assessment
+}
+```
+
+**Notes:**
+- All numeric values use 0.0-1.0 range for consistency
+- Parameters may be automatically determined (e.g., via Essentia analysis), manually edited by users, or both
+- New parameters can be added without schema changes
+- NULL column value = no additional metadata defined
 
 ### `songs`
 
