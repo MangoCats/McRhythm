@@ -278,6 +278,31 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-PI-060]** On initial import, the system must assist users by offering automatic passage boundary detection. The detailed workflow for this is specified in [Audio File Segmentation](IMPL005-audio_file_segmentation.md).
 
+**[REQ-PI-061]** Automatic lead-in detection based on amplitude analysis
+- Detect slow amplitude ramps at passage start
+- Threshold: 1/4 perceived audible intensity (RMS-based, default: -12dB below peak)
+- Maximum lead-in duration: 5 seconds (user-configurable)
+- Quick ramp-up detection: If 3/4 intensity reached < 1 second, zero lead-in
+
+**[REQ-PI-062]** Automatic lead-out detection based on amplitude analysis
+- Detect slow amplitude ramps at passage end
+- Threshold: 1/4 perceived audible intensity (RMS-based, default: -12dB below peak)
+- Maximum lead-out duration: 5 seconds (user-configurable)
+- Quick ramp-down detection: If 3/4 intensity drops < 1 second, zero lead-out
+
+**[REQ-PI-063]** User-adjustable algorithm parameters
+- All amplitude analysis thresholds configurable (RMS window, dB thresholds, durations)
+- Global defaults + per-passage overrides supported
+- Parameter presets for common musical styles (Classical, Rock/Pop, Electronic)
+
+**[REQ-PI-064]** Extensible metadata framework
+- Support arbitrary numeric parameters (0.0-1.0 range)
+- Examples: seasonal_holiday (0.0=regular, 1.0=Christmas), profanity_level (0.0=clean, 1.0=explicit)
+- Parameters may be automatically determined, manually edited, or both
+- Storage in `additional_metadata` JSON column (schema-less for extensibility)
+
+> **See [Amplitude Analysis](SPEC025-amplitude_analysis.md) for complete amplitude detection algorithm specification.**
+
 **[REQ-PI-070]** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 
 **[REQ-PI-080]** WebUI provides interface to input/edit lyrics associated with a passage (Full version only)

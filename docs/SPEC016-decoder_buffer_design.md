@@ -198,7 +198,7 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 **[DBD-PARAM-065]** The number of samples OUTPUT FROM THE RESAMPLER for each chunk of decoded audio output from the decoder.
 
-- **Default value:** 25000
+- **Default value:** 32000
 
 When the audio file is encoded at the same sample rate as the resampler - fader - buffer - mixer - output is working at (aka the working_sample rate) then this is a 1:1 translation for the maximum (and typical) number of samples each in each chunk of audio sent from the decoder to the resampler.
 
@@ -218,8 +218,8 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 **[DBD-PARAM-080]** The number of (stereo) samples that the buffer reserves to handle additional samples that may arrive from the resampler after the decoder pauses due to a buffer full condition.
 
-- **Default value:** 4410 samples
-- **Equivalent:** 0.1 seconds of audio at 44.1kHz
+- **Default value:** 32768 samples
+- **Equivalent:** 0.74 seconds of audio at 44.1kHz
 
 ### decoder_resume_hysteresis_samples
 
