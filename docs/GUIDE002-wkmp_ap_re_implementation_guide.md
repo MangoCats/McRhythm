@@ -11,10 +11,11 @@ Orchestrates re-implementation of wkmp-ap Audio Player across multiple Tier 2 sp
 ## Metadata
 
 **Document Type:** Tier 4 - Execution Plan (Implementation Guide)
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2025-10-26
 **Status:** Active
 **Author:** Technical Lead
+**Last Reviewed:** 2025-10-26 (Tick consistency review - updated queue entry timing override reference)
 
 **Parent Documents (Tier 2 Specifications):**
 - [SPEC002-crossfade.md](SPEC002-crossfade.md) - Crossfade timing and curves
@@ -98,7 +99,12 @@ This guide orchestrates the re-implementation of wkmp-ap (Audio Player microserv
 
 **Assumptions:**
 1. SQLite database exists with schema per IMPL001
-2. wkmp-common library provides shared types (Event, entities, etc.)
+2. wkmp-common library provides shared infrastructure:
+   - EventBus and WkmpEvent enum (see [DRY-STRATEGY.md](DRY-STRATEGY.md))
+   - API authentication (timestamp/hash validation)
+   - Configuration loading (RootFolderResolver, platform defaults)
+   - Database models and queries
+   - Fade curve definitions
 3. Deployment target is Pi Zero 2W (ARM Cortex-A53, 512MB RAM)
 4. Audio files are in supported formats (MP3, FLAC, AAC, Vorbis, Opus)
 5. rubato library provides adequate resampling functionality
@@ -107,10 +113,13 @@ This guide orchestrates the re-implementation of wkmp-ap (Audio Player microserv
 
 **Constraints:**
 - Must meet SPEC022 performance targets (CPU <40%, latency <500ms, memory <150MB)
-- Must maintain compatibility with existing wkmp-common Event types
-- Must follow IMPL002 Rust coding conventions
+- Must use wkmp-common shared infrastructure (per CO-007, see [DRY-STRATEGY.md](DRY-STRATEGY.md))
+- Must follow IMPL002 Rust coding conventions (including CO-007A: check wkmp-common first)
 - Cannot modify database schema (use IMPL001 as-is)
 - Must work on both development systems and Pi Zero 2W
+- Before implementing new patterns, check if wkmp-common provides the infrastructure
+
+**Note:** See [REV003-dry_guidance_review.md](REV003-dry_guidance_review.md) for comprehensive analysis of DRY guidance enhancements and rationale for CO-007 decision criteria.
 
 ---
 
@@ -264,16 +273,18 @@ Implementation follows dependency order: foundation → database → audio primi
 **Components:**
 1. Project setup (Cargo.toml, workspace integration)
 2. Error types (error.rs) - Implement SPEC021 [ERH-###] taxonomy
-3. Config loader (config.rs) - Database settings + TOML bootstrap
-4. Event integration (events.rs) - EventBus subscription/emission
+3. Config loader (config.rs) - Database settings + TOML bootstrap, use `wkmp_common::config::RootFolderResolver` (CO-007A)
+4. Event integration (events.rs) - Re-export from `wkmp_common::events` (CO-007, see [DRY-STRATEGY.md](DRY-STRATEGY.md))
+   - `pub use wkmp_common::events::{EventBus, WkmpEvent, PlaybackState, ...};`
+   - Module-specific types only (PlaybackEvent, MixerStateContext)
 5. Main entry point (main.rs) - CLI args, logging, initialization
-6. Shared state (state.rs) - Arc<RwLock<SharedPlaybackState>>
+6. Shared state (state.rs) - Arc<RwLock<SharedPlaybackState>>, use `wkmp_common::events::PlaybackState` (CO-007)
 
 **Acceptance Criteria:**
 - All error types defined per SPEC021 taxonomy (FATAL, RECOVERABLE, DEGRADED, TRANSIENT)
-- Configuration loaded from database (module_config table)
+- Configuration uses wkmp-common's RootFolderResolver (CO-007A)
 - Logging initialized (configured via settings or TOML)
-- Event system integrated with wkmp-common EventBus
+- Event system re-exports from wkmp-common EventBus (CO-007)
 - Unit tests pass for config parsing and error type conversions
 
 **/plan Invocation:**
@@ -406,7 +417,7 @@ Implementation follows dependency order: foundation → database → audio primi
 - All 5 fade curves implemented and mathematically validated (unit tests)
 - Crossfade triggered at exactly fade_out_start_time per SPEC002 [XFD-TIME-010]
 - Dual buffer mixing maintains independent positions for outgoing/incoming passages
-- Fade parameters read from queue entry (fade_in_duration_ms, fade_out_duration_ms, fade_type)
+- Fade parameters read from queue entry timing overrides (all timing in ticks per SPEC017/IMPL001)
 - Default fade parameters used when overrides are NULL
 - Completion signaling per SPEC018: mixer sends (queue_entry_id, chain_index) via channel
 - PlaybackEngine receives completion signal and releases chain
@@ -521,6 +532,8 @@ Implementation follows dependency order: foundation → database → audio primi
 
 **Validation Platform:** Raspberry Pi Zero 2W (ARM Cortex-A53, 512MB RAM)
 
+**NOTE (2025-10-26):** Pi Zero 2W testing is **deferred** for the time being. Performance validation will initially focus on development systems. Pi Zero 2W validation will be conducted in a future iteration when deployment hardware is available. Performance targets remain valid as goals but will not block Phase 8 completion.
+
 **/plan Invocation:**
 ```bash
 /plan docs/SPEC022-performance_targets.md
@@ -553,8 +566,8 @@ Implementation is complete when ALL criteria below are satisfied:
 ### Validation Testing
 
 - [ ] Manual testing on development system (Linux/macOS/Windows)
-- [ ] Manual testing on Pi Zero 2W deployment target
-- [ ] 24-hour continuous playback test (no crashes, no leaks)
+- [ ] ~~Manual testing on Pi Zero 2W deployment target~~ (DEFERRED - 2025-10-26)
+- [ ] ~~24-hour continuous playback test (no crashes, no leaks)~~ (DEFERRED - 2025-10-26)
 - [ ] Crossfade accuracy test (sample-accurate timing verification)
 - [ ] Multi-client SSE test (multiple browsers connected)
 - [ ] Error recovery test (decode failures, device removal, database errors)

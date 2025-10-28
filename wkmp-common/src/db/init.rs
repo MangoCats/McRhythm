@@ -46,6 +46,7 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_settings_table(&pool).await?;
     create_module_config_table(&pool).await?;
     create_files_table(&pool).await?;
+    create_passages_table(&pool).await?;
     create_queue_table(&pool).await?;
 
     // Initialize default settings [ARCH-INIT-020]
@@ -290,6 +291,58 @@ async fn create_files_table(pool: &SqlitePool) -> Result<()> {
         .execute(pool)
         .await?;
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS passages (
+            guid TEXT PRIMARY KEY,
+            file_id TEXT NOT NULL REFERENCES files(guid) ON DELETE CASCADE,
+            start_time_ticks INTEGER NOT NULL DEFAULT 0,
+            fade_in_start_ticks INTEGER,
+            lead_in_start_ticks INTEGER,
+            lead_out_start_ticks INTEGER,
+            fade_out_start_ticks INTEGER,
+            end_time_ticks INTEGER NOT NULL,
+            fade_in_curve TEXT CHECK (fade_in_curve IS NULL OR fade_in_curve IN ('exponential', 'cosine', 'linear', 'logarithmic', 'equal_power')),
+            fade_out_curve TEXT CHECK (fade_out_curve IS NULL OR fade_out_curve IN ('exponential', 'cosine', 'linear', 'logarithmic', 'equal_power')),
+            title TEXT,
+            user_title TEXT,
+            artist TEXT,
+            album TEXT,
+            musical_flavor_vector TEXT,
+            decode_status TEXT DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')),
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (start_time_ticks >= 0),
+            CHECK (end_time_ticks > start_time_ticks),
+            CHECK (fade_in_start_ticks IS NULL OR (fade_in_start_ticks >= start_time_ticks AND fade_in_start_ticks <= end_time_ticks)),
+            CHECK (lead_in_start_ticks IS NULL OR (lead_in_start_ticks >= start_time_ticks AND lead_in_start_ticks <= end_time_ticks)),
+            CHECK (lead_out_start_ticks IS NULL OR (lead_out_start_ticks >= start_time_ticks AND lead_out_start_ticks <= end_time_ticks)),
+            CHECK (fade_out_start_ticks IS NULL OR (fade_out_start_ticks >= start_time_ticks AND fade_out_start_ticks <= end_time_ticks)),
+            CHECK (fade_in_start_ticks IS NULL OR fade_out_start_ticks IS NULL OR fade_in_start_ticks <= fade_out_start_ticks),
+            CHECK (lead_in_start_ticks IS NULL OR lead_out_start_ticks IS NULL OR lead_in_start_ticks <= lead_out_start_ticks)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create indexes per IMPL001
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_file_id ON passages(file_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_title ON passages(title)")
+        .execute(pool)
+        .await?;
+
+    // Create index for decode_status queries (REQ-AP-ERR-011)
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_decode_status ON passages(decode_status)")
         .execute(pool)
         .await?;
 

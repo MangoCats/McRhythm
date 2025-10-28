@@ -6,6 +6,7 @@
 
 pub mod buffer_events;
 pub mod buffer_manager;
+pub mod callback_monitor; // Audio callback timing instrumentation
 // Removed: decoder_pool (obsolete - replaced by DecoderWorker)
 pub mod decoder_worker; // New single-threaded worker
 // Removed: serial_decoder (obsolete - replaced by DecoderWorker)

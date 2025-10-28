@@ -17,6 +17,7 @@ pub mod db;
 pub mod error;
 pub mod playback;
 pub mod state;
+pub mod tuning;
 
 pub use error::{Error, Result};
 pub use state::SharedState;

@@ -1044,6 +1044,8 @@ mod tests {
         let buffer_manager = Arc::new(BufferManager::new());
         let mut mixer = CrossfadeMixer::new();
         mixer.set_buffer_manager(Arc::clone(&buffer_manager));
+        // Set low min_start_level for tests (allow small test buffers)
+        mixer.set_mixer_min_start_level(10); // 10 samples minimum for tests
         (mixer, buffer_manager)
     }
 
@@ -1095,11 +1097,33 @@ mod tests {
         passage_id: Uuid,
         buffer: PlayoutRingBuffer,
     ) {
-        // Note: With lock-free buffer, we can't replace the entire buffer anymore
-        // Tests should create buffers properly through BufferManager instead
-        let _buffer_arc = buffer_manager.allocate_buffer(passage_id).await;
-        // For now, tests need to be updated to push frames instead of replacing buffer
-        todo!("Test needs updating for lock-free buffer architecture");
+        // Allocate buffer through BufferManager (gets Arc<PlayoutRingBuffer>)
+        let buffer_arc = buffer_manager.allocate_buffer(passage_id).await;
+
+        // Populate the allocated buffer with test data by draining source buffer
+        // and pushing frames to the managed buffer
+        let mut frames_transferred = 0;
+        loop {
+            match buffer.pop_frame() {
+                Ok(frame) => {
+                    // Push frame to managed buffer (ignore errors - test buffer is sized correctly)
+                    let _ = buffer_arc.push_frame(frame);
+                    frames_transferred += 1;
+                },
+                Err(_) => break, // Source buffer empty
+            }
+        }
+
+        // Check if source buffer was marked as decode complete via stats
+        if buffer.stats().decode_complete {
+            buffer_arc.mark_decode_complete();
+        }
+
+        // Verify buffer was populated
+        let final_occupied = buffer_arc.occupied();
+        assert_eq!(frames_transferred, final_occupied,
+            "Buffer transfer failed: transferred {} frames but buffer shows {} occupied",
+            frames_transferred, final_occupied);
     }
 
     #[tokio::test]
@@ -1113,7 +1137,7 @@ mod tests {
     async fn test_start_passage_no_fade() {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id = Uuid::new_v4();
-        let buffer = create_test_buffer(passage_id, 1000, 0.5);
+        let buffer = create_test_buffer(passage_id, 10000, 0.5);
 
         // Register buffer with BufferManager
         register_test_buffer(&buffer_manager, passage_id, buffer).await;
@@ -1130,7 +1154,7 @@ mod tests {
     async fn test_start_passage_with_fade_in() {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id = Uuid::new_v4();
-        let buffer = create_test_buffer(passage_id, 1000, 0.5);
+        let buffer = create_test_buffer(passage_id, 10000, 0.5);
 
         // Register buffer with BufferManager
         register_test_buffer(&buffer_manager, passage_id, buffer).await;
@@ -1150,17 +1174,32 @@ mod tests {
     async fn test_single_passage_playback() {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id = Uuid::new_v4();
-        let buffer = create_test_buffer(passage_id, 100, 0.5);
+        // Create buffer with 10000 frames (meets mixer_min_start_level of 8820)
+        let buffer = create_test_buffer(passage_id, 10000, 0.5);
 
         // Register buffer with BufferManager
         register_test_buffer(&buffer_manager, passage_id, buffer).await;
+
+        // Verify buffer is retrievable
+        let retrieved_buffer = buffer_manager.get_buffer(passage_id).await;
+        assert!(retrieved_buffer.is_some(), "Buffer should be retrievable after registration");
+        let buffer_arc = retrieved_buffer.unwrap();
+        eprintln!("Buffer occupied after registration: {}", buffer_arc.occupied());
+
+        // Verify mixer has buffer_manager set
+        eprintln!("Mixer has buffer_manager: {}", mixer.buffer_manager.is_some());
+        eprintln!("Mixer min_start_level: {}", mixer.mixer_min_start_level);
 
         // Start passage
         mixer.start_passage(passage_id, None, 0).await;
 
         // Read 50 frames
-        for _ in 0..50 {
+        for i in 0..50 {
             let frame = mixer.get_next_frame().await;
+            if i == 0 {
+                eprintln!("First frame: left={}, right={}", frame.left, frame.right);
+                eprintln!("Mixer position after first frame: {}", mixer.get_position());
+            }
             assert!(frame.left.abs() <= 1.0);
             assert!(frame.right.abs() <= 1.0);
         }
@@ -1189,8 +1228,8 @@ mod tests {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id_1 = Uuid::new_v4();
         let passage_id_2 = Uuid::new_v4();
-        let buffer1 = create_test_buffer(passage_id_1, 1000, 0.5);
-        let buffer2 = create_test_buffer(passage_id_2, 1000, 0.5);
+        let buffer1 = create_test_buffer(passage_id_1, 10000, 0.5);
+        let buffer2 = create_test_buffer(passage_id_2, 10000, 0.5);
 
         // Register buffers
         register_test_buffer(&buffer_manager, passage_id_1, buffer1).await;
@@ -1221,8 +1260,8 @@ mod tests {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id_1 = Uuid::new_v4();
         let passage_id_2 = Uuid::new_v4();
-        let buffer1 = create_test_buffer(passage_id_1, 1000, 0.5);
-        let buffer2 = create_test_buffer(passage_id_2, 1000, 0.5);
+        let buffer1 = create_test_buffer(passage_id_1, 10000, 0.5);
+        let buffer2 = create_test_buffer(passage_id_2, 10000, 0.5);
 
         // Register buffers
         register_test_buffer(&buffer_manager, passage_id_1, buffer1).await;
@@ -1262,8 +1301,8 @@ mod tests {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id_1 = Uuid::new_v4();
         let passage_id_2 = Uuid::new_v4();
-        let buffer1 = create_test_buffer(passage_id_1, 100, 0.5);
-        let buffer2 = create_test_buffer(passage_id_2, 100, 0.5);
+        let buffer1 = create_test_buffer(passage_id_1, 10000, 0.5);
+        let buffer2 = create_test_buffer(passage_id_2, 10000, 0.5);
 
         // Register buffers
         register_test_buffer(&buffer_manager, passage_id_1, buffer1).await;
@@ -1296,7 +1335,7 @@ mod tests {
     async fn test_stop() {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id = Uuid::new_v4();
-        let buffer = create_test_buffer(passage_id, 1000, 0.5);
+        let buffer = create_test_buffer(passage_id, 10000, 0.5);
 
         // Register buffer
         register_test_buffer(&buffer_manager, passage_id, buffer).await;
@@ -1356,7 +1395,7 @@ mod tests {
     async fn test_set_position() {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id = Uuid::new_v4();
-        let buffer = create_test_buffer(passage_id, 1000, 0.5);
+        let buffer = create_test_buffer(passage_id, 10000, 0.5);
 
         // Register buffer
         register_test_buffer(&buffer_manager, passage_id, buffer).await;
@@ -1384,8 +1423,8 @@ mod tests {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id_1 = Uuid::new_v4();
         let passage_id_2 = Uuid::new_v4();
-        let buffer1 = create_test_buffer(passage_id_1, 1000, 0.5);
-        let buffer2 = create_test_buffer(passage_id_2, 1000, 0.5);
+        let buffer1 = create_test_buffer(passage_id_1, 10000, 0.5);
+        let buffer2 = create_test_buffer(passage_id_2, 10000, 0.5);
 
         // Register buffers
         register_test_buffer(&buffer_manager, passage_id_1, buffer1).await;
@@ -1436,14 +1475,15 @@ mod tests {
         let passage_id = Uuid::new_v4();
 
         // Create buffer with constant value (not sine wave)
-        let samples = vec![0.5_f32; 200]; // 100 stereo frames
+        // Need 10000 frames to meet mixer_min_start_level of 8820
+        let samples = vec![0.5_f32; 20000]; // 10000 stereo frames
         let buffer = create_buffer_from_samples(passage_id, samples);
         register_test_buffer(&buffer_manager, passage_id, buffer).await;
 
         // Start playback
         mixer.start_passage(passage_id, None, 0).await;
 
-        // Read all 100 frames - should all succeed without underrun
+        // Read first 100 frames - should all succeed without underrun
         for i in 0..100 {
             let frame = mixer.get_next_frame().await;
             // Should get actual data (0.5), not silence
@@ -1468,12 +1508,13 @@ mod tests {
         let (mut mixer, buffer_manager) = create_test_mixer();
         let passage_id = Uuid::new_v4();
 
-        // Create partial buffer (50 frames) that's still decoding
+        // Create partial buffer (9000 frames) that's still decoding
+        // Need to meet mixer_min_start_level of 8820
         let buffer_arc = buffer_manager.allocate_buffer(passage_id).await;
         {
             // No lock needed - buffer uses &self API now
-            // Push 50 frames
-            for _ in 0..50 {
+            // Push 9000 frames (enough to start, but will test underrun when exhausted)
+            for _ in 0..9000 {
                 let frame = AudioFrame { left: 0.5, right: 0.5 };
                 let _ = buffer_arc.push_frame(frame);
             }
@@ -1483,8 +1524,8 @@ mod tests {
         // Start playback
         mixer.start_passage(passage_id, None, 0).await;
 
-        // Read 50 frames - should work (within buffer)
-        for i in 0..50 {
+        // Read 9000 frames - should work (within buffer)
+        for i in 0..9000 {
             let frame = mixer.get_next_frame().await;
             assert_eq!(frame.left, 0.5, "Frame {} should be valid", i);
             assert_eq!(frame.right, 0.5);

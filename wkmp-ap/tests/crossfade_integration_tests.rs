@@ -96,7 +96,7 @@ async fn test_fade_in_timing_accuracy() {
     let passage_id = Uuid::new_v4();
 
     let mut mixer = CrossfadeMixer::new();
-    mixer.start_passage(buffer, passage_id, Some(FadeCurve::Linear), fade_in_ms).await;
+    mixer.start_passage(passage_id, Some(FadeCurve::Linear), fade_in_ms).await;
 
     let mut tracker = AudioLevelTracker::new(SAMPLE_RATE as usize / 10); // 100ms window
 
@@ -156,7 +156,7 @@ async fn test_crossfade_timing_accuracy() {
     let passage_id2 = Uuid::new_v4();
 
     let mut mixer = CrossfadeMixer::new();
-    mixer.start_passage(buffer1, passage_id1, None, 0).await; // No fade-in
+    mixer.start_passage(passage_id1, None, 0).await; // No fade-in
 
     // Play for 1 second at full volume
     for _ in 0..SAMPLE_RATE {
@@ -164,7 +164,7 @@ async fn test_crossfade_timing_accuracy() {
     }
 
     // Start crossfade
-    mixer.start_crossfade(buffer2, passage_id2, FadeCurve::Linear, fade_out_ms, FadeCurve::Linear, fade_in_ms).await.unwrap();
+    mixer.start_crossfade(passage_id2, FadeCurve::Linear, fade_out_ms, FadeCurve::Linear, fade_in_ms).await.unwrap();
 
     let mut tracker = AudioLevelTracker::new(SAMPLE_RATE as usize / 10);
     let crossfade_samples = (SAMPLE_RATE as f32 * fade_out_ms as f32 / 1000.0) as usize;
@@ -211,7 +211,7 @@ async fn test_fade_out_to_silence() {
     let passage_id2 = Uuid::new_v4();
 
     let mut mixer = CrossfadeMixer::new();
-    mixer.start_passage(buffer1, passage_id1, None, 0).await;
+    mixer.start_passage(passage_id1, None, 0).await;
 
     // Play for 1 second
     for _ in 0..SAMPLE_RATE {
@@ -219,7 +219,7 @@ async fn test_fade_out_to_silence() {
     }
 
     // Start crossfade to silence
-    mixer.start_crossfade(buffer2, passage_id2, FadeCurve::Logarithmic, fade_out_ms, FadeCurve::Linear, 0).await.unwrap();
+    mixer.start_crossfade(passage_id2, FadeCurve::Logarithmic, fade_out_ms, FadeCurve::Linear, 0).await.unwrap();
 
     let mut tracker = AudioLevelTracker::new(SAMPLE_RATE as usize / 20); // 50ms window
     let fade_samples = (SAMPLE_RATE as f32 * fade_out_ms as f32 / 1000.0) as usize;
@@ -273,7 +273,7 @@ async fn test_clipping_detection() {
     let passage_id2 = Uuid::new_v4();
 
     let mut mixer = CrossfadeMixer::new();
-    mixer.start_passage(buffer1, passage_id1, None, 0).await;
+    mixer.start_passage(passage_id1, None, 0).await;
 
     // Play briefly
     for _ in 0..(SAMPLE_RATE / 2) {
@@ -281,7 +281,7 @@ async fn test_clipping_detection() {
     }
 
     // Start crossfade with short duration (more likely to clip)
-    mixer.start_crossfade(buffer2, passage_id2, FadeCurve::Linear, 100, FadeCurve::Linear, 100).await.unwrap();
+    mixer.start_crossfade(passage_id2, FadeCurve::Linear, 100, FadeCurve::Linear, 100).await.unwrap();
 
     let mut max_amplitude: f32 = 0.0;
     let crossfade_samples = (SAMPLE_RATE as f32 * 0.1) as usize; // 100ms
@@ -322,7 +322,7 @@ async fn test_multiple_crossfades_sequence() {
     let mut tracker = AudioLevelTracker::new(SAMPLE_RATE as usize / 10);
 
     // Start first passage with fade-in
-    mixer.start_passage(buffer1, passage_id1, Some(FadeCurve::SCurve), 1000).await;
+    mixer.start_passage(passage_id1, Some(FadeCurve::SCurve), 1000).await;
 
     // Play through fade-in and 2 seconds of full volume
     for _ in 0..(SAMPLE_RATE * 3) {
@@ -334,7 +334,7 @@ async fn test_multiple_crossfades_sequence() {
     assert!(rms_after_first > 0.5, "Expected stable RMS after first passage fade-in");
 
     // First crossfade
-    mixer.start_crossfade(buffer2, passage_id2, FadeCurve::Linear, 2000, FadeCurve::Linear, 2000).await.unwrap();
+    mixer.start_crossfade(passage_id2, FadeCurve::Linear, 2000, FadeCurve::Linear, 2000).await.unwrap();
     tracker.reset();
 
     for _ in 0..(SAMPLE_RATE * 4) {
@@ -347,7 +347,7 @@ async fn test_multiple_crossfades_sequence() {
     assert!(rms_after_second > 0.5, "Expected stable RMS after second passage");
 
     // Second crossfade
-    mixer.start_crossfade(buffer3, passage_id3, FadeCurve::Exponential, 1500, FadeCurve::Logarithmic, 1500).await.unwrap();
+    mixer.start_crossfade(passage_id3, FadeCurve::Exponential, 1500, FadeCurve::Logarithmic, 1500).await.unwrap();
     tracker.reset();
 
     for _ in 0..(SAMPLE_RATE * 3) {

@@ -8,7 +8,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 > See [Document Hierarchy](GOV001-document_hierarchy.md) for complete update policies and change control process.
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [API Design](SPEC007-api_design.md) | [UI Specification](SPEC009-ui_specification.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Program Director](SPEC005-program_director.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
+> **Related Documentation:** [wkmp Project Charter](PCH001_project_charter.md) | [API Design](SPEC007-api_design.md) | [UI Specification](SPEC009-ui_specification.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Musical Flavor](SPEC003-musical_flavor.md) | [Program Director](SPEC005-program_director.md) | [Event System](SPEC011-event_system.md) | [Requirements Enumeration](GOV002-requirements_enumeration.md)
 
 ---
 
@@ -277,6 +277,31 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 - **[REQ-PI-054]** Associate each passage with MusicBrainz entities (tracks, recordings, artists, works)
 
 **[REQ-PI-060]** On initial import, the system must assist users by offering automatic passage boundary detection. The detailed workflow for this is specified in [Audio File Segmentation](IMPL005-audio_file_segmentation.md).
+
+**[REQ-PI-061]** Automatic lead-in detection based on amplitude analysis
+- Detect slow amplitude ramps at passage start
+- Threshold: 1/4 perceived audible intensity (RMS-based, default: -12dB below peak)
+- Maximum lead-in duration: 5 seconds (user-configurable)
+- Quick ramp-up detection: If 3/4 intensity reached < 1 second, zero lead-in
+
+**[REQ-PI-062]** Automatic lead-out detection based on amplitude analysis
+- Detect slow amplitude ramps at passage end
+- Threshold: 1/4 perceived audible intensity (RMS-based, default: -12dB below peak)
+- Maximum lead-out duration: 5 seconds (user-configurable)
+- Quick ramp-down detection: If 3/4 intensity drops < 1 second, zero lead-out
+
+**[REQ-PI-063]** User-adjustable algorithm parameters
+- All amplitude analysis thresholds configurable (RMS window, dB thresholds, durations)
+- Global defaults + per-passage overrides supported
+- Parameter presets for common musical styles (Classical, Rock/Pop, Electronic)
+
+**[REQ-PI-064]** Extensible metadata framework
+- Support arbitrary numeric parameters (0.0-1.0 range)
+- Examples: seasonal_holiday (0.0=regular, 1.0=Christmas), profanity_level (0.0=clean, 1.0=explicit)
+- Parameters may be automatically determined, manually edited, or both
+- Storage in `additional_metadata` JSON column (schema-less for extensibility)
+
+> **See [Amplitude Analysis](SPEC025-amplitude_analysis.md) for complete amplitude detection algorithm specification.**
 
 **[REQ-PI-070]** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 

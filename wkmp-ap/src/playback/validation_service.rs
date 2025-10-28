@@ -13,7 +13,7 @@ use sqlx::{Pool, Sqlite};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::interval;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, warn, trace};
 use wkmp_common::events::WkmpEvent;
 
 /// Validation service configuration
@@ -255,6 +255,10 @@ impl ValidationService {
             }
         }
 
+        // Check if audio output is expected (Playing with non-empty queue)
+        // When false (Paused or empty queue), validation failures/warnings are expected
+        let audio_expected = self.engine.is_audio_expected();
+
         // Emit appropriate event
         let timestamp = chrono::Utc::now();
         let event = if validation.passed() {
@@ -271,11 +275,20 @@ impl ValidationService {
                 total_mixer_frames,
             }
         } else if !warnings.is_empty() {
-            warn!(
-                "ValidationService: WARNING (passages: {}, warnings: {})",
-                passage_count,
-                warnings.len()
-            );
+            if !audio_expected {
+                // Idle/Paused state: warnings are expected (nothing to validate)
+                trace!(
+                    "ValidationService: WARNING during idle (passages: {}, warnings: {})",
+                    passage_count,
+                    warnings.len()
+                );
+            } else {
+                warn!(
+                    "ValidationService: WARNING (passages: {}, warnings: {})",
+                    passage_count,
+                    warnings.len()
+                );
+            }
             WkmpEvent::ValidationWarning {
                 timestamp,
                 passage_count,
@@ -286,11 +299,20 @@ impl ValidationService {
                 warnings,
             }
         } else {
-            error!(
-                "ValidationService: FAIL (passages: {}, errors: {})",
-                passage_count,
-                errors.len()
-            );
+            if !audio_expected {
+                // Idle/Paused state: validation failures are expected (nothing to validate)
+                trace!(
+                    "ValidationService: FAIL during idle (passages: {}, errors: {})",
+                    passage_count,
+                    errors.len()
+                );
+            } else {
+                error!(
+                    "ValidationService: FAIL (passages: {}, errors: {})",
+                    passage_count,
+                    errors.len()
+                );
+            }
             WkmpEvent::ValidationFailure {
                 timestamp,
                 passage_count,

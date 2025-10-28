@@ -1,6 +1,6 @@
 # Project Charter - wkmp Wonderfully Kinetic Music Player
 
-**Engineer:** Mango Cat
+**Principal Developer:** Mango Cat
 **Started:** 2025-10-25
 
 **EDITING RESTRICTIONS:**
@@ -40,6 +40,7 @@ Define the scope and purpose of the wkmp project.
 
 ## Approval
 
-**Decision made by:** Mango Cat (Principal Developer)  
-**Review date:** 2025-10-25  
+**Decision made by:** Mango Cat (Principal Developer)
+**Review date:** 2025-10-25
 **Next review:** As needed, none scheduled
+

@@ -108,7 +108,7 @@ fn test_decode_mp3() {
         result.err()
     );
 
-    let (samples, sample_rate, channels) = result.unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = result.unwrap();
 
     // Verify properties
     verify_decode_properties("MP3", &samples, sample_rate, channels);
@@ -131,7 +131,7 @@ fn test_decode_flac() {
         result.err()
     );
 
-    let (samples, sample_rate, channels) = result.unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = result.unwrap();
 
     verify_decode_properties("FLAC", &samples, sample_rate, channels);
 }
@@ -163,7 +163,7 @@ fn test_decode_aac() {
         result.err()
     );
 
-    let (samples, sample_rate, channels) = result.unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = result.unwrap();
 
     verify_decode_properties("AAC", &samples, sample_rate, channels);
 }
@@ -185,7 +185,7 @@ fn test_decode_vorbis() {
         result.err()
     );
 
-    let (samples, sample_rate, channels) = result.unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = result.unwrap();
 
     verify_decode_properties("Vorbis", &samples, sample_rate, channels);
 }
@@ -211,7 +211,7 @@ fn test_decode_opus() {
         result.err()
     );
 
-    let (samples, sample_rate, channels) = result.unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = result.unwrap();
 
     verify_decode_properties("Opus", &samples, sample_rate, channels);
 }
@@ -233,7 +233,7 @@ fn test_decode_wav() {
         result.err()
     );
 
-    let (samples, sample_rate, channels) = result.unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = result.unwrap();
 
     verify_decode_properties("WAV", &samples, sample_rate, channels);
 }
@@ -269,17 +269,17 @@ fn test_all_formats_produce_consistent_output() {
 
     // All should have correct sample rate and stereo channels
     // Note: Opus has native 48kHz, others are 44.1kHz
-    for (name, (_, rate, channels)) in &decoded_outputs {
+    for (name, result) in &decoded_outputs {
         let expected_rate = if *name == "Opus" { 48000 } else { 44100 };
-        assert_eq!(*rate, expected_rate, "{} sample rate mismatch", name);
-        assert_eq!(*channels, 2, "{} channel count mismatch", name);
+        assert_eq!(result.sample_rate, expected_rate, "{} sample rate mismatch", name);
+        assert_eq!(result.channels, 2, "{} channel count mismatch", name);
     }
 
     // Lossless formats (FLAC, WAV) should have very similar lengths
     // (FLAC may have slight padding differences)
     // Updated indexes: 0=MP3, 1=FLAC, 2=Vorbis, 3=Opus, 4=WAV
-    let flac_len = decoded_outputs[1].1 .0.len();
-    let wav_len = decoded_outputs[4].1 .0.len();
+    let flac_len = decoded_outputs[1].1.samples.len();
+    let wav_len = decoded_outputs[4].1.samples.len();
     let lossless_diff = (flac_len as i64 - wav_len as i64).abs();
     let max_lossless_diff = 1000; // Allow very small difference
 
@@ -293,11 +293,11 @@ fn test_all_formats_produce_consistent_output() {
 
     // Verify length consistency for each format
     // Note: Opus at 48kHz has different sample count than 44.1kHz formats
-    for (name, (samples, rate, _)) in &decoded_outputs {
-        let len = samples.len();
+    for (name, result) in &decoded_outputs {
+        let len = result.samples.len();
         // Expected: ~10 seconds * sample_rate * 2 channels
-        let expected = 10 * (*rate) * 2;
-        let tolerance = *rate; // ±0.5 second
+        let expected = 10 * result.sample_rate * 2;
+        let tolerance = result.sample_rate; // ±0.5 second
         assert!(
             len >= (expected as usize - tolerance as usize)
                 && len <= (expected as usize + tolerance as usize),
@@ -305,7 +305,7 @@ fn test_all_formats_produce_consistent_output() {
             name,
             len,
             expected,
-            rate,
+            result.sample_rate,
             (len as i64 - expected as i64).abs()
         );
     }
@@ -392,7 +392,7 @@ fn test_empty_file_error() {
 fn test_mp3_produces_stereo_output() {
     // MP3 decoder should convert mono to stereo if needed
     let path = fixture_path("test_audio_10s_mp3.mp3");
-    let (samples, _, channels) = SimpleDecoder::decode_file(&path).unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, channels, .. } = SimpleDecoder::decode_file(&path).unwrap();
 
     assert_eq!(channels, 2, "Output should always be stereo");
 
@@ -408,7 +408,7 @@ fn test_mp3_produces_stereo_output() {
 fn test_flac_lossless_quality() {
     // FLAC should produce high-quality output with no compression artifacts
     let path = fixture_path("test_audio_10s_flac.flac");
-    let (samples, _, _) = SimpleDecoder::decode_file(&path).unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, .. } = SimpleDecoder::decode_file(&path).unwrap();
 
     // FLAC is lossless, so we expect clean sine wave with minimal noise
     // Check that we have consistent amplitude across the file
@@ -432,7 +432,7 @@ fn test_flac_lossless_quality() {
 fn test_wav_as_reference_format() {
     // WAV (uncompressed PCM) is our reference format
     let path = fixture_path("test_audio_10s_wav.wav");
-    let (samples, sample_rate, channels) = SimpleDecoder::decode_file(&path).unwrap();
+    let wkmp_ap::audio::decoder::DecodeResult { samples, sample_rate, channels, .. } = SimpleDecoder::decode_file(&path).unwrap();
 
     // WAV should have exact expected length (no codec padding)
     let expected_samples = 10 * 44100 * 2;

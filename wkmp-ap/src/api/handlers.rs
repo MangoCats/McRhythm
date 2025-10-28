@@ -4,6 +4,7 @@
 //!
 //! **Traceability:** API Design - Audio Player API endpoints
 
+use crate::api::auth_middleware::Authenticated;
 use crate::api::server::AppContext;
 use crate::state::PlaybackState;
 use axum::{
@@ -249,6 +250,7 @@ pub async fn set_audio_device(
 ///
 /// **Traceability:** API Design - GET /audio/volume
 pub async fn get_volume(
+    _auth: Authenticated,  // Authentication required (per SPEC007 API-AUTH-025)
     State(ctx): State<AppContext>,
 ) -> Json<VolumeResponse> {
     let volume = ctx.state.get_volume().await;
@@ -287,7 +289,8 @@ pub async fn set_volume(
 
     // Emit VolumeChanged event
     ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::VolumeChanged {
-        volume: req.volume as f64,
+        old_volume: old_volume,
+        new_volume: req.volume,
         timestamp: chrono::Utc::now(),
     });
 
@@ -319,13 +322,20 @@ pub async fn enqueue_passage(
         Ok(queue_entry_id) => {
             info!("Successfully enqueued passage: {}", queue_entry_id);
 
+            // **[SSE-UI-020]** Get queue for events
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
+
             // Emit QueueChanged event
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids.clone(),
+                trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
                 timestamp: chrono::Utc::now(),
             });
 
             // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
-            let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -364,18 +374,28 @@ pub async fn remove_from_queue(
 ) -> Result<StatusCode, (StatusCode, Json<StatusResponse>)> {
     info!("Remove from queue request: {}", queue_entry_id);
 
-    // Remove from database
+    // Remove from database first
     match crate::db::queue::remove_from_queue(&ctx.db_pool, queue_entry_id).await {
         Ok(_) => {
-            info!("Successfully removed queue entry: {}", queue_entry_id);
+            info!("Successfully removed queue entry from database: {}", queue_entry_id);
+
+            // Remove from in-memory queue
+            ctx.engine.remove_queue_entry(queue_entry_id).await;
+
+            // **[SSE-UI-020]** Get updated queue for events
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
 
             // Emit QueueChanged event
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids.clone(),
+                trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
                 timestamp: chrono::Utc::now(),
             });
 
             // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
-            let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -383,6 +403,7 @@ pub async fn remove_from_queue(
                     file_path: e.file_path.to_string_lossy().to_string(),
                 })
                 .collect();
+            info!("Broadcasting QueueStateUpdate with {} entries", queue_info.len());
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
                 timestamp: chrono::Utc::now(),
                 queue: queue_info,
@@ -391,7 +412,7 @@ pub async fn remove_from_queue(
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            error!("Failed to remove queue entry: {}", e);
+            error!("Failed to remove queue entry from database: {}", e);
             Err((
                 StatusCode::NOT_FOUND,
                 Json(StatusResponse {
@@ -577,6 +598,28 @@ pub async fn get_buffer_status(
     Json(BufferStatusResponse { buffers })
 }
 
+/// GET /playback/callback_stats - Get audio callback statistics
+///
+/// Returns callback timing statistics for gap/stutter analysis.
+/// Includes total callbacks, underruns, and irregular interval counts.
+///
+/// **Traceability:** Gap/stutter detection instrumentation
+pub async fn get_callback_stats(
+    State(ctx): State<AppContext>,
+) -> Result<Json<crate::playback::callback_monitor::CallbackStats>, (StatusCode, Json<StatusResponse>)> {
+    info!("Callback stats request");
+
+    match ctx.engine.get_callback_stats().await {
+        Some(stats) => Ok(Json(stats)),
+        None => Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(StatusResponse {
+                status: "Audio callback monitor not yet initialized".to_string(),
+            }),
+        )),
+    }
+}
+
 /// POST /playback/next - Skip to next passage
 ///
 /// **Traceability:** API Design - POST /playback/next
@@ -659,13 +702,20 @@ pub async fn reorder_queue_entry(
         Ok(_) => {
             info!("Queue reordered successfully");
 
-            // Emit QueueChanged event
+            // **[SSE-UI-020]** Get queue for events
+            let queue_entries = ctx.engine.get_queue_entries().await;
+            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
+
+            // Emit QueueChanged event (reorder is user-initiated queue modification)
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids.clone(),
+                trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
                 timestamp: chrono::Utc::now(),
             });
 
             // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
-            let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -967,6 +1017,7 @@ pub struct SettingInfo {
     pub key: String,
     pub value: String,
     pub data_type: String,
+    pub default_value: String,
     pub description: String,
     pub validation: Option<String>,
 }
@@ -999,76 +1050,84 @@ pub async fn get_all_settings(
     use crate::db::settings;
 
     // Define all wkmp-ap settings with metadata
+    // Tuple format: (key, type, description, validation, default_value)
     let setting_definitions = vec![
         // Audio Output & Volume
-        ("volume_level", "f32", "Audio output volume [DBD-PARAM-010]", Some("0.0-1.0")),
-        ("audio_sink", "String", "Audio output device identifier", Some("Valid device name or 'default'")),
+        ("volume_level", "f32", "Audio output volume [DBD-PARAM-010]", Some("0.0-1.0"), "0.5"),
+        ("audio_sink", "String", "Audio output device identifier", Some("Valid device name or 'default'"), "default"),
 
         // Crossfade Settings
-        ("global_crossfade_time", "f64", "Default crossfade duration in seconds", Some("0.1-10.0")),
-        ("global_fade_curve", "String", "Default fade curve shape", Some("linear, exponential, cosine, exponential_logarithmic")),
+        ("global_crossfade_time", "f64", "Default crossfade duration in seconds", Some("0.1-10.0"), "2.0"),
+        ("global_fade_curve", "String", "Default fade curve shape", Some("linear, exponential, cosine, exponential_logarithmic"), "exponential_logarithmic"),
 
         // Event Intervals
-        ("position_event_interval_ms", "u32", "Interval for position event updates (ms)", Some("100-5000")),
-        ("playback_progress_interval_ms", "u64", "Minimum interval between progress SSE events (ms)", Some("1000-60000")),
+        ("position_event_interval_ms", "u32", "Interval for position event updates (ms)", Some("100-5000"), "1000"),
+        ("playback_progress_interval_ms", "u64", "Minimum interval between progress SSE events (ms)", Some("1000-60000"), "5000"),
 
         // SPEC016 [DBD-PARAM-020] - Working Sample Rate
-        ("working_sample_rate", "u32", "[DBD-PARAM-020] Sample rate for decoded audio (Hz)", Some("44100, 48000, 88200, 96000")),
+        ("working_sample_rate", "u32", "[DBD-PARAM-020] Sample rate for decoded audio (Hz)", Some("44100, 48000, 88200, 96000"), "44100"),
 
         // SPEC016 [DBD-PARAM-030] - Output Ring Buffer
-        ("output_ringbuffer_size", "usize", "[DBD-PARAM-030] Max samples in output ring buffer", Some("2048-16384")),
+        ("output_ringbuffer_size", "usize", "[DBD-PARAM-030] Max samples in output ring buffer", Some("2048-16384"), "88200"),
 
         // SPEC016 [DBD-PARAM-040] - Output Refill Period
-        ("output_refill_period", "u64", "[DBD-PARAM-040] Milliseconds between mixer checks (ms)", Some("10-500")),
+        ("output_refill_period", "u64", "[DBD-PARAM-040] Milliseconds between mixer checks (ms)", Some("10-500"), "90"),
 
         // SPEC016 [DBD-PARAM-050] - Maximum Decode Streams
-        ("maximum_decode_streams", "usize", "[DBD-PARAM-050] Maximum number of parallel decoder chains", Some("2-32")),
+        ("maximum_decode_streams", "usize", "[DBD-PARAM-050] Maximum number of parallel decoder chains", Some("2-32"), "12"),
 
         // SPEC016 [DBD-PARAM-060] - Decode Work Period
-        ("decode_work_period", "u64", "[DBD-PARAM-060] Decode job priority evaluation period (ms)", Some("1000-10000")),
+        ("decode_work_period", "u64", "[DBD-PARAM-060] Decode job priority evaluation period (ms)", Some("1000-10000"), "5000"),
 
         // SPEC016 [DBD-PARAM-065] - Decode Chunk Size
-        ("decode_chunk_size", "usize", "[DBD-PARAM-065] Samples per decode chunk (at working rate)", Some("10000-100000")),
+        ("decode_chunk_size", "usize", "[DBD-PARAM-065] Samples per decode chunk (at working rate)", Some("10000-100000"), "25000"),
 
         // SPEC016 [DBD-PARAM-070] - Playout Ring Buffer Size
-        ("playout_ringbuffer_size", "usize", "[DBD-PARAM-070] Decoded audio buffer size (samples)", Some("220500-1323000")),
+        ("playout_ringbuffer_size", "usize", "[DBD-PARAM-070] Decoded audio buffer size (samples)", Some("220500-1323000"), "661941"),
 
         // SPEC016 [DBD-PARAM-080] - Playout Buffer Headroom
-        ("playout_ringbuffer_headroom", "usize", "[DBD-PARAM-080] Buffer headroom for late resampler samples", Some("1000-10000")),
+        ("playout_ringbuffer_headroom", "usize", "[DBD-PARAM-080] Buffer headroom for late resampler samples", Some("1000-10000"), "4410"),
 
         // SPEC016 [DBD-PARAM-085] - Decoder Resume Hysteresis
-        ("decoder_resume_hysteresis_samples", "u64", "[DBD-PARAM-085] Hysteresis for decoder pause/resume (samples)", Some("882-88200")),
+        ("decoder_resume_hysteresis_samples", "u64", "[DBD-PARAM-085] Hysteresis for decoder pause/resume (samples)", Some("882-88200"), "44100"),
 
         // SPEC016 [DBD-PARAM-088] - Mixer Minimum Start Level
-        ("mixer_min_start_level", "usize", "[DBD-PARAM-088] Min samples before mixer starts playback", Some("8820-220500")),
+        ("mixer_min_start_level", "usize", "[DBD-PARAM-088] Min samples before mixer starts playback", Some("8820-220500"), "22050"),
 
         // SPEC016 [DBD-PARAM-090] - Pause Decay Factor
-        ("pause_decay_factor", "f64", "[DBD-PARAM-090] Exponential decay factor in pause mode", Some("0.90-0.99")),
+        ("pause_decay_factor", "f64", "[DBD-PARAM-090] Exponential decay factor in pause mode", Some("0.90-0.99"), "0.95"),
 
         // SPEC016 [DBD-PARAM-100] - Pause Decay Floor
-        ("pause_decay_floor", "f64", "[DBD-PARAM-100] Minimum level before outputting zero", Some("0.0001-0.001")),
+        ("pause_decay_floor", "f64", "[DBD-PARAM-100] Minimum level before outputting zero", Some("0.0001-0.001"), "0.0001778"),
+
+        // SPEC016 [DBD-PARAM-110] - Audio Buffer Size
+        ("audio_buffer_size", "u32", "[DBD-PARAM-110] Audio output buffer size (frames/callback)", Some("64-65536"), "2208"),
+
+        // SPEC016 [DBD-PARAM-111] - Mixer Check Interval
+        ("mixer_check_interval_ms", "u64", "[DBD-PARAM-111] Mixer thread check interval (ms)", Some("1-100"), "10"),
 
         // Resume from Pause
-        ("resume_from_pause_fade_in_duration", "u64", "Fade-in duration when resuming from pause (ms)", Some("0-2000")),
-        ("resume_from_pause_fade_in_curve", "String", "Fade curve for resume from pause", Some("linear, exponential, cosine")),
+        ("resume_from_pause_fade_in_duration", "u64", "Fade-in duration when resuming from pause (ms)", Some("0-2000"), "500"),
+        ("resume_from_pause_fade_in_curve", "String", "Fade curve for resume from pause", Some("linear, exponential, cosine"), "linear"),
 
         // Ring Buffer & Mixer (legacy/experimental)
-        ("audio_ring_buffer_grace_period_ms", "u64", "Grace period before ring buffer underrun detection (ms)", Some("0-10000")),
-        ("mixer_check_interval_us", "u64", "Mixer thread buffer check interval (microseconds)", Some("1-1000")),
-        ("mixer_batch_size_low", "usize", "Mixer batch size when buffer < 50% (frames)", Some("1-32")),
-        ("mixer_batch_size_optimal", "usize", "Mixer batch size when buffer 50-75% (frames)", Some("1-16")),
-        ("minimum_buffer_threshold_ms", "u64", "Minimum buffer level before playback start (ms)", Some("500-5000")),
+        ("audio_ring_buffer_grace_period_ms", "u64", "Grace period before ring buffer underrun detection (ms)", Some("0-10000"), "2000"),
+        ("mixer_check_interval_us", "u64", "Mixer thread buffer check interval (microseconds)", Some("1-1000"), "100"),
+        ("mixer_batch_size_low", "usize", "Mixer batch size when buffer < 50% (frames)", Some("16-1024"), "512"),
+        ("mixer_batch_size_optimal", "usize", "Mixer batch size when buffer 50-75% (frames)", Some("16-512"), "256"),
+        ("minimum_buffer_threshold_ms", "u64", "Minimum buffer level before playback start (ms)", Some("500-5000"), "1000"),
     ];
 
     let mut settings = Vec::new();
 
-    for (key, data_type, description, validation) in setting_definitions {
+    for (key, data_type, description, validation, default_value) in setting_definitions {
         match settings::get_setting::<String>(&ctx.db_pool, key).await {
             Ok(Some(value)) => {
                 settings.push(SettingInfo {
                     key: key.to_string(),
                     value,
                     data_type: data_type.to_string(),
+                    default_value: default_value.to_string(),
                     description: description.to_string(),
                     validation: validation.map(String::from),
                 });
@@ -1079,6 +1138,7 @@ pub async fn get_all_settings(
                     key: key.to_string(),
                     value: "(not set)".to_string(),
                     data_type: data_type.to_string(),
+                    default_value: default_value.to_string(),
                     description: description.to_string(),
                     validation: validation.map(String::from),
                 });
@@ -1238,6 +1298,8 @@ pub async fn get_pipeline_diagnostics(
 /// Serve developer UI HTML (bundled at compile time)
 ///
 /// **[ARCH-PC-010]** Developer UI with status display, API testing, and event monitoring
+///
+/// TODO: This currently serves static HTML. Need to implement dynamic shared_secret embedding.
 pub async fn developer_ui() -> Html<&'static str> {
     Html(include_str!("developer_ui.html"))
 }

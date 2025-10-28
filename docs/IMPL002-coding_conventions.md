@@ -27,21 +27,51 @@ WKMP uses a Cargo workspace with multiple binary crates and a shared common libr
   - `wkmp-pd/` - Program Director binary
   - `wkmp-ai/` - Audio Ingest binary (Full version only)
 
-- **CO-007:** Shared code shall be implemented in the `common/` library:
+- **CO-007:** Shared code shall be implemented in the `common/` library using the following decision criteria:
+
+  **Decision Criteria - Code belongs in `wkmp-common` if it meets ANY of:**
+  1. **Cross-Module Communication**: Used for communication between modules (Events, API types)
+  2. **Identical Implementation**: Same logic needed by 2+ modules with no variations
+  3. **Domain Model**: Core business entities used across modules (Passage, Song, Recording, etc.)
+  4. **Infrastructure Pattern**: Repeated pattern across modules (EventBus, authentication, configuration loading)
+  5. **Security-Critical**: Authentication, authorization, cryptography (must be identical for security)
+
+  **Current Shared Components** (see [DRY-STRATEGY.md](DRY-STRATEGY.md) for complete catalog):
   - Database models and queries
-  - Event types (`WkmpEvent` enum)
+  - Event system (EventBus, WkmpEvent enum, supporting types)
+  - API authentication (timestamp/hash validation)
   - API request/response types
+  - Configuration loading (RootFolderResolver, platform defaults)
   - Flavor calculation algorithms
   - Cooldown calculation logic
   - UUID and timestamp utilities
-  - Module configuration loading
+  - Fade curve definitions
+
+- **CO-007A:** Before implementing new functionality, developers shall:
+  1. Check `wkmp-common/src/` for existing implementations
+  2. Review [DRY-STRATEGY.md](DRY-STRATEGY.md) decision matrix
+  3. If similar logic exists in another module, consolidate to `wkmp-common` first
+
+- **CO-007B:** Cross-module code duplication triggers:
+  - Same logic appears in 2+ modules → Consolidate immediately
+  - Similar pattern with minor variations → Parameterize and consolidate
+  - Module-specific today but planned for other modules → Proactively move to common
+
+- **CO-007C:** When consolidating code to `wkmp-common`:
+  1. Ensure existing module tests still pass
+  2. Add comprehensive tests to `wkmp-common`
+  3. Update [DRY-STRATEGY.md](DRY-STRATEGY.md) with the new shared component
+  4. Document in module's re-export (e.g., `pub use wkmp_common::events::EventBus;`)
+
+  **Rationale:** See [REV003-dry_guidance_review.md](REV003-dry_guidance_review.md) for comprehensive analysis of DRY guidance enhancements and decision criteria validation.
 
 - **CO-008:** Module-specific code shall remain in respective binary crates:
-  - HTTP server setup (module-specific)
+  - HTTP server setup (module-specific ports, routes)
   - Audio pipeline code (Audio Player only)
   - Password hashing (User Interface only)
   - Selection algorithm (Program Director only)
   - File scanning (Audio Ingest only)
+  - Module-specific business logic (not shared with other modules)
 
 - **CO-009:** Binary names shall follow the `wkmp-` prefix convention:
   - `wkmp-ap` - Audio Player
@@ -350,10 +380,14 @@ The `common/` library crate shall be organized as follows:
 - **CO-226:** Each binary shall log build identification information at startup at INFO level containing:
   - Cargo package version from `Cargo.toml`
   - Git commit hash (short form, 8 characters)
-  - Build timestamp (ISO 8601 format)
+  - Build timestamp (ISO 8601 format with local timezone offset, e.g., `2025-10-26T14:30:45-05:00`)
   - Build profile (debug/release)
-  - Example output: `wkmp-ap v0.1.0 [a1b2c3d4] built 2025-10-19T12:34:56Z (debug)`
-  - This enables unambiguous determination of which code version is running
+
+  **Timestamp Format:** Use `chrono::Local::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, false)` to capture build time in local timezone with `±HH:MM` offset format. This allows correlation with local development activities and provides clear timezone information.
+
+  **Example output:** `Starting WKMP Audio Player (wkmp-ap) v0.1.0 [2bd1628e] built 2025-10-26T14:30:45-05:00 (debug)`
+
+  **Rationale:** Local timezone with offset enables unambiguous determination of build time while allowing developers to correlate with their local work schedule. The `±HH:MM` format clearly indicates timezone without ambiguity.
 
 ### Testing Conventions
 
@@ -387,6 +421,58 @@ The `common/` library crate shall be organized as follows:
 - **CO-252:** Database queries in loops shall be batched when possible
 - **CO-253:** Musical flavor distance calculations shall be optimized for the top-100 selection
 - **CO-255:** Memory allocations in audio callback paths shall be minimized
+
+**CO-256: Real-Time Audio Constraints**
+
+Audio callback functions execute on a real-time thread with strict latency requirements (~11.6ms @ 44.1kHz/512 frames). Violating these constraints causes audible gaps, stutters, and dropouts.
+
+- **CO-257:** Audio callback code SHALL NOT perform ANY of the following operations:
+  - **Logging/Tracing:** `info!()`, `debug!()`, `warn!()`, `error!()` macros
+    - **Why:** Terminal I/O blocks for 10-50ms (exceeds callback deadline)
+    - **Alternative:** Use atomic counters; separate monitoring thread polls and logs
+  - **System Calls:** `SystemTime::now()`, `chrono::Utc::now()`, file I/O
+    - **Why:** Kernel transitions are unpredictable (can take >10ms)
+    - **Alternative:** Use `Instant` (monotonic, fast) or pre-calculated values
+  - **Event Emission:** `broadcast_event()`, channel sends with backpressure
+    - **Why:** Can block if receiver slow or buffer full
+    - **Alternative:** Separate monitoring thread emits events based on atomic state
+  - **Lock Acquisition:** `Mutex::lock()`, `RwLock::read()`, `RwLock::write()`
+    - **Why:** Blocking can exceed callback deadline if lock contended
+    - **Alternative:** Lock-free data structures (atomics, ring buffers)
+  - **Memory Allocation:** `Vec::push()`, `String::new()`, `Box::new()`
+    - **Why:** Allocator can block during heap operations
+    - **Alternative:** Pre-allocate buffers, use fixed-size arrays
+
+- **CO-258:** Real-time safe operations (permitted in audio callback):
+  - **Atomic operations:** `AtomicU64::fetch_add()`, `AtomicBool::load()`, etc. (Relaxed ordering)
+  - **Lock-free data structures:** Ring buffers with atomic head/tail pointers
+  - **Simple arithmetic:** Integer math, floating-point operations
+  - **Monotonic time:** `Instant::elapsed()` (does not require system call)
+
+- **CO-259:** Instrumentation/monitoring pattern for real-time code:
+  ```rust
+  // Audio callback: ONLY atomic operations
+  pub fn record_event(&self) {
+      self.event_count.fetch_add(1, Ordering::Relaxed);
+  }
+
+  // Separate monitoring thread: polls atomics and emits logs/events
+  pub fn spawn_monitoring_task(self: Arc<Self>) -> Arc<AtomicBool> {
+      let shutdown = Arc::new(AtomicBool::new(false));
+      tokio::spawn(async move {
+          while !shutdown.load(Ordering::Relaxed) {
+              tokio::time::sleep(Duration::from_millis(100)).await;
+              let count = self.event_count.load(Ordering::Relaxed);
+              if count > last_count {
+                  warn!("Events detected: {}", count); // Safe: not in audio callback
+              }
+          }
+      });
+      shutdown
+  }
+  ```
+
+  **Rationale:** Separation of measurement (real-time thread) from reporting (background thread) ensures instrumentation never causes the problems it's trying to detect.
 
 **CO-260: Raspberry Pi Optimization**
 

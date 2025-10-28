@@ -33,6 +33,11 @@ pub async fn init_settings_defaults(pool: &Pool<Sqlite>) -> Result<()> {
         // Default audio device
         ("audio_sink", "default"),
 
+        // Audio device buffer size (frames per callback)
+        // [DBD-PARAM-110] Audio output buffer size in frames
+        // Default: 2208 frames (50.1ms @ 44.1kHz) - Empirically tuned for VeryHigh stability
+        ("audio_buffer_size", "2208"),
+
         // Crossfade defaults
         ("global_crossfade_time", "2.0"), // 2 seconds
         ("global_fade_curve", "exponential_logarithmic"),
@@ -40,6 +45,11 @@ pub async fn init_settings_defaults(pool: &Pool<Sqlite>) -> Result<()> {
         // Buffer chain configuration
         // [DBD-PARAM-050] Maximum decoder-resampler-fade-buffer chains
         ("maximum_decode_streams", "12"),
+
+        // Mixer thread configuration
+        // [DBD-PARAM-111] Mixer check interval in milliseconds
+        // Default: 10ms - Conservative value for VeryHigh stability confidence (empirically tuned)
+        ("mixer_check_interval_ms", "10"),
     ];
 
     for (key, default_value) in defaults {

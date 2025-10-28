@@ -1,40 +1,83 @@
 //! Event types for WKMP event system
+//!
+//! Provides shared event definitions and EventBus for all WKMP modules.
 
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 /// WKMP event types
+///
+/// **DRY Pattern:** Shared across all 5 WKMP modules (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le)
+///
+/// Events are broadcast via EventBus and can be serialized for SSE transmission.
+/// Per SPEC011: All events use this central enum for type safety and exhaustive matching.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum WkmpEvent {
-    /// Playback state changed
+    /// Playback state changed (Playing ↔ Paused)
+    ///
+    /// Triggers:
+    /// - SSE: Update UI controls
+    /// - State Persistence: Save current state
+    /// - Platform Integration: Update MPRIS/media keys
     PlaybackStateChanged {
-        state: PlaybackState,
+        old_state: PlaybackState,
+        new_state: PlaybackState,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Passage started playing
+    ///
+    /// Triggers:
+    /// - Historian: Record play start
+    /// - SSE: Update all connected UIs
+    /// - Lyrics Display: Show passage lyrics
     PassageStarted {
         passage_id: Uuid,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
-    /// Passage completed
+    /// Passage completed or skipped
+    ///
+    /// Triggers:
+    /// - Historian: Record play completion
+    /// - Queue Manager: Advance queue
+    /// - SSE: Update UI playback state
     PassageCompleted {
         passage_id: Uuid,
-        completed: bool,
+        duration_played: f64,
+        completed: bool, // false if skipped
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
-    /// Current song changed
+    /// Current song within passage changed
+    ///
+    /// NOTE: Distinct from PassageStarted (which is for passage transitions).
+    /// Fires when crossing song boundaries within a single passage.
+    ///
+    /// Triggers:
+    /// - UI: Update album art display
+    /// - UI: Reset album rotation timer if song has multiple albums
+    /// - UI: Update now playing song information
     CurrentSongChanged {
         passage_id: Uuid,
         song_id: Option<Uuid>,
+        song_albums: Vec<Uuid>, // All albums for this song, ordered by release date (newest first)
         position_ms: u64,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Playback progress update
+    ///
+    /// Emitted periodically during playback (configurable frequency, default: 5000ms).
+    /// Also emitted once when Pause/Play initiated.
+    ///
+    /// NOTE: NOT persisted to database during playback (only transmitted via SSE).
+    /// Database persistence only on clean shutdown via settings.last_played_position_ticks.
+    ///
+    /// Triggers:
+    /// - SSE: Update progress bar
     PlaybackProgress {
         passage_id: Uuid,
         position_ms: u64,
@@ -42,8 +85,14 @@ pub enum WkmpEvent {
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
-    /// Queue changed (notification only - no data)
+    /// Queue changed
+    ///
+    /// Triggers:
+    /// - SSE: Update queue display
+    /// - Auto-replenishment: Check if refill needed
     QueueChanged {
+        queue: Vec<Uuid>,
+        trigger: QueueChangeTrigger,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -64,9 +113,185 @@ pub enum WkmpEvent {
         playing: bool,
     },
 
+    /// Passage enqueued (added to queue)
+    ///
+    /// Triggers:
+    /// - SSE: Animate new queue entry
+    /// - Analytics: Track auto vs manual enqueue
+    PassageEnqueued {
+        passage_id: Uuid,
+        position: usize,
+        source: EnqueueSource,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Passage dequeued (removed from queue)
+    ///
+    /// Triggers:
+    /// - SSE: Update queue display
+    PassageDequeued {
+        passage_id: Uuid,
+        was_playing: bool,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Queue became empty
+    ///
+    /// NOTE: This does NOT change Play/Pause state automatically
+    ///
+    /// Triggers:
+    /// - SSE: Update UI to show empty queue state
+    /// - UI: May show "Queue Empty" message
+    /// - Automatic selector: Already stopped (no valid candidates)
+    QueueEmpty {
+        playback_state: PlaybackState, // Current Play/Pause state (unchanged)
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
     /// Volume changed
+    ///
+    /// Triggers:
+    /// - SSE: Update volume slider
+    /// - State Persistence: Save volume preference
     VolumeChanged {
-        volume: f64,
+        old_volume: f32, // 0.0-1.0 (system-level scale for precision)
+        new_volume: f32, // 0.0-1.0 (system-level scale for precision)
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Buffer state changed for a passage
+    ///
+    /// Purpose: Notify clients of passage buffer decode/playback state changes
+    /// for monitoring and debugging.
+    ///
+    /// Triggers:
+    /// - Developer UI: Show buffer state transitions for debugging
+    /// - Performance monitoring: Track decode speed vs. playback speed
+    /// - UI display: Show decode progress for large files
+    BufferStateChanged {
+        passage_id: Uuid,
+        old_state: BufferStatus,
+        new_state: BufferStatus,
+        decode_progress_percent: Option<f32>, // Only for Decoding state
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// User performed an action (satisfies REQ-CF-082, REQ-CF-082A)
+    ///
+    /// Used for multi-user synchronization and edge case handling:
+    /// - Skip throttling (5-second window, REQ-CF-085A, REQ-CF-085B, REQ-CF-085C)
+    /// - Concurrent operation handling
+    ///
+    /// Triggers:
+    /// - SSE: Broadcast to all other connected clients
+    /// - Skip Throttle: Track recent skip actions
+    /// - Analytics: User interaction tracking
+    UserAction {
+        action: UserActionType,
+        user_id: String, // User's persistent UUID
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// User liked a passage (Full/Lite versions only)
+    ///
+    /// Triggers:
+    /// - Database: Record like associated with user UUID
+    /// - Taste Manager: Update user's taste profile
+    /// - SSE: Update like button state for all connected clients
+    PassageLiked {
+        passage_id: Uuid,
+        user_id: Uuid, // UUID of user who liked (may be Anonymous UUID)
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// User disliked a passage (Full/Lite versions only)
+    ///
+    /// Triggers:
+    /// - Database: Record dislike associated with user UUID
+    /// - Taste Manager: Update user's taste profile
+    /// - SSE: Update dislike button state for all connected clients
+    /// - Program Director: Adjust selection probability (Phase 2)
+    PassageDisliked {
+        passage_id: Uuid,
+        user_id: Uuid, // UUID of user who disliked (may be Anonymous UUID)
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Temporary flavor override set by user
+    ///
+    /// Implements REQ-FLV-020: Temporary override behavior
+    ///
+    /// Triggers:
+    /// - Queue Manager: Flush existing queue
+    /// - Playback Controller: Skip remaining time on current passage
+    /// - Program Director: Use new target for selection
+    /// - SSE: Show override indicator in UI
+    TemporaryFlavorOverride {
+        target_flavor: Vec<f64>, // FlavorVector: 8-dimensional AcousticBrainz vector
+        expiration: chrono::DateTime<chrono::Utc>,
+        duration_seconds: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Temporary flavor override expired
+    ///
+    /// Triggers:
+    /// - Program Director: Revert to timeslot-based target
+    /// - SSE: Remove override indicator
+    TemporaryFlavorOverrideExpired {
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Timeslot changed (e.g., midnight → morning)
+    ///
+    /// NOTE: Does NOT affect currently queued passages (REQ-FLV-030)
+    ///
+    /// Triggers:
+    /// - Program Director: Update target flavor for new selections
+    /// - SSE: Update current timeslot indicator
+    TimeslotChanged {
+        old_timeslot_id: Uuid,
+        new_timeslot_id: Uuid,
+        new_target_flavor: Vec<f64>, // FlavorVector
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Network connectivity status changed
+    ///
+    /// Implements REQ-NET-010: Network error handling
+    ///
+    /// Triggers:
+    /// - External API clients: Pause/resume requests
+    /// - SSE: Show offline indicator
+    NetworkStatusChanged {
+        available: bool,
+        retry_count: u32,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Library scan completed (Full version only)
+    ///
+    /// Triggers:
+    /// - SSE: Update library stats
+    /// - Program Director: Refresh available passages
+    LibraryScanCompleted {
+        files_added: usize,
+        files_updated: usize,
+        files_removed: usize,
+        duration_seconds: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Database error occurred
+    ///
+    /// Triggers:
+    /// - Error logging
+    /// - SSE: Show error notification
+    /// - Retry logic: Attempt recovery
+    DatabaseError {
+        operation: String,
+        error: String,
+        retry_attempted: bool,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -135,6 +360,226 @@ pub enum WkmpEvent {
         total_buffer_read: u64,
         total_mixer_frames: u64,
         warnings: Vec<String>,
+    },
+
+    // ========================================================================
+    // Error Events (Phase 7 - Error Handling & Recovery)
+    // Per SPEC021 ERH-EVENT-010
+    // ========================================================================
+
+    /// Passage decode failed (file read error)
+    /// **[REQ-AP-ERR-010]** Decode errors skip passage, continue with next
+    PassageDecodeFailed {
+        passage_id: Option<Uuid>,
+        error_type: String,
+        error_message: String,
+        file_path: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Passage has unsupported codec
+    /// **[REQ-AP-ERR-011]** Unsupported codecs marked to prevent re-queue
+    PassageUnsupportedCodec {
+        passage_id: Option<Uuid>,
+        file_path: String,
+        codec_hint: Option<String>,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Passage partially decoded (truncated file)
+    /// **[REQ-AP-ERR-012]** Partial decode ≥50% allows playback
+    PassagePartialDecode {
+        passage_id: Option<Uuid>,
+        file_path: String,
+        expected_duration_ms: u64,
+        actual_duration_ms: u64,
+        percentage: f64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Decoder panicked during decode
+    /// **[REQ-AP-ERR-013]** Decoder panics caught and recovered
+    PassageDecoderPanic {
+        passage_id: Option<Uuid>,
+        file_path: String,
+        panic_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Buffer underrun detected
+    /// **[REQ-AP-ERR-020]** Buffer underrun emergency refill with timeout
+    BufferUnderrun {
+        passage_id: Uuid,
+        buffer_fill_percent: f32,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Buffer underrun recovered
+    /// **[REQ-AP-ERR-020]** Underrun recovery successful
+    BufferUnderrunRecovered {
+        passage_id: Uuid,
+        recovery_time_ms: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio callback underrun (real-time detection)
+    /// Emitted EVERY time the audio callback finds the ring buffer empty
+    /// This provides immediate detection of gaps/stutters
+    AudioCallbackUnderrun {
+        underrun_count: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio callback irregular interval detected
+    /// Emitted when callback timing deviates significantly from expected
+    /// (throttled to avoid spam - max once per 5 seconds)
+    AudioCallbackIrregular {
+        actual_interval_ms: u64,
+        expected_interval_ms: u64,
+        deviation_ms: u64,
+        total_irregular_count: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device lost (disconnected)
+    /// **[REQ-AP-ERR-030]** Device disconnect retry 30s before fallback
+    AudioDeviceLost {
+        device_name: String,
+        device_id: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device restored after disconnection
+    /// **[REQ-AP-ERR-030]** Device reconnected successfully
+    AudioDeviceRestored {
+        device_name: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device fallback (original device unavailable)
+    /// **[REQ-AP-ERR-030]** Fallback to system default device
+    AudioDeviceFallback {
+        original_device: String,
+        fallback_device: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device unavailable (all attempts failed)
+    /// **[REQ-AP-ERR-030]** No audio device available
+    AudioDeviceUnavailable {
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device configuration error
+    /// **[REQ-AP-ERR-031]** Device config errors attempt 4 fallback configs
+    AudioDeviceConfigError {
+        device_name: String,
+        requested_config: String,
+        error_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device configuration fallback succeeded
+    /// **[REQ-AP-ERR-031]** Fallback configuration successful
+    AudioDeviceConfigFallback {
+        device_name: String,
+        fallback_config: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Audio device incompatible (all configs failed)
+    /// **[REQ-AP-ERR-031]** Device incompatible with all configurations
+    AudioDeviceIncompatible {
+        device_name: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Queue validation error (invalid entry)
+    /// **[REQ-AP-ERR-040]** Invalid queue entries auto-removed with logging
+    QueueValidationError {
+        queue_entry_id: Uuid,
+        passage_id: Option<Uuid>,
+        validation_error: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Queue depth warning (all chains busy)
+    /// **[REQ-AP-ERR-040]** Queue depth exceeds available chains
+    QueueDepthWarning {
+        queue_depth: usize,
+        available_chains: usize,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Resampling failed (initialization)
+    /// **[REQ-AP-ERR-050]** Resampling init fails, skip passage or bypass
+    ResamplingFailed {
+        passage_id: Uuid,
+        source_rate: u32,
+        target_rate: u32,
+        error_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Resampling runtime error
+    /// **[REQ-AP-ERR-051]** Resampling runtime errors skip passage
+    ResamplingRuntimeError {
+        passage_id: Uuid,
+        position_ms: u64,
+        error_message: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Timing system failure (fatal)
+    /// **[SPEC021 ERH-TIME-010]** Tick overflow or timing corruption
+    TimingSystemFailure {
+        error_type: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Position drift warning
+    /// **[REQ-AP-ERR-060]** Position drift <100 samples auto-corrected
+    PositionDriftWarning {
+        passage_id: Uuid,
+        expected_position_ms: u64,
+        actual_position_ms: u64,
+        delta_ms: i64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System resource exhausted
+    /// **[REQ-AP-ERR-070]** Resource exhaustion cleanup and retry
+    SystemResourceExhausted {
+        resource_type: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System resource recovered
+    /// **[REQ-AP-ERR-070]** Resource exhaustion resolved
+    SystemResourceRecovered {
+        resource_type: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// File handle exhaustion
+    /// **[REQ-AP-ERR-071]** File handle exhaustion, reduce chain count
+    FileHandleExhaustion {
+        attempted_file: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System degraded mode activated
+    /// **[REQ-AP-DEGRADE-010/020/030]** Graceful degradation
+    SystemDegradedMode {
+        reason: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// System shutdown required (fatal error)
+    /// **[SPEC021 ERH-TAX-010]** FATAL error requires shutdown
+    SystemShutdownRequired {
+        reason: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
     },
 }
 
@@ -301,7 +746,6 @@ impl std::fmt::Display for FadeStage {
 pub enum PlaybackState {
     Playing,
     Paused,
-    Stopped,
 }
 
 impl std::fmt::Display for PlaybackState {
@@ -309,7 +753,6 @@ impl std::fmt::Display for PlaybackState {
         match self {
             PlaybackState::Playing => write!(f, "playing"),
             PlaybackState::Paused => write!(f, "paused"),
-            PlaybackState::Stopped => write!(f, "stopped"),
         }
     }
 }
@@ -326,7 +769,20 @@ impl WkmpEvent {
             WkmpEvent::QueueChanged { .. } => "QueueChanged",
             WkmpEvent::QueueStateUpdate { .. } => "QueueStateUpdate",
             WkmpEvent::PlaybackPosition { .. } => "PlaybackPosition",
+            WkmpEvent::PassageEnqueued { .. } => "PassageEnqueued",
+            WkmpEvent::PassageDequeued { .. } => "PassageDequeued",
+            WkmpEvent::QueueEmpty { .. } => "QueueEmpty",
             WkmpEvent::VolumeChanged { .. } => "VolumeChanged",
+            WkmpEvent::BufferStateChanged { .. } => "BufferStateChanged",
+            WkmpEvent::UserAction { .. } => "UserAction",
+            WkmpEvent::PassageLiked { .. } => "PassageLiked",
+            WkmpEvent::PassageDisliked { .. } => "PassageDisliked",
+            WkmpEvent::TemporaryFlavorOverride { .. } => "TemporaryFlavorOverride",
+            WkmpEvent::TemporaryFlavorOverrideExpired { .. } => "TemporaryFlavorOverrideExpired",
+            WkmpEvent::TimeslotChanged { .. } => "TimeslotChanged",
+            WkmpEvent::NetworkStatusChanged { .. } => "NetworkStatusChanged",
+            WkmpEvent::LibraryScanCompleted { .. } => "LibraryScanCompleted",
+            WkmpEvent::DatabaseError { .. } => "DatabaseError",
             WkmpEvent::InitialState { ..} => "InitialState",
             WkmpEvent::CrossfadeStarted { .. } => "CrossfadeStarted",
             WkmpEvent::BufferChainStatus { .. } => "BufferChainStatus",
@@ -334,7 +790,319 @@ impl WkmpEvent {
             WkmpEvent::ValidationSuccess { .. } => "ValidationSuccess",
             WkmpEvent::ValidationFailure { .. } => "ValidationFailure",
             WkmpEvent::ValidationWarning { .. } => "ValidationWarning",
+            // Error events (Phase 7)
+            WkmpEvent::PassageDecodeFailed { .. } => "PassageDecodeFailed",
+            WkmpEvent::PassageUnsupportedCodec { .. } => "PassageUnsupportedCodec",
+            WkmpEvent::PassagePartialDecode { .. } => "PassagePartialDecode",
+            WkmpEvent::PassageDecoderPanic { .. } => "PassageDecoderPanic",
+            WkmpEvent::BufferUnderrun { .. } => "BufferUnderrun",
+            WkmpEvent::BufferUnderrunRecovered { .. } => "BufferUnderrunRecovered",
+            WkmpEvent::AudioCallbackUnderrun { .. } => "AudioCallbackUnderrun",
+            WkmpEvent::AudioCallbackIrregular { .. } => "AudioCallbackIrregular",
+            WkmpEvent::AudioDeviceLost { .. } => "AudioDeviceLost",
+            WkmpEvent::AudioDeviceRestored { .. } => "AudioDeviceRestored",
+            WkmpEvent::AudioDeviceFallback { .. } => "AudioDeviceFallback",
+            WkmpEvent::AudioDeviceUnavailable { .. } => "AudioDeviceUnavailable",
+            WkmpEvent::AudioDeviceConfigError { .. } => "AudioDeviceConfigError",
+            WkmpEvent::AudioDeviceConfigFallback { .. } => "AudioDeviceConfigFallback",
+            WkmpEvent::AudioDeviceIncompatible { .. } => "AudioDeviceIncompatible",
+            WkmpEvent::QueueValidationError { .. } => "QueueValidationError",
+            WkmpEvent::QueueDepthWarning { .. } => "QueueDepthWarning",
+            WkmpEvent::ResamplingFailed { .. } => "ResamplingFailed",
+            WkmpEvent::ResamplingRuntimeError { .. } => "ResamplingRuntimeError",
+            WkmpEvent::TimingSystemFailure { .. } => "TimingSystemFailure",
+            WkmpEvent::PositionDriftWarning { .. } => "PositionDriftWarning",
+            WkmpEvent::SystemResourceExhausted { .. } => "SystemResourceExhausted",
+            WkmpEvent::SystemResourceRecovered { .. } => "SystemResourceRecovered",
+            WkmpEvent::FileHandleExhaustion { .. } => "FileHandleExhaustion",
+            WkmpEvent::SystemDegradedMode { .. } => "SystemDegradedMode",
+            WkmpEvent::SystemShutdownRequired { .. } => "SystemShutdownRequired",
         }
+    }
+}
+
+// ========================================
+// Supporting Enums
+// ========================================
+
+/// Buffer status for passage decode/playback lifecycle
+///
+/// Per SPEC016 Buffers:
+/// - DBD-BUF-020: Empty on start
+/// - DBD-BUF-030: Mixer can't read empty buffer
+/// - DBD-BUF-040: Returns last sample if empty
+/// - DBD-BUF-050: Decoder pauses when nearly full
+/// - DBD-BUF-060: Informs queue on completion
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum BufferStatus {
+    /// Buffer currently being populated from audio file
+    Decoding,
+    /// Buffer fully decoded and ready for playback
+    Ready,
+    /// Buffer currently being read for audio output
+    Playing,
+    /// Buffer playback completed
+    Exhausted,
+}
+
+impl std::fmt::Display for BufferStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BufferStatus::Decoding => write!(f, "Decoding"),
+            BufferStatus::Ready => write!(f, "Ready"),
+            BufferStatus::Playing => write!(f, "Playing"),
+            BufferStatus::Exhausted => write!(f, "Exhausted"),
+        }
+    }
+}
+
+/// User action types
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum UserActionType {
+    Skip,
+    Play,
+    Pause,
+    Seek,
+    VolumeChange,
+    QueueAdd,
+    QueueRemove,
+    Like,
+    Dislike,
+    TemporaryOverride,
+}
+
+impl std::fmt::Display for UserActionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UserActionType::Skip => write!(f, "Skip"),
+            UserActionType::Play => write!(f, "Play"),
+            UserActionType::Pause => write!(f, "Pause"),
+            UserActionType::Seek => write!(f, "Seek"),
+            UserActionType::VolumeChange => write!(f, "VolumeChange"),
+            UserActionType::QueueAdd => write!(f, "QueueAdd"),
+            UserActionType::QueueRemove => write!(f, "QueueRemove"),
+            UserActionType::Like => write!(f, "Like"),
+            UserActionType::Dislike => write!(f, "Dislike"),
+            UserActionType::TemporaryOverride => write!(f, "TemporaryOverride"),
+        }
+    }
+}
+
+/// Why the queue changed
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum QueueChangeTrigger {
+    AutomaticReplenishment,
+    UserEnqueue,
+    UserDequeue,
+    PassageCompletion,
+    TemporaryOverride,
+}
+
+impl std::fmt::Display for QueueChangeTrigger {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            QueueChangeTrigger::AutomaticReplenishment => write!(f, "AutomaticReplenishment"),
+            QueueChangeTrigger::UserEnqueue => write!(f, "UserEnqueue"),
+            QueueChangeTrigger::UserDequeue => write!(f, "UserDequeue"),
+            QueueChangeTrigger::PassageCompletion => write!(f, "PassageCompletion"),
+            QueueChangeTrigger::TemporaryOverride => write!(f, "TemporaryOverride"),
+        }
+    }
+}
+
+/// How a passage was enqueued
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum EnqueueSource {
+    Automatic,
+    Manual,
+}
+
+impl std::fmt::Display for EnqueueSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EnqueueSource::Automatic => write!(f, "Automatic"),
+            EnqueueSource::Manual => write!(f, "Manual"),
+        }
+    }
+}
+
+// ========================================
+// EventBus Implementation
+// ========================================
+
+/// Central event distribution bus for application-wide events
+///
+/// The EventBus uses tokio::broadcast internally, providing:
+/// - Non-blocking publish (slow subscribers don't block producers)
+/// - Multiple concurrent subscribers
+/// - Automatic cleanup when subscribers drop
+/// - Lagged message detection for slow subscribers
+///
+/// **DRY Pattern:** Shared across all 5 WKMP modules (wkmp-ap, wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le)
+///
+/// # Capacity Recommendations
+///
+/// Per SPEC011:
+/// - Development/Desktop: 1000
+/// - Raspberry Pi Zero2W: 500
+/// - Testing: 10-100
+///
+/// # Examples
+///
+/// ```
+/// use wkmp_common::events::{EventBus, WkmpEvent, PlaybackState};
+/// use std::sync::Arc;
+///
+/// let event_bus = Arc::new(EventBus::new(1000));
+///
+/// // Subscribe to events
+/// let mut rx = event_bus.subscribe();
+///
+/// // Emit an event
+/// event_bus.emit(WkmpEvent::PlaybackStateChanged {
+///     old_state: PlaybackState::Paused,
+///     new_state: PlaybackState::Playing,
+///     timestamp: chrono::Utc::now(),
+/// }).ok();
+///
+/// // Receive events (in async context)
+/// // while let Ok(event) = rx.recv().await {
+/// //     match event {
+/// //         WkmpEvent::PlaybackStateChanged { .. } => {
+/// //             // Handle state change
+/// //         }
+/// //         _ => {}
+/// //     }
+/// // }
+/// ```
+pub struct EventBus {
+    tx: broadcast::Sender<WkmpEvent>,
+    capacity: usize,
+}
+
+impl EventBus {
+    /// Creates a new EventBus with specified channel capacity
+    ///
+    /// # Arguments
+    ///
+    /// * `capacity` - Number of events to buffer before dropping old events
+    ///
+    ///   Recommended values (per SPEC011):
+    ///   - Development/Desktop: 1000
+    ///   - Raspberry Pi Zero2W: 500
+    ///   - Testing: 10-100
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_common::events::EventBus;
+    ///
+    /// let event_bus = EventBus::new(1000);
+    /// ```
+    pub fn new(capacity: usize) -> Self {
+        let (tx, _) = broadcast::channel(capacity);
+        Self { tx, capacity }
+    }
+
+    /// Subscribe to all future events
+    ///
+    /// Returns a receiver that will receive all events emitted after subscription.
+    /// Events emitted before subscription are not received.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_common::events::EventBus;
+    /// use std::sync::Arc;
+    ///
+    /// let event_bus = Arc::new(EventBus::new(1000));
+    /// let mut rx = event_bus.subscribe();
+    ///
+    /// // In async context:
+    /// // tokio::spawn(async move {
+    /// //     while let Ok(event) = rx.recv().await {
+    /// //         println!("Received event: {:?}", event);
+    /// //     }
+    /// // });
+    /// ```
+    pub fn subscribe(&self) -> broadcast::Receiver<WkmpEvent> {
+        self.tx.subscribe()
+    }
+
+    /// Emit an event to all subscribers
+    ///
+    /// Returns `Ok(subscriber_count)` if at least one subscriber exists.
+    /// Returns `Err` if no subscribers are listening.
+    ///
+    /// Per SPEC011 EVT-ERR-PROP-010: The first component to detect an error emits the event.
+    /// Errors are NOT propagated through multiple layers.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_common::events::{EventBus, WkmpEvent, PlaybackState};
+    ///
+    /// let event_bus = EventBus::new(100);
+    ///
+    /// // Critical event - log if no subscribers
+    /// let event = WkmpEvent::PlaybackStateChanged {
+    ///     old_state: PlaybackState::Paused,
+    ///     new_state: PlaybackState::Playing,
+    ///     timestamp: chrono::Utc::now(),
+    /// };
+    ///
+    /// if let Err(_) = event_bus.emit(event) {
+    ///     eprintln!("Warning: No subscribers for critical event");
+    /// }
+    /// ```
+    pub fn emit(
+        &self,
+        event: WkmpEvent,
+    ) -> Result<usize, broadcast::error::SendError<WkmpEvent>> {
+        self.tx.send(event)
+    }
+
+    /// Emit an event, ignoring if no subscribers are listening
+    ///
+    /// This is useful for non-critical events where it's acceptable if
+    /// no component is currently listening.
+    ///
+    /// Per SPEC011 EVT-ERR-PROP-020: If emit fails (no subscribers), log error locally, continue operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wkmp_common::events::{EventBus, WkmpEvent};
+    /// use uuid::Uuid;
+    ///
+    /// let event_bus = EventBus::new(100);
+    ///
+    /// // Position updates - OK if no one is listening
+    /// event_bus.emit_lossy(WkmpEvent::PlaybackProgress {
+    ///     passage_id: Uuid::new_v4(),
+    ///     position_ms: 42000,
+    ///     duration_ms: 180000,
+    ///     timestamp: chrono::Utc::now(),
+    /// });
+    /// ```
+    pub fn emit_lossy(&self, event: WkmpEvent) {
+        let _ = self.tx.send(event);
+    }
+
+    /// Get the current number of active subscribers
+    ///
+    /// Useful for debugging and monitoring
+    pub fn subscriber_count(&self) -> usize {
+        self.tx.receiver_count()
+    }
+
+    /// Get the configured channel capacity
+    pub fn capacity(&self) -> usize {
+        self.capacity
     }
 }
 

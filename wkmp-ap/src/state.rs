@@ -10,14 +10,8 @@ use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 use wkmp_common::events::WkmpEvent;
 
-/// Playback state enum
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PlaybackState {
-    /// Playback is active (or waiting for queue to be populated)
-    Playing,
-    /// Playback is paused
-    Paused,
-}
+// Re-export PlaybackState from wkmp-common for backward compatibility
+pub use wkmp_common::events::PlaybackState;
 
 /// Current passage information
 #[derive(Debug, Clone)]

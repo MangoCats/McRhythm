@@ -331,6 +331,7 @@ fn test_queue_advance_removes_current() {
             fade_out_point_ms: None,
             fade_in_curve: None,
             fade_out_curve: None,
+            discovered_end_ticks: None,
         }
     }
 
@@ -495,6 +496,7 @@ async fn test_queue_advancement_no_double_trigger() {
             fade_out_point_ms: None,
             fade_in_curve: None,
             fade_out_curve: None,
+            discovered_end_ticks: None,
         }
     }
 

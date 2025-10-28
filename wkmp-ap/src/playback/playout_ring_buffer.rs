@@ -696,7 +696,10 @@ mod tests {
     fn test_decoder_pause_threshold() {
         let headroom = 10;
         let capacity = 100;
-        let mut buffer = PlayoutRingBuffer::new(Some(capacity), Some(headroom), None, None);
+        // Set resume_hysteresis to 0 (no hysteresis for this test)
+        // Default 44100 is too large for small test buffer
+        // With 0 hysteresis, resume threshold = headroom (10)
+        let mut buffer = PlayoutRingBuffer::new(Some(capacity), Some(headroom), Some(0), None);
 
         // Fill to just before threshold (capacity - headroom - 1 = 89 frames)
         for _ in 0..(capacity - headroom - 1) {
@@ -771,7 +774,9 @@ mod tests {
     /// Test concurrent fill and drain pattern
     #[test]
     fn test_concurrent_fill_drain_pattern() {
-        let mut buffer = PlayoutRingBuffer::new(Some(1000), Some(50), None, None);
+        // Set resume_hysteresis to 100 (reasonable for 1000-frame buffer)
+        // Default 44100 is too large for small test buffer
+        let mut buffer = PlayoutRingBuffer::new(Some(1000), Some(50), Some(100), None);
 
         // Simulate decoder filling buffer rapidly
         for i in 0..950 {

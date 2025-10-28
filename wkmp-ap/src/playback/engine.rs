@@ -120,6 +120,10 @@ pub struct PlaybackEngine {
     /// Shared with audio ring buffer consumer for context-aware logging
     audio_expected: Arc<AtomicBool>,
 
+    /// Audio callback monitor (for gap/stutter detection)
+    /// Created in audio thread, stored here for API access
+    callback_monitor: Arc<RwLock<Option<Arc<crate::playback::callback_monitor::CallbackMonitor>>>>,
+
     /// Buffer event channel receiver for instant mixer start
     /// **[PERF-POLL-010]** Event-driven buffer readiness
     /// Receives ReadyForStart events when buffers reach minimum threshold
@@ -148,6 +152,10 @@ pub struct PlaybackEngine {
     /// **[SPEC020-MONITOR-130]** Manual update trigger
     /// Set to true to force one immediate emission, then automatically reset
     buffer_monitor_update_now: Arc<AtomicBool>,
+
+    /// Audio output buffer size in frames per callback
+    /// **[DBD-PARAM-110]** Configurable audio buffer size (default: 512)
+    audio_buffer_size: u32,
 }
 
 impl PlaybackEngine {
@@ -162,7 +170,7 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
@@ -171,6 +179,7 @@ impl PlaybackEngine {
             crate::db::settings::load_maximum_decode_streams(&db_pool),
             crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
             crate::db::settings::load_mixer_min_start_level(&db_pool), // [DBD-PARAM-088]
+            crate::db::settings::load_audio_buffer_size(&db_pool), // [DBD-PARAM-110]
         );
         let db_elapsed = db_start.elapsed();
 
@@ -182,6 +191,7 @@ impl PlaybackEngine {
         let maximum_decode_streams = maximum_decode_streams?;
         let resume_hysteresis = resume_hysteresis?;
         let mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088]
+        let audio_buffer_size = audio_buffer_size?; // [DBD-PARAM-110]
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -205,7 +215,12 @@ impl PlaybackEngine {
         buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
 
         // Create decoder worker
-        let decoder_worker = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+        // **[Phase 7]** Pass shared_state and db_pool for error handling
+        let decoder_worker = Arc::new(DecoderWorker::new(
+            Arc::clone(&buffer_manager),
+            Arc::clone(&state),
+            db_pool.clone(),
+        ));
 
         // **[REV002]** Create position event channel
         let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
@@ -269,12 +284,14 @@ impl PlaybackEngine {
             position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
             current_song_timeline: Arc::new(RwLock::new(None)),
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
+            callback_monitor: Arc::new(RwLock::new(None)), // Created later in audio thread
             buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
             maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
             chain_assignments: Arc::new(RwLock::new(HashMap::new())), // [DBD-LIFECYCLE-040] Track passage→chain mapping
             available_chains: Arc::new(RwLock::new(available_chains_heap)), // [DBD-LIFECYCLE-030] Min-heap for lowest-first allocation
             buffer_monitor_rate_ms: Arc::new(RwLock::new(1000)), // [SPEC020-MONITOR-120] Default 1000ms update rate
             buffer_monitor_update_now: Arc::new(AtomicBool::new(false)), // [SPEC020-MONITOR-130] Manual update trigger
+            audio_buffer_size, // [DBD-PARAM-110] Configurable audio buffer size
         })
     }
 
@@ -520,14 +537,22 @@ impl PlaybackEngine {
         info!("Initializing audio output with lock-free callback");
         let running_clone2 = Arc::clone(&self.running);
         let volume_clone = Arc::clone(&self.volume); // [ARCH-VOL-020] Share volume with audio output
+        let state_clone = Arc::clone(&self.state); // For callback monitor event emission
+        let callback_monitor_slot = Arc::clone(&self.callback_monitor);
+        let audio_expected_clone = Arc::clone(&self.audio_expected); // For callback monitor idle detection
 
         // Capture runtime handle while we're still in async context
         let rt_handle = tokio::runtime::Handle::current();
 
+        // Use buffer size already loaded from database
+        // [DBD-PARAM-110] Audio buffer size configuration
+        let buffer_size = self.audio_buffer_size;
+
         std::thread::spawn(move || {
             // Create audio output (must be done on non-async thread for cpal)
             // [ARCH-VOL-020] Pass shared volume Arc for synchronized control
-            let mut audio_output = match AudioOutput::new_with_volume(None, Some(volume_clone)) {
+            // [DBD-PARAM-110] Pass configurable buffer size
+            let mut audio_output = match AudioOutput::new_with_volume(None, Some(volume_clone), Some(buffer_size)) {
                 Ok(output) => output,
                 Err(e) => {
                     error!("Failed to create audio output: {}", e);
@@ -535,19 +560,55 @@ impl PlaybackEngine {
                 }
             };
 
+            // Create callback monitor for gap/stutter detection with actual device configuration
+            let actual_sample_rate = audio_output.sample_rate();
+            let actual_buffer_size = audio_output.buffer_size();
+
+            info!(
+                "Audio device config: {}Hz, {} frames per callback ({:.2}ms interval)",
+                actual_sample_rate,
+                actual_buffer_size,
+                (actual_buffer_size as f64 / actual_sample_rate as f64) * 1000.0
+            );
+
+            let monitor = Arc::new(crate::playback::callback_monitor::CallbackMonitor::new(
+                actual_sample_rate,
+                actual_buffer_size,
+                Some(state_clone),
+                audio_expected_clone,
+            ));
+
+            // Store monitor in engine for API access and clone for monitoring task
+            rt_handle.block_on(async {
+                *callback_monitor_slot.write().await = Some(Arc::clone(&monitor));
+            });
+
+            // Clone for monitoring task (spawn_monitoring_task takes ownership)
+            let monitor_for_task = Arc::clone(&monitor);
+
+            // Spawn monitoring task for logging and event emission
+            // Runs on tokio runtime, separate from real-time audio callback
+            let monitor_shutdown = monitor_for_task.spawn_monitoring_task(rt_handle.clone());
+
+            let monitor_clone = Arc::clone(&monitor);
+
             // Lock-free audio callback - reads from ring buffer only
             // [SSD-OUT-012] Real-time audio callback with no locks
             // [ISSUE-1] Fixed: No more try_write() or block_on() in audio callback
             let audio_callback = move || {
                 // Lock-free read from ring buffer
-                consumer.pop().unwrap_or_else(|| {
-                    // Buffer underrun - return silence
-                    // This is logged automatically by the ring buffer
-                    AudioFrame::zero()
-                })
+                match consumer.pop() {
+                    Some(frame) => frame,
+                    None => {
+                        // Buffer underrun - record and return silence
+                        monitor_clone.record_underrun();
+                        AudioFrame::zero()
+                    }
+                }
             };
 
-            if let Err(e) = audio_output.start(audio_callback) {
+            // Pass monitor to AudioOutput so it can record callback timing once per buffer
+            if let Err(e) = audio_output.start(audio_callback, Some(monitor.clone())) {
                 error!("Failed to start audio output: {}", e);
                 return;
             }
@@ -571,7 +632,18 @@ impl PlaybackEngine {
                 }
             }
 
-            info!("Audio output stopped");
+            // Shutdown monitoring task
+            monitor_shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
+
+            // Log final callback statistics
+            let stats = monitor.stats();
+            info!(
+                "Audio output stopped - Callback stats: {} total callbacks, {} underruns, {} irregular intervals ({:.1}% irregular)",
+                stats.callback_count,
+                stats.underrun_count,
+                stats.irregular_intervals,
+                (stats.irregular_intervals as f64 / stats.callback_count.max(1) as f64) * 100.0
+            );
         });
 
         info!("Playback engine started with lock-free audio architecture");
@@ -650,7 +722,8 @@ impl PlaybackEngine {
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
-            state: wkmp_common::events::PlaybackState::Playing,
+            old_state: old_state,
+            new_state: wkmp_common::events::PlaybackState::Playing,
             timestamp: chrono::Utc::now(),
         });
 
@@ -712,7 +785,8 @@ impl PlaybackEngine {
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
-            state: wkmp_common::events::PlaybackState::Paused,
+            old_state: old_state,
+            new_state: wkmp_common::events::PlaybackState::Paused,
             timestamp: chrono::Utc::now(),
         });
 
@@ -762,6 +836,7 @@ impl PlaybackEngine {
         // Emit PassageCompleted event with completed=false (skipped)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
             passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+            duration_played: 0.0, // Skipped - not played
             completed: false, // false = skipped
             timestamp: chrono::Utc::now(),
         });
@@ -849,8 +924,10 @@ impl PlaybackEngine {
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;
 
-        // Emit QueueChanged event
+        // Emit QueueChanged event (queue is now empty)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+            queue: Vec::new(),
+            trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
             timestamp: chrono::Utc::now(),
         });
 
@@ -946,6 +1023,28 @@ impl PlaybackEngine {
     /// Cloned Arc to volume Mutex - can be used to update volume from API handlers
     pub fn get_volume_arc(&self) -> Arc<Mutex<f32>> {
         Arc::clone(&self.volume)
+    }
+
+    /// Get audio expected flag
+    ///
+    /// Returns whether audio output is expected (Playing state with non-empty queue).
+    /// Used by monitoring services to distinguish expected underruns (idle) from problematic ones.
+    ///
+    /// # Returns
+    /// true if Playing with non-empty queue, false if Paused or queue empty
+    pub fn is_audio_expected(&self) -> bool {
+        self.audio_expected.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Get callback monitor statistics
+    ///
+    /// Returns callback timing statistics for gap/stutter analysis.
+    /// Returns None if audio thread hasn't started yet.
+    ///
+    /// [API] GET /playback/callback_stats
+    pub async fn get_callback_stats(&self) -> Option<crate::playback::callback_monitor::CallbackStats> {
+        let monitor_guard = self.callback_monitor.read().await;
+        monitor_guard.as_ref().map(|m| m.stats())
     }
 
     /// Get current queue length
@@ -1370,6 +1469,84 @@ impl PlaybackEngine {
         Ok(queue_entry_id)
     }
 
+    /// Remove queue entry from in-memory queue
+    ///
+    /// [API] DELETE /playback/queue/{queue_entry_id}
+    /// **Traceability:** Removes entry from in-memory queue manager to match database deletion
+    ///
+    /// Returns true if entry was found and removed, false if not found
+    pub async fn remove_queue_entry(&self, queue_entry_id: Uuid) -> bool {
+        info!("Removing queue entry from in-memory queue: {}", queue_entry_id);
+
+        // [BUG001] Check if removed entry is currently playing
+        // If yes, must perform lifecycle cleanup: release chain, stop mixer, start next
+        let is_current = {
+            let queue = self.queue.read().await;
+            queue.current().map(|c| c.queue_entry_id) == Some(queue_entry_id)
+        };
+
+        if is_current {
+            // Currently playing passage - perform full lifecycle cleanup
+            // [REQ-FIX-010] Stop playback immediately
+            // [REQ-FIX-020] Release decoder chain resources
+            // [REQ-FIX-030] Clear mixer state
+            info!("Removing currently playing passage - performing lifecycle cleanup");
+
+            // 1. Release decoder-buffer chain (free resources, allow reassignment)
+            // [REQ-FIX-020] Release decoder chain resources
+            self.release_chain(queue_entry_id).await;
+
+            // 2. Stop mixer (clear playback state)
+            // [REQ-FIX-030] Clear mixer state
+            // [REQ-FIX-010] Stop playback immediately
+            self.mixer.write().await.stop();
+            info!("Mixer stopped for removed passage");
+
+            // 3. Remove from queue structure
+            // [REQ-FIX-040] Update queue structure
+            let removed = self.queue.write().await.remove(queue_entry_id);
+
+            if removed {
+                info!("Successfully removed current passage {} from queue", queue_entry_id);
+
+                // Update audio_expected flag for ring buffer underrun classification
+                self.update_audio_expected_flag().await;
+
+                // 4. Start next passage if queue has one
+                // [REQ-FIX-050] Start next passage if queue non-empty
+                // [REQ-FIX-080] New passage starts correctly after removal
+                let has_current = self.queue.read().await.current().is_some();
+                if has_current {
+                    info!("Starting next passage after current removed");
+                    // Trigger process_queue to start the next passage immediately
+                    // This replicates the behavior from natural passage completion (line 2105)
+                    // where next iteration starts new current passage
+                    if let Err(e) = self.process_queue().await {
+                        warn!("Failed to start next passage after removal: {}", e);
+                    }
+                } else {
+                    info!("Queue empty after removing current passage");
+                }
+            }
+
+            removed
+        } else {
+            // Non-current passage - simple removal (existing behavior)
+            // [REQ-FIX-060] No disruption when removing non-current passage
+            let removed = self.queue.write().await.remove(queue_entry_id);
+
+            if removed {
+                info!("Successfully removed queue entry {} from in-memory queue", queue_entry_id);
+                // Update audio_expected flag for ring buffer underrun classification
+                self.update_audio_expected_flag().await;
+            } else {
+                warn!("Queue entry {} not found in in-memory queue", queue_entry_id);
+            }
+
+            removed
+        }
+    }
+
     /// Calculate crossfade start position in milliseconds
     ///
     /// [ISSUE-7] Extracted helper method to reduce complexity
@@ -1660,6 +1837,7 @@ impl PlaybackEngine {
                                         self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                             passage_id,
                                             song_id: initial_song_id,
+                                            song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
                                             position_ms: 0,
                                             timestamp: chrono::Utc::now(),
                                         });
@@ -1837,6 +2015,7 @@ impl PlaybackEngine {
                     // **[Event-PassageCompleted]** Emit completion event for OUTGOING passage
                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
                         passage_id: passage_id_opt.unwrap_or_else(|| Uuid::nil()),
+                        duration_played: 0.0, // TODO: Calculate actual duration from passage timing
                         completed: true, // Crossfade completed naturally
                         timestamp: chrono::Utc::now(),
                     });
@@ -1921,6 +2100,7 @@ impl PlaybackEngine {
                 // [Event-PassageCompleted] Passage playback finished
                 self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
                     passage_id: current_pid.unwrap_or_else(|| Uuid::nil()),
+                    duration_played: 0.0, // TODO: Calculate actual duration from passage timing
                     completed: true, // true = finished naturally, false = skipped/interrupted
                     timestamp: chrono::Utc::now(),
                 });
@@ -2032,6 +2212,133 @@ impl PlaybackEngine {
         }
     }
 
+    /// Handle buffer underrun with emergency refill
+    ///
+    /// **[REQ-AP-ERR-020]** Buffer underrun emergency refill with timeout
+    ///
+    /// # Strategy
+    /// 1. Emit BufferUnderrun event
+    /// 2. Request immediate priority decode (emergency refill)
+    /// 3. Wait up to timeout for buffer to reach minimum threshold
+    /// 4. If recovered: emit BufferUnderrunRecovered event
+    /// 5. If timeout: skip passage and continue
+    async fn handle_buffer_underrun(&self, queue_entry_id: uuid::Uuid, headroom: usize) {
+        warn!(
+            "⚠️  Buffer underrun: queue_entry={}, headroom={} samples",
+            queue_entry_id, headroom
+        );
+
+        // Get current passage info for event emission
+        let queue = self.queue.read().await;
+        let current_entry = queue.current().cloned();
+        drop(queue);
+
+        let passage_id = current_entry
+            .as_ref()
+            .and_then(|e| e.passage_id)
+            .unwrap_or_else(|| uuid::Uuid::nil());
+
+        // Calculate buffer fill percent
+        // **[DBD-PARAM-080]** buffer capacity = playout_ringbuffer_size (from settings)
+        // For now, use standard 10-second buffer = 441,000 samples @ 44.1kHz stereo
+        const STANDARD_BUFFER_CAPACITY: usize = 441_000;
+        let buffer_fill_percent = (headroom as f32 / STANDARD_BUFFER_CAPACITY as f32) * 100.0;
+
+        // **[ERH-BUF-010]** Emit BufferUnderrun event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferUnderrun {
+            passage_id,
+            buffer_fill_percent,
+            timestamp: chrono::Utc::now(),
+        });
+
+        // **[ERH-BUF-015]** Load recovery timeout from database settings
+        let recovery_timeout_ms = match crate::db::settings::load_buffer_underrun_timeout(&self.db_pool).await {
+            Ok(timeout) => timeout,
+            Err(e) => {
+                warn!("Failed to load buffer_underrun_recovery_timeout_ms from settings: {}, using default 2000ms", e);
+                2000 // Default: 2 seconds (spec says 500ms, but summary indicated 2000ms for slow hardware)
+            }
+        };
+
+        debug!(
+            "Buffer underrun recovery: timeout={}ms, requesting emergency decode",
+            recovery_timeout_ms
+        );
+
+        // **[ERH-BUF-010]** Request immediate priority decode (emergency refill)
+        if let Some(entry) = current_entry {
+            match self.request_decode(&entry, DecodePriority::Immediate, false).await {
+                Ok(_) => {
+                    debug!("Emergency decode request submitted for queue_entry={}", queue_entry_id);
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to request emergency decode for queue_entry={}: {}",
+                        queue_entry_id, e
+                    );
+                    // Continue with timeout logic anyway - buffer may already be refilling
+                }
+            }
+
+            // Wait for buffer recovery with timeout
+            let recovery_start = std::time::Instant::now();
+            let timeout_duration = std::time::Duration::from_millis(recovery_timeout_ms);
+
+            // **[DBD-PARAM-110]** mixer_min_start_level (configurable, default ~500ms)
+            // For recovery, we need at least this much buffered to resume playback
+            let min_buffer_threshold_ms = self.buffer_manager.get_min_buffer_threshold().await;
+            let min_buffer_samples = (min_buffer_threshold_ms as usize * 44100 / 1000) * 2; // Stereo
+
+            loop {
+                // Check if buffer has refilled to minimum threshold
+                if let Some(buffer) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                    let available = buffer.occupied();
+                    if available >= min_buffer_samples {
+                        let recovery_time_ms = recovery_start.elapsed().as_millis() as u64;
+                        info!(
+                            "✅ Buffer underrun recovered: queue_entry={}, recovery_time={}ms, available={} samples",
+                            queue_entry_id, recovery_time_ms, available
+                        );
+
+                        // **[ERH-BUF-010]** Emit BufferUnderrunRecovered event
+                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferUnderrunRecovered {
+                            passage_id,
+                            recovery_time_ms,
+                            timestamp: chrono::Utc::now(),
+                        });
+
+                        return; // Recovery successful
+                    }
+                }
+
+                // Check timeout
+                if recovery_start.elapsed() >= timeout_duration {
+                    error!(
+                        "❌ Buffer underrun recovery timeout after {}ms: queue_entry={}, skipping passage",
+                        recovery_timeout_ms, queue_entry_id
+                    );
+
+                    // **[ERH-BUF-010]** Timeout: skip passage and continue
+                    match self.skip_next().await {
+                        Ok(_) => {
+                            info!("Skipped to next passage after buffer underrun timeout");
+                        }
+                        Err(e) => {
+                            error!("Failed to skip passage after underrun timeout: {}", e);
+                        }
+                    }
+
+                    return;
+                }
+
+                // Sleep briefly before next check (10ms polling interval)
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+        } else {
+            warn!("No current passage found during buffer underrun, cannot request emergency decode");
+        }
+    }
+
     /// Position event handler (replaces position_tracking_loop)
     ///
     /// **[REV002]** Event-driven position tracking
@@ -2086,6 +2393,7 @@ impl PlaybackEngine {
                             self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                 passage_id,
                                 song_id: new_song_id,
+                                song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
                                 position_ms,
                                 timestamp: chrono::Utc::now(),
                             });
@@ -2209,6 +2517,8 @@ impl PlaybackEngine {
             available_chains: Arc::clone(&self.available_chains), // [DBD-LIFECYCLE-030] Clone available chains pool
             buffer_monitor_rate_ms: Arc::clone(&self.buffer_monitor_rate_ms), // [SPEC020-MONITOR-120] Clone monitor rate
             buffer_monitor_update_now: Arc::clone(&self.buffer_monitor_update_now), // [SPEC020-MONITOR-130] Clone update trigger
+            callback_monitor: Arc::clone(&self.callback_monitor), // Clone callback monitor for gap detection
+            audio_buffer_size: self.audio_buffer_size, // [DBD-PARAM-110] Copy audio buffer size
         }
     }
 
@@ -2374,6 +2684,7 @@ impl PlaybackEngine {
                                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                         passage_id,
                                         song_id: initial_song_id,
+                                        song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
                                         position_ms: 0,
                                         timestamp: chrono::Utc::now(),
                                     });
@@ -2433,8 +2744,12 @@ impl PlaybackEngine {
                     );
                 }
 
+                Some(BufferEvent::Exhausted { queue_entry_id, headroom }) => {
+                    // **[REQ-AP-ERR-020]** Buffer underrun emergency refill
+                    self.handle_buffer_underrun(queue_entry_id, headroom).await;
+                }
+
                 Some(BufferEvent::StateChanged { .. }) |
-                Some(BufferEvent::Exhausted { .. }) |
                 Some(BufferEvent::Finished { .. }) => {
                     // Future: Handle other buffer events
                     // For now, only ReadyForStart is used for instant mixer start

@@ -21,9 +21,77 @@ pub enum Error {
     #[error("HTTP server error: {0}")]
     Http(String),
 
-    /// Audio decoding errors
+    /// Audio decoding errors (general)
     #[error("Audio decode error: {0}")]
     Decode(String),
+
+    /// File read error during decode
+    /// **[REQ-AP-ERR-010]** Decode errors skip passage, continue with next
+    #[error("File read error: {path}: {source}")]
+    FileReadError {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// Unsupported codec
+    /// **[REQ-AP-ERR-011]** Unsupported codecs marked to prevent re-queue
+    #[error("Unsupported codec: {path}: {codec}")]
+    UnsupportedCodec {
+        path: std::path::PathBuf,
+        codec: String,
+    },
+
+    /// Partial decode (truncated file)
+    /// **[REQ-AP-ERR-012]** Partial decode ≥50% allows playback
+    #[error("Partial decode: {path}: expected {expected_duration_ms}ms, got {actual_duration_ms}ms")]
+    PartialDecode {
+        path: std::path::PathBuf,
+        expected_duration_ms: u64,
+        actual_duration_ms: u64,
+    },
+
+    /// Decoder panic
+    /// **[REQ-AP-ERR-013]** Decoder panics caught and recovered
+    #[error("Decoder panic: {path}: {message}")]
+    DecoderPanic {
+        path: std::path::PathBuf,
+        message: String,
+    },
+
+    /// Resampling initialization failure
+    /// **[REQ-AP-ERR-050]** Resampling init errors skip passage or bypass if rates match
+    #[error("Resampling init failed: {source_rate}Hz -> {target_rate}Hz: {message}")]
+    ResamplingInitFailed {
+        source_rate: u32,
+        target_rate: u32,
+        message: String,
+    },
+
+    /// Resampling runtime error
+    /// **[REQ-AP-ERR-051]** Resampling runtime errors skip passage
+    #[error("Resampling runtime error at {position_ms}ms: {message}")]
+    ResamplingRuntimeError {
+        position_ms: u64,
+        message: String,
+    },
+
+    /// File handle exhaustion
+    /// **[REQ-AP-ERR-071]** Too many open files - OS descriptor limit reached
+    #[error("File handle exhaustion: cannot open {path}: too many open files")]
+    FileHandleExhaustion {
+        path: std::path::PathBuf,
+    },
+
+    /// Position drift warning
+    /// **[REQ-AP-ERR-060]** Sample position mismatch detected (moderate drift)
+    #[error("Position drift: expected {expected_frames} frames, actual {actual_frames} frames, drift {drift_frames} frames ({drift_ms}ms)")]
+    PositionDrift {
+        expected_frames: usize,
+        actual_frames: usize,
+        drift_frames: usize,
+        drift_ms: u64,
+    },
 
     /// Audio output device errors
     #[error("Audio output error: {0}")]

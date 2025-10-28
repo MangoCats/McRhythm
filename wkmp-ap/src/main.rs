@@ -129,6 +129,16 @@ async fn main() -> Result<()> {
     PlaybackEngine::start_validation_service(Arc::clone(&engine), db_pool.clone()).await;
     info!("Validation service started");
 
+    // Load shared secret for API authentication (must be done before spawning)
+    // Per SPEC007 API-AUTH-026: Value of 0 means authentication disabled
+    let shared_secret = match wkmp_common::api::load_shared_secret(&db_pool).await {
+        Ok(secret) => secret,
+        Err(e) => {
+            error!("Failed to load shared secret: {}", e);
+            0 // Default to bypass mode
+        }
+    };
+
     // Create Config struct for API server (temporary bridge to old config system)
     let config = Config {
         database_path: db_path.clone(),
@@ -143,7 +153,7 @@ async fn main() -> Result<()> {
         let engine_ref = Arc::clone(&engine);
         let db_pool_clone = db_pool.clone();
         async move {
-            if let Err(e) = api::server::run(config, state, engine_ref, db_pool_clone).await {
+            if let Err(e) = api::server::run(config, state, engine_ref, db_pool_clone, shared_secret).await {
                 error!("API server error: {}", e);
             }
         }
