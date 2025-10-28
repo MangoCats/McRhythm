@@ -53,7 +53,8 @@
       "Bash(git mv:*)",
       "Bash(apt-cache policy:*)",
       "Bash(python3:*)",
-      "Bash(google-chrome:*)"
+      "Bash(google-chrome:*)",
+      "Bash(npx:*)"
     ],
     "deny": [],
     "ask": []

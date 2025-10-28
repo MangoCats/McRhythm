@@ -21,7 +21,33 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-27 18:52:28 -0400
+### 2025-10-27 20:09:34 -0400
+
+**Regenerate GUIDE003 PDF using md-to-pdf for better Mermaid compatibility**
+
+**Problem:**
+Previous PDF rendering attempts using Chrome headless had persistent Mermaid syntax errors despite version upgrades.
+
+**Solution:**
+Used npx md-to-pdf, a specialized markdown-to-PDF converter with native Mermaid support.
+
+**Results:**
+- PDF generated successfully: 320 KB, 8 pages
+- Better Mermaid compatibility than browser-based rendering
+- Generation time: ~2 seconds (significantly faster than Chrome headless)
+
+**Limitations:**
+Mermaid diagram rendering in PDF remains challenging due to JavaScript execution requirements. Recommended viewing methods for full diagram support:
+1. GitHub markdown viewer (best - renders all diagrams natively)
+2. VS Code with Markdown Preview Enhanced
+3. Dedicated markdown viewers (Typora, Mark Text, Obsidian)
+
+**Impact:**
+Provides offline PDF reference while acknowledging that markdown viewing offers superior diagram rendering.
+
+---
+
+### 2025-10-27 18:52:28 -0400 | Commit: 7131cbfa1c10fb09dc873c2c707131b309033464
 
 **Fix Mermaid rendering in GUIDE003 PDF**
 
