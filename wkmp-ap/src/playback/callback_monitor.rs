@@ -6,10 +6,10 @@
 //! **Purpose:** Detect gaps happening in audio output layer that
 //! current ring buffer instrumentation misses.
 
-use std::sync::atomic::{AtomicU64, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU32, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{warn, debug, error, info};
+use tracing::{warn, debug, info, trace};
 use wkmp_common::events::WkmpEvent;
 use crate::state::SharedState;
 
@@ -49,6 +49,12 @@ pub struct CallbackMonitor {
 
     /// Shared state for event emission (used by monitoring thread)
     state: Option<Arc<SharedState>>,
+
+    /// Audio expected flag from playback engine
+    /// True when Playing state with non-empty queue
+    /// False when Paused or queue is empty
+    /// Used to distinguish expected underruns (idle) from problematic ones (active playback)
+    audio_expected: Arc<AtomicBool>,
 }
 
 impl CallbackMonitor {
@@ -58,7 +64,13 @@ impl CallbackMonitor {
     /// - `sample_rate`: Audio sample rate (e.g., 44100)
     /// - `buffer_size`: Audio buffer size in frames (e.g., 512)
     /// - `state`: Optional shared state for event emission
-    pub fn new(sample_rate: u32, buffer_size: u32, state: Option<Arc<SharedState>>) -> Self {
+    /// - `audio_expected`: Flag indicating if audio output is expected (Playing with non-empty queue)
+    pub fn new(
+        sample_rate: u32,
+        buffer_size: u32,
+        state: Option<Arc<SharedState>>,
+        audio_expected: Arc<AtomicBool>,
+    ) -> Self {
         // Calculate expected callback interval
         // interval = buffer_size / sample_rate (in seconds)
         // Convert to nanoseconds: * 1_000_000_000
@@ -78,6 +90,7 @@ impl CallbackMonitor {
             expected_interval_ns,
             tolerance_ns: 2_000_000, // 2ms tolerance
             state,
+            audio_expected,
         }
     }
 
@@ -157,17 +170,31 @@ impl CallbackMonitor {
                 // Check for new underruns
                 if stats.underrun_count > last_underrun_count {
                     let new_underruns = stats.underrun_count - last_underrun_count;
-                    warn!(
-                        "Audio callback underrun detected: {} total underruns (+{} since last check)",
-                        stats.underrun_count, new_underruns
-                    );
 
-                    // Emit event
-                    if let Some(state) = &monitor.state {
-                        state.broadcast_event(WkmpEvent::AudioCallbackUnderrun {
-                            underrun_count: stats.underrun_count,
-                            timestamp: chrono::Utc::now(),
-                        });
+                    // Check if audio output is expected (Playing with non-empty queue)
+                    // When audio_expected is false (Paused or empty queue), underruns are expected
+                    let audio_expected = monitor.audio_expected.load(Ordering::Relaxed);
+
+                    if !audio_expected {
+                        // Idle/Paused state: underruns are expected (not trying to fill buffer)
+                        trace!(
+                            "Audio callback underrun during idle: {} total underruns (+{} since last check)",
+                            stats.underrun_count, new_underruns
+                        );
+                    } else {
+                        // Active playback: underruns are problematic
+                        warn!(
+                            "Audio callback underrun detected: {} total underruns (+{} since last check)",
+                            stats.underrun_count, new_underruns
+                        );
+
+                        // Emit event only during active playback
+                        if let Some(state) = &monitor.state {
+                            state.broadcast_event(WkmpEvent::AudioCallbackUnderrun {
+                                underrun_count: stats.underrun_count,
+                                timestamp: chrono::Utc::now(),
+                            });
+                        }
                     }
 
                     last_underrun_count = stats.underrun_count;

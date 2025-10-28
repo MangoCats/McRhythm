@@ -539,6 +539,7 @@ impl PlaybackEngine {
         let volume_clone = Arc::clone(&self.volume); // [ARCH-VOL-020] Share volume with audio output
         let state_clone = Arc::clone(&self.state); // For callback monitor event emission
         let callback_monitor_slot = Arc::clone(&self.callback_monitor);
+        let audio_expected_clone = Arc::clone(&self.audio_expected); // For callback monitor idle detection
 
         // Capture runtime handle while we're still in async context
         let rt_handle = tokio::runtime::Handle::current();
@@ -574,6 +575,7 @@ impl PlaybackEngine {
                 actual_sample_rate,
                 actual_buffer_size,
                 Some(state_clone),
+                audio_expected_clone,
             ));
 
             // Store monitor in engine for API access and clone for monitoring task
@@ -1021,6 +1023,17 @@ impl PlaybackEngine {
     /// Cloned Arc to volume Mutex - can be used to update volume from API handlers
     pub fn get_volume_arc(&self) -> Arc<Mutex<f32>> {
         Arc::clone(&self.volume)
+    }
+
+    /// Get audio expected flag
+    ///
+    /// Returns whether audio output is expected (Playing state with non-empty queue).
+    /// Used by monitoring services to distinguish expected underruns (idle) from problematic ones.
+    ///
+    /// # Returns
+    /// true if Playing with non-empty queue, false if Paused or queue empty
+    pub fn is_audio_expected(&self) -> bool {
+        self.audio_expected.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Get callback monitor statistics
