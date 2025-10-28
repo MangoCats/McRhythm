@@ -21,7 +21,48 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-27 20:09:34 -0400
+### 2025-10-27 20:57:19 -0400
+
+**Regenerate GUIDE003 PDF with professional vector graphics (Graphviz + PlantUML)**
+
+**Problem:**
+Previous PDF generation attempts (Chrome headless, md-to-pdf) rendered raw Mermaid text instead of diagrams, making the PDF unusable for offline reference.
+
+**Solution:**
+Converted all Mermaid diagrams to industry-standard tools for professional-quality output:
+- **Flowcharts (4):** Converted to Graphviz DOT format for crisp vector rendering
+- **Sequence diagrams (2):** Converted to PlantUML for professional UML output
+- **State diagrams (3):** Converted to PlantUML state machine format
+
+**Technical Approach:**
+- Created `/tmp/guide003_diagrams/` working directory structure
+- Generated 9 individual high-quality PDFs (Graphviz: 108K, PlantUML: 1.1M)
+- Combined using `pdfunite` into single document (1.2 MB total)
+- All diagrams render as scalable vector graphics
+
+**Results:**
+- **File:** `docs/GUIDE003_audio_pipeline_diagrams.pdf` (1.2 MB, 9 pages)
+- **Quality:** Professional vector graphics suitable for printing
+- **Tools:** Graphviz 2.43.0 (dot), PlantUML via Java 11, pdfunite
+- **Rendering:** All parameters, flow paths, and state transitions clearly visible
+
+**Diagrams Converted:**
+1. Linear Pipeline Flow (Graphviz, 20K)
+2. Component Architecture (Graphviz, 31K)
+3. Enqueue to Playback Sequence (PlantUML, 565K)
+4. Event-Driven Architecture Sequence (PlantUML, 207K)
+5. Buffer Lifecycle State Machine (PlantUML, 124K)
+6. Decoder Pause/Resume State Machine (PlantUML, 96K)
+7. Mixer Modes State Machine (PlantUML, 111K)
+8. Parameter Mapping Flow (Graphviz, 36K)
+9. Configuration Flow (Graphviz, 21K)
+
+**Impact:**
+Provides production-quality offline documentation with fully-rendered diagrams, replacing previous attempts that failed to render Mermaid correctly.
+
+---
+
+### 2025-10-27 20:09:34 -0400 | Commit: 24e37a30248c2c928e9aca0356842f94a06ec200
 
 **Regenerate GUIDE003 PDF using md-to-pdf for better Mermaid compatibility**
 
