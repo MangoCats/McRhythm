@@ -758,37 +758,35 @@ async fn validate_body_auth(
 }
 
 // ============================================================================
-// Custom Extractor Pattern (GET/DELETE Only - Deprecated)
+// Custom Extractor Pattern (DEPRECATED - DO NOT USE)
 // ============================================================================
 //
-// NOTE: The extractor below only works for GET/DELETE.
-// Use the middleware above (auth_middleware_with_body) instead for full support.
+// **DEPRECATED:** This code is kept for reference only. DO NOT USE in handlers.
+//
+// **Active Authentication:** Tower AuthLayer (lines 28-246) validates ALL requests
+// including POST/PUT using body reconstruction pattern.
+//
+// **Why Deprecated:**
+// - Only works for GET/DELETE (no body access)
+// - POST/PUT bypass authentication (SECURITY VULNERABILITY if used)
+// - Superseded by Tower layer implementation
+//
+// **Security Note:** Lines 825-834 contain authentication bypass for POST/PUT.
+// This code path is NOT used in production (no handlers use this extractor).
+//
+// See AUTHENTICATION_STATUS.md for implementation history.
 
-/// Authenticated request extractor
+/// Authenticated request extractor (DEPRECATED)
 ///
-/// This extractor validates authentication (timestamp + hash) before allowing
-/// the handler to run. It's the Axum 0.7 recommended pattern for authentication
-/// when you need access to application state.
+/// **DO NOT USE:** This extractor is deprecated and contains a security vulnerability
+/// (POST/PUT authentication bypass). Use Tower AuthLayer middleware instead.
 ///
-/// Per SPEC007 API-AUTH-025: All API requests must include timestamp + hash
-/// Per SPEC007 API-AUTH-026: Authentication can be disabled by setting shared_secret = 0
-///
-/// # Usage
-///
-/// ```ignore
-/// pub async fn play(
-///     _auth: Authenticated,  // ← Validates auth before handler runs
-///     State(ctx): State<AppContext>,
-/// ) -> Result<StatusCode> {
-///     // Handler logic - auth already validated
-/// }
-/// ```
-///
-/// # Why Not Middleware?
-///
-/// Axum 0.7's state handling makes stateful middleware complex. Custom extractors
-/// are the recommended pattern for request validation that needs state access.
-/// See AUTHENTICATION_STATUS.md for detailed explanation.
+/// See AUTHENTICATION_STATUS.md for details.
+#[deprecated(
+    since = "0.1.0",
+    note = "Use Tower AuthLayer middleware. This extractor bypasses POST/PUT authentication."
+)]
+#[allow(dead_code)]
 pub struct Authenticated;
 
 #[async_trait]

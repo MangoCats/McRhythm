@@ -4,7 +4,6 @@
 //!
 //! **Traceability:** API Design - Audio Player API endpoints
 
-use crate::api::auth_middleware::Authenticated;
 use crate::api::server::AppContext;
 use crate::state::PlaybackState;
 use axum::{
@@ -249,8 +248,8 @@ pub async fn set_audio_device(
 /// GET /audio/volume - Get current volume
 ///
 /// **Traceability:** API Design - GET /audio/volume
+/// **Authentication:** Validated by Tower AuthLayer middleware
 pub async fn get_volume(
-    _auth: Authenticated,  // Authentication required (per SPEC007 API-AUTH-025)
     State(ctx): State<AppContext>,
 ) -> Json<VolumeResponse> {
     let volume = ctx.state.get_volume().await;

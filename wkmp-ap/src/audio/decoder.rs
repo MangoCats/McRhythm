@@ -356,8 +356,9 @@ impl SimpleDecoder {
         // Trim to passage boundaries
         if start_sample_idx >= all_samples.len() {
             return Err(Error::InvalidTiming(format!(
-                "Start time {}ms is beyond decoded audio",
-                start_ms
+                "Start time {}ms is beyond decoded audio in file '{}'",
+                start_ms,
+                path.display()
             )));
         }
 
@@ -365,8 +366,10 @@ impl SimpleDecoder {
 
         if start_sample_idx >= actual_end_sample {
             return Err(Error::InvalidTiming(format!(
-                "Invalid passage timing: start={}ms, end={}ms",
-                start_ms, end_ms
+                "Invalid passage timing in file '{}': start={}ms, end={}ms",
+                path.display(),
+                start_ms,
+                end_ms
             )));
         }
 
@@ -898,9 +901,13 @@ impl StreamingDecoder {
                     break;
                 }
                 Err(e) => {
-                    warn!("Error reading packet: {}", e);
+                    warn!("Error reading packet from {}: {}", self.file_path.display(), e);
                     self.finished = true;
-                    return Err(Error::Decode(format!("Packet read error: {}", e)));
+                    return Err(Error::Decode(format!(
+                        "Packet read error in file '{}': {}",
+                        self.file_path.display(),
+                        e
+                    )));
                 }
             };
 
