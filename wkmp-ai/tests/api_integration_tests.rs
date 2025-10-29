@@ -6,8 +6,9 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use http_body_util::BodyExt;
 use serde_json::json;
-use tower::ServiceExt;
+use tower::util::ServiceExt;
 
 /// Test helper: create test app with in-memory database
 async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
@@ -56,7 +57,8 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
         event_bus,
     };
 
-    // Build router
+    // Build router (wkmp-ai needs to have a lib.rs for this to work, or use main module)
+    // Since wkmp-ai is a binary, we need to expose AppState and build_router
     let app = wkmp_ai::build_router(state);
 
     (app, pool)
@@ -90,9 +92,7 @@ async fn test_health_endpoint() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = hyper::body::to_bytes(response.into_body())
-        .await
-        .unwrap();
+    let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(json["status"], "ok");
@@ -122,9 +122,7 @@ async fn test_import_start_success() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = hyper::body::to_bytes(response.into_body())
-        .await
-        .unwrap();
+    let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert!(json["session_id"].is_string());
@@ -265,9 +263,7 @@ async fn test_amplitude_analysis_endpoint() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = hyper::body::to_bytes(response.into_body())
-        .await
-        .unwrap();
+    let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     // Stub implementation returns default values

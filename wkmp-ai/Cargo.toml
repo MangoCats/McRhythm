@@ -3,6 +3,10 @@ name = "wkmp-ai"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "wkmp_ai"
+path = "src/lib.rs"
+
 [[bin]]
 name = "wkmp-ai"
 path = "src/main.rs"
@@ -29,6 +33,7 @@ async-stream = "0.3"
 futures = "0.3"
 
 [dev-dependencies]
-tower = { workspace = true }
-hyper = { version = "0.14", features = ["full"] }
+tower = { workspace = true, features = ["util"] }
+hyper = { version = "1.0", features = ["full"] }
+http-body-util = "0.1"
 tempfile = "3.8"
