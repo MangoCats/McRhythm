@@ -128,6 +128,45 @@ impl BufferManager {
         *self.buffer_headroom.write().await = headroom;
     }
 
+    /// Set decode start time for telemetry
+    ///
+    /// **[REQ-DEBT-FUNC-001]** Decoder telemetry tracking
+    pub async fn set_decode_started(&self, queue_entry_id: Uuid) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.decode_started_at = Some(Instant::now());
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
+    /// Set decode completion time for telemetry
+    ///
+    /// **[REQ-DEBT-FUNC-001]** Decoder telemetry tracking
+    pub async fn set_decode_completed(&self, queue_entry_id: Uuid) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.decode_completed_at = Some(Instant::now());
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
+    /// Set file path for telemetry
+    ///
+    /// **[REQ-DEBT-FUNC-001]** Decoder telemetry tracking
+    pub async fn set_file_path(&self, queue_entry_id: Uuid, file_path: String) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.file_path = Some(file_path);
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
     /// Validate buffer configuration settings
     ///
     /// **[REQ-DEBT-FUNC-002-040]** Validates buffer capacity and headroom
@@ -856,6 +895,18 @@ impl BufferManager {
         let managed = buffers.get(&queue_entry_id)?;
 
         let buffer_arc = Arc::clone(&managed.buffer);
+        let metadata = &managed.metadata;
+
+        // Calculate decode duration from telemetry timestamps
+        let decode_duration_ms = if let (Some(started), Some(completed)) =
+            (metadata.decode_started_at, metadata.decode_completed_at) {
+            Some(completed.duration_since(started).as_millis() as u64)
+        } else {
+            None
+        };
+
+        let file_path = metadata.file_path.clone();
+
         drop(buffers);
 
         // No lock needed - all buffer methods use &self with atomics
@@ -874,6 +925,8 @@ impl BufferManager {
                 None
             },
             total_decoded_frames: (stats.total_samples_written / 2) as usize, // Convert samples to frames
+            decode_duration_ms,
+            file_path,
         })
     }
 
@@ -910,6 +963,10 @@ pub struct BufferMonitorInfo {
     pub capacity_samples: usize,
     pub duration_ms: Option<u64>,
     pub total_decoded_frames: usize,
+
+    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+    pub decode_duration_ms: Option<u64>,
+    pub file_path: Option<String>,
 }
 
 impl Default for BufferManager {

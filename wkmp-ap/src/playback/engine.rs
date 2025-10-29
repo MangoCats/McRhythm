@@ -1223,6 +1223,10 @@ impl PlaybackEngine {
                     decode_progress_percent: None,
                     is_actively_decoding: None,
 
+                    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+                    decode_duration_ms: buffer_info.as_ref().and_then(|b| b.decode_duration_ms),
+                    source_file_path: buffer_info.as_ref().and_then(|b| b.file_path.clone()),
+
                     // Resampler stage (stubbed for Phase 3c)
                     source_sample_rate: None, // TODO: Get from decoder
                     resampler_active: None,

@@ -694,6 +694,12 @@ pub struct BufferChainInfo {
     /// Currently being processed by decoder pool
     pub is_actively_decoding: Option<bool>,
 
+    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+    /// Duration of decode operation in milliseconds
+    pub decode_duration_ms: Option<u64>,
+    /// Source file path
+    pub source_file_path: Option<String>,
+
     // Resampler stage visibility **[DBD-OV-010]** **[DBD-RSMP-010]**
     /// Source file sample rate (Hz)
     pub source_sample_rate: Option<u32>,
@@ -741,6 +747,8 @@ impl BufferChainInfo {
             decoder_state: Some(DecoderState::Idle),
             decode_progress_percent: Some(0),
             is_actively_decoding: Some(false),
+            decode_duration_ms: None,
+            source_file_path: None,
             source_sample_rate: None,
             resampler_active: Some(false),
             target_sample_rate: 44100,

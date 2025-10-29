@@ -77,6 +77,16 @@ pub struct BufferMetadata {
 
     /// Whether ReadyForStart event has been emitted (prevent duplicates)
     pub ready_notified: bool,
+
+    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+    /// When decoder started processing this buffer
+    pub decode_started_at: Option<Instant>,
+
+    /// When decoder completed processing this buffer
+    pub decode_completed_at: Option<Instant>,
+
+    /// Source audio file path
+    pub file_path: Option<String>,
 }
 
 impl BufferMetadata {
@@ -93,6 +103,9 @@ impl BufferMetadata {
             ready_at: None,
             playing_at: None,
             ready_notified: false,
+            decode_started_at: None,
+            decode_completed_at: None,
+            file_path: None,
         }
     }
 
