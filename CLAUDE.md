@@ -248,6 +248,35 @@ WKMP consists of **5 independent HTTP-based microservices**:
 
 **Communication:** HTTP REST APIs + Server-Sent Events (SSE) for real-time updates
 
+### Zero-Configuration Startup (MANDATORY - ALL MODULES)
+
+**[REQ-NF-030] through [REQ-NF-037]** ALL five modules MUST implement zero-config startup:
+
+**Implementation Pattern (REQUIRED):**
+```rust
+// Step 1: Resolve root folder (4-tier priority)
+let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
+let root_folder = resolver.resolve();
+
+// Step 2: Create directory if missing
+let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
+initializer.ensure_directory_exists()?;
+
+// Step 3: Get database path
+let db_path = initializer.database_path();  // root_folder/wkmp.db
+```
+
+**4-Tier Priority for Root Folder Resolution:**
+1. CLI argument: `--root-folder /custom/path` or `--root /custom/path`
+2. Environment variable: `WKMP_ROOT_FOLDER=/custom/path` or `WKMP_ROOT=/custom/path`
+3. TOML config: `~/.config/wkmp/<module-name>.toml`
+4. Compiled default: `~/Music` (Linux/macOS), `%USERPROFILE%\Music` (Windows)
+
+**Enforcement:**
+- NO module may hardcode database paths (e.g., `PathBuf::from("wkmp.db")`)
+- NO module may implement custom root folder resolution
+- ALL modules MUST use `wkmp_common::config` utilities
+
 ### On-Demand Microservices
 
 **[ARCH-OD-010]** wkmp-ai and wkmp-le are "on-demand" specialized tools:

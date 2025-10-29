@@ -1,9 +1,41 @@
 //! Configuration loading and root folder resolution
 //!
 //! Implements graceful degradation for configuration as specified in:
-//! - [REQ-NF-031] through [REQ-NF-036]
-//! - [ARCH-INIT-005] through [ARCH-INIT-020]
-//! - [DEP-CFG-031] through [DEP-CFG-040]
+//! - [REQ-NF-031] through [REQ-NF-037] - Zero-config startup with compiled defaults
+//! - [ARCH-INIT-005] through [ARCH-INIT-020] - Module initialization sequence
+//! - [DEP-CFG-031] through [DEP-CFG-040] - Deployment configuration
+//!
+//! # MANDATORY USAGE - ALL MODULES
+//!
+//! **[REQ-NF-037]** Per requirements, ALL WKMP modules MUST use this module's utilities:
+//!
+//! - **RootFolderResolver** - REQUIRED for all modules to resolve root folder path
+//! - **RootFolderInitializer** - REQUIRED for all modules to initialize directories
+//!
+//! NO module may:
+//! - Hardcode database paths (e.g., `PathBuf::from("wkmp.db")`)
+//! - Implement custom root folder resolution logic
+//! - Skip the 4-tier priority system (CLI → ENV → TOML → Defaults)
+//!
+//! This ensures consistent zero-configuration behavior across all 5 modules:
+//! wkmp-ui, wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le
+//!
+//! # Example Usage (REQUIRED PATTERN)
+//!
+//! ```rust
+//! use wkmp_common::config::{RootFolderResolver, RootFolderInitializer};
+//!
+//! // Step 1: Resolve root folder (4-tier priority)
+//! let resolver = RootFolderResolver::new("module-name");
+//! let root_folder = resolver.resolve();
+//!
+//! // Step 2: Create directory if missing
+//! let initializer = RootFolderInitializer::new(root_folder);
+//! initializer.ensure_directory_exists()?;
+//!
+//! // Step 3: Get database path
+//! let db_path = initializer.database_path();  // root_folder/wkmp.db
+//! ```
 
 use crate::{Error, Result};
 use serde::Deserialize;

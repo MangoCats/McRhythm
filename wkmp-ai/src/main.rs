@@ -11,7 +11,6 @@
 //! **[AIA-MS-010]** Integrates with wkmp-ui via HTTP REST + SSE
 
 use anyhow::Result;
-use std::path::PathBuf;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use wkmp_common::events::EventBus;
@@ -31,9 +30,17 @@ async fn main() -> Result<()> {
     info!("Port: 5723");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
 
-    // Determine database path
-    // TODO: Load from config file, for now use current directory
-    let db_path = PathBuf::from("wkmp.db");
+    // Step 1: Resolve root folder [ARCH-INIT-005, REQ-NF-035]
+    let resolver = wkmp_common::config::RootFolderResolver::new("audio-ingest");
+    let root_folder = resolver.resolve();
+
+    // Step 2: Create root folder directory if missing [REQ-NF-036]
+    let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
+    initializer.ensure_directory_exists()
+        .map_err(|e| anyhow::anyhow!("Failed to initialize root folder: {}", e))?;
+
+    // Step 3: Open or create database [REQ-NF-036]
+    let db_path = initializer.database_path();
     info!("Database: {}", db_path.display());
 
     // Initialize database connection pool **[AIA-DB-010]**

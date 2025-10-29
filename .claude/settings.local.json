@@ -34,7 +34,9 @@
       "SlashCommand(/plan:*)",
       "Bash(cargo search:*)",
       "WebSearch",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(RUST_LOG=info timeout 5 cargo run:*)",
+      "Read(//home/sw/Music/**)"
     ],
     "deny": [],
     "ask": []

@@ -253,29 +253,34 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 **[REQ-NF-020]** Errors logged to developer interface, otherwise gracefully ignored and continue playing as best as able
   - developer interface is stdout/stderr
 
-**[REQ-NF-030]** Configuration file graceful degradation
-  - **[REQ-NF-031]** When a microservice's TOML configuration file is missing, the system SHALL NOT terminate with an error
-  - **[REQ-NF-032]** Missing configuration files SHALL result in:
+**[REQ-NF-030]** Configuration file graceful degradation - **APPLIES TO ALL MODULES**
+  - **[REQ-NF-031]** When ANY microservice's TOML configuration file is missing, that module SHALL NOT terminate with an error
+  - **[REQ-NF-032]** Missing configuration files SHALL result in (ALL modules):
     - A warning logged to stdout/stderr indicating the missing file path
     - Automatic fallback to compiled default values
     - Successful module startup with default configuration
-  - **[REQ-NF-033]** Root folder default location (when config file absent and no command-line/environment override):
+  - **[REQ-NF-033]** Root folder default location (ALL modules, when config file absent and no command-line/environment override):
     - Linux: `~/Music` (user's Music folder)
     - macOS: `~/Music` (user's Music folder)
     - Windows: `%USERPROFILE%\Music` (user's Music folder)
-  - **[REQ-NF-034]** Other configuration defaults (when config file absent):
+  - **[REQ-NF-034]** Other configuration defaults (ALL modules, when config file absent):
     - Logging level: `info`
     - Log file: stdout only (no file logging)
     - Static assets: platform-specific standard paths (e.g., `/usr/local/share/wkmp/ui/` on Linux)
-  - **[REQ-NF-035]** Priority order for root folder resolution remains unchanged:
-    1. Command-line argument (highest priority)
-    2. Environment variable (second priority)
-    3. TOML configuration file (third priority)
-    4. Compiled default (lowest priority, graceful fallback)
-  - **[REQ-NF-036]** First-run experience:
-    - When started with default Music folder path, system SHALL create necessary directories automatically
-    - If database does not exist at root folder path, system SHALL create empty database with default schema
-    - System SHALL remain operational and log informational messages about initialization
+  - **[REQ-NF-035]** Priority order for root folder resolution (ALL modules, MANDATORY pattern):
+    1. Command-line argument (highest priority: `--root-folder` or `--root`)
+    2. Environment variable (second priority: `WKMP_ROOT_FOLDER` or `WKMP_ROOT`)
+    3. TOML configuration file (third priority: `~/.config/wkmp/<module-name>.toml`)
+    4. Compiled default (lowest priority, graceful fallback: platform-specific Music folder)
+  - **[REQ-NF-036]** First-run experience (ALL modules):
+    - When started with default Music folder path, module SHALL create necessary directories automatically
+    - If database does not exist at root folder path, module SHALL create empty database with default schema
+    - Module SHALL remain operational and log informational messages about initialization
+  - **[REQ-NF-037]** Implementation enforcement:
+    - ALL modules (wkmp-ui, wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le) MUST use `wkmp_common::config::RootFolderResolver` for root folder resolution
+    - ALL modules MUST use `wkmp_common::config::RootFolderInitializer` for directory and database initialization
+    - NO module may hardcode database paths or skip the 4-tier resolution priority
+    - This pattern ensures consistent zero-configuration behavior across the entire WKMP system
 
 > **See [Architecture - Initialization](SPEC001-architecture.md#module-initialization) for detailed startup sequence and default value handling.**
 
