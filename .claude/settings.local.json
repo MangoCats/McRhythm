@@ -33,7 +33,8 @@
       "Bash(awk:*)",
       "SlashCommand(/plan:*)",
       "Bash(cargo search:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

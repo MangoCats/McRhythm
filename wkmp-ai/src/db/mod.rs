@@ -2,8 +2,15 @@
 //!
 //! **[AIA-DB-010]** Shared SQLite database access
 
-pub mod sessions;
+pub mod albums;
+pub mod artists;
+pub mod files;
 pub mod parameters;
+pub mod passages;
+pub mod schema;
+pub mod sessions;
+pub mod songs;
+pub mod works;
 
 use anyhow::Result;
 use sqlx::SqlitePool;
@@ -24,50 +31,8 @@ pub async fn init_database_pool(db_path: &Path) -> Result<SqlitePool> {
 
     let pool = SqlitePool::connect(&db_url).await?;
 
-    // Run migrations for wkmp-ai specific tables
-    init_tables(&pool).await?;
+    // Initialize complete database schema
+    schema::initialize_schema(&pool).await?;
 
     Ok(pool)
-}
-
-/// Initialize wkmp-ai specific tables
-///
-/// Creates import_sessions and settings tables if they don't exist
-async fn init_tables(pool: &SqlitePool) -> Result<()> {
-    // Create settings table for parameter persistence
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )
-        "#,
-    )
-    .execute(pool)
-    .await?;
-
-    // Create import_sessions table for session persistence
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS import_sessions (
-            session_id TEXT PRIMARY KEY,
-            state TEXT NOT NULL,
-            root_folder TEXT NOT NULL,
-            parameters TEXT NOT NULL,
-            progress_current INTEGER NOT NULL DEFAULT 0,
-            progress_total INTEGER NOT NULL DEFAULT 0,
-            progress_percentage REAL NOT NULL DEFAULT 0.0,
-            current_operation TEXT NOT NULL DEFAULT '',
-            errors TEXT NOT NULL DEFAULT '[]',
-            started_at TEXT NOT NULL,
-            ended_at TEXT
-        )
-        "#,
-    )
-    .execute(pool)
-    .await?;
-
-    tracing::info!("Database tables initialized (settings, import_sessions)");
-
-    Ok(())
 }

@@ -29,18 +29,16 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
 
         CREATE TABLE IF NOT EXISTS import_sessions (
             session_id TEXT PRIMARY KEY,
-            root_folder TEXT NOT NULL,
             state TEXT NOT NULL,
+            root_folder TEXT NOT NULL,
+            parameters TEXT NOT NULL,
             progress_current INTEGER NOT NULL,
             progress_total INTEGER NOT NULL,
             progress_percentage REAL NOT NULL,
-            progress_operation TEXT NOT NULL,
-            progress_elapsed_seconds INTEGER NOT NULL,
-            progress_estimated_remaining_seconds INTEGER,
+            current_operation TEXT NOT NULL,
+            errors TEXT NOT NULL,
             started_at TEXT NOT NULL,
-            ended_at TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            ended_at TEXT
         );
         "#
     )
