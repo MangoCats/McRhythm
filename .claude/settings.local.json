@@ -28,7 +28,8 @@
       "Bash(cargo test:*)",
       "Bash(chmod:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
