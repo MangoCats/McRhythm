@@ -581,6 +581,77 @@ pub enum WkmpEvent {
         reason: String,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+
+    // ========================================================================
+    // Audio Ingest Events (wkmp-ai - Full version only)
+    // **[AIA-MS-010]** SSE event streaming for import workflow
+    // ========================================================================
+
+    /// Import session started
+    ///
+    /// Triggers:
+    /// - SSE: Show import progress UI
+    /// - Database: Session record created
+    ImportSessionStarted {
+        session_id: Uuid,
+        root_folder: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import progress update
+    ///
+    /// Emitted during workflow progression through states
+    ///
+    /// Triggers:
+    /// - SSE: Update progress bar and status
+    ImportProgressUpdate {
+        session_id: Uuid,
+        state: String, // "SCANNING", "EXTRACTING", "FINGERPRINTING", etc.
+        current: usize,
+        total: usize,
+        percentage: f32,
+        current_operation: String,
+        elapsed_seconds: u64,
+        estimated_remaining_seconds: Option<u64>,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import session completed successfully
+    ///
+    /// Triggers:
+    /// - SSE: Show completion notification
+    /// - Database: Mark session as completed
+    /// - Program Director: Refresh available passages
+    ImportSessionCompleted {
+        session_id: Uuid,
+        files_processed: usize,
+        duration_seconds: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import session failed
+    ///
+    /// Triggers:
+    /// - SSE: Show error notification
+    /// - Database: Mark session as failed
+    ImportSessionFailed {
+        session_id: Uuid,
+        error_message: String,
+        files_processed: usize,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import session cancelled by user
+    ///
+    /// Triggers:
+    /// - SSE: Show cancellation notification
+    /// - Database: Mark session as cancelled
+    ImportSessionCancelled {
+        session_id: Uuid,
+        files_processed: usize,
+        files_skipped: usize,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -817,6 +888,12 @@ impl WkmpEvent {
             WkmpEvent::FileHandleExhaustion { .. } => "FileHandleExhaustion",
             WkmpEvent::SystemDegradedMode { .. } => "SystemDegradedMode",
             WkmpEvent::SystemShutdownRequired { .. } => "SystemShutdownRequired",
+            // Audio Ingest events (wkmp-ai)
+            WkmpEvent::ImportSessionStarted { .. } => "ImportSessionStarted",
+            WkmpEvent::ImportProgressUpdate { .. } => "ImportProgressUpdate",
+            WkmpEvent::ImportSessionCompleted { .. } => "ImportSessionCompleted",
+            WkmpEvent::ImportSessionFailed { .. } => "ImportSessionFailed",
+            WkmpEvent::ImportSessionCancelled { .. } => "ImportSessionCancelled",
         }
     }
 }
@@ -979,6 +1056,7 @@ impl std::fmt::Display for EnqueueSource {
 /// //     }
 /// // }
 /// ```
+#[derive(Clone)]
 pub struct EventBus {
     tx: broadcast::Sender<WkmpEvent>,
     capacity: usize,

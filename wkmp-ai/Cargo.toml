@@ -10,3 +10,25 @@ path = "src/main.rs"
 [dependencies]
 wkmp-common = { path = "../wkmp-common" }
 tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+sqlx = { workspace = true }
+walkdir = "2.4"
+infer = "0.16"
+reqwest = { version = "0.11", features = ["json"] }
+governor = "0.6"
+lofty = "0.19"
+async-stream = "0.3"
+futures = "0.3"
+
+[dev-dependencies]
+tower = { workspace = true }
+hyper = { version = "0.14", features = ["full"] }
+tempfile = "3.8"

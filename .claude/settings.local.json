@@ -14,7 +14,19 @@
       "Bash(GUIDE003_audio_pipeline_diagrams_COMPLETE.pdf)",
       "Bash(RUST_LOG=info target/debug/wkmp-ap:*)",
       "SlashCommand(/think wip/_user_story.md)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(cargo build:*)",
+      "Bash(timeout 5 cargo run:*)",
+      "Read(//tmp/**)",
+      "Bash(bash:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(pgrep:*)",
+      "Bash(sqlite3:*)",
+      "Bash(killall:*)",
+      "Bash(cargo test:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
