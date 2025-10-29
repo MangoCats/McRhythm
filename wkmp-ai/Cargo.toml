@@ -31,6 +31,14 @@ governor = "0.6"
 lofty = "0.19"
 async-stream = "0.3"
 futures = "0.3"
+# Audio fingerprinting (Decision 3: static linking)
+chromaprint-sys-next = "1.6"
+base64 = "0.22"
+# File hashing for deduplication
+sha2 = "0.10"
+# Audio decoding and resampling
+symphonia = { version = "0.5", features = ["all"] }
+rubato = "0.15"
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }

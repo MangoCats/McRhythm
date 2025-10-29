@@ -32,10 +32,14 @@ impl AppState {
 /// Build application router
 ///
 /// **[IMPL008]** API endpoint routing
+/// **[AIA-UI-010]** Web UI routes
 pub fn build_router(state: AppState) -> Router {
     use axum::routing::get;
 
     Router::new()
+        // UI routes (HTML pages)
+        .merge(api::ui_routes())
+        // API routes
         .merge(api::import_routes())
         .route("/import/events", get(api::import_event_stream))
         .merge(api::amplitude_routes())
