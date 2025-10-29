@@ -18,6 +18,33 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **Architectural Note:** WKMP is implemented as a microservices architecture with **5 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, and Audio Ingest. See [Architecture](SPEC001-architecture.md) for complete design.
 
+### Microservice UI Ownership
+
+**[REQ-UI-010]** UI is distributed across microservices:
+
+| Microservice | UI Responsibility | Access Method | Versions |
+|--------------|------------------|---------------|----------|
+| **wkmp-ui** | Main playback interface, library browser, preferences, user identity | http://localhost:5720 (primary access point) | All |
+| **wkmp-ai** | Import wizard, file segmentation, passage boundary editor (initial import) | http://localhost:5723 (launched from wkmp-ui) | Full |
+| **wkmp-le** | Lyric editor (split-window interface for timing sync) | http://localhost:5724 (launched from wkmp-ui) | Full |
+| **wkmp-ap** | No UI (backend audio engine) | - | All |
+| **wkmp-pd** | No UI (backend selection algorithm) | - | Full, Lite |
+
+**[REQ-UI-020]** "WebUI" terminology clarification:
+- "WebUI" in requirements refers to **browser-based UI** (HTML/CSS/JS), NOT exclusively wkmp-ui module
+- wkmp-ui is PRIMARY UI (user starts here)
+- wkmp-ai provides SPECIALIZED UI for import workflows
+- wkmp-le provides SPECIALIZED UI for lyric editing
+- All are web-based (accessed via web browser)
+
+**[REQ-UI-030]** UI integration pattern:
+- wkmp-ui is the **orchestrator**: provides launch points for specialized tools
+- On-demand tools (wkmp-ai, wkmp-le) are **autonomous**: own their complete UX
+- No UI embedding: wkmp-ui opens specialized tools in new browser tabs/windows
+- Return navigation: specialized tools provide "Return to WKMP" links back to wkmp-ui
+
+**See:** [On-Demand Microservices](../CLAUDE.md#on-demand-microservices) for detailed pattern definition
+
 ## Core Features
 
 **[REQ-CF-010]** Plays passages from local files (.mp3, .opus, .aac, .flac and similar)
@@ -305,7 +332,9 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-PI-070]** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 
-**[REQ-PI-080]** WebUI provides interface to input/edit lyrics associated with a passage (Full version only)
+**[REQ-PI-080]** Lyric editing UI provided by wkmp-le microservice (Full version only)
+- Accessed via http://localhost:5724 (opened from wkmp-ui library view)
+- See [UI Specification - Lyric Editor](SPEC009-ui_specification.md#lyric-editor) for details
 - **[REQ-PI-081]** Concurrent lyric editing uses "last write wins" strategy (no conflict resolution)
 - **[REQ-PI-082]** Multiple users may edit lyrics simultaneously; last submitted text persists
 
@@ -454,7 +483,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 ### Network Status Indicators
 
 **[REQ-NET-010]** Internet connection status visibility (Full version only)
-- **[REQ-NET-011]** Display internet connection status in library management / import UI
+- **[REQ-NET-011]** Display internet connection status in wkmp-ai import UI
 - **[REQ-NET-012]** Show connection states: Connected, Retrying, Failed
 - **[REQ-NET-013]** Provide "Retry Connection" button when connection fails
 - **[REQ-NET-014]** Indicate which features are unavailable without internet

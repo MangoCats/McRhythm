@@ -35,12 +35,38 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 
 | Module | Port | wkmp-ai Integration | Communication |
 |--------|------|---------------------|---------------|
-| **wkmp-ui** | 5720 | Import wizard UI, progress display | HTTP REST + SSE |
+| **wkmp-ui** | 5720 | Launch point for import wizard, progress monitoring | HTTP REST + SSE |
 | **wkmp-pd** | 5722 | None (import is pre-playback) | - |
 | **wkmp-ap** | 5721 | None (import is pre-playback) | - |
 | **wkmp-le** | 5724 | None (lyrics added post-import) | - |
 
-**Primary Integration:** wkmp-ui orchestrates import workflow via wkmp-ai API
+**Primary Integration:** wkmp-ui provides launch point for wkmp-ai import workflow; wkmp-ai owns import UX
+
+### UI Architecture
+
+**[AIA-UI-010]** wkmp-ai provides its own web-based UI for import workflows:
+- **Access:** User navigates to http://localhost:5723 in browser
+- **Launch:** wkmp-ui provides "Import Music" button that opens wkmp-ai in new tab/window
+- **Technology:** HTML/CSS/JavaScript served by wkmp-ai Axum server
+- **Pattern:** Similar to wkmp-le (on-demand specialized tool with dedicated UI)
+- **Routes:**
+  - `/` - Import wizard home page
+  - `/import-progress` - Real-time progress display with SSE
+  - `/segment-editor` - Waveform editor for passage boundaries ([IMPL005](IMPL005-audio_file_segmentation.md) Step 4)
+  - `/api/*` - REST API endpoints for programmatic access
+
+**[AIA-UI-020]** wkmp-ui integration:
+- wkmp-ui checks if wkmp-ai is running (via `/health` endpoint)
+- If running, "Import Music" button enabled (opens http://localhost:5723)
+- If not running, button shows "Install Full Version to enable import"
+- No embedded import UI in wkmp-ui (wkmp-ai owns all import UX)
+
+**[AIA-UI-030]** After import completion:
+- wkmp-ai displays "Import Complete" with link back to wkmp-ui
+- User returns to wkmp-ui (http://localhost:5720) to use library
+- wkmp-ui detects new files via database watch or SSE event from wkmp-ai
+
+**See:** [On-Demand Microservices](../CLAUDE.md#on-demand-microservices) for architectural pattern
 
 ### Shared Database
 

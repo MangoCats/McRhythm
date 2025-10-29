@@ -495,28 +495,58 @@ When queue is empty and automatic selection cannot enqueue passages, display the
 
 ## Library Management UI (Full Version Only)
 
-### Import View
+### Import Launch (wkmp-ui)
 
-**[UI-IMPORT-010]** Library import interface displays:
+**[UI-IMPORT-005]** wkmp-ui provides import launcher:
+- "Import Music" button in library view
+- Checks wkmp-ai health (http://localhost:5723/health)
+- If available: Opens wkmp-ai in new browser tab/window
+- If unavailable: Shows "Full version required" message
+
+**[UI-IMPORT-006]** Full import UI provided by wkmp-ai:
+- See [Audio Ingest Architecture - UI Architecture](SPEC024-audio_ingest_architecture.md#ui-architecture)
+- See [Audio File Segmentation](IMPL005-audio_file_segmentation.md#ui-implementation)
+- wkmp-ui does NOT embed import wizard
+- User navigates to http://localhost:5723 for import operations
+
+### Import Progress Display (wkmp-ai)
+
+**[UI-IMPORT-010]** wkmp-ai import progress interface:
 - "Select Folders" button (opens folder picker)
 - List of selected folders with paths
 - "Import" button to start scan
 - Progress indicator during scan
-
-**[UI-IMPORT-020]** Import progress display:
 - Current file being processed
 - Files processed / Total files
 - Percentage complete
 - Cancel button (stops import, keeps partial results)
 
-**[UI-IMPORT-030]** Import completion:
+**[UI-IMPORT-020]** Import completion (wkmp-ai):
 - Summary: "Added X files, Updated Y files"
 - Show any errors encountered
-- "View Library" button
+- "Return to WKMP" button → Opens http://localhost:5720 (wkmp-ui)
 
 ### Passage Editor
 
-**[UI-EDIT-010]** Passage boundary editing interface:
+**[UI-EDIT-005]** Passage editing available in TWO contexts:
+
+**Context A: Initial Import (wkmp-ai only):**
+- During audio file segmentation workflow ([IMPL005](IMPL005-audio_file_segmentation.md) Step 4)
+- Accessed via wkmp-ai UI (http://localhost:5723/segment-editor)
+- Full waveform display, silence threshold tuning, MusicBrainz matching
+- Drag boundaries, add/delete passages, reassign songs
+- Available: Full version only
+
+**Context B: Post-Import Editing (wkmp-ui):**
+- After files imported, user can edit existing passages
+- Accessed via wkmp-ui library view
+- Simplified editor: adjust boundaries, edit metadata
+- Limited to editing existing passages (not segmentation workflow)
+- Available: Full, Lite versions
+
+**Implementation Note:** wkmp-ai and wkmp-ui may share waveform rendering code via wkmp-common, but UIs are separate applications.
+
+**[UI-EDIT-010]** Passage boundary editing interface (both contexts):
 - Waveform display of audio file
 - Draggable markers for passage boundaries
 - Play preview from marker position

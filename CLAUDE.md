@@ -243,10 +243,43 @@ WKMP consists of **5 independent HTTP-based microservices**:
 | **Audio Player (wkmp-ap)** | 5721 | Core playback, crossfading, queue management | All |
 | **User Interface (wkmp-ui)** | 5720 | Web UI, authentication, orchestration | All |
 | **Program Director (wkmp-pd)** | 5722 | Automatic passage selection algorithm | Full, Lite |
-| **Audio Ingest (wkmp-ai)** | 5723 | File import, MusicBrainz/AcousticBrainz integration | Full (on-demand) |
+| **Audio Ingest (wkmp-ai)** | 5723 | Import wizard UI, file scanning, MusicBrainz identification | Full (on-demand) |
 | **Lyric Editor (wkmp-le)** | 5724 | Split-window lyric editing interface | Full (on-demand) |
 
 **Communication:** HTTP REST APIs + Server-Sent Events (SSE) for real-time updates
+
+### On-Demand Microservices
+
+**[ARCH-OD-010]** wkmp-ai and wkmp-le are "on-demand" specialized tools:
+
+**Architectural Pattern:**
+- Each provides its own web UI served on dedicated port
+- User accesses via browser (not embedded in wkmp-ui)
+- wkmp-ui provides launch points (buttons/links to open in new tab)
+- Decoupled specialized UIs for complex one-time operations
+
+**Access Method:**
+- **wkmp-ai:** http://localhost:5723 (import wizard, file segmentation)
+- **wkmp-le:** http://localhost:5724 (lyric editor, split-window interface)
+- **wkmp-ui:** http://localhost:5720 (main playback UI, provides links to above)
+
+**Rationale:**
+- Complex workflows benefit from dedicated UI (not cluttering main playback interface)
+- Specialized visualization tools (waveforms, lyric sync timing)
+- Infrequent use (import once, edit lyrics occasionally)
+- Independent development and deployment
+
+**User Flow Example (Import):**
+1. User opens wkmp-ui (http://localhost:5720)
+2. Clicks "Import Music" in library view
+3. wkmp-ui opens http://localhost:5723 in new browser tab
+4. User completes import workflow in wkmp-ai UI
+5. Clicks "Return to WKMP" → Back to wkmp-ui tab
+
+**Version Availability:**
+- Full version: All 5 microservices (including wkmp-ai, wkmp-le)
+- Lite version: wkmp-ui shows "Import Music" disabled with "Full version required" tooltip
+- Minimal version: No import or lyric editing functionality
 
 ---
 
