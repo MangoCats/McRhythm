@@ -170,7 +170,7 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size, buffer_capacity, buffer_headroom) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
@@ -180,6 +180,8 @@ impl PlaybackEngine {
             crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
             crate::db::settings::load_mixer_min_start_level(&db_pool), // [DBD-PARAM-088]
             crate::db::settings::load_audio_buffer_size(&db_pool), // [DBD-PARAM-110]
+            crate::db::settings::load_playout_ringbuffer_capacity(&db_pool), // [DBD-PARAM-070]
+            crate::db::settings::load_playout_ringbuffer_headroom(&db_pool), // [DBD-PARAM-080]
         );
         let db_elapsed = db_start.elapsed();
 
@@ -192,6 +194,8 @@ impl PlaybackEngine {
         let resume_hysteresis = resume_hysteresis?;
         let mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088]
         let audio_buffer_size = audio_buffer_size?; // [DBD-PARAM-110]
+        let buffer_capacity = buffer_capacity?; // [DBD-PARAM-070]
+        let buffer_headroom = buffer_headroom?; // [DBD-PARAM-080]
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -213,6 +217,10 @@ impl PlaybackEngine {
         buffer_manager.set_event_channel(buffer_event_tx).await;
         buffer_manager.set_min_buffer_threshold(min_buffer_threshold).await;
         buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
+        // **[DBD-PARAM-070]** Configure buffer capacity from database
+        buffer_manager.set_buffer_capacity(buffer_capacity).await;
+        // **[DBD-PARAM-080]** Configure buffer headroom from database
+        buffer_manager.set_buffer_headroom(buffer_headroom).await;
 
         // Create decoder worker
         // **[Phase 7]** Pass shared_state and db_pool for error handling
@@ -1023,6 +1031,17 @@ impl PlaybackEngine {
     /// Cloned Arc to volume Mutex - can be used to update volume from API handlers
     pub fn get_volume_arc(&self) -> Arc<Mutex<f32>> {
         Arc::clone(&self.volume)
+    }
+
+    /// Get shared buffer manager Arc for testing
+    ///
+    /// Provides access to buffer manager for integration tests.
+    /// Used to verify buffer configuration settings are correctly loaded and applied.
+    ///
+    /// # Returns
+    /// Cloned Arc to BufferManager
+    pub fn get_buffer_manager(&self) -> Arc<BufferManager> {
+        Arc::clone(&self.buffer_manager)
     }
 
     /// Get audio expected flag
