@@ -40,6 +40,9 @@ const STANDARD_SAMPLE_RATE: u32 = 44100;
 /// Minimum buffer ahead required to resume from underrun (1 second)
 ///
 /// **[SSD-UND-016]** Resume threshold
+///
+/// **Phase 4:** Resume threshold constant reserved for auto-recovery feature (not yet implemented)
+#[allow(dead_code)]
 const UNDERRUN_RESUME_BUFFER_MS: u64 = 1000;
 
 /// Underrun state tracking
@@ -73,6 +76,9 @@ struct PauseState {
     paused_at: Instant,
 
     /// Frame position when paused (for diagnostics)
+    ///
+    /// **Phase 4:** Pause position reserved for diagnostic telemetry (not yet logged)
+    #[allow(dead_code)]
     pause_position_frames: usize,
 }
 
@@ -82,6 +88,9 @@ struct PauseState {
 #[derive(Debug, Clone)]
 struct ResumeState {
     /// When resume was initiated
+    ///
+    /// **Phase 4:** Resume timestamp reserved for diagnostic telemetry (not yet logged)
+    #[allow(dead_code)]
     resumed_at: Instant,
 
     /// Fade-in duration in frames
@@ -825,6 +834,9 @@ impl CrossfadeMixer {
     ///
     /// # Returns
     /// true if paused, false if playing
+    ///
+    /// **Phase 4:** Pause query reserved for API endpoint (not yet exposed)
+    #[allow(dead_code)]
     pub fn is_paused(&self) -> bool {
         self.pause_state.is_some()
     }

@@ -47,7 +47,9 @@
       "Bash(git branch:*)",
       "Bash(git stash:*)",
       "Bash(git push:*)",
-      "Bash(timeout 60 cargo test:*)"
+      "Bash(timeout 60 cargo test:*)",
+      "Bash(grep:*)",
+      "Bash(1)"
     ],
     "deny": [],
     "ask": []

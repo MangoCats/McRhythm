@@ -34,6 +34,9 @@ pub struct AudioOutput {
     /// Count of consecutive errors for backoff logic
     error_count: Arc<AtomicU32>,
     /// Original device name requested (None = default)
+    ///
+    /// **Phase 4:** Device tracking reserved for future device switching and recovery telemetry
+    #[allow(dead_code)]
     requested_device: Option<String>,
 }
 

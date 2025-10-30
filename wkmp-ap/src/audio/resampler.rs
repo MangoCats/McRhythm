@@ -15,6 +15,9 @@ use tracing::debug;
 
 /// Standard output sample rate for all audio
 /// **[SSD-FBUF-020]**
+///
+/// **Phase 4:** Target sample rate constant reserved for future configuration flexibility
+#[allow(dead_code)]
 pub const TARGET_SAMPLE_RATE: u32 = 44100;
 
 /// Stateful audio resampler that maintains filter state across chunks
@@ -29,16 +32,26 @@ pub enum StatefulResampler {
     /// No resampling needed (input rate == output rate)
     ///
     /// Simply copies input to output without processing.
-    PassThrough { channels: u16 },
+    ///
+    /// **Phase 4:** Channels field reserved for future multi-channel support beyond stereo
+    PassThrough {
+        #[allow(dead_code)]
+        channels: u16
+    },
 
     /// Active resampling with maintained filter state
     ///
     /// Reuses the same rubato resampler instance to preserve filter state.
+    ///
+    /// **Phase 4:** Rate/channel/chunk fields reserved for future telemetry and diagnostics
     Active {
         resampler: FastFixedIn<f32>,
+        #[allow(dead_code)]
         input_rate: u32,
+        #[allow(dead_code)]
         output_rate: u32,
         channels: u16,
+        #[allow(dead_code)]
         chunk_size: usize,
     },
 }
@@ -130,6 +143,9 @@ impl StatefulResampler {
     }
 
     /// Get the output rate for this resampler
+    ///
+    /// **Phase 4:** Output rate accessor reserved for future telemetry and diagnostics
+    #[allow(dead_code)]
     pub fn output_rate(&self) -> u32 {
         match self {
             Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
@@ -138,6 +154,9 @@ impl StatefulResampler {
     }
 
     /// Get the input rate for this resampler
+    ///
+    /// **Phase 4:** Input rate accessor reserved for future telemetry and diagnostics
+    #[allow(dead_code)]
     pub fn input_rate(&self) -> u32 {
         match self {
             Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
@@ -167,6 +186,9 @@ impl Resampler {
     ///
     /// # Notes
     /// If input is already at 44.1kHz, returns a copy without resampling
+    ///
+    /// **Phase 4:** One-shot resampling reserved for future features (superseded by StatefulResampler)
+    #[allow(dead_code)]
     pub fn resample(input: &[f32], input_rate: u32, channels: u16) -> Result<Vec<f32>> {
         let output_rate = TARGET_SAMPLE_RATE;
 

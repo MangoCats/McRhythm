@@ -1063,6 +1063,9 @@ impl PlaybackEngine {
     ///
     /// # Returns
     /// Cloned Arc to BufferManager
+    ///
+    /// **Phase 4:** Buffer manager accessor reserved for integration tests (not yet used by API)
+    #[allow(dead_code)]
     pub fn get_buffer_manager(&self) -> Arc<BufferManager> {
         Arc::clone(&self.buffer_manager)
     }
@@ -1094,6 +1097,9 @@ impl PlaybackEngine {
     /// Returns the number of passages in the playback queue.
     ///
     /// [API] GET /playback/queue (returns queue length in response)
+    ///
+    /// **Phase 4:** Queue length API reserved for queue management UI (not yet exposed via REST)
+    #[allow(dead_code)]
     pub async fn queue_len(&self) -> usize {
         let queue = self.queue.read().await;
         queue.len()
@@ -1307,6 +1313,9 @@ impl PlaybackEngine {
     /// # Notes
     /// This is a diagnostic/validation method, not used in normal operation.
     /// Can be called after operations to verify sync, or periodically for health checks.
+    ///
+    /// **Phase 4:** Queue sync verification reserved for diagnostics (not yet used)
+    #[allow(dead_code)]
     pub async fn verify_queue_sync(&self) -> bool {
         use tracing::warn;
 

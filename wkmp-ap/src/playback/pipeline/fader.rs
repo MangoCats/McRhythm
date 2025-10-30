@@ -22,7 +22,10 @@ use wkmp_common::FadeCurve;
 /// **[XFD-OV-020]** When fade durations are zero, operates in pass-through mode (no fades applied).
 pub struct Fader {
     // Passage timing information (for debugging/logging)
+    /// **Phase 4:** Timing fields reserved for passage validation diagnostics
+    #[allow(dead_code)]
     passage_start_ticks: i64,
+    #[allow(dead_code)]
     passage_end_ticks: Option<i64>,
 
     // Fade-in configuration
@@ -41,6 +44,8 @@ pub struct Fader {
     current_frame: usize,
 
     // Sample rate (for logging conversions)
+    /// **Phase 4:** Sample rate reserved for diagnostic time conversions (not yet logged)
+    #[allow(dead_code)]
     sample_rate: u32,
 
     // Pass-through mode flag (zero-duration fades)
@@ -216,6 +221,9 @@ impl Fader {
     }
 
     /// Get total passage duration in frames (for debugging/validation)
+    ///
+    /// **Phase 4:** Duration accessor reserved for diagnostics (not yet used)
+    #[allow(dead_code)]
     pub fn total_duration_frames(&self) -> usize {
         self.total_passage_duration_samples
     }
@@ -223,6 +231,9 @@ impl Fader {
     /// Check if we've processed all expected frames for this passage
     ///
     /// Note: May return false positives if discovered endpoint differs from expected.
+    ///
+    /// **Phase 4:** Completion check reserved for diagnostics (not yet used)
+    #[allow(dead_code)]
     pub fn is_complete(&self) -> bool {
         self.current_frame >= self.total_passage_duration_samples
     }
