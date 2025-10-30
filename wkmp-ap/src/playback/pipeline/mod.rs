@@ -12,5 +12,4 @@ pub mod timing;
 // Re-exports for external use (tests, other modules)
 pub use decoder_chain::{ChunkProcessResult, DecoderChain};
 pub use fader::Fader;
-pub use mixer::CrossfadeMixer;
 

@@ -1678,7 +1678,7 @@ impl PlaybackEngine {
         current: &QueueEntry,
         current_passage: &PassageWithTiming,
         position_ms: u64,
-        crossfade_start_ms: u64,
+        _crossfade_start_ms: u64,
     ) -> Result<bool> {
         // Get next queue entry
         let queue = self.queue.read().await;
@@ -1689,7 +1689,7 @@ impl PlaybackEngine {
         drop(queue);
 
         // Get next buffer
-        let next_buffer = match self.buffer_manager.get_buffer(next.queue_entry_id).await {
+        let _next_buffer = match self.buffer_manager.get_buffer(next.queue_entry_id).await {
             Some(buf) => buf,
             None => {
                 warn!("Next buffer marked ready but not found: {}", next.queue_entry_id);
@@ -1870,7 +1870,7 @@ impl PlaybackEngine {
                     drop(mixer); // Release read lock before acquiring write lock
 
                     // Get buffer from buffer manager
-                    if let Some(buffer) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
+                    if let Some(_buffer) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
                         // Get passage timing information
                         let passage = self.get_passage_timing(current).await?;
 
@@ -2774,7 +2774,7 @@ impl PlaybackEngine {
                     }
 
                     // Get buffer from buffer manager
-                    let buffer = match self.buffer_manager.get_buffer(queue_entry_id).await {
+                    let _buffer = match self.buffer_manager.get_buffer(queue_entry_id).await {
                         Some(buf) => buf,
                         None => {
                             warn!("Buffer ready event but buffer not found: {}", queue_entry_id);

@@ -789,6 +789,7 @@ async fn validate_body_auth(
 #[allow(dead_code)]
 pub struct Authenticated;
 
+#[allow(deprecated)]
 #[async_trait]
 impl<S> FromRequestParts<S> for Authenticated
 where

@@ -290,7 +290,7 @@ impl TestHarness {
         }
 
         // Stop audio output
-        audio_output.stop();
+        let _ = audio_output.stop();
 
         // Stop monitoring
         shutdown_flag.store(true, Ordering::Relaxed);
