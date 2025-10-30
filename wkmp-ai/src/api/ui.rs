@@ -13,11 +13,15 @@ use crate::AppState;
 
 /// Build UI routes
 pub fn ui_routes() -> Router<AppState> {
+    use tower_http::services::ServeDir;
+
     Router::new()
         .route("/", get(root_page))
         .route("/import-progress", get(import_progress_page))
         .route("/segment-editor", get(segment_editor_page))
         .route("/import-complete", get(import_complete_page))
+        .route("/settings", get(settings_page))
+        .nest_service("/static", ServeDir::new("wkmp-ai/static"))
 }
 
 /// Root page - Audio Import Home
@@ -756,4 +760,21 @@ async fn import_complete_page() -> impl IntoResponse {
 </html>
         "#,
     )
+}
+
+/// Settings Page - AcoustID API key configuration
+/// **[APIK-UI-040]** Settings page with API key input
+async fn settings_page() -> impl IntoResponse {
+    // Read static HTML file
+    match tokio::fs::read_to_string("wkmp-ai/static/settings.html").await {
+        Ok(content) => Html(content).into_response(),
+        Err(e) => {
+            tracing::error!("Failed to read settings.html: {}", e);
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "Settings page not found",
+            )
+                .into_response()
+        }
+    }
 }

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WKMP Settings - Audio Ingest</title>
+    <link rel="stylesheet" href="/static/settings.css">
+</head>
+<body>
+    <div class="container">
+        <h1>WKMP Settings</h1>
+        <p class="subtitle">Audio Ingest Configuration</p>
+
+        <section class="settings-section">
+            <h2>AcoustID API Key</h2>
+            <p class="description">
+                Configure your AcoustID API key for audio fingerprinting.
+                This enables accurate music identification during import.
+            </p>
+            <p class="info">
+                <strong>Don't have an API key?</strong>
+                <a href="https://acoustid.org/api-key" target="_blank" rel="noopener noreferrer">
+                    Get one free at acoustid.org
+                </a>
+            </p>
+
+            <form id="api-key-form">
+                <div class="form-group">
+                    <label for="api-key">API Key:</label>
+                    <input
+                        type="password"
+                        id="api-key"
+                        name="api-key"
+                        placeholder="Enter your AcoustID API key"
+                        autocomplete="off"
+                        required
+                    >
+                    <small class="help-text">
+                        Key is stored securely and never displayed after saving.
+                    </small>
+                </div>
+                <button type="submit" class="btn-primary">Save API Key</button>
+            </form>
+
+            <div id="message" role="alert"></div>
+        </section>
+
+        <footer>
+            <p>
+                <a href="/">Return to Import</a> |
+                <a href="/health">Service Health</a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="/static/settings.js"></script>
+</body>
+</html>

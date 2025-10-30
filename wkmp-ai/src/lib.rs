@@ -45,6 +45,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/import/events", get(api::import_event_stream))
         .merge(api::amplitude_routes())
         .merge(api::parameter_routes())
+        .merge(api::settings_routes())
         .merge(api::health_routes())
         .with_state(state)
 }

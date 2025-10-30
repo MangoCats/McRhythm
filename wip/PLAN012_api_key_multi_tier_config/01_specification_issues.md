@@ -1,6 +1,6 @@
 # PLAN012 - Specification Completeness Verification
 
-**Specification:** SPEC025-api_key_configuration.md
+**Specification:** SPEC026-api_key_configuration.md (docs/SPEC026-api_key_configuration.md)
 **Plan Version:** 1.0
 **Date:** 2025-10-30
 
@@ -109,7 +109,7 @@
 **PASS:** Requirements align with upstream specifications.
 
 **Verified against:**
-- REQ-NF-035 (Multi-tier configuration) - SPEC025 extends this pattern correctly
+- REQ-NF-035 (Multi-tier configuration) - SPEC026 extends this pattern correctly
 - IMPL001 (Database schema) - Settings table usage matches existing pattern
 - IMPL012 (AcoustID client) - No conflicts with existing implementation
 - wkmp-common/src/config.rs - TomlConfig extension follows existing pattern
@@ -299,7 +299,7 @@
 
 ## Conclusion
 
-**SPEC025-api_key_configuration.md is READY FOR IMPLEMENTATION.**
+**SPEC026-api_key_configuration.md is READY FOR IMPLEMENTATION.**
 
 **Specification Quality:** HIGH
 - Comprehensive coverage (functional, non-functional, UI)

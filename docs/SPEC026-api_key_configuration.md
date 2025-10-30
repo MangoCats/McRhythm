@@ -1,4 +1,4 @@
-# SPEC025: Multi-Tier API Key Configuration System
+# SPEC026: Multi-Tier API Key Configuration System
 
 **🗂️ TIER 2 - DESIGN SPECIFICATION**
 
@@ -11,9 +11,10 @@ Defines multi-tier configuration resolution for API keys (AcoustID, MusicBrainz,
 ## Metadata
 
 **Document Type:** Tier 2 - Design Specification
+**Document Number:** SPEC026
 **Version:** 1.0
 **Date:** 2025-10-26
-**Status:** Active
+**Status:** Active - Implementation Complete
 **Author:** Technical Lead
 
 **Parent Documents (Tier 1):**
@@ -148,8 +149,8 @@ Defines multi-tier configuration resolution for API keys (AcoustID, MusicBrainz,
 
 ```rust
 sync_settings_to_toml(
-    resolver: &RootFolderResolver,
-    changed_settings: &HashMap<String, String>
+    changed_settings: HashMap<String, String>,
+    toml_path: &Path
 ) -> Result<()>
 ```
 
@@ -180,7 +181,7 @@ match key.as_str() {
 ```rust
 resolve_acoustid_api_key(
     db: &sqlx::SqlitePool,
-    resolver: &wkmp_common::config::RootFolderResolver,
+    toml_config: &TomlConfig,
 ) -> Result<String>
 ```
 
@@ -291,6 +292,7 @@ Content-Type: application/json
 
 ```json
 {
+  "success": true,
   "message": "API key saved successfully"
 }
 ```
@@ -300,7 +302,7 @@ Content-Type: application/json
 **[APIK-UI-040]** wkmp-ai web UI SHALL provide settings page at `/settings`.
 
 **[APIK-UI-050]** Settings page SHALL include:
-- Input field for API key
+- Input field for API key (type=password)
 - Save button
 - Link to obtain free API key (https://acoustid.org/api-key)
 - Success/error message display
@@ -316,16 +318,15 @@ Content-Type: application/json
 **[APIK-LOG-010]** At module startup, system SHALL log API key source:
 
 ```
-INFO: AcoustID API key: Loaded from database
-INFO: AcoustID API key: Loaded from environment variable
-INFO: AcoustID API key: Loaded from TOML config
+INFO: AcoustID API key loaded from database
+INFO: AcoustID API key loaded from environment variable
+INFO: AcoustID API key loaded from TOML config
 ```
 
 **[APIK-LOG-020]** When database has key but ENV/TOML also present, system SHALL log warning:
 
 ```
-WARN: AcoustID API key found in multiple sources. Using database value.
-      To use environment variable or TOML, delete key from database first.
+WARN: AcoustID API key found in multiple sources (database, environment, TOML). Using database (highest priority).
 ```
 
 ### Migration Logging
@@ -333,17 +334,14 @@ WARN: AcoustID API key found in multiple sources. Using database value.
 **[APIK-LOG-030]** When auto-migration occurs, system SHALL log:
 
 ```
-INFO: AcoustID API key: Loaded from environment variable
-INFO: Migrating API key to database for persistence...
-INFO: API key saved to database
-INFO: API key backed up to TOML config
+INFO: AcoustID API key loaded from environment variable
+INFO: AcoustID API key migrated from environment to database
 ```
 
 **[APIK-LOG-040]** When TOML write fails, system SHALL log warning:
 
 ```
-WARN: Could not back up API key to TOML config: {error}.
-      TOML may be read-only. Key saved to database successfully.
+WARN: TOML sync failed (database write succeeded): {error}
 ```
 
 ---
@@ -435,27 +433,31 @@ WARN: Could not back up API key to TOML config: {error}.
 
 ---
 
-## Acceptance Criteria
+## Implementation Status
 
-Implementation is complete when:
+**Implementation:** ✅ Complete (PLAN012)
+**Tests:** 29 passing (20 unit + 9 integration)
+**Documentation:** [PLAN012 Implementation Report](../wip/PLAN012_api_key_multi_tier_config/IMPLEMENTATION_COMPLETE.md)
 
-- [ ] Multi-tier resolution works (Database → ENV → TOML → Error)
-- [ ] Database is authoritative (ignores ENV/TOML when database has key)
-- [ ] Auto-migration works (ENV → Database + TOML)
-- [ ] Auto-migration works (TOML → Database)
-- [ ] TOML write-back works (ENV or UI update → Database + TOML)
-- [ ] TOML write is atomic (temp + rename)
-- [ ] TOML write preserves other fields
-- [ ] TOML permissions set to 0600 (Unix)
-- [ ] TOML write failures are graceful (warn, don't fail)
-- [ ] Generic settings sync supports multiple keys
-- [ ] Web UI endpoint works (POST /api/settings/acoustid_api_key)
-- [ ] Web UI settings page works
-- [ ] All unit tests pass
-- [ ] All integration tests pass
-- [ ] Manual testing complete (ENV, TOML, UI, database deletion)
+**Acceptance Criteria:**
+
+- [x] Multi-tier resolution works (Database → ENV → TOML → Error)
+- [x] Database is authoritative (ignores ENV/TOML when database has key)
+- [x] Auto-migration works (ENV → Database + TOML)
+- [x] Auto-migration works (TOML → Database)
+- [x] TOML write-back works (ENV or UI update → Database + TOML)
+- [x] TOML write is atomic (temp + rename)
+- [x] TOML write preserves other fields
+- [x] TOML permissions set to 0600 (Unix)
+- [x] TOML write failures are graceful (warn, don't fail)
+- [x] Generic settings sync supports multiple keys
+- [x] Web UI endpoint works (POST /api/settings/acoustid_api_key)
+- [x] Web UI settings page works
+- [x] All unit tests pass (20 tests)
+- [x] All integration tests pass (9 tests)
+- [ ] Manual testing complete (documented, pending user execution)
 - [ ] Documentation updated (IMPL012, IMPL001 reference)
-- [ ] Logging provides clear observability
+- [x] Logging provides clear observability
 
 ---
 
@@ -483,6 +485,7 @@ Implementation is complete when:
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 1.0 | 2025-10-26 | Initial specification - Multi-tier API key configuration with TOML write-back | Technical Lead |
+| 1.1 | 2025-10-30 | Implementation complete - Migrated from wip/ to docs/ as SPEC026 | Technical Lead |
 
 ---
 
@@ -498,9 +501,11 @@ Implementation is complete when:
 
 **Code References:**
 - [wkmp-common/src/config.rs](../wkmp-common/src/config.rs) - Configuration module
-- [wkmp-ap/src/db/settings.rs](../wkmp-ap/src/db/settings.rs) - Settings accessor pattern
+- [wkmp-ai/src/config.rs](../wkmp-ai/src/config.rs) - Multi-tier resolver implementation
+- [wkmp-ai/src/db/settings.rs](../wkmp-ai/src/db/settings.rs) - Settings accessor pattern
+- [wkmp-ai/src/api/settings.rs](../wkmp-ai/src/api/settings.rs) - Web UI endpoint
 
 ---
 
-**Document Status:** Active - Ready for /plan workflow execution
-**Next Action:** Run `/plan wip/SPEC025-api_key_configuration.md` to create implementation plan
+**Document Status:** Active - Implementation Complete
+**Implementation Plan:** [PLAN012](../wip/PLAN012_api_key_multi_tier_config/)

@@ -62,7 +62,8 @@
       "Bash(clang --version:*)",
       "Read(//c/Program Files/**)",
       "Bash(export LIBCLANG_PATH=\"C:\\Program Files\\LLVM\\bin\")",
-      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang.exe\" --version)"
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang.exe\" --version)",
+      "Bash(export LIBCLANG_PATH=\"C:/Program Files/LLVM/bin\")"
     ],
     "deny": [],
     "ask": []

@@ -3,22 +3,23 @@
 //! Tests the implementation of:
 //! - [APIK-RES-010] through [APIK-RES-050] - Multi-tier resolution
 //! - [APIK-VAL-010] - Validation
+//!
+//! Note: Uses serial_test crate to prevent ENV variable race conditions.
+//! Tests that manipulate WKMP_ACOUSTID_API_KEY are marked with #[serial]
+//! to ensure they run sequentially, not in parallel.
 
+use serial_test::serial;
 use wkmp_ai::config::{resolve_acoustid_api_key, is_valid_key};
 use wkmp_ai::db::{schema, settings::set_acoustid_api_key};
 use wkmp_common::config::{TomlConfig, LoggingConfig};
 use sqlx::sqlite::SqlitePoolOptions;
-
-// Helper to ensure clean environment (remove env var before each test)
-fn cleanup_env() {
-    std::env::remove_var("WKMP_ACOUSTID_API_KEY");
-}
 
 // ============================================================================
 // Resolution Tests (tc_u_res_001-008)
 // ============================================================================
 
 #[tokio::test]
+#[serial]
 async fn test_database_overrides_env_and_toml() {
     // tc_u_res_001: Database priority
     let pool = SqlitePoolOptions::new()
@@ -48,9 +49,9 @@ async fn test_database_overrides_env_and_toml() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_env_fallback_when_database_empty() {
     // tc_u_res_002: ENV fallback
-    cleanup_env(); // Ensure clean state
 
     let pool = SqlitePoolOptions::new()
         .connect(":memory:")
@@ -76,9 +77,10 @@ async fn test_env_fallback_when_database_empty() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_toml_fallback_when_db_and_env_empty() {
     // tc_u_res_003: TOML fallback
-    cleanup_env(); // Ensure clean state
+    std::env::remove_var("WKMP_ACOUSTID_API_KEY"); // Ensure clean state
 
     let pool = SqlitePoolOptions::new()
         .connect(":memory:")
@@ -101,6 +103,7 @@ async fn test_toml_fallback_when_db_and_env_empty() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_error_when_no_key_found() {
     // tc_u_res_004: Error on no key
     let pool = SqlitePoolOptions::new()
@@ -130,6 +133,7 @@ async fn test_error_when_no_key_found() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_database_ignores_env() {
     // tc_u_res_005: Database ignores ENV when present
     let pool = SqlitePoolOptions::new()
@@ -159,6 +163,7 @@ async fn test_database_ignores_env() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_database_ignores_toml() {
     // tc_u_res_006: Database ignores TOML when present
     let pool = SqlitePoolOptions::new()
@@ -185,9 +190,9 @@ async fn test_database_ignores_toml() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_env_ignores_toml() {
     // tc_u_res_007: ENV ignores TOML when present
-    cleanup_env(); // Ensure clean state
 
     let pool = SqlitePoolOptions::new()
         .connect(":memory:")
@@ -213,6 +218,7 @@ async fn test_env_ignores_toml() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_multiple_sources_warning() {
     // tc_u_res_008: Multiple sources warning logged
     // Note: This test verifies behavior, not that warning is logged

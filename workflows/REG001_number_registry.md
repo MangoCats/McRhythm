@@ -2,7 +2,7 @@
 
 **Purpose:** Track document number assignments and maintain next-available counters
 **Maintained by:** /doc-name workflow (automated)
-**Last Updated:** 2025-10-27
+**Last Updated:** 2025-10-30
 
 ---
 
@@ -12,7 +12,7 @@
 |----------|------|-------------|
 | GOV | 004 | Governance (document hierarchy, conventions, requirements enumeration) |
 | REQ | 003 | Requirements (authoritative requirements, entity definitions) |
-| SPEC | 026 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
+| SPEC | 027 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
 | IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
@@ -111,6 +111,10 @@
 | REG002 | archive_index.md | 2025-10-25 | REG | Manual | Archive retrieval index |
 | SPEC021 | SPEC021-error_handling.md | 2025-10-25 | SPEC | Manual | Comprehensive error handling strategy specification |
 | SPEC022 | SPEC022-performance_targets.md | 2025-10-25 | SPEC | Manual | Performance targets for wkmp-ap (Pi Zero 2W deployment) |
+| SPEC023 | SPEC023-timing_terminology.md | 2025-10-26 | SPEC | Manual | Timing terminology and conventions across WKMP |
+| SPEC024 | SPEC024-audio_ingest_architecture.md | 2025-10-26 | SPEC | Manual | Architecture for Audio Ingest module (wkmp-ai) |
+| SPEC025 | SPEC025-amplitude_analysis.md | 2025-10-26 | SPEC | Manual | Amplitude analysis for crossfade timing |
+| SPEC026 | SPEC026-api_key_configuration.md | 2025-10-30 | SPEC | Manual | Multi-tier API key configuration system (migrated from wip/) |
 | GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
 | PLAN010 | workflow_quality_standards | 2025-10-30 | PLAN | Auto | Implementation plan for workflow quality standards enhancement (anti-sycophancy, anti-laziness, anti-hurry, problem transparency) |
 
@@ -124,7 +128,7 @@
 |----------|-------|--------------|
 | GOV | 3 | Existing |
 | REQ | 2 | Existing |
-| SPEC | 22 | 2025-10-25 |
+| SPEC | 26 | 2025-10-30 |
 | IMPL | 7 | Existing |
 | EXEC | 1 | Existing |
 | REV | 4 | Existing |
