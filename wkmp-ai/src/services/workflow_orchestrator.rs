@@ -221,6 +221,8 @@ impl WorkflowOrchestrator {
 
             // Update progress after each file (so UI shows continuous progress)
             // File hashing is slow, so users need to see progress to know it's working
+            // **[REQ-AIA-UI-004]** Set current file being processed
+            session.progress.current_file = Some(relative_path.clone());
             session.update_progress(
                 saved_count,
                 scan_result.files.len(),
@@ -986,6 +988,10 @@ impl WorkflowOrchestrator {
             current_operation: session.progress.current_operation.clone(),
             elapsed_seconds,
             estimated_remaining_seconds: session.progress.estimated_remaining_seconds,
+            // **[REQ-AIA-UI-001]** Convert phase tracking to event data
+            phases: session.progress.phases.iter().map(|p| p.into()).collect(),
+            // **[REQ-AIA-UI-004]** Include current file being processed
+            current_file: session.progress.current_file.clone(),
             timestamp: Utc::now(),
         });
     }

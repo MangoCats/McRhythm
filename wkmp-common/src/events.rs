@@ -608,6 +608,8 @@ pub enum WkmpEvent {
     ///
     /// Triggers:
     /// - SSE: Update progress bar and status
+    ///
+    /// **[REQ-AIA-UI-001, REQ-AIA-UI-004]** Extended with phase tracking and current file
     ImportProgressUpdate {
         session_id: Uuid,
         state: String, // "SCANNING", "EXTRACTING", "FINGERPRINTING", etc.
@@ -617,6 +619,13 @@ pub enum WkmpEvent {
         current_operation: String,
         elapsed_seconds: u64,
         estimated_remaining_seconds: Option<u64>,
+        /// **[REQ-AIA-UI-001]** Phase-level progress (6 phases: SCANNING through FLAVORING)
+        /// Empty for backward compatibility with old events
+        #[serde(default)]
+        phases: Vec<PhaseProgressData>,
+        /// **[REQ-AIA-UI-004]** Current file being processed
+        #[serde(default)]
+        current_file: Option<String>,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -944,6 +953,55 @@ impl std::fmt::Display for BufferStatus {
             BufferStatus::Exhausted => write!(f, "Exhausted"),
         }
     }
+}
+
+/// **[REQ-AIA-UI-001]** Phase status for import workflow checklist
+///
+/// Used in SSE events for UI display
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PhaseStatusData {
+    /// Phase not yet started
+    Pending,
+    /// Phase currently running
+    InProgress,
+    /// Phase completed successfully
+    Completed,
+    /// Phase failed with critical error
+    Failed,
+    /// Phase completed with warnings (partial success)
+    CompletedWithWarnings,
+}
+
+/// **[REQ-AIA-UI-003]** Sub-task tracking for import phases
+///
+/// Used to show success/failure counts (e.g., Chromaprint, AcoustID, MusicBrainz)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubTaskData {
+    /// Sub-task name
+    pub name: String,
+    /// Number of successful operations
+    pub success_count: usize,
+    /// Number of failed operations
+    pub failure_count: usize,
+    /// Number of skipped operations
+    pub skip_count: usize,
+}
+
+/// **[REQ-AIA-UI-001]** Phase progress data for SSE events
+///
+/// Contains progress information for a single workflow phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseProgressData {
+    /// Phase name (e.g., "SCANNING", "EXTRACTING", "FINGERPRINTING")
+    pub phase: String,
+    /// Current status
+    pub status: PhaseStatusData,
+    /// Files processed in this phase
+    pub progress_current: usize,
+    /// Total files for this phase
+    pub progress_total: usize,
+    /// Sub-task counters
+    pub subtasks: Vec<SubTaskData>,
 }
 
 /// User action types

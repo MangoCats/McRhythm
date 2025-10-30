@@ -100,6 +100,9 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
                     (chrono::Utc::now() - started_at).num_seconds() as u64
                 },
                 estimated_remaining_seconds: None, // Recalculated on demand
+                // **[REQ-AIA-UI-001, REQ-AIA-UI-004]** Phase tracking not persisted to DB (runtime only)
+                phases: Vec::new(),
+                current_file: None,
             };
 
             Ok(Some(ImportSession {
