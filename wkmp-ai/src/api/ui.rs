@@ -107,11 +107,51 @@ async fn import_progress_page() -> impl IntoResponse {
             border-bottom: 2px solid #0066cc;
             padding-bottom: 10px;
         }
+        #setup {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
         #status {
             background: #f5f5f5;
             padding: 20px;
             border-radius: 4px;
             margin: 20px 0;
+            display: none;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+        .button:disabled {
+            background: #999;
+            cursor: not-allowed;
         }
         .progress-bar {
             width: 100%;
@@ -126,13 +166,30 @@ async fn import_progress_page() -> impl IntoResponse {
             background: #0066cc;
             transition: width 0.3s ease;
         }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
     <h1>Import Progress</h1>
 
+    <div id="setup">
+        <div class="form-group">
+            <label for="root-folder">Music Root Folder:</label>
+            <input type="text" id="root-folder" placeholder="/home/sw/Music" value="/home/sw/Music">
+        </div>
+        <button class="button" id="start-btn" onclick="startImport()">Start Import</button>
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
     <div id="status">
-        <p><strong>Status:</strong> <span id="state">Ready</span></p>
+        <p><strong>Session ID:</strong> <span id="session-id">-</span></p>
+        <p><strong>Status:</strong> <span id="state">-</span></p>
         <p><strong>Progress:</strong> <span id="progress-text">0 / 0</span></p>
         <div class="progress-bar">
             <div class="progress-fill" id="progress-bar" style="width: 0%"></div>
@@ -143,9 +200,135 @@ async fn import_progress_page() -> impl IntoResponse {
     <p><a href="/">← Back to Home</a></p>
 
     <script>
-        // SSE client will be implemented in Phase 9
+        let eventSource = null;
+        let currentSessionId = null;
+
+        // Start import workflow
+        async function startImport() {
+            const rootFolder = document.getElementById('root-folder').value.trim();
+            const startBtn = document.getElementById('start-btn');
+            const errorDiv = document.getElementById('error');
+
+            if (!rootFolder) {
+                showError('Please enter a root folder path');
+                return;
+            }
+
+            // Disable button
+            startBtn.disabled = true;
+            startBtn.textContent = 'Starting...';
+            errorDiv.style.display = 'none';
+
+            try {
+                // Call POST /import/start
+                const response = await fetch('/import/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ root_folder: rootFolder })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    // Error format: { error: { code: "...", message: "..." } }
+                    const errorMessage = error?.error?.message || error?.message || 'Failed to start import';
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                currentSessionId = data.session_id;
+
+                // Show status panel, hide setup
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('status').style.display = 'block';
+                document.getElementById('session-id').textContent = currentSessionId;
+                document.getElementById('state').textContent = data.state;
+
+                // Connect to SSE stream
+                connectSSE();
+
+            } catch (error) {
+                console.error('Import start failed:', error);
+                showError(error.message || 'Failed to start import');
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Import';
+            }
+        }
+
+        // Connect to SSE event stream
+        function connectSSE() {
+            console.log('Connecting to SSE at /import/events');
+
+            eventSource = new EventSource('/import/events');
+
+            eventSource.addEventListener('ImportSessionStarted', (e) => {
+                const event = JSON.parse(e.data);
+                console.log('ImportSessionStarted:', event);
+                document.getElementById('state').textContent = 'Started';
+            });
+
+            eventSource.addEventListener('ImportProgressUpdate', (e) => {
+                const event = JSON.parse(e.data);
+                console.log('ImportProgressUpdate:', event);
+
+                const progress = event.progress;
+                const percent = progress.total > 0
+                    ? Math.round((progress.current / progress.total) * 100)
+                    : 0;
+
+                document.getElementById('state').textContent = event.state;
+                document.getElementById('progress-text').textContent =
+                    `${progress.current} / ${progress.total}`;
+                document.getElementById('progress-bar').style.width = `${percent}%`;
+                document.getElementById('operation').textContent = progress.current_operation;
+            });
+
+            eventSource.addEventListener('ImportSessionCompleted', (e) => {
+                const event = JSON.parse(e.data);
+                console.log('ImportSessionCompleted:', event);
+
+                document.getElementById('state').textContent = 'Completed ✓';
+                document.getElementById('operation').textContent = 'Import finished successfully';
+                eventSource.close();
+
+                // Redirect to completion page after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/import-complete';
+                }, 2000);
+            });
+
+            eventSource.addEventListener('ImportSessionFailed', (e) => {
+                const event = JSON.parse(e.data);
+                console.log('ImportSessionFailed:', event);
+
+                document.getElementById('state').textContent = 'Failed';
+                document.getElementById('operation').textContent = 'Import failed';
+                showError(event.error || 'Import failed');
+                eventSource.close();
+            });
+
+            eventSource.addEventListener('ImportSessionCancelled', (e) => {
+                const event = JSON.parse(e.data);
+                console.log('ImportSessionCancelled:', event);
+
+                document.getElementById('state').textContent = 'Cancelled';
+                document.getElementById('operation').textContent = 'Import cancelled';
+                eventSource.close();
+            });
+
+            eventSource.onerror = (error) => {
+                console.error('SSE error:', error);
+                // Don't show error immediately - SSE may reconnect
+            };
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
         console.log('Import progress page loaded');
-        // TODO: Connect to /import/events SSE endpoint
     </script>
 </body>
 </html>

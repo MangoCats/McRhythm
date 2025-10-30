@@ -39,7 +39,8 @@
       "Read(//home/sw/Music/**)",
       "Bash(for f in wkmp-ap/src/**/*.rs)",
       "Bash(do if [ -f \"$f\" ])",
-      "Bash(then awk '/^    pub fn|^    fn|^pub fn|^fn / {fname=$0; line=NR; count=0} \n         /\\{/ {count++} \n         /\\}/ {count--; if(count==0 && fname!=\"\"\"\"\"\"\"\") {len=NR-line; if(len>200) print FILENAME\"\"\"\":\"\"\"\"line\"\"\"\":\"\"\"\"fname\"\"\"\" (\"\"\"\"len\"\"\"\" lines)\"\"\"\"}}' \"$f\" fi done)"
+      "Bash(then awk '/^    pub fn|^    fn|^pub fn|^fn / {fname=$0; line=NR; count=0} \n         /\\{/ {count++} \n         /\\}/ {count--; if(count==0 && fname!=\"\"\"\"\"\"\"\") {len=NR-line; if(len>200) print FILENAME\"\"\"\":\"\"\"\"line\"\"\"\":\"\"\"\"fname\"\"\"\" (\"\"\"\"len\"\"\"\" lines)\"\"\"\"}}' \"$f\" fi done)",
+      "Bash(cargo fix:*)"
     ],
     "deny": [],
     "ask": []
