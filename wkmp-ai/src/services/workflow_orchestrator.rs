@@ -374,6 +374,17 @@ impl WorkflowOrchestrator {
     /// Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
     async fn phase_fingerprinting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
         session.transition_to(ImportState::Fingerprinting);
+
+        // **[REQ-AIA-UI-003]** Initialize sub-task counters for fingerprinting phase
+        use crate::models::import_session::SubTaskStatus;
+        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+            phase.subtasks = vec![
+                SubTaskStatus::new("Chromaprint"),
+                SubTaskStatus::new("AcoustID"),
+                SubTaskStatus::new("MusicBrainz"),
+            ];
+        }
+
         session.update_progress(
             0,
             session.progress.total,
@@ -398,11 +409,28 @@ impl WorkflowOrchestrator {
             // Construct absolute path
             let file_path = root_path.join(&file.path);
 
+            // **[REQ-AIA-UI-004]** Set current file
+            session.progress.current_file = Some(file.path.clone());
+
             // Generate Chromaprint fingerprint
             let fingerprint = match self.fingerprinter.fingerprint_file(&file_path) {
-                Ok(fp) => fp,
+                Ok(fp) => {
+                    // **[REQ-AIA-UI-003]** Increment Chromaprint success counter
+                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "Chromaprint") {
+                            subtask.success_count += 1;
+                        }
+                    }
+                    fp
+                }
                 Err(e) => {
                     tracing::warn!("Failed to fingerprint {}: {}", file.path, e);
+                    // **[REQ-AIA-UI-003]** Increment Chromaprint failure counter
+                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "Chromaprint") {
+                            subtask.failure_count += 1;
+                        }
+                    }
                     processed_count += 1;
                     continue;
                 }
@@ -418,9 +446,22 @@ impl WorkflowOrchestrator {
                         if let Some(top_result) = response.results.first() {
                             if let Some(ref recordings) = top_result.recordings {
                                 if let Some(recording) = recordings.first() {
+                                    // **[REQ-AIA-UI-003]** Increment AcoustID success counter (found)
+                                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                            subtask.success_count += 1;
+                                        }
+                                    }
+
                                     // Query MusicBrainz for detailed metadata
                                     if let Some(ref mb) = self.mb_client {
                                         if let Ok(mb_recording) = mb.lookup_recording(&recording.id).await {
+                                            // **[REQ-AIA-UI-003]** Increment MusicBrainz success counter
+                                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "MusicBrainz") {
+                                                    subtask.success_count += 1;
+                                                }
+                                            }
                                             // Save song
                                             let song = crate::db::songs::Song::new(recording.id.clone());
                                             crate::db::songs::save_song(&self.db, &song).await?;
@@ -490,14 +531,49 @@ impl WorkflowOrchestrator {
                                                 recording_mbid = %recording.id,
                                                 "Successfully fingerprinted and linked to MusicBrainz"
                                             );
+                                        } else {
+                                            // **[REQ-AIA-UI-003]** Increment MusicBrainz failure counter
+                                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "MusicBrainz") {
+                                                    subtask.failure_count += 1;
+                                                }
+                                            }
+                                            tracing::warn!("MusicBrainz lookup failed for {}", recording.id);
                                         }
                                     }
+                                } else {
+                                    // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no recording in result)
+                                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                            subtask.failure_count += 1;
+                                        }
+                                    }
+                                }
+                            } else {
+                                // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no recordings field)
+                                if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                    if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                        subtask.failure_count += 1;
+                                    }
+                                }
+                            }
+                        } else {
+                            // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no results)
+                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                    subtask.failure_count += 1;
                                 }
                             }
                         }
                     }
                     Err(e) => {
                         tracing::warn!("AcoustID lookup failed for {}: {}", file.path, e);
+                        // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (lookup error)
+                        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                            if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                subtask.failure_count += 1;
+                            }
+                        }
                     }
                 }
             }

@@ -31,6 +31,23 @@ pub enum ImportState {
     Failed,
 }
 
+impl ImportState {
+    /// **[REQ-AIA-UI-001]** Get brief description of what this phase does (8 words max)
+    pub fn description(&self) -> &'static str {
+        match self {
+            ImportState::Scanning => "Finding audio files in folders",
+            ImportState::Extracting => "Reading ID3 tags and metadata",
+            ImportState::Fingerprinting => "Generating audio fingerprints for identification",
+            ImportState::Segmenting => "Detecting silence and passage boundaries",
+            ImportState::Analyzing => "Analyzing amplitude for crossfade timing",
+            ImportState::Flavoring => "Extracting musical characteristics via Essentia",
+            ImportState::Completed => "Import completed successfully",
+            ImportState::Cancelled => "Import cancelled by user",
+            ImportState::Failed => "Import failed with errors",
+        }
+    }
+}
+
 /// **[AIA-WF-010]** State transition event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateTransition {
@@ -394,6 +411,7 @@ impl From<&PhaseProgress> for wkmp_common::events::PhaseProgressData {
             progress_current: phase.progress_current,
             progress_total: phase.progress_total,
             subtasks: phase.subtasks.iter().map(|s| s.into()).collect(),
+            description: phase.phase.description().to_string(),
         }
     }
 }

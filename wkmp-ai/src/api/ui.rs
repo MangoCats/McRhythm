@@ -196,6 +196,12 @@ async fn import_progress_page() -> impl IntoResponse {
             font-weight: bold;
             font-size: 16px;
         }
+        .phase-description {
+            color: #666;
+            font-size: 13px;
+            font-style: italic;
+            margin-top: 2px;
+        }
         .phase-summary {
             color: #666;
             font-size: 14px;
@@ -523,6 +529,7 @@ async fn import_progress_page() -> impl IntoResponse {
                     <div class="phase-icon">${icon}</div>
                     <div class="phase-content">
                         <div class="phase-name">${phase.phase}</div>
+                        ${phase.description ? `<div class="phase-description">${phase.description}</div>` : ''}
                         ${summary ? `<div class="phase-summary">${summary}</div>` : ''}
                     </div>
                 `;

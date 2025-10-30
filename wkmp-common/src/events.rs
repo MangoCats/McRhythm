@@ -1002,6 +1002,8 @@ pub struct PhaseProgressData {
     pub progress_total: usize,
     /// Sub-task counters
     pub subtasks: Vec<SubTaskData>,
+    /// Brief description of what this phase does (8 words max)
+    pub description: String,
 }
 
 /// User action types
