@@ -35,6 +35,8 @@ pub enum WkmpEvent {
     /// - Lyrics Display: Show passage lyrics
     PassageStarted {
         passage_id: Uuid,
+        /// **[REQ-DEBT-FUNC-003]** All albums for this passage, for cooldown/stats
+        album_uuids: Vec<Uuid>,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -46,6 +48,8 @@ pub enum WkmpEvent {
     /// - SSE: Update UI playback state
     PassageCompleted {
         passage_id: Uuid,
+        /// **[REQ-DEBT-FUNC-003]** All albums for this passage, for cooldown/stats
+        album_uuids: Vec<Uuid>,
         duration_played: f64,
         completed: bool, // false if skipped
         timestamp: chrono::DateTime<chrono::Utc>,

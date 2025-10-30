@@ -172,6 +172,13 @@ pub struct CrossfadeMixer {
     /// Set by get_next_frame() when Crossfading → SinglePassage transition occurs
     /// Consumed by engine via take_crossfade_completed()
     crossfade_completed_passage: Option<Uuid>,
+
+    /// Passage start time tracking
+    ///
+    /// **[REQ-DEBT-FUNC-002]** Tracks when current passage started playing
+    /// Used to calculate duration_played for PassageCompleted events
+    /// Set in start_passage(), reset in stop()
+    passage_start_time: Option<std::time::Instant>,
 }
 
 /// Mixer state machine
@@ -232,6 +239,7 @@ impl CrossfadeMixer {
             pause_state: None,    // [XFD-PAUS-010] Initially not paused
             resume_state: None,   // [XFD-PAUS-020] Initially no resume fade-in
             crossfade_completed_passage: None, // [XFD-COMP-010] Initially no completion pending
+            passage_start_time: None, // [REQ-DEBT-FUNC-002] Initially no passage playing
         }
     }
 
@@ -309,6 +317,8 @@ impl CrossfadeMixer {
             fade_in_duration_samples,
             frame_count: 0,
         };
+        // **[REQ-DEBT-FUNC-002]** Track passage start time for duration_played calculation
+        self.passage_start_time = Some(std::time::Instant::now());
     }
 
     /// Start crossfade to next passage
@@ -696,6 +706,8 @@ impl CrossfadeMixer {
         // **[XFD-COMP-010]** Clear any pending crossfade completion signal
         // (e.g., if user skips to next track during crossfade)
         self.crossfade_completed_passage = None;
+        // **[REQ-DEBT-FUNC-002]** Reset passage start time tracking
+        self.passage_start_time = None;
     }
 
     /// Check if a crossfade just completed and consume the signal
@@ -725,6 +737,17 @@ impl CrossfadeMixer {
             );
         }
         result
+    }
+
+    /// Get passage start time for duration calculation
+    ///
+    /// **[REQ-DEBT-FUNC-002]** Returns the Instant when current passage started playing
+    ///
+    /// # Returns
+    /// - `Some(Instant)` if a passage is currently playing
+    /// - `None` if no passage has started or mixer is stopped
+    pub fn passage_start_time(&self) -> Option<std::time::Instant> {
+        self.passage_start_time
     }
 
     /// Enter pause state
