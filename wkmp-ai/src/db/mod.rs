@@ -9,6 +9,7 @@ pub mod parameters;
 pub mod passages;
 pub mod schema;
 pub mod sessions;
+pub mod settings;
 pub mod songs;
 pub mod works;
 

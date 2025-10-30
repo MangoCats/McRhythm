@@ -6,8 +6,10 @@
 //! - [REQ-NF-033]: Default root folder locations per platform
 //! - [REQ-NF-035]: Priority order for root folder resolution
 //! - [REQ-NF-036]: Automatic directory/database creation
+//! - [APIK-TOML-SCHEMA-010]: TomlConfig acoustid_api_key field
+//! - [APIK-TOML-SCHEMA-020]: Backward compatibility
 
-use wkmp_common::config::{CompiledDefaults, RootFolderResolver, RootFolderInitializer};
+use wkmp_common::config::{CompiledDefaults, RootFolderResolver, RootFolderInitializer, TomlConfig, LoggingConfig};
 use std::path::PathBuf;
 use std::env;
 
@@ -321,4 +323,35 @@ fn test_initializer_nested_directory_creation() {
 
     // Cleanup
     let _ = std::fs::remove_dir_all(PathBuf::from(format!("/tmp/wkmp-test-nested-{}", std::process::id())));
+}
+
+#[test]
+fn test_toml_roundtrip_with_acoustid_key() {
+    // [APIK-TOML-SCHEMA-010]: Verify acoustid_api_key field serialization/deserialization
+    let config = TomlConfig {
+        root_folder: Some(PathBuf::from("/music")),
+        logging: LoggingConfig::default(),
+        static_assets: None,
+        acoustid_api_key: Some("test-key-123".to_string()),
+    };
+
+    let toml_str = toml::to_string(&config).unwrap();
+    let parsed: TomlConfig = toml::from_str(&toml_str).unwrap();
+
+    assert_eq!(parsed.acoustid_api_key, Some("test-key-123".to_string()));
+    assert_eq!(parsed.root_folder, Some(PathBuf::from("/music")));
+}
+
+#[test]
+fn test_backward_compatible_missing_field() {
+    // [APIK-TOML-SCHEMA-020]: Missing acoustid_api_key field deserializes as None
+    let toml_str = r#"
+        root_folder = "/music"
+        [logging]
+        level = "info"
+    "#;
+
+    let config: TomlConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.acoustid_api_key, None);
+    assert_eq!(config.root_folder, Some(PathBuf::from("/music")));
 }

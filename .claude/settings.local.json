@@ -52,7 +52,17 @@
       "Bash(1)",
       "Bash(timeout 3 cargo run:*)",
       "Bash(timeout 3 target/debug/wkmp-ai:*)",
-      "SlashCommand(/think What causes UI hang during re-scan of partially imported folder? Where in SCANNING phase does database deduplication check occur without progress updates? What progress indicators should be added for common re-scan maintenance scenario?)"
+      "SlashCommand(/think What causes UI hang during re-scan of partially imported folder? Where in SCANNING phase does database deduplication check occur without progress updates? What progress indicators should be added for common re-scan maintenance scenario?)",
+      "Bash(cargo check:*)",
+      "Bash(timeout 60 cargo check:*)",
+      "Bash(rustc:*)",
+      "Bash(where clang:*)",
+      "Bash(dir \"C:\\Program Files\\LLVM\")",
+      "Read(//c/Program Files/Microsoft Visual Studio/**)",
+      "Bash(clang --version:*)",
+      "Read(//c/Program Files/**)",
+      "Bash(export LIBCLANG_PATH=\"C:\\Program Files\\LLVM\\bin\")",
+      "Bash(\"C:\\Program Files\\LLVM\\bin\\clang.exe\" --version)"
     ],
     "deny": [],
     "ask": []

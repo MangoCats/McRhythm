@@ -17,6 +17,43 @@ Defines Rust implementation for Chromaprint fingerprinting and AcoustID API clie
 
 ---
 
+## Build Requirements
+
+### LLVM/Clang Dependency
+
+**Required for:** Building `chromaprint-sys-next` crate (Rust bindings to Chromaprint C library)
+
+The `chromaprint-sys-next` crate uses `bindgen` to generate Rust bindings from Chromaprint C headers. This requires LLVM/Clang to be installed on the build system.
+
+**Installation:**
+
+- **Windows:** Download and install LLVM from https://releases.llvm.org/
+  - Install LLVM with "Add LLVM to system PATH" option enabled
+  - Alternatively, set `LIBCLANG_PATH` environment variable to point to `libclang.dll`
+
+- **Linux:** Install via package manager
+  ```bash
+  # Debian/Ubuntu
+  sudo apt-get install llvm-dev libclang-dev clang
+
+  # Fedora/RHEL
+  sudo dnf install llvm-devel clang-devel
+  ```
+
+- **macOS:** Install via Homebrew
+  ```bash
+  brew install llvm
+  ```
+
+**Verification:**
+```bash
+clang --version  # Should show LLVM version
+```
+
+**Note:** LLVM is only required at build time. The compiled wkmp-ai binary does not require LLVM to run (Chromaprint is statically linked).
+
+---
+
 ## Chromaprint Integration
 
 ### Audio Processing Pipeline
