@@ -475,6 +475,24 @@ pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
     load_clamped_setting(db, "audio_buffer_size", 64, 65536, 2208).await
 }
 
+/// Load playout ring buffer capacity from database
+///
+/// **[DBD-PARAM-070]** Playout ring buffer capacity in stereo frames
+/// - Default: 661,941 frames (15.01 seconds @ 44.1kHz stereo)
+/// - Range: 88,200 to 2,646,000 frames (2-60 seconds @ 44.1kHz)
+pub async fn load_playout_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
+    load_clamped_setting(db, "playout_ringbuffer_capacity", 88_200, 2_646_000, 661_941).await
+}
+
+/// Load playout ring buffer headroom threshold from database
+///
+/// **[DBD-PARAM-080]** Playout ring buffer headroom threshold in stereo frames
+/// - Default: 4,410 frames (0.1 seconds @ 44.1kHz stereo)
+/// - Range: 1,000 to 44,100 frames (0.023-1.0 seconds @ 44.1kHz)
+pub async fn load_playout_ringbuffer_headroom(db: &Pool<Sqlite>) -> Result<usize> {
+    load_clamped_setting(db, "playout_ringbuffer_headroom", 1_000, 44_100, 4_410).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

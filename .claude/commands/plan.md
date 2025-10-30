@@ -454,6 +454,852 @@ Per CLAUDE.md Decision-Making Framework: Risk (primary) → Quality (secondary) 
 
 ---
 
+#### 00_PLAN_SUMMARY.md Template
+
+**Required Sections (<500 lines total):**
+
+```markdown
+# PLAN###: [Feature Name] - PLAN SUMMARY
+
+**Status:** [Ready for Implementation / In Progress / Complete]
+**Created:** [Date]
+**Specification Source:** [Path to spec document]
+**Plan Location:** `wip/PLAN###_[feature_name]/`
+
+---
+
+## READ THIS FIRST
+
+[Brief paragraph: What this document provides, how to use it]
+
+**For Implementation:**
+- Read this summary
+- Review detailed requirements: `requirements_index.md`
+- Review test specifications: `02_test_specifications/test_index.md`
+- Follow traceability matrix: `02_test_specifications/traceability_matrix.md`
+
+**Context Window Budget:** [Estimated line counts for implementation]
+
+---
+
+## Executive Summary
+
+### Problem Being Solved
+
+[1-3 paragraphs: What problems are we addressing? Why is this work needed?]
+
+### Solution Approach
+
+[1-2 paragraphs: High-level overview of solution chosen]
+
+### Implementation Status
+
+**Phases 1-3 Complete:**
+- ✅ Phase 1: Scope Definition - [N] requirements extracted
+- ✅ Phase 2: Specification Verification - [N] Critical issues, [N] Medium, [N] Low
+- ✅ Phase 3: Test Definition - [N] tests defined, [X]% coverage
+
+**Phases 4-8 Status:** [Complete/Pending/N/A]
+
+---
+
+## Requirements Summary
+
+**Total Requirements:** [N] ([N] P0, [N] P1, [N] P2)
+
+[Table or list of key requirements]
+
+**Full Requirements:** See `requirements_index.md`
+
+---
+
+## Scope
+
+### ✅ In Scope
+
+[Bulleted list of what WILL be implemented]
+
+### ❌ Out of Scope
+
+[Bulleted list of what will NOT be implemented]
+
+**Full Scope:** See `scope_statement.md`
+
+---
+
+## Specification Issues
+
+**Phase 2 Analysis Results:**
+- **CRITICAL Issues:** [N]
+- **HIGH Issues:** [N]
+- **MEDIUM Issues:** [N]
+- **LOW Issues:** [N]
+
+**Decision:** [STOP - Critical issues / PROCEED - No blockers]
+
+**Full Analysis:** See `01_specification_issues.md`
+
+---
+
+## Implementation Roadmap
+
+[For each increment:]
+
+### Increment N: [Name]
+**Objective:** [What this increment achieves]
+**Effort:** [X-Y hours]
+**Deliverables:**
+- [Deliverable 1]
+- [Deliverable 2]
+**Tests:** [Test IDs]
+**Success Criteria:** [How to know it's done]
+
+[Repeat for all increments]
+
+**Total Estimated Effort:** [X-Y hours]
+
+---
+
+## Test Coverage Summary
+
+**Total Tests:** [N] ([N] unit, [N] integration, [N] system, [N] manual)
+**Coverage:** [X]% - All [N] requirements have acceptance tests
+
+**Traceability:** Complete matrix in `02_test_specifications/traceability_matrix.md`
+
+---
+
+## Risk Assessment
+
+**Residual Risk:** [Low / Low-Medium / Medium / etc.]
+
+**Top Risks:**
+1. [Risk 1] - [Mitigation]
+2. [Risk 2] - [Mitigation]
+
+**Full Risk Analysis:** See `06_risks.md` (if Phase 7 complete)
+
+---
+
+## Technical Debt and Known Issues
+
+**MANDATORY: This section documents technical debt discovered during implementation (Phase 9).**
+
+**If plan NOT yet implemented:**
+```markdown
+### Technical Debt and Known Issues
+
+**Status:** Not applicable - plan not yet implemented
+
+**Note:** After implementation completes, Phase 9 (Post-Implementation Review) will systematically discover and document:
+- Known bugs and limitations
+- Test coverage gaps
+- Performance concerns
+- Security issues
+- Deferred requirements
+
+See Phase 9 section of plan.md for 7-step technical debt discovery process.
+```
+
+**If plan implementation COMPLETE:**
+```markdown
+### Technical Debt and Known Issues
+
+**Phase 9 Review Complete:** [Date]
+**Full Report:** See `phase9_technical_debt_report.md`
+
+**Executive Summary:**
+- Total Items: [N] ([N] critical, [N] high, [N] medium, [N] low)
+- Estimated Remediation: [X-Y] hours
+- Immediate Action Required: [Yes/No]
+
+**Critical Items Requiring Immediate Attention:**
+1. [CRITICAL-001 brief description]
+2. [CRITICAL-002 brief description]
+
+**Test Coverage:** [X]% (Target: 80%+)
+**Performance:** [N] known bottlenecks documented
+**Security:** [N] concerns identified
+
+**Recommendations:**
+- Immediate: [Action items for critical issues]
+- Next Release: [Action items for high-priority issues]
+
+**Note:** Do NOT mark plan complete or archive until Phase 9 technical debt report is generated and attached.
+```
+
+---
+
+## Success Metrics
+
+**Quantitative:**
+- ✅ [Metric 1]
+- ✅ [Metric 2]
+
+**Qualitative:**
+- ✅ [Criterion 1]
+- ✅ [Criterion 2]
+
+---
+
+## Dependencies
+
+**Existing Documents (Read-Only):**
+- [Document 1] ([Current lines])
+- [Document 2] ([Current lines])
+
+**Integration Points:**
+- [Where changes will be made]
+
+**No External Dependencies** OR **External Dependencies:**
+- [List any external dependencies]
+
+---
+
+## Constraints
+
+**Technical:**
+- [Constraint 1]
+- [Constraint 2]
+
+**Process:**
+- [Constraint 1]
+- [Constraint 2]
+
+**Timeline:**
+- [Estimated duration]
+- [Expected timeframe]
+
+---
+
+## Next Steps
+
+### Immediate (Ready Now)
+1. [Step 1]
+2. [Step 2]
+
+### Implementation Sequence
+1. [Increment 1 description]
+2. [Increment 2 description]
+...
+
+### After Implementation
+1. Execute Phase 9: Post-Implementation Review (MANDATORY)
+2. Generate technical debt report
+3. Run all [N] tests
+4. Verify traceability matrix 100% complete
+5. Create final implementation report
+6. Archive plan using `/archive-plan PLAN###`
+
+---
+
+## Document Navigation
+
+**Start Here:** This file (00_PLAN_SUMMARY.md)
+
+**Detailed Planning:**
+- `requirements_index.md` - All requirements with priorities
+- `scope_statement.md` - In/out scope, assumptions, constraints
+- `01_specification_issues.md` - Phase 2 analysis
+
+**Test Specifications:**
+- `02_test_specifications/test_index.md` - All tests quick reference
+- `02_test_specifications/traceability_matrix.md` - Requirements ↔ Tests mapping
+
+**For Implementation:**
+- Read this summary (~400 lines)
+- Read current increment specification (~250 lines)
+- Read relevant test specs (~100-150 lines)
+- **Total context:** ~650-800 lines per increment
+
+---
+
+## Plan Status
+
+**Phase 1-3 Status:** [Complete/In Progress/Pending]
+**Phases 4-8 Status:** [Complete/In Progress/Pending/N/A]
+**Current Status:** [Ready for Implementation / In Progress / Complete]
+**Estimated Timeline:** [X-Y hours over Z weeks]
+
+---
+
+## Approval and Sign-Off
+
+**Plan Created:** [Date]
+**Plan Status:** [Ready for Implementation Review / Approved / Complete]
+
+**Next Action:** [What needs to happen next]
+```
+
+**Critical Rule:** The "Technical Debt and Known Issues" section is MANDATORY in all 00_PLAN_SUMMARY.md files generated by Phase 8. This section MUST reference Phase 9 and include technical debt reporting when implementation is complete.
+
+---
+
+### PHASE 9: Post-Implementation Review and Technical Debt Assessment
+
+**Purpose:** Systematically discover and document technical debt, known problems, and implementation shortcuts taken during plan execution. Ensure transparency about what was deferred, what assumptions were made, and what issues remain.
+
+**When Executed:** AFTER completing all planned increments, BEFORE marking plan complete and archiving.
+
+**Critical Rule:** Phase 9 is MANDATORY for ALL implementation plans. No exceptions.
+
+---
+
+#### Rationale
+
+**Problem:** Without systematic technical debt discovery, problems remain hidden until they cause failures. Teams unknowingly inherit undocumented issues, assumptions, and incomplete implementations.
+
+**Solution:** Structured discovery process forces explicit identification and documentation of all known issues, deferred work, and assumptions. Makes technical debt visible and manageable.
+
+**Benefit:** Future developers understand complete system state (including limitations), reducing surprise failures and enabling informed maintenance decisions.
+
+---
+
+#### Technical Debt Definition
+
+Technical debt is ANY decision, implementation, or omission that increases future development or maintenance costs. Categories:
+
+**1. Code Quality Issues:**
+- Code duplication
+- Overly complex functions (>200 lines, cyclomatic complexity >10)
+- Unclear variable/function names
+- Missing or inadequate code documentation
+- Inconsistent coding style
+
+**2. Incomplete Implementations:**
+- Edge cases not handled
+- Error handling missing or incomplete
+- Input validation insufficient
+- Assumptions not validated at runtime
+
+**3. Test Coverage Gaps:**
+- Untested code paths
+- Missing edge case tests
+- Integration tests skipped
+- Flaky or skipped tests
+
+**4. Performance Issues:**
+- Known bottlenecks not optimized
+- Inefficient algorithms used (deferred optimization)
+- Resource leaks possible
+- Scalability concerns unaddressed
+
+**5. Workarounds and Hacks:**
+- TODO/FIXME/HACK comments in code
+- Temporary solutions that became permanent
+- Dependencies on external system assumptions
+- Manual steps required for operations
+
+**6. Documentation Debt:**
+- Missing API documentation
+- Outdated specifications
+- Unclear system behavior
+- No operational runbooks
+
+**7. Dependency Issues:**
+- Outdated library versions
+- Security vulnerabilities in dependencies
+- Deprecated API usage
+- License compliance concerns
+
+**8. Deferred Requirements:**
+- Requirements explicitly deferred (with user approval)
+- Requirements partially implemented
+- Non-functional requirements not met (performance, security, accessibility)
+
+---
+
+#### 7-Step Technical Debt Discovery Process
+
+**Execute ALL 7 steps in sequence. Skip NONE. Checkbox format MANDATORY.**
+
+---
+
+**Step 1: Code Review for Markers**
+
+Search ALL modified code files for technical debt markers:
+
+**Actions:**
+- [ ] Search for comments: `TODO`, `FIXME`, `HACK`, `XXX`, `NOTE`, `WORKAROUND`
+- [ ] Review all compiler/linter warnings (must be zero or documented)
+- [ ] Check error handling: Are all `Result<>` types properly handled? Any `.unwrap()` calls?
+- [ ] Identify temporary/placeholder implementations
+
+**Document:** List all markers found with file:line references
+
+**Output Format:**
+```markdown
+### Code Markers Found
+
+**TODO Comments (N total):**
+- file.rs:45 - TODO: Add validation for negative values
+- file.rs:123 - TODO: Implement retry logic
+
+**Compiler Warnings (N total):**
+- file.rs:67 - unused variable `foo` (acceptable: debugging aid)
+- file.rs:89 - unreachable code (MUST FIX: logic error)
+
+**Unwrap Calls (N total):**
+- file.rs:12 - .unwrap() acceptable: config file required for startup
+- file.rs:34 - .unwrap() CONCERN: user input, should return error
+```
+
+---
+
+**Step 2: Test Coverage Analysis**
+
+Evaluate testing completeness for ALL implemented code:
+
+**Actions:**
+- [ ] Run test coverage tool (cargo-tarpaulin for Rust, coverage.py for Python, etc.)
+- [ ] Identify code paths with zero test coverage
+- [ ] List skipped tests (tests marked with `#[ignore]` or similar)
+- [ ] Document flaky tests (tests that pass/fail inconsistently)
+- [ ] Identify missing test categories (unit/integration/system)
+
+**Document:** Coverage metrics + gaps
+
+**Output Format:**
+```markdown
+### Test Coverage Analysis
+
+**Overall Coverage:** X% (Target: 80%+)
+
+**Uncovered Code Paths:**
+- file.rs:45-67 - Error recovery logic (23 lines uncovered)
+- file.rs:89-92 - Edge case: empty input (4 lines uncovered)
+
+**Skipped Tests (N total):**
+- test_name (file_test.rs:12) - Reason: Requires external service
+
+**Flaky Tests (N total):**
+- test_concurrent_access - Passes 90% of time, timing-dependent
+
+**Missing Test Categories:**
+- Integration tests: Module A + Module B interaction not tested
+- System tests: End-to-end workflow not tested
+```
+
+---
+
+**Step 3: Quality Review**
+
+Assess code quality issues that increase maintenance costs:
+
+**Actions:**
+- [ ] Identify code duplication (>10 lines repeated, DRY violations)
+- [ ] Measure function complexity (identify functions >200 lines or cyclomatic complexity >10)
+- [ ] Check for magic numbers/strings (hardcoded values without explanation)
+- [ ] Review variable/function naming clarity
+- [ ] Identify missing function-level documentation
+
+**Document:** Quality issues found
+
+**Output Format:**
+```markdown
+### Code Quality Issues
+
+**Code Duplication (N instances):**
+- Lines 45-67 in file1.rs duplicated in file2.rs:89-111 (23 lines)
+  - Impact: Change requires editing 2+ locations
+  - Recommendation: Extract to shared function
+
+**Complex Functions (N functions):**
+- `calculate_flavor_distance()` (file.rs:123) - 245 lines, complexity 15
+  - Recommendation: Split into subfunctions
+
+**Magic Numbers (N instances):**
+- file.rs:45 - `0.7` hardcoded (threshold for what?)
+  - Recommendation: Extract to named constant
+
+**Unclear Naming (N instances):**
+- Variable `x` (file.rs:67) - Unclear purpose
+  - Recommendation: Rename to `crossfade_duration_ms`
+```
+
+---
+
+**Step 4: Known Problems Catalog**
+
+Explicitly list ALL known bugs, limitations, and edge cases not handled:
+
+**Actions:**
+- [ ] List all known bugs (reproducible defects)
+- [ ] List all edge cases not handled (documented limitations)
+- [ ] List all assumptions that may not hold in all environments
+- [ ] List all "works in practice but not guaranteed" behaviors
+
+**Document:** Complete problem catalog
+
+**Output Format:**
+```markdown
+### Known Problems
+
+**Known Bugs (N total):**
+1. **Bug:** Import fails if filename contains UTF-8 emoji
+   - Severity: Medium
+   - Workaround: Rename file before import
+   - Root Cause: Path parsing library limitation
+   - Fix Estimate: 2-3 hours
+
+**Unhandled Edge Cases (N total):**
+1. **Case:** Root folder path >4096 characters
+   - Impact: Program panics
+   - Frequency: Rare (PATH_MAX constraint)
+   - Recommendation: Add validation, return error
+
+**Assumptions (N total):**
+1. **Assumption:** SQLite database is always writable
+   - Risk: If filesystem readonly, application fails
+   - Mitigation: Check write permission on startup
+
+**"Works But Not Guaranteed" (N total):**
+1. **Behavior:** Crossfade timing accurate to ~0.02ms on test hardware
+   - Concern: May drift on different hardware/OS
+   - Recommendation: Add runtime timing validation
+```
+
+---
+
+**Step 5: Error Handling Completeness**
+
+Verify ALL error paths are properly handled:
+
+**Actions:**
+- [ ] Verify all `Result<>` types are handled (no `.unwrap()` on user input or I/O)
+- [ ] Check for ignored errors (empty `catch` blocks, `let _ = ...`)
+- [ ] Validate error messages are clear and actionable
+- [ ] Confirm all errors are properly logged
+- [ ] Identify error conditions not handled at all
+
+**Document:** Error handling gaps
+
+**Output Format:**
+```markdown
+### Error Handling Completeness
+
+**Unhandled Error Paths (N total):**
+- file.rs:45 - Network timeout not handled (assumes network always available)
+- file.rs:67 - Disk full not handled (write may fail silently)
+
+**Ignored Errors (N instances):**
+- file.rs:89 - `let _ = update_cache()` - Cache update failure ignored
+  - Recommendation: Log error, continue execution
+
+**Unclear Error Messages (N instances):**
+- "Operation failed" (file.rs:123) - Does not specify what failed or why
+  - Recommendation: Include context (file path, operation type, error code)
+
+**Missing Logging (N instances):**
+- file.rs:145 - Database error caught but not logged
+  - Recommendation: Add error! macro call
+```
+
+---
+
+**Step 6: Performance Assessment**
+
+Document known performance issues and deferred optimizations:
+
+**Actions:**
+- [ ] Identify observed bottlenecks (profiling data if available)
+- [ ] List deferred optimizations (documented as "optimize later")
+- [ ] Document performance constraints (memory usage, CPU usage, latency)
+- [ ] Note scalability concerns (breaks at what scale?)
+
+**Document:** Performance technical debt
+
+**Output Format:**
+```markdown
+### Performance Assessment
+
+**Observed Bottlenecks (N total):**
+1. **Bottleneck:** Musical flavor distance calculation takes 15ms per passage
+   - Impact: Limits selection pool to ~66 passages per second
+   - Current Scale: Acceptable for 1000-passage library
+   - Concern: May not scale to 100,000-passage library
+   - Optimization Identified: Use spatial indexing (k-d tree)
+
+**Deferred Optimizations (N total):**
+1. **Area:** String parsing in import loop
+   - Current: ~50ms per file
+   - Estimated Improvement: 2x faster with zero-copy parsing
+   - Reason Deferred: Current performance acceptable (<100k files)
+
+**Resource Constraints (N identified):**
+- Memory: Holds all passages in RAM (~1MB per 1000 passages)
+- Disk I/O: 100 IOPS required during import
+```
+
+---
+
+**Step 7: Security and Dependency Review**
+
+Identify security concerns and dependency issues:
+
+**Actions:**
+- [ ] Note any security concerns (authentication, authorization, injection risks)
+- [ ] Document trust boundaries and assumptions
+- [ ] List areas needing security review
+- [ ] Check for dependency vulnerabilities (`cargo audit` for Rust, `npm audit` for Node)
+- [ ] Identify deprecated API usage
+- [ ] Note license compliance concerns
+
+**Document:** Security/dependency debt
+
+**Output Format:**
+```markdown
+### Security and Dependency Review
+
+**Security Concerns (N total):**
+1. **Concern:** Root folder path not validated for directory traversal
+   - Risk: User could specify `/etc` and expose system files
+   - Severity: Medium
+   - Mitigation: Add path validation, restrict to user home directory
+
+**Trust Boundary Assumptions (N total):**
+- Assumes MusicBrainz API returns safe data (no sanitization)
+- Assumes local filesystem is trusted (no permission checks)
+
+**Dependency Vulnerabilities (N total):**
+- [None identified by cargo audit as of YYYY-MM-DD]
+OR
+- reqwest 0.11.4 - Known CVE-2023-XXXX (DoS vulnerability)
+  - Mitigation: Upgrade to 0.11.18+
+
+**Deprecated APIs (N instances):**
+- Uses `std::sync::mpsc` (deprecated in favor of `tokio::sync::mpsc`)
+  - Impact: May be removed in future Rust versions
+  - Recommendation: Migrate to tokio equivalent
+```
+
+---
+
+#### Technical Debt Reporting Standard
+
+**After completing all 7 steps, generate comprehensive technical debt report:**
+
+---
+
+**Report Template:**
+
+```markdown
+# Technical Debt Report: PLANxxx
+
+**Plan:** [Plan Name]
+**Implementation Complete:** [Date]
+**Review Date:** [Date]
+**Reviewed By:** [Name/Agent]
+
+---
+
+## Executive Summary
+
+**Total Technical Debt Items:** [N]
+- Critical (MUST address before next release): [N]
+- High (Should address soon): [N]
+- Medium (Defer to future release): [N]
+- Low (Monitor, no action needed): [N]
+
+**Estimated Remediation Effort:** [X-Y hours]
+
+**Recommended Next Actions:**
+1. [Action 1 with priority]
+2. [Action 2 with priority]
+3. [Action 3 with priority]
+
+---
+
+## Discovery Process Verification
+
+**7-Step Process Completion:**
+- [x] Step 1: Code Review for Markers - [N] items found
+- [x] Step 2: Test Coverage Analysis - [X]% coverage, [N] gaps
+- [x] Step 3: Quality Review - [N] issues identified
+- [x] Step 4: Known Problems Catalog - [N] problems documented
+- [x] Step 5: Error Handling Completeness - [N] gaps found
+- [x] Step 6: Performance Assessment - [N] concerns noted
+- [x] Step 7: Security and Dependency Review - [N] items identified
+
+---
+
+## Technical Debt Inventory
+
+### Critical Items (MUST Address)
+
+[Items that MUST be fixed before next release or before production deployment]
+
+**CRITICAL-001: [Brief Description]**
+- **Category:** [Code Quality / Incomplete / Test Gap / Performance / etc.]
+- **Location:** [file:line or component]
+- **Issue:** [Detailed description]
+- **Impact:** [What breaks or degrades]
+- **Remediation:** [How to fix]
+- **Effort:** [Estimate in hours]
+- **Discovered:** Step [N]
+
+### High Priority Items (Should Address Soon)
+
+[Items that should be addressed in next 1-2 releases]
+
+**HIGH-001: [Brief Description]**
+- **Category:** [...]
+- **Location:** [...]
+- **Issue:** [...]
+- **Impact:** [...]
+- **Remediation:** [...]
+- **Effort:** [...]
+- **Discovered:** Step [N]
+
+### Medium Priority Items (Defer to Future)
+
+[Items that can wait but should be tracked]
+
+**MEDIUM-001: [Brief Description]**
+- **Category:** [...]
+- **Location:** [...]
+- **Issue:** [...]
+- **Impact:** [...]
+- **Remediation:** [...]
+- **Effort:** [...]
+- **Discovered:** Step [N]
+
+### Low Priority Items (Monitor)
+
+[Items noted for awareness, no immediate action needed]
+
+**LOW-001: [Brief Description]**
+- **Category:** [...]
+- **Location:** [...]
+- **Issue:** [...]
+- **Impact:** [...]
+- **Remediation:** [...]
+- **Effort:** [...]
+- **Discovered:** Step [N]
+
+---
+
+## Deferred Requirements
+
+[Requirements explicitly deferred with user approval during implementation]
+
+**DEF-REQ-001: [Requirement Description]**
+- **Original Requirement:** [REQ-XXX-YYY]
+- **Reason Deferred:** [Technical blocker / Changed priority / User decision]
+- **Approved By:** [User, Date]
+- **Impact:** [What functionality is missing]
+- **Plan to Address:** [Future release plan or "wontfix"]
+
+---
+
+## Test Coverage Summary
+
+**Overall Coverage:** [X]%
+**Target:** 80%+
+**Gap:** [X]% below target OR "Exceeds target ✓"
+
+**Significant Coverage Gaps:**
+- [Component/module]: [X]% coverage, [N] lines uncovered
+- [Component/module]: [X]% coverage, [N] lines uncovered
+
+---
+
+## Performance Baseline
+
+**Benchmarks Established:**
+- [Operation]: [X]ms average, [Y]ms p99
+- [Operation]: [X] operations/second throughput
+
+**Performance Debt:**
+- [N] known bottlenecks documented
+- [N] deferred optimizations tracked
+
+---
+
+## Security Posture
+
+**Vulnerabilities:** [N] identified ([N] critical, [N] high, [N] medium, [N] low)
+**Dependency Audit:** [Clean / N issues found]
+**Trust Boundaries:** [N] assumptions documented
+
+---
+
+## Recommendations
+
+**Immediate Action Required (CRITICAL items):**
+1. [Action 1]
+2. [Action 2]
+
+**Next Release (HIGH items):**
+1. [Action 1]
+2. [Action 2]
+
+**Future Consideration (MEDIUM/LOW items):**
+1. [Action 1]
+2. [Action 2]
+
+**Monitoring:**
+- [Metric to watch]
+- [Condition that requires action]
+
+---
+
+## Sign-Off
+
+**Technical Debt Discovery Complete:** [Date]
+**Report Reviewed By:** [Name]
+**Status:** Ready for Archive
+
+**Next Review:** [After next major release / In 6 months / etc.]
+```
+
+---
+
+#### Integration with Plan Completion Report
+
+**Phase 9 technical debt report is referenced in Plan Execution Completion Report (Section 2 of Plan Execution Standards).**
+
+In the "Known Issues and Technical Debt" section of completion report:
+
+```markdown
+### Known Issues and Technical Debt
+
+See Phase 9 Technical Debt Report for complete analysis: [link to report file]
+
+**Executive Summary:**
+- Total Items: [N] ([N] critical, [N] high, [N] medium, [N] low)
+- Estimated Remediation: [X-Y] hours
+- Immediate Action Required: [Yes/No]
+
+**Critical Items Requiring Immediate Attention:**
+1. [CRITICAL-001 brief description]
+2. [CRITICAL-002 brief description]
+```
+
+---
+
+#### Enforcement
+
+**Phase 9 is MANDATORY:**
+- Execute all 7 steps (no skipping)
+- Generate complete technical debt report
+- Include executive summary in plan completion report
+- Archive report with plan documentation
+
+**Acceptance Criteria:**
+- [ ] All 7 discovery steps completed (checkboxes)
+- [ ] Technical debt report generated using template
+- [ ] All items categorized by severity
+- [ ] Remediation estimates provided
+- [ ] Completion report references technical debt report
+
+**If Phase 9 skipped or incomplete:**
+- Plan is NOT complete
+- Do NOT mark plan as ready for archive
+- Do NOT proceed to next plan without completing Phase 9
+
+---
+
 ## Plan Document Structure (Output)
 
 ### Modular Folder Architecture
@@ -724,6 +1570,271 @@ The `/plan` workflow is successful when:
 1. Complete missing elements before proceeding
 2. Document deviation in workflow execution log
 3. Update workflow if pattern issue identified
+
+---
+
+## Plan Execution and Completion Standards
+
+**Purpose:** Ensure all planned work is completed as specified, with transparent reporting of deviations.
+
+**Scope:** Applies to ALL implementation plans created via /plan workflow.
+
+---
+
+### 1. Mandatory Execution Requirements
+
+When executing an implementation plan (PLANxxx), the following are REQUIRED:
+
+**Rule 1: Execute All Increments OR Get User Approval to Skip**
+- ALL increments in the plan MUST be executed as specified
+- If an increment needs to be skipped, deferred, or modified:
+  - STOP implementation
+  - Explain reason for deviation (technical blocker, changed requirements, etc.)
+  - Request explicit user approval: "Skip increment N? (Reason: ...)"
+  - Document deviation in completion report (see Section 2)
+- NEVER silently skip increments
+- NEVER decide unilaterally that "this increment isn't needed"
+
+**Rule 2: Follow Test-First Approach**
+- Read acceptance tests BEFORE implementing each increment
+- Implement to pass tests (tests define "done")
+- Verify tests pass before marking increment complete
+- If tests cannot pass, document as deviation (requires user approval)
+
+**Rule 3: No Shortcuts (see Section 3)**
+- Implement complete functionality per specification
+- Do NOT implement "simplified version" unless explicitly approved
+- Do NOT defer error handling, edge cases, or testing
+- Phased delivery (shipping subset first) is acceptable; partial implementation is not
+
+**Enforcement:**
+- Mark increment complete ONLY when all acceptance tests pass
+- Update todo list in real-time (one increment in_progress at a time)
+- Report deviations immediately when discovered
+
+---
+
+### 2. Completion Report Standard
+
+**When Required:**
+- At end of each increment (brief: 1-3 sentences)
+- At end of entire plan execution (comprehensive: full report)
+
+**End-of-Increment Report (Brief):**
+
+After completing each increment, provide:
+1. Increment name/number
+2. Tests executed and results (e.g., "TC-M-001-01: PASS, TC-M-001-02: PASS")
+3. Deviations from plan (if any): "Planned X, actually did Y because Z"
+4. Files modified (list with line ranges)
+
+**Example:**
+```
+Increment 1 Complete: Professional Objectivity Section (CLAUDE.md)
+
+Tests:
+- TC-M-001-01: PASS (section exists at line 125)
+- TC-M-001-02: PASS (6 elements present)
+- TC-M-002-01: PASS (fact/opinion standards documented)
+- TC-M-003-01: PASS (disagreement protocol documented)
+
+Deviations: None
+
+Files Modified:
+- CLAUDE.md lines 125-174 (+52 lines, target was ~75 lines - slightly under but complete per tests)
+```
+
+**End-of-Plan Report (Comprehensive):**
+
+After completing ALL increments, provide:
+
+```markdown
+## Plan Execution Report: PLANxxx
+
+**Plan:** [Plan Name]
+**Execution Start:** [Date]
+**Execution Complete:** [Date]
+**Total Time:** [Actual hours]
+
+### Summary
+- Total Increments: [Planned] / [Completed]
+- All Tests: [Passed] / [Total]
+- Deviations: [Count] (see details below)
+
+### Increments
+
+**Increment 1: [Name]**
+- Status: ✅ Complete / ⚠️ Partial / ❌ Skipped
+- Tests: [Pass/Total]
+- Effort: [Estimated] → [Actual]
+- Deviations: [None / Description]
+
+**Increment 2: [Name]**
+...
+
+### Deviations from Plan
+
+**Deviation 1: [Brief description]**
+- Increment: [N]
+- Planned: [What was originally planned]
+- Actually Did: [What was actually implemented]
+- Reason: [Technical blocker / Changed requirements / User approved simplification]
+- Approved By: [User / N/A]
+- Impact: [Describe impact on functionality, timeline, or quality]
+
+### Test Results
+
+| Test ID | Status | Notes |
+|---------|--------|-------|
+| TC-M-001-01 | PASS | ... |
+| TC-M-001-02 | PASS | ... |
+| ... | | |
+
+**Coverage:** [X/Y tests passed] ([percentage]%)
+
+### Files Modified
+
+- file1.md: lines X-Y (+N lines)
+- file2.rs: lines A-B (~M lines modified)
+...
+
+### Effort Analysis
+
+- Estimated Total: [X-Y hours]
+- Actual Total: [Z hours]
+- Variance: [+/-N hours] ([percentage]%)
+- Reason for Variance: [Explain if >20% variance]
+
+### Known Issues and Technical Debt
+
+(See Phase 9: Post-Implementation Review for technical debt discovered during implementation)
+
+### Sign-Off
+
+- [ ] All planned increments completed OR deviations approved
+- [ ] All acceptance tests pass
+- [ ] Traceability matrix 100% complete
+- [ ] Technical debt documented (Phase 9)
+- [ ] Plan ready for archive
+
+**Completed By:** [Name/Agent]
+**Date:** [YYYY-MM-DD]
+```
+
+**Critical Rule:** Completion report is MANDATORY. Do NOT mark plan complete without generating this report.
+
+---
+
+### 3. No-Shortcut Implementation
+
+**Definition:** A "shortcut" is implementing less than specified functionality with the intent of shipping it as complete.
+
+**Shortcuts vs. Phased Delivery:**
+
+**Shortcut (NOT Allowed):**
+- Implement partial functionality and claim it's "done"
+- Skip error handling, edge cases, or tests
+- Implement "good enough for now" with no plan to complete
+- Defer critical requirements indefinitely
+
+**Phased Delivery (Acceptable):**
+- Ship working subset first, remaining features later
+- Each phase is complete within its scope
+- Each phase passes all tests for its scope
+- Clear plan exists for subsequent phases
+
+**The Difference:** Shortcuts deliver incomplete work; phased delivery delivers complete subsets.
+
+---
+
+#### Examples: Shortcut vs. Phased Delivery
+
+**Example 1: API Error Handling**
+
+❌ **Shortcut (NOT Allowed):**
+- Implement happy path only
+- Mark increment "complete"
+- Claim: "Error handling can be added later if needed"
+- **Problem:** Incomplete functionality shipped as complete
+
+✅ **Phased Delivery (Acceptable):**
+- **Phase 1:** Implement happy path + basic error handling (4xx/5xx responses)
+- **Phase 2:** Add detailed error codes, recovery strategies
+- Each phase complete within scope, with tests
+- **Key:** Phase 1 is production-ready, not a prototype
+
+✅ **Complete Implementation (Best):**
+- Implement happy path + comprehensive error handling in one increment
+- All tests pass
+- Production-ready immediately
+
+---
+
+**Example 2: Feature with Complex Edge Cases**
+
+❌ **Shortcut (NOT Allowed):**
+- Implement common case only
+- Document edge cases as "known limitations"
+- No plan to address edge cases
+- Mark feature "complete"
+- **Problem:** Partially implemented feature
+
+✅ **Phased Delivery (Acceptable):**
+- **Phase 1:** Implement common case (e.g., 80% of usage)
+- Explicitly document out-of-scope edge cases with tracking issues
+- **Phase 2:** Implement remaining edge cases
+- Each phase has clear scope and passes all tests for that scope
+- **Key:** Phase 1 scope is intentionally limited but complete
+
+✅ **Complete Implementation (Best):**
+- Implement all cases (common + edge cases) in one increment
+- All tests pass
+- No known limitations
+
+---
+
+**Example 3: Database Schema Migration**
+
+❌ **Shortcut (NOT Allowed):**
+- Implement schema changes
+- Skip migration script (manual SQL needed)
+- Skip rollback plan
+- Claim: "Migration is complete, ops team can handle deployment"
+- **Problem:** Incomplete implementation (not deployable)
+
+✅ **Phased Delivery (Acceptable):**
+- **Phase 1:** Implement backward-compatible schema changes only
+- Full migration + rollback scripts included
+- **Phase 2:** Remove deprecated columns after cutover
+- Each phase is fully deployable
+- **Key:** Phase 1 deployment does not break existing code
+
+✅ **Complete Implementation (Best):**
+- Implement full schema change
+- Migration scripts (up + down)
+- Tested rollback procedure
+- Deployment runbook included
+- Fully deployable immediately
+
+---
+
+#### Enforcement
+
+**During Implementation:**
+1. If you find yourself thinking "I'll skip X for now", STOP
+2. Ask: "Is this a shortcut (incomplete) or phased delivery (complete subset)?"
+3. If shortcut: Implement completely OR request user approval to narrow scope
+4. Document decision in completion report
+
+**During Code Review:**
+1. Verify all requirements in increment scope are implemented
+2. Check for deferred error handling, missing tests, incomplete edge cases
+3. Distinguish shortcuts (reject) from phased delivery (acceptable)
+
+**Test-Based Verification:**
+- If acceptance tests pass → increment is complete (by definition)
+- If acceptance tests cannot pass due to missing functionality → increment is incomplete (shortcut)
+- If scope was narrowed with user approval → update tests to match new scope
 
 ---
 

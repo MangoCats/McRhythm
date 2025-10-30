@@ -112,6 +112,7 @@
 | SPEC021 | SPEC021-error_handling.md | 2025-10-25 | SPEC | Manual | Comprehensive error handling strategy specification |
 | SPEC022 | SPEC022-performance_targets.md | 2025-10-25 | SPEC | Manual | Performance targets for wkmp-ap (Pi Zero 2W deployment) |
 | GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
+| PLAN010 | workflow_quality_standards | 2025-10-30 | PLAN | Auto | Implementation plan for workflow quality standards enhancement (anti-sycophancy, anti-laziness, anti-hurry, problem transparency) |
 
 <!-- /doc-name workflow will append entries below -->
 

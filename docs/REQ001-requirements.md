@@ -18,6 +18,33 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **Architectural Note:** WKMP is implemented as a microservices architecture with **5 independent HTTP-based modules**: Audio Player, User Interface, Lyric Editor, Program Director, and Audio Ingest. See [Architecture](SPEC001-architecture.md) for complete design.
 
+### Microservice UI Ownership
+
+**[REQ-UI-010]** UI is distributed across microservices:
+
+| Microservice | UI Responsibility | Access Method | Versions |
+|--------------|------------------|---------------|----------|
+| **wkmp-ui** | Main playback interface, library browser, preferences, user identity | http://localhost:5720 (primary access point) | All |
+| **wkmp-ai** | Import wizard, file segmentation, passage boundary editor (initial import) | http://localhost:5723 (launched from wkmp-ui) | Full |
+| **wkmp-le** | Lyric editor (split-window interface for timing sync) | http://localhost:5724 (launched from wkmp-ui) | Full |
+| **wkmp-ap** | No UI (backend audio engine) | - | All |
+| **wkmp-pd** | No UI (backend selection algorithm) | - | Full, Lite |
+
+**[REQ-UI-020]** "WebUI" terminology clarification:
+- "WebUI" in requirements refers to **browser-based UI** (HTML/CSS/JS), NOT exclusively wkmp-ui module
+- wkmp-ui is PRIMARY UI (user starts here)
+- wkmp-ai provides SPECIALIZED UI for import workflows
+- wkmp-le provides SPECIALIZED UI for lyric editing
+- All are web-based (accessed via web browser)
+
+**[REQ-UI-030]** UI integration pattern:
+- wkmp-ui is the **orchestrator**: provides launch points for specialized tools
+- On-demand tools (wkmp-ai, wkmp-le) are **autonomous**: own their complete UX
+- No UI embedding: wkmp-ui opens specialized tools in new browser tabs/windows
+- Return navigation: specialized tools provide "Return to WKMP" links back to wkmp-ui
+
+**See:** [On-Demand Microservices](../CLAUDE.md#on-demand-microservices) for detailed pattern definition
+
 ## Core Features
 
 **[REQ-CF-010]** Plays passages from local files (.mp3, .opus, .aac, .flac and similar)
@@ -226,29 +253,34 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 **[REQ-NF-020]** Errors logged to developer interface, otherwise gracefully ignored and continue playing as best as able
   - developer interface is stdout/stderr
 
-**[REQ-NF-030]** Configuration file graceful degradation
-  - **[REQ-NF-031]** When a microservice's TOML configuration file is missing, the system SHALL NOT terminate with an error
-  - **[REQ-NF-032]** Missing configuration files SHALL result in:
+**[REQ-NF-030]** Configuration file graceful degradation - **APPLIES TO ALL MODULES**
+  - **[REQ-NF-031]** When ANY microservice's TOML configuration file is missing, that module SHALL NOT terminate with an error
+  - **[REQ-NF-032]** Missing configuration files SHALL result in (ALL modules):
     - A warning logged to stdout/stderr indicating the missing file path
     - Automatic fallback to compiled default values
     - Successful module startup with default configuration
-  - **[REQ-NF-033]** Root folder default location (when config file absent and no command-line/environment override):
+  - **[REQ-NF-033]** Root folder default location (ALL modules, when config file absent and no command-line/environment override):
     - Linux: `~/Music` (user's Music folder)
     - macOS: `~/Music` (user's Music folder)
     - Windows: `%USERPROFILE%\Music` (user's Music folder)
-  - **[REQ-NF-034]** Other configuration defaults (when config file absent):
+  - **[REQ-NF-034]** Other configuration defaults (ALL modules, when config file absent):
     - Logging level: `info`
     - Log file: stdout only (no file logging)
     - Static assets: platform-specific standard paths (e.g., `/usr/local/share/wkmp/ui/` on Linux)
-  - **[REQ-NF-035]** Priority order for root folder resolution remains unchanged:
-    1. Command-line argument (highest priority)
-    2. Environment variable (second priority)
-    3. TOML configuration file (third priority)
-    4. Compiled default (lowest priority, graceful fallback)
-  - **[REQ-NF-036]** First-run experience:
-    - When started with default Music folder path, system SHALL create necessary directories automatically
-    - If database does not exist at root folder path, system SHALL create empty database with default schema
-    - System SHALL remain operational and log informational messages about initialization
+  - **[REQ-NF-035]** Priority order for root folder resolution (ALL modules, MANDATORY pattern):
+    1. Command-line argument (highest priority: `--root-folder` or `--root`)
+    2. Environment variable (second priority: `WKMP_ROOT_FOLDER` or `WKMP_ROOT`)
+    3. TOML configuration file (third priority: `~/.config/wkmp/<module-name>.toml`)
+    4. Compiled default (lowest priority, graceful fallback: platform-specific Music folder)
+  - **[REQ-NF-036]** First-run experience (ALL modules):
+    - When started with default Music folder path, module SHALL create necessary directories automatically
+    - If database does not exist at root folder path, module SHALL create empty database with default schema
+    - Module SHALL remain operational and log informational messages about initialization
+  - **[REQ-NF-037]** Implementation enforcement:
+    - ALL modules (wkmp-ui, wkmp-ap, wkmp-pd, wkmp-ai, wkmp-le) MUST use `wkmp_common::config::RootFolderResolver` for root folder resolution
+    - ALL modules MUST use `wkmp_common::config::RootFolderInitializer` for directory and database initialization
+    - NO module may hardcode database paths or skip the 4-tier resolution priority
+    - This pattern ensures consistent zero-configuration behavior across the entire WKMP system
 
 > **See [Architecture - Initialization](SPEC001-architecture.md#module-initialization) for detailed startup sequence and default value handling.**
 
@@ -305,7 +337,9 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 
 **[REQ-PI-070]** Store MusicBrainz IDs and fetch basic metadata (artist names, release titles, genre tags)
 
-**[REQ-PI-080]** WebUI provides interface to input/edit lyrics associated with a passage (Full version only)
+**[REQ-PI-080]** Lyric editing UI provided by wkmp-le microservice (Full version only)
+- Accessed via http://localhost:5724 (opened from wkmp-ui library view)
+- See [UI Specification - Lyric Editor](SPEC009-ui_specification.md#lyric-editor) for details
 - **[REQ-PI-081]** Concurrent lyric editing uses "last write wins" strategy (no conflict resolution)
 - **[REQ-PI-082]** Multiple users may edit lyrics simultaneously; last submitted text persists
 
@@ -454,7 +488,7 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
 ### Network Status Indicators
 
 **[REQ-NET-010]** Internet connection status visibility (Full version only)
-- **[REQ-NET-011]** Display internet connection status in library management / import UI
+- **[REQ-NET-011]** Display internet connection status in wkmp-ai import UI
 - **[REQ-NET-012]** Show connection states: Connected, Retrying, Failed
 - **[REQ-NET-013]** Provide "Retry Connection" button when connection fails
 - **[REQ-NET-014]** Indicate which features are unavailable without internet

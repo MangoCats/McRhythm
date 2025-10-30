@@ -9,7 +9,7 @@
 
 use crate::audio::output::AudioOutput;
 use crate::audio::types::AudioFrame;
-use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, validate_passage_timing, PassageWithTiming};
+use crate::db::passages::{create_ephemeral_passage, get_passage_album_uuids, get_passage_with_timing, validate_passage_timing, PassageWithTiming};
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::buffer_events::BufferEvent;
@@ -170,7 +170,7 @@ impl PlaybackEngine {
 
         // **[PERF-INIT-010]** Parallel database queries for faster initialization
         let db_start = Instant::now();
-        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size) = tokio::join!(
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size, buffer_capacity, buffer_headroom) = tokio::join!(
             crate::db::settings::get_volume(&db_pool),
             crate::db::settings::load_minimum_buffer_threshold(&db_pool),
             crate::db::settings::load_position_event_interval(&db_pool),
@@ -180,6 +180,8 @@ impl PlaybackEngine {
             crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
             crate::db::settings::load_mixer_min_start_level(&db_pool), // [DBD-PARAM-088]
             crate::db::settings::load_audio_buffer_size(&db_pool), // [DBD-PARAM-110]
+            crate::db::settings::load_playout_ringbuffer_capacity(&db_pool), // [DBD-PARAM-070]
+            crate::db::settings::load_playout_ringbuffer_headroom(&db_pool), // [DBD-PARAM-080]
         );
         let db_elapsed = db_start.elapsed();
 
@@ -192,6 +194,8 @@ impl PlaybackEngine {
         let resume_hysteresis = resume_hysteresis?;
         let mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088]
         let audio_buffer_size = audio_buffer_size?; // [DBD-PARAM-110]
+        let buffer_capacity = buffer_capacity?; // [DBD-PARAM-070]
+        let buffer_headroom = buffer_headroom?; // [DBD-PARAM-080]
 
         info!(
             "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
@@ -213,6 +217,10 @@ impl PlaybackEngine {
         buffer_manager.set_event_channel(buffer_event_tx).await;
         buffer_manager.set_min_buffer_threshold(min_buffer_threshold).await;
         buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
+        // **[DBD-PARAM-070]** Configure buffer capacity from database
+        buffer_manager.set_buffer_capacity(buffer_capacity).await;
+        // **[DBD-PARAM-080]** Configure buffer headroom from database
+        buffer_manager.set_buffer_headroom(buffer_headroom).await;
 
         // Create decoder worker
         // **[Phase 7]** Pass shared_state and db_pool for error handling
@@ -833,10 +841,33 @@ impl PlaybackEngine {
 
         info!("Skipping passage: {:?}", current.passage_id);
 
+        // Fetch album UUIDs for PassageCompleted event **[REQ-DEBT-FUNC-003]**
+        let album_uuids = if let Some(pid) = current.passage_id {
+            get_passage_album_uuids(&self.db_pool, pid)
+                .await
+                .unwrap_or_else(|e| {
+                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                    Vec::new()
+                })
+        } else {
+            Vec::new()
+        };
+
+        // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+        let duration_played = {
+            let mixer = self.mixer.read().await;
+            if let Some(start_time) = mixer.passage_start_time() {
+                start_time.elapsed().as_secs_f64()
+            } else {
+                0.0
+            }
+        };
+
         // Emit PassageCompleted event with completed=false (skipped)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
             passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
-            duration_played: 0.0, // Skipped - not played
+            album_uuids,
+            duration_played,
             completed: false, // false = skipped
             timestamp: chrono::Utc::now(),
         });
@@ -1025,6 +1056,17 @@ impl PlaybackEngine {
         Arc::clone(&self.volume)
     }
 
+    /// Get shared buffer manager Arc for testing
+    ///
+    /// Provides access to buffer manager for integration tests.
+    /// Used to verify buffer configuration settings are correctly loaded and applied.
+    ///
+    /// # Returns
+    /// Cloned Arc to BufferManager
+    pub fn get_buffer_manager(&self) -> Arc<BufferManager> {
+        Arc::clone(&self.buffer_manager)
+    }
+
     /// Get audio expected flag
     ///
     /// Returns whether audio output is expected (Playing state with non-empty queue).
@@ -1203,6 +1245,10 @@ impl PlaybackEngine {
                     decoder_state: None, // TODO: Query decoder pool status
                     decode_progress_percent: None,
                     is_actively_decoding: None,
+
+                    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+                    decode_duration_ms: buffer_info.as_ref().and_then(|b| b.decode_duration_ms),
+                    source_file_path: buffer_info.as_ref().and_then(|b| b.file_path.clone()),
 
                     // Resampler stage (stubbed for Phase 3c)
                     source_sample_rate: None, // TODO: Get from decoder
@@ -1721,9 +1767,22 @@ impl PlaybackEngine {
         // Mark next buffer as playing
         self.buffer_manager.mark_playing(next.queue_entry_id).await;
 
+        // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
+        let album_uuids = if let Some(pid) = next.passage_id {
+            get_passage_album_uuids(&self.db_pool, pid)
+                .await
+                .unwrap_or_else(|e| {
+                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                    Vec::new()
+                })
+        } else {
+            Vec::new()
+        };
+
         // Emit PassageStarted event for next passage
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
             passage_id: next.passage_id.unwrap_or_else(|| Uuid::nil()),
+            album_uuids,
             timestamp: chrono::Utc::now(),
         });
 
@@ -1899,10 +1958,23 @@ impl PlaybackEngine {
                         // [ISSUE-8] Use internal RwLock for queue_entry_id
                         *self.position.queue_entry_id.write().await = Some(current.queue_entry_id);
 
+                        // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
+                        let album_uuids = if let Some(pid) = current.passage_id {
+                            get_passage_album_uuids(&self.db_pool, pid)
+                                .await
+                                .unwrap_or_else(|e| {
+                                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                                    Vec::new()
+                                })
+                        } else {
+                            Vec::new()
+                        };
+
                         // Emit PassageStarted event
                         // [Event-PassageStarted] Passage playback began
                         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
                             passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                            album_uuids,
                             timestamp: chrono::Utc::now(),
                         });
 
@@ -2012,10 +2084,33 @@ impl PlaybackEngine {
 
                     info!("Passage {} completed (via crossfade)", completed_id);
 
+                    // Fetch album UUIDs for PassageCompleted event **[REQ-DEBT-FUNC-003]**
+                    let album_uuids = if let Some(pid) = passage_id_opt {
+                        get_passage_album_uuids(&self.db_pool, pid)
+                            .await
+                            .unwrap_or_else(|e| {
+                                warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                                Vec::new()
+                            })
+                    } else {
+                        Vec::new()
+                    };
+
+                    // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+                    let duration_played = {
+                        let mixer = self.mixer.read().await;
+                        if let Some(start_time) = mixer.passage_start_time() {
+                            start_time.elapsed().as_secs_f64()
+                        } else {
+                            0.0
+                        }
+                    };
+
                     // **[Event-PassageCompleted]** Emit completion event for OUTGOING passage
                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
                         passage_id: passage_id_opt.unwrap_or_else(|| Uuid::nil()),
-                        duration_played: 0.0, // TODO: Calculate actual duration from passage timing
+                        album_uuids,
+                        duration_played,
                         completed: true, // Crossfade completed naturally
                         timestamp: chrono::Utc::now(),
                     });
@@ -2096,11 +2191,34 @@ impl PlaybackEngine {
             if let Some(queue_entry_id) = current_qe_id {
                 info!("Passage {} completed", queue_entry_id);
 
+                // Fetch album UUIDs for PassageCompleted event **[REQ-DEBT-FUNC-003]**
+                let album_uuids = if let Some(pid) = current_pid {
+                    get_passage_album_uuids(&self.db_pool, pid)
+                        .await
+                        .unwrap_or_else(|e| {
+                            warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                            Vec::new()
+                        })
+                } else {
+                    Vec::new()
+                };
+
+                // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+                let duration_played = {
+                    let mixer = self.mixer.read().await;
+                    if let Some(start_time) = mixer.passage_start_time() {
+                        start_time.elapsed().as_secs_f64()
+                    } else {
+                        0.0
+                    }
+                };
+
                 // Emit PassageCompleted event
                 // [Event-PassageCompleted] Passage playback finished
                 self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
                     passage_id: current_pid.unwrap_or_else(|| Uuid::nil()),
-                    duration_played: 0.0, // TODO: Calculate actual duration from passage timing
+                    album_uuids,
+                    duration_played,
                     completed: true, // true = finished naturally, false = skipped/interrupted
                     timestamp: chrono::Utc::now(),
                 });
@@ -2731,9 +2849,22 @@ impl PlaybackEngine {
                     // Update position tracking
                     *self.position.queue_entry_id.write().await = Some(queue_entry_id);
 
+                    // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
+                    let album_uuids = if let Some(pid) = current.passage_id {
+                        get_passage_album_uuids(&self.db_pool, pid)
+                            .await
+                            .unwrap_or_else(|e| {
+                                warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                                Vec::new()
+                            })
+                    } else {
+                        Vec::new()
+                    };
+
                     // Emit PassageStarted event
                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
                         passage_id: current.passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                        album_uuids,
                         timestamp: chrono::Utc::now(),
                     });
 

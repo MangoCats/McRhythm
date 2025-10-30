@@ -59,6 +59,14 @@ pub struct BufferManager {
     /// **[DBD-BUF-050]** Configurable hysteresis prevents pause/resume oscillation
     resume_hysteresis: Arc<RwLock<usize>>,
 
+    /// Ring buffer capacity in stereo frames
+    /// **[DBD-PARAM-070]** Configurable buffer capacity (default: 661,941)
+    buffer_capacity: Arc<RwLock<usize>>,
+
+    /// Ring buffer headroom threshold in stereo frames
+    /// **[DBD-PARAM-080]** Configurable headroom threshold (default: 4,410)
+    buffer_headroom: Arc<RwLock<usize>>,
+
     /// Whether any passage has ever been played (for first-passage optimization)
     /// **[PERF-FIRST-010]** Use smaller buffer for first passage only
     ever_played: Arc<AtomicBool>,
@@ -72,6 +80,8 @@ impl BufferManager {
             event_tx: Arc::new(RwLock::new(None)),
             min_buffer_threshold_ms: Arc::new(RwLock::new(3000)), // Default: 3 seconds
             resume_hysteresis: Arc::new(RwLock::new(44100)), // Default: 1.0 second @ 44.1kHz
+            buffer_capacity: Arc::new(RwLock::new(661_941)), // Default: 15.01s @ 44.1kHz
+            buffer_headroom: Arc::new(RwLock::new(4_410)), // Default: 0.1s @ 44.1kHz
             ever_played: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -104,6 +114,112 @@ impl BufferManager {
         *self.resume_hysteresis.write().await = hysteresis_samples;
     }
 
+    /// Set ring buffer capacity
+    ///
+    /// **[DBD-PARAM-070]** Configurable buffer capacity in stereo frames
+    pub async fn set_buffer_capacity(&self, capacity: usize) {
+        *self.buffer_capacity.write().await = capacity;
+    }
+
+    /// Set ring buffer headroom threshold
+    ///
+    /// **[DBD-PARAM-080]** Configurable headroom threshold in stereo frames
+    pub async fn set_buffer_headroom(&self, headroom: usize) {
+        *self.buffer_headroom.write().await = headroom;
+    }
+
+    /// Set decode start time for telemetry
+    ///
+    /// **[REQ-DEBT-FUNC-001]** Decoder telemetry tracking
+    pub async fn set_decode_started(&self, queue_entry_id: Uuid) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.decode_started_at = Some(Instant::now());
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
+    /// Set decode completion time for telemetry
+    ///
+    /// **[REQ-DEBT-FUNC-001]** Decoder telemetry tracking
+    pub async fn set_decode_completed(&self, queue_entry_id: Uuid) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.decode_completed_at = Some(Instant::now());
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
+    /// Set file path for telemetry
+    ///
+    /// **[REQ-DEBT-FUNC-001]** Decoder telemetry tracking
+    pub async fn set_file_path(&self, queue_entry_id: Uuid, file_path: String) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.file_path = Some(file_path);
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
+    /// Validate buffer configuration settings
+    ///
+    /// **[REQ-DEBT-FUNC-002-040]** Validates buffer capacity and headroom
+    ///
+    /// # Arguments
+    /// * `capacity` - Buffer capacity in stereo frames
+    /// * `headroom` - Headroom threshold in stereo frames
+    ///
+    /// # Returns
+    /// `Ok(())` if valid, `Err(String)` with error message if invalid
+    ///
+    /// # Validation Rules
+    /// - Capacity must be > 0
+    /// - Headroom must be > 0
+    /// - Capacity must be > headroom (need space beyond threshold)
+    /// - Capacity should be ≥ 2x headroom (recommended margin)
+    pub fn validate_buffer_config(capacity: usize, headroom: usize) -> Result<(), String> {
+        if capacity == 0 {
+            return Err("Buffer capacity must be greater than zero".to_string());
+        }
+
+        if headroom == 0 {
+            return Err("Buffer headroom must be greater than zero".to_string());
+        }
+
+        if capacity <= headroom {
+            return Err(format!(
+                "Buffer capacity ({}) must be greater than headroom ({})",
+                capacity, headroom
+            ));
+        }
+
+        // Warning (not error) if capacity < 2x headroom
+        if capacity < headroom * 2 {
+            tracing::warn!(
+                "Buffer capacity ({}) is less than 2x headroom ({}). Consider increasing capacity for better stability.",
+                capacity, headroom
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Get current buffer capacity
+    pub async fn get_buffer_capacity(&self) -> usize {
+        *self.buffer_capacity.read().await
+    }
+
+    /// Get current buffer headroom
+    pub async fn get_buffer_headroom(&self) -> usize {
+        *self.buffer_headroom.read().await
+    }
+
     /// Allocate new buffer (Empty state)
     ///
     /// **[DBD-BUF-020]** Buffer starts in Empty state
@@ -118,13 +234,15 @@ impl BufferManager {
             return Arc::clone(&managed.buffer);
         }
 
-        // Create new playout ring buffer
-        // TODO: Read capacity and headroom from settings database
-        // For now, use defaults from PlayoutRingBuffer (661,941 and 4410)
+        // Create new playout ring buffer with configured settings
+        // **[DBD-PARAM-070]** Read capacity from database settings
+        // **[DBD-PARAM-080]** Read headroom from database settings
+        let capacity = *self.buffer_capacity.read().await;
+        let headroom = *self.buffer_headroom.read().await;
         let hysteresis = *self.resume_hysteresis.read().await;
         let buffer_arc = Arc::new(PlayoutRingBuffer::new(
-            None, // Use default capacity (661,941)
-            None, // Use default headroom (4410)
+            Some(capacity), // Use configured capacity
+            Some(headroom), // Use configured headroom
             Some(hysteresis), // Use configured resume hysteresis
             Some(queue_entry_id),
         ));
@@ -777,6 +895,18 @@ impl BufferManager {
         let managed = buffers.get(&queue_entry_id)?;
 
         let buffer_arc = Arc::clone(&managed.buffer);
+        let metadata = &managed.metadata;
+
+        // Calculate decode duration from telemetry timestamps
+        let decode_duration_ms = if let (Some(started), Some(completed)) =
+            (metadata.decode_started_at, metadata.decode_completed_at) {
+            Some(completed.duration_since(started).as_millis() as u64)
+        } else {
+            None
+        };
+
+        let file_path = metadata.file_path.clone();
+
         drop(buffers);
 
         // No lock needed - all buffer methods use &self with atomics
@@ -795,6 +925,8 @@ impl BufferManager {
                 None
             },
             total_decoded_frames: (stats.total_samples_written / 2) as usize, // Convert samples to frames
+            decode_duration_ms,
+            file_path,
         })
     }
 
@@ -831,6 +963,10 @@ pub struct BufferMonitorInfo {
     pub capacity_samples: usize,
     pub duration_ms: Option<u64>,
     pub total_decoded_frames: usize,
+
+    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+    pub decode_duration_ms: Option<u64>,
+    pub file_path: Option<String>,
 }
 
 impl Default for BufferManager {

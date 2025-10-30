@@ -27,12 +27,14 @@ Implement graceful degradation throughout WKMP's microservices architecture to e
 - Log informational messages for automatic initialization
 - Include file paths in all log messages
 
-**[IMPL-GD-030]** Maintain consistent behavior across all 5 modules:
-- wkmp-ui (User Interface)
-- wkmp-ap (Audio Player)
-- wkmp-pd (Program Director)
-- wkmp-ai (Audio Ingest)
-- wkmp-le (Lyric Editor)
+**[IMPL-GD-030]** Maintain consistent behavior across all 5 modules (MANDATORY):
+- wkmp-ui (User Interface) - MUST use RootFolderResolver/RootFolderInitializer
+- wkmp-ap (Audio Player) - MUST use RootFolderResolver/RootFolderInitializer
+- wkmp-pd (Program Director) - MUST use RootFolderResolver/RootFolderInitializer
+- wkmp-ai (Audio Ingest) - MUST use RootFolderResolver/RootFolderInitializer
+- wkmp-le (Lyric Editor) - MUST use RootFolderResolver/RootFolderInitializer
+
+> **ENFORCEMENT:** Per [REQ-NF-037], ALL modules must use the wkmp_common::config utilities. NO module may implement custom root folder resolution or hardcode database paths.
 
 ---
 
@@ -40,12 +42,13 @@ Implement graceful degradation throughout WKMP's microservices architecture to e
 
 ### Requirements
 
-- **[REQ-NF-031]**: Missing TOML files SHALL NOT cause module termination
-- **[REQ-NF-032]**: Missing config → warning log + compiled defaults + successful startup
-- **[REQ-NF-033]**: Default root folder locations per platform
-- **[REQ-NF-034]**: Default values for logging, static assets
-- **[REQ-NF-035]**: Priority order for root folder resolution
-- **[REQ-NF-036]**: Automatic directory/database creation on first run
+- **[REQ-NF-031]**: Missing TOML files SHALL NOT cause module termination (ALL modules)
+- **[REQ-NF-032]**: Missing config → warning log + compiled defaults + successful startup (ALL modules)
+- **[REQ-NF-033]**: Default root folder locations per platform (ALL modules)
+- **[REQ-NF-034]**: Default values for logging, static assets (ALL modules)
+- **[REQ-NF-035]**: Priority order for root folder resolution (ALL modules, MANDATORY pattern)
+- **[REQ-NF-036]**: Automatic directory/database creation on first run (ALL modules)
+- **[REQ-NF-037]**: Implementation enforcement using wkmp_common::config utilities (ALL modules, MANDATORY)
 
 ### Architecture
 

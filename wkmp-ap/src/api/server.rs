@@ -11,7 +11,6 @@ use crate::error::{Error, Result};
 use crate::playback::engine::PlaybackEngine;
 use crate::state::SharedState;
 use axum::{
-    middleware::{self},
     Router,
     routing::{get, post, delete},
 };

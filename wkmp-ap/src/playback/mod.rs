@@ -22,11 +22,7 @@ pub mod song_timeline;
 pub mod types;
 
 // Re-exports for external use (tests, other modules)
-pub use buffer_manager::BufferManager;
-pub use decoder_worker::DecoderWorker;
-pub use diagnostics::{PassageMetrics, PipelineMetrics, ValidationResult};
-pub use types::DecodePriority;
+pub use diagnostics::{PassageMetrics, PipelineMetrics};
 
 // Export from pipeline submodule
-pub use pipeline::CrossfadeMixer;
 

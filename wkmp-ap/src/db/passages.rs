@@ -327,6 +327,47 @@ pub fn validate_passage_timing(mut passage: PassageWithTiming) -> Result<Passage
     Ok(passage)
 }
 
+/// Get album UUIDs associated with a passage
+///
+/// Returns a vector of album UUIDs that are linked to the passage via the
+/// `passage_albums` table. Returns empty vector if no albums are associated.
+///
+/// **[REQ-DEBT-FUNC-003]** Album metadata population for PassageStarted/Complete events
+///
+/// # Arguments
+/// * `db` - Database connection pool
+/// * `passage_id` - UUID of the passage to query
+///
+/// # Returns
+/// Vector of album UUIDs (may be empty)
+pub async fn get_passage_album_uuids(
+    db: &Pool<Sqlite>,
+    passage_id: Uuid,
+) -> Result<Vec<Uuid>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT album_id
+        FROM passage_albums
+        WHERE passage_id = ?
+        ORDER BY created_at
+        "#,
+    )
+    .bind(passage_id.to_string())
+    .fetch_all(db)
+    .await?;
+
+    let album_uuids: Vec<Uuid> = rows
+        .iter()
+        .filter_map(|row| {
+            row.get::<String, _>("album_id")
+                .parse::<Uuid>()
+                .ok()
+        })
+        .collect();
+
+    Ok(album_uuids)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

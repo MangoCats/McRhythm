@@ -35,6 +35,8 @@ pub enum WkmpEvent {
     /// - Lyrics Display: Show passage lyrics
     PassageStarted {
         passage_id: Uuid,
+        /// **[REQ-DEBT-FUNC-003]** All albums for this passage, for cooldown/stats
+        album_uuids: Vec<Uuid>,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -46,6 +48,8 @@ pub enum WkmpEvent {
     /// - SSE: Update UI playback state
     PassageCompleted {
         passage_id: Uuid,
+        /// **[REQ-DEBT-FUNC-003]** All albums for this passage, for cooldown/stats
+        album_uuids: Vec<Uuid>,
         duration_played: f64,
         completed: bool, // false if skipped
         timestamp: chrono::DateTime<chrono::Utc>,
@@ -581,6 +585,77 @@ pub enum WkmpEvent {
         reason: String,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+
+    // ========================================================================
+    // Audio Ingest Events (wkmp-ai - Full version only)
+    // **[AIA-MS-010]** SSE event streaming for import workflow
+    // ========================================================================
+
+    /// Import session started
+    ///
+    /// Triggers:
+    /// - SSE: Show import progress UI
+    /// - Database: Session record created
+    ImportSessionStarted {
+        session_id: Uuid,
+        root_folder: String,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import progress update
+    ///
+    /// Emitted during workflow progression through states
+    ///
+    /// Triggers:
+    /// - SSE: Update progress bar and status
+    ImportProgressUpdate {
+        session_id: Uuid,
+        state: String, // "SCANNING", "EXTRACTING", "FINGERPRINTING", etc.
+        current: usize,
+        total: usize,
+        percentage: f32,
+        current_operation: String,
+        elapsed_seconds: u64,
+        estimated_remaining_seconds: Option<u64>,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import session completed successfully
+    ///
+    /// Triggers:
+    /// - SSE: Show completion notification
+    /// - Database: Mark session as completed
+    /// - Program Director: Refresh available passages
+    ImportSessionCompleted {
+        session_id: Uuid,
+        files_processed: usize,
+        duration_seconds: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import session failed
+    ///
+    /// Triggers:
+    /// - SSE: Show error notification
+    /// - Database: Mark session as failed
+    ImportSessionFailed {
+        session_id: Uuid,
+        error_message: String,
+        files_processed: usize,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
+
+    /// Import session cancelled by user
+    ///
+    /// Triggers:
+    /// - SSE: Show cancellation notification
+    /// - Database: Mark session as cancelled
+    ImportSessionCancelled {
+        session_id: Uuid,
+        files_processed: usize,
+        files_skipped: usize,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -622,6 +697,12 @@ pub struct BufferChainInfo {
     pub decode_progress_percent: Option<u8>,
     /// Currently being processed by decoder pool
     pub is_actively_decoding: Option<bool>,
+
+    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+    /// Duration of decode operation in milliseconds
+    pub decode_duration_ms: Option<u64>,
+    /// Source file path
+    pub source_file_path: Option<String>,
 
     // Resampler stage visibility **[DBD-OV-010]** **[DBD-RSMP-010]**
     /// Source file sample rate (Hz)
@@ -670,6 +751,8 @@ impl BufferChainInfo {
             decoder_state: Some(DecoderState::Idle),
             decode_progress_percent: Some(0),
             is_actively_decoding: Some(false),
+            decode_duration_ms: None,
+            source_file_path: None,
             source_sample_rate: None,
             resampler_active: Some(false),
             target_sample_rate: 44100,
@@ -817,6 +900,12 @@ impl WkmpEvent {
             WkmpEvent::FileHandleExhaustion { .. } => "FileHandleExhaustion",
             WkmpEvent::SystemDegradedMode { .. } => "SystemDegradedMode",
             WkmpEvent::SystemShutdownRequired { .. } => "SystemShutdownRequired",
+            // Audio Ingest events (wkmp-ai)
+            WkmpEvent::ImportSessionStarted { .. } => "ImportSessionStarted",
+            WkmpEvent::ImportProgressUpdate { .. } => "ImportProgressUpdate",
+            WkmpEvent::ImportSessionCompleted { .. } => "ImportSessionCompleted",
+            WkmpEvent::ImportSessionFailed { .. } => "ImportSessionFailed",
+            WkmpEvent::ImportSessionCancelled { .. } => "ImportSessionCancelled",
         }
     }
 }
@@ -979,6 +1068,7 @@ impl std::fmt::Display for EnqueueSource {
 /// //     }
 /// // }
 /// ```
+#[derive(Clone)]
 pub struct EventBus {
     tx: broadcast::Sender<WkmpEvent>,
     capacity: usize,
@@ -1186,7 +1276,10 @@ mod tests {
             Some(1),
             "[SPEC008] Position 1 should be 'up next'"
         );
-        assert!(chain_up_next.resampler_active.unwrap(), "48kHz source should require resampling");
+        assert!(
+            chain_up_next.resampler_active.expect("resampler_active should be Some"),
+            "48kHz source should require resampling"
+        );
 
         // Position 2+ = queued passages [SPEC020-MONITOR-050]
         let chain_queued = BufferChainInfo {

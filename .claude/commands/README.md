@@ -2,7 +2,7 @@
 
 **Purpose:** Command definitions for WKMP Music Player development workflows
 **Tool:** Claude Code (AI-assisted development environment)
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-10-28
 
 ---
 
@@ -21,7 +21,9 @@ This directory contains custom command definitions for the WKMP (Auto DJ Music P
 
 ## Available Commands
 
-### /commit - Multi-Step Commit with Change History Tracking
+### Core Workflow Commands
+
+#### /commit - Multi-Step Commit with Change History Tracking
 
 **Purpose:** Perform consistent git commits with automatic change history tracking and archive branch synchronization
 
@@ -67,7 +69,7 @@ This directory contains custom command definitions for the WKMP (Auto DJ Music P
 
 ---
 
-### /doc-name - Document Prefix Assignment
+#### /doc-name - Document Prefix Assignment
 
 **Purpose:** Assign alpha-numeric prefix (CAT###_) to documents following WKMP documentation governance
 
@@ -125,7 +127,7 @@ This directory contains custom command definitions for the WKMP (Auto DJ Music P
 
 ---
 
-### /think - Multi-Agent Document Analysis
+#### /think - Multi-Agent Document Analysis
 
 **Purpose:** Analyze documents containing questions, problems, or change requests using dynamic multi-agent strategy
 
@@ -188,7 +190,7 @@ This directory contains custom command definitions for the WKMP (Auto DJ Music P
 
 ---
 
-### /plan - Implementation Planning Workflow
+#### /plan - Implementation Planning Workflow
 
 **Purpose:** Create systematic, specification-driven implementation plans that maximize probability of meeting requirements on first attempt
 
@@ -244,7 +246,7 @@ This directory contains custom command definitions for the WKMP (Auto DJ Music P
 
 ---
 
-### /archive - Document Archival
+#### /archive - Document Archival
 
 **Purpose:** Move historical/obsolete documents to git archive branch while preserving full history
 
@@ -298,7 +300,7 @@ git checkout dev  # Return to working branch
 
 ---
 
-### /archive-plan - Batch Archive Plan Documents
+#### /archive-plan - Batch Archive Plan Documents
 
 **Purpose:** Batch archive all work-in-progress documents for a completed implementation plan
 
@@ -344,6 +346,254 @@ git checkout dev  # Return to working branch
 
 ---
 
+### Validation & Quality Commands
+
+#### /check-traceability - Requirement Traceability Validator
+
+**Purpose:** Validate requirement ID traceability between code, tests, and specifications
+
+**Usage:**
+```bash
+/check-traceability
+```
+
+**When to Use:**
+- Before major releases
+- Monthly during active development
+- After implementing new features
+- When validating requirement coverage
+
+**What It Does:**
+- Extracts all requirement IDs from specification documents (REQ-CF-010, ARCH-VOL-010, etc.)
+- Scans all Rust source files for requirement ID citations
+- Scans all test files for requirement coverage
+- Cross-references specs, code, and tests
+- Identifies gaps: missing implementations, missing tests, orphaned references
+- Generates comprehensive traceability matrix
+- Provides actionable recommendations by priority
+
+**What It Does NOT Do:**
+- Does not modify any files
+- Does not generate tests or code
+- Does not fix gaps automatically
+
+**Output:** Creates `wip/traceability_report_YYYY-MM-DD.md`
+
+**Success Metrics:**
+- Total requirements documented
+- Code implementation coverage %
+- Test coverage %
+- Fully traced requirements (spec + code + test) %
+- Critical gaps identified
+
+**Example Output:**
+```
+Traceability Report Summary:
+✅ Requirements with code: 45/50 (90%)
+✅ Requirements with tests: 42/50 (84%)
+✅ Fully traced: 40/50 (80%)
+❌ Critical gaps: 5 requirements missing both code and tests
+
+See wip/traceability_report_2025-10-28.md
+```
+
+---
+
+#### /check-all - Rust Multi-Crate Workflow
+
+**Purpose:** Run comprehensive quality checks across all WKMP workspace crates
+
+**Usage:**
+```bash
+/check-all
+```
+
+**When to Use:**
+- Before every commit
+- After significant changes
+- Before pull requests
+- During continuous integration
+
+**What It Does:**
+- Runs `cargo fmt --check` (formatting validation)
+- Runs `cargo clippy` (linting across all crates)
+- Runs `cargo build --workspace` (compilation check)
+- Runs `cargo test --workspace` (all tests)
+- Runs `cargo doc` (documentation validation)
+- Reports results concisely with actionable next steps
+- Auto-fixes formatting issues when found
+- Provides build/test time metrics
+
+**What It Does NOT Do:**
+- Does not fix clippy warnings automatically
+- Does not modify code (except auto-format)
+- Does not run benchmarks (unless requested)
+
+**Execution Strategy:**
+- Parallel execution where possible (fmt, clippy, doc in parallel)
+- Sequential for dependencies (build before test)
+- Early exit on critical failures
+- Leverages Cargo incremental compilation
+
+**Output Format:**
+```
+🔍 WKMP Multi-Crate Quality Check
+
+✅ Format:  All files formatted correctly
+⚠️  Clippy:  3 warnings in wkmp-ap, 1 in wkmp-ui
+✅ Build:   All 6 crates built (12.3s)
+✅ Tests:   95 tests passed (3.7s)
+✅ Docs:    Documentation built (2 warnings)
+
+Overall: 4/5 passed, 1 with warnings
+```
+
+**Variants:**
+- Quick check: Skip doc build for rapid iteration
+- Full check: Include release build and benchmarks
+
+**Expected Runtime:**
+- Quick: 10-20s
+- Standard: 25-60s
+- Full: 60-120s
+
+---
+
+#### /check-docs - Document Hierarchy Checker
+
+**Purpose:** Validate WKMP's 5-tier documentation hierarchy for consistency and governance compliance
+
+**Usage:**
+```bash
+/check-docs
+```
+
+**When to Use:**
+- Before major releases
+- After bulk documentation updates
+- Monthly during active development
+- When governance rules change
+
+**What It Does:**
+- Catalogs all documentation (docs/, workflows/, wip/, project_management/)
+- Extracts document references (links, citations)
+- Validates information flow direction (higher tier → lower tier allowed, reverse flagged)
+- Detects circular references (A → B → A)
+- Identifies orphaned documents (no incoming references)
+- Validates document number sequences against REG001 registry
+- Checks category consistency (correct prefixes in correct locations)
+- Generates detailed hierarchy validation report
+
+**What It Does NOT Do:**
+- Does not modify documents
+- Does not fix circular references automatically
+- Does not archive orphaned documents (suggests archival)
+
+**Governance Rules Validated:**
+- GOV001: 5-tier hierarchy (Governance → Requirements → Design → Implementation → Execution)
+- REG001: Number registry consistency
+- REG002: Archive tracking
+- REG003: Category definitions (13 categories)
+
+**Output:** Creates `wip/doc_hierarchy_validation_YYYY-MM-DD.md`
+
+**Critical Issues Detected:**
+- Circular references (must fix)
+- Invalid tier jumps (EXEC → REQ skipping intermediate tiers)
+- Broken references (document not found)
+
+**Warnings:**
+- Upward references (lower tier → higher tier, needs review)
+- Orphaned documents (candidates for archival)
+- Number gaps (missing in sequence)
+
+**Example Output:**
+```
+🗂️  Document Hierarchy Validation
+
+Documents scanned: 47
+✅ Valid references: 234 (92%)
+⚠️  Upward references: 15 (6%) - review
+❌ Circular references: 2 (CRITICAL)
+⚠️  Orphaned documents: 8
+
+See wip/doc_hierarchy_validation_2025-10-28.md
+```
+
+**Expected Runtime:** 30-90 seconds
+
+---
+
+#### /check-api - API Contract Validator
+
+**Purpose:** Validate API implementations against SPEC007 API design specifications
+
+**Usage:**
+```bash
+/check-api
+```
+
+**When to Use:**
+- Before commits that modify APIs
+- Weekly for continuous monitoring
+- Before pull requests
+- After updating SPEC007
+
+**What It Does:**
+- Extracts all API endpoint specifications from SPEC007-api_design.md
+- Scans all 5 microservices for Axum route definitions
+- Analyzes handler function signatures and types
+- Compares specification vs implementation:
+  - Endpoint existence
+  - HTTP method matching
+  - Path pattern matching
+  - Request schema matching
+  - Response schema matching
+  - Status code documentation
+- Validates error handling consistency
+- Checks authentication/authorization requirements
+- Validates SSE endpoints
+- Generates compliance report with severity levels
+
+**What It Does NOT Do:**
+- Does not modify code or specifications
+- Does not generate API implementations
+- Does not auto-fix contract violations
+
+**Services Validated:**
+- wkmp-ap (Audio Player, port 5721)
+- wkmp-ui (User Interface, port 5720)
+- wkmp-pd (Program Director, port 5722)
+- wkmp-ai (Audio Ingest, port 5723)
+- wkmp-le (Lyric Editor, port 5724)
+
+**Output:** Creates `wip/api_contract_validation_YYYY-MM-DD.md`
+
+**Violation Severities:**
+- **HIGH:** Breaking changes (response schema mismatch, missing required fields)
+- **MEDIUM:** Missing functionality (endpoint documented but not implemented)
+- **LOW:** Backward compatible issues (extra fields, undocumented status codes)
+
+**Example Output:**
+```
+🔌 API Contract Validation
+
+Services scanned: 5
+Endpoints in spec: 42
+Overall compliance: 90% (38/42)
+
+❌ Contract violations: 3
+  - wkmp-ap POST /queue/enqueue: Response missing field
+  - wkmp-pd GET /select/next: Schema mismatch
+  - wkmp-ui DELETE /passages/:id: Not implemented
+
+See wip/api_contract_validation_2025-10-28.md
+```
+
+**Expected Runtime:** 45-120 seconds
+
+---
+
 ## Workflow Integration Pattern
 
 **Typical Development Flow:**
@@ -361,21 +611,41 @@ git checkout dev  # Return to working branch
    ↓
 6. Implement increment 1 (follow plan)
    ↓
-7. /commit → Track changes
+7. /check-all → Validate formatting, linting, tests before commit
    ↓
-8. Verify tests pass for increment 1
+8. /commit → Track changes
    ↓
-9. Repeat steps 6-8 for remaining increments
+9. Verify tests pass for increment 1
    ↓
-10. All increments complete, all tests pass
+10. Repeat steps 6-9 for remaining increments
     ↓
-11. /doc-name wip/new_document.md → Assign prefixes to new docs
+11. All increments complete, all tests pass
     ↓
-12. /commit → Track documentation updates
+12. /check-traceability → Verify requirement coverage
     ↓
-13. /archive-plan PLAN### → Clean up completed plan
+13. /doc-name wip/new_document.md → Assign prefixes to new docs
     ↓
-14. /commit → Track archival
+14. /check-docs → Validate documentation hierarchy
+    ↓
+15. /commit → Track documentation updates
+    ↓
+16. /archive-plan PLAN### → Clean up completed plan
+    ↓
+17. /commit → Track archival
+```
+
+**Quality Validation Points:**
+
+```
+Before every commit:
+  /check-all → Ensures code quality (fmt, clippy, tests)
+
+After API changes:
+  /check-api → Validates API contract compliance
+
+Monthly or before releases:
+  /check-traceability → Verifies requirement coverage
+  /check-docs → Validates documentation governance
 ```
 
 ---
@@ -392,12 +662,19 @@ These command definitions are automatically available when:
 
 **Method 1: Direct Slash Command**
 ```
+# Core workflow commands
 /commit
 /doc-name wip/analysis.md
 /think wip/question.md
 /plan docs/SPEC002-crossfade.md
 /archive docs/RPT001_old_analysis.md "reason"
 /archive-plan PLAN002
+
+# Validation & quality commands
+/check-all
+/check-traceability
+/check-docs
+/check-api
 ```
 
 **Method 2: Reference in Conversation**
@@ -414,6 +691,7 @@ The CLAUDE.md file already references these workflows in agent guidance.
 
 ### Do's ✅
 
+**Core Workflows:**
 - **Always use `/commit`** for all commits (maintains consistency and change history)
 - **Use `/doc-name`** before moving documents out of `wip/` (establishes references)
 - **Use `/think` before major architectural decisions** (evidence-based choices)
@@ -422,14 +700,30 @@ The CLAUDE.md file already references these workflows in agent guidance.
 - **Read plan summaries first** before diving into details (progressive disclosure)
 - **Review specification issues** from `/plan` before coding (catch gaps early)
 
+**Quality & Validation:**
+- **Run `/check-all` before every commit** (catches formatting, linting, test failures early)
+- **Run `/check-api` after modifying endpoints** (prevents contract violations)
+- **Run `/check-traceability` monthly or before releases** (ensures requirement coverage)
+- **Run `/check-docs` after bulk documentation updates** (maintains hierarchy integrity)
+- **Address CRITICAL issues immediately** from validation reports (prevents compounding problems)
+- **Review warnings regularly** even if not blocking (technical debt prevention)
+
 ### Don'ts ❌
 
+**Core Workflows:**
 - **Don't manually edit `change_history.md`** (use `/commit` workflow exclusively)
 - **Don't skip `/think` for complex decisions** (prevents costly rework)
 - **Don't implement without `/plan`** for non-trivial features (risk missing requirements)
 - **Don't archive actively referenced documents** (breaks current work)
 - **Don't commit without staging** (use `/commit` which handles staging)
 - **Don't rename documents manually** (use `/doc-name` for traceability)
+
+**Quality & Validation:**
+- **Don't skip `/check-all` to save time** (technical debt accumulates quickly)
+- **Don't ignore validation warnings** (low-severity issues become high-severity over time)
+- **Don't commit code with failing tests** (breaks CI/CD and other developers)
+- **Don't change APIs without running `/check-api`** (breaks client contracts)
+- **Don't assume requirements are covered** (run `/check-traceability` to verify)
 
 ---
 
@@ -459,6 +753,19 @@ The CLAUDE.md file already references these workflows in agent guidance.
 
 **By /archive-plan:**
 - Same as /archive but for multiple plan documents
+
+**By /check-all:**
+- No files created (console output only)
+- May auto-fix formatting via `cargo fmt`
+
+**By /check-traceability:**
+- `wip/traceability_report_YYYY-MM-DD.md` - Traceability validation report
+
+**By /check-docs:**
+- `wip/doc_hierarchy_validation_YYYY-MM-DD.md` - Hierarchy validation report
+
+**By /check-api:**
+- `wip/api_contract_validation_YYYY-MM-DD.md` - API contract validation report
 
 ---
 

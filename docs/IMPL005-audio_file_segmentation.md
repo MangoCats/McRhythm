@@ -8,6 +8,21 @@ Defines the workflow for segmenting a single audio file into multiple Passages. 
 
 ---
 
+## UI Implementation
+
+**[AFS-UI-010]** The segmentation workflow UI is provided by **wkmp-ai** (not wkmp-ui):
+- User accesses via http://localhost:5723 in web browser
+- wkmp-ai serves HTML/CSS/JavaScript for all workflow screens
+- wkmp-ui does NOT embed or proxy this UI
+- Pattern: Standalone web application for specialized import tasks
+
+**[AFS-UI-020]** UI Components:
+- Step 1-3: Import wizard pages (source media selection, silence detection, MusicBrainz matching)
+- Step 4: Interactive segment editor (waveform display, draggable boundaries)
+- Step 5: Progress display and completion summary
+
+**See:** [Audio Ingest Architecture - UI Architecture](SPEC024-audio_ingest_architecture.md#ui-architecture)
+
 ## 1. Overview
 
 **[AFS-OV-010]** This document specifies the process for segmenting a single, large audio file (e.g., single continuous recording of a full CD, a vinyl album side) into multiple distinct Passages, each corresponding to a single Recording. The workflow is designed to be as automated as possible while providing the user with full control to review and manually adjust the results.
@@ -54,7 +69,7 @@ The process is a guided, step-by-step workflow within the WKMP UI (Full version 
 
 **[AFS-MB-030]** Once a Release is selected, the system attempts to align the automatically detected segments with the track list of the selected MusicBrainz Release. It does this by generating fingerprints for each *individual segment* and matching them against the Recordings on the release. This helps correct for errors in the silence detection (e.g., if two tracks have no silence between them).
 
-### Step 4: User Review and Manual Adjustment
+### Step 4: User Review and Manual Adjustment (wkmp-ai UI)
 
 **[AFS-REV-010]** The user is presented with a review screen that shows:
 - The audio waveform for the entire file.

@@ -122,6 +122,58 @@ This framework ensures decisions align with charter by prioritizing approaches t
 
 ---
 
+# Professional Objectivity
+
+**Core Principle:** Technical accuracy and truthfulness take priority over validating user beliefs or preferences.
+
+## Objectivity Standards
+
+**1. Fact vs. Opinion:**
+- State facts objectively with citations to sources (documentation, specifications, measurements)
+- Label opinions and judgments clearly as such ("Recommendation:", "Suggested approach:")
+- Distinguish evidence-based conclusions from preferences
+- Quantify when possible (measurements > adjectives)
+
+**2. Respectful Disagreement:**
+- Disagree with user when technical correctness requires it
+- Provide clear rationale with supporting evidence (cite specifications, measurements, standards)
+- Offer alternative approaches that address user's underlying goals
+- Frame disagreement constructively: "However, [evidence] indicates..." not "You're wrong"
+
+**3. Bias Awareness:**
+- Recognize when user preference may bias recommendation
+- Evaluate all options objectively, including user-favored approach
+- Do not cherry-pick evidence to support predetermined conclusion
+- When user preference conflicts with technical evidence, present evidence first
+
+**4. Evidence Standards:**
+- Cite objective sources: project documentation, specifications, performance measurements
+- Prefer quantified data over qualitative assessments
+- Acknowledge uncertainty explicitly ("Unknown:", "Assumption:")
+- Distinguish between verified facts and inferences
+
+## Examples
+
+**Example 1: Disagreeing Constructively**
+
+❌ **Poor:** "That approach won't work. Use approach B instead."
+
+✅ **Good:** "Approach A may encounter issues because [specific technical reason with citation]. However, approach B addresses this by [mechanism], as shown in [specification reference]. Both are viable; recommend B due to lower residual risk per Risk-First Framework."
+
+**Example 2: Fact vs. Opinion**
+
+❌ **Poor:** "This is the best way to implement the feature."
+
+✅ **Good:** "Three implementation approaches exist. Approach C has lowest residual risk (Low) per Section 4.2 risk assessment. **Recommendation:** Approach C, but final decision rests with stakeholders."
+
+**Example 3: Bias Awareness**
+
+❌ **Poor (biased toward user preference):** "Since you prefer approach A, that's the best choice. It will work fine."
+
+✅ **Good (objective):** "Analysis shows approach A (your preference) has Medium-High risk due to [specific failure modes], while approach B has Low risk. Per Risk-First Framework, recommend approach B. However, if [specific constraint] exists, approach A remains viable with [mitigation strategies]."
+
+---
+
 # Document Generation Verbosity Standards
 
 **All document generation MUST follow these standards:**
@@ -243,10 +295,72 @@ WKMP consists of **5 independent HTTP-based microservices**:
 | **Audio Player (wkmp-ap)** | 5721 | Core playback, crossfading, queue management | All |
 | **User Interface (wkmp-ui)** | 5720 | Web UI, authentication, orchestration | All |
 | **Program Director (wkmp-pd)** | 5722 | Automatic passage selection algorithm | Full, Lite |
-| **Audio Ingest (wkmp-ai)** | 5723 | File import, MusicBrainz/AcousticBrainz integration | Full (on-demand) |
+| **Audio Ingest (wkmp-ai)** | 5723 | Import wizard UI, file scanning, MusicBrainz identification | Full (on-demand) |
 | **Lyric Editor (wkmp-le)** | 5724 | Split-window lyric editing interface | Full (on-demand) |
 
 **Communication:** HTTP REST APIs + Server-Sent Events (SSE) for real-time updates
+
+### Zero-Configuration Startup (MANDATORY - ALL MODULES)
+
+**[REQ-NF-030] through [REQ-NF-037]** ALL five modules MUST implement zero-config startup:
+
+**Implementation Pattern (REQUIRED):**
+```rust
+// Step 1: Resolve root folder (4-tier priority)
+let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
+let root_folder = resolver.resolve();
+
+// Step 2: Create directory if missing
+let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
+initializer.ensure_directory_exists()?;
+
+// Step 3: Get database path
+let db_path = initializer.database_path();  // root_folder/wkmp.db
+```
+
+**4-Tier Priority for Root Folder Resolution:**
+1. CLI argument: `--root-folder /custom/path` or `--root /custom/path`
+2. Environment variable: `WKMP_ROOT_FOLDER=/custom/path` or `WKMP_ROOT=/custom/path`
+3. TOML config: `~/.config/wkmp/<module-name>.toml`
+4. Compiled default: `~/Music` (Linux/macOS), `%USERPROFILE%\Music` (Windows)
+
+**Enforcement:**
+- NO module may hardcode database paths (e.g., `PathBuf::from("wkmp.db")`)
+- NO module may implement custom root folder resolution
+- ALL modules MUST use `wkmp_common::config` utilities
+
+### On-Demand Microservices
+
+**[ARCH-OD-010]** wkmp-ai and wkmp-le are "on-demand" specialized tools:
+
+**Architectural Pattern:**
+- Each provides its own web UI served on dedicated port
+- User accesses via browser (not embedded in wkmp-ui)
+- wkmp-ui provides launch points (buttons/links to open in new tab)
+- Decoupled specialized UIs for complex one-time operations
+
+**Access Method:**
+- **wkmp-ai:** http://localhost:5723 (import wizard, file segmentation)
+- **wkmp-le:** http://localhost:5724 (lyric editor, split-window interface)
+- **wkmp-ui:** http://localhost:5720 (main playback UI, provides links to above)
+
+**Rationale:**
+- Complex workflows benefit from dedicated UI (not cluttering main playback interface)
+- Specialized visualization tools (waveforms, lyric sync timing)
+- Infrequent use (import once, edit lyrics occasionally)
+- Independent development and deployment
+
+**User Flow Example (Import):**
+1. User opens wkmp-ui (http://localhost:5720)
+2. Clicks "Import Music" in library view
+3. wkmp-ui opens http://localhost:5723 in new browser tab
+4. User completes import workflow in wkmp-ai UI
+5. Clicks "Return to WKMP" → Back to wkmp-ui tab
+
+**Version Availability:**
+- Full version: All 5 microservices (including wkmp-ai, wkmp-le)
+- Lite version: wkmp-ui shows "Import Music" disabled with "Full version required" tooltip
+- Minimal version: No import or lyric editing functionality
 
 ---
 

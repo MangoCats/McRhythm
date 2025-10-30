@@ -6,7 +6,7 @@
 //! **Purpose:** Detect gaps happening in audio output layer that
 //! current ring buffer instrumentation misses.
 
-use std::sync::atomic::{AtomicU64, AtomicU32, AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{warn, debug, info, trace};

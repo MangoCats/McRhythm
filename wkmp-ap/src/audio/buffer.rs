@@ -98,7 +98,8 @@ impl RingBuffer {
         }
 
         // Get producer handle
-        let mut producer = self.producer.lock().unwrap();
+        let mut producer = self.producer.lock()
+            .expect("Producer mutex poisoned - unrecoverable");
 
         // Write samples
         let written = producer.push_slice(samples);
@@ -125,7 +126,8 @@ impl RingBuffer {
     /// println!("Read {} stereo samples", samples.len() / 2);
     /// ```
     pub fn pop(&mut self, count: usize) -> Result<Vec<f32>> {
-        let mut consumer = self.consumer.lock().unwrap();
+        let mut consumer = self.consumer.lock()
+            .expect("Consumer mutex poisoned - unrecoverable");
         let mut output = vec![0.0f32; count * 2]; // Allocate for stereo samples
 
         // Read available samples
@@ -146,13 +148,15 @@ impl RingBuffer {
     /// println!("Buffer contains {} stereo samples", filled);
     /// ```
     pub fn len(&self) -> usize {
-        let consumer = self.consumer.lock().unwrap();
+        let consumer = self.consumer.lock()
+            .expect("Consumer mutex poisoned - unrecoverable");
         consumer.occupied_len() / 2
     }
 
     /// Check if buffer is empty
     pub fn is_empty(&self) -> bool {
-        let consumer = self.consumer.lock().unwrap();
+        let consumer = self.consumer.lock()
+            .expect("Consumer mutex poisoned - unrecoverable");
         consumer.is_empty()
     }
 
@@ -170,13 +174,15 @@ impl RingBuffer {
     /// println!("Can write {} more stereo samples", free);
     /// ```
     pub fn free_space(&self) -> usize {
-        let producer = self.producer.lock().unwrap();
+        let producer = self.producer.lock()
+            .expect("Producer mutex poisoned - unrecoverable");
         producer.vacant_len() / 2
     }
 
     /// Clear all samples from buffer
     pub fn clear(&mut self) {
-        let mut consumer = self.consumer.lock().unwrap();
+        let mut consumer = self.consumer.lock()
+            .expect("Consumer mutex poisoned - unrecoverable");
         consumer.clear();
     }
 }

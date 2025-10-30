@@ -33,7 +33,7 @@ Library Management encompasses the full workflow from discovering audio files on
 
 ### Initial Library Scan
 
-**Trigger:** User initiates import via WebUI or CLI
+**Trigger:** User initiates import via wkmp-ai WebUI (accessed from wkmp-ui launch button) or CLI
 
 **Process:**
 
