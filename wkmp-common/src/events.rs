@@ -1276,7 +1276,10 @@ mod tests {
             Some(1),
             "[SPEC008] Position 1 should be 'up next'"
         );
-        assert!(chain_up_next.resampler_active.unwrap(), "48kHz source should require resampling");
+        assert!(
+            chain_up_next.resampler_active.expect("resampler_active should be Some"),
+            "48kHz source should require resampling"
+        );
 
         // Position 2+ = queued passages [SPEC020-MONITOR-050]
         let chain_queued = BufferChainInfo {
