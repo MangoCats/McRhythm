@@ -9,7 +9,6 @@
 //! - [REQ-TECH-022A] Opus codec via C library FFI (symphonia-adapter-libopus)
 
 use crate::error::{Error, Result};
-use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};

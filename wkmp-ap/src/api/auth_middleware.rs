@@ -11,7 +11,7 @@ use axum::{
     async_trait,
     body::Body,
     extract::{FromRef, FromRequestParts, Request, State},
-    http::{request::Parts, Method, StatusCode, Uri},
+    http::{request::Parts, Method, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     Json,
