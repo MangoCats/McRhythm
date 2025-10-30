@@ -100,9 +100,24 @@ pub async fn start_import(
     // **[AIA-WF-010]** Spawn background task for workflow orchestration
     let state_clone = state.clone();
     let session_clone = session.clone();
+    let session_id_for_logging = session.session_id;
     tokio::spawn(async move {
+        tracing::info!(
+            session_id = %session_id_for_logging,
+            "Background import workflow task started"
+        );
+
         if let Err(e) = execute_import_workflow(state_clone, session_clone).await {
-            tracing::error!(error = %e, "Import workflow failed");
+            tracing::error!(
+                session_id = %session_id_for_logging,
+                error = %e,
+                "Import workflow background task failed"
+            );
+        } else {
+            tracing::info!(
+                session_id = %session_id_for_logging,
+                "Background import workflow task completed successfully"
+            );
         }
     });
 
@@ -212,10 +227,58 @@ async fn execute_import_workflow(state: AppState, session: ImportSession) -> any
             );
 
             // Load session and mark as failed
-            if let Ok(Some(mut session)) =
-                crate::db::sessions::load_session(&state.db, session_id).await
-            {
-                let _ = orchestrator.handle_failure(session, &e).await;
+            // **[AIA-ERR-020]** Ensure session transitions to Failed state even if error handling fails
+            match crate::db::sessions::load_session(&state.db, session_id).await {
+                Ok(Some(session)) => {
+                    if let Err(failure_error) = orchestrator.handle_failure(session, &e).await {
+                        tracing::error!(
+                            session_id = %session_id,
+                            error = %failure_error,
+                            "Failed to mark session as failed - attempting direct database update"
+                        );
+
+                        // Fallback: Direct database update to ensure session is marked as failed
+                        let _ = sqlx::query(
+                            r#"UPDATE import_sessions
+                               SET state = '"FAILED"',
+                                   ended_at = ?,
+                                   current_operation = ?
+                               WHERE session_id = ?"#
+                        )
+                        .bind(chrono::Utc::now().to_rfc3339())
+                        .bind(format!("Import failed: {}", e))
+                        .bind(session_id.to_string())
+                        .execute(&state.db)
+                        .await;
+                    }
+                }
+                Ok(None) => {
+                    tracing::error!(
+                        session_id = %session_id,
+                        "Session not found in database - cannot mark as failed"
+                    );
+                }
+                Err(db_error) => {
+                    tracing::error!(
+                        session_id = %session_id,
+                        error = %db_error,
+                        "Failed to load session from database - attempting direct database update"
+                    );
+
+                    // Fallback: Direct database update
+                    let _ = sqlx::query(
+                        r#"UPDATE import_sessions
+                           SET state = '"FAILED"',
+                               ended_at = ?,
+                               current_operation = ?
+                           WHERE session_id = ?"#
+                    )
+                    .bind(chrono::Utc::now().to_rfc3339())
+                    .bind(format!("Import failed: {}", e))
+                    .bind(session_id.to_string())
+                    .execute(&state.db)
+                    .await;
+                }
             }
 
             Err(e)

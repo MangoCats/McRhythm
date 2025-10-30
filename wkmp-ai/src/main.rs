@@ -47,6 +47,20 @@ async fn main() -> Result<()> {
     let db_pool = wkmp_ai::db::init_database_pool(&db_path).await?;
     info!("Database connection established");
 
+    // **[AIA-INIT-010]** Cleanup stale import sessions from previous runs
+    // Any session not in terminal state is from a previous run and will never complete
+    match wkmp_ai::db::sessions::cleanup_stale_sessions(&db_pool).await {
+        Ok(count) if count > 0 => {
+            info!("Cleaned up {} stale import session(s) from previous run", count);
+        }
+        Ok(_) => {
+            info!("No stale import sessions to clean up");
+        }
+        Err(e) => {
+            tracing::warn!("Failed to cleanup stale sessions (non-fatal): {}", e);
+        }
+    }
+
     // Create event bus for SSE broadcasting **[AIA-MS-010]**
     let event_bus = EventBus::new(100); // 100 event capacity
     info!("Event bus initialized");

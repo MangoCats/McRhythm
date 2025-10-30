@@ -49,7 +49,9 @@
       "Bash(git push:*)",
       "Bash(timeout 60 cargo test:*)",
       "Bash(grep:*)",
-      "Bash(1)"
+      "Bash(1)",
+      "Bash(timeout 3 cargo run:*)",
+      "Bash(timeout 3 target/debug/wkmp-ai:*)"
     ],
     "deny": [],
     "ask": []
