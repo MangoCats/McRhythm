@@ -128,6 +128,9 @@ pub async fn get_passage_with_timing(
 /// Get audio file path for a passage
 ///
 /// **Traceability:** DB-PASSAGE-030
+///
+/// **Phase 4:** Standalone path query reserved for future features (superseded by get_passage_with_timing)
+#[allow(dead_code)]
 pub async fn get_audio_file_path(db: &Pool<Sqlite>, passage_id: Uuid) -> Result<PathBuf> {
     let path: String = sqlx::query_scalar(
         r#"

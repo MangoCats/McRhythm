@@ -18,6 +18,9 @@ use uuid::Uuid;
 /// - Samples are f32 (floating point -1.0 to 1.0)
 /// - Stereo interleaved: [L, R, L, R, ...]
 /// - Sample rate always 44100 Hz after resampling
+///
+/// **Phase 4:** Full-buffer API reserved for future features (replaced by incremental decode via PlayoutRingBuffer)
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PassageBuffer {
     /// Passage UUID from database
@@ -180,6 +183,9 @@ impl AudioFrame {
     }
 
     /// Create a frame from mono sample (duplicate to both channels)
+    ///
+    /// **Phase 4:** Mono frame creation reserved for future features (currently all audio converted to stereo in decoder)
+    #[allow(dead_code)]
     pub fn from_mono(sample: f32) -> Self {
         AudioFrame { left: sample, right: sample }
     }

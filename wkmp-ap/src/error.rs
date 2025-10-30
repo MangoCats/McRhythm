@@ -44,6 +44,9 @@ pub enum Error {
 
     /// Partial decode (truncated file)
     /// **[REQ-AP-ERR-012]** Partial decode ≥50% allows playback
+    ///
+    /// **Phase 4:** PartialDecode error reserved for future decoder diagnostics
+    #[allow(dead_code)]
     #[error("Partial decode: {path}: expected {expected_duration_ms}ms, got {actual_duration_ms}ms")]
     PartialDecode {
         path: std::path::PathBuf,
@@ -110,6 +113,9 @@ pub enum Error {
     Io(#[from] std::io::Error),
 
     /// Invalid timing parameters
+    ///
+    /// **Phase 4:** InvalidTiming error reserved for stricter timing validation
+    #[allow(dead_code)]
     #[error("Invalid timing: {0}")]
     InvalidTiming(String),
 
@@ -122,18 +128,30 @@ pub enum Error {
     PassageNotFound(String),
 
     /// Resource not found
+    ///
+    /// **Phase 4:** NotFound error reserved for REST API 404 responses
+    #[allow(dead_code)]
     #[error("Not found: {0}")]
     NotFound(String),
 
     /// Feature not yet implemented
+    ///
+    /// **Phase 4:** NotImplemented error reserved for phased API development
+    #[allow(dead_code)]
     #[error("Not implemented: {0}")]
     NotImplemented(String),
 
     /// Invalid request
+    ///
+    /// **Phase 4:** BadRequest error reserved for REST API 400 responses
+    #[allow(dead_code)]
     #[error("Bad request: {0}")]
     BadRequest(String),
 
     /// Other errors
+    ///
+    /// **Phase 4:** Internal error reserved for catch-all error handling
+    #[allow(dead_code)]
     #[error("Internal error: {0}")]
     Internal(String),
 }

@@ -62,6 +62,11 @@ pub struct AudioDecoder {
 
     /// Number of channels in the audio file
     native_channels: usize,
+
+    /// File path for error reporting
+    ///
+    /// **[REQ-DEBT-FUNC-001-020]** Store file_path for decoder error messages
+    file_path: PathBuf,
 }
 
 impl AudioDecoder {
@@ -133,6 +138,7 @@ impl AudioDecoder {
             track_id,
             native_sample_rate,
             native_channels,
+            file_path: file_path.as_ref().to_path_buf(),
         })
     }
 
@@ -158,7 +164,7 @@ impl AudioDecoder {
                 return Err(AudioPlayerError::Decoder(
                     crate::error::DecoderError::DecoderPanic {
                         message: format!("{:?}", e),
-                        file_path: PathBuf::from("unknown"),  // TODO: Store file path in decoder
+                        file_path: self.file_path.clone(),
                     },
                 ));
             }
@@ -173,12 +179,12 @@ impl AudioDecoder {
         let decoded = self.decoder.decode(&packet).map_err(|e| {
             AudioPlayerError::Decoder(crate::error::DecoderError::DecoderPanic {
                 message: format!("{:?}", e),
-                file_path: PathBuf::from("unknown"),  // TODO: Store file path in decoder
+                file_path: self.file_path.clone(),
             })
         })?;
 
         // Convert to stereo f32
-        let samples = Self::convert_to_stereo_f32_static(&decoded)?;
+        let samples = self.convert_to_stereo_f32(&decoded)?;
 
         Ok(Some(DecodedChunk {
             samples,
@@ -197,7 +203,9 @@ impl AudioDecoder {
     }
 
     /// Convert audio buffer to stereo f32 format
-    fn convert_to_stereo_f32_static(buffer: &AudioBufferRef) -> Result<Vec<f32>> {
+    ///
+    /// **[REQ-DEBT-FUNC-001-030]** Use stored file_path in error construction
+    fn convert_to_stereo_f32(&self, buffer: &AudioBufferRef) -> Result<Vec<f32>> {
         match buffer {
             AudioBufferRef::F32(buf) => {
                 let channels = buf.spec().channels.count();
@@ -255,7 +263,7 @@ impl AudioDecoder {
                 Err(AudioPlayerError::Decoder(
                     crate::error::DecoderError::UnsupportedCodec {
                         codec: "Non-f32 sample format not yet supported".to_string(),
-                        file_path: PathBuf::from("unknown"),
+                        file_path: self.file_path.clone(),
                     },
                 ))
             }

@@ -62,6 +62,9 @@ impl TestConfig {
 /// **TUNE-TEST-040:** f32 stereo, -6dB amplitude
 struct TestAudioGenerator {
     /// Sample rate (48000 Hz for generation, resampled to 44100 Hz)
+    ///
+    /// **Phase 4:** Sample rate reserved for future rate-flexible test generator
+    #[allow(dead_code)]
     sample_rate: u32,
 
     /// Current phase for sine wave generation
@@ -290,7 +293,7 @@ impl TestHarness {
         }
 
         // Stop audio output
-        audio_output.stop();
+        let _ = audio_output.stop();
 
         // Stop monitoring
         shutdown_flag.store(true, Ordering::Relaxed);

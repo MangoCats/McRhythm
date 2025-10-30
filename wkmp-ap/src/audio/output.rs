@@ -14,7 +14,7 @@ use crate::error::{Error, Result};
 use crate::playback::callback_monitor::CallbackMonitor;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream, StreamConfig};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info, warn};
 
@@ -34,6 +34,9 @@ pub struct AudioOutput {
     /// Count of consecutive errors for backoff logic
     error_count: Arc<AtomicU32>,
     /// Original device name requested (None = default)
+    ///
+    /// **Phase 4:** Device tracking reserved for future device switching and recovery telemetry
+    #[allow(dead_code)]
     requested_device: Option<String>,
 }
 
@@ -265,6 +268,11 @@ impl AudioOutput {
         let error_flag = Arc::clone(&self.error_flag);
         let error_count = Arc::clone(&self.error_count);
 
+        // Clipping detection counters (rate-limited logging)
+        // **[REQ-DEBT-CODE-002]** Warn on audio clipping
+        let clip_counter = Arc::new(AtomicU64::new(0));
+        let clip_warn_threshold = 10000u64; // Warn every 10k clips
+
         let stream = self
             .device
             .build_output_stream(
@@ -286,6 +294,20 @@ impl AudioOutput {
                         let right = audio_frame.right * current_volume;
 
                         // Clamp to prevent clipping
+                        // **[REQ-DEBT-CODE-002]** Detect and warn on clipping
+                        let left_clipped = left < -1.0 || left > 1.0;
+                        let right_clipped = right < -1.0 || right > 1.0;
+
+                        if left_clipped || right_clipped {
+                            let count = clip_counter.fetch_add(1, Ordering::Relaxed);
+                            if count % clip_warn_threshold == 0 {
+                                warn!(
+                                    "Audio clipping detected ({}th occurrence): L={:.3}, R={:.3} (volume={:.2})",
+                                    count, left, right, current_volume
+                                );
+                            }
+                        }
+
                         frame[0] = left.clamp(-1.0, 1.0);
                         if channels > 1 {
                             frame[1] = right.clamp(-1.0, 1.0);
@@ -317,6 +339,11 @@ impl AudioOutput {
         let error_flag = Arc::clone(&self.error_flag);
         let error_count = Arc::clone(&self.error_count);
 
+        // Clipping detection counters (rate-limited logging)
+        // **[REQ-DEBT-CODE-002]** Warn on audio clipping
+        let clip_counter = Arc::new(AtomicU64::new(0));
+        let clip_warn_threshold = 10000u64; // Warn every 10k clips
+
         let stream = self
             .device
             .build_output_stream(
@@ -333,9 +360,27 @@ impl AudioOutput {
                     for frame in data.chunks_mut(channels) {
                         let audio_frame = callback();
 
-                        // Apply volume and convert to i16
-                        let left = (audio_frame.left * current_volume).clamp(-1.0, 1.0);
-                        let right = (audio_frame.right * current_volume).clamp(-1.0, 1.0);
+                        // Apply volume
+                        let left_raw = audio_frame.left * current_volume;
+                        let right_raw = audio_frame.right * current_volume;
+
+                        // Clamp to prevent clipping
+                        // **[REQ-DEBT-CODE-002]** Detect and warn on clipping
+                        let left_clipped = left_raw < -1.0 || left_raw > 1.0;
+                        let right_clipped = right_raw < -1.0 || right_raw > 1.0;
+
+                        if left_clipped || right_clipped {
+                            let count = clip_counter.fetch_add(1, Ordering::Relaxed);
+                            if count % clip_warn_threshold == 0 {
+                                warn!(
+                                    "Audio clipping detected ({}th occurrence): L={:.3}, R={:.3} (volume={:.2})",
+                                    count, left_raw, right_raw, current_volume
+                                );
+                            }
+                        }
+
+                        let left = left_raw.clamp(-1.0, 1.0);
+                        let right = right_raw.clamp(-1.0, 1.0);
 
                         frame[0] = (left * i16::MAX as f32) as i16;
                         if channels > 1 {
@@ -368,6 +413,11 @@ impl AudioOutput {
         let error_flag = Arc::clone(&self.error_flag);
         let error_count = Arc::clone(&self.error_count);
 
+        // Clipping detection counters (rate-limited logging)
+        // **[REQ-DEBT-CODE-002]** Warn on audio clipping
+        let clip_counter = Arc::new(AtomicU64::new(0));
+        let clip_warn_threshold = 10000u64; // Warn every 10k clips
+
         let stream = self
             .device
             .build_output_stream(
@@ -384,9 +434,27 @@ impl AudioOutput {
                     for frame in data.chunks_mut(channels) {
                         let audio_frame = callback();
 
-                        // Apply volume, convert to u16
-                        let left = (audio_frame.left * current_volume).clamp(-1.0, 1.0);
-                        let right = (audio_frame.right * current_volume).clamp(-1.0, 1.0);
+                        // Apply volume
+                        let left_raw = audio_frame.left * current_volume;
+                        let right_raw = audio_frame.right * current_volume;
+
+                        // Clamp to prevent clipping
+                        // **[REQ-DEBT-CODE-002]** Detect and warn on clipping
+                        let left_clipped = left_raw < -1.0 || left_raw > 1.0;
+                        let right_clipped = right_raw < -1.0 || right_raw > 1.0;
+
+                        if left_clipped || right_clipped {
+                            let count = clip_counter.fetch_add(1, Ordering::Relaxed);
+                            if count % clip_warn_threshold == 0 {
+                                warn!(
+                                    "Audio clipping detected ({}th occurrence): L={:.3}, R={:.3} (volume={:.2})",
+                                    count, left_raw, right_raw, current_volume
+                                );
+                            }
+                        }
+
+                        let left = left_raw.clamp(-1.0, 1.0);
+                        let right = right_raw.clamp(-1.0, 1.0);
 
                         // Convert from [-1.0, 1.0] to [0, 65535]
                         frame[0] = ((left + 1.0) * 32767.5) as u16;

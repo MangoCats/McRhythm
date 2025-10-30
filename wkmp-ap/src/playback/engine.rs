@@ -1063,6 +1063,9 @@ impl PlaybackEngine {
     ///
     /// # Returns
     /// Cloned Arc to BufferManager
+    ///
+    /// **Phase 4:** Buffer manager accessor reserved for integration tests (not yet used by API)
+    #[allow(dead_code)]
     pub fn get_buffer_manager(&self) -> Arc<BufferManager> {
         Arc::clone(&self.buffer_manager)
     }
@@ -1094,6 +1097,9 @@ impl PlaybackEngine {
     /// Returns the number of passages in the playback queue.
     ///
     /// [API] GET /playback/queue (returns queue length in response)
+    ///
+    /// **Phase 4:** Queue length API reserved for queue management UI (not yet exposed via REST)
+    #[allow(dead_code)]
     pub async fn queue_len(&self) -> usize {
         let queue = self.queue.read().await;
         queue.len()
@@ -1307,6 +1313,9 @@ impl PlaybackEngine {
     /// # Notes
     /// This is a diagnostic/validation method, not used in normal operation.
     /// Can be called after operations to verify sync, or periodically for health checks.
+    ///
+    /// **Phase 4:** Queue sync verification reserved for diagnostics (not yet used)
+    #[allow(dead_code)]
     pub async fn verify_queue_sync(&self) -> bool {
         use tracing::warn;
 
@@ -1678,7 +1687,7 @@ impl PlaybackEngine {
         current: &QueueEntry,
         current_passage: &PassageWithTiming,
         position_ms: u64,
-        crossfade_start_ms: u64,
+        _crossfade_start_ms: u64,
     ) -> Result<bool> {
         // Get next queue entry
         let queue = self.queue.read().await;
@@ -1689,7 +1698,7 @@ impl PlaybackEngine {
         drop(queue);
 
         // Get next buffer
-        let next_buffer = match self.buffer_manager.get_buffer(next.queue_entry_id).await {
+        let _next_buffer = match self.buffer_manager.get_buffer(next.queue_entry_id).await {
             Some(buf) => buf,
             None => {
                 warn!("Next buffer marked ready but not found: {}", next.queue_entry_id);
@@ -1870,7 +1879,7 @@ impl PlaybackEngine {
                     drop(mixer); // Release read lock before acquiring write lock
 
                     // Get buffer from buffer manager
-                    if let Some(buffer) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
+                    if let Some(_buffer) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
                         // Get passage timing information
                         let passage = self.get_passage_timing(current).await?;
 
@@ -2774,7 +2783,7 @@ impl PlaybackEngine {
                     }
 
                     // Get buffer from buffer manager
-                    let buffer = match self.buffer_manager.get_buffer(queue_entry_id).await {
+                    let _buffer = match self.buffer_manager.get_buffer(queue_entry_id).await {
                         Some(buf) => buf,
                         None => {
                             warn!("Buffer ready event but buffer not found: {}", queue_entry_id);

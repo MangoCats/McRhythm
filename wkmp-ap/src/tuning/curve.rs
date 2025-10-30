@@ -210,7 +210,7 @@ fn find_conservative_recommendation(
         .iter()
         .find(|p| p.interval_ms == primary.mixer_check_interval_ms)
         .and_then(|p| {
-            let min_buffer = p.min_stable_buffer?;
+            let _min_buffer = p.min_stable_buffer?;
             let recommended_buffer = ((primary.audio_buffer_size * 3) / 2).min(8192);
 
             Some((p.interval_ms, recommended_buffer))

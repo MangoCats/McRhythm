@@ -1299,6 +1299,10 @@ pub async fn get_pipeline_diagnostics(
 /// **[ARCH-PC-010]** Developer UI with status display, API testing, and event monitoring
 ///
 /// TODO: This currently serves static HTML. Need to implement dynamic shared_secret embedding.
+///
+/// **Note:** Currently unused - server.rs uses template substitution instead.
+/// Kept for potential Phase 4 simplification.
+#[allow(dead_code)]
 pub async fn developer_ui() -> Html<&'static str> {
     Html(include_str!("developer_ui.html"))
 }

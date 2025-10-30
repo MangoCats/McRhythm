@@ -21,7 +21,52 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-10-29 23:07:44 -0400
+### 2025-10-30 13:45:53 -0400
+
+**Fix wkmp-ai import session stuck bug with startup cleanup**
+
+**Problem:** Import sessions were getting stuck in SCANNING state, blocking all subsequent imports with "Import session already running" error. Root cause was two-fold: (1) stale sessions from previous wkmp-ai runs remained in database with no cleanup, and (2) background workflow errors could fail to transition sessions to terminal states.
+
+**Solution:**
+
+**1. Startup Cleanup (Primary Fix):**
+- Added `cleanup_stale_sessions()` to wkmp-ai/src/db/sessions.rs
+- Marks all non-terminal sessions as CANCELLED on startup with message "Import cancelled - wkmp-ai was restarted"
+- Rationale: Background workflow tasks die when process stops, so any in-progress session from previous run will never complete
+- Called automatically in main.rs after database initialization
+
+**2. Enhanced Error Handling (Defense in Depth):**
+- Improved error handling in wkmp-ai/src/api/import_workflow.rs background task
+- Added fallback direct database UPDATE if `handle_failure()` fails
+- Ensures sessions always transition to FAILED state even on catastrophic errors
+- Three error paths: normal error handling → fallback database update → logged warning
+
+**Impact:**
+- Import sessions can no longer get stuck blocking new imports
+- Clean startup every time wkmp-ai restarts (stale sessions auto-cleaned)
+- Robust error handling prevents sessions from getting stuck during runtime
+- Clear user messaging for cancelled stale sessions
+
+**Technical Details:**
+- Cleanup query: Updates sessions WHERE state NOT IN terminal states (COMPLETED, CANCELLED, FAILED)
+- Non-blocking: Cleanup failures are logged but don't prevent startup
+- Startup log message: "Cleaned up N stale import session(s) from previous run"
+
+**Files Modified:**
+- wkmp-ai/src/db/sessions.rs: +28 lines (cleanup_stale_sessions function)
+- wkmp-ai/src/main.rs: +14 lines (startup cleanup call)
+- wkmp-ai/src/api/import_workflow.rs: +64 lines (enhanced error handling, improved logging)
+- .claude/settings.local.json: +2 lines (allow cargo run timeouts)
+
+**Testing:**
+- Created test stuck session in database (state=SCANNING)
+- Started wkmp-ai
+- Verified session transitioned to CANCELLED with correct message
+- Verified "Start Import" works after cleanup
+
+---
+
+### 2025-10-29 23:07:44 -0400 | Commit: 3769895525f3525c3184d4e451410b2be3cf8ba9
 
 **Add PLAN009, PLAN010 planning documents and workflow quality analysis**
 

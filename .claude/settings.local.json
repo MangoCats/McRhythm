@@ -43,7 +43,15 @@
       "Bash(cargo fix:*)",
       "Bash(git rev-parse:*)",
       "Bash(git fetch:*)",
-      "Bash(git rev-list:*)"
+      "Bash(git rev-list:*)",
+      "Bash(git branch:*)",
+      "Bash(git stash:*)",
+      "Bash(git push:*)",
+      "Bash(timeout 60 cargo test:*)",
+      "Bash(grep:*)",
+      "Bash(1)",
+      "Bash(timeout 3 cargo run:*)",
+      "Bash(timeout 3 target/debug/wkmp-ai:*)"
     ],
     "deny": [],
     "ask": []

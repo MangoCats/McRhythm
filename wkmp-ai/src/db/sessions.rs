@@ -143,3 +143,30 @@ pub async fn has_running_session(pool: &SqlitePool) -> Result<bool> {
 
     Ok(count > 0)
 }
+
+/// Cleanup stale import sessions on startup
+///
+/// **[AIA-INIT-010]** Any session not in a terminal state when wkmp-ai starts
+/// is from a previous run and will never complete. Mark these as CANCELLED.
+///
+/// **Rationale:**
+/// - Import workflow runs in background task that dies when process stops
+/// - No background task = no workflow = session will never progress
+/// - User may have changed files/folders while wkmp-ai was down
+/// - New import should start fresh to handle all changes
+pub async fn cleanup_stale_sessions(pool: &SqlitePool) -> Result<usize> {
+    let result = sqlx::query(
+        r#"
+        UPDATE import_sessions
+        SET state = '"CANCELLED"',
+            ended_at = ?,
+            current_operation = 'Import cancelled - wkmp-ai was restarted'
+        WHERE state NOT IN ('"COMPLETED"', '"CANCELLED"', '"FAILED"')
+        "#,
+    )
+    .bind(chrono::Utc::now().to_rfc3339())
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected() as usize)
+}
