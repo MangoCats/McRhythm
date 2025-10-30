@@ -51,7 +51,8 @@
       "Bash(grep:*)",
       "Bash(1)",
       "Bash(timeout 3 cargo run:*)",
-      "Bash(timeout 3 target/debug/wkmp-ai:*)"
+      "Bash(timeout 3 target/debug/wkmp-ai:*)",
+      "SlashCommand(/think What causes UI hang during re-scan of partially imported folder? Where in SCANNING phase does database deduplication check occur without progress updates? What progress indicators should be added for common re-scan maintenance scenario?)"
     ],
     "deny": [],
     "ask": []
