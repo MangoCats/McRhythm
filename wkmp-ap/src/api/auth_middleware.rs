@@ -249,7 +249,14 @@ async fn validate_body_auth_tower(
 // ============================================================================
 // Legacy Axum Middleware (Deprecated - use Tower layer above)
 // ============================================================================
+//
+// **DEPRECATED:** All functions in this section are superseded by AuthLayer (lines 28-120)
+// They are kept for reference only and should not be used.
+//
+// The Tower layer pattern properly handles POST/PUT body reconstruction,
+// whereas these middleware functions had limitations with Axum 0.7 state handling.
 
+#[allow(dead_code)]
 /// Axum middleware for API authentication
 ///
 /// Per SPEC007 API-AUTH-025:
@@ -281,6 +288,7 @@ pub async fn auth_middleware(
 /// Used when middleware is created as a closure that captures the context.
 ///
 /// Per SPEC007 API-AUTH-025: Validates timestamp and hash on all API requests
+#[allow(dead_code)]
 pub async fn auth_middleware_fn(
     ctx: AppContext,
     request: Request,
@@ -357,6 +365,7 @@ pub async fn auth_middleware_fn(
 }
 
 /// Extract timestamp and hash from query parameters (GET/DELETE)
+#[allow(dead_code)]
 fn extract_auth_from_query(
     request: &Request,
 ) -> Result<(i64, String, Option<serde_json::Value>), Response> {
@@ -400,6 +409,7 @@ fn extract_auth_from_query(
 }
 
 /// Extract timestamp and hash from JSON body (POST/PUT)
+#[allow(dead_code)]
 async fn extract_auth_from_body(
     request: Request,
 ) -> Result<(i64, String, Option<serde_json::Value>, Request), Response> {
@@ -563,6 +573,7 @@ fn auth_error_response(
 ///
 /// This function accepts AppContext as a direct parameter (required by `from_fn_with_state`),
 /// then calls the actual middleware logic.
+#[allow(dead_code)]
 pub async fn auth_middleware_with_state(
     ctx: AppContext,
     request: Request,
@@ -582,6 +593,7 @@ pub async fn auth_middleware_with_state(
 ///
 /// **Pattern:** This uses Axum's body reconstruction pattern to access POST/PUT bodies
 /// while still allowing handlers to extract the body normally.
+#[allow(dead_code)]
 async fn auth_middleware_impl(
     ctx: AppContext,
     request: Request,
@@ -626,6 +638,7 @@ async fn auth_middleware_impl(
 }
 
 /// Validate authentication from query parameters (GET/DELETE)
+#[allow(dead_code)]
 fn validate_query_auth(
     request: Request,
     shared_secret: i64,
@@ -688,6 +701,7 @@ fn validate_query_auth(
 /// 2. Buffer the body bytes
 /// 3. Parse JSON and validate auth
 /// 4. Reconstruct request with original body for handler
+#[allow(dead_code)]
 async fn validate_body_auth(
     request: Request,
     shared_secret: i64,
@@ -867,6 +881,7 @@ where
 }
 
 /// Extract timestamp and hash from query parameters in Parts
+#[allow(dead_code)]
 fn extract_auth_from_query_parts(
     parts: &Parts,
 ) -> Result<(i64, String, Option<serde_json::Value>), Response> {
