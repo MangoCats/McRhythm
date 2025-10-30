@@ -219,16 +219,15 @@ impl WorkflowOrchestrator {
                 );
             }
 
-            // Update progress periodically
-            if saved_count % 10 == 0 {
-                session.update_progress(
-                    saved_count,
-                    scan_result.files.len(),
-                    format!("Saved {}/{} files to database", saved_count, scan_result.files.len()),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
-            }
+            // Update progress after each file (so UI shows continuous progress)
+            // File hashing is slow, so users need to see progress to know it's working
+            session.update_progress(
+                saved_count,
+                scan_result.files.len(),
+                format!("Processing file {} of {} ({})", saved_count, scan_result.files.len(), relative_path),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
         }
 
         session.update_progress(

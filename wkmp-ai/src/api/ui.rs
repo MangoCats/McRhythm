@@ -270,16 +270,16 @@ async fn import_progress_page() -> impl IntoResponse {
                 const event = JSON.parse(e.data);
                 console.log('ImportProgressUpdate:', event);
 
-                const progress = event.progress;
-                const percent = progress.total > 0
-                    ? Math.round((progress.current / progress.total) * 100)
+                // Event fields are at top level, not nested under 'progress'
+                const percent = event.total > 0
+                    ? Math.round((event.current / event.total) * 100)
                     : 0;
 
                 document.getElementById('state').textContent = event.state;
                 document.getElementById('progress-text').textContent =
-                    `${progress.current} / ${progress.total}`;
+                    `${event.current} / ${event.total}`;
                 document.getElementById('progress-bar').style.width = `${percent}%`;
-                document.getElementById('operation').textContent = progress.current_operation;
+                document.getElementById('operation').textContent = event.current_operation || '';
             });
 
             eventSource.addEventListener('ImportSessionCompleted', (e) => {

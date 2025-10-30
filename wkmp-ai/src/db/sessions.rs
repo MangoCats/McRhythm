@@ -135,7 +135,7 @@ pub async fn has_running_session(pool: &SqlitePool) -> Result<bool> {
         r#"
         SELECT COUNT(*)
         FROM import_sessions
-        WHERE state NOT IN ('COMPLETED', 'CANCELLED', 'FAILED')
+        WHERE state NOT IN ('"COMPLETED"', '"CANCELLED"', '"FAILED"')
         "#,
     )
     .fetch_one(pool)
