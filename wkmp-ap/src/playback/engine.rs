@@ -436,7 +436,7 @@ impl PlaybackEngine {
                 mixer: &Arc<RwLock<Mixer>>,
                 buffer_manager: &Arc<BufferManager>,
                 event_tx: &mpsc::UnboundedSender<PlaybackEvent>,
-                producer: &AudioProducer,
+                producer: &mut AudioProducer,
                 is_crossfading: &mut bool,
                 current_passage_id: &mut Option<Uuid>,
                 _next_passage_id: &mut Option<Uuid>,
@@ -606,7 +606,7 @@ impl PlaybackEngine {
                         &mixer_clone,
                         &buffer_manager_clone,
                         &position_event_tx_clone,
-                        &producer,
+                        &mut producer,
                         &mut is_crossfading,
                         &mut current_passage_id,
                         &mut next_passage_id,
@@ -621,7 +621,7 @@ impl PlaybackEngine {
                         &mixer_clone,
                         &buffer_manager_clone,
                         &position_event_tx_clone,
-                        &producer,
+                        &mut producer,
                         &mut is_crossfading,
                         &mut current_passage_id,
                         &mut next_passage_id,
@@ -640,7 +640,7 @@ impl PlaybackEngine {
                         &mixer_clone,
                         &buffer_manager_clone,
                         &position_event_tx_clone,
-                        &producer,
+                        &mut producer,
                         &mut is_crossfading,
                         &mut current_passage_id,
                         &mut next_passage_id,
@@ -837,13 +837,23 @@ impl PlaybackEngine {
             let fade_duration_ms = crate::db::settings::load_resume_fade_in_duration(&self.db_pool)
                 .await
                 .unwrap_or(500); // Default: 0.5 seconds
-            let fade_curve = crate::db::settings::load_resume_fade_in_curve(&self.db_pool)
+            let fade_curve_str = crate::db::settings::load_resume_fade_in_curve(&self.db_pool)
                 .await
                 .unwrap_or_else(|_| "exponential".to_string());
 
-            self.mixer.write().await.resume(fade_duration_ms, &fade_curve);
+            // [SUB-INC-4B] Replace resume() with start_resume_fade() + set_state(Playing)
+            {
+                let sample_rate = 44100; // [DBD-BUF-010] Fixed 44.1kHz sample rate
+                let fade_samples = ((fade_duration_ms as u64 * sample_rate) / 1000) as usize;
+                let fade_curve = wkmp_common::FadeCurve::from_str(&fade_curve_str)
+                    .unwrap_or(wkmp_common::FadeCurve::Exponential);
 
-            info!("Resuming from pause with {}ms {} fade-in", fade_duration_ms, fade_curve);
+                let mut mixer = self.mixer.write().await;
+                mixer.start_resume_fade(fade_samples, fade_curve);
+                mixer.set_state(MixerState::Playing);
+            }
+
+            info!("Resuming from pause with {}ms {} fade-in", fade_duration_ms, fade_curve_str);
         }
 
         // Emit PlaybackStateChanged event
@@ -882,7 +892,8 @@ impl PlaybackEngine {
         self.state.set_playback_state(PlaybackState::Paused).await;
 
         // [XFD-PAUS-010] Tell mixer to enter pause state (outputs silence)
-        self.mixer.write().await.pause();
+        // [SUB-INC-4B] Replace pause() with set_state(Paused)
+        self.mixer.write().await.set_state(MixerState::Paused);
 
         // Persist playback state to database
         // [REQ-PERS-011] Save position and passage ID on pause
@@ -994,8 +1005,11 @@ impl PlaybackEngine {
         self.buffer_manager.mark_exhausted(current.queue_entry_id).await;
 
         // Stop mixer immediately
+        // [SUB-INC-4B] Replace stop() with SPEC016 operations
         let mut mixer = self.mixer.write().await;
-        mixer.stop();
+        mixer.clear_all_markers();
+        mixer.clear_passage();
+        mixer.set_state(MixerState::Paused);
         drop(mixer);
 
         // Remove buffer from memory
@@ -1038,9 +1052,12 @@ impl PlaybackEngine {
         drop(queue);
 
         // Stop mixer immediately
+        // [SUB-INC-4B] Replace stop() with SPEC016 operations
         let mut mixer = self.mixer.write().await;
         let passage_id_before_stop = mixer.get_current_passage_id();
-        mixer.stop();
+        mixer.clear_all_markers();
+        mixer.clear_passage();
+        mixer.set_state(MixerState::Paused);
         let passage_id_after_stop = mixer.get_current_passage_id();
         drop(mixer);
 
@@ -1132,8 +1149,14 @@ impl PlaybackEngine {
         let clamped_position = position_frames.min(max_frames.saturating_sub(1));
 
         // Update mixer position
+        // [SUB-INC-4B] Replace set_position() with set_current_passage()
+        // Note: Marker recalculation deferred to Phase 4 (currently just updates position)
         let mut mixer = self.mixer.write().await;
-        mixer.set_position(clamped_position).await?;
+        if let Some(passage_id) = current.passage_id {
+            let seek_tick = clamped_position as i64; // Convert frames to ticks (1:1 for now)
+            mixer.set_current_passage(passage_id, seek_tick);
+            // TODO Phase 4: Recalculate markers from seek point
+        }
         drop(mixer);
 
         // Emit PlaybackProgress event with new position
@@ -1672,7 +1695,13 @@ impl PlaybackEngine {
             // 2. Stop mixer (clear playback state)
             // [REQ-FIX-030] Clear mixer state
             // [REQ-FIX-010] Stop playback immediately
-            self.mixer.write().await.stop();
+            // [SUB-INC-4B] Replace stop() with SPEC016 operations
+            {
+                let mut mixer = self.mixer.write().await;
+                mixer.clear_all_markers();
+                mixer.clear_passage();
+                mixer.set_state(MixerState::Paused);
+            }
             info!("Mixer stopped for removed passage");
 
             // 3. Remove from queue structure
@@ -2411,7 +2440,13 @@ impl PlaybackEngine {
                 }
 
                 // Stop the mixer (will be restarted on next iteration with new passage)
-                self.mixer.write().await.stop();
+                // [SUB-INC-4B] Replace stop() with SPEC016 operations
+                {
+                    let mut mixer = self.mixer.write().await;
+                    mixer.clear_all_markers();
+                    mixer.clear_passage();
+                    mixer.set_state(MixerState::Paused);
+                }
 
                 debug!("Mixer stopped after passage completion");
 

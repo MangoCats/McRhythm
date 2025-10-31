@@ -409,6 +409,16 @@ impl Mixer {
         self.current_tick = start_tick;
     }
 
+    /// Clear current passage (for stop operation)
+    ///
+    /// Sets current_passage_id to None, indicating no passage is active.
+    /// Typically called when stopping playback.
+    ///
+    /// [SUB-INC-4B] Added for PlaybackEngine integration
+    pub fn clear_passage(&mut self) {
+        self.current_passage_id = None;
+    }
+
     /// Get current tick position
     ///
     /// Returns current playback position in file ticks.
