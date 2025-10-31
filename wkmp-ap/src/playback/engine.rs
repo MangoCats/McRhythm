@@ -1288,8 +1288,15 @@ impl PlaybackEngine {
         let maximum_decode_streams = self.maximum_decode_streams;
 
         // Get mixer state to determine active passages
+        // [SUB-INC-4B] Build MixerStateInfo from SPEC016 mixer queries
         let mixer = self.mixer.read().await;
-        let mixer_state = mixer.get_state_info();
+        let mixer_state = crate::playback::pipeline::mixer::MixerStateInfo {
+            current_passage_id: mixer.get_current_passage_id(),
+            next_passage_id: None, // TODO Phase 4: Track next passage in engine
+            current_position_frames: mixer.get_current_tick() as usize,
+            next_position_frames: 0, // TODO Phase 4: Track next passage position
+            is_crossfading: false, // TODO Phase 4: Track crossfade state in engine
+        };
         drop(mixer);
 
         // **[DBD-OV-080]** Get all queue entries (passage-based iteration)
@@ -2147,9 +2154,10 @@ impl PlaybackEngine {
         // [SSD-MIX-040] Crossfade state transition
         // [ISSUE-7] Refactored to use helper methods for reduced complexity
         let mixer = self.mixer.read().await;
-        let is_crossfading = mixer.is_crossfading();
+        let is_crossfading = mixer.is_crossfading(); // TODO Phase 4: Track in engine
         let current_passage_id = mixer.get_current_passage_id();
-        let mixer_position_frames = mixer.get_position();
+        // [SUB-INC-4B] Replace get_position() with get_current_tick()
+        let mixer_position_frames = mixer.get_current_tick() as usize; // Convert tick to frames
         drop(mixer);
 
         // Only trigger crossfade if mixer is playing and not already crossfading
@@ -3264,7 +3272,8 @@ impl PlaybackEngine {
         }
 
         // Get mixer total frames mixed
-        let mixer_total_frames_mixed = self.mixer.write().await.get_total_frames_mixed();
+        // [SUB-INC-4B] Replace get_total_frames_mixed() with get_frames_written()
+        let mixer_total_frames_mixed = self.mixer.read().await.get_frames_written();
 
         crate::playback::PipelineMetrics::new(passages, mixer_total_frames_mixed)
     }
