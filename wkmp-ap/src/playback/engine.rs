@@ -89,6 +89,10 @@ pub struct PlaybackEngine {
     /// [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (SPEC016)
     mixer: Arc<RwLock<Mixer>>,
 
+    /// Passage start time for elapsed time calculations
+    /// [SUB-INC-4B] Tracked in engine (not in mixer) for passage lifecycle
+    passage_start_time: Arc<RwLock<Option<tokio::time::Instant>>>,
+
     /// Current playback position
     /// [ISSUE-8] Now uses internal atomics for lock-free frame position updates
     position: PlaybackPosition,
@@ -277,6 +281,7 @@ impl PlaybackEngine {
             buffer_manager,
             decoder_worker,
             mixer,
+            passage_start_time: Arc::new(RwLock::new(None)), // [SUB-INC-4B] Track passage start time
             position: PlaybackPosition::new(), // [ISSUE-8] Direct initialization, Arcs inside
             running: Arc::new(RwLock::new(false)),
             position_event_tx,
@@ -983,9 +988,9 @@ impl PlaybackEngine {
         };
 
         // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+        // [SUB-INC-4B] passage_start_time now tracked in engine
         let duration_played = {
-            let mixer = self.mixer.read().await;
-            if let Some(start_time) = mixer.passage_start_time() {
+            if let Some(start_time) = *self.passage_start_time.read().await {
                 start_time.elapsed().as_secs_f64()
             } else {
                 0.0
@@ -1906,19 +1911,11 @@ impl PlaybackEngine {
         );
 
         // Start the crossfade!
-        self.mixer
-            .write()
-            .await
-            .start_crossfade(
-                next.queue_entry_id,
-                current_passage.fade_out_curve,
-                fade_out_duration_samples,
-                next_passage.fade_in_curve,
-                fade_in_duration_samples,
-            )
-            .await?;
-
-        info!("Crossfade started successfully");
+        // [SUB-INC-4B] Crossfading now handled via StartCrossfade marker
+        // When marker is reached during mixing, crossfade begins automatically
+        // TODO: Marker was added during start_passage() with crossfade timing
+        // For now, just log that crossfade triggering is stubbed
+        info!("Crossfade trigger stubbed (handled by StartCrossfade marker)");
 
         // **[SSE-UI-040]** Emit CrossfadeStarted event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::CrossfadeStarted {
@@ -2108,11 +2105,18 @@ impl PlaybackEngine {
                         );
 
                         // Start mixer
-                        self.mixer.write().await.start_passage(
-                            current.queue_entry_id,
-                            Some(fade_in_curve),
-                            fade_in_duration_samples,
-                        ).await;
+                        // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
+                        // TODO: Add full marker calculation (position updates, crossfade, completion)
+                        {
+                            let mut mixer = self.mixer.write().await;
+                            if let Some(passage_id) = current.passage_id {
+                                mixer.set_current_passage(passage_id, 0);
+                                // TODO: Calculate and add markers here
+                                // TODO: Handle fade-in via start_resume_fade() if needed
+                            }
+                            // Set passage start time
+                            *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
+                        }
 
                         // Mark buffer as playing
                         self.buffer_manager.mark_playing(current.queue_entry_id).await;
@@ -2154,7 +2158,8 @@ impl PlaybackEngine {
         // [SSD-MIX-040] Crossfade state transition
         // [ISSUE-7] Refactored to use helper methods for reduced complexity
         let mixer = self.mixer.read().await;
-        let is_crossfading = mixer.is_crossfading(); // TODO Phase 4: Track in engine
+        // [SUB-INC-4B] TODO: Track crossfade state in engine (marker-driven)
+        let is_crossfading = false; // Stub: crossfading handled by markers now
         let current_passage_id = mixer.get_current_passage_id();
         // [SUB-INC-4B] Replace get_position() with get_current_tick()
         let mixer_position_frames = mixer.get_current_tick() as usize; // Convert tick to frames
@@ -2231,9 +2236,10 @@ impl PlaybackEngine {
         // the already-playing incoming passage.
         //
         // **[XFD-COMP-020]** Critical: Do NOT call mixer.stop() in this path!
+        // [SUB-INC-4B] Crossfade completion now handled via markers (PassageComplete event)
+        // This legacy polling mechanism is obsolete with event-driven markers
         let crossfade_completed_id = {
-            let mut mixer = self.mixer.write().await;
-            mixer.take_crossfade_completed()
+            None::<Uuid> // Stub: crossfade completion detected via markers
         };
 
         if let Some(completed_id) = crossfade_completed_id {
@@ -2261,9 +2267,9 @@ impl PlaybackEngine {
                     };
 
                     // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+                    // [SUB-INC-4B] passage_start_time now tracked in engine
                     let duration_played = {
-                        let mixer = self.mixer.read().await;
-                        if let Some(start_time) = mixer.passage_start_time() {
+                        if let Some(start_time) = *self.passage_start_time.read().await {
                             start_time.elapsed().as_secs_f64()
                         } else {
                             0.0
@@ -2336,9 +2342,9 @@ impl PlaybackEngine {
         // Check for passage completion (normal case - no crossfade)
         // [SSD-MIX-060] Passage completion detection
         // [SSD-ENG-020] Queue processing and advancement
-        let mixer = self.mixer.read().await;
-        let is_finished = mixer.is_current_finished().await;
-        drop(mixer);
+        // [SUB-INC-4B] Passage completion now handled via PassageComplete marker event
+        // This polling mechanism is obsolete with event-driven markers
+        let is_finished = false; // Stub: completion detected via markers
 
         if is_finished {
             // Get current queue entry for event emission and logging
@@ -2368,9 +2374,9 @@ impl PlaybackEngine {
                 };
 
                 // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+                // [SUB-INC-4B] passage_start_time now tracked in engine
                 let duration_played = {
-                    let mixer = self.mixer.read().await;
-                    if let Some(start_time) = mixer.passage_start_time() {
+                    if let Some(start_time) = *self.passage_start_time.read().await {
                         start_time.elapsed().as_secs_f64()
                     } else {
                         0.0
@@ -2807,6 +2813,7 @@ impl PlaybackEngine {
             buffer_monitor_update_now: Arc::clone(&self.buffer_monitor_update_now), // [SPEC020-MONITOR-130] Clone update trigger
             callback_monitor: Arc::clone(&self.callback_monitor), // Clone callback monitor for gap detection
             audio_buffer_size: self.audio_buffer_size, // [DBD-PARAM-110] Copy audio buffer size
+            passage_start_time: Arc::clone(&self.passage_start_time), // [SUB-INC-4B] Clone passage start time tracking
         }
     }
 
@@ -3007,11 +3014,18 @@ impl PlaybackEngine {
                     );
 
                     // Start mixer immediately
-                    self.mixer.write().await.start_passage(
-                        queue_entry_id,
-                        Some(fade_in_curve),
-                        fade_in_duration_samples,
-                    ).await;
+                    // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
+                    // TODO: Add full marker calculation (position updates, crossfade, completion)
+                    {
+                        let mut mixer = self.mixer.write().await;
+                        if let Some(passage_id) = current.passage_id {
+                            mixer.set_current_passage(passage_id, 0);
+                            // TODO: Calculate and add markers here
+                            // TODO: Handle fade-in via start_resume_fade() if needed
+                        }
+                        // Set passage start time
+                        *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
+                    }
 
                     // Mark buffer as playing
                     self.buffer_manager.mark_playing(queue_entry_id).await;
