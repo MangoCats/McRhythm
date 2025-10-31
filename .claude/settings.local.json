@@ -66,7 +66,10 @@
       "Bash(export LIBCLANG_PATH=\"C:/Program Files/LLVM/bin\")",
       "Bash(RUST_LOG=info cargo run:*)",
       "Read(//home/sw/.config/**)",
-      "SlashCommand(/think wip/_toml_directory_creation.md)"
+      "SlashCommand(/think wip/_toml_directory_creation.md)",
+      "Bash(RUST_LOG=info timeout 10 cargo run:*)",
+      "WebFetch(domain:acoustid.org)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []

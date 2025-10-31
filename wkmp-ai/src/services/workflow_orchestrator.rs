@@ -324,7 +324,34 @@ impl WorkflowOrchestrator {
         let root_path = Path::new(&root_folder);
 
         let mut extracted_count = 0;
+        let mut skipped_count = 0;
         for file in &files {
+            // **[OPTIMIZATION]** Skip extraction if file already has metadata (duration indicates success)
+            if file.duration.is_some() {
+                skipped_count += 1;
+                tracing::debug!(
+                    session_id = %session.session_id,
+                    file = %file.path,
+                    "Skipping extraction - metadata already exists"
+                );
+
+                // Update progress
+                session.progress.current_file = Some(file.path.clone());
+                session.update_progress(
+                    extracted_count + skipped_count,
+                    files.len(),
+                    format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
+                );
+
+                // Periodic progress broadcast (every 100 files)
+                if (extracted_count + skipped_count) % 100 == 0 {
+                    crate::db::sessions::save_session(&self.db, &session).await?;
+                    self.broadcast_progress(&session, start_time);
+                }
+
+                continue;
+            }
+
             // Construct absolute path
             let file_path = root_path.join(&file.path);
 
@@ -397,21 +424,23 @@ impl WorkflowOrchestrator {
             }
 
             // Update progress periodically
-            if extracted_count % 10 == 0 {
+            let total_processed = extracted_count + skipped_count;
+            if total_processed % 10 == 0 {
                 session.update_progress(
-                    extracted_count,
+                    total_processed,
                     files.len(),
-                    format!("Extracted metadata from {}/{} files", extracted_count, files.len()),
+                    format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
                 );
                 crate::db::sessions::save_session(&self.db, &session).await?;
                 self.broadcast_progress(&session, start_time);
             }
         }
 
+        let total_processed = extracted_count + skipped_count;
         session.update_progress(
-            extracted_count,
-            extracted_count,
-            format!("Extracted metadata from {} files", extracted_count),
+            total_processed,
+            total_processed,
+            format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
@@ -419,6 +448,7 @@ impl WorkflowOrchestrator {
         tracing::info!(
             session_id = %session.session_id,
             extracted_count,
+            skipped_count,
             "Metadata extraction completed"
         );
 
