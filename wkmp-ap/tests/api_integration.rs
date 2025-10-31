@@ -95,6 +95,7 @@ async fn setup_test_server() -> (axum::Router, Arc<SharedState>, Arc<PlaybackEng
         engine: Arc::clone(&engine),
         db_pool: db_pool.clone(),
         volume,
+        shared_secret: 0, // Authentication disabled for tests
     };
 
     // Build router with same structure as server.rs

@@ -15,8 +15,10 @@ use std::time::Duration;
 use uuid::Uuid;
 use wkmp_ap::playback::{BufferManager, DecoderWorker};
 use wkmp_ap::playback::types::DecodePriority;
+use wkmp_ap::state::SharedState;
 use wkmp_ap::db::passages::PassageWithTiming;
 use wkmp_common::FadeCurve;
+use sqlx::sqlite::SqlitePoolOptions;
 
 /// Test audio file path
 const TEST_AUDIO_FILE: &str = "/home/sw/Music/Bigger,_Better,_Faster,_More/(4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3";
@@ -35,6 +37,16 @@ fn create_real_passage(start_ms: u64, end_ms: u64) -> PassageWithTiming {
         fade_in_curve: FadeCurve::Linear,
         fade_out_curve: FadeCurve::Linear,
     }
+}
+
+/// Helper to create test dependencies for DecoderWorker
+async fn create_test_deps_simple() -> (Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) {
+    let shared_state = Arc::new(SharedState::new());
+    let db_pool = SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .expect("Failed to create in-memory database");
+    (shared_state, db_pool)
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -108,7 +120,8 @@ async fn test_real_audio_decode_and_monitor_logs() {
 
     // Create buffer manager and decoder
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (shared_state, db_pool) = create_test_deps_simple().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Submit first passage (0-30 seconds)
     let passage1_id = Uuid::new_v4();
@@ -222,7 +235,8 @@ async fn test_single_passage_decode() {
     );
 
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (shared_state, db_pool) = create_test_deps_simple().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Submit single passage (first 15 seconds)
     let passage_id = Uuid::new_v4();

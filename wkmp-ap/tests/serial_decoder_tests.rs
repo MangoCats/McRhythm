@@ -104,7 +104,7 @@ async fn test_priority_queue_ordering() {
 #[tokio::test]
 async fn test_buffer_manager_integration() {
     // [DBD-BUF-020] Verify serial decoder integrates with buffer manager
-    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
     let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     let passage_id = Uuid::new_v4();
@@ -130,7 +130,7 @@ async fn test_buffer_manager_integration() {
 #[tokio::test]
 async fn test_duplicate_submission_prevention() {
     // **Fix for queue flooding:** Verify duplicate submissions are prevented
-    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
     let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     let passage_id = Uuid::new_v4();

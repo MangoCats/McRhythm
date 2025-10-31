@@ -161,7 +161,7 @@ fn test_end_to_end_playback() {
         } else {
             AudioFrame::zero()
         }
-    }).unwrap();
+    }, None).unwrap();
 
     // 5. Wait for playback to complete (or 5 seconds max for testing)
     let playback_duration = (buffer.duration_ms()).min(5000);
@@ -205,7 +205,7 @@ fn test_sine_wave_playback() {
         } else {
             AudioFrame::zero()
         }
-    }).unwrap();
+    }, None).unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(2));
 

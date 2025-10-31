@@ -14,8 +14,10 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use wkmp_ap::playback::{BufferManager, DecoderWorker};
 use wkmp_ap::playback::types::DecodePriority;
+use wkmp_ap::state::SharedState;
 use wkmp_ap::db::passages::PassageWithTiming;
 use wkmp_common::FadeCurve;
+use sqlx::sqlite::SqlitePoolOptions;
 
 /// Real MP3 file for testing (4 Non Blondes - What's Up)
 const TEST_AUDIO_FILE: &str = "/home/sw/Music/Bigger,_Better,_Faster,_More/(4_Non_Blondes)Bigger,_Better,_Faster,_More-03-What's_Up_.mp3";
@@ -95,6 +97,16 @@ fn create_standard_passage(file_path: &str, start_ms: u64, end_ms: u64) -> Passa
     }
 }
 
+/// Helper to create test dependencies for DecoderWorker
+async fn create_test_deps_simple() -> (Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) {
+    let shared_state = Arc::new(SharedState::new());
+    let db_pool = SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .expect("Failed to create in-memory database");
+    (shared_state, db_pool)
+}
+
 // ============================================================================
 // Test 1: Pre-Buffer Fade-In Application
 // ============================================================================
@@ -114,7 +126,8 @@ async fn test_fade_in_applied_before_buffering() {
     );
 
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (shared_state, db_pool) = create_test_deps_simple().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Start the decoder worker task
     decoder.clone().start();
@@ -230,7 +243,8 @@ async fn test_fade_out_applied_before_buffering() {
     );
 
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (shared_state, db_pool) = create_test_deps_simple().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Start the decoder worker task
     decoder.clone().start();
@@ -357,7 +371,8 @@ async fn test_only_one_decoder_active_at_time() {
     }
 
     let buffer_manager = Arc::new(BufferManager::new());
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager)));
+    let (shared_state, db_pool) = create_test_deps_simple().await;
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Start the decoder worker task
     decoder.clone().start();
@@ -389,7 +404,7 @@ async fn test_only_one_decoder_active_at_time() {
 
     // Clone references for use in monitor task
     let passage_ids_monitor = passage_ids.clone();
-    let buffer_manager_monitor = Arc::clone(&buffer_manager);
+    let buffer_manager_monitor: Arc<BufferManager> = Arc::clone(&buffer_manager);
 
     // Monitor buffer filling to detect decode activity
     let monitor_task = tokio::spawn(async move {

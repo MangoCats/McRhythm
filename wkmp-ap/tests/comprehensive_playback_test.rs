@@ -151,7 +151,7 @@ async fn test_scenario_1_single_passage_30s() {
     let collector = LogCollector::new();
 
     // Create buffer manager and decoder
-    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
     let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Create passage (0-40s to have buffer for 30s playback)
@@ -207,7 +207,7 @@ async fn test_scenario_2_two_passages_with_delay() {
     println!("Using test file: {}", test_file);
 
     let collector = LogCollector::new();
-    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
     let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Enqueue first passage
@@ -269,7 +269,7 @@ async fn test_scenario_3_three_passages_with_skip() {
     println!("Using test file: {}", test_file);
 
     let collector = LogCollector::new();
-    let (buffer_manager, shared_state, db_pool) = create_test_deps().await;
+    let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
     let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
 
     // Enqueue three passages

@@ -625,7 +625,7 @@ fn test_audible_crossfade() {
         } else {
             AudioFrame::zero()
         }
-    }) {
+    }, None) {
         println!("ERROR: Failed to start audio: {}", e);
         return;
     }
