@@ -206,8 +206,26 @@ async fn execute_import_workflow(state: AppState, session: ImportSession) -> any
     let session_id = session.session_id;
     tracing::info!(session_id = %session_id, "Starting import workflow orchestration");
 
+    // Load AcoustID API key from database
+    let acoustid_api_key = match crate::db::settings::get_acoustid_api_key(&state.db).await {
+        Ok(key) => key,
+        Err(e) => {
+            tracing::warn!("Failed to load AcoustID API key from database: {}", e);
+            None
+        }
+    };
+
+    if acoustid_api_key.is_none() {
+        tracing::warn!("No AcoustID API key configured - fingerprinting will be disabled");
+        tracing::warn!("Configure key at: http://localhost:5723/settings");
+    }
+
     // Create workflow orchestrator with event bus for SSE broadcasting
-    let orchestrator = WorkflowOrchestrator::new(state.db.clone(), state.event_bus.clone());
+    let orchestrator = WorkflowOrchestrator::new(
+        state.db.clone(),
+        state.event_bus.clone(),
+        acoustid_api_key,
+    );
 
     // Execute workflow with error handling
     match orchestrator.execute_import(session).await {

@@ -423,6 +423,24 @@ pub fn write_toml_config(
     config: &TomlConfig,
     target_path: &Path,
 ) -> Result<()> {
+    // Step 0: Ensure parent directory exists **[REQ-NF-038]**
+    if let Some(parent) = target_path.parent() {
+        if !parent.exists() {
+            tracing::info!("Creating config directory: {}", parent.display());
+            fs::create_dir_all(parent)
+                .map_err(|e| Error::Config(format!("Directory creation failed: {}", e)))?;
+
+            // Set secure permissions on directory (Unix only: 0700 user-only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let perms = fs::Permissions::from_mode(0o700);
+                fs::set_permissions(parent, perms)
+                    .map_err(|e| Error::Config(format!("Directory permissions failed: {}", e)))?;
+            }
+        }
+    }
+
     // Step 1: Serialize to TOML
     let toml_string = toml::to_string_pretty(config)
         .map_err(|e| Error::Config(format!("TOML serialization failed: {}", e)))?;

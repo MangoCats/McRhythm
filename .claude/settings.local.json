@@ -63,7 +63,10 @@
       "Read(//c/Program Files/**)",
       "Bash(export LIBCLANG_PATH=\"C:\\Program Files\\LLVM\\bin\")",
       "Bash(\"C:\\Program Files\\LLVM\\bin\\clang.exe\" --version)",
-      "Bash(export LIBCLANG_PATH=\"C:/Program Files/LLVM/bin\")"
+      "Bash(export LIBCLANG_PATH=\"C:/Program Files/LLVM/bin\")",
+      "Bash(RUST_LOG=info cargo run:*)",
+      "Read(//home/sw/.config/**)",
+      "SlashCommand(/think wip/_toml_directory_creation.md)"
     ],
     "deny": [],
     "ask": []

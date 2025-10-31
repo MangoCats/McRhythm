@@ -31,10 +31,30 @@ pub struct WorkflowOrchestrator {
 }
 
 impl WorkflowOrchestrator {
-    pub fn new(db: SqlitePool, event_bus: EventBus) -> Self {
+    pub fn new(db: SqlitePool, event_bus: EventBus, acoustid_api_key: Option<String>) -> Self {
         // Initialize API clients (can fail, so wrapped in Option)
         let mb_client = MusicBrainzClient::new().ok();
-        let acoustid_client = AcoustIDClient::new("YOUR_API_KEY".to_string()).ok();
+
+        // Initialize AcoustID client with provided API key (if available)
+        let acoustid_client = acoustid_api_key
+            .and_then(|key| {
+                if key.is_empty() {
+                    tracing::warn!("AcoustID API key is empty, fingerprinting disabled");
+                    None
+                } else {
+                    match AcoustIDClient::new(key) {
+                        Ok(client) => {
+                            tracing::info!("AcoustID client initialized with configured API key");
+                            Some(client)
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to initialize AcoustID client: {}", e);
+                            None
+                        }
+                    }
+                }
+            });
+
         let acousticbrainz_client = AcousticBrainzClient::new().ok();
         let essentia_client = EssentiaClient::new().ok();
 

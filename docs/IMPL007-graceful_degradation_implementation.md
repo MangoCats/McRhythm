@@ -440,6 +440,74 @@ pub enum InitError {
 - Test permission errors
 - Test database path construction
 
+#### 1.6. Implement TOML Configuration Writing
+
+**File:** `wkmp-common/src/config.rs` (existing function)
+
+**Requirements:** [REQ-NF-038]
+
+**Purpose:** Provide atomic TOML configuration file writing with automatic parent directory creation.
+
+**Implementation:**
+```rust
+/// Write TOML configuration to file atomically with directory auto-creation
+/// **[REQ-NF-038]** Creates parent directory if missing
+pub fn write_toml_config(config: &TomlConfig, target_path: &Path) -> Result<()> {
+    // **[REQ-NF-038]** Ensure parent directory exists before writing
+    if let Some(parent) = target_path.parent() {
+        if !parent.exists() {
+            log::info!("Creating config directory: {}", parent.display());
+            fs::create_dir_all(parent)
+                .map_err(|e| ConfigError::DirectoryCreationFailed(
+                    parent.to_path_buf(),
+                    e
+                ))?;
+
+            // Set secure permissions (Unix only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let perms = fs::Permissions::from_mode(0o700);
+                fs::set_permissions(parent, perms)?;
+            }
+        }
+    }
+
+    // Serialize to TOML
+    let toml_content = toml::to_string_pretty(config)?;
+
+    // Write to temp file, set permissions, then atomic rename
+    let temp_path = target_path.with_extension("toml.tmp");
+    fs::File::create(&temp_path)?.write_all(toml_content.as_bytes())?;
+
+    // Set file permissions (user-only read/write)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(0o600);
+        fs::set_permissions(&temp_path, perms)?;
+    }
+
+    // Atomic rename
+    fs::rename(temp_path, target_path)?;
+    Ok(())
+}
+```
+
+**Behavior:**
+- Creates `~/.config/wkmp/` (or Windows equivalent) if missing
+- Sets directory permissions to 0700 (user-only) on Unix systems
+- Sets file permissions to 0600 (user-only read/write) on Unix systems
+- Returns error if directory creation fails (caller decides how to handle)
+- All 5 modules benefit automatically (DRY principle)
+
+**Testing:**
+- Test directory creation when `~/.config/wkmp/` missing
+- Test directory already exists (no error)
+- Test permission errors (insufficient privileges)
+- Test atomic write behavior (temp file + rename)
+- Test Unix permissions set correctly (0700 directory, 0600 file)
+
 ---
 
 ### Phase 2: Database Initialization (wkmp-common)

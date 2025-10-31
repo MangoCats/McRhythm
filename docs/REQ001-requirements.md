@@ -282,13 +282,22 @@ This document is the **top-level specification** defining WHAT WKMP must do. Oth
     - NO module may hardcode database paths or skip the 4-tier resolution priority
     - This pattern ensures consistent zero-configuration behavior across the entire WKMP system
 
+**[REQ-NF-038]** TOML Configuration Directory Auto-Creation - **APPLIES TO ALL MODULES**
+  - When ANY microservice writes TOML configuration file to `~/.config/wkmp/<module>.toml`, the module SHALL automatically create parent directory if missing
+  - Directory creation SHALL use secure permissions:
+    - Linux/macOS: 0700 (user-only read/write/execute)
+    - Windows: Default user-only permissions
+  - If directory creation fails, the module SHALL return an error to caller (graceful degradation)
+  - Implementation SHALL use `wkmp_common::config::write_toml_config()` which handles directory creation automatically
+  - This ensures zero-configuration behavior for TOML file writes across all modules
+
 > **See [Architecture - Initialization](SPEC001-architecture.md#module-initialization) for detailed startup sequence and default value handling.**
 
-**[REQ-NF-040]** Operational Monitoring
-  - **[REQ-NF-041]** Each microservice exposes `/health` HTTP endpoint returning HTTP 200 when operational
-  - **[REQ-NF-042]** Health check responses complete within 2 seconds
-  - **[REQ-NF-043]** Health endpoint returns JSON with service status: `{"status": "healthy", "module": "<module-name>"}`
-  - **[REQ-NF-044]** Future enhancement: Detailed diagnostics (database connectivity, audio device availability, subsystem status)
+**[REQ-NF-050]** Operational Monitoring
+  - **[REQ-NF-051]** Each microservice exposes `/health` HTTP endpoint returning HTTP 200 when operational
+  - **[REQ-NF-052]** Health check responses complete within 2 seconds
+  - **[REQ-NF-053]** Health endpoint returns JSON with service status: `{"status": "healthy", "module": "<module-name>"}`
+  - **[REQ-NF-054]** Future enhancement: Detailed diagnostics (database connectivity, audio device availability, subsystem status)
 
 > **See [Architecture - Module Health Checks](SPEC001-architecture.md#module-initialization) and [API Design - Health Endpoint](SPEC007-api_design.md) for implementation details.**
 
