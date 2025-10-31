@@ -11,7 +11,9 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 
 const ACOUSTID_BASE_URL: &str = "https://api.acoustid.org/v2/lookup";
-const ACOUSTID_API_KEY: &str = "YOUR_API_KEY"; // TODO: Load from config
+/// Placeholder API key for Default impl (tests only)
+/// Production code MUST load API key via config (PLAN012: database → ENV → TOML)
+const ACOUSTID_API_KEY: &str = "YOUR_API_KEY";
 const USER_AGENT: &str = "WKMP/0.1.0 (https://github.com/wkmp/wkmp)";
 const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between requests)
 

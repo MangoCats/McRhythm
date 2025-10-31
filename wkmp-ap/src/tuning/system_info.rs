@@ -5,7 +5,6 @@
 //! **Traceability:** TUNE-OUT-010
 
 use serde::{Deserialize, Serialize};
-use std::fs;
 
 /// System information for tuning reports
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,11 +157,13 @@ impl SystemInfo {
 
         #[cfg(target_os = "windows")]
         {
-            return format!("Windows {}", std::env::consts::OS);
+            format!("Windows {}", std::env::consts::OS)
         }
 
-        // Ultimate fallback
-        std::env::consts::OS.to_string()
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        {
+            std::env::consts::OS.to_string()
+        }
     }
 
     /// Detect audio backend

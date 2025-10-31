@@ -22,7 +22,9 @@ pub mod song_timeline;
 pub mod types;
 
 // Re-exports for external use (tests, other modules)
+#[allow(unused_imports)] // Used by tests
 pub use buffer_manager::BufferManager;
+#[allow(unused_imports)] // Used by tests
 pub use decoder_worker::DecoderWorker;
 pub use diagnostics::{PassageMetrics, PipelineMetrics};
 
