@@ -15,7 +15,8 @@ use crate::playback::buffer_manager::BufferManager;
 use crate::playback::buffer_events::BufferEvent;
 use crate::playback::decoder_worker::DecoderWorker;
 use crate::playback::events::PlaybackEvent;
-use crate::playback::pipeline::mixer::CrossfadeMixer;
+// [SUB-INC-4B] SPEC016-compliant mixer integration
+use crate::playback::mixer::{Mixer, MixerState, PositionMarker, MarkerEvent};
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
 use crate::playback::ring_buffer::AudioRingBuffer;
 use crate::playback::song_timeline::SongTimeline;
@@ -83,9 +84,10 @@ pub struct PlaybackEngine {
     /// Decoder worker (single-threaded decoder using DecoderChain architecture)
     decoder_worker: Arc<DecoderWorker>,
 
-    /// Crossfade mixer (sample-accurate mixing)
+    /// SPEC016-compliant mixer (batch mixing with event-driven markers)
     /// [SSD-MIX-010] Mixer component for audio frame generation
-    mixer: Arc<RwLock<CrossfadeMixer>>,
+    /// [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (SPEC016)
+    mixer: Arc<RwLock<Mixer>>,
 
     /// Current playback position
     /// [ISSUE-8] Now uses internal atomics for lock-free frame position updates
@@ -234,21 +236,11 @@ impl PlaybackEngine {
         let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
 
         // Create mixer
-        // [SSD-MIX-010] Crossfade mixer for sample-accurate mixing
-        let mut mixer = CrossfadeMixer::new();
-
-        // **[REV002]** Configure mixer with event channel
-        mixer.set_event_channel(position_event_tx.clone());
-
-        // **[REV002]** Use already-loaded position_event_interval_ms
-        mixer.set_position_event_interval_ms(interval_ms);
-
-        // **[SSD-UND-010]** Configure mixer with buffer manager for underrun detection
-        mixer.set_buffer_manager(Arc::clone(&buffer_manager));
-
-        // **[DBD-PARAM-088]** **[DBD-MIX-060]** Configure minimum buffer level before playback start
-        mixer.set_mixer_min_start_level(mixer_min_start_level);
-
+        // [SSD-MIX-010] SPEC016-compliant mixer for batch mixing
+        // [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (event-driven markers)
+        // Note: master_volume initialized from settings, marker calculation happens in start_passage
+        let master_volume = 1.0; // TODO: Load from settings
+        let mixer = Mixer::new(master_volume);
         let mixer = Arc::new(RwLock::new(mixer));
 
         // Load queue from database

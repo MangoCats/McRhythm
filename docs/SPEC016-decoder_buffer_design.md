@@ -638,6 +638,118 @@ SPEC016 defines HOW mixer implements crossfade overlap; SPEC002 defines WHEN ove
 
 **[DBD-MIX-060]** When starting input from a new chain, the mixer will not begin drawing from the chain until its buffer has at least mixer_min_start_level **[DBD-PARAM-088]** samples in the buffer.
 
+### Position Tracking and Event-Driven Architecture
+
+**[DBD-MIX-070]** The mixer implements an event-driven position tracking system using position markers to signal when specific points in playback are reached.
+
+**Architectural Principle:** Separation between calculation and execution layers:
+- **PlaybackEngine (calculation layer):** Determines WHAT events should occur and WHEN (specific tick counts in passage timeline)
+- **Mixer (execution layer):** Knows playback reality (frames delivered to output device), signals when events actually occur
+
+**[DBD-MIX-071]** Position markers are set by PlaybackEngine at specific tick counts and checked by the mixer during mixing operations:
+
+```rust
+// PlaybackEngine calculates WHEN event should occur
+let crossfade_start_tick = end_tick - crossfade_duration_tick;
+
+// Engine adds marker to mixer
+mixer.add_marker(PositionMarker {
+    tick: crossfade_start_tick,
+    passage_id: current_passage_id,
+    event_type: MarkerEvent::StartCrossfade { next_passage_id },
+});
+
+// Mixer signals when tick reached (during mix operation)
+let events = mixer.mix_single(&mut buffer, &mut output)?;
+// Returns: vec![MarkerEvent::StartCrossfade { next_passage_id }]
+```
+
+**[DBD-MIX-072]** Marker system components:
+
+1. **PositionMarker struct:**
+   - `tick: i64` - Tick count in passage timeline (sample position in original file)
+   - `passage_id: Uuid` - Which passage this marker applies to
+   - `event_type: MarkerEvent` - What event to signal when tick reached
+
+2. **MarkerEvent enum:**
+   - `PositionUpdate { position_ms }` - Periodic position updates for UI
+   - `StartCrossfade { next_passage_id }` - Begin crossfade to next passage
+   - `SongBoundary { new_song_id }` - Multi-song passage boundary crossing
+   - `PassageComplete` - Passage has finished playing
+
+3. **Mixer tracking state:**
+   - `current_tick: i64` - Current tick count in current passage
+   - `current_passage_id: Option<Uuid>` - Currently playing passage
+   - `frames_written: u64` - Total frames delivered to output device
+
+**[DBD-MIX-073]** Marker storage and retrieval:
+- Markers stored in min-heap (BinaryHeap<Reverse<PositionMarker>>) sorted by tick
+- Soonest marker always at top (O(1) peek, O(log n) insertion/removal)
+- Checked during every mix operation (mix_single, mix_crossfade)
+- When current_tick >= marker.tick: emit event and remove marker
+
+**[DBD-MIX-074]** Marker lifecycle:
+- **Add:** PlaybackEngine adds markers when calculating timing (crossfade start, position updates, etc.)
+- **Check:** Mixer checks markers after advancing current_tick each mix operation
+- **Emit:** When marker reached, mixer returns MarkerEvent in result Vec
+- **Clear:** Markers cleared when passage changes or when no longer relevant
+
+**[DBD-MIX-075]** Event-driven advantages over timer-based polling:
+- Sample-accurate event triggering (not approximate 100ms intervals)
+- No polling overhead (events only when markers reached)
+- Decoupled timing calculation (engine computes, mixer executes)
+- Mixer uniquely positioned to know playback reality (frames to output device)
+
+**[DBD-MIX-076]** Crossfade timing example (critical use case):
+
+```rust
+// PlaybackEngine calculates crossfade timing
+let current_end_tick = passage.end_tick;
+let crossfade_duration_tick = crossfade_duration_frames;
+let crossfade_start_tick = current_end_tick - crossfade_duration_tick;
+
+// Engine adds crossfade start marker
+mixer.add_marker(PositionMarker {
+    tick: crossfade_start_tick,
+    passage_id: current_passage_id,
+    event_type: MarkerEvent::StartCrossfade {
+        next_passage_id: next_passage.queue_entry_id
+    },
+});
+
+// Mixer continues mixing current passage
+// When current_tick reaches crossfade_start_tick:
+//   1. Mixer emits StartCrossfade event
+//   2. Engine receives event
+//   3. Engine switches mixer to crossfade mode
+//   4. Mixer begins summing current + next passage buffers
+```
+
+**[DBD-MIX-077]** Position update marker pattern:
+
+```rust
+// PlaybackEngine sets position update markers periodically
+let update_interval_ticks = (update_interval_ms * sample_rate) / 1000;
+let next_update_tick = current_tick + update_interval_ticks;
+
+mixer.add_marker(PositionMarker {
+    tick: next_update_tick,
+    passage_id: current_passage_id,
+    event_type: MarkerEvent::PositionUpdate {
+        position_ms: (next_update_tick * 1000) / sample_rate
+    },
+});
+
+// When marker reached, engine broadcasts position to UI via SSE
+```
+
+**[DBD-MIX-078]** Mixer position tracking responsibilities:
+- Track current_tick (sample count in passage timeline)
+- Track frames_written (total frames to output device)
+- Check markers after each mix operation
+- Return events when markers reached
+- **NOT responsible for:** Calculating WHEN events should occur (engine's job)
+
 ### Output
 
 **[DBD-OUT-010]** The mixer creates a single output stream which is fed to the output ring buffer for consumption by the cpal audio output library.
@@ -715,14 +827,23 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 ---
 
-**Document Version:** 1.3
+**Document Version:** 1.5
 **Created:** 2025-10-19
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-01-30
 **Status:** Current
 **Tier:** 2 - Design Specification
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.5 (2025-01-30): Added event-driven position tracking architecture
+  - Added Position Tracking and Event-Driven Architecture section
+  - Added [DBD-MIX-070] through [DBD-MIX-078] requirements
+  - Documented position marker system (calculation vs. execution layer separation)
+  - Documented MarkerEvent types and PositionMarker struct
+  - Documented marker storage (BinaryHeap min-heap) and lifecycle
+  - Provided crossfade timing and position update marker examples
+  - Eliminates timer-based polling (100ms intervals) in favor of sample-accurate event-driven architecture
+  - Addresses architectural refinement from PLAN014 mixer refactoring (REQ-MIX-008)
 - v1.4 (2025-01-30): Clarified resume-from-pause fade terminology
   - Updated [DBD-MIX-040] to distinguish mixer-level fade (resume from pause) from passage-level fades (applied by Fader)
   - Clarified that "fading in after pause" applies resume fade-in curve to mixed output (orthogonal to passage fades)
