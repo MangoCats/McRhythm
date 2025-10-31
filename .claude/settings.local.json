@@ -71,7 +71,8 @@
       "WebFetch(domain:acoustid.org)",
       "Bash(python3:*)",
       "Bash(cargo info:*)",
-      "WebFetch(domain:docs.rs)"
+      "WebFetch(domain:docs.rs)",
+      "Read(//home/sw/.cargo/registry/src/**)"
     ],
     "deny": [],
     "ask": []

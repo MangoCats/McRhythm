@@ -48,6 +48,7 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_files_table(&pool).await?;
     create_passages_table(&pool).await?;
     create_queue_table(&pool).await?;
+    create_acoustid_cache_table(&pool).await?;
 
     // Initialize default settings [ARCH-INIT-020]
     init_default_settings(&pool).await?;
@@ -374,6 +375,28 @@ async fn create_queue_table(pool: &SqlitePool) -> Result<()> {
 
     // Create indexes
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_queue_order ON queue(play_order)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_acoustid_cache_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS acoustid_cache (
+            fingerprint_hash TEXT PRIMARY KEY,
+            mbid TEXT NOT NULL,
+            cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+            CHECK (length(fingerprint_hash) = 64)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index for cache expiration queries (future feature)
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_acoustid_cache_cached_at ON acoustid_cache(cached_at)")
         .execute(pool)
         .await?;
 

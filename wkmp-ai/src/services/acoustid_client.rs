@@ -94,15 +94,16 @@ impl RateLimiter {
     }
 }
 
-/// AcoustID API client
+/// AcoustID API client with database caching
 pub struct AcoustIDClient {
     http_client: reqwest::Client,
     rate_limiter: Arc<RateLimiter>,
     api_key: String,
+    db: sqlx::SqlitePool,
 }
 
 impl AcoustIDClient {
-    pub fn new(api_key: String) -> Result<Self, AcoustIDError> {
+    pub fn new(api_key: String, db: sqlx::SqlitePool) -> Result<Self, AcoustIDError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
             .timeout(Duration::from_secs(30))
@@ -113,17 +114,38 @@ impl AcoustIDClient {
             http_client,
             rate_limiter: Arc::new(RateLimiter::new(RATE_LIMIT_MS)),
             api_key,
+            db,
         })
     }
 
     /// Lookup recording by Chromaprint fingerprint
     ///
     /// **[AIA-INT-020]** Query AcoustID for MusicBrainz MBIDs
+    /// **[REQ-CA-010]** Check cache before API call
     pub async fn lookup(
         &self,
         fingerprint: &str,
         duration_seconds: u64,
     ) -> Result<AcoustIDResponse, AcoustIDError> {
+        // Check cache first
+        if let Some(mbid) = self.get_cached_mbid(fingerprint).await? {
+            tracing::debug!("Cache hit for fingerprint");
+            // Construct response from cached MBID
+            return Ok(AcoustIDResponse {
+                status: "ok".to_string(),
+                results: vec![AcoustIDResult {
+                    id: String::new(), // Not cached
+                    score: 1.0, // Cached result assumed perfect match
+                    recordings: Some(vec![AcoustIDRecording {
+                        id: mbid,
+                        title: None,
+                        artists: None,
+                        duration: None,
+                    }]),
+                }],
+            });
+        }
+
         // Rate limit
         self.rate_limiter.wait().await;
 
@@ -176,6 +198,14 @@ impl AcoustIDClient {
                 recordings = top_result.recordings.as_ref().map(|r| r.len()).unwrap_or(0),
                 "AcoustID lookup successful"
             );
+
+            // Cache successful result if we have an MBID
+            if let Some(mbid) = Self::get_best_mbid(&acoustid_response) {
+                if let Err(e) = self.cache_mbid(fingerprint, &mbid).await {
+                    tracing::warn!("Failed to cache fingerprint → MBID mapping: {}", e);
+                    // Non-fatal - continue with result
+                }
+            }
         }
 
         Ok(acoustid_response)
@@ -193,11 +223,54 @@ impl AcoustIDClient {
             .first()
             .map(|r| r.id.clone())
     }
-}
 
-impl Default for AcoustIDClient {
-    fn default() -> Self {
-        Self::new(ACOUSTID_API_KEY.to_string()).expect("Failed to create AcoustID client")
+    /// Hash fingerprint using SHA-256
+    ///
+    /// **[REQ-CA-030]** Deterministic SHA-256 hashing for cache keys
+    fn hash_fingerprint(&self, fingerprint: &str) -> String {
+        use sha2::{Sha256, Digest};
+        let mut hasher = Sha256::new();
+        hasher.update(fingerprint.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+
+    /// Get cached MBID from database
+    ///
+    /// **[REQ-CA-010]** Check cache before API call
+    async fn get_cached_mbid(&self, fingerprint: &str) -> Result<Option<String>, AcoustIDError> {
+        let fingerprint_hash = self.hash_fingerprint(fingerprint);
+
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT mbid FROM acoustid_cache WHERE fingerprint_hash = ?"
+        )
+        .bind(&fingerprint_hash)
+        .fetch_optional(&self.db)
+        .await
+        .map_err(|e| AcoustIDError::NetworkError(format!("Database error: {}", e)))?;
+
+        Ok(row.map(|(mbid,)| mbid))
+    }
+
+    /// Cache fingerprint → MBID mapping
+    ///
+    /// **[REQ-CA-020]** Store successful lookups in database
+    async fn cache_mbid(&self, fingerprint: &str, mbid: &str) -> Result<(), AcoustIDError> {
+        let fingerprint_hash = self.hash_fingerprint(fingerprint);
+
+        sqlx::query(
+            "INSERT INTO acoustid_cache (fingerprint_hash, mbid, cached_at)
+             VALUES (?, ?, datetime('now'))
+             ON CONFLICT(fingerprint_hash) DO UPDATE SET
+                mbid = excluded.mbid,
+                cached_at = excluded.cached_at"
+        )
+        .bind(&fingerprint_hash)
+        .bind(mbid)
+        .execute(&self.db)
+        .await
+        .map_err(|e| AcoustIDError::NetworkError(format!("Database error: {}", e)))?;
+
+        Ok(())
     }
 }
 
@@ -205,15 +278,37 @@ impl Default for AcoustIDClient {
 mod tests {
     use super::*;
 
+    async fn create_test_db() -> sqlx::SqlitePool {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("Failed to create test database");
+
+        // Create acoustid_cache table
+        sqlx::query(
+            "CREATE TABLE acoustid_cache (
+                fingerprint_hash TEXT PRIMARY KEY,
+                mbid TEXT NOT NULL,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+                CHECK (length(fingerprint_hash) = 64)
+            )"
+        )
+        .execute(&pool)
+        .await
+        .expect("Failed to create test table");
+
+        pool
+    }
+
     #[test]
     fn test_rate_limiter_creation() {
         let limiter = RateLimiter::new(334);
         assert_eq!(limiter.min_interval, Duration::from_millis(334));
     }
 
-    #[test]
-    fn test_client_creation() {
-        let client = AcoustIDClient::new("test_key".to_string());
+    #[tokio::test]
+    async fn test_client_creation() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db);
         assert!(client.is_ok());
     }
 
@@ -265,5 +360,79 @@ mod tests {
 
         let mbid = AcoustIDClient::get_best_mbid(&response);
         assert_eq!(mbid, None);
+    }
+
+    #[tokio::test]
+    async fn test_fingerprint_hash_determinism() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db).unwrap();
+
+        let hash1 = client.hash_fingerprint("AQADtN...");
+        let hash2 = client.hash_fingerprint("AQADtN...");
+
+        assert_eq!(hash1, hash2);
+        assert_eq!(hash1.len(), 64); // SHA-256 hex length
+    }
+
+    #[tokio::test]
+    async fn test_fingerprint_hash_uniqueness() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db).unwrap();
+
+        let hash1 = client.hash_fingerprint("AQADtN...");
+        let hash3 = client.hash_fingerprint("different");
+
+        assert_ne!(hash1, hash3);
+    }
+
+    #[tokio::test]
+    async fn test_cache_miss() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db).unwrap();
+
+        let mbid = client.get_cached_mbid("AQADtN...").await.unwrap();
+        assert_eq!(mbid, None);
+    }
+
+    #[tokio::test]
+    async fn test_cache_insert() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db).unwrap();
+
+        // Cache a fingerprint → MBID mapping
+        client.cache_mbid("AQADtN...", "mbid-123").await.unwrap();
+
+        // Verify it was cached
+        let mbid = client.get_cached_mbid("AQADtN...").await.unwrap();
+        assert_eq!(mbid, Some("mbid-123".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_cache_upsert() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db).unwrap();
+
+        // Cache initial value
+        client.cache_mbid("AQADtN...", "mbid-123").await.unwrap();
+
+        // Update with new value (UPSERT)
+        client.cache_mbid("AQADtN...", "mbid-456").await.unwrap();
+
+        // Verify it was updated
+        let mbid = client.get_cached_mbid("AQADtN...").await.unwrap();
+        assert_eq!(mbid, Some("mbid-456".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_cache_hit() {
+        let db = create_test_db().await;
+        let client = AcoustIDClient::new("test_key".to_string(), db).unwrap();
+
+        // Pre-populate cache
+        client.cache_mbid("AQADtN...", "mbid-789").await.unwrap();
+
+        // Cache hit should return cached value without API call
+        let mbid = client.get_cached_mbid("AQADtN...").await.unwrap();
+        assert_eq!(mbid, Some("mbid-789".to_string()));
     }
 }

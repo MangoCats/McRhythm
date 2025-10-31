@@ -42,7 +42,7 @@ impl WorkflowOrchestrator {
                     tracing::warn!("AcoustID API key is empty, fingerprinting disabled");
                     None
                 } else {
-                    match AcoustIDClient::new(key) {
+                    match AcoustIDClient::new(key, db.clone()) {
                         Ok(client) => {
                             tracing::info!("AcoustID client initialized with configured API key");
                             Some(client)
