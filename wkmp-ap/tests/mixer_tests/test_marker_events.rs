@@ -10,7 +10,7 @@ async fn test_event_emission_exact_tick() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add marker at tick 1000
     mixer.add_marker(create_position_update_marker(1000, passage_id, 1000));
@@ -49,7 +49,7 @@ async fn test_event_emission_past_tick() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add marker at tick 100
     mixer.add_marker(create_position_update_marker(100, passage_id, 100));
@@ -72,7 +72,7 @@ async fn test_multiple_events_same_batch() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add markers at ticks 10, 20, 30
     mixer.add_marker(create_position_update_marker(10, passage_id, 10));
@@ -100,7 +100,7 @@ async fn test_marker_removed_after_emission() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add marker at tick 500
     mixer.add_marker(create_position_update_marker(500, passage_id, 500));
@@ -134,7 +134,7 @@ async fn test_marker_for_different_passage_ignored() {
     let passage_b = test_passage_id();
 
     // Set current passage to A
-    mixer.set_current_passage(passage_a, 0);
+    mixer.set_current_passage(passage_a, passage_a, 0);
 
     // Add marker for passage B at tick 100
     mixer.add_marker(create_position_update_marker(100, passage_b, 100));
@@ -152,7 +152,7 @@ async fn test_marker_for_different_passage_ignored() {
     assert_eq!(mixer.get_current_tick(), 200, "At tick 200");
 
     // Now switch to passage B
-    mixer.set_current_passage(passage_b, 0);
+    mixer.set_current_passage(passage_b, passage_b, 0);
 
     // Note: The marker for passage B at tick 100 was already discarded during passage A mixing
     // (it was popped as a stale marker when passage A reached tick 200)

@@ -10,7 +10,7 @@ async fn test_initial_position_zero() {
     let passage_id = test_passage_id();
 
     // Set current passage
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Verify initial state
     assert_eq!(mixer.get_current_tick(), 0, "Initial tick should be 0");
@@ -23,7 +23,7 @@ async fn test_tick_advancement_single_mix() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Create buffer with enough frames for both mixes (1024 total needed)
     let buffer_manager = create_test_buffer_manager(passage_id, 1024, 0.5).await;
@@ -50,7 +50,7 @@ async fn test_frames_written_accumulation() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     let buffer_manager = create_test_buffer_manager(passage_id, 2000, 0.5).await;
 
@@ -86,7 +86,7 @@ async fn test_position_reset_on_passage_change() {
     let passage_b = test_passage_id();
 
     // Start with passage A
-    mixer.set_current_passage(passage_a, 0);
+    mixer.set_current_passage(passage_a, passage_a, 0);
 
     let buffer_manager_a = create_test_buffer_manager(passage_a, 1000, 0.5).await;
 
@@ -101,7 +101,7 @@ async fn test_position_reset_on_passage_change() {
     assert_eq!(frames_written_after_a, 1000, "frames_written at 1000");
 
     // Switch to passage B
-    mixer.set_current_passage(passage_b, 0);
+    mixer.set_current_passage(passage_b, passage_b, 0);
 
     // Tick should reset to 0
     assert_eq!(mixer.get_current_tick(), 0, "Tick should reset to 0 for passage B");
@@ -125,7 +125,7 @@ async fn test_position_tracking_with_underrun() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Create buffer with only 100 frames
     let buffer_manager = create_test_buffer_manager(passage_id, 100, 0.5).await;

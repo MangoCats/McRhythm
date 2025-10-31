@@ -13,7 +13,7 @@ async fn test_switch_passage_mid_playback() {
     let passage2_id = test_passage_id();
 
     // Set passage 1 with markers
-    mixer.set_current_passage(passage1_id, 0);
+    mixer.set_current_passage(passage1_id, passage1_id, 0);
     mixer.add_marker(create_position_update_marker(5_000, passage1_id, 113));
     mixer.add_marker(create_position_update_marker(10_000, passage1_id, 227));
 
@@ -29,7 +29,7 @@ async fn test_switch_passage_mid_playback() {
     assert_eq!(mixer.get_current_tick(), 3_000, "Tick at 3000");
 
     // Switch to passage 2 mid-playback
-    mixer.set_current_passage(passage2_id, 0);
+    mixer.set_current_passage(passage2_id, passage2_id, 0);
     mixer.add_marker(create_position_update_marker(2_000, passage2_id, 45));
 
     let buffer2 = create_test_buffer_manager(passage2_id, 10_000, 0.7).await;
@@ -63,7 +63,7 @@ async fn test_seek_within_passage() {
     let passage_id = test_passage_id();
 
     // Set passage starting at tick 5,000 (seek to middle)
-    mixer.set_current_passage(passage_id, 5_000);
+    mixer.set_current_passage(passage_id, passage_id, 5_000);
 
     // Add markers only AFTER seek point
     // (markers at or before current_tick would fire immediately on next check)
@@ -108,7 +108,7 @@ async fn test_empty_buffer_handling() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
     mixer.add_marker(create_position_update_marker(1_000, passage_id, 23));
 
     // Create buffer with 0 frames (immediately exhausted)
@@ -143,7 +143,7 @@ async fn test_passage_switch_no_markers() {
     let passage2_id = test_passage_id();
 
     // Passage 1: Play without markers
-    mixer.set_current_passage(passage1_id, 0);
+    mixer.set_current_passage(passage1_id, passage1_id, 0);
     let buffer1 = create_test_buffer_manager(passage1_id, 5_000, 0.5).await;
 
     let mut output1 = vec![0.0f32; 10_000]; // 5,000 frames stereo
@@ -156,7 +156,7 @@ async fn test_passage_switch_no_markers() {
     assert_eq!(mixer.get_current_tick(), 5_000, "Tick at end of passage 1");
 
     // Switch to passage 2
-    mixer.set_current_passage(passage2_id, 0);
+    mixer.set_current_passage(passage2_id, passage2_id, 0);
     let buffer2 = create_test_buffer_manager(passage2_id, 8_000, 0.6).await;
 
     let mut output2 = vec![0.0f32; 16_000]; // 8,000 frames stereo

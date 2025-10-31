@@ -11,7 +11,7 @@ async fn test_long_passage_with_frequent_markers() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // 10 seconds @ 44.1kHz = 441,000 frames
     // Markers every 100ms = every 4,410 frames
@@ -66,7 +66,7 @@ async fn test_continuous_playback_multiple_passages() {
 
     for (i, &passage_id) in passage_ids.iter().enumerate() {
         // Set current passage (resets tick to 0, frames_written continues)
-        mixer.set_current_passage(passage_id, 0);
+        mixer.set_current_passage(passage_id, passage_id, 0);
         assert_eq!(mixer.get_current_tick(), 0, "Tick should reset for new passage");
 
         // Add markers at start, middle, and end
@@ -115,7 +115,7 @@ async fn test_playback_with_varying_batch_sizes() {
 
     for batch_size in batch_sizes {
         let mut mixer = create_test_mixer();
-        mixer.set_current_passage(passage_id, 0);
+        mixer.set_current_passage(passage_id, passage_id, 0);
 
         // Add markers
         for &tick in &test_ticks {
@@ -164,7 +164,7 @@ async fn test_passage_completion_detection() {
     let passage_id = test_passage_id();
     let passage_duration: usize = 44_100; // 1 second
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add PassageComplete marker at exact end
     mixer.add_marker(create_passage_complete_marker(passage_duration as i64, passage_id));

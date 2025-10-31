@@ -224,6 +224,12 @@ pub struct Mixer {
     /// Used for marker validation (markers for old passages ignored).
     current_passage_id: Option<Uuid>,
 
+    /// Current queue entry ID
+    ///
+    /// Used for buffer lookup in BufferManager (buffers are keyed by queue_entry_id).
+    /// For ephemeral passages: passage_id is None, but queue_entry_id is always present.
+    current_queue_entry_id: Option<Uuid>,
+
     /// Total frames written to output
     ///
     /// Used for accurate playback position reporting (accounting for buffering).
@@ -255,6 +261,7 @@ impl Mixer {
             markers: BinaryHeap::new(),
             current_tick: 0,
             current_passage_id: None,
+            current_queue_entry_id: None,
             frames_written: 0,
         }
     }
@@ -398,25 +405,27 @@ impl Mixer {
     ///
     /// ```ignore
     /// // Starting new passage from beginning
-    /// mixer.set_current_passage(passage_id, 0);
+    /// mixer.set_current_passage(passage_id, queue_entry_id, 0);
     ///
     /// // Starting passage at 30 seconds (seeking)
     /// let seek_tick = wkmp_common::timing::ms_to_ticks(30000);
-    /// mixer.set_current_passage(passage_id, seek_tick);
+    /// mixer.set_current_passage(passage_id, queue_entry_id, seek_tick);
     /// ```
-    pub fn set_current_passage(&mut self, passage_id: Uuid, start_tick: i64) {
+    pub fn set_current_passage(&mut self, passage_id: Uuid, queue_entry_id: Uuid, start_tick: i64) {
         self.current_passage_id = Some(passage_id);
+        self.current_queue_entry_id = Some(queue_entry_id);
         self.current_tick = start_tick;
     }
 
     /// Clear current passage (for stop operation)
     ///
-    /// Sets current_passage_id to None, indicating no passage is active.
+    /// Sets current_passage_id and current_queue_entry_id to None, indicating no passage is active.
     /// Typically called when stopping playback.
     ///
     /// [SUB-INC-4B] Added for PlaybackEngine integration
     pub fn clear_passage(&mut self) {
         self.current_passage_id = None;
+        self.current_queue_entry_id = None;
     }
 
     /// Get current tick position
@@ -431,6 +440,15 @@ impl Mixer {
     /// Returns ID of currently playing passage, or None if no passage active.
     pub fn get_current_passage_id(&self) -> Option<Uuid> {
         self.current_passage_id
+    }
+
+    /// Get current queue entry ID
+    ///
+    /// Returns the queue_entry_id of the currently playing passage, or None if no passage active.
+    ///
+    /// [SUB-INC-4B] Added for event emission (PassageComplete needs queue_entry_id)
+    pub fn get_current_queue_entry_id(&self) -> Option<Uuid> {
+        self.current_queue_entry_id
     }
 
     /// Get total frames written to output
@@ -531,9 +549,13 @@ impl Mixer {
 
         match self.state {
             MixerState::Playing => {
-                // Get buffer from BufferManager
-                let buffer_arc = buffer_manager.get_buffer(passage_id).await
-                    .ok_or_else(|| Error::Config(format!("No buffer found for passage {}", passage_id)))?;
+                // Get buffer from BufferManager using current_queue_entry_id
+                // (buffers are keyed by queue_entry_id, not passage_id)
+                let queue_entry_id = self.current_queue_entry_id
+                    .ok_or_else(|| Error::Config("No current queue entry ID set".to_string()))?;
+
+                let buffer_arc = buffer_manager.get_buffer(queue_entry_id).await
+                    .ok_or_else(|| Error::Config(format!("No buffer found for queue_entry_id {}", queue_entry_id)))?;
 
                 // Read pre-faded samples from buffer
                 let frames_requested = output.len() / 2;

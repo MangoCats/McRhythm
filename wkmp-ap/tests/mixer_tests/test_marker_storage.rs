@@ -11,7 +11,7 @@ async fn test_add_single_marker() {
     let passage_id = test_passage_id();
 
     // Set current passage
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add a single marker at tick 1000 (need to mix 1000 frames to reach it)
     let marker = create_position_update_marker(1000, passage_id, 1000);
@@ -43,7 +43,7 @@ async fn test_add_multiple_markers_sorted() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add markers in random order
     mixer.add_marker(create_position_update_marker(2000, passage_id, 2000));
@@ -77,7 +77,7 @@ async fn test_marker_min_heap_property() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add 10 markers with random ticks
     let random_ticks = vec![5000, 1000, 8000, 300, 7000, 2000, 9000, 4000, 6000, 100];
@@ -115,7 +115,7 @@ async fn test_clear_markers_for_passage() {
     let passage_a = test_passage_id();
     let passage_b = test_passage_id();
 
-    mixer.set_current_passage(passage_a, 0);
+    mixer.set_current_passage(passage_a, passage_a, 0);
 
     // Add markers for both passages
     mixer.add_marker(create_position_update_marker(100, passage_a, 100));
@@ -146,7 +146,7 @@ async fn test_clear_markers_for_passage() {
     // Now switch to passage B and add fresh markers
     // Note: Markers for passage B were discarded during passage A mixing (stale markers)
     // This is correct behavior - markers are passage-specific and timing-specific
-    mixer.set_current_passage(passage_b, 0);
+    mixer.set_current_passage(passage_b, passage_b, 0);
 
     // Add new markers for passage B (simulating what engine would do)
     mixer.add_marker(create_position_update_marker(150, passage_b, 150));
@@ -169,7 +169,7 @@ async fn test_clear_all_markers() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add multiple markers
     mixer.add_marker(create_position_update_marker(100, passage_id, 100));

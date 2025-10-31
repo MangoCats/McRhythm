@@ -13,7 +13,7 @@ async fn test_basic_crossfade_marker_timing() {
     let passage2_id = test_passage_id();
 
     // Passage 1: 10,000 frames, crossfade starts at tick 8,000
-    mixer.set_current_passage(passage1_id, 0);
+    mixer.set_current_passage(passage1_id, passage1_id, 0);
     mixer.add_marker(create_crossfade_marker(8_000, passage1_id, passage2_id));
     mixer.add_marker(create_passage_complete_marker(10_000, passage1_id));
 
@@ -56,7 +56,7 @@ async fn test_crossfade_with_position_updates() {
     // Passage 1: 20,000 frames
     // Position updates every 2,000 frames
     // Crossfade starts at 15,000
-    mixer.set_current_passage(passage1_id, 0);
+    mixer.set_current_passage(passage1_id, passage1_id, 0);
 
     for i in 0..10_i64 {
         let tick = i * 2_000;
@@ -107,7 +107,7 @@ async fn test_sequential_passages_with_crossfades() {
 
     for i in 0..3 {
         let current_id = passage_ids[i];
-        mixer.set_current_passage(current_id, 0);
+        mixer.set_current_passage(current_id, current_id, 0);
 
         // Add position updates at start, middle, and 80% point
         mixer.add_marker(create_position_update_marker(0, current_id, 0));

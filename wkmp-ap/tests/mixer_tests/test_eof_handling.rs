@@ -11,7 +11,7 @@ async fn test_eof_with_unreachable_markers() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add markers at ticks 500, 1000, 1500
     // Buffer only has 800 frames, so ticks 1000 and 1500 are unreachable
@@ -60,7 +60,7 @@ async fn test_eof_before_crossfade_point() {
     let passage_id = test_passage_id();
     let next_passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add markers:
     // - PositionUpdate at tick 500 (reachable)
@@ -117,7 +117,7 @@ async fn test_eof_without_markers() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // No markers set - passage plays to EOF naturally
 
@@ -148,7 +148,7 @@ async fn test_eof_all_markers_reachable() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add markers at ticks 100, 200, 300 (all before EOF at 500)
     mixer.add_marker(create_position_update_marker(100, passage_id, 100));
@@ -183,7 +183,7 @@ async fn test_underrun_without_eof() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add marker at tick 800 (unreachable in this mix)
     mixer.add_marker(create_position_update_marker(800, passage_id, 800));
@@ -211,7 +211,7 @@ async fn test_eof_requires_exhaustion() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Create buffer with 100 frames, mark as complete
     let buffer_manager = create_test_buffer_manager(passage_id, 100, 0.5).await;
@@ -249,7 +249,7 @@ async fn test_eof_mixed_unreachable_marker_types() {
     let passage_id = test_passage_id();
     let next_passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add mixed marker types, all beyond EOF
     mixer.add_marker(create_position_update_marker(1000, passage_id, 1000));

@@ -10,7 +10,7 @@ async fn test_mixing_with_volume() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Create buffer with non-zero amplitude (0.5)
     let buffer = create_test_buffer_manager(passage_id, 1_000, 0.5).await;
@@ -41,7 +41,7 @@ async fn test_mixing_with_zero_volume() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Create buffer with zero amplitude (silence)
     let buffer = create_test_buffer_manager(passage_id, 1_000, 0.0).await;
@@ -71,7 +71,7 @@ async fn test_mixing_different_amplitudes() {
 
     for amplitude in amplitudes {
         let mut mixer = create_test_mixer();
-        mixer.set_current_passage(passage_id, 0);
+        mixer.set_current_passage(passage_id, passage_id, 0);
 
         let buffer = create_test_buffer_manager(passage_id, 500, amplitude).await;
 

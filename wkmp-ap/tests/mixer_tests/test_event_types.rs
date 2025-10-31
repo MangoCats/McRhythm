@@ -11,7 +11,7 @@ async fn test_position_update_event() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add PositionUpdate marker
     mixer.add_marker(create_position_update_marker(500, passage_id, 12345));
@@ -41,7 +41,7 @@ async fn test_start_crossfade_event() {
     let current_passage_id = test_passage_id();
     let next_passage_id = test_passage_id();
 
-    mixer.set_current_passage(current_passage_id, 0);
+    mixer.set_current_passage(current_passage_id, current_passage_id, 0);
 
     // Add StartCrossfade marker
     mixer.add_marker(create_crossfade_marker(300, current_passage_id, next_passage_id));
@@ -71,7 +71,7 @@ async fn test_song_boundary_event() {
     let passage_id = test_passage_id();
     let new_song_id = test_passage_id(); // Using UUID for song ID
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add SongBoundary marker
     let marker = PositionMarker {
@@ -107,7 +107,7 @@ async fn test_passage_complete_event() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add PassageComplete marker
     mixer.add_marker(create_passage_complete_marker(1000, passage_id));
@@ -137,7 +137,7 @@ async fn test_multiple_event_types_in_sequence() {
     let passage_id = test_passage_id();
     let next_passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add different event types at various ticks
     mixer.add_marker(create_position_update_marker(100, passage_id, 100));
@@ -168,7 +168,7 @@ async fn test_song_boundary_with_none() {
     let mut mixer = create_test_mixer();
     let passage_id = test_passage_id();
 
-    mixer.set_current_passage(passage_id, 0);
+    mixer.set_current_passage(passage_id, passage_id, 0);
 
     // Add SongBoundary marker with None (exiting last song)
     let marker = PositionMarker {
