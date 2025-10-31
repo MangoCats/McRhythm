@@ -1772,14 +1772,13 @@ impl PlaybackEngine {
             // 2. Stop mixer (clear playback state)
             // [REQ-FIX-030] Clear mixer state
             // [REQ-FIX-010] Stop playback immediately
-            // [SUB-INC-4B] Replace stop() with SPEC016 operations
+            // [SUB-INC-4B] Replace stop() with SPEC016 operations (don't set to Paused - let process_queue handle state)
             {
                 let mut mixer = self.mixer.write().await;
                 mixer.clear_all_markers();
                 mixer.clear_passage();
-                mixer.set_state(MixerState::Paused);
             }
-            info!("Mixer stopped for removed passage");
+            info!("Mixer cleared for removed passage");
 
             // 3. Remove from queue structure
             // [REQ-FIX-040] Update queue structure

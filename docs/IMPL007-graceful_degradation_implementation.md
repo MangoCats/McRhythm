@@ -52,6 +52,8 @@ Implement graceful degradation throughout WKMP's microservices architecture to e
 
 ### Architecture
 
+- **[ARCH-INIT-003]**: Tracing subscriber initialization (independent of database)
+- **[ARCH-INIT-004]**: Build identification logging (REQUIRED immediately after tracing init)
 - **[ARCH-INIT-005]**: Root folder location resolution algorithm
 - **[ARCH-INIT-010]**: Module startup sequence
 - **[ARCH-INIT-015]**: Missing configuration handling
@@ -733,10 +735,30 @@ pub fn open_or_create_database(db_path: &Path) -> SqliteResult<Connection> {
 use wkmp_common::config::{RootFolderResolver, RootFolderInitializer, CompiledDefaults};
 use wkmp_common::db::{open_or_create_database, DatabaseInitializer};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Step 0: Initialize tracing subscriber [ARCH-INIT-003]
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "wkmp_ap=debug,tower_http=debug,wkmp_common=info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
+        .init();
+
+    // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init
+    // REQUIRED for all modules - provides instant startup feedback before database delays
+    info!(
+        "Starting WKMP Audio Player (wkmp-ap) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
+
     // Step 1: Resolve root folder [ARCH-INIT-005]
     let resolver = RootFolderResolver::new("audio-player");
-    let root_folder = resolver.resolve()?;
+    let root_folder = resolver.resolve();
 
     // Step 2: Create root folder directory if missing [REQ-NF-036]
     let initializer = RootFolderInitializer::new(root_folder);
@@ -744,7 +766,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Step 3: Open or create database [REQ-NF-036]
     let db_path = initializer.database_path();
-    let conn = open_or_create_database(&db_path)?;
+    let conn = open_or_create_database(&db_path).await?;
 
     // Step 4: Initialize database tables [ARCH-INIT-010]
     let db_init = DatabaseInitializer::new(&conn);
@@ -788,6 +810,40 @@ fn init_audio_player_tables(conn: &Connection) -> SqliteResult<()> {
 - `playback_progress_interval_ms`: `5000`
 - `queue_refill_threshold_passages`: `2`
 - `queue_refill_threshold_seconds`: `900`
+
+**Build Identification Logging:**
+
+**[ARCH-INIT-004]** ALL modules MUST log build identification immediately after tracing initialization:
+
+```rust
+// REQUIRED pattern for all modules
+info!(
+    "Starting WKMP [Module Name] ([module-id]) v{} [{}] built {} ({})",
+    env!("CARGO_PKG_VERSION"),
+    env!("GIT_HASH"),
+    env!("BUILD_TIMESTAMP"),
+    env!("BUILD_PROFILE")
+);
+```
+
+**Rationale:**
+- Provides instant startup feedback to users (before database initialization delays)
+- Enables version/build identification in logs for debugging
+- Independent of database configuration (uses environment variables set during build)
+- Appears immediately after tracing is initialized, not deferred until configuration loading
+
+**Module-specific messages:**
+- wkmp-ap: `"Starting WKMP Audio Player (wkmp-ap) v..."`
+- wkmp-ui: `"Starting WKMP User Interface (wkmp-ui) v..."`
+- wkmp-pd: `"Starting WKMP Program Director (wkmp-pd) v..."`
+- wkmp-ai: `"Starting WKMP Audio Ingest (wkmp-ai) v..."`
+- wkmp-le: `"Starting WKMP Lyric Editor (wkmp-le) v..."`
+
+**Environment Variables (set by build.rs):**
+- `CARGO_PKG_VERSION` - Semantic version from Cargo.toml
+- `GIT_HASH` - Short git commit hash (8 characters)
+- `BUILD_TIMESTAMP` - ISO 8601 timestamp (YYYY-MM-DDTHH:MM:SS±HH:MM)
+- `BUILD_PROFILE` - "debug" or "release"
 
 #### 3.2. User Interface (wkmp-ui)
 
