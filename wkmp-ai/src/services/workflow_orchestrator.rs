@@ -14,6 +14,7 @@ use anyhow::Result;
 use chrono::Utc;
 use sqlx::{Row, SqlitePool};
 use std::path::Path;
+use uuid::Uuid;
 use wkmp_common::events::{EventBus, WkmpEvent};
 
 /// Workflow orchestrator service
@@ -125,6 +126,20 @@ impl WorkflowOrchestrator {
         );
 
         crate::db::sessions::save_session(&self.db, &session).await?;
+
+        // Clean up temporary mapping tables
+        if let Err(e) = sqlx::query("DELETE FROM temp_file_songs")
+            .execute(&self.db)
+            .await
+        {
+            tracing::warn!("Failed to clean up temp_file_songs table: {}", e);
+        }
+        if let Err(e) = sqlx::query("DELETE FROM temp_file_albums")
+            .execute(&self.db)
+            .await
+        {
+            tracing::warn!("Failed to clean up temp_file_albums table: {}", e);
+        }
 
         let duration_seconds = start_time.elapsed().as_secs();
 
@@ -546,9 +561,31 @@ impl WorkflowOrchestrator {
                                                     subtask.success_count += 1;
                                                 }
                                             }
-                                            // Save song
+                                            // Save song (may update existing if recording_mbid exists)
                                             let song = crate::db::songs::Song::new(recording.id.clone());
-                                            crate::db::songs::save_song(&self.db, &song).await?;
+                                            if let Err(e) = crate::db::songs::save_song(&self.db, &song).await {
+                                                tracing::error!(
+                                                    song_id = %song.guid,
+                                                    recording_mbid = %recording.id,
+                                                    file_path = %file.path,
+                                                    error = %e,
+                                                    "FK constraint failed when saving song"
+                                                );
+                                                return Err(e.into());
+                                            }
+
+                                            // Load the song back to get the actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                            let song = match crate::db::songs::load_song_by_mbid(&self.db, &recording.id).await? {
+                                                Some(s) => s,
+                                                None => {
+                                                    tracing::error!(
+                                                        recording_mbid = %recording.id,
+                                                        file_path = %file.path,
+                                                        "Song not found after save"
+                                                    );
+                                                    continue;
+                                                }
+                                            };
 
                                             // Save artists and link to song
                                             for artist_credit in &mb_recording.artist_credit {
@@ -556,11 +593,42 @@ impl WorkflowOrchestrator {
                                                     artist_credit.artist.id.clone(),
                                                     artist_credit.artist.name.clone(),
                                                 );
-                                                crate::db::artists::save_artist(&self.db, &artist).await?;
+                                                if let Err(e) = crate::db::artists::save_artist(&self.db, &artist).await {
+                                                    tracing::error!(
+                                                        artist_id = %artist.guid,
+                                                        artist_mbid = %artist_credit.artist.id,
+                                                        file_path = %file.path,
+                                                        error = %e,
+                                                        "FK constraint failed when saving artist"
+                                                    );
+                                                    return Err(e.into());
+                                                }
+
+                                                // Load artist back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                let artist = match crate::db::artists::load_artist_by_mbid(&self.db, &artist_credit.artist.id).await? {
+                                                    Some(a) => a,
+                                                    None => {
+                                                        tracing::warn!(
+                                                            artist_mbid = %artist_credit.artist.id,
+                                                            file_path = %file.path,
+                                                            "Artist not found after save"
+                                                        );
+                                                        continue;
+                                                    }
+                                                };
 
                                                 // Link song to artist (equal weight)
                                                 let weight = 1.0 / mb_recording.artist_credit.len() as f64;
-                                                crate::db::artists::link_song_to_artist(&self.db, song.guid, artist.guid, weight).await?;
+                                                if let Err(e) = crate::db::artists::link_song_to_artist(&self.db, song.guid, artist.guid, weight).await {
+                                                    tracing::error!(
+                                                        song_id = %song.guid,
+                                                        artist_id = %artist.guid,
+                                                        file_path = %file.path,
+                                                        error = %e,
+                                                        "FK constraint failed when linking song to artist"
+                                                    );
+                                                    return Err(e.into());
+                                                }
                                             }
 
                                             // Save album if available
@@ -570,12 +638,49 @@ impl WorkflowOrchestrator {
                                                         release.id.clone(),
                                                         release.title.clone(),
                                                     );
-                                                    crate::db::albums::save_album(&self.db, &album).await?;
+                                                    if let Err(e) = crate::db::albums::save_album(&self.db, &album).await {
+                                                        tracing::error!(
+                                                            album_id = %album.guid,
+                                                            album_mbid = %release.id,
+                                                            file_path = %file.path,
+                                                            error = %e,
+                                                            "FK constraint failed when saving album"
+                                                        );
+                                                        return Err(e.into());
+                                                    }
 
-                                                    // Link passage to album
-                                                    let passages = crate::db::passages::load_passages_for_file(&self.db, file.guid).await?;
-                                                    for passage in passages {
-                                                        crate::db::albums::link_passage_to_album(&self.db, passage.guid, album.guid).await?;
+                                                    // Load album back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                    let album = match crate::db::albums::load_album_by_mbid(&self.db, &release.id).await? {
+                                                        Some(a) => a,
+                                                        None => {
+                                                            tracing::warn!(
+                                                                album_mbid = %release.id,
+                                                                file_path = %file.path,
+                                                                "Album not found after save"
+                                                            );
+                                                            continue;
+                                                        }
+                                                    };
+
+                                                    // Store file → album mapping for later passage linking
+                                                    // (passages don't exist yet - they're created in segmenting phase)
+                                                    if let Err(e) = sqlx::query(
+                                                        "INSERT INTO temp_file_albums (file_id, album_id) VALUES (?, ?)
+                                                         ON CONFLICT(file_id, album_id) DO NOTHING"
+                                                    )
+                                                    .bind(file.guid.to_string())
+                                                    .bind(album.guid.to_string())
+                                                    .execute(&self.db)
+                                                    .await
+                                                    {
+                                                        tracing::error!(
+                                                            file_id = %file.guid,
+                                                            album_id = %album.guid,
+                                                            file_path = %file.path,
+                                                            error = %e,
+                                                            "FK constraint failed when inserting into temp_file_albums"
+                                                        );
+                                                        return Err(e.into());
                                                     }
                                                 }
                                             }
@@ -589,25 +694,65 @@ impl WorkflowOrchestrator {
                                                                 work.id.clone(),
                                                                 work.title.clone(),
                                                             );
-                                                            crate::db::works::save_work(&self.db, &db_work).await?;
+                                                            if let Err(e) = crate::db::works::save_work(&self.db, &db_work).await {
+                                                                tracing::error!(
+                                                                    work_id = %db_work.guid,
+                                                                    work_mbid = %work.id,
+                                                                    file_path = %file.path,
+                                                                    error = %e,
+                                                                    "FK constraint failed when saving work"
+                                                                );
+                                                                return Err(e.into());
+                                                            }
+
+                                                            // Load work back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                            let db_work = match crate::db::works::load_work_by_mbid(&self.db, &work.id).await? {
+                                                                Some(w) => w,
+                                                                None => {
+                                                                    tracing::warn!(
+                                                                        work_mbid = %work.id,
+                                                                        file_path = %file.path,
+                                                                        "Work not found after save"
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                            };
 
                                                             // Link song to work
-                                                            crate::db::works::link_song_to_work(&self.db, song.guid, db_work.guid).await?;
+                                                            if let Err(e) = crate::db::works::link_song_to_work(&self.db, song.guid, db_work.guid).await {
+                                                                tracing::error!(
+                                                                    song_id = %song.guid,
+                                                                    work_id = %db_work.guid,
+                                                                    file_path = %file.path,
+                                                                    error = %e,
+                                                                    "FK constraint failed when linking song to work"
+                                                                );
+                                                                return Err(e.into());
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
 
-                                            // Link passages to song
-                                            let passages = crate::db::passages::load_passages_for_file(&self.db, file.guid).await?;
-                                            for passage in passages {
-                                                crate::db::songs::link_passage_to_song(
-                                                    &self.db,
-                                                    passage.guid,
-                                                    song.guid,
-                                                    passage.start_time_ticks,
-                                                    passage.end_time_ticks,
-                                                ).await?;
+                                            // Store file → song mapping for later passage linking
+                                            // (passages don't exist yet - they're created in segmenting phase)
+                                            if let Err(e) = sqlx::query(
+                                                "INSERT INTO temp_file_songs (file_id, song_id) VALUES (?, ?)
+                                                 ON CONFLICT(file_id) DO UPDATE SET song_id = excluded.song_id"
+                                            )
+                                            .bind(file.guid.to_string())
+                                            .bind(song.guid.to_string())
+                                            .execute(&self.db)
+                                            .await
+                                            {
+                                                tracing::error!(
+                                                    file_id = %file.guid,
+                                                    song_id = %song.guid,
+                                                    file_path = %file.path,
+                                                    error = %e,
+                                                    "FK constraint failed when inserting into temp_file_songs"
+                                                );
+                                                return Err(e.into());
                                             }
 
                                             tracing::info!(
@@ -664,16 +809,14 @@ impl WorkflowOrchestrator {
 
             processed_count += 1;
 
-            // Update progress every 5 files (fingerprinting is slow)
-            if processed_count % 5 == 0 {
-                session.update_progress(
-                    processed_count,
-                    files.len(),
-                    format!("Fingerprinted {}/{} files", processed_count, files.len()),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
-            }
+            // Update progress on every file (per-file progress indicator)
+            session.update_progress(
+                processed_count,
+                files.len(),
+                format!("Fingerprinting: {}/{} files", processed_count, files.len()),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
         }
 
         // Final progress update
@@ -743,6 +886,58 @@ impl WorkflowOrchestrator {
                     duration_sec,
                     "Passage created"
                 );
+
+                // Link passage to song if fingerprinting identified one
+                if let Ok(Some(row)) = sqlx::query_as::<_, (String,)>(
+                    "SELECT song_id FROM temp_file_songs WHERE file_id = ?"
+                )
+                .bind(file.guid.to_string())
+                .fetch_optional(&self.db)
+                .await
+                {
+                    if let Ok(song_guid) = Uuid::parse_str(&row.0) {
+                        if let Err(e) = crate::db::songs::link_passage_to_song(
+                            &self.db,
+                            passage.guid,
+                            song_guid,
+                            passage.start_time_ticks,
+                            passage.end_time_ticks,
+                        ).await {
+                            tracing::warn!(
+                                session_id = %session.session_id,
+                                file = %file.path,
+                                error = %e,
+                                "Failed to link passage to song"
+                            );
+                        }
+                    }
+                }
+
+                // Link passage to albums if fingerprinting identified any
+                if let Ok(rows) = sqlx::query_as::<_, (String,)>(
+                    "SELECT album_id FROM temp_file_albums WHERE file_id = ?"
+                )
+                .bind(file.guid.to_string())
+                .fetch_all(&self.db)
+                .await
+                {
+                    for row in rows {
+                        if let Ok(album_guid) = Uuid::parse_str(&row.0) {
+                            if let Err(e) = crate::db::albums::link_passage_to_album(
+                                &self.db,
+                                passage.guid,
+                                album_guid,
+                            ).await {
+                                tracing::warn!(
+                                    session_id = %session.session_id,
+                                    file = %file.path,
+                                    error = %e,
+                                    "Failed to link passage to album"
+                                );
+                            }
+                        }
+                    }
+                }
             }
 
             // Update progress periodically

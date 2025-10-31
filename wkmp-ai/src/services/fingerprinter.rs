@@ -107,8 +107,8 @@ impl Fingerprinter {
         use chromaprint_sys_next::*;
 
         unsafe {
-            // Step 1: Allocate Chromaprint context (algorithm 0 = DEFAULT, required for AcoustID)
-            let ctx = chromaprint_new(0);
+            // Step 1: Allocate Chromaprint context (algorithm 1 = TEST2 = DEFAULT, required for AcoustID)
+            let ctx = chromaprint_new(1);
             if ctx.is_null() {
                 return Err(FingerprintError::ChromaprintError(
                     "Failed to create Chromaprint context".to_string()

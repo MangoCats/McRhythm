@@ -73,7 +73,12 @@
       "Bash(cargo info:*)",
       "WebFetch(domain:docs.rs)",
       "Read(//home/sw/.cargo/registry/src/**)",
-      "SlashCommand(/think:*)"
+      "SlashCommand(/think:*)",
+      "Bash(RUST_LOG=debug timeout 60 cargo run:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(RUST_LOG=debug timeout 30 cargo run:*)",
+      "Bash(RUST_LOG=info timeout 3 cargo run:*)",
+      "Bash(RUST_LOG=info timeout 3 ./target/release/wkmp-ai:*)"
     ],
     "deny": [],
     "ask": []

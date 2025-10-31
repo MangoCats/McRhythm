@@ -159,6 +159,8 @@ impl AcoustIDClient {
 
         tracing::debug!(
             duration_seconds = duration_seconds,
+            fingerprint_len = fingerprint.len(),
+            fingerprint_preview = &fingerprint[..fingerprint.len().min(100)],
             "Querying AcoustID API"
         );
 

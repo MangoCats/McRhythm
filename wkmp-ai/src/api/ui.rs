@@ -27,7 +27,9 @@ pub fn ui_routes() -> Router<AppState> {
 /// Root page - Audio Import Home
 /// **[AIA-UI-010]** HTML entry point
 async fn root_page() -> impl IntoResponse {
-    Html(
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+
+    let html = format!(
         r#"
 <!DOCTYPE html>
 <html lang="en">
@@ -36,19 +38,30 @@ async fn root_page() -> impl IntoResponse {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>wkmp-ai - Audio Import</title>
     <style>
-        body {
+        body {{
             font-family: system-ui, -apple-system, sans-serif;
             max-width: 800px;
             margin: 40px auto;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1 {
+        }}
+        .build-info {{
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            font-size: 11px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+        }}
+        h1 {{
             color: #333;
             border-bottom: 2px solid #0066cc;
             padding-bottom: 10px;
-        }
-        .button {
+        }}
+        .button {{
             display: inline-block;
             padding: 10px 20px;
             background: #0066cc;
@@ -56,14 +69,20 @@ async fn root_page() -> impl IntoResponse {
             text-decoration: none;
             border-radius: 4px;
             margin: 10px 5px;
-        }
-        .button:hover {
+        }}
+        .button:hover {{
             background: #0052a3;
-        }
+        }}
     </style>
 </head>
 <body>
-    <h1>wkmp-ai - Audio Import</h1>
+    <div class="build-info">Built: {}</div>
+    <h1>wkmp-ai - Audio Import</h1>"#,
+        build_timestamp
+    );
+
+    Html(format!(
+        "{}
     <p>Import your music collection into WKMP with automatic MusicBrainz identification and passage boundary detection.</p>
 
     <h2>Features</h2>
@@ -77,15 +96,15 @@ async fn root_page() -> impl IntoResponse {
 
     <h2>Quick Start</h2>
     <p>
-        <a href="/import-progress" class="button">Start Import</a>
-        <a href="/segment-editor" class="button">Segment Editor</a>
+        <a href=\"/import-progress\" class=\"button\">Start Import</a>
+        <a href=\"/segment-editor\" class=\"button\">Segment Editor</a>
     </p>
 
     <p><small>Module: wkmp-ai v0.1.0 | Port 5723</small></p>
 </body>
-</html>
-        "#,
-    )
+</html>",
+        html
+    ))
 }
 
 /// Import Progress Page - Live progress updates via SSE

@@ -371,6 +371,37 @@ pub async fn initialize_schema(pool: &SqlitePool) -> Result<()> {
     .execute(&mut *tx)
     .await?;
 
+    // Temporary file-song mapping table for import workflow
+    // Stores file → song relationships discovered during fingerprinting phase
+    // Used to link passages to songs after passages are created in segmenting phase
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS temp_file_songs (
+            file_id TEXT PRIMARY KEY REFERENCES files(guid) ON DELETE CASCADE,
+            song_id TEXT NOT NULL REFERENCES songs(guid) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // Temporary file-album mapping table for import workflow
+    // Stores file → album relationships discovered during fingerprinting phase
+    // Used to link passages to albums after passages are created in segmenting phase
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS temp_file_albums (
+            file_id TEXT NOT NULL REFERENCES files(guid) ON DELETE CASCADE,
+            album_id TEXT NOT NULL REFERENCES albums(guid) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (file_id, album_id)
+        )
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
+
     // Insert initial schema version
     sqlx::query(
         r#"

@@ -29,6 +29,7 @@ async fn main() -> Result<()> {
     info!("Starting wkmp-ai (Audio Ingest) microservice");
     info!("Port: 5723");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
+    info!("Built: {}", env!("BUILD_TIMESTAMP"));
 
     // Step 1: Resolve root folder [ARCH-INIT-005, REQ-NF-035]
     let resolver = wkmp_common::config::RootFolderResolver::new("audio-ingest");
