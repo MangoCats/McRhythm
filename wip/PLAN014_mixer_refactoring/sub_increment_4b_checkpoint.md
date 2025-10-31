@@ -1,8 +1,8 @@
 # Sub-Increment 4b Implementation Checkpoint
 
-**Date:** 2025-01-30
+**Date:** 2025-01-30 (updated 2025-01-31)
 **Branch:** `feature/plan014-sub-increment-4b`
-**Status:** Phase 2 In Progress - Imports Updated, Compilation Errors Identified
+**Status:** Phase 2 Complete - Batch Mixing Loop Implemented
 
 ---
 
@@ -14,119 +14,74 @@
 2. **Planning Documents Created:**
    - [sub_increment_4b_plan.md](sub_increment_4b_plan.md) - Complete integration plan (20-28 hours)
    - [current_engine_behavior.md](current_engine_behavior.md) - Legacy behavior documentation
-3. **Import Updates** - Switched from `CrossfadeMixer` to `Mixer`
-4. **Mixer Type Updated** - `Arc<RwLock<Mixer>>` in PlaybackEngine struct
-5. **Mixer Initialization** - Basic `Mixer::new(master_volume)` (line 243)
+   - [batch_mixing_implementation_guide.md](batch_mixing_implementation_guide.md) - Step-by-step implementation guide
+3. **Phase 1: Preparation**
+   - Import Updates - Switched from `CrossfadeMixer` to `Mixer`
+   - Mixer Type Updated - `Arc<RwLock<Mixer>>` in PlaybackEngine struct
+   - Mixer Initialization - `Mixer::new(master_volume)` (line 243)
+4. **Phase 2: Batch Mixing Loop** ✅ COMPLETE
+   - Added `AudioProducer` import
+   - Defined `BATCH_SIZE_FRAMES` constant (512 frames)
+   - Implemented `mix_and_push_batch()` helper function
+   - Implemented `handle_marker_events()` stub (deferred to Phase 3)
+   - Replaced 3 graduated filling loops with batch mixing calls
+   - Added spawn variables and state tracking
 
 ### 🔄 In Progress
 
-**Phase 2: Batch Mixing Loop** - Partially started
+**Phase 3: Control Methods** - Next to implement
 
 **Files Modified:**
-- `wkmp-ap/src/playback/engine.rs` (lines 19, 90, 241-244)
+- `wkmp-ap/src/playback/engine.rs` (lines 19-21, 90, 241-244, 419-429, 431-539, 599-651)
 
 ---
 
-## Compilation Errors Identified
+## Compilation Status (After Phase 2)
 
-### Critical Errors (Playback Loop)
+### ✅ Resolved Errors
 
-**3 instances of `get_next_frame()` - Lines 490, 502, 518**
-```
-error[E0599]: no method named `get_next_frame` found
-```
+**3 instances of `get_next_frame()` - FIXED**
+- Replaced with `mix_and_push_batch()` calls
+- Maintains 3-tier graduated filling strategy
+- Batch sizes: 1024 (critical), 512 (low), 256 (optimal) frames
 
-**Required:** Replace with batch mixing logic using `mix_single()` or `mix_crossfade()`
+### ⏳ Remaining Errors (Expected - To Be Fixed in Phase 3-4)
 
----
+**10 legacy mixer method errors remain (all expected):**
 
-### Control Method Errors
-
-1. **`stop()` - 3 instances (lines 872, 917, 1549)**
+**Control Method Errors (Phase 3):**
+1. `stop()` - 3 instances
    - Map to: `mixer.set_state(MixerState::Idle)` + `clear_all_markers()`
-
-2. **`pause()` - 1 instance (line 759)**
+2. `pause()` - 1 instance
    - Map to: `mixer.set_state(MixerState::Paused)`
-
-3. **`resume()` - 1 instance (line 718)**
+3. `resume()` - 1 instance
    - Map to: `mixer.start_resume_fade(...)` + `set_state(MixerState::Playing)`
-
-4. **`set_position()` - 1 instance (line 1010)**
+4. `set_position()` - 1 instance
    - Map to: `mixer.set_current_passage(passage_id, seek_tick)` + recalculate markers
 
----
-
-### State Query Errors
-
-5. **`passage_start_time()` - 1 instance (line 851)**
+**State Query Errors (Phase 3):**
+5. `passage_start_time()` - 3 instances
    - Solution: Track in engine, not mixer
-
-6. **`get_state_info()` - 1 instance (line 1143)**
+6. `get_state_info()` - 1 instance
    - Solution: Build from `mixer.state()`, `mixer.get_current_tick()`, etc.
-
-7. **`get_total_frames_mixed()` - 1 instance (line 3106)**
+7. `get_total_frames_mixed()` - 1 instance
    - Map to: `mixer.get_frames_written()`
+
+**Passage Management Errors (Phase 4):**
+8. `start_passage()` - 1 instance
+   - Replace with: `set_current_passage()` + marker calculation
+9. `start_crossfade()` - 1 instance
+   - Replace with: marker-driven crossfade logic
+10. Other legacy methods - ~5 instances
+    - Various state queries and position tracking
 
 ---
 
 ## Next Steps (Priority Order)
 
-### 1. Implement Batch Mixing Loop (HIGHEST PRIORITY)
+### Phase 3: Implement Control Methods (2-3 hours)
 
-**Location:** Lines 465-526 (playback loop)
-
-**Current Pattern:**
-```rust
-for _ in 0..batch_size {
-    let frame = mixer.get_next_frame().await;
-    if !producer.push(frame) { break; }
-}
-```
-
-**New Pattern:**
-```rust
-const BATCH_SIZE: usize = 512; // frames
-let mut output = vec![0.0f32; BATCH_SIZE * 2]; // stereo
-
-// Determine if crossfading
-if is_crossfading {
-    let events = mixer.mix_crossfade(
-        &buffer_manager,
-        current_passage_id,
-        next_passage_id,
-        &mut output,
-        crossfade_samples,
-        fade_out_curve,
-        fade_in_curve
-    ).await?;
-    handle_marker_events(events, &position_event_tx);
-} else {
-    let events = mixer.mix_single(
-        &buffer_manager,
-        current_passage_id,
-        &mut output
-    ).await?;
-    handle_marker_events(events, &position_event_tx);
-}
-
-// Push batch to ring buffer
-for i in (0..output.len()).step_by(2) {
-    let frame = AudioFrame {
-        left: output[i],
-        right: output[i + 1],
-    };
-    if !producer.push(frame) { break; }
-}
-```
-
-**Required:**
-- Add `is_crossfading` flag tracking
-- Implement `handle_marker_events()` function
-- Preserve graduated filling strategy (3-tier based on buffer fill)
-
----
-
-### 2. Implement Control Methods
+**Implement the following methods to fix remaining compilation errors:**
 
 **`stop()` implementation:**
 ```rust
@@ -216,47 +171,21 @@ mixer.add_marker(PositionMarker {
 
 ---
 
-### 4. Implement `handle_marker_events()`
+### Phase 4: Implement `start_passage()` with Marker Calculation (4-6 hours)
 
-**New function needed:**
-```rust
-fn handle_marker_events(
-    events: Vec<MarkerEvent>,
-    event_tx: &mpsc::UnboundedSender<PlaybackEvent>,
-    is_crossfading: &mut bool,
-) {
-    for event in events {
-        match event {
-            MarkerEvent::PositionUpdate { position_ms } => {
-                event_tx.send(PlaybackEvent::PositionUpdate { position_ms }).ok();
-            }
-            MarkerEvent::StartCrossfade { next_passage_id } => {
-                *is_crossfading = true;
-                event_tx.send(PlaybackEvent::CrossfadeStarted { next_passage_id }).ok();
-            }
-            MarkerEvent::PassageComplete => {
-                *is_crossfading = false;
-                event_tx.send(PlaybackEvent::PassageComplete).ok();
-            }
-            MarkerEvent::SongBoundary { new_song_id } => {
-                event_tx.send(PlaybackEvent::SongChanged { song_id: new_song_id }).ok();
-            }
-            MarkerEvent::EndOfFile { unreachable_markers } => {
-                warn!("EOF reached with {} unreachable markers", unreachable_markers.len());
-                // Handle early EOF
-            }
-            MarkerEvent::EndOfFileBeforeLeadOut { planned_crossfade_tick, .. } => {
-                warn!("EOF before crossfade at tick {}", planned_crossfade_tick);
-                // Emergency passage switch
-            }
-        }
-    }
-}
-```
+**Location:** Line ~2966 (current `mixer.start_passage()` call)
+
+**Required:**
+1. Set current passage: `mixer.set_current_passage(passage_id, 0)`
+2. Calculate and add position update markers (every 100ms)
+3. Calculate and add crossfade marker (at lead-out point - crossfade duration)
+4. Calculate and add passage complete marker (at fade-out point)
+
+See [sub_increment_4b_checkpoint.md lines 172-215](sub_increment_4b_checkpoint.md) for implementation details.
 
 ---
 
-### 5. Implement State Query Methods
+### Phase 5: Implement State Query Methods (1-2 hours)
 
 **`get_state_info()` replacement:**
 ```rust
@@ -302,14 +231,18 @@ After each phase:
 
 ---
 
-## Time Estimates Remaining
+## Time Estimates
 
-- **Batch Mixing Loop:** 5-7 hours
-- **Marker Calculation:** 4-6 hours
-- **Control Methods:** 2-3 hours
-- **State Queries:** 1-2 hours
-- **Testing:** 3-4 hours
-- **Total:** 15-22 hours remaining
+**Completed:**
+- Phase 1 (Preparation): ~2 hours ✅
+- Phase 2 (Batch Mixing Loop): ~3 hours ✅
+
+**Remaining:**
+- Phase 3 (Control Methods): 2-3 hours
+- Phase 4 (Marker Calculation): 4-6 hours
+- Phase 5 (State Queries): 1-2 hours
+- Phase 6 (Manual Testing): 3-4 hours
+- **Total Remaining:** 10-15 hours
 
 ---
 
@@ -329,20 +262,24 @@ After each phase:
 ## Context for Next Session
 
 **Current State:**
-- Imports updated
-- Mixer type changed
-- Basic initialization done
-- 13 compilation errors identified
+- ✅ Phase 1 complete (imports, mixer type, initialization)
+- ✅ Phase 2 complete (batch mixing loop implemented)
+- 10 compilation errors remaining (all expected)
+- All batch mixing errors resolved
 
 **Next Action:**
-Follow [batch_mixing_implementation_guide.md](batch_mixing_implementation_guide.md) step-by-step to implement batch mixing loop (5-7 hours).
+Implement Phase 3 control methods (`stop()`, `pause()`, `resume()`, `set_position()`)
 
-**Key Decision:**
-Use fixed 512-frame batches for simplicity, maintain 3-tier graduated filling strategy for underrun prevention.
+**Key Implementation Details:**
+- Batch mixing uses 512-frame base size
+- Graduated filling strategy preserved (1024/512/256 frames for critical/low/optimal)
+- `handle_marker_events()` stub implemented (deferred full implementation to Phase 3)
+- State tracking added: `is_crossfading`, `current_passage_id`, `next_passage_id`
 
 ---
 
 **Document Created:** 2025-01-30
-**Status:** Phase 2 partially complete - ready for batch mixing loop implementation
+**Last Updated:** 2025-01-31
+**Status:** Phase 2 complete - ready for Phase 3 control methods
 **Branch:** `feature/plan014-sub-increment-4b`
-**Estimated Time Remaining:** 15-22 hours
+**Estimated Time Remaining:** 10-15 hours
