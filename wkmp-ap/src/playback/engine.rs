@@ -18,7 +18,7 @@ use crate::playback::events::PlaybackEvent;
 // [SUB-INC-4B] SPEC016-compliant mixer integration
 use crate::playback::mixer::{Mixer, MixerState, PositionMarker, MarkerEvent};
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
-use crate::playback::ring_buffer::AudioRingBuffer;
+use crate::playback::ring_buffer::{AudioRingBuffer, AudioProducer};
 use crate::playback::song_timeline::SongTimeline;
 use crate::playback::types::DecodePriority;
 use crate::state::{CurrentPassage, PlaybackState, SharedState};
@@ -409,16 +409,134 @@ impl PlaybackEngine {
         self.update_audio_expected_flag().await;
 
         // Start mixer thread that fills the ring buffer
-        // This thread continuously calls mixer.get_next_frame() and pushes to ring buffer
+        // [SUB-INC-4B] Now uses batch mixing with event-driven markers
         let mixer_clone = Arc::clone(&self.mixer);
         let running_clone = Arc::clone(&self.running);
         let audio_expected_clone = Arc::clone(&self.audio_expected);
         let check_interval_us = mixer_config.check_interval_us;
         let batch_size_low = mixer_config.batch_size_low;
         let batch_size_optimal = mixer_config.batch_size_optimal;
+        // [SUB-INC-4B] Clone additional variables for batch mixing
+        let buffer_manager_clone = Arc::clone(&self.buffer_manager);
+        let position_event_tx_clone = self.position_event_tx.clone();
         tokio::spawn(async move {
             info!("Mixer thread started");
             let mut check_interval = interval(Duration::from_micros(check_interval_us));
+
+            // [SUB-INC-4B] Track crossfade state and current passages
+            let mut is_crossfading = false;
+            let mut current_passage_id: Option<Uuid> = None;
+            let mut next_passage_id: Option<Uuid> = None;
+
+            // [SUB-INC-4B] Fixed batch size for SPEC016 mixer (512 frames ~= 11ms @ 44.1kHz)
+            const BATCH_SIZE_FRAMES: usize = 512;
+
+            // [SUB-INC-4B] Helper function for batch mixing and ring buffer push
+            async fn mix_and_push_batch(
+                mixer: &Arc<RwLock<Mixer>>,
+                buffer_manager: &Arc<BufferManager>,
+                event_tx: &mpsc::UnboundedSender<PlaybackEvent>,
+                producer: &AudioProducer,
+                is_crossfading: &mut bool,
+                current_passage_id: &mut Option<Uuid>,
+                _next_passage_id: &mut Option<Uuid>,
+                frames_to_mix: usize,
+            ) {
+                // Allocate output buffer (stereo: 2 samples per frame)
+                let mut output = vec![0.0f32; frames_to_mix * 2];
+
+                let mut mixer_guard = mixer.write().await;
+
+                // Update current passage ID if changed
+                *current_passage_id = mixer_guard.get_current_passage_id();
+
+                // If no passage playing, fill with silence
+                let Some(passage_id) = *current_passage_id else {
+                    // No passage - push silence
+                    for _ in 0..frames_to_mix {
+                        if !producer.push(AudioFrame::zero()) {
+                            break;
+                        }
+                    }
+                    return;
+                };
+
+                // Mix batch
+                let events = if *is_crossfading {
+                    // TODO: Crossfade mixing (Phase 3)
+                    // For now, fall back to single passage
+                    warn!("Crossfade not yet implemented in batch mixer");
+                    mixer_guard.mix_single(buffer_manager, passage_id, &mut output)
+                        .await
+                        .unwrap_or_else(|e| {
+                            error!("Mix error: {}", e);
+                            vec![]
+                        })
+                } else {
+                    // Single passage mixing
+                    mixer_guard.mix_single(buffer_manager, passage_id, &mut output)
+                        .await
+                        .unwrap_or_else(|e| {
+                            error!("Mix error: {}", e);
+                            vec![]
+                        })
+                };
+
+                // Release mixer lock before pushing to ring buffer
+                drop(mixer_guard);
+
+                // Handle marker events
+                handle_marker_events(events, event_tx, is_crossfading);
+
+                // Push frames to ring buffer
+                for i in (0..output.len()).step_by(2) {
+                    let frame = AudioFrame {
+                        left: output[i],
+                        right: output[i + 1],
+                    };
+                    if !producer.push(frame) {
+                        // Ring buffer full, stop pushing
+                        break;
+                    }
+                }
+            }
+
+            // [SUB-INC-4B] Convert MarkerEvents to PlaybackEvents
+            // TODO Phase 3: Map all MarkerEvent types to WkmpEvent (not PlaybackEvent)
+            // For now, only handle marker tracking, defer event emission to Phase 3
+            fn handle_marker_events(
+                events: Vec<MarkerEvent>,
+                _event_tx: &mpsc::UnboundedSender<PlaybackEvent>,
+                is_crossfading: &mut bool,
+            ) {
+                for event in events {
+                    match event {
+                        MarkerEvent::PositionUpdate { position_ms: _ } => {
+                            // TODO Phase 3: Emit position update with queue_entry_id
+                            // event_tx.send(PlaybackEvent::PositionUpdate { queue_entry_id, position_ms }).ok();
+                        }
+                        MarkerEvent::StartCrossfade { next_passage_id: _ } => {
+                            *is_crossfading = true;
+                            // TODO Phase 3: Handle crossfade start
+                        }
+                        MarkerEvent::PassageComplete => {
+                            *is_crossfading = false;
+                            // TODO Phase 3: Handle passage complete
+                        }
+                        MarkerEvent::SongBoundary { new_song_id: _ } => {
+                            // TODO Phase 3: Handle song boundary
+                        }
+                        MarkerEvent::EndOfFile { unreachable_markers } => {
+                            warn!("EOF reached with {} unreachable markers", unreachable_markers.len());
+                            // TODO Phase 3: Handle early EOF
+                        }
+                        MarkerEvent::EndOfFileBeforeLeadOut { planned_crossfade_tick, .. } => {
+                            warn!("EOF before crossfade at tick {}", planned_crossfade_tick);
+                            // TODO Phase 3: Emergency passage switch
+                        }
+                    }
+                }
+            }
 
             loop {
                 // Check if engine stopped
@@ -479,32 +597,36 @@ impl PlaybackEngine {
                 let is_optimal = producer.is_fill_optimal(); // 50-75%
                 let is_critical = fill_percent < 0.25; // < 25% = underrun risk!
 
+                // [SUB-INC-4B] Replaced frame-by-frame with batch mixing
                 if is_critical {
                     // **[BUGFIX]** Buffer CRITICALLY low (< 25%) - UNDERRUN IMMINENT!
                     // Fill aggressively WITHOUT sleeping to prevent gaps in audio
-                    let mut mixer = mixer_clone.write().await;
-
-                    // Push larger batch when critical
-                    let critical_batch_size = batch_size_low * 2;
-                    for _ in 0..critical_batch_size {
-                        let frame = mixer.get_next_frame().await;
-                        if !producer.push(frame) {
-                            break;
-                        }
-                    }
+                    let frames_to_mix = BATCH_SIZE_FRAMES * 2;
+                    mix_and_push_batch(
+                        &mixer_clone,
+                        &buffer_manager_clone,
+                        &position_event_tx_clone,
+                        &producer,
+                        &mut is_crossfading,
+                        &mut current_passage_id,
+                        &mut next_passage_id,
+                        frames_to_mix,
+                    ).await;
                     // NO SLEEP - loop immediately to refill!
 
                 } else if needs_filling {
                     // Buffer LOW (25-50%) - fill moderately
-                    let mut mixer = mixer_clone.write().await;
-
-                    for _ in 0..batch_size_low {
-                        let frame = mixer.get_next_frame().await;
-                        if !producer.push(frame) {
-                            break;
-                        }
-                    }
-                    // Lock released here
+                    let frames_to_mix = BATCH_SIZE_FRAMES;
+                    mix_and_push_batch(
+                        &mixer_clone,
+                        &buffer_manager_clone,
+                        &position_event_tx_clone,
+                        &producer,
+                        &mut is_crossfading,
+                        &mut current_passage_id,
+                        &mut next_passage_id,
+                        frames_to_mix,
+                    ).await;
 
                     // Minimal sleep when buffer is low
                     check_interval.tick().await;
@@ -513,13 +635,17 @@ impl PlaybackEngine {
                     // Buffer OPTIMAL (50-75%) - top up conservatively
                     check_interval.tick().await;
 
-                    let mut mixer = mixer_clone.write().await;
-                    for _ in 0..batch_size_optimal {
-                        let frame = mixer.get_next_frame().await;
-                        if !producer.push(frame) {
-                            break;
-                        }
-                    }
+                    let frames_to_mix = BATCH_SIZE_FRAMES / 2;
+                    mix_and_push_batch(
+                        &mixer_clone,
+                        &buffer_manager_clone,
+                        &position_event_tx_clone,
+                        &producer,
+                        &mut is_crossfading,
+                        &mut current_passage_id,
+                        &mut next_passage_id,
+                        frames_to_mix,
+                    ).await;
                 } else {
                     // Buffer HIGH (> 75%) - just yield and wait for consumption
                     check_interval.tick().await;
