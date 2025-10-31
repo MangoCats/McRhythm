@@ -69,7 +69,9 @@
       "SlashCommand(/think wip/_toml_directory_creation.md)",
       "Bash(RUST_LOG=info timeout 10 cargo run:*)",
       "WebFetch(domain:acoustid.org)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(cargo info:*)",
+      "WebFetch(domain:docs.rs)"
     ],
     "deny": [],
     "ask": []
