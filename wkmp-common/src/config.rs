@@ -25,6 +25,7 @@
 //! ```rust
 //! use wkmp_common::config::{RootFolderResolver, RootFolderInitializer};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Step 1: Resolve root folder (4-tier priority)
 //! let resolver = RootFolderResolver::new("module-name");
 //! let root_folder = resolver.resolve();
@@ -35,6 +36,8 @@
 //!
 //! // Step 3: Get database path
 //! let db_path = initializer.database_path();  // root_folder/wkmp.db
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::{Error, Result};
