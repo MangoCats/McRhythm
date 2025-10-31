@@ -212,6 +212,8 @@ During crossfade overlap, the mixer simply reads pre-faded samples from both buf
 
 **[XFD-CURV-040] Independence:** Fade-in and fade-out curves are selected independently. A passage may use any combination (e.g., exponential fade-in with linear fade-out).
 
+**[XFD-CURV-050] Application Timing:** Fade curves are applied to audio samples by the Fader component BEFORE buffering. The mixer reads pre-faded samples and performs simple addition during crossfade overlap. See [SPEC016 DBD-MIX-042] for architectural separation details.
+
 ## Crossfade Behavior
 
 ### Case 1: Following Passage Has Longer Lead-In Duration
@@ -330,6 +332,8 @@ crossfade_config = {
 ```
 
 See [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) for implementation of crossfade mixing with overlapping passages ([DBD-MIX-040]).
+
+**[XFD-IMPL-025] Architectural Note:** This algorithm calculates crossfade TIMING (when passages overlap). Fade curve APPLICATION is handled separately by the Fader component per [DBD-MIX-042]. The mixer implements simple addition of pre-faded samples per [DBD-MIX-041].
 
 **[XFD-IMPL-030]** Clamped Crossfade Time Calculation:
 
@@ -1277,3 +1281,8 @@ End of document - Crossfade Design
   - Specified ownership, scope, validation rules, and failure actions for each phase
   - Added traceability ID XFD-VAL-010 for three-phase validation strategy
   - Supports architectural decision from wkmp-ap design review (ISSUE-2)
+- v1.2 (2025-01-30): Clarified fade curve application timing and architectural boundaries
+  - Added [XFD-CURV-050] Application Timing: Specifies Fader applies curves BEFORE buffering, mixer reads pre-faded samples
+  - Added [XFD-IMPL-025] Architectural Note: Clarifies algorithm calculates TIMING (when), Fader handles APPLICATION (how)
+  - Cross-references SPEC016 [DBD-MIX-041] (simple addition) and [DBD-MIX-042] (architectural separation)
+  - Addresses specification ambiguity identified in PLAN014 mixer refactoring (REQ-MIX-003, REQ-MIX-004)

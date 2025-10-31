@@ -605,7 +605,7 @@ SPEC016 applies curves before buffering (pre-buffer); SPEC002 defines curve form
 - When in a lead-out / lead-in crossfade, also takes samples from the "playing next" passage buffer and adds them to the "now playing" sample values
 - **Note:** Fade-in and fade-out curves have already been applied to samples by the Fader component ([DBD-FADE-030/050]) before buffering. The mixer reads **pre-faded audio samples** from buffers and simply sums them during crossfade overlap. No runtime fade curve calculations are performed by the mixer.
 - Multiplies the sample values by the master volume level
-- When "fading in after pause" also multiplies the sample values by the current fade in curve value
+- When "fading in after pause" also multiplies the mixed output by the resume fade-in curve (mixer-level fade, orthogonal to passage-level fades applied by Fader component)
 
 **[DBD-MIX-041]** Crossfade mixing operation (during overlap):
 ```
@@ -723,6 +723,10 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.4 (2025-01-30): Clarified resume-from-pause fade terminology
+  - Updated [DBD-MIX-040] to distinguish mixer-level fade (resume from pause) from passage-level fades (applied by Fader)
+  - Clarified that "fading in after pause" applies resume fade-in curve to mixed output (orthogonal to passage fades)
+  - Addresses terminology ambiguity identified in PLAN014 mixer refactoring (REQ-MIX-005)
 - v1.3 (2025-10-25): Clarified mixer crossfade behavior and architectural separation
   - Enhanced [DBD-MIX-040] with note explaining Fader applies curves BEFORE buffering
   - Added [DBD-MIX-041] pseudocode showing mixer reads pre-faded samples and sums them

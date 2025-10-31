@@ -23,6 +23,7 @@
 //! Phase 6+: Crossfade overlap, pause mode decay, advanced features
 
 use crate::{audio::RingBuffer, Result};
+use wkmp_common::FadeCurve;
 
 /// Audio mixer state
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,6 +33,25 @@ pub enum MixerState {
 
     /// Mixer is paused (outputting silence)
     Paused,
+}
+
+/// Resume fade-in state
+///
+/// Tracks fade-in progress after resuming from pause.
+/// Per SPEC016 [DBD-MIX-040], this is a mixer-level fade applied multiplicatively
+/// to the final mixed output (orthogonal to passage-level fades applied by Fader).
+#[derive(Debug, Clone)]
+struct ResumeState {
+    /// Fade-in duration in samples
+    ///
+    /// Example: 0.5s * 44100 = 22050 samples
+    fade_duration_samples: usize,
+
+    /// Fade-in curve (linear, exponential, cosine, etc.)
+    fade_in_curve: FadeCurve,
+
+    /// Number of samples processed since resume (for fade calculation)
+    samples_since_resume: usize,
 }
 
 /// Audio mixer
@@ -62,6 +82,12 @@ pub struct Mixer {
 
     /// Pause decay floor per SPEC016 DBD-PARAM-100
     pause_decay_floor: f32,
+
+    /// Resume fade-in state
+    ///
+    /// Some when fading in after resume from pause, None otherwise.
+    /// Per SPEC016 [DBD-MIX-040], this is a mixer-level fade (orthogonal to passage-level fades).
+    resume_state: Option<ResumeState>,
 }
 
 impl Mixer {
@@ -85,6 +111,7 @@ impl Mixer {
             last_sample_right: 0.0,
             pause_decay_factor: 0.96875, // 31/32 per SPEC016 DBD-PARAM-090
             pause_decay_floor: 0.0001778, // per SPEC016 DBD-PARAM-100
+            resume_state: None,
         }
     }
 
@@ -128,6 +155,47 @@ impl Mixer {
         self.state
     }
 
+    /// Start resume fade-in
+    ///
+    /// Initiates a fade-in from 0.0 to 1.0 applied multiplicatively to the final mixed output.
+    /// This is a mixer-level fade (orthogonal to passage-level fades applied by Fader component).
+    ///
+    /// # Arguments
+    ///
+    /// * `fade_duration_samples` - Fade-in duration in samples (e.g., 22050 for 0.5s at 44.1kHz)
+    /// * `fade_in_curve` - Fade curve to use (Linear, Exponential, etc.)
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // Start 500ms fade-in at 44.1kHz
+    /// mixer.start_resume_fade(22050, FadeCurve::Exponential);
+    /// ```
+    pub fn start_resume_fade(&mut self, fade_duration_samples: usize, fade_in_curve: FadeCurve) {
+        self.resume_state = Some(ResumeState {
+            fade_duration_samples,
+            fade_in_curve,
+            samples_since_resume: 0,
+        });
+    }
+
+    /// Check if currently fading in from resume
+    ///
+    /// # Returns
+    ///
+    /// `true` if resume fade-in is active, `false` otherwise
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// if mixer.is_resume_fading() {
+    ///     println!("Fading in from pause");
+    /// }
+    /// ```
+    pub fn is_resume_fading(&self) -> bool {
+        self.resume_state.is_some()
+    }
+
     /// Mix single passage into output buffer
     ///
     /// Per SPEC016 DBD-MIX-040: Reads pre-faded samples, applies master volume.
@@ -157,9 +225,30 @@ impl Mixer {
                 let frames_requested = output.len() / 2;
                 let samples = passage_buffer.pop(frames_requested)?;
 
-                // Copy samples to output with master volume
+                // Copy samples to output with master volume, then apply resume fade if active
                 for (i, &sample) in samples.iter().enumerate() {
-                    output[i] = sample * self.master_volume;
+                    // Apply master volume first
+                    let mut out_sample = sample * self.master_volume;
+
+                    // Apply resume fade-in multiplicatively (mixer-level fade)
+                    if let Some(ref resume) = self.resume_state {
+                        if resume.samples_since_resume < resume.fade_duration_samples {
+                            let fade_position = resume.samples_since_resume as f32
+                                / resume.fade_duration_samples as f32;
+                            let multiplier = resume.fade_in_curve.calculate_fade_in(fade_position);
+                            out_sample *= multiplier;
+                        }
+                    }
+
+                    output[i] = out_sample;
+                }
+
+                // Update resume fade progress and clear if complete
+                if let Some(ref mut resume) = self.resume_state {
+                    resume.samples_since_resume += samples.len();
+                    if resume.samples_since_resume >= resume.fade_duration_samples {
+                        self.resume_state = None; // Fade complete
+                    }
                 }
 
                 // Store last sample for potential pause mode
@@ -233,7 +322,27 @@ impl Mixer {
             let mixed = current_samples[i] + next_samples[i];
 
             // Apply master volume
-            output[i] = mixed * self.master_volume;
+            let mut out_sample = mixed * self.master_volume;
+
+            // Apply resume fade-in multiplicatively (mixer-level fade)
+            if let Some(ref resume) = self.resume_state {
+                if resume.samples_since_resume < resume.fade_duration_samples {
+                    let fade_position = resume.samples_since_resume as f32
+                        / resume.fade_duration_samples as f32;
+                    let multiplier = resume.fade_in_curve.calculate_fade_in(fade_position);
+                    out_sample *= multiplier;
+                }
+            }
+
+            output[i] = out_sample;
+        }
+
+        // Update resume fade progress and clear if complete
+        if let Some(ref mut resume) = self.resume_state {
+            resume.samples_since_resume += min_len;
+            if resume.samples_since_resume >= resume.fade_duration_samples {
+                self.resume_state = None; // Fade complete
+            }
         }
 
         // Store last sample
