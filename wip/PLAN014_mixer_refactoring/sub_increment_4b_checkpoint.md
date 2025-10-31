@@ -2,7 +2,7 @@
 
 **Date:** 2025-01-30 (updated 2025-01-31)
 **Branch:** `feature/plan014-sub-increment-4b`
-**Status:** Phase 2 Complete - Batch Mixing Loop Implemented
+**Status:** Phase 3 Complete - Control Methods & State Queries Implemented
 
 ---
 
@@ -15,7 +15,7 @@
    - [sub_increment_4b_plan.md](sub_increment_4b_plan.md) - Complete integration plan (20-28 hours)
    - [current_engine_behavior.md](current_engine_behavior.md) - Legacy behavior documentation
    - [batch_mixing_implementation_guide.md](batch_mixing_implementation_guide.md) - Step-by-step implementation guide
-3. **Phase 1: Preparation**
+3. **Phase 1: Preparation** ✅ COMPLETE
    - Import Updates - Switched from `CrossfadeMixer` to `Mixer`
    - Mixer Type Updated - `Arc<RwLock<Mixer>>` in PlaybackEngine struct
    - Mixer Initialization - `Mixer::new(master_volume)` (line 243)
@@ -23,57 +23,75 @@
    - Added `AudioProducer` import
    - Defined `BATCH_SIZE_FRAMES` constant (512 frames)
    - Implemented `mix_and_push_batch()` helper function
-   - Implemented `handle_marker_events()` stub (deferred to Phase 3)
+   - Implemented `handle_marker_events()` stub
    - Replaced 3 graduated filling loops with batch mixing calls
    - Added spawn variables and state tracking
+   - Fixed producer borrow errors
+5. **Phase 3: Control Methods** ✅ COMPLETE
+   - Added `clear_passage()` method to mixer
+   - Implemented `stop()` - 4 instances fixed
+   - Implemented `pause()` - 1 instance fixed
+   - Implemented `resume()` - 1 instance fixed (with fade parsing)
+   - Implemented `seek()` - 1 instance fixed
+6. **Phase 3.5: Quick State Queries** ✅ COMPLETE
+   - Implemented `get_total_frames_mixed()` replacement
+   - Implemented `get_position()` replacement
+   - Implemented `get_state_info()` replacement
 
 ### 🔄 In Progress
 
-**Phase 3: Control Methods** - Next to implement
+**Phase 4: Passage Management** - 9 errors remaining (complex work)
 
 **Files Modified:**
-- `wkmp-ap/src/playback/engine.rs` (lines 19-21, 90, 241-244, 419-429, 431-539, 599-651)
+- `wkmp-ap/src/playback/engine.rs` (extensive changes)
+- `wkmp-ap/src/playback/mixer.rs` (added clear_passage() method)
 
 ---
 
-## Compilation Status (After Phase 2)
+## Compilation Status (After Phase 3.5)
 
-### ✅ Resolved Errors
+### ✅ Resolved Errors (15 total)
 
-**3 instances of `get_next_frame()` - FIXED**
+**Phase 2: Batch Mixing (3 errors)**
+- `get_next_frame()` - 3 instances FIXED
 - Replaced with `mix_and_push_batch()` calls
 - Maintains 3-tier graduated filling strategy
-- Batch sizes: 1024 (critical), 512 (low), 256 (optimal) frames
 
-### ⏳ Remaining Errors (Expected - To Be Fixed in Phase 3-4)
+**Phase 3: Control Methods (7 errors)**
+- `stop()` - 4 instances FIXED
+- `pause()` - 1 instance FIXED
+- `resume()` - 1 instance FIXED
+- `set_position()` - 1 instance FIXED
+- Producer borrow errors - 2 instances FIXED
 
-**10 legacy mixer method errors remain (all expected):**
+**Phase 3.5: State Queries (3 errors)**
+- `get_total_frames_mixed()` - 1 instance FIXED
+- `get_position()` - 1 instance FIXED
+- `get_state_info()` - 1 instance FIXED
 
-**Control Method Errors (Phase 3):**
-1. `stop()` - 3 instances
-   - Map to: `mixer.set_state(MixerState::Idle)` + `clear_all_markers()`
-2. `pause()` - 1 instance
-   - Map to: `mixer.set_state(MixerState::Paused)`
-3. `resume()` - 1 instance
-   - Map to: `mixer.start_resume_fade(...)` + `set_state(MixerState::Playing)`
-4. `set_position()` - 1 instance
-   - Map to: `mixer.set_current_passage(passage_id, seek_tick)` + recalculate markers
+### ⏳ Remaining Errors (9 - All Phase 4)
 
-**State Query Errors (Phase 3):**
-5. `passage_start_time()` - 3 instances
-   - Solution: Track in engine, not mixer
-6. `get_state_info()` - 1 instance
-   - Solution: Build from `mixer.state()`, `mixer.get_current_tick()`, etc.
-7. `get_total_frames_mixed()` - 1 instance
-   - Map to: `mixer.get_frames_written()`
+**All remaining errors are passage management (Phase 4 work):**
 
-**Passage Management Errors (Phase 4):**
-8. `start_passage()` - 1 instance
+1. **`start_passage()` - 2 instances**
    - Replace with: `set_current_passage()` + marker calculation
-9. `start_crossfade()` - 1 instance
-   - Replace with: marker-driven crossfade logic
-10. Other legacy methods - ~5 instances
-    - Various state queries and position tracking
+   - This is the MAIN Phase 4 work (4-6 hours)
+
+2. **`passage_start_time()` - 3 instances**
+   - Track in engine (add field to PlaybackEngine struct)
+   - Set when starting passage
+
+3. **`is_crossfading()` - 1 instance**
+   - Track in engine state (already have flag in spawn, need to expose)
+
+4. **`start_crossfade()` - 1 instance**
+   - Replace with marker-driven crossfade logic
+
+5. **`is_current_finished()` - 1 instance**
+   - Check if current passage complete
+
+6. **`take_crossfade_completed()` - 1 instance**
+   - Legacy event polling, likely obsolete with markers
 
 ---
 
@@ -236,13 +254,18 @@ After each phase:
 **Completed:**
 - Phase 1 (Preparation): ~2 hours ✅
 - Phase 2 (Batch Mixing Loop): ~3 hours ✅
+- Phase 3 (Control Methods): ~2.5 hours ✅
+- Phase 3.5 (Quick State Queries): ~0.5 hours ✅
+- **Total Spent:** ~8 hours ✅
 
 **Remaining:**
-- Phase 3 (Control Methods): 2-3 hours
-- Phase 4 (Marker Calculation): 4-6 hours
-- Phase 5 (State Queries): 1-2 hours
-- Phase 6 (Manual Testing): 3-4 hours
-- **Total Remaining:** 10-15 hours
+- Phase 4 (Passage Management): 4-6 hours
+  - start_passage() with marker calculation (main work)
+  - passage_start_time tracking
+  - Crossfade state tracking
+  - Legacy method stubs
+- Phase 5 (Manual Testing): 3-4 hours
+- **Total Remaining:** 7-10 hours
 
 ---
 
@@ -264,22 +287,34 @@ After each phase:
 **Current State:**
 - ✅ Phase 1 complete (imports, mixer type, initialization)
 - ✅ Phase 2 complete (batch mixing loop implemented)
-- 10 compilation errors remaining (all expected)
-- All batch mixing errors resolved
+- ✅ Phase 3 complete (control methods: stop, pause, resume, seek)
+- ✅ Phase 3.5 complete (quick state queries fixed)
+- **9 compilation errors remaining** (all Phase 4 passage management)
+- **15 errors fixed** (63% reduction from original 24)
 
 **Next Action:**
-Implement Phase 3 control methods (`stop()`, `pause()`, `resume()`, `set_position()`)
+Phase 4 passage management (4-6 hours) - this is the major remaining work
+
+**Remaining 9 Errors Breakdown:**
+1. `start_passage()` - 2 instances (MAIN WORK: marker calculation)
+2. `passage_start_time()` - 3 instances (add field to engine)
+3. `is_crossfading()` - 1 instance (expose existing spawn flag)
+4. `start_crossfade()` - 1 instance (marker-driven logic)
+5. `is_current_finished()` - 1 instance (passage completion check)
+6. `take_crossfade_completed()` - 1 instance (likely obsolete)
 
 **Key Implementation Details:**
 - Batch mixing uses 512-frame base size
-- Graduated filling strategy preserved (1024/512/256 frames for critical/low/optimal)
-- `handle_marker_events()` stub implemented (deferred full implementation to Phase 3)
-- State tracking added: `is_crossfading`, `current_passage_id`, `next_passage_id`
+- Graduated filling strategy preserved (1024/512/256 frames)
+- Control methods fully implemented with SPEC016 API
+- State queries building from mixer primitives
+- Marker calculation is the main Phase 4 challenge
 
 ---
 
 **Document Created:** 2025-01-30
 **Last Updated:** 2025-01-31
-**Status:** Phase 2 complete - ready for Phase 3 control methods
+**Status:** Phase 3 complete - ready for Phase 4 passage management
 **Branch:** `feature/plan014-sub-increment-4b`
-**Estimated Time Remaining:** 10-15 hours
+**Commits:** 5 total (planning, batch mixing, control methods, quick queries, checkpoint)
+**Estimated Time Remaining:** 7-10 hours
