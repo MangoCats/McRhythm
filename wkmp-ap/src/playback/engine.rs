@@ -2106,13 +2106,86 @@ impl PlaybackEngine {
 
                         // Start mixer
                         // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
-                        // TODO: Add full marker calculation (position updates, crossfade, completion)
                         {
                             let mut mixer = self.mixer.write().await;
                             if let Some(passage_id) = current.passage_id {
                                 mixer.set_current_passage(passage_id, 0);
-                                // TODO: Calculate and add markers here
-                                // TODO: Handle fade-in via start_resume_fade() if needed
+
+                                // [SUB-INC-4B] Calculate and add markers
+
+                                // 1. Position update markers (every 100ms from settings)
+                                let position_interval_ms = 100i64; // TODO: Get from settings
+                                let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
+
+                                // Calculate passage duration in ticks
+                                let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(300_000)))); // Default 5min max
+                                let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
+
+                                // Add position update markers
+                                let marker_count = (passage_duration_ticks / position_interval_ticks) as usize;
+                                for i in 1..=marker_count {
+                                    let tick = i as i64 * position_interval_ticks;
+                                    let position_ms = wkmp_common::timing::ticks_to_ms(tick) as u64;
+
+                                    mixer.add_marker(PositionMarker {
+                                        tick,
+                                        passage_id,
+                                        event_type: MarkerEvent::PositionUpdate { position_ms },
+                                    });
+                                }
+
+                                // 2. Crossfade marker (if next passage exists)
+                                if let Some(ref _next) = next_entry {
+                                    // Calculate crossfade start point
+                                    let fade_out_start_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                                        fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                                    } else {
+                                        // No explicit fade-out point, use lead-out - 5 seconds
+                                        let lead_out_tick = passage.lead_out_point_ticks.unwrap_or(passage_duration_ticks);
+                                        lead_out_tick.saturating_sub(wkmp_common::timing::ms_to_ticks(5000))
+                                    };
+
+                                    // Only add if there's a next passage in queue
+                                    if let Some(next_passage_id) = next_entry.as_ref().and_then(|n| n.passage_id) {
+                                        mixer.add_marker(PositionMarker {
+                                            tick: fade_out_start_tick,
+                                            passage_id,
+                                            event_type: MarkerEvent::StartCrossfade { next_passage_id },
+                                        });
+
+                                        debug!(
+                                            "Added crossfade marker at tick {} for passage {} → {}",
+                                            fade_out_start_tick, passage_id, next_passage_id
+                                        );
+                                    }
+                                }
+
+                                // 3. Passage complete marker (at fade-out end)
+                                let complete_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                                    fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                                } else {
+                                    passage_duration_ticks
+                                };
+
+                                mixer.add_marker(PositionMarker {
+                                    tick: complete_tick,
+                                    passage_id,
+                                    event_type: MarkerEvent::PassageComplete,
+                                });
+
+                                debug!(
+                                    "Added markers for passage {}: {} position updates, complete at tick {}",
+                                    passage_id, marker_count, complete_tick
+                                );
+
+                                // 4. Handle fade-in via start_resume_fade() if needed
+                                if fade_in_duration_samples > 0 {
+                                    mixer.start_resume_fade(fade_in_duration_samples as usize, fade_in_curve);
+                                    debug!(
+                                        "Started fade-in: {} samples, curve: {:?}",
+                                        fade_in_duration_samples, fade_in_curve
+                                    );
+                                }
                             }
                             // Set passage start time
                             *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
@@ -3015,13 +3088,89 @@ impl PlaybackEngine {
 
                     // Start mixer immediately
                     // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
-                    // TODO: Add full marker calculation (position updates, crossfade, completion)
                     {
+                        // Get next entry for crossfade marker calculation
+                        let next_entry = self.queue.read().await.next().cloned();
+
                         let mut mixer = self.mixer.write().await;
                         if let Some(passage_id) = current.passage_id {
                             mixer.set_current_passage(passage_id, 0);
-                            // TODO: Calculate and add markers here
-                            // TODO: Handle fade-in via start_resume_fade() if needed
+
+                            // [SUB-INC-4B] Calculate and add markers
+
+                            // 1. Position update markers (every 100ms from settings)
+                            let position_interval_ms = 100i64; // TODO: Get from settings
+                            let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
+
+                            // Calculate passage duration in ticks
+                            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(300_000)))); // Default 5min max
+                            let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
+
+                            // Add position update markers
+                            let marker_count = (passage_duration_ticks / position_interval_ticks) as usize;
+                            for i in 1..=marker_count {
+                                let tick = i as i64 * position_interval_ticks;
+                                let position_ms = wkmp_common::timing::ticks_to_ms(tick) as u64;
+
+                                mixer.add_marker(PositionMarker {
+                                    tick,
+                                    passage_id,
+                                    event_type: MarkerEvent::PositionUpdate { position_ms },
+                                });
+                            }
+
+                            // 2. Crossfade marker (if next passage exists)
+                            if let Some(ref _next) = next_entry {
+                                // Calculate crossfade start point
+                                let fade_out_start_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                                    fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                                } else {
+                                    // No explicit fade-out point, use lead-out - 5 seconds
+                                    let lead_out_tick = passage.lead_out_point_ticks.unwrap_or(passage_duration_ticks);
+                                    lead_out_tick.saturating_sub(wkmp_common::timing::ms_to_ticks(5000))
+                                };
+
+                                // Only add if there's a next passage in queue
+                                if let Some(next_passage_id) = next_entry.as_ref().and_then(|n| n.passage_id) {
+                                    mixer.add_marker(PositionMarker {
+                                        tick: fade_out_start_tick,
+                                        passage_id,
+                                        event_type: MarkerEvent::StartCrossfade { next_passage_id },
+                                    });
+
+                                    debug!(
+                                        "Added crossfade marker at tick {} for passage {} → {}",
+                                        fade_out_start_tick, passage_id, next_passage_id
+                                    );
+                                }
+                            }
+
+                            // 3. Passage complete marker (at fade-out end)
+                            let complete_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                                fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                            } else {
+                                passage_duration_ticks
+                            };
+
+                            mixer.add_marker(PositionMarker {
+                                tick: complete_tick,
+                                passage_id,
+                                event_type: MarkerEvent::PassageComplete,
+                            });
+
+                            debug!(
+                                "Added markers for passage {}: {} position updates, complete at tick {}",
+                                passage_id, marker_count, complete_tick
+                            );
+
+                            // 4. Handle fade-in via start_resume_fade() if needed
+                            if fade_in_duration_samples > 0 {
+                                mixer.start_resume_fade(fade_in_duration_samples as usize, fade_in_curve);
+                                debug!(
+                                    "Started fade-in: {} samples, curve: {:?}",
+                                    fade_in_duration_samples, fade_in_curve
+                                );
+                            }
                         }
                         // Set passage start time
                         *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
