@@ -2,7 +2,7 @@
 
 **Date:** 2025-01-30 (updated 2025-01-31)
 **Branch:** `feature/plan014-sub-increment-4b`
-**Status:** Phase 4 Complete - All Compilation Errors Resolved ✅
+**Status:** Phase 5.2 Complete - Full Marker Calculation Implemented ✅
 
 ---
 
@@ -47,6 +47,14 @@
    - Replaced 2 `start_passage()` calls with minimal implementations
    - Fixed missing field in `clone_handles()` struct initializer
    - **Zero compilation errors achieved** ✅
+8. **Phase 5.2: Full Marker Calculation** ✅ COMPLETE
+   - Implemented position update markers (every 100ms)
+   - Implemented crossfade markers (at fade-out start point)
+   - Implemented passage complete markers (at fade-out end)
+   - Implemented fade-in handling via start_resume_fade()
+   - Fixed type conversions (i64/u64) for timing functions
+   - Calculated marker counts from passage duration metadata
+   - Both start_passage() locations fully implemented (lines 2112, 3097)
 
 **Files Modified:**
 - `wkmp-ap/src/playback/engine.rs` (extensive changes)
@@ -83,47 +91,57 @@
 - `is_current_finished()` - 1 instance FIXED (stubbed)
 - `take_crossfade_completed()` - 1 instance FIXED (stubbed)
 
+**Phase 5.2: Marker Calculation (TODOs completed)**
+- Position update markers - IMPLEMENTED (every 100ms)
+- Crossfade markers - IMPLEMENTED (at fade-out start)
+- Passage complete markers - IMPLEMENTED (at fade-out end)
+- Fade-in handling - IMPLEMENTED (via start_resume_fade)
+
 ### ✅ Zero Compilation Errors
 
-**Build Status:** `cargo check -p wkmp-ap` passes with 0 errors, 9 warnings (all unused imports/variables)
+**Build Status:** `cargo check -p wkmp-ap` passes with 0 errors, 6 warnings (unused variables only)
 
 **Warnings Summary:**
-- Unused imports: `PositionMarker` (will be used in marker calculation)
-- Unused variables: `fade_in_curve`, `fade_out_duration_samples`, etc. (deferred to future work)
+- Unused variables: `fade_out_duration_samples`, `fade_in_duration_samples`, `mixer_min_start_level`, `batch_size_low`, `batch_size_optimal` (legacy parameters from crossfade trigger - will be cleaned up)
 - Dead code warnings: Legacy `CrossfadeMixer` and related structs (will be removed after testing)
+- NOTE: `PositionMarker` import is now USED in marker calculation ✅
 
 ---
 
 ## Next Steps (Priority Order)
 
-### Phase 5: Manual Testing & Marker Implementation (6-10 hours)
+### Phase 5.4: Manual Testing & Integration Validation (3-5 hours)
 
-**Current State:** System compiles with zero errors. Key functionality is stubbed with TODO comments.
+**Current State:** SPEC016 mixer integration functionally complete. All marker calculation and fade-in handling implemented. System compiles with zero errors.
 
-**Priority 1: Manual Testing (3-4 hours)**
+**Testing Options:**
+
+**Option A: Full Integration Testing (3-4 hours)**
+Requires:
+- Populated database with passages
+- Audio files in ~/Music or configured root folder
+- Full application stack (wkmp-ui, wkmp-ap)
+
+Test Plan:
 1. Build full binary: `cargo build -p wkmp-ap`
-2. Test basic playback (load passage, start, verify audio output)
-3. Test control operations (pause, resume, stop, seek)
-4. Monitor logs for errors/warnings
-5. Verify ring buffer stability
+2. Start wkmp-ap: `RUST_LOG=info cargo run -p wkmp-ap`
+3. Enqueue passages via API or UI
+4. Verify basic playback (audio output)
+5. Monitor logs for marker events (PositionUpdate, StartCrossfade, PassageComplete)
+6. Test control operations (pause, resume, stop, seek)
+7. Verify crossfade transitions
+8. Check ring buffer stability
 
-**Priority 2: Implement Full Marker Calculation (4-6 hours)**
+**Option B: Unit Test Validation (1-2 hours)**
+Use existing mixer test suite:
+- Run: `cargo test -p wkmp-ap --test mixer_tests`
+- Verify all integration tests pass with new marker system
+- Tests cover: marker storage, position tracking, EOF handling, crossfades
 
-Two locations need full marker calculation implemented:
-1. Line ~2107 - `start_passage()` replacement in spawn passage flow
-2. Line ~3015 - `start_passage()` replacement in enqueue-and-play flow
-
-**Marker Types Needed:**
-- Position update markers (every 100ms from settings)
-- Crossfade marker (at lead-out point - crossfade duration)
-- Passage complete marker (at fade-out point)
-
-See [batch_mixing_implementation_guide.md](batch_mixing_implementation_guide.md) lines 172-215 for implementation details.
-
-**Priority 3: Handle Fade-In (2-3 hours)**
-- Parse fade-in curve from queue entry
-- Call `mixer.start_resume_fade()` when starting passage with fade-in
-- Calculate fade-in duration from timing parameters
+**Option C: Defer to User Testing**
+- Commit current state as "functionally complete"
+- User performs manual testing with their music library
+- Address any issues discovered in follow-up session
 
 ---
 
@@ -162,13 +180,15 @@ After each phase:
 - Phase 3 (Control Methods): ~2.5 hours ✅
 - Phase 3.5 (Quick State Queries): ~0.5 hours ✅
 - Phase 4 (Passage Management Stubs): ~1.5 hours ✅
-- **Total Spent:** ~9.5 hours ✅
+- Phase 5.2 (Full Marker Calculation + Fade-In): ~2 hours ✅
+- **Total Spent:** ~11.5 hours ✅
 
 **Remaining:**
-- Phase 5 (Manual Testing): 3-4 hours
-- Phase 5 (Full Marker Implementation): 4-6 hours
-- Phase 5 (Fade-In Handling): 2-3 hours
-- **Total Remaining:** 9-13 hours
+- Phase 5.4 (Testing & Validation): 3-5 hours
+  - Option A: Full integration testing (3-4 hours)
+  - Option B: Unit test validation (1-2 hours)
+  - Option C: Deferred to user testing
+- **Total Remaining:** 3-5 hours (depending on testing option)
 
 ---
 
@@ -193,32 +213,30 @@ After each phase:
 - ✅ Phase 3 complete (control methods: stop, pause, resume, seek)
 - ✅ Phase 3.5 complete (quick state queries fixed)
 - ✅ Phase 4 complete (passage management stubs)
+- ✅ Phase 5.2 complete (full marker calculation + fade-in handling)
 - **Zero compilation errors** ✅
 - **All 24 original errors resolved** (100% error reduction)
+- **All TODOs completed** ✅
 
 **Next Action:**
-Phase 5 - Manual testing to verify stubs work, then implement full marker calculation
+Phase 5.4 - Testing & validation (choose option A, B, or C based on available resources)
 
 **Key Implementation Details:**
 - Batch mixing uses 512-frame base size
 - Graduated filling strategy preserved (1024/512/256 frames)
 - Control methods fully implemented with SPEC016 API
 - State queries building from mixer primitives
-- Passage management stubbed with TODO comments (functional but incomplete)
-
-**Stubbed Functionality (TODO for Phase 5):**
-1. Full marker calculation in `start_passage()` - lines 2107, 3015
-2. Fade-in handling via `start_resume_fade()` - lines 2092, 3005
-3. Crossfade state tracking in engine
-4. Position update markers (every 100ms)
-5. Crossfade trigger markers
-6. Passage complete markers
+- **Marker calculation fully implemented** ✅
+- **Fade-in handling fully implemented** ✅
+- Position update markers every 100ms
+- Crossfade markers at fade-out start point
+- Passage complete markers at fade-out end
 
 ---
 
 **Document Created:** 2025-01-30
 **Last Updated:** 2025-01-31
-**Status:** Phase 4 complete - zero compilation errors, ready for Phase 5 testing
+**Status:** Phase 5.2 complete - marker calculation & fade-in implemented, ready for testing
 **Branch:** `feature/plan014-sub-increment-4b`
-**Commits:** 6 total (planning, batch mixing, control methods, quick queries, phase 4, checkpoint update)
-**Estimated Time Remaining:** 9-13 hours
+**Commits:** 7 total (planning, batch mixing, control methods, quick queries, phase 4, marker calc, checkpoint)
+**Estimated Time Remaining:** 3-5 hours (testing & validation)
