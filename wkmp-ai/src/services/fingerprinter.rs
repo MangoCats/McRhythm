@@ -166,6 +166,12 @@ impl Fingerprinter {
             chromaprint_dealloc(fp_ptr as *mut std::ffi::c_void);
             chromaprint_free(ctx);
 
+            tracing::debug!(
+                fingerprint_len = fingerprint.len(),
+                fingerprint_preview = &fingerprint[..fingerprint.len().min(50)],
+                "Generated Chromaprint fingerprint"
+            );
+
             Ok(fingerprint)
         }
     }

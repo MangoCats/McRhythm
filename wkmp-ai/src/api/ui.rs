@@ -529,12 +529,17 @@ async fn import_progress_page() -> impl IntoResponse {
 
                 const phaseEl = document.createElement('div');
                 phaseEl.className = `phase-item ${statusClass}`;
+
+                // Compact: phase name • description • summary on single line
+                const parts = [phase.phase];
+                if (phase.description) parts.push(phase.description);
+                if (summary) parts.push(summary);
+                const compactText = parts.join(' • ');
+
                 phaseEl.innerHTML = `
                     <div class="phase-icon">${icon}</div>
                     <div class="phase-content">
-                        <div class="phase-name">${phase.phase}</div>
-                        ${phase.description ? `<div class="phase-description">${phase.description}</div>` : ''}
-                        ${summary ? `<div class="phase-summary">${summary}</div>` : ''}
+                        <div class="phase-name">${compactText}</div>
                     </div>
                 `;
                 container.appendChild(phaseEl);

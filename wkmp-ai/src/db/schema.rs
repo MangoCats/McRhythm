@@ -332,6 +332,24 @@ pub async fn initialize_schema(pool: &SqlitePool) -> Result<()> {
         .execute(&mut *tx)
         .await?;
 
+    // AcoustID cache table - Caches fingerprint → MBID mappings
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS acoustid_cache (
+            fingerprint_hash TEXT PRIMARY KEY,
+            mbid TEXT NOT NULL,
+            cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+            CHECK (length(fingerprint_hash) = 64)
+        )
+        "#,
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_acoustid_cache_cached_at ON acoustid_cache(cached_at)")
+        .execute(&mut *tx)
+        .await?;
+
     // Import sessions table (already exists from earlier, but include for completeness)
     sqlx::query(
         r#"

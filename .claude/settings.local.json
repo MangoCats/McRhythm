@@ -72,7 +72,8 @@
       "Bash(python3:*)",
       "Bash(cargo info:*)",
       "WebFetch(domain:docs.rs)",
-      "Read(//home/sw/.cargo/registry/src/**)"
+      "Read(//home/sw/.cargo/registry/src/**)",
+      "SlashCommand(/think:*)"
     ],
     "deny": [],
     "ask": []
