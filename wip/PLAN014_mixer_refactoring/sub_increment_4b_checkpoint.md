@@ -335,7 +335,7 @@ After each phase:
 - 13 compilation errors identified
 
 **Next Action:**
-Start implementing batch mixing loop at lines 465-526, replacing three `get_next_frame()` calls with batch `mix_single()`/`mix_crossfade()` logic.
+Follow [batch_mixing_implementation_guide.md](batch_mixing_implementation_guide.md) step-by-step to implement batch mixing loop (5-7 hours).
 
 **Key Decision:**
 Use fixed 512-frame batches for simplicity, maintain 3-tier graduated filling strategy for underrun prevention.
