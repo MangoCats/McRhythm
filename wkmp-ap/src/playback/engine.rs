@@ -211,7 +211,7 @@ impl PlaybackEngine {
         let _mixer_config = mixer_config?;  // Loaded in parallel for performance
         let maximum_decode_streams = maximum_decode_streams?;
         let resume_hysteresis = resume_hysteresis?;
-        let mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088]
+        let _mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088] Reserved for future use
         let audio_buffer_size = audio_buffer_size?; // [DBD-PARAM-110]
         let buffer_capacity = buffer_capacity?; // [DBD-PARAM-070]
         let buffer_headroom = buffer_headroom?; // [DBD-PARAM-080]
@@ -439,8 +439,8 @@ impl PlaybackEngine {
         let running_clone = Arc::clone(&self.running);
         let audio_expected_clone = Arc::clone(&self.audio_expected);
         let check_interval_us = mixer_config.check_interval_us;
-        let batch_size_low = mixer_config.batch_size_low;
-        let batch_size_optimal = mixer_config.batch_size_optimal;
+        let _batch_size_low = mixer_config.batch_size_low; // Reserved for adaptive batch sizing
+        let _batch_size_optimal = mixer_config.batch_size_optimal; // Reserved for adaptive batch sizing
         // [SUB-INC-4B] Clone additional variables for batch mixing
         let buffer_manager_clone = Arc::clone(&self.buffer_manager);
         let position_event_tx_clone = self.position_event_tx.clone();
@@ -2056,13 +2056,13 @@ impl PlaybackEngine {
             .fade_in_point_ticks
             .saturating_sub(next_passage.start_time_ticks);
 
-        // Convert ticks to samples for mixer
-        let fade_out_duration_samples = wkmp_common::timing::ticks_to_samples(
+        // Convert ticks to samples for mixer (calculated for validation, not used in marker-driven crossfade)
+        let _fade_out_duration_samples = wkmp_common::timing::ticks_to_samples(
             fade_out_duration_ticks,
             44100 // STANDARD_SAMPLE_RATE
         );
 
-        let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+        let _fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
             fade_in_duration_ticks,
             44100 // STANDARD_SAMPLE_RATE
         );

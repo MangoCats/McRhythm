@@ -22,7 +22,6 @@
 //! Phase 5: Basic mixing (single passage, master volume)
 //! Phase 6+: Crossfade overlap, pause mode decay, advanced features
 
-use crate::audio::types::AudioFrame;
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use wkmp_common::FadeCurve;
@@ -539,7 +538,7 @@ impl Mixer {
     ///     }
     /// }
     /// ```
-    pub async fn mix_single(&mut self, buffer_manager: &Arc<BufferManager>, passage_id: Uuid, output: &mut [f32]) -> Result<Vec<MarkerEvent>> {
+    pub async fn mix_single(&mut self, buffer_manager: &Arc<BufferManager>, _passage_id: Uuid, output: &mut [f32]) -> Result<Vec<MarkerEvent>> {
         // Validate stereo sample count
         if output.len() % 2 != 0 {
             return Err(Error::Config(format!(
