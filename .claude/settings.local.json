@@ -9,7 +9,10 @@
       "Bash(ss:*)",
       "Bash(google-chrome:*)",
       "Bash(timeout:*)",
-      "Bash(node /tmp/test_ui.js:*)"
+      "Bash(node /tmp/test_ui.js:*)",
+      "Bash(tee:*)",
+      "Bash(timeout 120 cargo build:*)",
+      "Bash(NUL)"
     ],
     "deny": [],
     "ask": []

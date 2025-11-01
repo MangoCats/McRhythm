@@ -75,7 +75,11 @@ mcrhythm/
 │   │   │   └── events.rs        # SSE endpoint
 │   │   ├── playback/
 │   │   │   ├── mod.rs
-│   │   │   ├── engine.rs        # Playback engine with event-driven position tracking
+│   │   │   ├── engine/          # **[PLAN016]** Refactored modular engine
+│   │   │   │   ├── mod.rs       # Public API re-exports
+│   │   │   │   ├── core.rs      # Lifecycle, orchestration, process_queue (2,724 lines)
+│   │   │   │   ├── queue.rs     # Queue operations (skip, enqueue, clear, remove) (511 lines)
+│   │   │   │   └── diagnostics.rs # Monitoring, status, event handlers (1,019 lines)
 │   │   │   ├── events.rs        # Internal PlaybackEvent types (not exposed via SSE)
 │   │   │   ├── song_timeline.rs # Song boundary detection logic
 │   │   │   ├── pipeline/        # Single-stream architecture
@@ -87,7 +91,7 @@ mcrhythm/
 │   │   │   │   │   └── curves.rs  # Fade curve algorithms
 │   │   │   │   └── dual.rs       # Legacy dual-pipeline (archived)
 │   │   │   ├── crossfade.rs     # Crossfade logic
-│   │   │   └── queue.rs         # Queue manager
+│   │   │   └── queue_manager.rs # Queue manager
 │   │   ├── audio/
 │   │   │   ├── mod.rs
 │   │   │   ├── device.rs        # Device management

@@ -1,0 +1,363 @@
+   Compiling wkmp-ap v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ap)
+warning: unused import: `crate::audio::types::BufferStatus`
+  --> wkmp-ap\src\playback\engine\diagnostics.rs:15:5
+   |
+15 | use crate::audio::types::BufferStatus;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `PassageWithTiming`
+  --> wkmp-ap\src\playback\engine\diagnostics.rs:16:52
+   |
+16 | use crate::db::passages::{get_passage_album_uuids, PassageWithTiming};
+   |                                                    ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+  --> wkmp-ap\src\playback\engine\diagnostics.rs:22:5
+   |
+22 | use std::collections::HashMap;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Verdict`
+   --> wkmp-ap\src\tuning\report.rs:220:71
+    |
+220 |     use crate::tuning::{CurveStatus, ConfidenceLevel, Recommendation, Verdict};
+    |                                                                       ^^^^^^^
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\audio\resampler.rs:431:13
+    |
+431 |         let mut resampler = StatefulResampler::new(48000, 44100, 2, 1000).unwrap();
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:612:13
+    |
+612 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:646:13
+    |
+646 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:669:13
+    |
+669 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:702:13
+    |
+702 |         let mut buffer = PlayoutRingBuffer::new(Some(capacity), Some(headroom), Some(0), None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:730:13
+    |
+730 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:761:13
+    |
+761 |         let mut buffer = PlayoutRingBuffer::new(Some(5), Some(1), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:779:13
+    |
+779 |         let mut buffer = PlayoutRingBuffer::new(Some(1000), Some(50), Some(100), None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:810:13
+    |
+810 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:849:13
+    |
+849 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, Some(Uuid::new_v4()));
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:906:13
+    |
+906 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:946:13
+    |
+946 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:961:13
+    |
+961 |         let mut buffer = PlayoutRingBuffer::new(Some(capacity), Some(headroom), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:977:13
+    |
+977 |         let mut buffer = PlayoutRingBuffer::new(None, None, None, None); // Use defaults (661,941 frames)
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> wkmp-ap\src\playback\playout_ring_buffer.rs:1002:13
+     |
+1002 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: `wkmp-ap` (lib test) generated 19 warnings (run `cargo fix --lib -p wkmp-ap --tests` to apply 19 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.69s
+     Running unittests src\lib.rs (target\debug\deps\wkmp_ap-a38e5ac04e454426.exe)
+
+running 206 tests
+test audio::decoder::tests::test_mono_to_stereo ... ok
+test audio::output::tests::test_audio_output_with_external_volume_arc ... ok
+test audio::resampler::tests::test_deinterleave ... ok
+test audio::resampler::tests::test_interleave_empty ... ok
+test audio::output::tests::test_audio_callback_applies_volume ... ok
+test audio::resampler::tests::test_stateful_resampler_pass_through ... ok
+test audio::types::tests::test_append_samples_empty_vec ... ok
+test audio::resampler::tests::test_interleave ... ok
+test audio::resampler::tests::test_resample_same_rate ... ok
+test audio::resampler::tests::test_stateful_resampler_active ... ok
+test audio::types::tests::test_append_samples_basic ... ok
+test audio::output::tests::test_volume_clamping ... ok
+test audio::resampler::tests::test_deinterleave_mono ... ok
+test audio::types::tests::test_append_samples_updates_duration ... ok
+test audio::types::tests::test_audio_frame_add ... ok
+test audio::types::tests::test_append_samples_multiple_times ... ok
+test audio::types::tests::test_audio_frame_apply_volume ... ok
+test audio::types::tests::test_append_samples_panics_on_odd_length - should panic ... ok
+test audio::types::tests::test_audio_frame_zero ... ok
+test audio::resampler::tests::test_resample_different_rate ... ok
+test audio::types::tests::test_audio_frame_from_mono ... ok
+test audio::types::tests::test_audio_frame_clamp ... ok
+test audio::types::tests::test_duration_uses_cached_value_after_finalize ... ok
+test audio::types::tests::test_finalize_with_empty_buffer ... ok
+test audio::types::tests::test_passage_buffer_creation ... ok
+test audio::types::tests::test_finalize_sets_all_fields ... ok
+test audio::types::tests::test_get_frame_after_append ... ok
+test audio::types::tests::test_is_exhausted_after_finalize ... ok
+test audio::types::tests::test_reserve_capacity ... ok
+test audio::types::tests::test_is_exhausted_before_finalize ... ok
+test audio::types::tests::test_is_exhausted_exact_boundary ... ok
+test audio::types::tests::test_passage_buffer_duration ... ok
+test config::tests::test_default_port ... ok
+test audio::types::tests::test_passage_buffer_get_frame ... ok
+test db::passages::tests::test_fade_curve_conversion ... ok
+test db::passages::tests::test_ephemeral_passage_creation ... ok
+test audio::types::tests::test_reserve_capacity_reduces_reallocations ... ok
+test db::passages::tests::test_passage_timing_validation_fade_points ... ok
+test audio::types::tests::test_duration_fixed_after_finalize ... ok
+test db::passages::tests::test_passage_timing_validation_start_end ... ok
+test db::passages::tests::test_passage_timing_validation_lead_ordering ... ok
+test audio::resampler::tests::test_stateful_resampler_consistent_chunk_size ... ok
+test audio::resampler::tests::test_stateful_resampler_maintains_state_across_chunks ... ok
+test db::passage_songs::tests::test_empty_passage_songs ... ok
+test db::passage_songs::tests::test_invalid_time_range_filtered_out ... ok
+test db::passage_songs::tests::test_gap_with_null_song_guid ... ok
+test db::passage_songs::tests::test_missing_table_returns_empty ... ok
+test db::passage_songs::tests::test_invalid_uuid_filtered_out ... ok
+test db::queue::tests::test_get_next_play_order ... ok
+test db::init::tests::test_init_module_config ... ok
+test db::queue::tests::test_remove_from_queue ... ok
+test db::passage_songs::tests::test_single_song ... ok
+test db::settings::tests::test_audio_device_get_set ... ok
+test db::passage_songs::tests::test_multiple_songs ... ok
+test db::settings::tests::test_default_volume_on_first_run ... ok
+test db::settings::tests::test_maximum_decode_streams_custom ... ok
+test db::settings::tests::test_last_passage_id_persistence ... ok
+test db::settings::tests::test_crossfade_defaults ... ok
+test db::queue::tests::test_clear_queue ... ok
+test playback::buffer_events::tests::test_buffer_metadata_creation ... ok
+test db::settings::tests::test_playback_position_persistence ... ok
+test db::init::tests::test_init_settings_defaults ... ok
+test playback::buffer_events::tests::test_buffer_state_transitions ... ok
+test db::settings::tests::test_maximum_decode_streams_default ... ok
+test playback::buffer_events::tests::test_headroom_calculation ... ok
+test db::init::tests::test_init_settings_idempotent ... ok
+test db::settings::tests::test_generic_setting_get_set ... ok
+test playback::buffer_events::tests::test_headroom_underflow_protection ... ok
+test playback::buffer_events::tests::test_is_exhausted_finished_not_read ... ok
+test playback::buffer_events::tests::test_is_exhausted_not_finished ... ok
+test playback::buffer_events::tests::test_is_exhausted_read_past_end ... ok
+test playback::buffer_events::tests::test_is_exhausted_finished_and_read ... ok
+test db::settings::tests::test_queue_state_persistence ... ok
+test db::settings::tests::test_resume_fade_in_curve_custom ... ok
+test playback::buffer_manager::tests::test_allocate_buffer_empty_state ... ok
+test playback::buffer_manager::tests::test_event_deduplication ... ok
+test db::settings::tests::test_load_clamped_setting_u32 ... ok
+test playback::buffer_manager::tests::test_clear_all_buffers ... ok
+test playback::buffer_manager::tests::test_buffer_manager_creation ... ok
+test playback::buffer_manager::tests::test_first_passage_optimization ... ok
+test db::settings::tests::test_load_clamped_setting_usize ... ok
+test playback::buffer_manager::tests::test_buffer_state_transitions ... ok
+test db::settings::tests::test_resume_fade_in_curve_default ... ok
+test db::queue::tests::test_enqueue_and_get_queue ... ok
+test playback::buffer_manager::tests::test_headroom_calculation ... ok
+test playback::buffer_manager::tests::test_get_buffer_state ... ok
+test db::settings::tests::test_load_clamped_setting_u64 ... ok
+test playback::diagnostics::tests::test_multiple_passages ... ok
+test playback::buffer_manager::tests::test_remove_buffer ... ok
+test db::settings::tests::test_resume_fade_in_duration_custom ... ok
+test playback::buffer_manager::tests::test_ready_threshold_detection ... ok
+test playback::diagnostics::tests::test_perfect_pipeline ... ok
+test playback::diagnostics::tests::test_decoder_buffer_mismatch ... ok
+test playback::diagnostics::tests::test_validation_report_format ... ok
+test playback::events::tests::test_event_debug ... ok
+test db::settings::tests::test_resume_fade_in_duration_default ... ok
+test playback::events::tests::test_state_changed_creation ... ok
+test playback::diagnostics::tests::test_buffer_fifo_violation ... ok
+test playback::events::tests::test_event_clone ... ok
+test playback::diagnostics::tests::test_within_tolerance ... ok
+test playback::mixer::tests::test_master_volume_clamping ... ok
+test playback::mixer::tests::test_mixer_creation ... ok
+test playback::events::tests::test_position_update_creation ... ok
+test db::settings::tests::test_maximum_decode_streams_clamping ... ok
+test db::settings::tests::test_setting_update ... ok
+test playback::mixer::tests::test_pause_mode_output ... ok
+test playback::mixer::tests::test_mixer_state ... ok
+test playback::pipeline::decoder_chain::tests::test_chunk_process_result_equality ... ok
+test playback::pipeline::decoder_chain::tests::test_chunk_process_result_variants ... ok
+test db::settings::tests::test_volume_persistence_continues_after_errors ... ok
+test playback::pipeline::fader::tests::test_pass_through_mode_zero_duration_fades ... ok
+test playback::pipeline::fader::tests::test_fade_out_linear ... ok
+test playback::pipeline::fader::tests::test_pass_through_processes_without_modification ... ok
+test playback::pipeline::fader::tests::test_fade_in_linear ... ok
+test playback::pipeline::fader::tests::test_discovered_endpoint_used_when_undefined ... ok
+test playback::pipeline::timing::tests::test_asymmetric_fade_durations ... ok
+test playback::pipeline::timing::tests::test_crossfade_trigger_sample ... ok
+test playback::pipeline::timing::tests::test_crossfade_with_clamping ... ok
+test db::settings::tests::test_volume_get_set ... ok
+test playback::pipeline::timing::tests::test_crossfade_with_explicit_timing ... ok
+test playback::pipeline::timing::tests::test_to_samples ... ok
+test playback::pipeline::timing::tests::test_zero_duration_crossfade ... ok
+test playback::pipeline::timing::tests::test_basic_crossfade_timing ... ok
+test playback::playout_ring_buffer::tests::test_basic_push_pop ... ok
+test playback::playout_ring_buffer::tests::test_buffer_exhaustion_detection ... ok
+test playback::playout_ring_buffer::tests::test_buffer_starts_empty ... ok
+test playback::pipeline::fader::tests::test_multiple_chunks_maintain_position ... ok
+test playback::playout_ring_buffer::tests::test_concurrent_fill_drain_pattern ... ok
+test playback::playout_ring_buffer::tests::test_default_parameters ... ok
+test playback::playout_ring_buffer::tests::test_decoder_pause_threshold ... ok
+test playback::playout_ring_buffer::tests::test_buffer_full_error ... ok
+test playback::pipeline::timing::tests::test_invalid_passage_timing ... ok
+test playback::playout_ring_buffer::tests::test_empty_buffer_exhaustion ... ok
+test playback::playout_ring_buffer::tests::test_fill_percentage_calculation ... ok
+test playback::playout_ring_buffer::tests::test_passage_id_tracking ... ok
+test playback::playout_ring_buffer::tests::test_pop_from_empty_returns_last_frame ... ok
+test playback::playout_ring_buffer::tests::test_pause_threshold_exact_boundary ... ok
+test playback::playout_ring_buffer::tests::test_lifetime_counters ... ok
+test playback::queue_manager::tests::test_queue_manager_advance ... ok
+test playback::playout_ring_buffer::tests::test_stats_snapshot ... ok
+test playback::queue_manager::tests::test_queue_manager_clear ... ok
+test playback::playout_ring_buffer::tests::test_health_check_logic ... ok
+test playback::playout_ring_buffer::tests::test_reset_buffer ... ok
+test playback::queue_manager::tests::test_queue_manager_creation ... ok
+test playback::queue_manager::tests::test_queue_manager_enqueue ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_current ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_next ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_not_found ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_queued ... ok
+test playback::ring_buffer::tests::test_buffer_filled_flag_tracking ... ok
+test playback::ring_buffer::tests::test_ring_buffer_basic ... ok
+test playback::ring_buffer::tests::test_fill_level_check ... ok
+test playback::ring_buffer::tests::test_ring_buffer_underrun ... ok
+test playback::ring_buffer::tests::test_ring_buffer_overrun ... ok
+test playback::ring_buffer::tests::test_underrun_with_audio_not_expected ... ok
+test playback::ring_buffer::tests::test_underrun_with_audio_expected_and_grace_period ... ok
+test playback::song_timeline::tests::test_backward_seek ... ok
+test playback::song_timeline::tests::test_empty_timeline ... ok
+test playback::song_timeline::tests::test_forward_seek_across_songs ... ok
+test playback::song_timeline::tests::test_gap_only_passage ... ok
+test playback::song_timeline::tests::test_entry_equality ... ok
+test playback::song_timeline::tests::test_single_song ... ok
+test playback::song_timeline::tests::test_get_current_song_no_state_change ... ok
+test playback::validation_service::tests::test_validation_config_defaults ... ok
+test playback::song_timeline::tests::test_multiple_songs_with_gaps ... ok
+test tuning::curve::tests::test_calculate_latency ... ok
+test playback::validation_service::tests::test_validation_history_entry_creation ... ok
+test state::tests::test_current_passage ... ok
+test state::tests::test_playback_state ... ok
+test playback::song_timeline::tests::test_unsorted_entries_get_sorted ... ok
+test tuning::curve::tests::test_conservative_larger_than_primary ... ok
+test state::tests::test_volume ... ok
+test tuning::curve::tests::test_curve_status_from_verdict ... ok
+test tuning::metrics::tests::test_cpu_metrics ... ok
+test tuning::curve::tests::test_generate_recommendations ... ok
+test tuning::metrics::tests::test_buffer_occupancy_metrics ... ok
+test tuning::curve::tests::test_no_stable_points ... ok
+test tuning::metrics::tests::test_jitter_metrics ... ok
+test tuning::metrics::tests::test_test_result ... ok
+test tuning::metrics::tests::test_underrun_metrics ... ok
+test tuning::report::tests::test_create_report ... ok
+test tuning::report::tests::test_format_curve_summary ... ok
+test tuning::report::tests::test_format_recommendations ... ok
+test tuning::metrics::tests::test_verdict_classification ... ok
+test tuning::report::tests::test_format_system_info ... ok
+test tuning::search::tests::test_binary_search_all_stable ... ok
+test tuning::safety::tests::test_load_nonexistent_backup ... ok
+test tuning::search::tests::test_binary_search_all_unstable ... ok
+test tuning::search::tests::test_binary_search_convergence ... ok
+test tuning::search::tests::test_early_termination ... ok
+test tuning::search::tests::test_explore_parameter_space ... ok
+test tuning::search::tests::test_filter_viable_intervals ... ok
+test tuning::system_info::tests::test_audio_backend_known ... ok
+test tuning::system_info::tests::test_system_info_detect ... ok
+test tuning::search::tests::test_coarse_sweep ... ok
+test tuning::test_harness::tests::test_audio_generator_creates ... ok
+test tuning::system_info::tests::test_with_device ... ok
+test tuning::test_harness::tests::test_config_builder ... ok
+test tuning::test_harness::tests::test_audio_generator_produces_frames ... ok
+test tuning::report::tests::test_json_export_import ... ok
+test audio::output::tests::test_list_devices ... ok
+test tuning::safety::tests::test_backup_settings ... ok
+test tuning::safety::tests::test_backup_with_defaults ... ok
+test tuning::safety::tests::test_backup_file_operations ... ok
+test tuning::safety::tests::test_restore_settings ... ok
+test playback::playout_ring_buffer::tests::test_large_buffer_fill_drain_cycle ... ok
+
+test result: ok. 206 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
