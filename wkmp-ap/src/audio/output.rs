@@ -175,32 +175,20 @@ impl AudioOutput {
     ///
     /// Prefers 44.1kHz, stereo, f32 samples (matching our internal format).
     fn get_best_config(device: &Device) -> Result<(StreamConfig, SampleFormat)> {
-        // Try to get a config that matches our target: 44100 Hz, stereo, f32
-        let mut supported_configs = device
-            .supported_output_configs()
-            .map_err(|e| Error::AudioOutput(format!("Failed to get device configs: {}", e)))?;
-
-        // Look for 44.1kHz stereo f32 config
-        let preferred = supported_configs.find(|config| {
-            config.channels() == 2
-                && config.min_sample_rate().0 <= 44100
-                && config.max_sample_rate().0 >= 44100
-                && config.sample_format() == SampleFormat::F32
-        });
-
-        if let Some(supported_config) = preferred {
-            let sample_format = supported_config.sample_format();
-            let config = supported_config.with_sample_rate(cpal::SampleRate(44100)).config();
-            return Ok((config, sample_format));
-        }
-
-        // Fallback: use default config
+        // Accept device's native sample rate instead of forcing 44.1kHz
+        // WKMP will resample decoded audio to match device rate in decoder chain
         let supported_config = device
             .default_output_config()
             .map_err(|e| Error::AudioOutput(format!("Failed to get default config: {}", e)))?;
 
         let sample_format = supported_config.sample_format();
         let config = supported_config.config();
+
+        info!(
+            "Using device native audio config: {}Hz, {} channels, {:?}",
+            config.sample_rate.0, config.channels, sample_format
+        );
+
         Ok((config, sample_format))
     }
 

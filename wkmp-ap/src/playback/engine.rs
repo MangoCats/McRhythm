@@ -162,6 +162,13 @@ pub struct PlaybackEngine {
     /// Audio output buffer size in frames per callback
     /// **[DBD-PARAM-110]** Configurable audio buffer size (default: 512)
     audio_buffer_size: u32,
+
+    /// Working sample rate (Hz) - matches audio device native rate
+    /// **[DBD-PARAM-020]** Determines resampling target in decoder chain
+    /// All decoded audio is resampled to this rate before playback
+    /// Set from AudioOutput device configuration (e.g., 44100, 48000, 96000)
+    /// Uses std::sync::RwLock for compatibility with DecoderWorker (non-async context)
+    working_sample_rate: Arc<std::sync::RwLock<u32>>,
 }
 
 impl PlaybackEngine {
@@ -213,6 +220,10 @@ impl PlaybackEngine {
 
         let volume = Arc::new(Mutex::new(initial_volume));
 
+        // **[DBD-PARAM-020]** Create working sample rate (default 44.1kHz, updated by audio thread)
+        // Uses std::sync::RwLock for DecoderWorker compatibility (non-async context)
+        let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+
         // **[PERF-POLL-010]** Create buffer event channel for instant mixer start
         let (buffer_event_tx, buffer_event_rx) = mpsc::unbounded_channel();
 
@@ -230,10 +241,12 @@ impl PlaybackEngine {
 
         // Create decoder worker
         // **[Phase 7]** Pass shared_state and db_pool for error handling
+        // **[DBD-PARAM-020]** Pass working_sample_rate for device-matched resampling
         let decoder_worker = Arc::new(DecoderWorker::new(
             Arc::clone(&buffer_manager),
             Arc::clone(&state),
             db_pool.clone(),
+            Arc::clone(&working_sample_rate),
         ));
 
         // **[REV002]** Create position event channel
@@ -297,6 +310,7 @@ impl PlaybackEngine {
             buffer_monitor_rate_ms: Arc::new(RwLock::new(1000)), // [SPEC020-MONITOR-120] Default 1000ms update rate
             buffer_monitor_update_now: Arc::new(AtomicBool::new(false)), // [SPEC020-MONITOR-130] Manual update trigger
             audio_buffer_size, // [DBD-PARAM-110] Configurable audio buffer size
+            working_sample_rate, // [DBD-PARAM-020] Default 44.1kHz, updated when AudioOutput starts
         })
     }
 
@@ -691,6 +705,7 @@ impl PlaybackEngine {
         let state_clone = Arc::clone(&self.state); // For callback monitor event emission
         let callback_monitor_slot = Arc::clone(&self.callback_monitor);
         let audio_expected_clone = Arc::clone(&self.audio_expected); // For callback monitor idle detection
+        let working_sample_rate_clone = Arc::clone(&self.working_sample_rate); // [DBD-PARAM-020] Update from device config
 
         // Capture runtime handle while we're still in async context
         let rt_handle = tokio::runtime::Handle::current();
@@ -733,6 +748,11 @@ impl PlaybackEngine {
             rt_handle.block_on(async {
                 *callback_monitor_slot.write().await = Some(Arc::clone(&monitor));
             });
+
+            // Update working sample rate to match device configuration
+            // [DBD-PARAM-020] Decoder chains will resample to this rate
+            *working_sample_rate_clone.write().unwrap() = actual_sample_rate;
+            info!("Working sample rate set to {}Hz (matches device)", actual_sample_rate);
 
             // Clone for monitoring task (spawn_monitoring_task takes ownership)
             let monitor_for_task = Arc::clone(&monitor);
@@ -868,8 +888,8 @@ impl PlaybackEngine {
 
             // [SUB-INC-4B] Replace resume() with start_resume_fade() + set_state(Playing)
             {
-                let sample_rate = 44100; // [DBD-BUF-010] Fixed 44.1kHz sample rate
-                let fade_samples = ((fade_duration_ms as u64 * sample_rate) / 1000) as usize;
+                let sample_rate = *self.working_sample_rate.read().unwrap(); // [DBD-PARAM-020] Use device sample rate
+                let fade_samples = ((fade_duration_ms as u64 * sample_rate as u64) / 1000) as usize;
                 let fade_curve = wkmp_common::FadeCurve::from_str(&fade_curve_str)
                     .unwrap_or(wkmp_common::FadeCurve::Exponential);
 
@@ -1163,7 +1183,7 @@ impl PlaybackEngine {
 
         let buffer = buffer_ref.unwrap();
         // No lock needed - buffer methods use &self with atomics
-        let sample_rate = 44100; // [DBD-BUF-010] Fixed 44.1kHz sample rate
+        let sample_rate = *self.working_sample_rate.read().unwrap(); // [DBD-PARAM-020] Use device sample rate
 
         // Convert milliseconds to frames
         let position_frames = ((position_ms as f32 / 1000.0) * sample_rate as f32) as usize;
@@ -1309,6 +1329,9 @@ impl PlaybackEngine {
     pub async fn get_buffer_chains(&self) -> Vec<wkmp_common::events::BufferChainInfo> {
         use wkmp_common::events::BufferChainInfo;
 
+        // **[DBD-PARAM-020]** Get working sample rate for timing calculations
+        let sample_rate = *self.working_sample_rate.read().unwrap();
+
         // **[DBD-PARAM-050]** Loaded from settings (default: 12)
         let maximum_decode_streams = self.maximum_decode_streams;
 
@@ -1390,10 +1413,10 @@ impl PlaybackEngine {
                 // Get playback position (only for current passage)
                 let (playback_position_frames, playback_position_ms) = if queue_position == 0 {
                     (mixer_state.current_position_frames,
-                     (mixer_state.current_position_frames as u64 * 1000) / 44100)
+                     (mixer_state.current_position_frames as u64 * 1000) / sample_rate as u64)
                 } else if queue_position == 1 && mixer_state.is_crossfading {
                     (mixer_state.next_position_frames,
-                     (mixer_state.next_position_frames as u64 * 1000) / 44100)
+                     (mixer_state.next_position_frames as u64 * 1000) / sample_rate as u64)
                 } else {
                     (0, 0)
                 };
@@ -3006,6 +3029,7 @@ impl PlaybackEngine {
             callback_monitor: Arc::clone(&self.callback_monitor), // Clone callback monitor for gap detection
             audio_buffer_size: self.audio_buffer_size, // [DBD-PARAM-110] Copy audio buffer size
             passage_start_time: Arc::clone(&self.passage_start_time), // [SUB-INC-4B] Clone passage start time tracking
+            working_sample_rate: Arc::clone(&self.working_sample_rate), // [DBD-PARAM-020] Clone working sample rate
         }
     }
 

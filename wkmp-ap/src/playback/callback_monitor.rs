@@ -7,7 +7,7 @@
 //! current ring buffer instrumentation misses.
 
 use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{warn, debug, info, trace};
 use wkmp_common::events::WkmpEvent;
@@ -21,6 +21,7 @@ use crate::state::SharedState;
 /// - Callback frequency deviation
 ///
 /// **Design:** Lock-free for use in real-time audio callback
+/// **Dynamic Calibration:** Learns actual callback interval during first 100 callbacks
 pub struct CallbackMonitor {
     /// Start time for monotonic elapsed time calculation
     /// Uses Instant (monotonic clock) instead of SystemTime (can go backwards)
@@ -39,13 +40,19 @@ pub struct CallbackMonitor {
     irregular_intervals: AtomicU64,
 
     /// Expected interval between callbacks (nanoseconds)
-    /// Calculated as: (buffer_size / sample_rate) * 1e9
-    /// Example: 512 frames @ 44.1kHz = 11.6ms = 11,600,000 ns
-    expected_interval_ns: u64,
+    /// Atomic for dynamic calibration updates
+    expected_interval_ns: AtomicU64,
 
     /// Tolerance for irregular interval detection (nanoseconds)
-    /// Default: 2ms = 2,000,000 ns
-    tolerance_ns: u64,
+    /// Atomic for dynamic calibration updates
+    tolerance_ns: AtomicU64,
+
+    /// Calibration buffer for measuring actual intervals
+    /// Locked (not used in audio callback - only monitoring thread)
+    calibration_samples: Mutex<Vec<u64>>,
+
+    /// Calibration complete flag
+    calibration_complete: AtomicBool,
 
     /// Shared state for event emission (used by monitoring thread)
     state: Option<Arc<SharedState>>,
@@ -58,27 +65,38 @@ pub struct CallbackMonitor {
 }
 
 impl CallbackMonitor {
-    /// Create new callback monitor
+    /// Create new callback monitor with dynamic interval detection
     ///
     /// # Arguments
     /// - `sample_rate`: Audio sample rate (e.g., 44100)
     /// - `buffer_size`: Audio buffer size in frames (e.g., 512)
     /// - `state`: Optional shared state for event emission
     /// - `audio_expected`: Flag indicating if audio output is expected (Playing with non-empty queue)
+    ///
+    /// # Dynamic Calibration
+    /// The monitor starts with calculated expected interval but will calibrate
+    /// to actual device behavior during the first 100 callbacks. This handles
+    /// cases where audio drivers (esp. Windows WASAPI) use different actual
+    /// callback frequencies than the negotiated buffer size suggests.
     pub fn new(
         sample_rate: u32,
         buffer_size: u32,
         state: Option<Arc<SharedState>>,
         audio_expected: Arc<AtomicBool>,
     ) -> Self {
-        // Calculate expected callback interval
+        // Calculate initial expected callback interval
         // interval = buffer_size / sample_rate (in seconds)
         // Convert to nanoseconds: * 1_000_000_000
         let expected_interval_ns = ((buffer_size as f64 / sample_rate as f64) * 1_000_000_000.0) as u64;
 
-        debug!(
-            "CallbackMonitor initialized: sample_rate={}, buffer_size={}, expected_interval={}ms",
-            sample_rate, buffer_size, expected_interval_ns / 1_000_000
+        // Initial tolerance: 20% of expected interval (handles WASAPI variability)
+        let tolerance_ns = (expected_interval_ns as f64 * 0.20) as u64;
+
+        info!(
+            "CallbackMonitor initialized: sample_rate={}, buffer_size={}, initial_expected_interval={:.2}ms, tolerance={:.2}ms (calibrating...)",
+            sample_rate, buffer_size,
+            expected_interval_ns as f64 / 1_000_000.0,
+            tolerance_ns as f64 / 1_000_000.0
         );
 
         Self {
@@ -87,8 +105,10 @@ impl CallbackMonitor {
             callback_count: AtomicU64::new(0),
             underrun_count: AtomicU64::new(0),
             irregular_intervals: AtomicU64::new(0),
-            expected_interval_ns,
-            tolerance_ns: 2_000_000, // 2ms tolerance
+            expected_interval_ns: AtomicU64::new(expected_interval_ns),
+            tolerance_ns: AtomicU64::new(tolerance_ns),
+            calibration_samples: Mutex::new(Vec::with_capacity(100)),
+            calibration_complete: AtomicBool::new(false),
             state,
             audio_expected,
         }
@@ -103,7 +123,7 @@ impl CallbackMonitor {
         // Use monotonic time (nanoseconds since start_time)
         let now_ns = self.start_time.elapsed().as_nanos() as u64;
         let last_ns = self.last_callback_ns.swap(now_ns, Ordering::Relaxed);
-        self.callback_count.fetch_add(1, Ordering::Relaxed);
+        let count = self.callback_count.fetch_add(1, Ordering::Relaxed);
 
         // Skip first callback (no previous timestamp)
         if last_ns == 0 {
@@ -112,10 +132,24 @@ impl CallbackMonitor {
 
         // Calculate actual interval
         let actual_interval_ns = now_ns.saturating_sub(last_ns);
-        let deviation_ns = actual_interval_ns.abs_diff(self.expected_interval_ns);
+
+        // During calibration phase (first 100 callbacks), store interval for monitoring thread
+        // Uses try_lock to avoid blocking audio thread - if lock fails, skip this sample
+        // Note: count is the OLD value before increment, so count=0..99 for callbacks 1-100
+        if !self.calibration_complete.load(Ordering::Relaxed) && count > 0 && count <= 100 {
+            if let Ok(mut samples) = self.calibration_samples.try_lock() {
+                samples.push(actual_interval_ns);
+            }
+        }
+
+        // Load expected interval and tolerance atomically
+        let expected_interval_ns = self.expected_interval_ns.load(Ordering::Relaxed);
+        let tolerance_ns = self.tolerance_ns.load(Ordering::Relaxed);
+
+        let deviation_ns = actual_interval_ns.abs_diff(expected_interval_ns);
 
         // Check if irregular - ONLY increment counter, NO logging/events
-        if deviation_ns > self.tolerance_ns {
+        if deviation_ns > tolerance_ns {
             self.irregular_intervals.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -136,7 +170,56 @@ impl CallbackMonitor {
             callback_count: self.callback_count.load(Ordering::Relaxed),
             underrun_count: self.underrun_count.load(Ordering::Relaxed),
             irregular_intervals: self.irregular_intervals.load(Ordering::Relaxed),
-            expected_interval_ms: self.expected_interval_ns / 1_000_000,
+            expected_interval_ms: self.expected_interval_ns.load(Ordering::Relaxed) / 1_000_000,
+            calibration_complete: self.calibration_complete.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Check calibration status and finalize if ready (called by monitoring thread)
+    ///
+    /// Checks if audio callback has collected enough samples, then calculates
+    /// median interval and updates expected_interval_ns and tolerance_ns.
+    ///
+    /// **Thread Safety:** Uses mutex (NOT called from audio callback)
+    fn check_calibration(&self) {
+        if self.calibration_complete.load(Ordering::Relaxed) {
+            return;
+        }
+
+        // Check if we have enough samples (audio callback populates this during first 100 callbacks)
+        // Note: We may get 99 samples due to off-by-one with fetch_add returning old value
+        if let Ok(samples) = self.calibration_samples.lock() {
+            let sample_count = samples.len();
+            if sample_count > 0 || self.callback_count.load(Ordering::Relaxed) < 10 {
+                // Log during early startup or when we have samples
+                debug!("Calibration check: {} samples collected, {} callbacks so far",
+                       sample_count, self.callback_count.load(Ordering::Relaxed));
+            }
+            if samples.len() >= 50 {  // Require at least 50 samples for reasonable median
+                // Clone samples for sorting (release lock quickly)
+                let mut sorted_samples = samples.clone();
+                drop(samples); // Release lock before sorting
+
+                // Sort to find median
+                sorted_samples.sort_unstable();
+                let median_index = sorted_samples.len() / 2;
+                let median_interval_ns = sorted_samples[median_index];
+
+                // Calculate tolerance as 20% of median interval
+                let new_tolerance_ns = (median_interval_ns as f64 * 0.20) as u64;
+
+                // Update atomics
+                self.expected_interval_ns.store(median_interval_ns, Ordering::Relaxed);
+                self.tolerance_ns.store(new_tolerance_ns, Ordering::Relaxed);
+                self.calibration_complete.store(true, Ordering::Relaxed);
+
+                info!(
+                    "CallbackMonitor calibration complete: measured_interval={:.2}ms (median of {} samples), tolerance={:.2}ms (20%)",
+                    median_interval_ns as f64 / 1_000_000.0,
+                    sorted_samples.len(),
+                    new_tolerance_ns as f64 / 1_000_000.0
+                );
+            }
         }
     }
 
@@ -171,6 +254,11 @@ impl CallbackMonitor {
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
                 let stats = monitor.stats();
+
+                // Calibration phase: check if audio callback has collected enough samples
+                if !stats.calibration_complete {
+                    monitor.check_calibration();
+                }
 
                 // Check for new underruns
                 if stats.underrun_count > last_underrun_count {
@@ -285,4 +373,5 @@ pub struct CallbackStats {
     pub underrun_count: u64,
     pub irregular_intervals: u64,
     pub expected_interval_ms: u64,
+    pub calibration_complete: bool,
 }

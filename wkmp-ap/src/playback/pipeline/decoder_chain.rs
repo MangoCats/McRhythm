@@ -106,6 +106,7 @@ impl DecoderChain {
         chain_index: usize,
         passage: &PassageWithTiming,
         buffer_manager: &BufferManager,
+        working_sample_rate: u32,
     ) -> Result<Self> {
         info!(
             "[Chain {}] Creating decoder chain for passage: {}",
@@ -141,11 +142,12 @@ impl DecoderChain {
         );
 
         // Create stateful resampler
+        // **[DBD-PARAM-020]** Resample to device native rate (not hardcoded 44.1kHz)
         // Chunk size for resampler = samples per chunk at source rate
         let chunk_size_samples = (source_sample_rate as u64 * chunk_duration_ms / 1000) as usize;
         let resampler = StatefulResampler::new(
             source_sample_rate,
-            44100, // TARGET_SAMPLE_RATE
+            working_sample_rate, // Matches audio device native rate (e.g., 48kHz)
             source_channels,
             chunk_size_samples,
         )?;
@@ -155,8 +157,8 @@ impl DecoderChain {
         let fader = Fader::new(passage, source_sample_rate, None);
 
         debug!(
-            "[Chain {}] Pipeline initialized: decode({}Hz) -> resample(44.1kHz) -> fade -> buffer",
-            chain_index, source_sample_rate
+            "[Chain {}] Pipeline initialized: decode({}Hz) -> resample({}Hz) -> fade -> buffer",
+            chain_index, source_sample_rate, working_sample_rate
         );
 
         Ok(Self {
