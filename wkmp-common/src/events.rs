@@ -718,7 +718,7 @@ pub struct BufferChainInfo {
     pub source_sample_rate: Option<u32>,
     /// Resampler active (true if source rate != working rate)
     pub resampler_active: Option<bool>,
-    /// Target sample rate (always 44100 Hz)
+    /// Target sample rate (matches device native rate per [DBD-PARAM-020], typically 44100 or 48000 Hz)
     #[serde(default = "default_working_sample_rate")]
     pub target_sample_rate: u32,
 

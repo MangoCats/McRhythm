@@ -158,8 +158,11 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 **[DBD-PARAM-020]** The sample rate that all decoded audio is converted to before buffering.
 
-- **Default value:** 44100Hz
-- **Behavior:** When audio comes out of the decoder at the working_sample_rate, the sample rate conversion process shall be bypassed
+- **Database Setting:** `working_sample_rate` (desired/preferred sample rate, default: 44100 Hz)
+- **Negotiation Behavior:** At startup, AudioOutput attempts to use the database-configured preferred rate. If the audio device doesn't support it, AudioOutput accepts the device's native sample rate instead.
+- **Effective Rate:** The actual `working_sample_rate` used during operation is the device's native sample rate (e.g., 48000 Hz for typical Windows audio devices).
+- **Resampling:** All decoded audio is resampled to match the effective `working_sample_rate` (device native rate) before buffering.
+- **Bypass:** When audio comes out of the decoder at the same rate as the effective `working_sample_rate`, the sample rate conversion process is bypassed (passthrough mode).
 
 ### output_ringbuffer_size
 
