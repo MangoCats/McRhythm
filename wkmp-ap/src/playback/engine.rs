@@ -1047,54 +1047,13 @@ impl PlaybackEngine {
         // Implements requirement that chains are freed when passage is removed (skip counts as removal)
         self.release_chain(current.queue_entry_id).await;
 
-        // Remove skipped entry from database
-        // [SUB-INC-4B] Persist removal to database (same as PassageComplete handler)
-        if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, current.queue_entry_id).await {
-            error!("Failed to remove skipped entry from database: {}", e);
-        }
-
-        // Remove skipped entry from in-memory queue
-        // [SUB-INC-4B] Same logic as PassageComplete handler
-        {
-            let mut queue_write = self.queue.write().await;
-            if queue_write.remove(current.queue_entry_id) {
-                info!("Removed skipped queue entry: {}", current.queue_entry_id);
-            } else {
-                warn!("Failed to remove skipped queue entry from memory: {}", current.queue_entry_id);
-            }
-        }
-
-        // Update audio_expected flag for ring buffer underrun classification
-        self.update_audio_expected_flag().await;
-
-        // Emit QueueChanged and QueueStateUpdate events for UI update
-        // [SUB-INC-4B] Notify UI that queue changed (passage removed)
-        {
-            let queue_entries = self.get_queue_entries().await;
-            let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
-                .filter_map(|e| e.passage_id)
-                .collect();
-
-            // Emit QueueChanged (for tracking)
-            self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
-                queue: queue_ids,
-                trigger: wkmp_common::events::QueueChangeTrigger::PassageCompletion,
-                timestamp: chrono::Utc::now(),
-            });
-
-            // Emit QueueStateUpdate (for UI display)
-            let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
-                .map(|e| wkmp_common::events::QueueEntryInfo {
-                    queue_entry_id: e.queue_entry_id,
-                    passage_id: e.passage_id,
-                    file_path: e.file_path.to_string_lossy().to_string(),
-                })
-                .collect();
-
-            self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
-                timestamp: chrono::Utc::now(),
-                queue: queue_info,
-            });
+        // Remove skipped entry from database + memory + emit events
+        // [SUB-INC-4B] Use shared helper to ensure consistent removal behavior
+        if let Err(e) = self.complete_passage_removal(
+            current.queue_entry_id,
+            wkmp_common::events::QueueChangeTrigger::UserDequeue
+        ).await {
+            error!("Failed to complete passage removal: {}", e);
         }
 
         // Start next passage if available
@@ -1770,8 +1729,6 @@ impl PlaybackEngine {
             self.release_chain(queue_entry_id).await;
 
             // 2. Stop mixer (clear playback state)
-            // [REQ-FIX-030] Clear mixer state
-            // [REQ-FIX-010] Stop playback immediately
             // [SUB-INC-4B] Replace stop() with SPEC016 operations (don't set to Paused - let process_queue handle state)
             {
                 let mut mixer = self.mixer.write().await;
@@ -1780,25 +1737,27 @@ impl PlaybackEngine {
             }
             info!("Mixer cleared for removed passage");
 
-            // 3. Remove from queue structure
-            // [REQ-FIX-040] Update queue structure
-            let removed = self.queue.write().await.remove(queue_entry_id);
+            // 3. Remove from queue + emit events
+            // [SUB-INC-4B] Use shared helper for consistent removal behavior
+            // Note: API handler also emits events, but using helper ensures internal consistency
+            let removed = match self.complete_passage_removal(
+                queue_entry_id,
+                wkmp_common::events::QueueChangeTrigger::UserDequeue
+            ).await {
+                Ok(result) => result,
+                Err(e) => {
+                    error!("Failed to complete passage removal: {}", e);
+                    false
+                }
+            };
 
             if removed {
-                info!("Successfully removed current passage {} from queue", queue_entry_id);
-
-                // Update audio_expected flag for ring buffer underrun classification
-                self.update_audio_expected_flag().await;
-
                 // 4. Start next passage if queue has one
                 // [REQ-FIX-050] Start next passage if queue non-empty
                 // [REQ-FIX-080] New passage starts correctly after removal
                 let has_current = self.queue.read().await.current().is_some();
                 if has_current {
                     info!("Starting next passage after current removed");
-                    // Trigger process_queue to start the next passage immediately
-                    // This replicates the behavior from natural passage completion (line 2105)
-                    // where next iteration starts new current passage
                     if let Err(e) = self.process_queue().await {
                         warn!("Failed to start next passage after removal: {}", e);
                     }
@@ -1823,6 +1782,83 @@ impl PlaybackEngine {
 
             removed
         }
+    }
+
+    /// Complete passage removal: database + memory + events
+    ///
+    /// Performs the standard passage removal workflow used by skip, PassageComplete,
+    /// and remove_queue_entry. Consolidates duplicate code and ensures consistent
+    /// behavior across all removal paths.
+    ///
+    /// **[SUB-INC-4B]** Implements marker-driven queue advancement pattern
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - UUID of queue entry to remove
+    /// * `trigger` - Event trigger type (PassageCompletion or UserAction)
+    ///
+    /// # Returns
+    /// * `Ok(true)` - Entry removed successfully
+    /// * `Ok(false)` - Entry not found in queue
+    /// * `Err(_)` - Database or broadcast error (non-fatal, logged)
+    async fn complete_passage_removal(
+        &self,
+        queue_entry_id: Uuid,
+        trigger: wkmp_common::events::QueueChangeTrigger,
+    ) -> Result<bool> {
+        // Remove from database FIRST (persistence before memory)
+        // [SUB-INC-4B] Persist removal to database (matches PassageComplete handler)
+        if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
+            error!("Failed to remove entry from database: {}", e);
+        }
+
+        // Remove from in-memory queue
+        // [SUB-INC-4B] Same logic as PassageComplete handler
+        let removed = {
+            let mut queue_write = self.queue.write().await;
+            queue_write.remove(queue_entry_id)
+        };
+
+        if !removed {
+            warn!("Failed to remove queue entry from memory: {}", queue_entry_id);
+            return Ok(false);
+        }
+
+        info!("Removed queue entry: {}", queue_entry_id);
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
+
+        // Emit SSE events for UI update
+        // [SUB-INC-4B] Notify UI that queue changed (passage removed)
+        {
+            let queue_entries = self.get_queue_entries().await;
+            let queue_ids: Vec<Uuid> = queue_entries.iter()
+                .filter_map(|e| e.passage_id)
+                .collect();
+
+            // Emit QueueChanged (for tracking)
+            self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+                queue: queue_ids,
+                trigger,
+                timestamp: chrono::Utc::now(),
+            });
+
+            // Emit QueueStateUpdate (for UI display)
+            let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                .map(|e| wkmp_common::events::QueueEntryInfo {
+                    queue_entry_id: e.queue_entry_id,
+                    passage_id: e.passage_id,
+                    file_path: e.file_path.to_string_lossy().to_string(),
+                })
+                .collect();
+
+            self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                timestamp: chrono::Utc::now(),
+                queue: queue_info,
+            });
+        }
+
+        Ok(true)
     }
 
     /// Calculate crossfade start position in milliseconds
@@ -2932,49 +2968,13 @@ impl PlaybackEngine {
                         mixer.clear_all_markers();
                     }
 
-                    // Remove completed entry from database
-                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
-                        error!("Failed to remove completed entry from database: {}", e);
-                    }
-
-                    // Remove completed entry from in-memory queue
-                    {
-                        let mut queue = self.queue.write().await;
-                        if queue.remove(queue_entry_id) {
-                            info!("Removed completed queue entry: {}", queue_entry_id);
-                        } else {
-                            warn!("Failed to remove completed queue entry from memory: {}", queue_entry_id);
-                        }
-                    }
-
-                    // Emit QueueChanged and QueueStateUpdate events for UI update
-                    // [SUB-INC-4B] Notify UI that queue changed (passage completed and removed)
-                    {
-                        let queue_entries = self.get_queue_entries().await;
-                        let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
-                            .filter_map(|e| e.passage_id)
-                            .collect();
-
-                        // Emit QueueChanged (for tracking)
-                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
-                            queue: queue_ids,
-                            trigger: wkmp_common::events::QueueChangeTrigger::PassageCompletion,
-                            timestamp: chrono::Utc::now(),
-                        });
-
-                        // Emit QueueStateUpdate (for UI display)
-                        let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
-                            .map(|e| wkmp_common::events::QueueEntryInfo {
-                                queue_entry_id: e.queue_entry_id,
-                                passage_id: e.passage_id,
-                                file_path: e.file_path.to_string_lossy().to_string(),
-                            })
-                            .collect();
-
-                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
-                            timestamp: chrono::Utc::now(),
-                            queue: queue_info,
-                        });
+                    // Remove completed entry from database + memory + emit events
+                    // [SUB-INC-4B] Use shared helper to ensure consistent removal behavior
+                    if let Err(e) = self.complete_passage_removal(
+                        queue_entry_id,
+                        wkmp_common::events::QueueChangeTrigger::PassageCompletion
+                    ).await {
+                        error!("Failed to complete passage removal: {}", e);
                     }
 
                     // Trigger process_queue to start next passage if available
