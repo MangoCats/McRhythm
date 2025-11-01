@@ -152,7 +152,8 @@ async fn test_scenario_1_single_passage_30s() {
 
     // Create buffer manager and decoder
     let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Create passage (0-40s to have buffer for 30s playback)
     let passage_id = Uuid::new_v4();
@@ -208,7 +209,8 @@ async fn test_scenario_2_two_passages_with_delay() {
 
     let collector = LogCollector::new();
     let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Enqueue first passage
     let passage1_id = Uuid::new_v4();
@@ -270,7 +272,8 @@ async fn test_scenario_3_three_passages_with_skip() {
 
     let collector = LogCollector::new();
     let (buffer_manager, shared_state, db_pool): (Arc<BufferManager>, Arc<SharedState>, sqlx::Pool<sqlx::Sqlite>) = create_test_deps().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Enqueue three passages
     let passage_ids: Vec<Uuid> = vec![Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];

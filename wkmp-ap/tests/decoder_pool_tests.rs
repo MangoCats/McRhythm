@@ -127,7 +127,8 @@ async fn test_fade_in_applied_before_buffering() {
 
     let buffer_manager = Arc::new(BufferManager::new());
     let (shared_state, db_pool) = create_test_deps_simple().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Start the decoder worker task
     decoder.clone().start();
@@ -244,7 +245,8 @@ async fn test_fade_out_applied_before_buffering() {
 
     let buffer_manager = Arc::new(BufferManager::new());
     let (shared_state, db_pool) = create_test_deps_simple().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Start the decoder worker task
     decoder.clone().start();
@@ -372,7 +374,8 @@ async fn test_only_one_decoder_active_at_time() {
 
     let buffer_manager = Arc::new(BufferManager::new());
     let (shared_state, db_pool) = create_test_deps_simple().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Start the decoder worker task
     decoder.clone().start();

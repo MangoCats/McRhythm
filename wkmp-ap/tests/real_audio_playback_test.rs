@@ -121,7 +121,8 @@ async fn test_real_audio_decode_and_monitor_logs() {
     // Create buffer manager and decoder
     let buffer_manager = Arc::new(BufferManager::new());
     let (shared_state, db_pool) = create_test_deps_simple().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Submit first passage (0-30 seconds)
     let passage1_id = Uuid::new_v4();
@@ -236,7 +237,8 @@ async fn test_single_passage_decode() {
 
     let buffer_manager = Arc::new(BufferManager::new());
     let (shared_state, db_pool) = create_test_deps_simple().await;
-    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool));
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    let decoder = Arc::new(DecoderWorker::new(Arc::clone(&buffer_manager), shared_state, db_pool, working_sample_rate));
 
     // Submit single passage (first 15 seconds)
     let passage_id = Uuid::new_v4();
