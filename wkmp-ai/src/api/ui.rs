@@ -98,6 +98,7 @@ async fn root_page() -> impl IntoResponse {
     <p>
         <a href=\"/import-progress\" class=\"button\">Start Import</a>
         <a href=\"/segment-editor\" class=\"button\">Segment Editor</a>
+        <a href=\"http://localhost:5725/\" target=\"_blank\" class=\"button\">Database Review</a>
     </p>
 
     <p><small>Module: wkmp-ai v0.1.0 | Port 5723</small></p>

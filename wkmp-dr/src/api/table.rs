@@ -182,12 +182,17 @@ async fn is_valid_column(
 
 /// Get column names for a table
 async fn get_table_columns(state: &AppState, table_name: &str) -> Result<Vec<String>, TableError> {
-    let rows: Vec<(String,)> = sqlx::query_as(&format!("PRAGMA table_info({})", table_name))
+    let rows = sqlx::query(&format!("PRAGMA table_info({})", table_name))
         .fetch_all(&state.db)
         .await
         .map_err(|e| TableError::DatabaseError(e.to_string()))?;
 
-    Ok(rows.into_iter().map(|(name,)| name).collect())
+    // PRAGMA table_info returns: (cid, name, type, notnull, dflt_value, pk)
+    // We need column 1 (name)
+    Ok(rows
+        .iter()
+        .map(|row| row.get::<String, _>(1))
+        .collect())
 }
 
 /// Table API errors

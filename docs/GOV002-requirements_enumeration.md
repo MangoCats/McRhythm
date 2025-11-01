@@ -76,6 +76,7 @@ For simple lists where hierarchy is clear from context:
 | SSP | single_stream_playback.md | Single stream playback architecture |
 | DBD | decoder_buffer_design.md | Decoder-buffer chain architecture |
 | SRC | sample_rate_conversion.md | Sample rate conversion and tick-based timing |
+| DR | database_review.md | Database review tool specifications |
 
 ## Category Codes by Document
 
@@ -475,6 +476,18 @@ For simple lists where hierarchy is clear from context:
 | IMPL | Implementation | Implementation notes |
 | EXAM | Examples | Usage examples |
 
+### DR (database_review.md)
+
+| Code | Section | Scope |
+|------|---------|-------|
+| OV | Overview | Database Review module overview |
+| F | Filters | Predefined database query filters |
+| TBL | Table Browsing | Direct table browsing functionality |
+| SRCH | Search | Search functionality |
+| PREF | Preferences | User preference persistence |
+| UI | User Interface | UI specifications |
+| API | API Endpoints | REST API endpoint specifications |
+
 ## Numbering Guidelines
 
 ### Increment by 10 Rule
@@ -780,11 +793,14 @@ Markdown renderers generate different anchor names for headers with backticks or
 ## Review and Approval
 
 **Document Status:** Current
-**Version:** 1.2
-**Last Updated:** 2025-10-19
+**Version:** 1.3
+**Last Updated:** 2025-11-01
 **Author:** Claude Code
 
 **Revision History:**
+- v1.3 (2025-11-01): Added DR document code
+  - Added DR (database_review.md) document code and category codes
+  - Registered SPEC027-database_review.md in documentation hierarchy
 - v1.2 (2025-10-19): Added DBD and SRC document codes
   - Added DBD (decoder_buffer_design.md) document code and category codes
   - Added SRC (sample_rate_conversion.md) document code and category codes

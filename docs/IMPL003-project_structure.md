@@ -232,6 +232,7 @@ members = [
     "wkmp-le",
     "wkmp-pd",
     "wkmp-ai",
+    "wkmp-dr",
 ]
 
 # Shared dependencies across workspace
@@ -254,7 +255,7 @@ reqwest = { version = "0.11", features = ["json"] }
 # Version differentiation is achieved by packaging different binaries
 # No feature flags or conditional compilation required
 [workspace.metadata.versions]
-# Full version: Package all 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
+# Full version: Package all 6 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai, wkmp-dr)
 # Lite version: Package 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
 # Minimal version: Package 2 binaries (wkmp-ap, wkmp-ui)
 ```
@@ -586,6 +587,37 @@ toml = "0.8"
 # - cocoa-webkit (macOS)
 ```
 
+### Database Review (`wkmp-dr/Cargo.toml`)
+
+```toml
+[package]
+name = "wkmp-dr"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wkmp-dr"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+wkmp-common = { path = "../wkmp-common" }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+```
+
 ### Program Director (`wkmp-pd/Cargo.toml`)
 
 ```toml
@@ -678,9 +710,9 @@ cargo build -p wkmp-ui --release
 
 ### Version-Specific Builds
 
-**Full Version (all 5 modules):**
+**Full Version (all 6 modules):**
 ```bash
-cargo build --release -p wkmp-ap -p wkmp-ui -p wkmp-pd -p wkmp-ai -p wkmp-le --features wkmp-ai/full
+cargo build --release -p wkmp-ap -p wkmp-ui -p wkmp-pd -p wkmp-ai -p wkmp-le -p wkmp-dr --features wkmp-ai/full
 ```
 
 **Lite Version (3 modules):**
@@ -728,6 +760,7 @@ cp target/release/wkmp-ui dist/full/
 cp target/release/wkmp-le dist/full/
 cp target/release/wkmp-pd dist/full/
 cp target/release/wkmp-ai dist/full/
+cp target/release/wkmp-dr dist/full/
 
 echo "Full version packaged in dist/full/"
 ```
@@ -1105,7 +1138,8 @@ wkmp-full-v0.1.0-linux/
 │   ├── wkmp-ui
 │   ├── wkmp-pd
 │   ├── wkmp-le
-│   └── wkmp-ai
+│   ├── wkmp-ai
+│   └── wkmp-dr
 ├── migrations/
 │   └── *.sql
 ├── README.md

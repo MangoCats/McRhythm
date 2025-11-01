@@ -12,7 +12,7 @@
 |----------|------|-------------|
 | GOV | 004 | Governance (document hierarchy, conventions, requirements enumeration) |
 | REQ | 003 | Requirements (authoritative requirements, entity definitions) |
-| SPEC | 027 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
+| SPEC | 028 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
 | IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |

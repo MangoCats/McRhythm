@@ -8,7 +8,7 @@
 - **Web Framework:** Axum (HTTP server, SSE support)
 - **Audio Stack:** symphonia (decode), rubato (resample), cpal (output)
 - **Database:** SQLite with JSON1 extension
-- **Architecture:** Microservices (5 independent HTTP servers)
+- **Architecture:** Microservices (6 independent HTTP servers)
 
 ---
 
@@ -281,6 +281,7 @@ This framework ensures decisions align with charter by prioritizing approaches t
 - **`wkmp-pd/`**: Program Director microservice (automatic passage selection)
 - **`wkmp-ai/`**: Audio Ingest microservice (file scanning, MusicBrainz integration - Full version only)
 - **`wkmp-le/`**: Lyric Editor microservice (on-demand lyric editing - Full version only)
+- **`wkmp-dr/`**: Database Review microservice (read-only database inspection - Full version only)
 - **`migrations/`**: Shared SQLite database migrations
 - **`scripts/`**: Build and packaging scripts for Full/Lite/Minimal versions
 
@@ -288,7 +289,7 @@ This framework ensures decisions align with charter by prioritizing approaches t
 
 # Microservices Architecture
 
-WKMP consists of **5 independent HTTP-based microservices**:
+WKMP consists of **6 independent HTTP-based microservices**:
 
 | Module | Port | Purpose | Versions |
 |--------|------|---------|----------|
@@ -297,12 +298,13 @@ WKMP consists of **5 independent HTTP-based microservices**:
 | **Program Director (wkmp-pd)** | 5722 | Automatic passage selection algorithm | Full, Lite |
 | **Audio Ingest (wkmp-ai)** | 5723 | Import wizard UI, file scanning, MusicBrainz identification | Full (on-demand) |
 | **Lyric Editor (wkmp-le)** | 5724 | Split-window lyric editing interface | Full (on-demand) |
+| **Database Review (wkmp-dr)** | 5725 | Read-only database inspection tool | Full |
 
 **Communication:** HTTP REST APIs + Server-Sent Events (SSE) for real-time updates
 
 ### Zero-Configuration Startup (MANDATORY - ALL MODULES)
 
-**[REQ-NF-030] through [REQ-NF-037]** ALL five modules MUST implement zero-config startup:
+**[REQ-NF-030] through [REQ-NF-037]** ALL six modules MUST implement zero-config startup:
 
 **Implementation Pattern (REQUIRED):**
 ```rust
@@ -381,7 +383,7 @@ async fn main() -> Result<()> {
 5. Clicks "Return to WKMP" → Back to wkmp-ui tab
 
 **Version Availability:**
-- Full version: All 5 microservices (including wkmp-ai, wkmp-le)
+- Full version: All 6 microservices (including wkmp-ai, wkmp-le, wkmp-dr)
 - Lite version: wkmp-ui shows "Import Music" disabled with "Full version required" tooltip
 - Minimal version: No import or lyric editing functionality
 

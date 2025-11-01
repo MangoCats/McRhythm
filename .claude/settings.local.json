@@ -4,7 +4,12 @@
       "Bash(cut -d' ' -f1 ls \"$dir\")",
       "Bash(stat:*)",
       "Bash(git log:*)",
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "Bash(lsof:*)",
+      "Bash(ss:*)",
+      "Bash(google-chrome:*)",
+      "Bash(timeout:*)",
+      "Bash(node /tmp/test_ui.js:*)"
     ],
     "deny": [],
     "ask": []
