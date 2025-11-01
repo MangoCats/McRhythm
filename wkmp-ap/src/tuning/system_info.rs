@@ -5,6 +5,7 @@
 //! **Traceability:** TUNE-OUT-010
 
 use serde::{Deserialize, Serialize};
+use std::fs;
 
 /// System information for tuning reports
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +140,9 @@ impl SystemInfo {
                     return os_info.trim().to_string();
                 }
             }
+
+            // Final fallback for Linux
+            return "Linux".to_string();
         }
 
         // Use std::env::consts for other platforms
