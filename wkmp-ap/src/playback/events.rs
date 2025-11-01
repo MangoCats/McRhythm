@@ -37,6 +37,19 @@ pub enum PlaybackEvent {
         position_ms: u64,
     },
 
+    /// Passage playback completed
+    ///
+    /// Emitted when mixer reaches end of passage (PassageComplete marker fires).
+    /// Engine uses this to advance queue to next passage.
+    ///
+    /// **[SUB-INC-4B]** Added for marker-driven queue advancement
+    ///
+    /// # Fields
+    /// * `queue_entry_id` - UUID of completed queue entry
+    PassageComplete {
+        queue_entry_id: Uuid,
+    },
+
     /// Playback state changed (reserved for future use)
     ///
     /// This variant is reserved for future implementation of additional

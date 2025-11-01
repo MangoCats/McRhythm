@@ -103,6 +103,10 @@ pub struct DecoderWorker {
     /// **[REQ-AP-ERR-011]** Update decode_status on unsupported codec
     db_pool: Pool<Sqlite>,
 
+    /// Working sample rate (Hz) - matches audio device native rate
+    /// **[DBD-PARAM-020]** Passed to decoder chains for resampling target
+    working_sample_rate: Arc<std::sync::RwLock<u32>>,
+
     /// Worker state (protected by async mutex)
     state: Arc<Mutex<WorkerState>>,
 
@@ -114,10 +118,12 @@ impl DecoderWorker {
     /// Create a new decoder worker
     ///
     /// **[Phase 7]** Now requires shared_state and db_pool for error handling.
+    /// **[DBD-PARAM-020]** Now requires working_sample_rate for device-matched resampling.
     pub fn new(
         buffer_manager: Arc<BufferManager>,
         shared_state: Arc<SharedState>,
         db_pool: Pool<Sqlite>,
+        working_sample_rate: Arc<std::sync::RwLock<u32>>,
     ) -> Self {
         let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -133,6 +139,7 @@ impl DecoderWorker {
             buffer_manager,
             shared_state,
             db_pool,
+            working_sample_rate,
             state: Arc::new(Mutex::new(state)),
             stop_flag,
         }
@@ -313,11 +320,14 @@ impl DecoderWorker {
             state.next_chain_index = (state.next_chain_index + 1) % 12;
 
             // Create decoder chain
+            // **[DBD-PARAM-020]** Read working_sample_rate (set by audio thread after device init)
+            let working_sample_rate = *self.working_sample_rate.read().unwrap();
             match DecoderChain::new(
                 request.queue_entry_id,
                 chain_index,
                 &request.passage,
                 &self.buffer_manager,
+                working_sample_rate,
             )
             .await
             {

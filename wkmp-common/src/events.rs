@@ -718,9 +718,11 @@ pub struct BufferChainInfo {
     pub source_sample_rate: Option<u32>,
     /// Resampler active (true if source rate != working rate)
     pub resampler_active: Option<bool>,
-    /// Target sample rate (always 44100 Hz)
+    /// Target sample rate (matches device native rate per [DBD-PARAM-020], typically 44100 or 48000 Hz)
     #[serde(default = "default_working_sample_rate")]
     pub target_sample_rate: u32,
+    /// Resampler algorithm name (e.g., "Septic polynomial", "Linear", "PassThrough")
+    pub resampler_algorithm: Option<String>,
 
     // Fade handler stage visibility **[DBD-FADE-010]**
     /// Current fade stage: PreStart, FadeIn, Body, FadeOut, PostEnd
@@ -765,6 +767,7 @@ impl BufferChainInfo {
             source_sample_rate: None,
             resampler_active: Some(false),
             target_sample_rate: 44100,
+            resampler_algorithm: None,
             fade_stage: None,
             buffer_state: Some("Idle".to_string()),
             buffer_fill_percent: 0.0,

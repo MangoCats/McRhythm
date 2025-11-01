@@ -64,6 +64,7 @@ async fn main() -> Result<()> {
         .init();
 
     // [CO-226] Log build identification for debugging
+    // This appears immediately after tracing init (before database setup delay)
     info!(
         "Starting WKMP Audio Player (wkmp-ap) v{} [{}] built {} ({})",
         env!("CARGO_PKG_VERSION"),

@@ -14,6 +14,7 @@ pub mod diagnostics; // [PHASE1-INTEGRITY] Pipeline validation
 pub mod validation_service; // [ARCH-AUTO-VAL-001] Automatic validation service
 pub mod engine;
 pub mod events;
+pub mod mixer; // SPEC016-compliant mixer (reads pre-faded samples)
 pub mod pipeline;
 pub mod playout_ring_buffer;
 pub mod queue_manager;
