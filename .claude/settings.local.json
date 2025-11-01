@@ -9,7 +9,10 @@
       "Bash(ss:*)",
       "Bash(google-chrome:*)",
       "Bash(timeout:*)",
-      "Bash(node /tmp/test_ui.js:*)"
+      "Bash(node /tmp/test_ui.js:*)",
+      "Bash(tokei:*)",
+      "Bash(wc:*)",
+      "Bash(cargo clippy:*)"
     ],
     "deny": [],
     "ask": []

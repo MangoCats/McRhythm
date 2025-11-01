@@ -46,8 +46,9 @@ pub async fn auth_middleware(
     }
 
     // Extract body for hash validation
+    // [DR-SEC-050] Limit body size to 10MB to prevent DoS via memory exhaustion
     let (parts, body) = request.into_parts();
-    let body_bytes = axum::body::to_bytes(body, usize::MAX)
+    let body_bytes = axum::body::to_bytes(body, 10 * 1024 * 1024)
         .await
         .map_err(|e| AuthError::ParseError(format!("Failed to read body: {}", e)))?;
 

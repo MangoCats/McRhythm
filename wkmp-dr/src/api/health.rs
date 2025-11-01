@@ -8,10 +8,12 @@ use serde::Serialize;
 use crate::AppState;
 
 /// Health check response [REQ-DR-NF-040]
+/// Per [DR-API-010], returns status, module name, and version
 #[derive(Debug, Serialize)]
 pub struct HealthResponse {
     pub status: String,
     pub module: String,
+    pub version: String,
 }
 
 /// GET /health
@@ -20,8 +22,9 @@ pub struct HealthResponse {
 /// Does NOT require authentication per REQ-DR-NF-040.
 pub async fn health_check() -> Json<HealthResponse> {
     Json(HealthResponse {
-        status: "healthy".to_string(),
+        status: "ok".to_string(),
         module: "wkmp-dr".to_string(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
     })
 }
 

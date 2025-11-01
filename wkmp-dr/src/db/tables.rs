@@ -19,6 +19,8 @@ pub struct TableInfo {
 /// List all tables with row counts [REQ-DR-F-010, REQ-DR-F-030]
 ///
 /// Returns tables in alphabetical order, excluding SQLite internal tables.
+/// Note: Not currently used by API layer, kept for potential future table enumeration endpoint
+#[allow(dead_code)]
 pub async fn list_tables(pool: &SqlitePool) -> Result<Vec<TableInfo>> {
     let tables = sqlx::query_as::<_, (String,)>(
         r#"

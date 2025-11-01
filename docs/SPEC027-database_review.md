@@ -61,16 +61,25 @@ wkmp-dr/
 ├── src/
 │   ├── main.rs          # Entry point, router setup
 │   ├── lib.rs           # Router configuration
+│   ├── pagination.rs    # Centralized pagination logic (v1.3)
 │   ├── api/
 │   │   ├── mod.rs       # API module exports
-│   │   ├── tables.rs    # Table browsing endpoints
+│   │   ├── auth.rs      # Authentication middleware
+│   │   ├── table.rs     # Table browsing endpoints
 │   │   ├── filters.rs   # Predefined query filters
 │   │   ├── search.rs    # Search endpoints
 │   │   ├── health.rs    # Health check endpoint
 │   │   └── ui.rs        # Static UI serving
+│   ├── db/
+│   │   ├── mod.rs       # Database module exports
+│   │   ├── connect.rs   # Read-only connection setup
+│   │   └── tables.rs    # Table metadata queries
 │   └── ui/
 │       ├── index.html   # Main UI page
 │       └── app.js       # Client-side application
+├── tests/
+│   ├── api_tests.rs     # API integration tests (v1.3)
+│   └── security_tests.rs # Security tests for body limits (v1.3)
 ├── EXTENSIBILITY.md     # Guide for adding new filters
 └── Cargo.toml
 ```
@@ -147,7 +156,7 @@ Query parameters:
 
 SQL query:
 ```sql
-SELECT guid, file_id, start_seconds, end_seconds, created_at
+SELECT guid, file_id, start_time_ticks, end_time_ticks, title, created_at
 FROM passages
 WHERE guid NOT IN (
   SELECT DISTINCT passage_id FROM passage_songs
@@ -167,7 +176,7 @@ Query parameters:
 
 SQL query:
 ```sql
-SELECT guid, full_path, file_size_bytes, created_at
+SELECT guid, path, duration, hash, created_at
 FROM files
 WHERE guid NOT IN (
   SELECT DISTINCT file_id FROM passages
@@ -183,9 +192,9 @@ Common response format for all filters:
 {
   "filter_name": "passages-without-mbid",
   "description": "Passages without MusicBrainz Recording IDs",
-  "columns": ["guid", "file_id", "start_seconds", "end_seconds", "created_at"],
+  "columns": ["guid", "file_id", "start_time_ticks", "end_time_ticks", "title", "created_at"],
   "rows": [
-    ["uuid-1", "file-uuid", 0.0, 180.5, "2025-11-01T12:00:00Z"]
+    ["uuid-1", "file-uuid", 0, 8820000, "Example Title", "2025-11-01T12:00:00Z"]
   ],
   "total_results": 42,
   "page": 1,
@@ -209,8 +218,8 @@ Validation:
 
 SQL query:
 ```sql
-SELECT p.guid, p.file_id, p.start_seconds, p.end_seconds,
-       s.recording_mbid, p.created_at
+SELECT p.guid, p.file_id, p.start_time_ticks, p.end_time_ticks,
+       s.recording_mbid, s.work_id
 FROM passages p
 JOIN passage_songs ps ON p.guid = ps.passage_id
 JOIN songs s ON ps.song_id = s.guid
@@ -229,10 +238,10 @@ Query parameters:
 
 SQL query:
 ```sql
-SELECT guid, full_path, file_size_bytes, created_at
+SELECT guid, path, duration, hash, created_at
 FROM files
-WHERE full_path LIKE ?
-ORDER BY created_at DESC
+WHERE path LIKE ?
+ORDER BY path ASC
 LIMIT 100 OFFSET ?
 ```
 
@@ -414,17 +423,42 @@ User input never concatenated into SQL strings.
 - Sort order: Enum validation ("asc" or "desc")
 - Pattern: No validation (SQL LIKE syntax allows any pattern)
 
-**[DR-SEC-040] No Authentication**
+**[DR-SEC-040] Authentication Behavior**
 
-wkmp-dr provides no authentication layer.
+wkmp-dr inherits the WKMP shared secret authentication system but operates in **authentication-disabled mode by default**.
 
-Reasoning:
+**Authentication States:**
+
+1. **Disabled (Default):** When `shared_secret == 0` (database setting)
+   - ALL API endpoints are publicly accessible without credentials
+   - No timestamp validation performed
+   - No hash validation performed
+   - Middleware immediately passes requests through
+   - This is the standard localhost development configuration
+
+2. **Enabled:** When `shared_secret != 0` (database setting)
+   - Protected API routes require timestamp + hash validation per API-AUTH-025 through API-AUTH-031
+   - Timestamp must be within 300 seconds of current time
+   - Hash must match SHA-256 HMAC of request body with shared secret
+   - 401 Unauthorized returned on validation failure
+
+**Protected vs Public Endpoints:**
+
+- **Public (no auth ever):** `/health`
+- **Protected (auth when enabled):** All `/api/*` routes (tables, filters, searches)
+
+**Implementation Reference:**
+- Auth middleware: `wkmp-dr/src/api/auth.rs:42-46`
+- Bypass logic: `if state.shared_secret == 0 { return Ok(next.run(request).await); }`
+- Standard WKMP pattern: Consistent with wkmp-ui, wkmp-pd, wkmp-ai, wkmp-le
+
+**Reasoning for Default-Disabled:**
 - Runs on localhost only
 - Read-only access to local database
 - Trusted local environment
-- Consistent with wkmp-ai and wkmp-le (also no auth)
+- Simplifies browser-based access (no auth context needed from wkmp-ai button)
 
-**Warning:** Do not expose wkmp-dr to network. For localhost use only.
+**Warning:** Do not expose wkmp-dr to network. Localhost use only. If remote access is required, set `shared_secret != 0` in database and ensure all API clients provide valid auth credentials.
 
 ---
 
@@ -555,12 +589,43 @@ Fully decoupled inspection tool.
 
 ## Revision History
 
-**Version:** 1.0
+**Version:** 1.3
 **Status:** Current
 **Last Updated:** 2025-11-01
 **Author:** Claude Code
 
 **Change Log:**
+- v1.3 (2025-11-01): Technical debt remediation and test coverage improvements
+  - **Code Quality:**
+    - Extracted pagination helper module (`wkmp-dr/src/pagination.rs`) eliminating 24 lines of duplicated logic
+    - Centralized `PAGE_SIZE` constant and `calculate_pagination()` function with bounds checking
+    - Removed unused exports while preserving `list_tables()` function for future extensibility
+  - **Test Coverage:**
+    - Added 14 API integration tests covering all core endpoints (`wkmp-dr/tests/api_tests.rs`)
+    - Added 3 security tests verifying 10MB body size limit enforcement (`wkmp-dr/tests/security_tests.rs`)
+    - All tests use `shared_secret=0` auth bypass for simplified testing
+    - Tests verify: health, table viewing, pagination, sorting, filters, search, error handling
+  - **Module Structure:**
+    - Updated architecture diagram to include `pagination.rs`
+    - Enabled tower `util` feature in workspace Cargo.toml for test infrastructure
+  - **Implementation Quality:**
+    - Zero compiler warnings
+    - 100% test pass rate (17 tests total)
+    - Comprehensive edge case coverage (pagination boundaries, invalid inputs, large bodies)
+- v1.2 (2025-11-01): Database field name corrections
+  - **[DR-API-030]** Updated passages filter to use actual field names: `start_time_ticks, end_time_ticks, title` (not `start_seconds, end_seconds`)
+  - **[DR-API-040]** Updated files filter to use actual field names: `path, duration, hash` (not `full_path, file_size_bytes`)
+  - **[DR-API-050]** Updated FilterResponse example to match corrected field names
+  - **[DR-API-060]** Updated work_id search to use `start_time_ticks, end_time_ticks, work_id` (not `start_seconds, end_seconds, created_at`)
+  - **[DR-API-070]** Updated path search to use `path, duration, hash` and sort by `path ASC` (not `full_path, file_size_bytes` sorted by `created_at DESC`)
+  - All changes reflect actual database schema per IMPL001; implementation was correct, specification was outdated
+- v1.1 (2025-11-01): Authentication documentation correction
+  - **[DR-SEC-040]** Corrected authentication behavior documentation
+  - Clarified that wkmp-dr inherits WKMP shared secret system but defaults to disabled (shared_secret == 0)
+  - Documented two authentication states: Disabled (default) vs Enabled (shared_secret != 0)
+  - Confirmed that when shared_secret == 0, NO timestamp or hash validation is performed
+  - Added implementation references to auth.rs bypass logic
+  - Explained protected vs public endpoint distinction
 - v1.0 (2025-11-01): Initial specification
   - Documented wkmp-dr design and implementation
   - Established DR-xxx requirement IDs
