@@ -1455,7 +1455,10 @@ impl PlaybackEngine {
                     // Resampler stage (stubbed for Phase 3c)
                     source_sample_rate: None, // TODO: Get from decoder
                     resampler_active: None,
-                    target_sample_rate: sample_rate, // **[DBD-PARAM-020]** working_sample_rate (device native)
+                    target_sample_rate: {
+                        debug!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
+                        sample_rate // **[DBD-PARAM-020]** working_sample_rate (device native)
+                    },
 
                     // Fade stage (stubbed for Phase 3c)
                     fade_stage: None, // TODO: Get from decoder

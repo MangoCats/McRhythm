@@ -74,7 +74,8 @@
       "WebFetch(domain:docs.rs)",
       "Read(//home/sw/.cargo/registry/src/**)",
       "SlashCommand(/think:*)",
-      "Bash(cargo clean:*)"
+      "Bash(cargo clean:*)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "ask": []

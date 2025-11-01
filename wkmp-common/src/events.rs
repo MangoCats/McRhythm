@@ -721,6 +721,8 @@ pub struct BufferChainInfo {
     /// Target sample rate (matches device native rate per [DBD-PARAM-020], typically 44100 or 48000 Hz)
     #[serde(default = "default_working_sample_rate")]
     pub target_sample_rate: u32,
+    /// Resampler algorithm name (e.g., "Septic polynomial", "Linear", "PassThrough")
+    pub resampler_algorithm: Option<String>,
 
     // Fade handler stage visibility **[DBD-FADE-010]**
     /// Current fade stage: PreStart, FadeIn, Body, FadeOut, PostEnd
