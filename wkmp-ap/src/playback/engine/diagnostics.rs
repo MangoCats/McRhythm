@@ -18,6 +18,7 @@ use crate::playback::buffer_events::BufferEvent;
 use crate::playback::events::PlaybackEvent;
 use crate::playback::mixer::{MarkerEvent, PositionMarker};
 use crate::state::CurrentPassage;
+use sqlx::{Pool, Sqlite};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use tracing::{debug, error, info, warn};
@@ -383,6 +384,36 @@ impl PlaybackEngine {
         let mixer_total_frames_mixed = self.mixer.read().await.get_frames_written();
 
         crate::playback::PipelineMetrics::new(passages, mixer_total_frames_mixed)
+    }
+
+    /// Start automatic validation service
+    ///
+    /// **[ARCH-AUTO-VAL-001]** Starts periodic pipeline integrity validation
+    ///
+    /// Creates and starts a ValidationService background task that loads its
+    /// configuration from database settings and runs periodic validations,
+    /// emitting validation events via SSE.
+    ///
+    /// # Arguments
+    /// * `engine` - Arc reference to self (PlaybackEngine)
+    /// * `db_pool` - Database connection pool for loading configuration
+    ///
+    /// # Note
+    /// This should be called once during engine initialization. The validation
+    /// service will continue running in the background until the engine is dropped.
+    pub async fn start_validation_service(engine: Arc<Self>, db_pool: Pool<Sqlite>) {
+        use crate::playback::validation_service::{ValidationConfig, ValidationService};
+
+        // Load config from database
+        let config = ValidationConfig::from_database(&db_pool).await;
+
+        let validation_service = Arc::new(ValidationService::new(
+            config,
+            engine.clone(),
+            engine.state.clone(),
+        ));
+
+        validation_service.run();
     }
 
     /// Set buffer chain monitor update rate

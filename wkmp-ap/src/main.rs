@@ -127,9 +127,8 @@ async fn main() -> Result<()> {
 
     // Start automatic validation service
     // **[ARCH-AUTO-VAL-001]** Periodic pipeline integrity validation
-    // TODO: Implement start_validation_service - currently WIP
-    // PlaybackEngine::start_validation_service(Arc::clone(&engine), db_pool.clone()).await;
-    // info!("Validation service started");
+    PlaybackEngine::start_validation_service(Arc::clone(&engine), db_pool.clone()).await;
+    info!("Validation service started");
 
     // Load shared secret for API authentication (must be done before spawning)
     // Per SPEC007 API-AUTH-026: Value of 0 means authentication disabled
