@@ -9,9 +9,8 @@ use sqlx::SqlitePool;
 use std::path::Path;
 
 mod tables;
-pub use tables::list_tables;
-#[allow(unused_imports)]
-pub use tables::TableInfo;
+// Note: list_tables and TableInfo not currently used by API layer
+// Kept in tables.rs for potential future enumeration needs
 
 /// Connect to database with read-only mode [REQ-DR-NF-020]
 ///

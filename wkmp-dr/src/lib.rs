@@ -7,6 +7,7 @@ use sqlx::SqlitePool;
 
 pub mod api;
 pub mod db;
+pub mod pagination;
 
 /// Application state shared across HTTP handlers
 #[derive(Clone)]

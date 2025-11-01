@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::{Column, Row, ValueRef};
 
-use crate::AppState;
+use crate::{pagination::{calculate_pagination, PAGE_SIZE}, AppState};
 
 /// Query parameters for table viewing
 #[derive(Debug, Deserialize)]
@@ -72,12 +72,10 @@ pub async fn get_table_data(
         .map_err(|e| TableError::DatabaseError(e.to_string()))?;
 
     // Calculate pagination
-    const PAGE_SIZE: i64 = 100;
-    let total_pages = (total_rows + PAGE_SIZE - 1) / PAGE_SIZE;
-    let page = query.page.max(1).min(total_pages.max(1));
-    let offset = (page - 1) * PAGE_SIZE;
+    let p = calculate_pagination(total_rows, query.page);
 
     // Build query with optional sorting
+    // [DR-SEC-060] Table name is whitelisted, safe to use directly
     let mut sql = format!("SELECT * FROM {}", table_name);
 
     if let Some(sort_column) = &query.sort {
@@ -92,10 +90,11 @@ pub async fn get_table_data(
             "ASC"
         };
 
-        sql.push_str(&format!(" ORDER BY {} {}", sort_column, order));
+        // [DR-SEC-060] Quote column identifier for safety
+        sql.push_str(&format!(" ORDER BY \"{}\" {}", escape_identifier(sort_column), order));
     }
 
-    sql.push_str(&format!(" LIMIT {} OFFSET {}", PAGE_SIZE, offset));
+    sql.push_str(&format!(" LIMIT {} OFFSET {}", PAGE_SIZE, p.offset));
 
     // Execute query
     let rows = sqlx::query(&sql)
@@ -154,20 +153,39 @@ pub async fn get_table_data(
     Ok(Json(TableDataResponse {
         table_name,
         total_rows,
-        page,
+        page: p.page,
         page_size: PAGE_SIZE,
-        total_pages,
+        total_pages: p.total_pages,
         columns,
         rows: json_rows,
     }))
 }
 
+/// Escape SQL identifier (column name) for safe use in queries
+/// [DR-SEC-060] Escapes double quotes by doubling them per SQLite spec
+fn escape_identifier(identifier: &str) -> String {
+    // In SQLite, double quotes in identifiers are escaped by doubling them
+    // e.g., column"name becomes column""name
+    identifier.replace('"', "\"\"")
+}
+
 /// Validate table name to prevent SQL injection
+/// [DR-SEC-060] Uses whitelist approach for maximum security
 fn is_valid_table_name(name: &str) -> bool {
-    // Only allow alphanumeric, underscore, and hyphen
-    name.chars().all(|c| c.is_alphanumeric() || c == '_')
-        && !name.is_empty()
-        && name.len() < 100
+    // Whitelist of known WKMP tables per IMPL001-database_schema.md
+    const ALLOWED_TABLES: &[&str] = &[
+        "songs",
+        "passages",
+        "files",
+        "artists",
+        "albums",
+        "works",
+        "passage_songs",
+        "album_songs",
+        "settings",
+        "timeslots",
+    ];
+    ALLOWED_TABLES.contains(&name)
 }
 
 /// Check if column exists in table

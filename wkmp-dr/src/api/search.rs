@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use sqlx::Row;
 use uuid::Uuid;
 
-use crate::AppState;
+use crate::{pagination::{calculate_pagination, PAGE_SIZE}, AppState};
 
 /// Query parameters for Work ID search
 #[derive(Debug, Deserialize)]
@@ -68,8 +68,6 @@ pub async fn search_by_work_id(
     Uuid::parse_str(&query.work_id)
         .map_err(|_| SearchError::InvalidWorkId(query.work_id.clone()))?;
 
-    const PAGE_SIZE: i64 = 100;
-
     // Get total count
     // Songs table has work_id column referencing MusicBrainz Work
     let total_results: i64 = sqlx::query_scalar(
@@ -84,9 +82,7 @@ pub async fn search_by_work_id(
     .map_err(|e| SearchError::DatabaseError(e.to_string()))?;
 
     // Calculate pagination
-    let total_pages = (total_results + PAGE_SIZE - 1) / PAGE_SIZE;
-    let page = query.page.max(1).min(total_pages.max(1));
-    let offset = (page - 1) * PAGE_SIZE;
+    let p = calculate_pagination(total_results, query.page);
 
     // Query passages
     let rows = sqlx::query(
@@ -100,7 +96,7 @@ pub async fn search_by_work_id(
     )
     .bind(&query.work_id)
     .bind(PAGE_SIZE)
-    .bind(offset)
+    .bind(p.offset)
     .fetch_all(&state.db)
     .await
     .map_err(|e| SearchError::DatabaseError(e.to_string()))?;
@@ -133,9 +129,9 @@ pub async fn search_by_work_id(
         search_type: "by-work-id".to_string(),
         query: query.work_id,
         total_results,
-        page,
+        page: p.page,
         page_size: PAGE_SIZE,
-        total_pages,
+        total_pages: p.total_pages,
         columns,
         rows: json_rows,
     }))
@@ -155,8 +151,6 @@ pub async fn search_by_path(
         return Err(SearchError::EmptyPattern);
     }
 
-    const PAGE_SIZE: i64 = 100;
-
     // Get total count
     let total_results: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM files WHERE path LIKE ?"
@@ -167,9 +161,7 @@ pub async fn search_by_path(
     .map_err(|e| SearchError::DatabaseError(e.to_string()))?;
 
     // Calculate pagination
-    let total_pages = (total_results + PAGE_SIZE - 1) / PAGE_SIZE;
-    let page = query.page.max(1).min(total_pages.max(1));
-    let offset = (page - 1) * PAGE_SIZE;
+    let p = calculate_pagination(total_results, query.page);
 
     // Query files
     let rows = sqlx::query(
@@ -181,7 +173,7 @@ pub async fn search_by_path(
     )
     .bind(&query.pattern)
     .bind(PAGE_SIZE)
-    .bind(offset)
+    .bind(p.offset)
     .fetch_all(&state.db)
     .await
     .map_err(|e| SearchError::DatabaseError(e.to_string()))?;
@@ -216,9 +208,9 @@ pub async fn search_by_path(
         search_type: "by-path".to_string(),
         query: query.pattern,
         total_results,
-        page,
+        page: p.page,
         page_size: PAGE_SIZE,
-        total_pages,
+        total_pages: p.total_pages,
         columns,
         rows: json_rows,
     }))

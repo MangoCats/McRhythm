@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::Row;
 
-use crate::AppState;
+use crate::{pagination::{calculate_pagination, PAGE_SIZE}, AppState};
 
 /// Query parameters for filters with pagination
 #[derive(Debug, Deserialize)]
@@ -48,8 +48,6 @@ pub async fn passages_without_mbid(
     State(state): State<AppState>,
     Query(query): Query<FilterQuery>,
 ) -> Result<Json<FilterResponse>, FilterError> {
-    const PAGE_SIZE: i64 = 100;
-
     // Get total count - passages not linked to any song
     let total_results: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM passages
@@ -60,9 +58,7 @@ pub async fn passages_without_mbid(
     .map_err(|e| FilterError::DatabaseError(e.to_string()))?;
 
     // Calculate pagination
-    let total_pages = (total_results + PAGE_SIZE - 1) / PAGE_SIZE;
-    let page = query.page.max(1).min(total_pages.max(1));
-    let offset = (page - 1) * PAGE_SIZE;
+    let p = calculate_pagination(total_results, query.page);
 
     // Query passages not linked to songs
     let rows = sqlx::query(
@@ -73,7 +69,7 @@ pub async fn passages_without_mbid(
          LIMIT ? OFFSET ?"
     )
     .bind(PAGE_SIZE)
-    .bind(offset)
+    .bind(p.offset)
     .fetch_all(&state.db)
     .await
     .map_err(|e| FilterError::DatabaseError(e.to_string()))?;
@@ -110,9 +106,9 @@ pub async fn passages_without_mbid(
         filter_name: "passages-without-mbid".to_string(),
         description: "Passages lacking MusicBrainz recording ID".to_string(),
         total_results,
-        page,
+        page: p.page,
         page_size: PAGE_SIZE,
-        total_pages,
+        total_pages: p.total_pages,
         columns,
         rows: json_rows,
     }))
@@ -126,8 +122,6 @@ pub async fn files_without_passages(
     State(state): State<AppState>,
     Query(query): Query<FilterQuery>,
 ) -> Result<Json<FilterResponse>, FilterError> {
-    const PAGE_SIZE: i64 = 100;
-
     // Get total count
     let total_results: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM files
@@ -138,9 +132,7 @@ pub async fn files_without_passages(
     .map_err(|e| FilterError::DatabaseError(e.to_string()))?;
 
     // Calculate pagination
-    let total_pages = (total_results + PAGE_SIZE - 1) / PAGE_SIZE;
-    let page = query.page.max(1).min(total_pages.max(1));
-    let offset = (page - 1) * PAGE_SIZE;
+    let p = calculate_pagination(total_results, query.page);
 
     // Query files
     let rows = sqlx::query(
@@ -151,7 +143,7 @@ pub async fn files_without_passages(
          LIMIT ? OFFSET ?"
     )
     .bind(PAGE_SIZE)
-    .bind(offset)
+    .bind(p.offset)
     .fetch_all(&state.db)
     .await
     .map_err(|e| FilterError::DatabaseError(e.to_string()))?;
@@ -186,9 +178,9 @@ pub async fn files_without_passages(
         filter_name: "files-without-passages".to_string(),
         description: "Audio files not yet segmented into passages".to_string(),
         total_results,
-        page,
+        page: p.page,
         page_size: PAGE_SIZE,
-        total_pages,
+        total_pages: p.total_pages,
         columns,
         rows: json_rows,
     }))
