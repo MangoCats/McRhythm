@@ -338,6 +338,13 @@ impl DecoderWorker {
                         request.queue_entry_id,
                         request.passage.file_path.display()
                     );
+
+                    // **[DEBT-007]** Set source sample rate for telemetry
+                    let source_rate = chain.source_sample_rate();
+                    if let Err(e) = self.buffer_manager.set_source_sample_rate(request.queue_entry_id, source_rate).await {
+                        warn!("[Chain {}] Failed to set source sample rate: {}", chain_index, e);
+                    }
+
                     state.active_chains.insert(request.queue_entry_id, chain);
                 }
                 Err(e) => {

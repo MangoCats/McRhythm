@@ -462,6 +462,14 @@ impl DecoderChain {
         &self.file_path
     }
 
+    /// Get source file sample rate (before resampling)
+    ///
+    /// **[DEBT-007]** Buffer chain telemetry - expose actual source file sample rate
+    pub fn source_sample_rate(&self) -> u32 {
+        let (sample_rate, _channels) = self.decoder.format_info();
+        sample_rate
+    }
+
     /// Check if this was a partial decode (truncated file)
     ///
     /// **[REQ-AP-ERR-012]** Partial decode detection.

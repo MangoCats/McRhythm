@@ -1449,8 +1449,10 @@ impl PlaybackEngine {
                     file_name,
                     queue_position: Some(queue_position), // 0-indexed per [SPEC020-MONITOR-050]
 
-                    // Decoder stage (stubbed for Phase 3c)
-                    decoder_state: None, // TODO: Query decoder pool status
+                    // Decoder stage - **[DEBT-007]** Requires decoder pool state exposure
+                    // TODO: Add decoder_worker state tracking to expose per-chain decoder state
+                    // Would need: decoder_pool.get_chain_state(queue_entry_id) -> Option<DecoderState>
+                    decoder_state: None,
                     decode_progress_percent: None,
                     is_actively_decoding: None,
 
@@ -1458,17 +1460,21 @@ impl PlaybackEngine {
                     decode_duration_ms: buffer_info.as_ref().and_then(|b| b.decode_duration_ms),
                     source_file_path: buffer_info.as_ref().and_then(|b| b.file_path.clone()),
 
-                    // Resampler stage
-                    source_sample_rate: Some(44100), // TODO: Get actual source rate from decoder metadata
-                    resampler_active: Some(44100 != sample_rate),
+                    // Resampler stage - **[DEBT-007]** Use actual source rate from decoder metadata
+                    source_sample_rate: buffer_info.as_ref().and_then(|b| b.source_sample_rate),
+                    resampler_active: buffer_info.as_ref()
+                        .and_then(|b| b.source_sample_rate)
+                        .map(|src_rate| src_rate != sample_rate),
                     target_sample_rate: {
                         debug!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
                         sample_rate // **[DBD-PARAM-020]** working_sample_rate (device native)
                     },
                     resampler_algorithm: Some("Septic polynomial".to_string()), // **[SPEC020-MONITOR-070]** rubato FastFixedIn with Septic degree
 
-                    // Fade stage (stubbed for Phase 3c)
-                    fade_stage: None, // TODO: Get from decoder
+                    // Fade stage - **[DEBT-007]** Requires fade state tracking in decoder_chain
+                    // TODO: Add Fader::current_stage() method to expose FadeStage enum
+                    // Would need: decoder_chain.fade_stage() -> Option<FadeStage>
+                    fade_stage: None,
 
                     // Buffer stage **[DBD-BUF-020]** through **[DBD-BUF-060]**
                     buffer_state: buffer_state.map(|s| s.to_string()),
@@ -1483,7 +1489,18 @@ impl PlaybackEngine {
                     duration_ms,
                     is_active_in_mixer,
                     mixer_role,
-                    started_at: None, // TODO: Track start time
+                    // **[DEBT-007]** Use passage_start_time for current passage timestamp
+                    started_at: if is_active_in_mixer {
+                        self.passage_start_time.read().await
+                            .map(|instant| {
+                                let elapsed = instant.elapsed();
+                                let now = chrono::Utc::now();
+                                let started = now - chrono::Duration::from_std(elapsed).unwrap_or_default();
+                                started.to_rfc3339()
+                            })
+                    } else {
+                        None
+                    },
                 }));
             }
         }

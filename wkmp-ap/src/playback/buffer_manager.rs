@@ -167,6 +167,19 @@ impl BufferManager {
         }
     }
 
+    /// Set source sample rate for telemetry
+    ///
+    /// **[DEBT-007]** Buffer chain telemetry - track actual source file sample rate
+    pub async fn set_source_sample_rate(&self, queue_entry_id: Uuid, sample_rate: u32) -> Result<(), String> {
+        let mut buffers = self.buffers.write().await;
+        if let Some(managed) = buffers.get_mut(&queue_entry_id) {
+            managed.metadata.source_sample_rate = Some(sample_rate);
+            Ok(())
+        } else {
+            Err(format!("Buffer {} not found", queue_entry_id))
+        }
+    }
+
     /// Validate buffer configuration settings
     ///
     /// **[REQ-DEBT-FUNC-002-040]** Validates buffer capacity and headroom
@@ -906,6 +919,7 @@ impl BufferManager {
         };
 
         let file_path = metadata.file_path.clone();
+        let source_sample_rate = metadata.source_sample_rate; // **[DEBT-007]** Copy before dropping lock
 
         drop(buffers);
 
@@ -927,6 +941,7 @@ impl BufferManager {
             total_decoded_frames: (stats.total_samples_written / 2) as usize, // Convert samples to frames
             decode_duration_ms,
             file_path,
+            source_sample_rate, // **[DEBT-007]** Propagate from decoder
         })
     }
 
@@ -964,9 +979,10 @@ pub struct BufferMonitorInfo {
     pub duration_ms: Option<u64>,
     pub total_decoded_frames: usize,
 
-    // Decoder telemetry **[REQ-DEBT-FUNC-001]**
+    // Decoder telemetry **[REQ-DEBT-FUNC-001]** **[DEBT-007]**
     pub decode_duration_ms: Option<u64>,
     pub file_path: Option<String>,
+    pub source_sample_rate: Option<u32>, // **[DEBT-007]** Actual source file sample rate
 }
 
 impl Default for BufferManager {

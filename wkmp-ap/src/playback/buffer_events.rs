@@ -90,6 +90,10 @@ pub struct BufferMetadata {
 
     /// Source audio file path
     pub file_path: Option<String>,
+
+    /// Source audio file sample rate (Hz) - **[DEBT-007]**
+    /// Actual sample rate from audio file before resampling
+    pub source_sample_rate: Option<u32>,
 }
 
 impl BufferMetadata {
@@ -109,6 +113,7 @@ impl BufferMetadata {
             decode_started_at: None,
             decode_completed_at: None,
             file_path: None,
+            source_sample_rate: None, // **[DEBT-007]** Set by decoder
         }
     }
 
