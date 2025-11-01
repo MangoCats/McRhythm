@@ -8,7 +8,6 @@ members = [
     "wkmp-le",
     "wkmp-pd",
     "wkmp-ai",
-    "wkmp-dr",
 ]
 
 # Shared dependencies across workspace

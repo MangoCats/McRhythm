@@ -255,9 +255,8 @@ impl PlaybackEngine {
         // Create mixer
         // [SSD-MIX-010] SPEC016-compliant mixer for batch mixing
         // [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (event-driven markers)
-        // Note: master_volume initialized from settings, marker calculation happens in start_passage
-        let master_volume = 1.0; // TODO: Load from settings
-        let mixer = Mixer::new(master_volume);
+        // **[DEBT-003]** Master volume loaded from settings (default: 0.5)
+        let mixer = Mixer::new(initial_volume);
         let mixer = Arc::new(RwLock::new(mixer));
 
         // Load queue from database
