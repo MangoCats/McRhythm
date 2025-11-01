@@ -116,7 +116,15 @@
 | SPEC025 | SPEC025-amplitude_analysis.md | 2025-10-26 | SPEC | Manual | Amplitude analysis for crossfade timing |
 | SPEC026 | SPEC026-api_key_configuration.md | 2025-10-30 | SPEC | Manual | Multi-tier API key configuration system (migrated from wip/) |
 | GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
+| PLAN006 | wkmp_ai_ui_spec_updates | 2025-10-28 | PLAN | Manual | Specification updates to define wkmp-ai's dedicated web UI and on-demand microservice pattern |
+| PLAN007 | wkmp_ai_implementation | 2025-10-28 | PLAN | Auto | Implementation plan for complete wkmp-ai microservice (import wizard, MusicBrainz ID, passage detection, Musical Flavor extraction) |
+| PLAN008 | wkmp_ap_technical_debt | 2025-10-29 | PLAN | Auto | Technical debt remediation for wkmp-ap playback engine |
+| PLAN009 | engine_module_extraction | 2025-10-29 | PLAN | Auto | Extract queue management and diagnostics modules from PlaybackEngine (3704-line file refactoring) |
 | PLAN010 | workflow_quality_standards | 2025-10-30 | PLAN | Auto | Implementation plan for workflow quality standards enhancement (anti-sycophancy, anti-laziness, anti-hurry, problem transparency) |
+| PLAN011 | import_progress_ui | 2025-10-30 | PLAN | Auto | Import progress UI enhancement for wkmp-ai with workflow checklist and time estimates |
+| PLAN012 | api_key_multi_tier_config | 2025-10-30 | PLAN | Auto | Multi-tier API key configuration system for wkmp-ai with automatic migration and durable TOML backup |
+| PLAN013 | chromaprint_fingerprinting | 2025-10-30 | PLAN | Auto | Chromaprint fingerprinting implementation for wkmp-ai (fixes 100% AcoustID lookup failures) |
+| PLAN014 | mixer_refactoring | 2025-10-30 | PLAN | Auto | Mixer refactoring to resolve architectural violations and eliminate code duplication |
 | PLAN015 | database_review_wkmp_dr | 2025-11-01 | PLAN | Manual | Implementation plan for wkmp-dr (Database Review) module - read-only database inspection tool |
 
 <!-- /doc-name workflow will append entries below -->
@@ -137,7 +145,7 @@
 | RPT | 0 | New |
 | DWI | 0 | New |
 | TMPL | 0 | New |
-| PLAN | 1 | 2025-11-01 |
+| PLAN | 10 | 2025-11-01 |
 | LOG | 0 | New |
 | REG | 2 | 2025-10-25 |
 
