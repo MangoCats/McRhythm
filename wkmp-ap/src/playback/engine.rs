@@ -2193,10 +2193,18 @@ impl PlaybackEngine {
                                             initial_song_id
                                         );
 
+                                        // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
+                                        let song_albums = crate::db::passages::get_passage_album_uuids(&self.db_pool, passage_id)
+                                            .await
+                                            .unwrap_or_else(|e| {
+                                                warn!("Failed to fetch album UUIDs for passage {}: {}", passage_id, e);
+                                                Vec::new()
+                                            });
+
                                         self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                             passage_id,
                                             song_id: initial_song_id,
-                                            song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
+                                            song_albums,
                                             position_ms: 0,
                                             timestamp: chrono::Utc::now(),
                                         });
@@ -2901,6 +2909,18 @@ impl PlaybackEngine {
                                 .unwrap_or_else(|| uuid::Uuid::nil());
                             drop(queue);
 
+                            // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
+                            let song_albums = if passage_id != uuid::Uuid::nil() {
+                                crate::db::passages::get_passage_album_uuids(&self.db_pool, passage_id)
+                                    .await
+                                    .unwrap_or_else(|e| {
+                                        warn!("Failed to fetch album UUIDs for passage {}: {}", passage_id, e);
+                                        Vec::new()
+                                    })
+                            } else {
+                                Vec::new()
+                            };
+
                             // Emit CurrentSongChanged event
                             info!(
                                 "Song boundary crossed: new_song={:?}, position={}ms",
@@ -2910,7 +2930,7 @@ impl PlaybackEngine {
                             self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                 passage_id,
                                 song_id: new_song_id,
-                                song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
+                                song_albums,
                                 position_ms,
                                 timestamp: chrono::Utc::now(),
                             });
@@ -3204,10 +3224,18 @@ impl PlaybackEngine {
                                 *self.current_song_timeline.write().await = Some(timeline);
 
                                 if initial_song_id.is_some() {
+                                    // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
+                                    let song_albums = crate::db::passages::get_passage_album_uuids(&self.db_pool, passage_id)
+                                        .await
+                                        .unwrap_or_else(|e| {
+                                            warn!("Failed to fetch album UUIDs for passage {}: {}", passage_id, e);
+                                            Vec::new()
+                                        });
+
                                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
                                         passage_id,
                                         song_id: initial_song_id,
-                                        song_albums: Vec::new(), // TODO: Fetch album UUIDs from database
+                                        song_albums,
                                         position_ms: 0,
                                         timestamp: chrono::Utc::now(),
                                     });
