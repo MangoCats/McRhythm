@@ -160,6 +160,11 @@ impl CallbackMonitor {
             let mut last_irregular_count = 0u64;
             let mut last_irregular_event = std::time::Instant::now();
 
+            // Track 15-second window for recent percentage calculation
+            let mut window_start_callback_count = 0u64;
+            let mut window_start_irregular_count = 0u64;
+            let mut window_start_time = std::time::Instant::now();
+
             debug!("CallbackMonitor: Monitoring task started");
 
             while !shutdown_clone.load(Ordering::Relaxed) {
@@ -204,11 +209,34 @@ impl CallbackMonitor {
                 if stats.irregular_intervals > last_irregular_count {
                     let new_irregular = stats.irregular_intervals - last_irregular_count;
 
+                    // Reset 15-second window if elapsed
+                    if window_start_time.elapsed().as_secs() >= 15 {
+                        window_start_callback_count = stats.callback_count;
+                        window_start_irregular_count = stats.irregular_intervals;
+                        window_start_time = std::time::Instant::now();
+                    }
+
                     // Log every 100 irregular intervals
                     if new_irregular >= 100 || stats.irregular_intervals % 1000 == 0 {
+                        // Calculate overall percentage
+                        let overall_pct = if stats.callback_count > 0 {
+                            (stats.irregular_intervals as f64 / stats.callback_count as f64) * 100.0
+                        } else {
+                            0.0
+                        };
+
+                        // Calculate recent (15s window) percentage
+                        let recent_callbacks = stats.callback_count.saturating_sub(window_start_callback_count);
+                        let recent_irregular = stats.irregular_intervals.saturating_sub(window_start_irregular_count);
+                        let recent_pct = if recent_callbacks > 0 {
+                            (recent_irregular as f64 / recent_callbacks as f64) * 100.0
+                        } else {
+                            0.0
+                        };
+
                         warn!(
-                            "Audio callback irregular intervals: {} total (+{} since last check), {} total callbacks",
-                            stats.irregular_intervals, new_irregular, stats.callback_count
+                            "Audio callback irregular intervals: {} total (+{} since last), {} total callbacks | Overall: {:.1}%, Recent 15s: {:.1}%",
+                            stats.irregular_intervals, new_irregular, stats.callback_count, overall_pct, recent_pct
                         );
                     }
 

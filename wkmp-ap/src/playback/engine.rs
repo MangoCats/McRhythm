@@ -1081,12 +1081,11 @@ impl PlaybackEngine {
         drop(queue);
 
         // Stop mixer immediately
-        // [SUB-INC-4B] Replace stop() with SPEC016 operations
+        // [SUB-INC-4B] Replace stop() with SPEC016 operations (don't set to Paused - queue is empty)
         let mut mixer = self.mixer.write().await;
         let passage_id_before_stop = mixer.get_current_passage_id();
         mixer.clear_all_markers();
         mixer.clear_passage();
-        mixer.set_state(MixerState::Paused);
         let passage_id_after_stop = mixer.get_current_passage_id();
         drop(mixer);
 
@@ -1119,12 +1118,9 @@ impl PlaybackEngine {
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;
 
-        // Emit QueueChanged event (queue is now empty)
-        self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
-            queue: Vec::new(),
-            trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
-            timestamp: chrono::Utc::now(),
-        });
+        // Emit both queue change events (queue is now empty)
+        // [SUB-INC-4B] Use helper to ensure both events always emitted together
+        self.emit_queue_change_events(wkmp_common::events::QueueChangeTrigger::UserDequeue).await;
 
         info!("Queue cleared successfully");
 
@@ -1784,6 +1780,43 @@ impl PlaybackEngine {
         }
     }
 
+    /// Emit queue change events (QueueChanged + QueueStateUpdate)
+    ///
+    /// Helper to emit both required queue change events atomically.
+    /// Every queue modification MUST emit both events for proper UI updates.
+    ///
+    /// **[SUB-INC-4B]** Consolidates duplicate event emission pattern
+    ///
+    /// # Arguments
+    /// * `trigger` - Queue change trigger type (UserEnqueue, UserDequeue, PassageCompletion, etc.)
+    async fn emit_queue_change_events(&self, trigger: wkmp_common::events::QueueChangeTrigger) {
+        let queue_entries = self.get_queue_entries().await;
+        let queue_ids: Vec<Uuid> = queue_entries.iter()
+            .filter_map(|e| e.passage_id)
+            .collect();
+
+        // Emit QueueChanged (for tracking/analytics)
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+            queue: queue_ids,
+            trigger,
+            timestamp: chrono::Utc::now(),
+        });
+
+        // Emit QueueStateUpdate (for UI display)
+        let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+            .map(|e| wkmp_common::events::QueueEntryInfo {
+                queue_entry_id: e.queue_entry_id,
+                passage_id: e.passage_id,
+                file_path: e.file_path.to_string_lossy().to_string(),
+            })
+            .collect();
+
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+            timestamp: chrono::Utc::now(),
+            queue: queue_info,
+        });
+    }
+
     /// Complete passage removal: database + memory + events
     ///
     /// Performs the standard passage removal workflow used by skip, PassageComplete,
@@ -1828,35 +1861,9 @@ impl PlaybackEngine {
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;
 
-        // Emit SSE events for UI update
-        // [SUB-INC-4B] Notify UI that queue changed (passage removed)
-        {
-            let queue_entries = self.get_queue_entries().await;
-            let queue_ids: Vec<Uuid> = queue_entries.iter()
-                .filter_map(|e| e.passage_id)
-                .collect();
-
-            // Emit QueueChanged (for tracking)
-            self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
-                queue: queue_ids,
-                trigger,
-                timestamp: chrono::Utc::now(),
-            });
-
-            // Emit QueueStateUpdate (for UI display)
-            let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
-                .map(|e| wkmp_common::events::QueueEntryInfo {
-                    queue_entry_id: e.queue_entry_id,
-                    passage_id: e.passage_id,
-                    file_path: e.file_path.to_string_lossy().to_string(),
-                })
-                .collect();
-
-            self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
-                timestamp: chrono::Utc::now(),
-                queue: queue_info,
-            });
-        }
+        // Emit both queue change events (QueueChanged + QueueStateUpdate)
+        // [SUB-INC-4B] Use helper to ensure both events always emitted together
+        self.emit_queue_change_events(trigger).await;
 
         Ok(true)
     }
@@ -2877,32 +2884,42 @@ impl PlaybackEngine {
                     }
                     drop(timeline);
 
-                    // [2] Check if PlaybackProgress interval elapsed
-                    if position_ms >= last_progress_position_ms + progress_interval_ms {
-                        last_progress_position_ms = position_ms;
+                    // [2] Update shared state on EVERY PositionUpdate (for 1s PlaybackPosition emissions)
+                    // Get passage_id and timing for duration calculation
+                    let queue = self.queue.read().await;
+                    let current = queue.current().cloned();
+                    drop(queue);
 
-                        // Get passage_id and timing for duration calculation
-                        let queue = self.queue.read().await;
-                        let current = queue.current().cloned();
-                        drop(queue);
-
-                        if let Some(current) = current {
-                            if current.queue_entry_id == queue_entry_id {
-                                // Calculate duration from passage timing
-                                if let Ok(passage) = self.get_passage_timing(&current).await {
-                                    let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
-                                        end_ticks - passage.start_time_ticks
+                    if let Some(current) = current {
+                        if current.queue_entry_id == queue_entry_id {
+                            // Calculate duration from passage timing
+                            if let Ok(passage) = self.get_passage_timing(&current).await {
+                                let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
+                                    end_ticks - passage.start_time_ticks
+                                } else {
+                                    // If end_time is None, estimate from buffer stats (ephemeral passages)
+                                    if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                                        // No lock needed - stats() uses atomics
+                                        let stats = buffer_ref.stats();
+                                        wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
                                     } else {
-                                        // If end_time is None, estimate from buffer stats
-                                        if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
-                                            // No lock needed - stats() uses atomics
-                                            let stats = buffer_ref.stats();
-                                            wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
-                                        } else {
-                                            0
-                                        }
-                                    };
-                                    let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
+                                        0
+                                    }
+                                };
+                                let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
+
+                                // Update SharedState (used by 1s PlaybackPosition emitter)
+                                let current_passage = CurrentPassage {
+                                    queue_entry_id: current.queue_entry_id,
+                                    passage_id: current.passage_id,
+                                    position_ms,
+                                    duration_ms,
+                                };
+                                self.state.set_current_passage(Some(current_passage)).await;
+
+                                // [3] Check if PlaybackProgress interval elapsed (5s for analytics/logging)
+                                if position_ms >= last_progress_position_ms + progress_interval_ms {
+                                    last_progress_position_ms = position_ms;
 
                                     let passage_id = current.passage_id.unwrap_or_else(|| uuid::Uuid::nil());
 
@@ -2918,38 +2935,6 @@ impl PlaybackEngine {
                                         timestamp: chrono::Utc::now(),
                                     });
                                 }
-                            }
-                        }
-                    }
-
-                    // [3] Update shared state
-                    let queue = self.queue.read().await;
-                    if let Some(current) = queue.current() {
-                        if current.queue_entry_id == queue_entry_id {
-                            // Calculate duration from passage timing
-                            if let Ok(passage) = self.get_passage_timing(current).await {
-                                let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
-                                    end_ticks - passage.start_time_ticks
-                                } else {
-                                    // If end_time is None, estimate from buffer stats
-                                    if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
-                                        // No lock needed - stats() uses atomics
-                                        let stats = buffer_ref.stats();
-                                        wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
-                                    } else {
-                                        0
-                                    }
-                                };
-                                let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
-
-                                let current_passage = CurrentPassage {
-                                    queue_entry_id: current.queue_entry_id,
-                                    passage_id: current.passage_id,
-                                    position_ms,
-                                    duration_ms,
-                                };
-
-                                self.state.set_current_passage(Some(current_passage)).await;
                             }
                         }
                     } else {
