@@ -18,14 +18,14 @@ Each filter is implemented as an async function that:
 #### 1. Add Filter Function to `filters.rs`
 
 ```rust
+use crate::pagination::{calculate_pagination, PAGE_SIZE};
+
 /// Filter: Songs without albums
 /// Returns songs that aren't linked to any album
 pub async fn songs_without_albums(
     State(state): State<AppState>,
     Query(query): Query<FilterQuery>,
 ) -> Result<Json<FilterResponse>, FilterError> {
-    const PAGE_SIZE: i64 = 100;
-
     // Get total count
     let total_results: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM songs
@@ -35,10 +35,8 @@ pub async fn songs_without_albums(
     .await
     .map_err(|e| FilterError::DatabaseError(e.to_string()))?;
 
-    // Calculate pagination
-    let total_pages = (total_results + PAGE_SIZE - 1) / PAGE_SIZE;
-    let page = query.page.unwrap_or(1).max(1).min(total_pages.max(1));
-    let offset = (page - 1) * PAGE_SIZE;
+    // Calculate pagination using centralized helper
+    let p = calculate_pagination(total_results, query.page);
 
     // Fetch paginated results
     let rows = sqlx::query(
@@ -49,7 +47,7 @@ pub async fn songs_without_albums(
          LIMIT ? OFFSET ?"
     )
     .bind(PAGE_SIZE)
-    .bind(offset)
+    .bind(p.offset)
     .fetch_all(&state.db)
     .await
     .map_err(|e| FilterError::DatabaseError(e.to_string()))?;
@@ -67,12 +65,13 @@ pub async fn songs_without_albums(
 
     Ok(Json(FilterResponse {
         filter_name: "songs-without-albums".to_string(),
-        description: Some("Songs not linked to any album".to_string()),
+        description: "Songs not linked to any album".to_string(),
+        total_results,
+        page: p.page,
+        page_size: PAGE_SIZE,
+        total_pages: p.total_pages,
         columns,
         rows: row_data,
-        total_results,
-        page,
-        total_pages,
     }))
 }
 ```
