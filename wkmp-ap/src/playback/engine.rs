@@ -169,6 +169,12 @@ pub struct PlaybackEngine {
     /// Set from AudioOutput device configuration (e.g., 44100, 48000, 96000)
     /// Uses std::sync::RwLock for compatibility with DecoderWorker (non-async context)
     working_sample_rate: Arc<std::sync::RwLock<u32>>,
+
+    /// Position marker interval in milliseconds
+    /// **[DEBT-004]** Loaded from settings (default: 1000ms)
+    /// **[REV002]** Event-driven position tracking interval
+    /// Clamped to range: 100-5000ms
+    position_interval_ms: u32,
 }
 
 impl PlaybackEngine {
@@ -310,6 +316,7 @@ impl PlaybackEngine {
             buffer_monitor_update_now: Arc::new(AtomicBool::new(false)), // [SPEC020-MONITOR-130] Manual update trigger
             audio_buffer_size, // [DBD-PARAM-110] Configurable audio buffer size
             working_sample_rate, // [DBD-PARAM-020] Default 44.1kHz, updated when AudioOutput starts
+            position_interval_ms: interval_ms, // [DEBT-004] Position marker interval from settings
         })
     }
 
@@ -2250,8 +2257,9 @@ impl PlaybackEngine {
                             // For ephemeral passages (passage_id = None), only add position/complete markers
                             // Per SPEC007: ephemeral passages have no crossfade (all lead/fade points = 0)
 
-                            // 1. Position update markers (every 100ms from settings)
-                            let position_interval_ms = 100i64; // TODO: Get from settings
+                            // 1. Position update markers (configurable interval from settings)
+                            // **[DEBT-004]** Load from settings (default: 1000ms, range: 100-5000ms)
+                            let position_interval_ms = self.position_interval_ms as i64;
                             let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
 
                             // Calculate passage duration in ticks
@@ -3033,6 +3041,7 @@ impl PlaybackEngine {
             audio_buffer_size: self.audio_buffer_size, // [DBD-PARAM-110] Copy audio buffer size
             passage_start_time: Arc::clone(&self.passage_start_time), // [SUB-INC-4B] Clone passage start time tracking
             working_sample_rate: Arc::clone(&self.working_sample_rate), // [DBD-PARAM-020] Clone working sample rate
+            position_interval_ms: self.position_interval_ms, // [DEBT-004] Copy position interval from settings
         }
     }
 
@@ -3248,8 +3257,9 @@ impl PlaybackEngine {
                         // For ephemeral passages (passage_id = None), only add position/complete markers
                         // Per SPEC007: ephemeral passages have no crossfade (all lead/fade points = 0)
 
-                        // 1. Position update markers (every 100ms from settings)
-                        let position_interval_ms = 100i64; // TODO: Get from settings
+                        // 1. Position update markers (configurable interval from settings)
+                        // **[DEBT-004]** Load from settings (default: 1000ms, range: 100-5000ms)
+                        let position_interval_ms = self.position_interval_ms as i64;
                         let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
 
                         // Calculate passage duration in ticks
