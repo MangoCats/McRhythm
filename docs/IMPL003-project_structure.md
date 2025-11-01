@@ -4,7 +4,7 @@
 
 Defines the Rust workspace structure and organization for WKMP's microservices architecture.
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Coding Conventions](IMPL002-coding_conventions.md) | [Implementation Order](EXEC001-implementation_order.md)
+> **Related Documentation:** [Coding Conventions](IMPL002-coding_conventions.md) | [Implementation Order](EXEC001-implementation_order.md)
 
 ---
 
