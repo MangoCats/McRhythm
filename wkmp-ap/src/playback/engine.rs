@@ -1336,16 +1336,16 @@ impl PlaybackEngine {
         let maximum_decode_streams = self.maximum_decode_streams;
 
         // Get mixer state to determine active passages
-        // [SUB-INC-4B] Build MixerStateInfo from SPEC016 mixer queries
+        // [SUB-INC-4B] Query SPEC016 mixer for current state
         let mixer = self.mixer.read().await;
-        let mixer_state = crate::playback::pipeline::mixer::MixerStateInfo {
-            current_passage_id: mixer.get_current_passage_id(),
-            next_passage_id: None, // TODO Phase 4: Track next passage in engine
-            current_position_frames: mixer.get_current_tick() as usize,
-            next_position_frames: 0, // TODO Phase 4: Track next passage position
-            is_crossfading: false, // TODO Phase 4: Track crossfade state in engine
-        };
+        let current_passage_id = mixer.get_current_passage_id();
+        let current_position_frames = mixer.get_current_tick() as usize;
         drop(mixer);
+
+        // TODO Phase 4: Track next passage and crossfade state in engine
+        let next_passage_id: Option<Uuid> = None;
+        let next_position_frames: usize = 0;
+        let is_crossfading = false;
 
         // **[DBD-OV-080]** Get all queue entries (passage-based iteration)
         let queue = self.queue.read().await;
@@ -1387,21 +1387,21 @@ impl PlaybackEngine {
 
                 // Determine mixer role based on queue_position (not chain_index!)
                 let is_active_in_mixer = if queue_position == 0 {
-                    mixer_state.current_passage_id == entry.passage_id
+                    current_passage_id == entry.passage_id
                 } else if queue_position == 1 {
-                    mixer_state.next_passage_id == entry.passage_id
+                    next_passage_id == entry.passage_id
                 } else {
                     false
                 };
 
                 let mixer_role = if queue_position == 0 {
-                    if mixer_state.is_crossfading {
+                    if is_crossfading {
                         "Crossfading".to_string()
                     } else {
                         "Current".to_string()
                     }
                 } else if queue_position == 1 {
-                    if mixer_state.is_crossfading {
+                    if is_crossfading {
                         "Crossfading".to_string()
                     } else {
                         "Next".to_string()
@@ -1412,11 +1412,11 @@ impl PlaybackEngine {
 
                 // Get playback position (only for current passage)
                 let (playback_position_frames, playback_position_ms) = if queue_position == 0 {
-                    (mixer_state.current_position_frames,
-                     (mixer_state.current_position_frames as u64 * 1000) / sample_rate as u64)
-                } else if queue_position == 1 && mixer_state.is_crossfading {
-                    (mixer_state.next_position_frames,
-                     (mixer_state.next_position_frames as u64 * 1000) / sample_rate as u64)
+                    (current_position_frames,
+                     (current_position_frames as u64 * 1000) / sample_rate as u64)
+                } else if queue_position == 1 && is_crossfading {
+                    (next_position_frames,
+                     (next_position_frames as u64 * 1000) / sample_rate as u64)
                 } else {
                     (0, 0)
                 };
