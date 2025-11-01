@@ -3,6 +3,47 @@
 //! Implements REST API endpoints for playback control.
 //!
 //! **Traceability:** API Design - Audio Player API endpoints
+//!
+//! ## Queue Modification Event Pattern (MANDATORY)
+//!
+//! ALL queue modifications MUST emit both required SSE events:
+//!
+//! ```rust
+//! // Step 1: Perform database/memory modification
+//! ctx.engine.some_queue_operation().await;
+//!
+//! // Step 2: Get current queue state
+//! let queue_entries = ctx.engine.get_queue_entries().await;
+//! let queue_ids: Vec<Uuid> = queue_entries.iter()
+//!     .filter_map(|e| e.passage_id)
+//!     .collect();
+//!
+//! // Step 3: Emit QueueChanged (for tracking/analytics)
+//! ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+//!     queue: queue_ids.clone(),
+//!     trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue, // or UserDequeue
+//!     timestamp: chrono::Utc::now(),
+//! });
+//!
+//! // Step 4: Emit QueueStateUpdate (for UI display) - REQUIRED
+//! let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+//!     .map(|e| wkmp_common::events::QueueEntryInfo {
+//!         queue_entry_id: e.queue_entry_id,
+//!         passage_id: e.passage_id,
+//!         file_path: e.file_path.to_string_lossy().to_string(),
+//!     })
+//!     .collect();
+//! ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+//!     timestamp: chrono::Utc::now(),
+//!     queue: queue_info,
+//! });
+//! ```
+//!
+//! **Rationale:** UI requires QueueStateUpdate for display updates. QueueChanged alone
+//! causes "ghost queue" bug where UI doesn't reflect actual queue state.
+//!
+//! **Pattern Enforcement:** This pattern appears in 3 handlers (enqueue, remove, reorder).
+//! DO NOT omit QueueStateUpdate - it is MANDATORY for proper UI updates.
 
 use crate::api::server::AppContext;
 use crate::state::PlaybackState;
@@ -321,20 +362,21 @@ pub async fn enqueue_passage(
         Ok(queue_entry_id) => {
             info!("Successfully enqueued passage: {}", queue_entry_id);
 
-            // **[SSE-UI-020]** Get queue for events
+            // **[SSE-UI-020]** Queue Modification Event Pattern (see module docs)
+            // MANDATORY: Both QueueChanged + QueueStateUpdate required for proper UI updates
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
                 .collect();
 
-            // Emit QueueChanged event
+            // Emit QueueChanged event (for tracking/analytics)
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
                 queue: queue_ids.clone(),
                 trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
                 timestamp: chrono::Utc::now(),
             });
 
-            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            // Emit QueueStateUpdate for SSE clients (REQUIRED - DO NOT OMIT)
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -381,20 +423,21 @@ pub async fn remove_from_queue(
             // Remove from in-memory queue
             ctx.engine.remove_queue_entry(queue_entry_id).await;
 
-            // **[SSE-UI-020]** Get updated queue for events
+            // **[SSE-UI-020]** Queue Modification Event Pattern (see module docs)
+            // MANDATORY: Both QueueChanged + QueueStateUpdate required for proper UI updates
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
                 .collect();
 
-            // Emit QueueChanged event
+            // Emit QueueChanged event (for tracking/analytics)
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
                 queue: queue_ids.clone(),
                 trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
                 timestamp: chrono::Utc::now(),
             });
 
-            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            // Emit QueueStateUpdate for SSE clients (REQUIRED - DO NOT OMIT)
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -701,7 +744,8 @@ pub async fn reorder_queue_entry(
         Ok(_) => {
             info!("Queue reordered successfully");
 
-            // **[SSE-UI-020]** Get queue for events
+            // **[SSE-UI-020]** Queue Modification Event Pattern (see module docs)
+            // MANDATORY: Both QueueChanged + QueueStateUpdate required for proper UI updates
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
@@ -714,7 +758,7 @@ pub async fn reorder_queue_entry(
                 timestamp: chrono::Utc::now(),
             });
 
-            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            // Emit QueueStateUpdate for SSE clients (REQUIRED - DO NOT OMIT)
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,

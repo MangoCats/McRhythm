@@ -306,16 +306,39 @@ WKMP consists of **5 independent HTTP-based microservices**:
 
 **Implementation Pattern (REQUIRED):**
 ```rust
-// Step 1: Resolve root folder (4-tier priority)
-let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
-let root_folder = resolver.resolve();
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Step 0: Initialize tracing subscriber [ARCH-INIT-003]
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "module_name=debug,wkmp_common=info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
+        .init();
 
-// Step 2: Create directory if missing
-let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
-initializer.ensure_directory_exists()?;
+    // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init
+    // REQUIRED for all modules - provides instant startup feedback before database delays
+    info!(
+        "Starting WKMP [Module Name] (module-id) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
 
-// Step 3: Get database path
-let db_path = initializer.database_path();  // root_folder/wkmp.db
+    // Step 1: Resolve root folder (4-tier priority)
+    let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
+    let root_folder = resolver.resolve();
+
+    // Step 2: Create directory if missing
+    let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
+    initializer.ensure_directory_exists()?;
+
+    // Step 3: Get database path
+    let db_path = initializer.database_path();  // root_folder/wkmp.db
+    ...
+}
 ```
 
 **4-Tier Priority for Root Folder Resolution:**

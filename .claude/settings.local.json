@@ -79,7 +79,9 @@
       "Bash(RUST_LOG=debug timeout 30 cargo run:*)",
       "Bash(RUST_LOG=info timeout 3 cargo run:*)",
       "Bash(RUST_LOG=info timeout 3 ./target/release/wkmp-ai:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(cargo clean:*)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "ask": []
