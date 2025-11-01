@@ -1,0 +1,23 @@
+[package]
+name = "wkmp-dr"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wkmp-dr"
+path = "src/main.rs"
+
+[dependencies]
+wkmp-common = { path = "../wkmp-common" }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+uuid = { workspace = true }
