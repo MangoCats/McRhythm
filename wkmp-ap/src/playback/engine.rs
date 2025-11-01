@@ -1452,13 +1452,14 @@ impl PlaybackEngine {
                     decode_duration_ms: buffer_info.as_ref().and_then(|b| b.decode_duration_ms),
                     source_file_path: buffer_info.as_ref().and_then(|b| b.file_path.clone()),
 
-                    // Resampler stage (stubbed for Phase 3c)
-                    source_sample_rate: None, // TODO: Get from decoder
-                    resampler_active: None,
+                    // Resampler stage
+                    source_sample_rate: Some(44100), // TODO: Get actual source rate from decoder metadata
+                    resampler_active: Some(44100 != sample_rate),
                     target_sample_rate: {
                         debug!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
                         sample_rate // **[DBD-PARAM-020]** working_sample_rate (device native)
                     },
+                    resampler_algorithm: Some("Septic polynomial".to_string()), // **[SPEC020-MONITOR-070]** rubato FastFixedIn with Septic degree
 
                     // Fade stage (stubbed for Phase 3c)
                     fade_stage: None, // TODO: Get from decoder

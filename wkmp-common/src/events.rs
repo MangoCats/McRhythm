@@ -767,6 +767,7 @@ impl BufferChainInfo {
             source_sample_rate: None,
             resampler_active: Some(false),
             target_sample_rate: 44100,
+            resampler_algorithm: None,
             fade_stage: None,
             buffer_state: Some("Idle".to_string()),
             buffer_fill_percent: 0.0,

@@ -1100,8 +1100,19 @@
             // **[SPEC020-MONITOR-070]** Resample status
             const sampleRate = chain.source_sample_rate || 0;
             const targetSampleRate = chain.target_sample_rate || 44100; // **[DBD-PARAM-020]** Device native rate
-            const resampleDisplay = isIdle ? 'N/A' :
-                (sampleRate === targetSampleRate || sampleRate === 0 ? `N/A ${targetSampleRate} Hz` : `${sampleRate} Hz → ${targetSampleRate} Hz`);
+            const algorithm = chain.resampler_algorithm || '';
+            let resampleDisplay;
+            if (isIdle) {
+                resampleDisplay = 'N/A';
+            } else if (sampleRate === targetSampleRate || sampleRate === 0) {
+                // No resampling needed
+                resampleDisplay = algorithm ? `N/A ${targetSampleRate} Hz [${algorithm}]` : `N/A ${targetSampleRate} Hz`;
+            } else {
+                // Active resampling
+                resampleDisplay = algorithm
+                    ? `${sampleRate} Hz → ${targetSampleRate} Hz [${algorithm}]`
+                    : `${sampleRate} Hz → ${targetSampleRate} Hz`;
+            }
 
             // **[SPEC020-MONITOR-080]** Fade status
             const fadeStage = chain.fade_stage || 'N/A';
