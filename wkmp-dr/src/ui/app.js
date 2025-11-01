@@ -11,6 +11,7 @@ let currentView = {
     type: 'table',
     params: { table: 'songs' }
 };
+let currentTableName = null;
 
 // Preference Management
 class PreferenceManager {
@@ -223,10 +224,13 @@ async function loadData() {
 
 function renderTable(data) {
     const container = document.getElementById('tableContainer');
+    const semanticsBtn = document.getElementById('semanticsBtn');
 
     if (!data.rows || data.rows.length === 0) {
         container.innerHTML = '<p>No results found</p>';
         document.getElementById('resultInfo').textContent = 'No results';
+        semanticsBtn.classList.add('hidden');
+        currentTableName = null;
         return;
     }
 
@@ -234,6 +238,15 @@ function renderTable(data) {
     const resultType = data.table_name || data.filter_name || data.search_type || 'results';
     document.getElementById('resultInfo').textContent =
         `${data.total_results} total ${resultType} (page ${data.page} of ${data.total_pages})`;
+
+    // Show semantics button only for table views
+    if (data.table_name) {
+        currentTableName = data.table_name;
+        semanticsBtn.classList.remove('hidden');
+    } else {
+        currentTableName = null;
+        semanticsBtn.classList.add('hidden');
+    }
 
     // Render table
     let html = '<table><thead><tr>';
@@ -278,6 +291,54 @@ function saveCurrentSearch() {
     }
 }
 
+// Modal Functions
+async function showTableSemantics() {
+    if (!currentTableName) {
+        showStatus('No table selected', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/semantics/${currentTableName}`);
+        const data = await response.json();
+
+        if (data.error) {
+            showStatus(data.error, 'error');
+            return;
+        }
+
+        renderSemanticsModal(data);
+    } catch (error) {
+        showStatus('Failed to load table semantics: ' + error.message, 'error');
+    }
+}
+
+function renderSemanticsModal(data) {
+    const modal = document.getElementById('semanticsModal');
+    const modalTitle = document.getElementById('modalTableName');
+    const modalBody = document.getElementById('modalBody');
+
+    modalTitle.textContent = `Table Semantics: ${data.table_name}`;
+
+    let html = '';
+    data.columns.forEach(col => {
+        html += `
+            <div class="column-description">
+                <div class="column-name">${col.name}</div>
+                <div class="column-desc-text">${col.description}</div>
+            </div>
+        `;
+    });
+
+    modalBody.innerHTML = html;
+    modal.classList.remove('hidden');
+}
+
+function closeModal() {
+    const modal = document.getElementById('semanticsModal');
+    modal.classList.add('hidden');
+}
+
 // Event Listeners
 document.getElementById('viewType').addEventListener('change', updateViewControls);
 document.getElementById('loadBtn').addEventListener('click', () => {
@@ -296,6 +357,15 @@ document.getElementById('nextBtn').addEventListener('click', () => {
     if (currentData && currentPage < currentData.total_pages) {
         currentPage++;
         loadData();
+    }
+});
+document.getElementById('semanticsBtn').addEventListener('click', showTableSemantics);
+document.getElementById('modalClose').addEventListener('click', closeModal);
+
+// Close modal when clicking outside
+document.getElementById('semanticsModal').addEventListener('click', (e) => {
+    if (e.target.id === 'semanticsModal') {
+        closeModal();
     }
 });
 

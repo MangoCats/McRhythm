@@ -18,7 +18,7 @@ mod db;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
+    // [ARCH-INIT-003] Initialize tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
@@ -26,8 +26,15 @@ async fn main() -> Result<()> {
         )
         .init();
 
-    info!("wkmp-dr (Database Review) v0.1.0");
-    info!("Read-only database inspection tool");
+    // [ARCH-INIT-004] Log build identification IMMEDIATELY after tracing init
+    // REQUIRED for all modules - provides instant startup feedback before database delays
+    info!(
+        "Starting WKMP Database Review (wkmp-dr) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
 
     // [REQ-DR-NF-010]: Zero-config startup with 4-tier resolution
     let resolver = RootFolderResolver::new("database-review");

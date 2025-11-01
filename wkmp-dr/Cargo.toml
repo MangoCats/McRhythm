@@ -21,3 +21,7 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 uuid = { workspace = true }
+
+[build-dependencies]
+# For build.rs to capture build timestamp
+chrono = { workspace = true }
