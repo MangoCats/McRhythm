@@ -45,7 +45,9 @@ async fn main() -> Result<()> {
     info!("Database: {}", db_path.display());
 
     // Initialize database connection pool **[AIA-DB-010]**
-    let db_pool = wkmp_ai::db::init_database_pool(&db_path).await?;
+    // Uses common database initialization to ensure complete schema (REQ-NF-037)
+    let db_pool = wkmp_common::db::init::init_database(&db_path).await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize database: {}", e))?;
     info!("Database connection established");
 
     // Step 4: Determine TOML config path

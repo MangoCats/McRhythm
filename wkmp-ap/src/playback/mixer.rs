@@ -414,17 +414,20 @@ impl Mixer {
         self.current_passage_id = Some(passage_id);
         self.current_queue_entry_id = Some(queue_entry_id);
         self.current_tick = start_tick;
+        self.state = MixerState::Playing; // Resume playback when new passage starts
     }
 
     /// Clear current passage (for stop operation)
     ///
     /// Sets current_passage_id and current_queue_entry_id to None, indicating no passage is active.
-    /// Typically called when stopping playback.
+    /// Transitions mixer to Paused state to output exponential decay instead of errors.
+    /// Typically called when stopping playback or when passage completes.
     ///
     /// [SUB-INC-4B] Added for PlaybackEngine integration
     pub fn clear_passage(&mut self) {
         self.current_passage_id = None;
         self.current_queue_entry_id = None;
+        self.state = MixerState::Paused; // Output decay instead of error when no passage active
     }
 
     /// Get current tick position
@@ -611,7 +614,9 @@ impl Mixer {
                 }
 
                 // Update position tracking
-                self.current_tick += frames_read as i64;
+                // Convert frames to ticks for marker comparison (TICK_RATE = 28.224MHz vs 44.1kHz sample rate)
+                let tick_increment = wkmp_common::timing::samples_to_ticks(frames_read, 44100);
+                self.current_tick += tick_increment;
                 self.frames_written += frames_read as u64;
 
                 // Check for EOF (decode complete AND buffer empty)
@@ -764,7 +769,9 @@ impl Mixer {
         }
 
         // Update position tracking
-        self.current_tick += frames_read as i64;
+        // Convert frames to ticks for marker comparison (TICK_RATE = 28.224MHz vs 44.1kHz sample rate)
+        let tick_increment = wkmp_common::timing::samples_to_ticks(frames_read, 44100);
+        self.current_tick += tick_increment;
         self.frames_written += frames_read as u64;
 
         // Check markers and return events

@@ -133,7 +133,15 @@ impl DecoderChain {
             .unwrap_or(u64::MAX); // Undefined endpoint = decode to file end
 
         // Create streaming decoder
-        let decoder = StreamingDecoder::new(&passage.file_path, start_ms, end_ms)?;
+        // **[PERF-FIX]** Wrap blocking I/O in spawn_blocking to prevent starving async runtime
+        // File::open() and format probing are synchronous operations that can take 50-300ms
+        // and would otherwise block the tokio worker thread, causing audio underruns
+        let file_path_clone = passage.file_path.clone();
+        let decoder = tokio::task::spawn_blocking(move || {
+            StreamingDecoder::new(&file_path_clone, start_ms, end_ms)
+        })
+        .await
+        .map_err(|e| Error::Decode(format!("Decoder creation task failed: {}", e)))??;
         let (source_sample_rate, source_channels) = decoder.format_info();
 
         debug!(

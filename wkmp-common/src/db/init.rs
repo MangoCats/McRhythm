@@ -50,6 +50,23 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_queue_table(&pool).await?;
     create_acoustid_cache_table(&pool).await?;
 
+    // MusicBrainz entity tables (used by wkmp-ai, wkmp-pd)
+    create_songs_table(&pool).await?;
+    create_artists_table(&pool).await?;
+    create_works_table(&pool).await?;
+    create_albums_table(&pool).await?;
+    create_images_table(&pool).await?;
+
+    // Linking tables
+    create_passage_songs_table(&pool).await?;
+    create_song_artists_table(&pool).await?;
+    create_passage_albums_table(&pool).await?;
+
+    // Audio Ingest workflow tables (wkmp-ai specific)
+    create_import_sessions_table(&pool).await?;
+    create_temp_file_songs_table(&pool).await?;
+    create_temp_file_albums_table(&pool).await?;
+
     // Initialize default settings [ARCH-INIT-020]
     init_default_settings(&pool).await?;
 
@@ -317,6 +334,8 @@ async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
             artist TEXT,
             album TEXT,
             musical_flavor_vector TEXT,
+            import_metadata TEXT,
+            additional_metadata TEXT,
             decode_status TEXT DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')),
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -399,6 +418,302 @@ async fn create_acoustid_cache_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_acoustid_cache_cached_at ON acoustid_cache(cached_at)")
         .execute(pool)
         .await?;
+
+    Ok(())
+}
+
+async fn create_songs_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS songs (
+            guid TEXT PRIMARY KEY,
+            recording_mbid TEXT NOT NULL UNIQUE,
+            work_id TEXT,
+            related_songs TEXT,
+            lyrics TEXT,
+            base_probability REAL NOT NULL DEFAULT 1.0,
+            min_cooldown INTEGER NOT NULL DEFAULT 604800,
+            ramping_cooldown INTEGER NOT NULL DEFAULT 1209600,
+            last_played_at TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (base_probability >= 0.0 AND base_probability <= 1000.0),
+            CHECK (min_cooldown >= 0),
+            CHECK (ramping_cooldown >= 0)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_songs_recording_mbid ON songs(recording_mbid)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_songs_last_played ON songs(last_played_at)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS artists (
+            guid TEXT PRIMARY KEY,
+            artist_mbid TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            base_probability REAL NOT NULL DEFAULT 1.0,
+            min_cooldown INTEGER NOT NULL DEFAULT 7200,
+            ramping_cooldown INTEGER NOT NULL DEFAULT 14400,
+            last_played_at TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (base_probability >= 0.0 AND base_probability <= 1000.0),
+            CHECK (min_cooldown >= 0),
+            CHECK (ramping_cooldown >= 0)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_artists_mbid ON artists(artist_mbid)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_artists_last_played ON artists(last_played_at)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_works_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS works (
+            guid TEXT PRIMARY KEY,
+            work_mbid TEXT NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            base_probability REAL NOT NULL DEFAULT 1.0,
+            min_cooldown INTEGER NOT NULL DEFAULT 259200,
+            ramping_cooldown INTEGER NOT NULL DEFAULT 604800,
+            last_played_at TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (base_probability >= 0.0 AND base_probability <= 1000.0),
+            CHECK (min_cooldown >= 0),
+            CHECK (ramping_cooldown >= 0)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_works_mbid ON works(work_mbid)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_works_last_played ON works(last_played_at)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_albums_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS albums (
+            guid TEXT PRIMARY KEY,
+            album_mbid TEXT NOT NULL UNIQUE,
+            title TEXT NOT NULL,
+            release_date TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_albums_mbid ON albums(album_mbid)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_images_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS images (
+            guid TEXT PRIMARY KEY,
+            file_path TEXT NOT NULL,
+            image_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            priority INTEGER NOT NULL DEFAULT 100,
+            width INTEGER,
+            height INTEGER,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            CHECK (image_type IN ('album_front', 'album_back', 'album_liner', 'song', 'passage', 'artist', 'work', 'logo')),
+            CHECK (priority >= 0)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_images_entity ON images(entity_id, image_type, priority)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_images_type ON images(image_type)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_passage_songs_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS passage_songs (
+            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
+            song_id TEXT NOT NULL REFERENCES songs(guid) ON DELETE CASCADE,
+            start_time_ticks INTEGER NOT NULL,
+            end_time_ticks INTEGER NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (passage_id, song_id),
+            CHECK (start_time_ticks >= 0),
+            CHECK (end_time_ticks > start_time_ticks)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_passage_songs_passage ON passage_songs(passage_id)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passage_songs_song ON passage_songs(song_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_passage_songs_timing ON passage_songs(passage_id, start_time_ticks)",
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn create_song_artists_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS song_artists (
+            song_id TEXT NOT NULL REFERENCES songs(guid) ON DELETE CASCADE,
+            artist_id TEXT NOT NULL REFERENCES artists(guid) ON DELETE CASCADE,
+            weight REAL NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (song_id, artist_id),
+            CHECK (weight > 0.0 AND weight <= 1.0)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_song_artists_song ON song_artists(song_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_song_artists_artist ON song_artists(artist_id)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_passage_albums_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS passage_albums (
+            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
+            album_id TEXT NOT NULL REFERENCES albums(guid) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (passage_id, album_id)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passage_albums_passage ON passage_albums(passage_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passage_albums_album ON passage_albums(album_id)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn create_import_sessions_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS import_sessions (
+            session_id TEXT PRIMARY KEY,
+            state TEXT NOT NULL,
+            root_folder TEXT NOT NULL,
+            parameters TEXT NOT NULL,
+            progress_current INTEGER NOT NULL,
+            progress_total INTEGER NOT NULL,
+            progress_percentage REAL NOT NULL,
+            current_operation TEXT NOT NULL,
+            errors TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            ended_at TEXT
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn create_temp_file_songs_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS temp_file_songs (
+            file_id TEXT PRIMARY KEY REFERENCES files(guid) ON DELETE CASCADE,
+            song_id TEXT NOT NULL REFERENCES songs(guid) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn create_temp_file_albums_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS temp_file_albums (
+            file_id TEXT NOT NULL REFERENCES files(guid) ON DELETE CASCADE,
+            album_id TEXT NOT NULL REFERENCES albums(guid) ON DELETE CASCADE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (file_id, album_id)
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }

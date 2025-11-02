@@ -994,11 +994,13 @@
             }
 
             const posMs = position.position_ms || 0;
-            const durMs = position.duration_ms || 1;
+            const durMs = position.duration_ms || 0;
             const posSec = Math.floor(posMs / 1000);
             const durSec = Math.floor(durMs / 1000);
 
-            document.getElementById('position').textContent = `${formatTime(posSec)} / ${formatTime(durSec)}`;
+            // Show "?" for unknown duration (ephemeral passages before decode completes)
+            const durationText = (durMs < 1000) ? '?' : formatTime(durSec);
+            document.getElementById('position').textContent = `${formatTime(posSec)} / ${durationText}`;
 
             const progress = durMs > 0 ? (posMs / durMs * 100) : 0;
             document.getElementById('progress-fill').style.width = progress + '%';
