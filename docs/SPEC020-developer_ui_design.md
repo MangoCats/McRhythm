@@ -215,23 +215,26 @@ Paused (buffer full)
 
 **[SPEC016-MONITOR-070]** Resample status MUST display:
 
-**When source sample rate matches working_sample_rate (default 44100 Hz):**
+**When source sample rate matches working_sample_rate:**
 - Display: `N/A` (no resampling needed)
 
 **When resampling active:**
 - Source sample rate (Hz)
-- Target sample rate (always 44100 Hz per [DBD-PARAM-020])
+- Target sample rate (matches device native rate per [DBD-PARAM-020], typically 44100 Hz or 48000 Hz)
 - Resample ratio
 - Resampler algorithm (if available)
 
 **Example formats:**
 ```
 N/A
-48000 Hz → 44100 Hz (ratio: 0.91875) [Linear interpolation]
-96000 Hz → 44100 Hz (ratio: 0.459375) [Sinc]
+48000 Hz → 48000 Hz (passthrough) [No resampling]
+44100 Hz → 48000 Hz (ratio: 1.08844) [Septic polynomial]
+96000 Hz → 48000 Hz (ratio: 0.50) [Septic polynomial]
 ```
 
-**Traceability:** [DBD-RSMP-010] Automatic sample rate conversion
+**Note:** The target sample rate is determined by the audio device's native rate at runtime, not hardcoded to 44100 Hz.
+
+**Traceability:** [DBD-RSMP-010] Automatic sample rate conversion, [DBD-PARAM-020] Working sample rate negotiation
 
 **Stubbing:** If resample status unavailable, display `N/A`
 

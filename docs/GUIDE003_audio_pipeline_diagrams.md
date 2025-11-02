@@ -43,7 +43,7 @@ flowchart TD
     Ready -->|Yes| Event[BufferEvent::ReadyForStart<br/>PERF-POLL-010]
     Ready -->|No| Decode
 
-    Event --> Mixer[CrossfadeMixer<br/>pipeline/mixer.rs]
+    Event --> Mixer[Mixer<br/>playback/mixer.rs<br/>SPEC016 marker-driven]
     Mixer --> Ring[AudioRingBuffer<br/>lock-free SPSC]
     Ring --> Callback[Audio Callback<br/>Real-time thread]
     Callback --> Output[CPAL Stream<br/>→ Speakers]
@@ -107,8 +107,8 @@ graph TB
     end
 
     subgraph "Mixing & Output"
-        MX[CrossfadeMixer<br/>pipeline/mixer.rs]
-        MT[Mixer Thread<br/>Graduated filling]
+        MX[Mixer<br/>playback/mixer.rs<br/>SPEC016 marker-driven]
+        MT[Mixer Thread<br/>Batch mixing (512 frames)]
         ARB[AudioRingBuffer<br/>lock-free output]
         AC[Audio Callback<br/>real-time thread]
         MX --> MT
@@ -157,7 +157,7 @@ sequenceDiagram
     participant Worker as DecoderWorker
     participant Chain as DecoderChain
     participant BufMgr as BufferManager
-    participant Mixer as CrossfadeMixer
+    participant Mixer as Mixer (SPEC016)
     participant Output as AudioOutput
 
     User->>API: POST /playback/enqueue<br/>{file_path}
@@ -190,14 +190,14 @@ sequenceDiagram
         end
     end
 
-    Engine->>Mixer: start_passage(queue_entry_id)
+    Engine->>Mixer: set_current_passage()<br/>add_marker() (position/crossfade/complete)
 
-    loop Continuous playback
-        Mixer->>BufMgr: pop_frames(queue_entry_id)
-        BufMgr-->>Mixer: AudioFrame
-        Mixer->>Mixer: Apply volume
-        Mixer->>Mixer: Apply crossfade (if transitioning)
-        Mixer->>Output: push to AudioRingBuffer
+    loop Batch mixing (512 frames)
+        Mixer->>BufMgr: read_samples(queue_entry_id)
+        BufMgr-->>Mixer: PCM samples
+        Mixer->>Mixer: Apply master volume
+        Mixer->>Mixer: Check markers (emit events)
+        Mixer->>Output: push batch to AudioRingBuffer
     end
 
     loop Audio callback (~50ms intervals)
@@ -217,20 +217,33 @@ sequenceDiagram
     participant BufEvt as Buffer Event Channel
     participant PosEvt as Position Event Channel
     participant Engine as Engine Tasks
-    participant Mixer as CrossfadeMixer
+    participant Mixer as Mixer (SPEC016)
     participant State as SharedState
     participant SSE as SSE Clients
 
     Note over BufMgr,BufEvt: Buffer Event Flow
     BufMgr->>BufEvt: BufferEvent::ReadyForStart
     BufEvt->>Engine: buffer_event_handler receives
-    Engine->>Mixer: Trigger passage start
+    Engine->>Mixer: set_current_passage()<br/>add_marker() (position/crossfade/complete)
 
-    Note over Mixer,PosEvt: Position Event Flow
-    loop Every ~1 second
-        Mixer->>PosEvt: PlaybackEvent<br/>{queue_entry_id, frame_pos}
+    Note over Mixer,PosEvt: Marker-Driven Event Flow (SPEC016)
+    loop Every 100ms (position markers)
+        Mixer->>Mixer: Check markers during mix
+        Mixer->>PosEvt: PlaybackEvent::PositionUpdate<br/>{queue_entry_id, position_ms}
         PosEvt->>Engine: position_event_handler receives
-        Engine->>State: Update current passage
+        Engine->>State: Update current passage position
+    end
+
+    alt Passage nearing end
+        Mixer->>Mixer: Crossfade marker reached
+        Mixer->>PosEvt: MarkerEvent::StartCrossfade
+        PosEvt->>Engine: Start next passage decode
+    end
+
+    alt Passage complete
+        Mixer->>Mixer: PassageComplete marker reached
+        Mixer->>PosEvt: PlaybackEvent::PassageComplete
+        PosEvt->>Engine: Remove from queue, advance
     end
 
     Note over State,SSE: SSE Broadcast
@@ -253,9 +266,9 @@ stateDiagram-v2
 
     Filling --> Ready: Threshold reached<br/>DBD-PARAM-088<br/>mixer_min_start_level<br/>(default: 22,050 samples)
 
-    Ready --> Playing: Mixer starts consuming<br/>mixer.start_passage()
+    Ready --> Playing: Mixer starts consuming<br/>mixer.set_current_passage()
 
-    Playing --> Playing: Continuous consumption<br/>mixer.pop_frames()
+    Playing --> Playing: Continuous consumption<br/>mixer.mix_single() (batch)
 
     Playing --> Finished: Buffer exhausted<br/>All samples consumed
 
@@ -565,67 +578,74 @@ stateDiagram-v2
 
 
 ═══════════════════════════════════════════════════════════════════════════════
- 7. CROSSFADE MIXER (pipeline/mixer.rs)
+ 7. MIXER - SPEC016 MARKER-DRIVEN (playback/mixer.rs)
 ═══════════════════════════════════════════════════════════════════════════════
 
-    CrossfadeMixer::get_next_frame()
+    Mixer::mix_single() - Batch mixing (512 frames per call)
          │
-         │ [State Machine - SSD-MIX-010]
+         │ [SPEC016 Marker-Driven Architecture]
          │
-         ├─→ None (idle)
-         │   └─→ Check buffer_manager for ready passages
-         │       • DBD-PARAM-088: Require 22,050 samples before start
-         │       └─→ Transition to Playing or Crossfading
+         ├─→ Current passage state
+         │   • current_passage_id: Uuid (which buffer to read from)
+         │   • current_tick: i64 (playback position in frames)
+         │   • markers: Vec<Marker> (position/crossfade/complete events)
          │
-         ├─→ Playing (single passage)
+         ├─→ Batch mixing loop (512 frames)
          │   │
-         │   ├─→ Read frame from PlayoutRingBuffer
-         │   │   • buffer_manager.pop_frames(queue_entry_id, 1)
+         │   ├─→ Read samples from BufferManager
+         │   │   • buffer_manager.read_samples(passage_id, count)
+         │   │   • Returns: Vec<f32> (interleaved stereo)
          │   │
          │   ├─→ Apply master volume
-         │   │   • frame.left *= volume
-         │   │   • frame.right *= volume
+         │   │   • for sample in samples: sample *= master_volume
          │   │
-         │   ├─→ Check for crossfade trigger
-         │   │   • At fade_out_point_ticks
-         │   │   • If next passage ready → Start crossfade
+         │   ├─→ Check markers during mix
+         │   │   • Advance current_tick
+         │   │   • Compare tick against marker positions
+         │   │   • Emit events when markers reached
          │   │
-         │   └─→ Emit PositionUpdate events (every ~1 second)
-         │       • PlaybackEvent { queue_entry_id, frame_position }
+         │   └─→ Copy to output buffer
+         │       • output[out_index] = sample
          │
-         ├─→ Crossfading (two passages)
+         ├─→ Marker types (added by engine.start_passage())
          │   │
-         │   ├─→ Read from BOTH buffers simultaneously
-         │   │   • old_frame = pop_frames(old_queue_entry_id)
-         │   │   • new_frame = pop_frames(new_queue_entry_id)
+         │   ├─→ PositionUpdate (every 100ms)
+         │   │   • Emits: PlaybackEvent::PositionUpdate
+         │   │   • Contains: queue_entry_id, position_ms
+         │   │   • Used for: SSE position updates to UI
          │   │
-         │   ├─→ Apply crossfade curves
-         │   │   • old_weight = fade_out_curve(progress)
-         │   │   • new_weight = fade_in_curve(progress)
+         │   ├─→ StartCrossfade (at fade_out_point_ticks)
+         │   │   • Emits: MarkerEvent::StartCrossfade
+         │   │   • Contains: next_passage_id
+         │   │   • Used for: Triggering next passage decode
          │   │
-         │   ├─→ Mix frames
-         │   │   • mixed = (old_frame * old_weight) + (new_frame * new_weight)
-         │   │
-         │   ├─→ Apply master volume
-         │   │
-         │   └─→ When crossfade complete:
-         │       • Transition to Playing (new passage)
-         │       • old_queue_entry_id marked Finished
-         │       • queue.advance()
+         │   └─→ PassageComplete (at end_time_ticks)
+         │       • Emits: PlaybackEvent::PassageComplete
+         │       • Contains: queue_entry_id
+         │       • Used for: Queue advancement, cleanup
          │
-         └─→ PausedDecay (pause mode)
-             │
-             ├─→ Start from last played sample
-             │
-             ├─→ Apply exponential decay per sample
-             │   • sample *= decay_factor
-             │   • DBD-PARAM-090: pause_decay_factor = 0.96875 (31/32)
-             │
-             ├─→ Check decay floor
-             │   • If |sample| < pause_decay_floor → Output 0.0
-             │   • DBD-PARAM-100: pause_decay_floor = 0.0001778
-             │
-             └─→ On play: Linear fade-in over 500ms
+         ├─→ State transitions (via mixer methods)
+         │   │
+         │   ├─→ set_current_passage(passage_id, tick)
+         │   │   • Sets active passage and playback position
+         │   │   • Used for: Start, seek operations
+         │   │
+         │   ├─→ clear_passage()
+         │   │   • Clears current passage (stops mixing)
+         │   │   • Used for: Stop, passage completion
+         │   │
+         │   ├─→ start_resume_fade(duration_ms, curve)
+         │   │   • Applies fade-in curve over specified duration
+         │   │   • Used for: Resume from pause
+         │   │
+         │   └─→ clear_all_markers()
+         │       • Removes all pending markers
+         │       • Used for: Skip, stop, passage switch
+         │
+         └─→ Event emission
+             • Returns: Vec<MarkerEvent> from mix_single()
+             • Engine handles events asynchronously
+             • No internal state machine (stateless mixing)
 
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -749,12 +769,12 @@ BufferManager tracks state:
     ↓
 Buffer Event Handler notifies Mixer
     ↓
-CrossfadeMixer reads frames from PlayoutRingBuffer:
-    • Single passage: Playing mode
-    • Two passages: Crossfading mode
-    • Pause: Exponential decay [DBD-PARAM-090, DBD-PARAM-100]
+Mixer (SPEC016) reads samples from BufferManager:
+    • Batch mixing: 512 frames per call
+    • Marker-driven events: position/crossfade/complete
+    • Resume fade-in support
     ↓
-Mixer Thread pushes AudioFrame to AudioRingBuffer
+Mixer Thread pushes batches to AudioRingBuffer
     [DBD-PARAM-030: 88,200 samples = 2.0s]
     [DBD-PARAM-111: Check every 10ms]
     [DBD-PARAM-112: 512 frames when low]
@@ -880,11 +900,11 @@ graph TD
         Ready --> Playing
     end
 
-    subgraph "CrossfadeMixer Pause Mode [DBD-PARAM-090/100]"
-        PD[PausedDecay<br/>sample *= 0.96875<br/>[DBD-PARAM-090]]
-        PS[PausedSilence<br/>level < 0.0001778<br/>[DBD-PARAM-100]]
+    subgraph "Mixer Resume Fade (SPEC016)"
+        RF[Resume Fade-In<br/>Linear or curve-based<br/>Configurable duration]
+        RC[Fade complete<br/>Normal playback]
 
-        PD -->|decay per sample| PS
+        RF -->|fade progress| RC
     end
 
     subgraph "Mixer Thread [DBD-PARAM-111/112/113]"
@@ -1115,14 +1135,14 @@ This parallel loading pattern (PERF-INIT-010) reduces startup time from ~45ms (s
 - [SPEC002 Crossfade Design](../docs/SPEC002-crossfade.md) - Crossfading mechanics
 
 ### Implementation Files
-- `engine.rs` - Playback engine coordination
-- `decoder_worker.rs` - Single-threaded decoder loop
-- `decoder_chain.rs` - Decode → resample → fade → buffer pipeline
-- `buffer_manager.rs` - Buffer lifecycle state machine
-- `pipeline/mixer.rs` - Crossfade mixer
+- `playback/engine.rs` - Playback engine coordination, queue management
+- `playback/mixer.rs` - SPEC016 marker-driven mixer (batch mixing)
+- `playback/buffer_manager.rs` - Buffer lifecycle state machine
+- `playback/playout_ring_buffer.rs` - Per-passage ring buffers
+- `playback/ring_buffer.rs` - Lock-free AudioRingBuffer (mixer → audio callback)
+- `playback/pipeline/decoder_worker.rs` - Single-threaded decoder loop
+- `playback/pipeline/decoder_chain.rs` - Decode → resample → fade pipeline
 - `audio/output.rs` - CPAL audio output
-- `ring_buffer.rs` - Lock-free AudioRingBuffer
-- `playout_ring_buffer.rs` - Lock-free PlayoutRingBuffer
 
 ### Traceability
 - **SSD-FLOW-010** - Complete playback sequence

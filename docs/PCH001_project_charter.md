@@ -24,6 +24,11 @@ Define the scope and purpose of the wkmp project.
   - MusicBrainz release, artist and other information about the recordings
   - AcousticBrainz high level characteristics of the recordings
   - local play history
+- Works with users' media files in-place without modifications
+  - All necessary meta-data is stored in the database
+  - Original meta-data in media files remains unchanged and duplicated to the database when needed.
+  - Only the database is referenced for meta-data needs after initial import
+  - Corrections of meta-data errors are made in the database only
 - automatic selection of recording(s) to play based on user preferences
 - http user interface suitable for control via smartphone on the local network
 

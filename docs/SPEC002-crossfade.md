@@ -212,6 +212,8 @@ During crossfade overlap, the mixer simply reads pre-faded samples from both buf
 
 **[XFD-CURV-040] Independence:** Fade-in and fade-out curves are selected independently. A passage may use any combination (e.g., exponential fade-in with linear fade-out).
 
+**[XFD-CURV-050] Application Timing:** Fade curves are applied to audio samples by the Fader component BEFORE buffering. The mixer reads pre-faded samples and performs simple addition during crossfade overlap. See [SPEC016 DBD-MIX-042] for architectural separation details.
+
 ## Crossfade Behavior
 
 ### Case 1: Following Passage Has Longer Lead-In Duration
@@ -330,6 +332,10 @@ crossfade_config = {
 ```
 
 See [SPEC016 Decoder Buffer Design - Mixer](SPEC016-decoder_buffer_design.md#mixer) for implementation of crossfade mixing with overlapping passages ([DBD-MIX-040]).
+
+**[XFD-IMPL-025] Architectural Note:** This algorithm calculates crossfade TIMING (when passages overlap). Fade curve APPLICATION is handled separately by the Fader component per [DBD-MIX-042]. The mixer implements simple addition of pre-faded samples per [DBD-MIX-041].
+
+**[XFD-IMPL-026] Execution Architecture:** Crossfade timing is calculated by PlaybackEngine (calculation layer), which sets position markers at the crossfade start tick. The Mixer (execution layer) signals when that tick is reached via event-driven position tracking ([DBD-MIX-070] through [DBD-MIX-078]). This separates WHAT/WHEN decisions (engine) from playback reality detection (mixer).
 
 **[XFD-IMPL-030]** Clamped Crossfade Time Calculation:
 
@@ -1258,10 +1264,16 @@ See [database_schema.md#settings](IMPL001-database_schema.md#settings) for the d
 ----
 End of document - Crossfade Design
 
-**Document Version:** 1.2
-**Last Updated:** 2025-10-25
+**Document Version:** 1.3
+**Last Updated:** 2025-01-30
 
 **Change Log:**
+- v1.3 (2025-01-30): Added event-driven execution architecture clarification
+  - Added [XFD-IMPL-026] Execution Architecture: Documents calculation vs. execution layer separation
+  - Clarifies PlaybackEngine calculates crossfade timing and sets position markers
+  - Clarifies Mixer signals when ticks reached via event-driven position tracking
+  - Cross-references SPEC016 [DBD-MIX-070] through [DBD-MIX-078] for position marker system
+  - Addresses architectural refinement from PLAN014 mixer refactoring
 - v1.2 (2025-10-25): Added architectural clarifications for fade vs lead orthogonality and queue advancement timing
   - Added "Fade Points vs Lead Points: Orthogonal Concepts" section with requirements [XFD-ORTH-010] through [XFD-ORTH-025]
   - Clarified that Fader applies fade curves BEFORE buffering, mixer simply sums pre-faded audio during overlap
@@ -1270,6 +1282,9 @@ End of document - Crossfade Design
   - Specified that queue advancement occurs when current passage reaches end_time sample
   - Documented coordination between Buffer, Mixer, and Engine components for completion detection
   - Cross-referenced SPEC016 (buffer completion) and SPEC018 (crossfade completion coordination)
+  - Added [XFD-CURV-050] Application Timing: Specifies Fader applies curves BEFORE buffering, mixer reads pre-faded samples
+  - Added [XFD-IMPL-025] Architectural Note: Clarifies algorithm calculates TIMING (when), Fader handles APPLICATION (how)
+  - Cross-references SPEC016 [DBD-MIX-041] (simple addition) and [DBD-MIX-042] (architectural separation)
   - Addresses specification gaps identified during SPEC018 terminology review
 - v1.1 (2025-10-17): Added three-phase validation strategy specification
   - Added new "Validation Responsibility" section after timing validation algorithm
@@ -1277,3 +1292,4 @@ End of document - Crossfade Design
   - Specified ownership, scope, validation rules, and failure actions for each phase
   - Added traceability ID XFD-VAL-010 for three-phase validation strategy
   - Supports architectural decision from wkmp-ap design review (ISSUE-2)
+  - Addresses specification ambiguity identified in PLAN014 mixer refactoring (REQ-MIX-003, REQ-MIX-004)

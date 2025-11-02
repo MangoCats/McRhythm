@@ -42,11 +42,49 @@ See [docs/user/README.md](user/README.md) for complete user documentation index.
 
 ## Quick Start for Developers
 
-1. **Understand the documentation framework:** Read [GOV001-document_hierarchy.md](GOV001-document_hierarchy.md)
-2. **Learn what WKMP does:** Read [REQ001-requirements.md](REQ001-requirements.md)
-3. **Understand the architecture:** Read [SPEC001-architecture.md](SPEC001-architecture.md)
-4. **See implementation details:** Browse Tier 3 documents (IMPL###-*.md)
-5. **Follow the development plan:** Read [EXEC001-implementation_order.md](EXEC001-implementation_order.md)
+**👉 NEW DEVELOPERS: Start with [DEV_QUICKSTART.md](DEV_QUICKSTART.md)** (15-30 min)
+
+This curated guide provides:
+- Essential reading list (5 documents)
+- Clear learning path
+- Setup instructions
+- Reference document index
+- Required Reading vs Reference classification
+
+---
+
+## Document Classification
+
+### 📕 Required Reading
+**Read these first** - Essential for all contributors (15-30 min total):
+- **[DEV_QUICKSTART.md](DEV_QUICKSTART.md)** - Start here!
+- **[PCH001: Project Charter](PCH001_project_charter.md)** - Project goals and decision framework
+- **[GOV001: Document Hierarchy](GOV001-document_hierarchy.md)** - Documentation structure
+- **[REQ002: Entity Definitions](REQ002-entity_definitions.md)** - Core concepts
+- **[SPEC001: Architecture](SPEC001-architecture.md)** - Microservices design and audio pipeline
+- **[DWI001: Workflow Quickstart](../workflows/DWI001_workflow_quickstart.md)** - Development workflows
+
+### 📘 Core Reference
+**Read when implementing features** - Frequently referenced:
+- **[REQ001: Requirements](REQ001-requirements.md)** - Complete specifications (read sections as needed)
+- **[SPEC007: API Design](SPEC007-api_design.md)** - REST API and SSE specs
+- **[SPEC028: Playback Orchestration](SPEC028-playback_orchestration.md)** - Playback loop, mixer thread, event system
+- **[IMPL001: Database Schema](IMPL001-database_schema.md)** - Data model
+- **[IMPL002: Coding Conventions](IMPL002-coding_conventions.md)** - Style guide
+- **[IMPL003: Project Structure](IMPL003-project_structure.md)** - Workspace layout
+
+### 📙 Detailed Reference
+**Read when working on specific features** - Domain-specific:
+- All other SPEC### documents (design specifications)
+- All other IMPL### documents (implementation details)
+- ADR documents (architecture decision records)
+- EXEC001 (implementation roadmap)
+
+### 📗 Archived Documents
+**Historical context** - Completed work (see [REG002_archive_index.md](../workflows/REG002_archive_index.md)):
+- Implementation plans for completed features
+- Analysis documents
+- Retrieved via archive branch
 
 ---
 

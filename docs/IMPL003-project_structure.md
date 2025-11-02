@@ -4,7 +4,7 @@
 
 Defines the Rust workspace structure and organization for WKMP's microservices architecture.
 
-> **Related Documentation:** [Architecture](SPEC001-architecture.md) | [Coding Conventions](IMPL002-coding_conventions.md) | [Implementation Order](EXEC001-implementation_order.md)
+> **Related Documentation:** [Coding Conventions](IMPL002-coding_conventions.md) | [Implementation Order](EXEC001-implementation_order.md)
 
 ---
 
@@ -75,7 +75,11 @@ mcrhythm/
 │   │   │   └── events.rs        # SSE endpoint
 │   │   ├── playback/
 │   │   │   ├── mod.rs
-│   │   │   ├── engine.rs        # Playback engine with event-driven position tracking
+│   │   │   ├── engine/          # **[PLAN016]** Refactored modular engine
+│   │   │   │   ├── mod.rs       # Public API re-exports
+│   │   │   │   ├── core.rs      # Lifecycle, orchestration, process_queue (2,724 lines)
+│   │   │   │   ├── queue.rs     # Queue operations (skip, enqueue, clear, remove) (511 lines)
+│   │   │   │   └── diagnostics.rs # Monitoring, status, event handlers (1,019 lines)
 │   │   │   ├── events.rs        # Internal PlaybackEvent types (not exposed via SSE)
 │   │   │   ├── song_timeline.rs # Song boundary detection logic
 │   │   │   ├── pipeline/        # Single-stream architecture
@@ -87,7 +91,7 @@ mcrhythm/
 │   │   │   │   │   └── curves.rs  # Fade curve algorithms
 │   │   │   │   └── dual.rs       # Legacy dual-pipeline (archived)
 │   │   │   ├── crossfade.rs     # Crossfade logic
-│   │   │   └── queue.rs         # Queue manager
+│   │   │   └── queue_manager.rs # Queue manager
 │   │   ├── audio/
 │   │   │   ├── mod.rs
 │   │   │   ├── device.rs        # Device management
@@ -232,6 +236,7 @@ members = [
     "wkmp-le",
     "wkmp-pd",
     "wkmp-ai",
+    "wkmp-dr",
 ]
 
 # Shared dependencies across workspace
@@ -254,7 +259,7 @@ reqwest = { version = "0.11", features = ["json"] }
 # Version differentiation is achieved by packaging different binaries
 # No feature flags or conditional compilation required
 [workspace.metadata.versions]
-# Full version: Package all 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
+# Full version: Package all 6 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai, wkmp-dr)
 # Lite version: Package 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
 # Minimal version: Package 2 binaries (wkmp-ap, wkmp-ui)
 ```
@@ -586,6 +591,37 @@ toml = "0.8"
 # - cocoa-webkit (macOS)
 ```
 
+### Database Review (`wkmp-dr/Cargo.toml`)
+
+```toml
+[package]
+name = "wkmp-dr"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wkmp-dr"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+wkmp-common = { path = "../wkmp-common" }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+```
+
 ### Program Director (`wkmp-pd/Cargo.toml`)
 
 ```toml
@@ -678,9 +714,9 @@ cargo build -p wkmp-ui --release
 
 ### Version-Specific Builds
 
-**Full Version (all 5 modules):**
+**Full Version (all 6 modules):**
 ```bash
-cargo build --release -p wkmp-ap -p wkmp-ui -p wkmp-pd -p wkmp-ai -p wkmp-le --features wkmp-ai/full
+cargo build --release -p wkmp-ap -p wkmp-ui -p wkmp-pd -p wkmp-ai -p wkmp-le -p wkmp-dr --features wkmp-ai/full
 ```
 
 **Lite Version (3 modules):**
@@ -728,6 +764,7 @@ cp target/release/wkmp-ui dist/full/
 cp target/release/wkmp-le dist/full/
 cp target/release/wkmp-pd dist/full/
 cp target/release/wkmp-ai dist/full/
+cp target/release/wkmp-dr dist/full/
 
 echo "Full version packaged in dist/full/"
 ```
@@ -1105,7 +1142,8 @@ wkmp-full-v0.1.0-linux/
 │   ├── wkmp-ui
 │   ├── wkmp-pd
 │   ├── wkmp-le
-│   └── wkmp-ai
+│   ├── wkmp-ai
+│   └── wkmp-dr
 ├── migrations/
 │   └── *.sql
 ├── README.md

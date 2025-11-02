@@ -17,6 +17,43 @@ Defines Rust implementation for Chromaprint fingerprinting and AcoustID API clie
 
 ---
 
+## Build Requirements
+
+### LLVM/Clang Dependency
+
+**Required for:** Building `chromaprint-sys-next` crate (Rust bindings to Chromaprint C library)
+
+The `chromaprint-sys-next` crate uses `bindgen` to generate Rust bindings from Chromaprint C headers. This requires LLVM/Clang to be installed on the build system.
+
+**Installation:**
+
+- **Windows:** Download and install LLVM from https://releases.llvm.org/
+  - Install LLVM with "Add LLVM to system PATH" option enabled
+  - Alternatively, set `LIBCLANG_PATH` environment variable to point to `libclang.dll`
+
+- **Linux:** Install via package manager
+  ```bash
+  # Debian/Ubuntu
+  sudo apt-get install llvm-dev libclang-dev clang
+
+  # Fedora/RHEL
+  sudo dnf install llvm-devel clang-devel
+  ```
+
+- **macOS:** Install via Homebrew
+  ```bash
+  brew install llvm
+  ```
+
+**Verification:**
+```bash
+clang --version  # Should show LLVM version
+```
+
+**Note:** LLVM is only required at build time. The compiled wkmp-ai binary does not require LLVM to run (Chromaprint is statically linked).
+
+---
+
 ## Chromaprint Integration
 
 ### Audio Processing Pipeline
@@ -166,36 +203,137 @@ impl Fingerprinter {
         Ok(waves_out[0].clone())
     }
 
-    /// Generate Chromaprint fingerprint
+    /// Generate Chromaprint fingerprint using low-level FFI bindings
+    ///
+    /// **SAFETY:** Uses unsafe FFI calls to chromaprint C library.
+    /// All FFI calls are wrapped with error checking and proper resource cleanup.
     fn generate_fingerprint(&self, samples: &[f32]) -> Result<String, FingerprintError> {
-        use chromaprint::{Context, Algorithm};
+        use chromaprint_sys_next::*;
 
-        let mut ctx = Context::new(Algorithm::Test2);
+        unsafe {
+            // Step 1: Allocate Chromaprint context
+            let ctx = chromaprint_new(CHROMAPRINT_ALGORITHM_TEST2);
+            if ctx.is_null() {
+                return Err(FingerprintError::ChromaprintError(
+                    "Failed to create Chromaprint context".to_string()
+                ));
+            }
 
-        ctx.start(self.target_sample_rate, 1)
-            .map_err(|e| FingerprintError::ChromaprintError(e.to_string()))?;
+            // Step 2: Start fingerprinting (44100 Hz, 1 channel)
+            let ret = chromaprint_start(ctx, self.target_sample_rate as i32, 1);
+            if ret != 1 {
+                chromaprint_free(ctx);
+                return Err(FingerprintError::ChromaprintError(
+                    "chromaprint_start failed".to_string()
+                ));
+            }
 
-        // Convert f32 to i16 for Chromaprint
-        let samples_i16: Vec<i16> = samples.iter()
-            .map(|&s| (s * 32767.0).clamp(-32768.0, 32767.0) as i16)
-            .collect();
+            // Step 3: Convert f32 samples to i16
+            let samples_i16: Vec<i16> = samples.iter()
+                .map(|&s| (s * 32767.0).clamp(-32768.0, 32767.0) as i16)
+                .collect();
 
-        ctx.feed(&samples_i16)
-            .map_err(|e| FingerprintError::ChromaprintError(e.to_string()))?;
+            // Step 4: Feed audio samples to Chromaprint
+            let ret = chromaprint_feed(ctx, samples_i16.as_ptr(), samples_i16.len() as i32);
+            if ret != 1 {
+                chromaprint_free(ctx);
+                return Err(FingerprintError::ChromaprintError(
+                    "chromaprint_feed failed".to_string()
+                ));
+            }
 
-        ctx.finish()
-            .map_err(|e| FingerprintError::ChromaprintError(e.to_string()))?;
+            // Step 5: Finish processing
+            let ret = chromaprint_finish(ctx);
+            if ret != 1 {
+                chromaprint_free(ctx);
+                return Err(FingerprintError::ChromaprintError(
+                    "chromaprint_finish failed".to_string()
+                ));
+            }
 
-        let fingerprint = ctx.fingerprint()
-            .map_err(|e| FingerprintError::ChromaprintError(e.to_string()))?;
+            // Step 6: Get fingerprint as compressed string
+            let mut fp_ptr: *mut i8 = std::ptr::null_mut();
+            let ret = chromaprint_get_fingerprint(ctx, &mut fp_ptr);
+            if ret != 1 || fp_ptr.is_null() {
+                chromaprint_free(ctx);
+                return Err(FingerprintError::ChromaprintError(
+                    "chromaprint_get_fingerprint failed".to_string()
+                ));
+            }
 
-        Ok(fingerprint)
+            // Step 7: Convert C string to Rust String
+            let c_str = std::ffi::CStr::from_ptr(fp_ptr);
+            let fingerprint = c_str.to_str()
+                .map_err(|e| {
+                    chromaprint_dealloc(fp_ptr as *mut std::ffi::c_void);
+                    chromaprint_free(ctx);
+                    FingerprintError::ChromaprintError(format!("UTF-8 conversion failed: {}", e))
+                })?
+                .to_string();
+
+            // Step 8: Free resources
+            chromaprint_dealloc(fp_ptr as *mut std::ffi::c_void);
+            chromaprint_free(ctx);
+
+            Ok(fingerprint)
+        }
     }
 }
 
 struct AudioData {
     samples: Vec<f32>,
     sample_rate: u32,
+}
+```
+
+---
+
+## Database Schema
+
+### AcoustID Fingerprint Cache
+
+**Purpose:** Cache fingerprint → MBID mappings to reduce API calls and improve re-import performance.
+
+**Expected Performance:** Reduces AcoustID API calls by ~60% on re-import of existing libraries.
+
+**Schema:**
+
+```sql
+CREATE TABLE IF NOT EXISTS acoustid_cache (
+    fingerprint_hash TEXT PRIMARY KEY,
+    mbid TEXT NOT NULL,
+    cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (length(fingerprint_hash) = 64)  -- SHA-256 hex
+);
+
+CREATE INDEX IF NOT EXISTS idx_acoustid_cache_cached_at
+    ON acoustid_cache(cached_at);
+```
+
+**Columns:**
+- `fingerprint_hash` (TEXT, PRIMARY KEY): SHA-256 hash of Chromaprint fingerprint string
+  - Rationale: Fingerprints are large (~1-5 KB Base64 strings), hashing saves storage space
+  - SHA-256 provides negligible collision probability
+  - Always lowercase hexadecimal (64 characters)
+- `mbid` (TEXT, NOT NULL): MusicBrainz Recording MBID (UUID format)
+- `cached_at` (TEXT, NOT NULL): Timestamp of cache entry creation (ISO 8601 format)
+  - Index supports future cache expiration feature
+
+**Implementation Location:** `wkmp-common/src/db/init.rs`
+
+**Pattern:**
+```rust
+async fn create_acoustid_cache_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(/* schema above */).execute(pool).await?;
+    sqlx::query(/* index above */).execute(pool).await?;
+    Ok(())
+}
+
+// Called from init_database()
+pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
+    // ... existing tables ...
+    create_acoustid_cache_table(&pool).await?;
+    // ... continue
 }
 ```
 
@@ -472,6 +610,24 @@ match acoustid_client.lookup(&fingerprint, duration).await? {
 
 ## Testing
 
+### Test Strategy
+
+**Automated Unit Tests:**
+- Mock Symphonia decoder for audio processing tests
+- Mock Chromaprint FFI for fingerprint generation tests
+- Test error handling with synthetic failures
+- Test caching logic (cache hit, cache miss, UPSERT)
+- Test fingerprint hashing (determinism, correct length)
+- Test MBID extraction (score filtering, best match selection)
+
+**Manual Integration Tests:**
+- Mark with `#[ignore]` attribute (not run in CI)
+- Require `WKMP_TEST_AUDIO_FILE` environment variable
+- Run with `cargo test --ignored -- test_fingerprint_real_file`
+- Document in test function docstrings
+
+**Rationale:** Avoids copyright issues with audio files in repository, keeps test suite fast, enables real-world validation when needed.
+
 ### Unit Tests
 
 ```rust
@@ -542,18 +698,32 @@ mod tests {
 }
 ```
 
-### Integration Tests
+### Integration Tests (Manual)
+
+**Note:** Integration tests with real audio files are manual-only to avoid repository bloat and copyright issues.
 
 ```rust
 #[tokio::test]
+#[ignore]  // Manual test only - requires WKMP_TEST_AUDIO_FILE env var
 async fn test_fingerprint_real_file() {
+    /// Test real audio fingerprinting
+    ///
+    /// **Usage:**
+    /// ```bash
+    /// export WKMP_TEST_AUDIO_FILE="/path/to/audio.mp3"
+    /// cargo test --ignored -- test_fingerprint_real_file
+    /// ```
+    let test_file = std::env::var("WKMP_TEST_AUDIO_FILE")
+        .expect("Set WKMP_TEST_AUDIO_FILE to run this test");
+
     let fingerprinter = Fingerprinter::new();
-    let fingerprint = fingerprinter.fingerprint_file(
-        Path::new("fixtures/sample.mp3")
-    ).unwrap();
+    let fingerprint = fingerprinter.fingerprint_file(Path::new(&test_file))
+        .expect("Fingerprinting failed");
 
     assert!(!fingerprint.is_empty());
-    assert!(fingerprint.starts_with("AQAD"));  // Chromaprint format
+    assert!(fingerprint.starts_with("AQAD"));  // Chromaprint Base64 format
+
+    println!("Fingerprint: {} ({} chars)", &fingerprint[..20], fingerprint.len());
 }
 ```
 
@@ -567,26 +737,47 @@ async fn test_fingerprint_real_file() {
 - Memory: ~50MB per concurrent fingerprint operation
 
 ### API Rate Limiting
-- AcoustID: 3 requests/second
-- Implementation: No explicit rate limiter needed (MusicBrainz 1/s is bottleneck)
+- AcoustID: 3 requests/second (enforced by AcoustID service)
+- Implementation: RateLimiter with 334ms minimum interval (prevents bursts during parallel processing)
+- Location: `wkmp-ai/src/services/acoustid_client.rs` lines 66-93
+- Rationale: While MusicBrainz (1 req/s) is slower overall, parallel fingerprinting could cause burst traffic to AcoustID without rate limiting
 - Caching: Reduces API calls by ~60% on re-import
 
 ---
 
 ## API Key Configuration
 
-**Environment Variable:** `ACOUSTID_API_KEY`
+**Primary Source:** Database settings table (database-first configuration per REQ-NF-030 through REQ-NF-037)
+- Key: `acoustid_api_key`
+- Loaded via: `wkmp_ai::db::settings::get_acoustid_api_key(&db)`
+- Automatically synced to TOML configuration for backup
 
-**Loading:**
+**Fallback:** Environment variable `ACOUSTID_API_KEY` (for testing/CI environments only)
+
+**Loading Pattern:**
 ```rust
-let api_key = std::env::var("ACOUSTID_API_KEY")
-    .expect("ACOUSTID_API_KEY environment variable not set");
+// Load from database (authoritative source)
+let api_key = crate::db::settings::get_acoustid_api_key(&db).await?;
+
+// Environment variable fallback for testing
+let api_key = api_key.or_else(|| std::env::var("ACOUSTID_API_KEY").ok());
 ```
+
+**API Key Type:** Use **Application API Key** (not User API Key)
+- Application API Key: For fingerprint lookups (what WKMP needs)
+- User API Key: For submitting new fingerprints to AcoustID database (not used by WKMP)
 
 **Registration:** https://acoustid.org/new-application
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-27
+**Document Version:** 1.1
+**Last Updated:** 2025-10-30
 **Status:** Implementation specification (ready for coding)
+
+**Version 1.1 Changes (2025-10-30):**
+- **CRITICAL:** Corrected Chromaprint integration code to use chromaprint-sys-next unsafe FFI (lines 206-280)
+- **HIGH:** Added Database Schema section with acoustid_cache table definition (lines 291-338)
+- **MEDIUM:** Corrected API Key Configuration to reflect database-first approach (lines 716-738)
+- **MEDIUM:** Corrected API Rate Limiting section to document existing RateLimiter implementation (lines 707-712)
+- **MEDIUM:** Updated Testing Strategy with manual integration test approach (lines 613-629, 701-728)

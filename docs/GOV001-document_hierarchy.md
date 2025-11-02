@@ -65,6 +65,8 @@ WKMP distinguishes between two major categories of documentation:
 
 ### Tier 0: Governance (Meta)
 
+**Document Registry:** See [REG001 Number Registry](../workflows/REG001_number_registry.md) for complete list, assignment history, and next available GOV number.
+
 #### GOV001-document_hierarchy.md
 **Purpose:** Defines the documentation framework and governance rules
 
@@ -91,6 +93,8 @@ WKMP distinguishes between two major categories of documentation:
 ---
 
 ### Tier R: Review & Change Control (Meta)
+
+**Document Registry:** See [REG001 Number Registry](../workflows/REG001_number_registry.md) for complete list, assignment history, and next available REV number.
 
 These documents track the evolution of WKMP documentation and identify gaps requiring change control review. They are meta-documentation alongside Tier 0 but serve a temporal/historical purpose rather than structural governance.
 
@@ -206,6 +210,8 @@ These documents track the evolution of WKMP documentation and identify gaps requ
 
 ### Tier 1: Authoritative Requirements
 
+**Document Registry:** See [REG001 Number Registry](../workflows/REG001_number_registry.md) for complete list, assignment history, and next available REQ number.
+
 #### REQ001-requirements.md
 **Purpose:** Defines WHAT WKMP must do from a product/user perspective
 
@@ -259,6 +265,8 @@ These documents track the evolution of WKMP documentation and identify gaps requ
 ---
 
 ### Tier 2: Design Specifications
+
+**Document Registry:** See [REG001 Number Registry](../workflows/REG001_number_registry.md) for complete list, assignment history, and next available SPEC number.
 
 These documents define HOW requirements are satisfied through design decisions.
 
@@ -548,9 +556,140 @@ See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-pa
 
 **Maintained By:** Audio engineer, technical lead
 
+#### SPEC018-crossfade_completion_coordination.md
+**Purpose:** Defines coordination between decoder and mixer for crossfade completion detection
+
+**Contains:**
+- Event-driven crossfade completion notification
+- Buffer chain completion events
+- Timing coordination between components
+
+**Update Policy:**
+- ✅ Update to support crossfade and audio architecture requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Audio engineer, technical lead
+
+#### SPEC019-sse_based_developer_ui.md
+**Purpose:** Defines Server-Sent Events (SSE) architecture for real-time UI updates
+
+**Contains:**
+- SSE event types and formats
+- Real-time progress updates
+- Developer UI requirements
+
+**Update Policy:**
+- ✅ Update to support UI and event system requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** UI lead, backend developers
+
+#### SPEC020-developer_ui_design.md
+**Purpose:** Defines developer-focused UI for Audio Ingest module
+
+**Contains:**
+- Web-based UI specifications
+- Real-time progress visualization
+- Import workflow user experience
+
+**Update Policy:**
+- ✅ Update to support Audio Ingest requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** UI lead, UX designer
+
+#### SPEC021-error_handling.md
+**Purpose:** Defines error handling patterns and recovery strategies
+
+**Contains:**
+- Error categorization
+- Recovery strategies
+- User-facing error messages
+
+**Update Policy:**
+- ✅ Update to support reliability requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Technical lead
+
+#### SPEC022-performance_targets.md
+**Purpose:** Defines performance goals and measurement criteria
+
+**Contains:**
+- Response time targets
+- Resource usage limits
+- Performance testing methodology
+
+**Update Policy:**
+- ✅ Update to support non-functional requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Technical lead, performance engineer
+
+#### SPEC023-timing_terminology.md
+**Purpose:** Defines timing terminology and conventions across WKMP
+
+**Contains:**
+- Timing measurement units
+- Terminology standardization
+- Cross-module timing contracts
+
+**Update Policy:**
+- ✅ Update to clarify timing concepts
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Audio engineer, technical lead
+
+#### SPEC024-audio_ingest_architecture.md
+**Purpose:** Defines architecture for Audio Ingest module (wkmp-ai)
+
+**Contains:**
+- Microservice architecture
+- Import workflow design
+- File scanning and metadata extraction
+- MusicBrainz integration
+
+**Update Policy:**
+- ✅ Update to support Audio Ingest requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Backend developers, audio engineer
+
+#### SPEC025-amplitude_analysis.md
+**Purpose:** Defines amplitude analysis for crossfade timing
+
+**Contains:**
+- Peak amplitude detection
+- Crossfade timing recommendations
+- Audio analysis algorithms
+
+**Update Policy:**
+- ✅ Update to support crossfade requirements
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Audio engineer
+
+#### SPEC026-api_key_configuration.md
+**Purpose:** Defines multi-tier API key configuration system
+
+**Contains:**
+- Database, ENV, TOML resolution priority
+- Automatic key migration and write-back
+- Security considerations
+- Web UI integration for settings
+
+**Update Policy:**
+- ✅ Update to support configuration requirements
+- ✅ Update when adding new API keys
+- ❌ Must not contradict requirements.md
+
+**Maintained By:** Backend developers, security lead
+
 ---
 
 ### Tier 3: Implementation Specifications
+
+**Document Registry:** See [REG001 Number Registry](../workflows/REG001_number_registry.md) for complete list, assignment history, and next available IMPL number.
 
 These documents translate design into concrete implementation details.
 
@@ -673,6 +812,8 @@ These documents translate design into concrete implementation details.
 ---
 
 ### Tier 4: Execution Plan
+
+**Document Registry:** See [REG001 Number Registry](../workflows/REG001_number_registry.md) for complete list, assignment history, and next available EXEC number.
 
 #### EXEC001-implementation_order.md
 **Purpose:** Defines WHEN features are built and in what sequence

@@ -22,7 +22,7 @@ Successfully implemented graceful degradation for configuration and startup acro
    - `CompiledDefaults` struct with platform-specific values
    - Linux: `~/Music`
    - macOS: `~/Music`
-   - Windows: `%USERPROFILE%\Music\wkmp`
+   - Windows: `%USERPROFILE%\Music`
 
 2. **Root Folder Resolution** [REQ-NF-035, ARCH-INIT-005]
    - `RootFolderResolver` struct with 4-tier priority system
@@ -244,7 +244,7 @@ INFO: Starting HTTP server on 0.0.0.0:5721
 **New Default:**
 - Linux: `~/Music`
 - macOS: `~/Music`
-- Windows: `%USERPROFILE%\Music\wkmp`
+- Windows: `%USERPROFILE%\Music`
 
 **Migration Path:**
 

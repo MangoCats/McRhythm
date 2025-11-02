@@ -52,6 +52,8 @@ Implement graceful degradation throughout WKMP's microservices architecture to e
 
 ### Architecture
 
+- **[ARCH-INIT-003]**: Tracing subscriber initialization (independent of database)
+- **[ARCH-INIT-004]**: Build identification logging (REQUIRED immediately after tracing init)
 - **[ARCH-INIT-005]**: Root folder location resolution algorithm
 - **[ARCH-INIT-010]**: Module startup sequence
 - **[ARCH-INIT-015]**: Missing configuration handling
@@ -440,6 +442,74 @@ pub enum InitError {
 - Test permission errors
 - Test database path construction
 
+#### 1.6. Implement TOML Configuration Writing
+
+**File:** `wkmp-common/src/config.rs` (existing function)
+
+**Requirements:** [REQ-NF-038]
+
+**Purpose:** Provide atomic TOML configuration file writing with automatic parent directory creation.
+
+**Implementation:**
+```rust
+/// Write TOML configuration to file atomically with directory auto-creation
+/// **[REQ-NF-038]** Creates parent directory if missing
+pub fn write_toml_config(config: &TomlConfig, target_path: &Path) -> Result<()> {
+    // **[REQ-NF-038]** Ensure parent directory exists before writing
+    if let Some(parent) = target_path.parent() {
+        if !parent.exists() {
+            log::info!("Creating config directory: {}", parent.display());
+            fs::create_dir_all(parent)
+                .map_err(|e| ConfigError::DirectoryCreationFailed(
+                    parent.to_path_buf(),
+                    e
+                ))?;
+
+            // Set secure permissions (Unix only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let perms = fs::Permissions::from_mode(0o700);
+                fs::set_permissions(parent, perms)?;
+            }
+        }
+    }
+
+    // Serialize to TOML
+    let toml_content = toml::to_string_pretty(config)?;
+
+    // Write to temp file, set permissions, then atomic rename
+    let temp_path = target_path.with_extension("toml.tmp");
+    fs::File::create(&temp_path)?.write_all(toml_content.as_bytes())?;
+
+    // Set file permissions (user-only read/write)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(0o600);
+        fs::set_permissions(&temp_path, perms)?;
+    }
+
+    // Atomic rename
+    fs::rename(temp_path, target_path)?;
+    Ok(())
+}
+```
+
+**Behavior:**
+- Creates `~/.config/wkmp/` (or Windows equivalent) if missing
+- Sets directory permissions to 0700 (user-only) on Unix systems
+- Sets file permissions to 0600 (user-only read/write) on Unix systems
+- Returns error if directory creation fails (caller decides how to handle)
+- All 5 modules benefit automatically (DRY principle)
+
+**Testing:**
+- Test directory creation when `~/.config/wkmp/` missing
+- Test directory already exists (no error)
+- Test permission errors (insufficient privileges)
+- Test atomic write behavior (temp file + rename)
+- Test Unix permissions set correctly (0700 directory, 0600 file)
+
 ---
 
 ### Phase 2: Database Initialization (wkmp-common)
@@ -665,10 +735,30 @@ pub fn open_or_create_database(db_path: &Path) -> SqliteResult<Connection> {
 use wkmp_common::config::{RootFolderResolver, RootFolderInitializer, CompiledDefaults};
 use wkmp_common::db::{open_or_create_database, DatabaseInitializer};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Step 0: Initialize tracing subscriber [ARCH-INIT-003]
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "wkmp_ap=debug,tower_http=debug,wkmp_common=info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
+        .init();
+
+    // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init
+    // REQUIRED for all modules - provides instant startup feedback before database delays
+    info!(
+        "Starting WKMP Audio Player (wkmp-ap) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
+
     // Step 1: Resolve root folder [ARCH-INIT-005]
     let resolver = RootFolderResolver::new("audio-player");
-    let root_folder = resolver.resolve()?;
+    let root_folder = resolver.resolve();
 
     // Step 2: Create root folder directory if missing [REQ-NF-036]
     let initializer = RootFolderInitializer::new(root_folder);
@@ -676,7 +766,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Step 3: Open or create database [REQ-NF-036]
     let db_path = initializer.database_path();
-    let conn = open_or_create_database(&db_path)?;
+    let conn = open_or_create_database(&db_path).await?;
 
     // Step 4: Initialize database tables [ARCH-INIT-010]
     let db_init = DatabaseInitializer::new(&conn);
@@ -720,6 +810,40 @@ fn init_audio_player_tables(conn: &Connection) -> SqliteResult<()> {
 - `playback_progress_interval_ms`: `5000`
 - `queue_refill_threshold_passages`: `2`
 - `queue_refill_threshold_seconds`: `900`
+
+**Build Identification Logging:**
+
+**[ARCH-INIT-004]** ALL modules MUST log build identification immediately after tracing initialization:
+
+```rust
+// REQUIRED pattern for all modules
+info!(
+    "Starting WKMP [Module Name] ([module-id]) v{} [{}] built {} ({})",
+    env!("CARGO_PKG_VERSION"),
+    env!("GIT_HASH"),
+    env!("BUILD_TIMESTAMP"),
+    env!("BUILD_PROFILE")
+);
+```
+
+**Rationale:**
+- Provides instant startup feedback to users (before database initialization delays)
+- Enables version/build identification in logs for debugging
+- Independent of database configuration (uses environment variables set during build)
+- Appears immediately after tracing is initialized, not deferred until configuration loading
+
+**Module-specific messages:**
+- wkmp-ap: `"Starting WKMP Audio Player (wkmp-ap) v..."`
+- wkmp-ui: `"Starting WKMP User Interface (wkmp-ui) v..."`
+- wkmp-pd: `"Starting WKMP Program Director (wkmp-pd) v..."`
+- wkmp-ai: `"Starting WKMP Audio Ingest (wkmp-ai) v..."`
+- wkmp-le: `"Starting WKMP Lyric Editor (wkmp-le) v..."`
+
+**Environment Variables (set by build.rs):**
+- `CARGO_PKG_VERSION` - Semantic version from Cargo.toml
+- `GIT_HASH` - Short git commit hash (8 characters)
+- `BUILD_TIMESTAMP` - ISO 8601 timestamp (YYYY-MM-DDTHH:MM:SS±HH:MM)
+- `BUILD_PROFILE` - "debug" or "release"
 
 #### 3.2. User Interface (wkmp-ui)
 
