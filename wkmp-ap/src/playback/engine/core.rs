@@ -247,14 +247,29 @@ impl PlaybackEngine {
         // **[DBD-PARAM-080]** Configure buffer headroom from database
         buffer_manager.set_buffer_headroom(buffer_headroom).await;
 
+        // Load queue from database (before DecoderWorker::new since it needs queue reference)
+        let queue_start = Instant::now();
+        let queue_manager = QueueManager::load_from_db(&db_pool).await?;
+        let queue_elapsed = queue_start.elapsed();
+        info!(
+            "Queue loaded in {:.2}ms: {} entries",
+            queue_elapsed.as_secs_f64() * 1000.0,
+            queue_manager.len()
+        );
+
+        // Create queue Arc (needed for DecoderWorker and PlaybackEngine)
+        let queue = Arc::new(RwLock::new(queue_manager));
+
         // Create decoder worker
         // **[Phase 7]** Pass shared_state and db_pool for error handling
         // **[DBD-PARAM-020]** Pass working_sample_rate for device-matched resampling
+        // **Query-based prioritization:** Pass queue for play_order queries
         let decoder_worker = Arc::new(DecoderWorker::new(
             Arc::clone(&buffer_manager),
             Arc::clone(&state),
             db_pool.clone(),
             Arc::clone(&working_sample_rate),
+            Arc::clone(&queue),
         ));
 
         // **[REV002]** Create position event channel
@@ -266,16 +281,6 @@ impl PlaybackEngine {
         // **[DEBT-003]** Master volume loaded from settings (default: 0.5)
         let mixer = Mixer::new(initial_volume);
         let mixer = Arc::new(RwLock::new(mixer));
-
-        // Load queue from database
-        let queue_start = Instant::now();
-        let queue_manager = QueueManager::load_from_db(&db_pool).await?;
-        let queue_elapsed = queue_start.elapsed();
-        info!(
-            "Queue loaded in {:.2}ms: {} entries",
-            queue_elapsed.as_secs_f64() * 1000.0,
-            queue_manager.len()
-        );
 
         // **[DBD-LIFECYCLE-030]** Initialize available chains pool with all chain indices
         // Implements lowest-numbered allocation strategy (0, 1, 2, ...)
@@ -297,7 +302,7 @@ impl PlaybackEngine {
         Ok(Self {
             db_pool,
             state,
-            queue: Arc::new(RwLock::new(queue_manager)),
+            queue,
             buffer_manager,
             decoder_worker,
             mixer,
