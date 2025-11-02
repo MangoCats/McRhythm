@@ -67,6 +67,11 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_temp_file_songs_table(&pool).await?;
     create_temp_file_albums_table(&pool).await?;
 
+    // Run schema migrations [ARCH-DB-MIG-010]
+    // This must run AFTER all CREATE TABLE IF NOT EXISTS statements
+    // to handle schema changes in existing databases
+    crate::db::migrations::run_migrations(&pool).await?;
+
     // Initialize default settings [ARCH-INIT-020]
     init_default_settings(&pool).await?;
 

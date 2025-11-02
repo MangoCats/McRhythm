@@ -822,6 +822,7 @@ impl WorkflowOrchestrator {
         // Final progress update
         session.update_progress(processed_count, files.len(), "Fingerprinting completed".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
 
         Ok(session)
     }
