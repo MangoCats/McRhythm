@@ -68,6 +68,7 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| _database_review_analysis.md | Completed - wkmp-dr implemented | 2025-11-02 | `git show archive:wip/_database_review_analysis.md` |
 | spec017_compliance_review_analysis_results.md | Completed - duplicate of review | 2025-11-02 | `git show archive:wip/spec017_compliance_review_analysis_results.md` |
 | spec017_compliance_review.md | Completed - remediation implemented | 2025-11-02 | `git show archive:wip/spec017_compliance_review.md` |
 
