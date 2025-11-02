@@ -343,6 +343,92 @@ async function loadData() {
     }
 }
 
+// REQ-F-001: SPEC017 tick-based timing constants and conversion
+// Per SPEC017 SRC-LAYER-011: Developer UI displays both ticks AND seconds
+const TICK_RATE = 28224000;  // Hz, LCM of 11 sample rates
+const TIMING_COLUMNS = [
+    'start_time_ticks',
+    'end_time_ticks',
+    'fade_in_start_ticks',
+    'fade_out_start_ticks',
+    'lead_in_start_ticks',
+    'lead_out_start_ticks',
+    'duration_ticks'
+];
+
+// SPEC024: Human-readable time display - cooldown columns (seconds in database)
+const COOLDOWN_COLUMNS = {
+    // Songs: 7-14 day cooldowns (604800-1209600 seconds) → Extended format
+    'min_cooldown': 1209600,      // Typical max: 14 days
+    'ramping_cooldown': 1209600,  // Typical max: 14 days
+};
+
+/**
+ * Convert ticks to seconds with 3 decimal places (millisecond precision).
+ * @param {number} ticks - Tick value (i64 from database)
+ * @returns {string|null} Seconds formatted as "X.XXX" or null if input is null
+ */
+function ticksToSeconds(ticks) {
+    if (ticks === null) return null;
+    const seconds = ticks / TICK_RATE;
+    return seconds.toFixed(3);
+}
+
+/**
+ * Format seconds as human-readable time per SPEC024.
+ * @param {number} seconds - Duration in seconds (INTEGER from database)
+ * @param {number} typicalMax - Typical maximum value for this field (seconds)
+ * @returns {string} Formatted time string
+ */
+function formatHumanTime(seconds, typicalMax) {
+    if (seconds === null || seconds === undefined) return 'null';
+
+    // [SPEC024-FMT-010] Select format by typical maximum
+    if (typicalMax < 100) {
+        // Short format: X.XXs (< 100 seconds)
+        return `${seconds.toFixed(2)}s`;
+    } else if (typicalMax < 6000) {  // 100 minutes
+        // Medium format: M:SS.Xs (100s to 100m)
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes}:${secs.toFixed(1).padStart(4, '0')}s`;
+    } else if (typicalMax < 90000) {  // 25 hours
+        // Long format: H:MM:SS (100m to 25h)
+        const hours = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+        // Extended format: Dual sub-format based on actual value
+        // [SPEC024-FMT-060] < 25h actual value: H:MM:SS, >= 25h: X.XXd
+        if (seconds < 90000) {  // < 25 hours
+            // Sub-format A: H:MM:SS (< 25 hours actual value)
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            // Sub-format B: X.XXd (>= 25 hours actual value)
+            const days = seconds / 86400.0;
+            // Round to 2 decimal places first
+            const rounded2dp = Math.round(days * 100) / 100;
+            const rounded1dp = Math.round(days * 10) / 10;
+
+            // Format with up to 2 decimal places, removing trailing zeros
+            if (Math.abs(rounded2dp - Math.floor(rounded2dp)) < 0.001) {
+                // Whole number
+                return `${Math.floor(rounded2dp)}d`;
+            } else if (Math.abs(rounded2dp * 10 - Math.floor(rounded2dp * 10)) < 0.001) {
+                // One decimal place
+                return `${rounded1dp.toFixed(1)}d`;
+            } else {
+                // Two decimal places
+                return `${rounded2dp.toFixed(2)}d`;
+            }
+        }
+    }
+}
+
 function renderTable(data) {
     const container = document.getElementById('tableContainer');
 
@@ -359,6 +445,7 @@ function renderTable(data) {
 
     // Track de-referenced columns for styling
     const dereferencedCols = new Set(data.dereferenced_columns || []);
+    console.log('De-referenced columns:', Array.from(dereferencedCols));
 
     // Render table
     let html = '<table><thead><tr>';
@@ -372,10 +459,37 @@ function renderTable(data) {
     data.rows.forEach(row => {
         html += '<tr>';
         row.forEach((cell, index) => {
-            const value = cell === null ? '<em>null</em>' : String(cell);
-            const isDereferenced = dereferencedCols.has(data.columns[index]);
+            const colName = data.columns[index];
+            const isDereferenced = dereferencedCols.has(colName);
             const className = isDereferenced ? ' class="dereferenced"' : '';
-            html += `<td${className}>${value}</td>`;
+
+            // REQ-F-001: Display timing columns in dual format: {ticks} ({seconds}s)
+            // Per SPEC017 SRC-LAYER-011: Developer UI shows both ticks AND seconds
+            if (TIMING_COLUMNS.includes(colName)) {
+                if (cell === null) {
+                    html += `<td${className}><em>null</em></td>`;
+                } else {
+                    const ticks = parseInt(cell);
+                    const seconds = ticksToSeconds(ticks);
+                    html += `<td${className}>${ticks} (${seconds}s)</td>`;
+                }
+            }
+            // SPEC024: Display cooldown columns in human-readable format
+            else if (colName in COOLDOWN_COLUMNS) {
+                if (cell === null) {
+                    html += `<td${className}><em>null</em></td>`;
+                } else {
+                    const seconds = parseInt(cell);
+                    const typicalMax = COOLDOWN_COLUMNS[colName];
+                    const humanTime = formatHumanTime(seconds, typicalMax);
+                    html += `<td${className}>${humanTime}</td>`;
+                }
+            }
+            else {
+                // Non-timing columns: original behavior
+                const value = cell === null ? '<em>null</em>' : String(cell);
+                html += `<td${className}>${value}</td>`;
+            }
         });
         html += '</tr>';
     });

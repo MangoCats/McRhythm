@@ -120,11 +120,24 @@ pub struct QueueEntryInfo {
     file_path: String,
 }
 
+/// REQ-F-002: API timing unit documentation per SPEC017 API Layer Pragmatic Deviation
+///
+/// Response containing current playback position information.
 #[derive(Debug, Serialize)]
 pub struct PositionResponse {
+    /// UUID of currently playing passage, if any
     passage_id: Option<Uuid>,
+
+    /// Current playback position in milliseconds since passage start.
+    /// Unit: milliseconds (ms) - converted from internal tick representation.
+    /// Per SPEC017 API Layer Pragmatic Deviation: HTTP APIs use ms/seconds for ergonomics.
     position_ms: u64,
+
+    /// Total duration of current passage in milliseconds.
+    /// Unit: milliseconds (ms) - converted from internal tick representation.
     duration_ms: u64,
+
+    /// Playback state: "playing", "paused", "stopped"
     state: String,
 }
 
@@ -160,8 +173,14 @@ pub struct DeviceResponse {
     device_name: String,
 }
 
+/// REQ-F-002: API timing unit documentation per SPEC017 API Layer Pragmatic Deviation
+///
+/// Request to seek to a specific position within the currently playing passage.
 #[derive(Debug, Deserialize)]
 pub struct SeekRequest {
+    /// Target playback position in milliseconds from passage start.
+    /// Unit: milliseconds (ms) - will be converted to internal tick representation.
+    /// Per SPEC017 API Layer Pragmatic Deviation: HTTP APIs use ms/seconds for ergonomics.
     position_ms: u64,
 }
 

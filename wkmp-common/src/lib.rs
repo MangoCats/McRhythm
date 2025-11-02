@@ -15,6 +15,7 @@ pub mod db;
 pub mod error;
 pub mod events;
 pub mod fade_curves;
+pub mod human_time;
 pub mod time;
 pub mod timing;
 pub mod uuid_utils;

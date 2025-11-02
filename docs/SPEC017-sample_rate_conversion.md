@@ -211,6 +211,42 @@ max_years ≈ 10.36 years
 
 **[SRC-API-050]** Database storage is identical to API representation (both use ticks)
 
+### API Layer Pragmatic Deviation
+
+**[SRC-API-060]** REQ-F-002: WKMP HTTP APIs pragmatically deviate from SRC-API-010 by using **milliseconds and seconds** instead of raw ticks for ergonomic reasons.
+
+**Rationale:** External API consumers (web UI, third-party clients) benefit from familiar time units (ms/seconds) over tick-based representation. This improves API usability without sacrificing internal precision.
+
+**Requirements:**
+- All API timing fields MUST include unit in field name (`_ms`, `_seconds`)
+- All API timing fields MUST have doc comments explicitly specifying unit
+- Conversions to/from ticks MUST use `wkmp_common::timing` functions
+- Error messages MUST reference correct units in their text
+
+**Affected APIs:**
+- wkmp-ap playback position: milliseconds (u64) - converted from/to internal ticks
+- wkmp-ai amplitude analysis: seconds (f64) - converted from/to internal ticks
+
+**Internal Consistency:** Database and core engine remain tick-based per SRC-DB-011. API layer performs conversions at HTTP boundary using `wkmp_common::timing` module.
+
+**Example (wkmp-ap):**
+```rust
+pub struct PositionResponse {
+    /// Current playback position in milliseconds since passage start.
+    /// Unit: milliseconds (ms) - converted from internal tick representation.
+    pub position_ms: u64,
+}
+```
+
+**Example (wkmp-ai):**
+```rust
+pub struct AmplitudeAnalysisRequest {
+    /// Start time for analysis window in seconds.
+    /// Unit: seconds (f64) - will be converted to ticks internally.
+    pub start_time_seconds: f64,
+}
+```
+
 ## Working Sample Rate
 
 **[SRC-WSR-010]** WKMP defines a **working_sample_rate** for internal mixing operations ([SPEC016 DBD-PARAM-020](SPEC016-decoder_buffer_design.md#operating-parameters), default: 44,100 Hz).

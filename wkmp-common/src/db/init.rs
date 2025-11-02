@@ -292,17 +292,20 @@ async fn create_module_config_table(pool: &SqlitePool) -> Result<()> {
 }
 
 async fn create_files_table(pool: &SqlitePool) -> Result<()> {
+    // REQ-F-003: File duration migration to ticks (BREAKING CHANGE)
+    // Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
+    // Per SPEC017: All passage timing uses tick-based representation for consistency
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS files (
             guid TEXT PRIMARY KEY,
             path TEXT NOT NULL UNIQUE,
             hash TEXT NOT NULL,
-            duration REAL,
+            duration_ticks INTEGER,
             modification_time TIMESTAMP NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (duration IS NULL OR duration > 0)
+            CHECK (duration_ticks IS NULL OR duration_ticks > 0)
         )
         "#,
     )

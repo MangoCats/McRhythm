@@ -127,13 +127,18 @@ Audio files discovered by the library scanner.
 | guid | TEXT | PRIMARY KEY | Unique file identifier (UUID) |
 | path | TEXT | NOT NULL UNIQUE | File path relative to root folder |
 | hash | TEXT | NOT NULL | SHA-256 hash of file contents |
-| duration | REAL | | File duration in seconds (NULL = not yet scanned) |
+| duration_ticks | INTEGER | | REQ-F-003: File duration in ticks per SPEC017 (NULL = not yet scanned or unknown) |
 | modification_time | TIMESTAMP | NOT NULL | File last modified timestamp |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
 **Constraints:**
-- CHECK: `duration IS NULL OR duration > 0`
+- CHECK: `duration_ticks IS NULL OR duration_ticks > 0`
+
+**Breaking Change (REQ-F-003):**
+- Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
+- Consistency with passage timing representation per SPEC017
+- Existing databases must be rebuilt (no automated migration)
 
 **Indexes:**
 - `idx_files_path` on `path`
@@ -258,8 +263,8 @@ Songs are unique combinations of a recording and a weighted set of artists. Each
 | related_songs | TEXT | | JSON array of related song GUIDs, ordered from most to least closely related |
 | lyrics | TEXT | | Lyrics for this recording (plain UTF-8 text) |
 | base_probability | REAL | NOT NULL DEFAULT 1.0 | Base selection probability (0.0-1000.0) |
-| min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown seconds (default 7 days) |
-| ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown seconds (default 14 days) |
+| min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown in seconds (default 7 days). **SPEC024:** Display as `7d-0:00:00` in wkmp-dr |
+| ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown in seconds (default 14 days). **SPEC024:** Display as `14d-0:00:00` in wkmp-dr |
 | last_played_at | TIMESTAMP | | Last time any passage with this song was played |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |

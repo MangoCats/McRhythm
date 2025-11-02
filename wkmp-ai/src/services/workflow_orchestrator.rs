@@ -342,7 +342,8 @@ impl WorkflowOrchestrator {
         let mut skipped_count = 0;
         for file in &files {
             // **[OPTIMIZATION]** Skip extraction if file already has metadata (duration indicates success)
-            if file.duration.is_some() {
+            // REQ-F-003: Changed from file.duration to file.duration_ticks
+            if file.duration_ticks.is_some() {
                 skipped_count += 1;
                 tracing::debug!(
                     session_id = %session.session_id,
@@ -384,8 +385,10 @@ impl WorkflowOrchestrator {
                     );
 
                     // Update file duration if available
-                    if let Some(duration) = metadata.duration_seconds {
-                        if let Err(e) = crate::db::files::update_file_duration(&self.db, file.guid, duration).await {
+                    // REQ-F-003: Convert seconds to ticks before storing
+                    if let Some(duration_seconds) = metadata.duration_seconds {
+                        let duration_ticks = wkmp_common::timing::seconds_to_ticks(duration_seconds);
+                        if let Err(e) = crate::db::files::update_file_duration(&self.db, file.guid, duration_ticks).await {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
@@ -535,7 +538,12 @@ impl WorkflowOrchestrator {
                 }
             };
 
-            let duration = file.duration.unwrap_or(120.0) as u64;
+            // REQ-F-003: Convert from ticks to seconds for AcoustID API
+            let duration = if let Some(ticks) = file.duration_ticks {
+                wkmp_common::timing::ticks_to_seconds(ticks) as u64
+            } else {
+                120  // Default 120 seconds if duration unknown
+            };
 
             // Query AcoustID if client available
             if let Some(ref acoustid) = self.acoustid_client {
@@ -554,7 +562,8 @@ impl WorkflowOrchestrator {
 
                                     // Query MusicBrainz for detailed metadata
                                     if let Some(ref mb) = self.mb_client {
-                                        if let Ok(mb_recording) = mb.lookup_recording(&recording.id).await {
+                                        match mb.lookup_recording(&recording.id).await {
+                                            Ok(mb_recording) => {
                                             // **[REQ-AIA-UI-003]** Increment MusicBrainz success counter
                                             if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
                                                 if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "MusicBrainz") {
@@ -763,14 +772,16 @@ impl WorkflowOrchestrator {
                                                 recording_mbid = %recording.id,
                                                 "Successfully fingerprinted and linked to MusicBrainz"
                                             );
-                                        } else {
-                                            // **[REQ-AIA-UI-003]** Increment MusicBrainz failure counter
-                                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "MusicBrainz") {
-                                                    subtask.failure_count += 1;
-                                                }
                                             }
-                                            tracing::warn!("MusicBrainz lookup failed for {}", recording.id);
+                                            Err(e) => {
+                                                // Log MusicBrainz lookup error
+                                                tracing::warn!(
+                                                    recording_mbid = %recording.id,
+                                                    file = %file.path,
+                                                    error = ?e,
+                                                    "MusicBrainz lookup failed"
+                                                );
+                                            }
                                         }
                                     }
                                 } else {
@@ -864,7 +875,12 @@ impl WorkflowOrchestrator {
             // 3. Use detected lead-in/lead-out timing
 
             // Get file duration (default to 180 seconds if not set)
-            let duration_sec = file.duration.unwrap_or(180.0);
+            // REQ-F-003: Convert from ticks to seconds for passage creation
+            let duration_sec = if let Some(ticks) = file.duration_ticks {
+                wkmp_common::timing::ticks_to_seconds(ticks)
+            } else {
+                180.0  // Default 180 seconds if duration unknown
+            };
 
             // Create passage spanning entire file
             let passage = crate::db::passages::Passage::new(
