@@ -25,6 +25,7 @@
 //! ```rust
 //! use wkmp_common::config::{RootFolderResolver, RootFolderInitializer};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Step 1: Resolve root folder (4-tier priority)
 //! let resolver = RootFolderResolver::new("module-name");
 //! let root_folder = resolver.resolve();
@@ -35,10 +36,14 @@
 //!
 //! // Step 3: Get database path
 //! let db_path = initializer.database_path();  // root_folder/wkmp.db
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::{Error, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
@@ -52,7 +57,7 @@ pub struct ModuleConfig {
 }
 
 /// TOML configuration file structure
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TomlConfig {
     /// Root folder path (optional - will use default if missing)
     pub root_folder: Option<PathBuf>,
@@ -63,10 +68,14 @@ pub struct TomlConfig {
 
     /// Static assets path (optional)
     pub static_assets: Option<PathBuf>,
+
+    /// AcoustID API key for audio fingerprinting (optional)
+    /// Used by: wkmp-ai (Audio Ingest) only
+    pub acoustid_api_key: Option<String>,
 }
 
 /// Logging configuration section
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct LoggingConfig {
     /// Log level (default: "info")
     #[serde(default = "default_log_level")]
@@ -393,4 +402,126 @@ pub async fn load_module_config(
         port: record.2 as u16,
         enabled: record.3 != 0,
     })
+}
+
+// ============================================================================
+// TOML Atomic Write Utilities
+// ============================================================================
+
+/// Write TOML config to file atomically with permissions
+///
+/// **Traceability:** [APIK-ATOMIC-010], [APIK-SEC-010]
+///
+/// Atomic write steps:
+/// 1. Serialize config to TOML string
+/// 2. Write to temporary file (.toml.tmp)
+/// 3. Set Unix permissions 0600 (if Unix)
+/// 4. Rename temp file to target (atomic)
+///
+/// **Returns:** Ok(()) on success, Err on any failure
+pub fn write_toml_config(
+    config: &TomlConfig,
+    target_path: &Path,
+) -> Result<()> {
+    // Step 0: Ensure parent directory exists **[REQ-NF-038]**
+    if let Some(parent) = target_path.parent() {
+        if !parent.exists() {
+            tracing::info!("Creating config directory: {}", parent.display());
+            fs::create_dir_all(parent)
+                .map_err(|e| Error::Config(format!("Directory creation failed: {}", e)))?;
+
+            // Set secure permissions on directory (Unix only: 0700 user-only)
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let perms = fs::Permissions::from_mode(0o700);
+                fs::set_permissions(parent, perms)
+                    .map_err(|e| Error::Config(format!("Directory permissions failed: {}", e)))?;
+            }
+        }
+    }
+
+    // Step 1: Serialize to TOML
+    let toml_string = toml::to_string_pretty(config)
+        .map_err(|e| Error::Config(format!("TOML serialization failed: {}", e)))?;
+
+    // Step 2: Create temp file
+    let temp_path = target_path.with_extension("toml.tmp");
+    let mut temp_file = fs::File::create(&temp_path)
+        .map_err(|e| Error::Config(format!("Temp file create failed: {}", e)))?;
+
+    temp_file.write_all(toml_string.as_bytes())
+        .map_err(|e| Error::Config(format!("Temp file write failed: {}", e)))?;
+
+    // Ensure data is flushed to disk before rename
+    temp_file.sync_all()
+        .map_err(|e| Error::Config(format!("Temp file sync failed: {}", e)))?;
+
+    drop(temp_file); // Close file before setting permissions
+
+    // Step 3: Set permissions (Unix only)
+    set_unix_permissions_0600(&temp_path)?;
+
+    // Step 4: Atomic rename
+    fs::rename(&temp_path, target_path)
+        .map_err(|e| Error::Config(format!("Atomic rename failed: {}", e)))?;
+
+    Ok(())
+}
+
+/// Set Unix file permissions to 0600 (rw-------)
+///
+/// **Traceability:** [APIK-SEC-010], [APIK-SEC-020]
+///
+/// **Unix:** Sets permissions to 0600 (owner read/write only)
+/// **Windows:** No-op (returns Ok, relies on NTFS default permissions)
+#[cfg(unix)]
+pub fn set_unix_permissions_0600(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut perms = fs::metadata(path)
+        .map_err(|e| Error::Config(format!("Get metadata failed: {}", e)))?
+        .permissions();
+
+    perms.set_mode(0o600);
+
+    fs::set_permissions(path, perms)
+        .map_err(|e| Error::Config(format!("Set permissions failed: {}", e)))?;
+
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    // Windows: No-op (best-effort approach)
+    // NTFS default permissions (user-only access) are acceptable
+    Ok(())
+}
+
+/// Check if TOML file has loose permissions (Unix only)
+///
+/// **Traceability:** [APIK-SEC-040]
+///
+/// **Returns:** true if permissions are looser than 0600 (world/group readable)
+#[cfg(unix)]
+pub fn check_toml_permissions_loose(path: &Path) -> Result<bool> {
+    use std::os::unix::fs::PermissionsExt;
+
+    if !path.exists() {
+        return Ok(false); // File doesn't exist, no permission issue
+    }
+
+    let metadata = fs::metadata(path)
+        .map_err(|e| Error::Config(format!("Get metadata failed: {}", e)))?;
+
+    let mode = metadata.permissions().mode();
+
+    // Loose if group or others have any access (bits 077)
+    Ok((mode & 0o077) != 0)
+}
+
+#[cfg(not(unix))]
+pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    // Windows: Cannot reliably check NTFS ACLs, return false
+    Ok(false)
 }

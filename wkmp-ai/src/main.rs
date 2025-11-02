@@ -11,7 +11,7 @@
 //! **[AIA-MS-010]** Integrates with wkmp-ui via HTTP REST + SSE
 
 use anyhow::Result;
-use tracing::{info, Level};
+use tracing::{info, warn, error, Level};
 use tracing_subscriber::FmtSubscriber;
 use wkmp_common::events::EventBus;
 
@@ -29,6 +29,7 @@ async fn main() -> Result<()> {
     info!("Starting wkmp-ai (Audio Ingest) microservice");
     info!("Port: 5723");
     info!("Version: {}", env!("CARGO_PKG_VERSION"));
+    info!("Built: {}", env!("BUILD_TIMESTAMP"));
 
     // Step 1: Resolve root folder [ARCH-INIT-005, REQ-NF-035]
     let resolver = wkmp_common::config::RootFolderResolver::new("audio-ingest");
@@ -44,8 +45,80 @@ async fn main() -> Result<()> {
     info!("Database: {}", db_path.display());
 
     // Initialize database connection pool **[AIA-DB-010]**
-    let db_pool = wkmp_ai::db::init_database_pool(&db_path).await?;
+    // Uses common database initialization to ensure complete schema (REQ-NF-037)
+    let db_pool = wkmp_common::db::init::init_database(&db_path).await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize database: {}", e))?;
     info!("Database connection established");
+
+    // Step 4: Determine TOML config path
+    let toml_path = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map(|home| std::path::PathBuf::from(home).join(".config").join("wkmp").join("wkmp-ai.toml"))
+        .unwrap_or_else(|_| std::path::PathBuf::from("wkmp-ai.toml"));
+
+    let toml_config = if toml_path.exists() {
+        let content = std::fs::read_to_string(&toml_path)
+            .map_err(|e| anyhow::anyhow!("Failed to read TOML config: {}", e))?;
+        toml::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?
+    } else {
+        wkmp_common::config::TomlConfig {
+            root_folder: None,
+            logging: wkmp_common::config::LoggingConfig::default(),
+            static_assets: None,
+            acoustid_api_key: None,
+        }
+    };
+
+    // Step 5: Resolve AcoustID API key with auto-migration **[APIK-RES-010]**
+    let _api_key = match wkmp_ai::config::resolve_acoustid_api_key(&db_pool, &toml_config).await {
+        Ok(key) => {
+            // Check if migration needed (ENV or TOML source, database empty)
+            let db_key = wkmp_ai::db::settings::get_acoustid_api_key(&db_pool).await?;
+            if db_key.is_none() {
+                // Auto-migrate to database **[APIK-MIG-010]**
+                let source = if std::env::var("WKMP_ACOUSTID_API_KEY").is_ok() {
+                    "environment"
+                } else {
+                    "TOML"
+                };
+                wkmp_ai::config::migrate_key_to_database(
+                    key.clone(),
+                    source,
+                    &db_pool,
+                    &toml_path,
+                )
+                .await?;
+            }
+            key
+        }
+        Err(e) => {
+            error!("Failed to resolve AcoustID API key: {}", e);
+            warn!("AcoustID fingerprinting will not be available");
+            warn!("Import workflow will be limited to file metadata only");
+            // Don't fail startup - allow wkmp-ai to run in degraded mode
+            String::new()
+        }
+    };
+
+    // Check TOML permissions (security warning) **[APIK-SEC-040]**
+    if toml_path.exists() {
+        match wkmp_common::config::check_toml_permissions_loose(&toml_path) {
+            Ok(true) => {
+                warn!(
+                    "TOML config file has loose permissions: {}",
+                    toml_path.display()
+                );
+                warn!("Recommend: chmod 600 {}", toml_path.display());
+            }
+            Ok(false) => {
+                // Permissions OK
+            }
+            Err(e) => {
+                warn!("Failed to check TOML permissions: {}", e);
+            }
+        }
+    }
 
     // **[AIA-INIT-010]** Cleanup stale import sessions from previous runs
     // Any session not in terminal state is from a previous run and will never complete

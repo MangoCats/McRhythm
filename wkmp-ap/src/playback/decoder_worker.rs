@@ -18,6 +18,7 @@ use crate::db::passages::PassageWithTiming;
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::pipeline::{ChunkProcessResult, DecoderChain};
+use crate::playback::queue_manager::QueueManager;
 use crate::playback::types::DecodePriority;
 use crate::state::SharedState;
 use sqlx::{Pool, Sqlite};
@@ -25,7 +26,7 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use tokio::time::{sleep, Duration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -103,6 +104,14 @@ pub struct DecoderWorker {
     /// **[REQ-AP-ERR-011]** Update decode_status on unsupported codec
     db_pool: Pool<Sqlite>,
 
+    /// Working sample rate (Hz) - matches audio device native rate
+    /// **[DBD-PARAM-020]** Passed to decoder chains for resampling target
+    working_sample_rate: Arc<std::sync::RwLock<u32>>,
+
+    /// Queue manager reference for priority queries
+    /// **Query-based prioritization:** Used to get current play_order for active chains
+    queue: Arc<RwLock<QueueManager>>,
+
     /// Worker state (protected by async mutex)
     state: Arc<Mutex<WorkerState>>,
 
@@ -114,10 +123,14 @@ impl DecoderWorker {
     /// Create a new decoder worker
     ///
     /// **[Phase 7]** Now requires shared_state and db_pool for error handling.
+    /// **[DBD-PARAM-020]** Now requires working_sample_rate for device-matched resampling.
+    /// **Query-based prioritization:** Now requires queue for play_order queries.
     pub fn new(
         buffer_manager: Arc<BufferManager>,
         shared_state: Arc<SharedState>,
         db_pool: Pool<Sqlite>,
+        working_sample_rate: Arc<std::sync::RwLock<u32>>,
+        queue: Arc<RwLock<QueueManager>>,
     ) -> Self {
         let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -133,6 +146,8 @@ impl DecoderWorker {
             buffer_manager,
             shared_state,
             db_pool,
+            working_sample_rate,
+            queue,
             state: Arc::new(Mutex::new(state)),
             stop_flag,
         }
@@ -313,11 +328,14 @@ impl DecoderWorker {
             state.next_chain_index = (state.next_chain_index + 1) % 12;
 
             // Create decoder chain
+            // **[DBD-PARAM-020]** Read working_sample_rate (set by audio thread after device init)
+            let working_sample_rate = *self.working_sample_rate.read().unwrap();
             match DecoderChain::new(
                 request.queue_entry_id,
                 chain_index,
                 &request.passage,
                 &self.buffer_manager,
+                working_sample_rate,
             )
             .await
             {
@@ -328,6 +346,13 @@ impl DecoderWorker {
                         request.queue_entry_id,
                         request.passage.file_path.display()
                     );
+
+                    // **[DEBT-007]** Set source sample rate for telemetry
+                    let source_rate = chain.source_sample_rate();
+                    if let Err(e) = self.buffer_manager.set_source_sample_rate(request.queue_entry_id, source_rate).await {
+                        warn!("[Chain {}] Failed to set source sample rate: {}", chain_index, e);
+                    }
+
                     state.active_chains.insert(request.queue_entry_id, chain);
                 }
                 Err(e) => {
@@ -342,6 +367,7 @@ impl DecoderWorker {
 
     /// Process one chunk from the highest priority active chain
     ///
+    /// **Query-based prioritization:** Queries QueueManager to select chain with lowest play_order.
     /// Returns Some(true) if work was done, Some(false) if no active chains, None on error
     async fn process_one_chunk(&self) -> Result<Option<bool>> {
         // Acquire lock to extract chain
@@ -353,18 +379,14 @@ impl DecoderWorker {
             }
 
             // **[DBD-DEC-040]** Serial decoding: process one chain at a time
-            // For now, just pick the first active chain (could be priority-based in future)
-            let queue_entry_id = *state
-                .active_chains
-                .keys()
-                .next()
-                .expect("checked non-empty");
+            // **Query-based prioritization:** Select chain with lowest play_order
+            let queue_entry_id = self.select_highest_priority_chain(&state).await;
 
             // Remove chain temporarily for processing
             let chain = state
                 .active_chains
                 .remove(&queue_entry_id)
-                .expect("just checked exists");
+                .expect("selected chain exists");
 
             (queue_entry_id, chain)
             // Lock automatically dropped here when state goes out of scope
@@ -465,6 +487,75 @@ impl DecoderWorker {
                 Ok(Some(true))
             }
         }
+    }
+
+    /// Select the highest priority chain (lowest play_order) from active chains
+    ///
+    /// **Query-based prioritization:** Queries QueueManager for current play_order.
+    /// Handles edge cases:
+    /// - Passage removed from queue → use i64::MAX (lowest priority)
+    /// - Multiple chains with same priority → arbitrary selection (HashMap iteration order)
+    ///
+    /// # Arguments
+    /// * `state` - Worker state containing active chains
+    ///
+    /// # Returns
+    /// UUID of the chain to process next
+    async fn select_highest_priority_chain(&self, state: &WorkerState) -> Uuid {
+        let queue = self.queue.read().await;
+
+        let mut best_id = None;
+        let mut best_priority = i64::MAX;
+
+        for queue_entry_id in state.active_chains.keys() {
+            // Query current play_order from queue manager
+            let play_order = Self::get_play_order_for_entry(&queue, *queue_entry_id);
+
+            if play_order < best_priority {
+                best_priority = play_order;
+                best_id = Some(*queue_entry_id);
+            }
+        }
+
+        best_id.expect("active_chains is non-empty")
+    }
+
+    /// Get play_order for a queue entry
+    ///
+    /// **Helper for query-based prioritization.** Searches queue for entry and returns play_order.
+    /// Returns i64::MAX if entry not found (passage was removed from queue).
+    ///
+    /// # Arguments
+    /// * `queue` - QueueManager reference
+    /// * `queue_entry_id` - UUID to look up
+    ///
+    /// # Returns
+    /// play_order value (0=current, 1=next, 2+=queued) or i64::MAX if not found
+    fn get_play_order_for_entry(queue: &QueueManager, queue_entry_id: Uuid) -> i64 {
+        // Check current
+        if let Some(entry) = queue.current() {
+            if entry.queue_entry_id == queue_entry_id {
+                return entry.play_order;
+            }
+        }
+
+        // Check next
+        if let Some(entry) = queue.next() {
+            if entry.queue_entry_id == queue_entry_id {
+                return entry.play_order;
+            }
+        }
+
+        // Check queued
+        for entry in queue.queued() {
+            if entry.queue_entry_id == queue_entry_id {
+                return entry.play_order;
+            }
+        }
+
+        // Not found - passage was removed from queue
+        // Use maximum priority (process last) to allow higher priority chains to finish first
+        i64::MAX
     }
 
     /// Handle decode errors per Phase 7 error handling strategy

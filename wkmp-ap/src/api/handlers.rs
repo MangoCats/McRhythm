@@ -3,6 +3,47 @@
 //! Implements REST API endpoints for playback control.
 //!
 //! **Traceability:** API Design - Audio Player API endpoints
+//!
+//! ## Queue Modification Event Pattern (MANDATORY)
+//!
+//! ALL queue modifications MUST emit both required SSE events:
+//!
+//! ```rust
+//! // Step 1: Perform database/memory modification
+//! ctx.engine.some_queue_operation().await;
+//!
+//! // Step 2: Get current queue state
+//! let queue_entries = ctx.engine.get_queue_entries().await;
+//! let queue_ids: Vec<Uuid> = queue_entries.iter()
+//!     .filter_map(|e| e.passage_id)
+//!     .collect();
+//!
+//! // Step 3: Emit QueueChanged (for tracking/analytics)
+//! ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+//!     queue: queue_ids.clone(),
+//!     trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue, // or UserDequeue
+//!     timestamp: chrono::Utc::now(),
+//! });
+//!
+//! // Step 4: Emit QueueStateUpdate (for UI display) - REQUIRED
+//! let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+//!     .map(|e| wkmp_common::events::QueueEntryInfo {
+//!         queue_entry_id: e.queue_entry_id,
+//!         passage_id: e.passage_id,
+//!         file_path: e.file_path.to_string_lossy().to_string(),
+//!     })
+//!     .collect();
+//! ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+//!     timestamp: chrono::Utc::now(),
+//!     queue: queue_info,
+//! });
+//! ```
+//!
+//! **Rationale:** UI requires QueueStateUpdate for display updates. QueueChanged alone
+//! causes "ghost queue" bug where UI doesn't reflect actual queue state.
+//!
+//! **Pattern Enforcement:** This pattern appears in 3 handlers (enqueue, remove, reorder).
+//! DO NOT omit QueueStateUpdate - it is MANDATORY for proper UI updates.
 
 use crate::api::server::AppContext;
 use crate::state::PlaybackState;
@@ -55,6 +96,18 @@ pub struct EnqueueResponse {
     queue_entry_id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct EnqueueFolderRequest {
+    folder_path: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EnqueueFolderResponse {
+    status: String,
+    files_enqueued: usize,
+    files_skipped: usize,
+}
+
 #[derive(Debug, Serialize)]
 pub struct QueueResponse {
     queue: Vec<QueueEntryInfo>,
@@ -67,11 +120,24 @@ pub struct QueueEntryInfo {
     file_path: String,
 }
 
+/// REQ-F-002: API timing unit documentation per SPEC017 API Layer Pragmatic Deviation
+///
+/// Response containing current playback position information.
 #[derive(Debug, Serialize)]
 pub struct PositionResponse {
+    /// UUID of currently playing passage, if any
     passage_id: Option<Uuid>,
+
+    /// Current playback position in milliseconds since passage start.
+    /// Unit: milliseconds (ms) - converted from internal tick representation.
+    /// Per SPEC017 API Layer Pragmatic Deviation: HTTP APIs use ms/seconds for ergonomics.
     position_ms: u64,
+
+    /// Total duration of current passage in milliseconds.
+    /// Unit: milliseconds (ms) - converted from internal tick representation.
     duration_ms: u64,
+
+    /// Playback state: "playing", "paused", "stopped"
     state: String,
 }
 
@@ -107,8 +173,14 @@ pub struct DeviceResponse {
     device_name: String,
 }
 
+/// REQ-F-002: API timing unit documentation per SPEC017 API Layer Pragmatic Deviation
+///
+/// Request to seek to a specific position within the currently playing passage.
 #[derive(Debug, Deserialize)]
 pub struct SeekRequest {
+    /// Target playback position in milliseconds from passage start.
+    /// Unit: milliseconds (ms) - will be converted to internal tick representation.
+    /// Per SPEC017 API Layer Pragmatic Deviation: HTTP APIs use ms/seconds for ergonomics.
     position_ms: u64,
 }
 
@@ -321,20 +393,21 @@ pub async fn enqueue_passage(
         Ok(queue_entry_id) => {
             info!("Successfully enqueued passage: {}", queue_entry_id);
 
-            // **[SSE-UI-020]** Get queue for events
+            // **[SSE-UI-020]** Queue Modification Event Pattern (see module docs)
+            // MANDATORY: Both QueueChanged + QueueStateUpdate required for proper UI updates
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
                 .collect();
 
-            // Emit QueueChanged event
+            // Emit QueueChanged event (for tracking/analytics)
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
                 queue: queue_ids.clone(),
                 trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
                 timestamp: chrono::Utc::now(),
             });
 
-            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            // Emit QueueStateUpdate for SSE clients (REQUIRED - DO NOT OMIT)
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -364,6 +437,117 @@ pub async fn enqueue_passage(
     }
 }
 
+/// POST /playback/enqueue-folder - Recursively enqueue all audio files in folder
+pub async fn enqueue_folder(
+    State(ctx): State<AppContext>,
+    Json(req): Json<EnqueueFolderRequest>,
+) -> Result<Json<EnqueueFolderResponse>, (StatusCode, Json<StatusResponse>)> {
+    use std::fs;
+
+    info!("Enqueue folder request: {}", req.folder_path);
+
+    let folder_path = PathBuf::from(&req.folder_path);
+
+    // Validate directory exists
+    if !folder_path.is_dir() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(StatusResponse {
+                status: "Not a directory".to_string(),
+            }),
+        ));
+    }
+
+    // Supported audio extensions (same as browse_files)
+    let audio_extensions = vec!["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
+
+    let mut files_enqueued = 0;
+    let mut files_skipped = 0;
+
+    // Recursive function to traverse directories and collect audio files
+    fn collect_audio_files(
+        dir: &std::path::Path,
+        extensions: &[&str],
+        files: &mut Vec<PathBuf>,
+    ) -> std::io::Result<()> {
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    // Recursively traverse subdirectories
+                    collect_audio_files(&path, extensions, files)?;
+                } else if let Some(ext) = path.extension() {
+                    if let Some(ext_str) = ext.to_str() {
+                        if extensions.contains(&ext_str.to_lowercase().as_str()) {
+                            files.push(path);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    let mut audio_files = Vec::new();
+    if let Err(e) = collect_audio_files(&folder_path, &audio_extensions, &mut audio_files) {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(StatusResponse {
+                status: format!("Failed to traverse directory: {}", e),
+            }),
+        ));
+    }
+
+    info!("Found {} audio files in folder tree", audio_files.len());
+
+    // Enqueue each file
+    for file_path in audio_files {
+        match ctx.engine.enqueue_file(file_path.clone()).await {
+            Ok(_) => {
+                files_enqueued += 1;
+                info!("Enqueued: {}", file_path.display());
+            }
+            Err(e) => {
+                files_skipped += 1;
+                warn!("Failed to enqueue {}: {}", file_path.display(), e);
+            }
+        }
+    }
+
+    // **[SSE-UI-020]** Broadcast queue update events (same pattern as enqueue_passage)
+    let queue_entries = ctx.engine.get_queue_entries().await;
+    let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+        .filter_map(|e| e.passage_id)
+        .collect();
+
+    ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+        queue: queue_ids.clone(),
+        trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
+        timestamp: chrono::Utc::now(),
+    });
+
+    let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+        .map(|e| wkmp_common::events::QueueEntryInfo {
+            queue_entry_id: e.queue_entry_id,
+            passage_id: e.passage_id,
+            file_path: e.file_path.to_string_lossy().to_string(),
+        })
+        .collect();
+    ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+        timestamp: chrono::Utc::now(),
+        queue: queue_info,
+    });
+
+    info!("Folder enqueue complete: {} enqueued, {} skipped", files_enqueued, files_skipped);
+
+    Ok(Json(EnqueueFolderResponse {
+        status: "ok".to_string(),
+        files_enqueued,
+        files_skipped,
+    }))
+}
+
 /// DELETE /playback/queue/:queue_entry_id - Remove queue entry
 ///
 /// **Traceability:** API Design - DELETE /playback/queue/{queue_entry_id}
@@ -381,20 +565,21 @@ pub async fn remove_from_queue(
             // Remove from in-memory queue
             ctx.engine.remove_queue_entry(queue_entry_id).await;
 
-            // **[SSE-UI-020]** Get updated queue for events
+            // **[SSE-UI-020]** Queue Modification Event Pattern (see module docs)
+            // MANDATORY: Both QueueChanged + QueueStateUpdate required for proper UI updates
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
                 .collect();
 
-            // Emit QueueChanged event
+            // Emit QueueChanged event (for tracking/analytics)
             ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
                 queue: queue_ids.clone(),
                 trigger: wkmp_common::events::QueueChangeTrigger::UserDequeue,
                 timestamp: chrono::Utc::now(),
             });
 
-            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            // Emit QueueStateUpdate for SSE clients (REQUIRED - DO NOT OMIT)
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,
@@ -701,7 +886,8 @@ pub async fn reorder_queue_entry(
         Ok(_) => {
             info!("Queue reordered successfully");
 
-            // **[SSE-UI-020]** Get queue for events
+            // **[SSE-UI-020]** Queue Modification Event Pattern (see module docs)
+            // MANDATORY: Both QueueChanged + QueueStateUpdate required for proper UI updates
             let queue_entries = ctx.engine.get_queue_entries().await;
             let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
                 .filter_map(|e| e.passage_id)
@@ -714,7 +900,7 @@ pub async fn reorder_queue_entry(
                 timestamp: chrono::Utc::now(),
             });
 
-            // **[SSE-UI-020]** Emit QueueStateUpdate for SSE clients
+            // Emit QueueStateUpdate for SSE clients (REQUIRED - DO NOT OMIT)
             let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
                 .map(|e| wkmp_common::events::QueueEntryInfo {
                     queue_entry_id: e.queue_entry_id,

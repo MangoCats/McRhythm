@@ -8,6 +8,7 @@ members = [
     "wkmp-le",
     "wkmp-pd",
     "wkmp-ai",
+    "wkmp-dr",
 ]
 
 # Shared dependencies across workspace
@@ -16,9 +17,9 @@ tokio = { version = "1.35", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono", "json"] }
+sqlx = { version = "0.8.1", features = ["runtime-tokio", "tls-rustls", "sqlite", "uuid", "chrono", "json"] }
 axum = "0.7"
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -32,6 +33,6 @@ toml = "0.8"
 # Version differentiation is achieved by packaging different binaries
 # No feature flags or conditional compilation required
 [workspace.metadata.versions]
-# Full version: Package all 5 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai)
+# Full version: Package all 6 binaries (wkmp-ap, wkmp-ui, wkmp-le, wkmp-pd, wkmp-ai, wkmp-dr)
 # Lite version: Package 3 binaries (wkmp-ap, wkmp-ui, wkmp-pd)
 # Minimal version: Package 2 binaries (wkmp-ap, wkmp-ui)

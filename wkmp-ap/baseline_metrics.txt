@@ -1,0 +1,29 @@
+PLAN016 Baseline Metrics
+========================
+Date: 2025-11-01
+
+Test Baseline:
+--------------
+Total: 219 tests
+Passed: 218 tests
+Failed: 1 test (tuning::safety::tests::test_backup_file_operations - PRE-EXISTING, unrelated to engine.rs)
+Ignored: 0 tests
+
+Test Result: test result: FAILED. 218 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+Original File Metrics:
+----------------------
+File: wkmp-ap/src/playback/engine.rs
+Line Count: 4,251 lines
+
+Public API:
+-----------
+Public methods: Multiple (in impl PlaybackEngine blocks)
+Note: Most public methods are in impl blocks, not top-level `pub fn`
+
+Expected Post-Refactoring:
+--------------------------
+Target: 4 module files (mod.rs, core.rs, queue.rs, diagnostics.rs)
+Line Limit: Each module <1500 lines
+Total Lines: ~4,251 ±5% (allowing for module overhead)
+Test Result: 218 passed, 1 failed (same as baseline)

@@ -458,6 +458,10 @@
             font-size: 16px;
         }
         .file-name { flex: 1; font-size: 14px; }
+        .enqueue-folder-btn {
+            flex: 0 0 auto;
+            width: auto;
+        }
         .btn-browse {
             background: #666;
             margin-top: 0;
@@ -933,8 +937,8 @@
         }
 
         function handleVolumeChanged(data) {
-            addEvent('VolumeChanged', `Volume: ${Math.round(data.volume * 100)}%`);
-            updateVolumeDisplay(data.volume);
+            addEvent('VolumeChanged', `Volume: ${Math.round(data.new_volume * 100)}%`);
+            updateVolumeDisplay(data.new_volume);
         }
 
         function handlePlaybackStateChanged(data) {
@@ -994,11 +998,13 @@
             }
 
             const posMs = position.position_ms || 0;
-            const durMs = position.duration_ms || 1;
+            const durMs = position.duration_ms || 0;
             const posSec = Math.floor(posMs / 1000);
             const durSec = Math.floor(durMs / 1000);
 
-            document.getElementById('position').textContent = `${formatTime(posSec)} / ${formatTime(durSec)}`;
+            // Show "?" for unknown duration (ephemeral passages before decode completes)
+            const durationText = (durMs < 1000) ? '?' : formatTime(durSec);
+            document.getElementById('position').textContent = `${formatTime(posSec)} / ${durationText}`;
 
             const progress = durMs > 0 ? (posMs / durMs * 100) : 0;
             document.getElementById('progress-fill').style.width = progress + '%';
@@ -1099,9 +1105,20 @@
 
             // **[SPEC020-MONITOR-070]** Resample status
             const sampleRate = chain.source_sample_rate || 0;
-            const workingSampleRate = 44100; // Default from [DBD-PARAM-030]
-            const resampleDisplay = isIdle ? 'N/A' :
-                (sampleRate === workingSampleRate || sampleRate === 0 ? `N/A ${workingSampleRate} Hz` : `From ${sampleRate} Hz`);
+            const targetSampleRate = chain.target_sample_rate || 44100; // **[DBD-PARAM-020]** Device native rate
+            const algorithm = chain.resampler_algorithm || '';
+            let resampleDisplay;
+            if (isIdle) {
+                resampleDisplay = 'N/A';
+            } else if (sampleRate === targetSampleRate || sampleRate === 0) {
+                // No resampling needed
+                resampleDisplay = algorithm ? `N/A ${targetSampleRate} Hz [${algorithm}]` : `N/A ${targetSampleRate} Hz`;
+            } else {
+                // Active resampling
+                resampleDisplay = algorithm
+                    ? `${sampleRate} Hz → ${targetSampleRate} Hz [${algorithm}]`
+                    : `${sampleRate} Hz → ${targetSampleRate} Hz`;
+            }
 
             // **[SPEC020-MONITOR-080]** Fade status
             const fadeStage = chain.fade_stage || 'N/A';
@@ -1145,8 +1162,15 @@
         }
 
         function updateVolumeDisplay(volume) {
-            document.getElementById('volume').textContent = Math.round(volume * 100) + '%';
-            document.getElementById('volume-input').value = Math.round(volume * 100);
+            // Validate that volume is a valid number
+            if (typeof volume !== 'number' || isNaN(volume)) {
+                console.warn('Invalid volume value received:', volume);
+                return; // Keep existing display values
+            }
+
+            const volumePercent = Math.round(volume * 100);
+            document.getElementById('volume').textContent = volumePercent + '%';
+            document.getElementById('volume-input').value = volumePercent;
         }
 
         function updatePlaybackState(state) {
@@ -1343,6 +1367,26 @@
                 resultEl.innerHTML = '<div class="error">✗ Error: ' + err.message + '</div>';
             }
             setTimeout(() => resultEl.innerHTML = '', 3000);
+        }
+
+        async function enqueueFolderRecursive(folderPath) {
+            try {
+                addEvent('FolderEnqueue', `Enqueueing folder: ${folderPath}`);
+                const response = await authenticatedFetch(`${API_BASE}/playback/enqueue-folder`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_path: folderPath })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    addEvent('FolderEnqueue', `✓ Enqueued ${data.files_enqueued} files (${data.files_skipped} skipped)`);
+                } else {
+                    const error = await response.text();
+                    addEvent('FolderEnqueue', `✗ Error: ${error}`);
+                }
+            } catch (err) {
+                addEvent('FolderEnqueue', `✗ Error: ${err.message}`);
+            }
         }
 
         // ============================================================================
@@ -1608,12 +1652,22 @@
                     const action = entry.is_directory ? 'directory' : 'file';
                     const color = entry.is_audio_file ? '#4ade80' : '#e0e0e0';
 
-                    html += `
-                        <div class="file-item" data-path="${escapeHtml(entry.path)}" data-action="${action}">
-                            <span class="file-icon">${icon}</span>
-                            <span class="file-name" style="color: ${color};">${escapeHtml(entry.name)}</span>
-                        </div>
-                    `;
+                    if (entry.is_directory) {
+                        html += `
+                            <div class="file-item" data-path="${escapeHtml(entry.path)}" data-action="${action}">
+                                <span class="file-icon">${icon}</span>
+                                <span class="file-name" style="color: ${color};">${escapeHtml(entry.name)}</span>
+                                <button class="enqueue-folder-btn" onclick="event.stopPropagation(); enqueueFolderRecursive('${escapeHtml(entry.path)}');" style="padding: 2px 8px; font-size: 11px; background: #10b981; color: white; border: none; border-radius: 3px; cursor: pointer;">Enqueue</button>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="file-item" data-path="${escapeHtml(entry.path)}" data-action="${action}">
+                                <span class="file-icon">${icon}</span>
+                                <span class="file-name" style="color: ${color};">${escapeHtml(entry.name)}</span>
+                            </div>
+                        `;
+                    }
                 });
 
                 fileList.innerHTML = html;

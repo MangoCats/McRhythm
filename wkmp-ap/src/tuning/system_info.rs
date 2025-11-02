@@ -140,6 +140,9 @@ impl SystemInfo {
                     return os_info.trim().to_string();
                 }
             }
+
+            // Final fallback for Linux
+            return "Linux".to_string();
         }
 
         // Use std::env::consts for other platforms
@@ -158,11 +161,13 @@ impl SystemInfo {
 
         #[cfg(target_os = "windows")]
         {
-            return format!("Windows {}", std::env::consts::OS);
+            format!("Windows {}", std::env::consts::OS)
         }
 
-        // Ultimate fallback
-        std::env::consts::OS.to_string()
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        {
+            std::env::consts::OS.to_string()
+        }
     }
 
     /// Detect audio backend

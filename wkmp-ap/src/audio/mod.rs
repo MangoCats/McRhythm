@@ -19,4 +19,12 @@ pub mod resampler;
 pub mod output;
 
 // Re-exports for external use (tests, other modules)
+#[allow(unused_imports)] // Used by tests
+pub use decoder::SimpleDecoder;
+#[allow(unused_imports)] // Used by tests
+pub use output::AudioOutput;
+#[allow(unused_imports)] // Used by tests
+pub use resampler::Resampler;
 pub use types::AudioFrame;
+#[allow(unused_imports)] // Used by tests
+pub use types::PassageBuffer;

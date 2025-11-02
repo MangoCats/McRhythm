@@ -96,27 +96,30 @@ impl SilenceDetector {
 
         // Convert threshold from dB to linear
         let threshold_linear = Self::db_to_linear(self.threshold_db);
+        // REQ-F-004: Unit clarity - samples (PCM frames, SPEC023 Callback Time)
         let min_duration_samples = (self.min_duration_sec * sample_rate as f32) as usize;
 
         let mut silence_regions = Vec::new();
         let mut in_silence = false;
-        let mut silence_start_sample = 0;
+        let mut silence_start_sample = 0;  // samples, PCM frame position
 
         // Process audio in windows
         for (window_idx, chunk) in samples.chunks(self.window_size_samples).enumerate() {
             let rms = Self::calculate_rms(chunk);
+            // REQ-F-004: Unit clarity - samples (PCM frame position in file)
             let sample_position = window_idx * self.window_size_samples;
 
             if rms < threshold_linear {
                 // Below threshold - silence
                 if !in_silence {
                     in_silence = true;
-                    silence_start_sample = sample_position;
+                    silence_start_sample = sample_position;  // samples
                 }
             } else {
                 // Above threshold - sound
                 if in_silence {
-                    let silence_end_sample = sample_position;
+                    let silence_end_sample = sample_position;  // samples
+                    // REQ-F-004: Unit clarity - samples (duration in PCM frames)
                     let duration_samples = silence_end_sample - silence_start_sample;
 
                     // Only include if longer than minimum duration
@@ -133,7 +136,8 @@ impl SilenceDetector {
 
         // Handle silence at end of file
         if in_silence {
-            let silence_end_sample = samples.len();
+            let silence_end_sample = samples.len();  // samples
+            // REQ-F-004: Unit clarity - samples (duration in PCM frames)
             let duration_samples = silence_end_sample - silence_start_sample;
 
             if duration_samples >= min_duration_samples {

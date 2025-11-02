@@ -608,6 +608,8 @@ pub enum WkmpEvent {
     ///
     /// Triggers:
     /// - SSE: Update progress bar and status
+    ///
+    /// **[REQ-AIA-UI-001, REQ-AIA-UI-004]** Extended with phase tracking and current file
     ImportProgressUpdate {
         session_id: Uuid,
         state: String, // "SCANNING", "EXTRACTING", "FINGERPRINTING", etc.
@@ -617,6 +619,13 @@ pub enum WkmpEvent {
         current_operation: String,
         elapsed_seconds: u64,
         estimated_remaining_seconds: Option<u64>,
+        /// **[REQ-AIA-UI-001]** Phase-level progress (6 phases: SCANNING through FLAVORING)
+        /// Empty for backward compatibility with old events
+        #[serde(default)]
+        phases: Vec<PhaseProgressData>,
+        /// **[REQ-AIA-UI-004]** Current file being processed
+        #[serde(default)]
+        current_file: Option<String>,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -709,9 +718,11 @@ pub struct BufferChainInfo {
     pub source_sample_rate: Option<u32>,
     /// Resampler active (true if source rate != working rate)
     pub resampler_active: Option<bool>,
-    /// Target sample rate (always 44100 Hz)
+    /// Target sample rate (matches device native rate per [DBD-PARAM-020], typically 44100 or 48000 Hz)
     #[serde(default = "default_working_sample_rate")]
     pub target_sample_rate: u32,
+    /// Resampler algorithm name (e.g., "Septic polynomial", "Linear", "PassThrough")
+    pub resampler_algorithm: Option<String>,
 
     // Fade handler stage visibility **[DBD-FADE-010]**
     /// Current fade stage: PreStart, FadeIn, Body, FadeOut, PostEnd
@@ -756,6 +767,7 @@ impl BufferChainInfo {
             source_sample_rate: None,
             resampler_active: Some(false),
             target_sample_rate: 44100,
+            resampler_algorithm: None,
             fade_stage: None,
             buffer_state: Some("Idle".to_string()),
             buffer_fill_percent: 0.0,
@@ -944,6 +956,57 @@ impl std::fmt::Display for BufferStatus {
             BufferStatus::Exhausted => write!(f, "Exhausted"),
         }
     }
+}
+
+/// **[REQ-AIA-UI-001]** Phase status for import workflow checklist
+///
+/// Used in SSE events for UI display
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PhaseStatusData {
+    /// Phase not yet started
+    Pending,
+    /// Phase currently running
+    InProgress,
+    /// Phase completed successfully
+    Completed,
+    /// Phase failed with critical error
+    Failed,
+    /// Phase completed with warnings (partial success)
+    CompletedWithWarnings,
+}
+
+/// **[REQ-AIA-UI-003]** Sub-task tracking for import phases
+///
+/// Used to show success/failure counts (e.g., Chromaprint, AcoustID, MusicBrainz)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubTaskData {
+    /// Sub-task name
+    pub name: String,
+    /// Number of successful operations
+    pub success_count: usize,
+    /// Number of failed operations
+    pub failure_count: usize,
+    /// Number of skipped operations
+    pub skip_count: usize,
+}
+
+/// **[REQ-AIA-UI-001]** Phase progress data for SSE events
+///
+/// Contains progress information for a single workflow phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseProgressData {
+    /// Phase name (e.g., "SCANNING", "EXTRACTING", "FINGERPRINTING")
+    pub phase: String,
+    /// Current status
+    pub status: PhaseStatusData,
+    /// Files processed in this phase
+    pub progress_current: usize,
+    /// Total files for this phase
+    pub progress_total: usize,
+    /// Sub-task counters
+    pub subtasks: Vec<SubTaskData>,
+    /// Brief description of what this phase does (8 words max)
+    pub description: String,
 }
 
 /// User action types
@@ -1222,6 +1285,9 @@ mod tests {
             source_sample_rate: Some(44100),
             resampler_active: Some(false),
             target_sample_rate: 44100,
+            resampler_algorithm: None,
+            decode_duration_ms: Some(150),
+            source_file_path: Some("/music/test.mp3".to_string()),
             fade_stage: Some(FadeStage::Body),
             buffer_state: Some("Playing".to_string()),
             buffer_fill_percent: 65.5,
@@ -1257,6 +1323,9 @@ mod tests {
             source_sample_rate: Some(48000),
             resampler_active: Some(true),
             target_sample_rate: 44100,
+            resampler_algorithm: Some("SincFixedIn".to_string()),
+            decode_duration_ms: Some(80),
+            source_file_path: Some("/music/next.mp3".to_string()),
             fade_stage: Some(FadeStage::PreStart),
             buffer_state: Some("Filling".to_string()),
             buffer_fill_percent: 15.2,
@@ -1294,6 +1363,9 @@ mod tests {
             source_sample_rate: Some(44100),
             resampler_active: Some(false),
             target_sample_rate: 44100,
+            resampler_algorithm: None,
+            decode_duration_ms: Some(30),
+            source_file_path: Some("/music/queued.mp3".to_string()),
             fade_stage: Some(FadeStage::PreStart),
             buffer_state: Some("Filling".to_string()),
             buffer_fill_percent: 3.1,
@@ -1377,6 +1449,9 @@ mod tests {
             source_sample_rate: Some(48000),
             resampler_active: Some(true),
             target_sample_rate: 44100,
+            resampler_algorithm: Some("SincFixedIn".to_string()),
+            decode_duration_ms: Some(120),
+            source_file_path: Some("/music/test.mp3".to_string()),
             fade_stage: Some(FadeStage::FadeIn),
             buffer_state: Some("Playing".to_string()),
             buffer_fill_percent: 65.5,

@@ -6,10 +6,17 @@
 //! - [REQ-NF-033]: Default root folder locations per platform
 //! - [REQ-NF-035]: Priority order for root folder resolution
 //! - [REQ-NF-036]: Automatic directory/database creation
+//! - [APIK-TOML-SCHEMA-010]: TomlConfig acoustid_api_key field
+//! - [APIK-TOML-SCHEMA-020]: Backward compatibility
+//!
+//! Note: Uses serial_test crate to prevent ENV variable race conditions.
+//! Tests that manipulate WKMP_ROOT_FOLDER or WKMP_ROOT are marked with #[serial]
+//! to ensure they run sequentially, not in parallel.
 
-use wkmp_common::config::{CompiledDefaults, RootFolderResolver, RootFolderInitializer};
+use wkmp_common::config::{CompiledDefaults, RootFolderResolver, RootFolderInitializer, TomlConfig, LoggingConfig};
 use std::path::PathBuf;
 use std::env;
+use serial_test::serial;
 
 #[test]
 fn test_compiled_defaults_for_current_platform() {
@@ -39,12 +46,13 @@ fn test_compiled_defaults_for_current_platform() {
     #[cfg(target_os = "windows")]
     {
         let path_str = defaults.root_folder.to_string_lossy();
-        assert!(path_str.contains("Music") && path_str.contains("wkmp"),
-                "Windows default should be %USERPROFILE%\\Music\\wkmp");
+        assert!(path_str.contains("Music"),
+                "Windows default should be %USERPROFILE%\\Music");
     }
 }
 
 #[test]
+#[serial]
 fn test_resolver_with_no_overrides_uses_default() {
     // [REQ-NF-032]: Use compiled defaults when no config available
 
@@ -64,6 +72,7 @@ fn test_resolver_with_no_overrides_uses_default() {
 }
 
 #[test]
+#[serial]
 fn test_resolver_env_var_wkmp_root_folder() {
     // [REQ-NF-035]: Environment variable priority
     let test_path = "/tmp/wkmp-test-env-folder";
@@ -79,6 +88,7 @@ fn test_resolver_env_var_wkmp_root_folder() {
 }
 
 #[test]
+#[serial]
 fn test_resolver_env_var_wkmp_root() {
     // [REQ-NF-035]: Alternative environment variable
     let test_path = "/tmp/wkmp-test-env-root";
@@ -94,6 +104,7 @@ fn test_resolver_env_var_wkmp_root() {
 }
 
 #[test]
+#[serial]
 fn test_resolver_wkmp_root_folder_takes_precedence() {
     // [REQ-NF-035]: WKMP_ROOT_FOLDER has priority over WKMP_ROOT
 
@@ -178,6 +189,7 @@ fn test_initializer_idempotent_directory_creation() {
 }
 
 #[test]
+#[serial]
 fn test_resolver_missing_config_file_does_not_error() {
     // [REQ-NF-031]: Missing TOML files SHALL NOT cause termination
 
@@ -262,7 +274,7 @@ fn test_compiled_defaults_windows() {
         let defaults = CompiledDefaults::for_current_platform();
 
         let userprofile = env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\user".to_string());
-        let expected = PathBuf::from(userprofile).join("Music").join("wkmp");
+        let expected = PathBuf::from(userprofile).join("Music");
 
         assert_eq!(defaults.root_folder, expected);
         assert_eq!(defaults.log_level, "info");
@@ -272,6 +284,7 @@ fn test_compiled_defaults_windows() {
 }
 
 #[test]
+#[serial]
 fn test_graceful_degradation_end_to_end() {
     // [REQ-NF-031, REQ-NF-032, REQ-NF-036]: Complete graceful degradation flow
 
@@ -321,4 +334,35 @@ fn test_initializer_nested_directory_creation() {
 
     // Cleanup
     let _ = std::fs::remove_dir_all(PathBuf::from(format!("/tmp/wkmp-test-nested-{}", std::process::id())));
+}
+
+#[test]
+fn test_toml_roundtrip_with_acoustid_key() {
+    // [APIK-TOML-SCHEMA-010]: Verify acoustid_api_key field serialization/deserialization
+    let config = TomlConfig {
+        root_folder: Some(PathBuf::from("/music")),
+        logging: LoggingConfig::default(),
+        static_assets: None,
+        acoustid_api_key: Some("test-key-123".to_string()),
+    };
+
+    let toml_str = toml::to_string(&config).unwrap();
+    let parsed: TomlConfig = toml::from_str(&toml_str).unwrap();
+
+    assert_eq!(parsed.acoustid_api_key, Some("test-key-123".to_string()));
+    assert_eq!(parsed.root_folder, Some(PathBuf::from("/music")));
+}
+
+#[test]
+fn test_backward_compatible_missing_field() {
+    // [APIK-TOML-SCHEMA-020]: Missing acoustid_api_key field deserializes as None
+    let toml_str = r#"
+        root_folder = "/music"
+        [logging]
+        level = "info"
+    "#;
+
+    let config: TomlConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.acoustid_api_key, None);
+    assert_eq!(config.root_folder, Some(PathBuf::from("/music")));
 }

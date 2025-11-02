@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WKMP Database Review</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --bg-color: #f8fafc;
+            --surface-color: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --success-color: #16a34a;
+            --error-color: #dc2626;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            padding: 20px 0;
+        }
+
+        header {
+            background-color: var(--surface-color);
+            border-bottom: 2px solid var(--border-color);
+            padding: 20px 20px;
+            margin-bottom: 30px;
+        }
+
+        header .container {
+            padding: 0;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .header-right {
+            text-align: right;
+            font-size: 12px;
+            color: var(--secondary-color);
+            font-family: 'Courier New', monospace;
+        }
+
+        .build-info-line {
+            margin-bottom: 3px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: var(--secondary-color);
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 0 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--secondary-color);
+        }
+
+        select, input, button {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        select, input {
+            background-color: var(--surface-color);
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            border: none;
+            font-weight: 500;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.secondary {
+            background-color: var(--secondary-color);
+        }
+
+        .favorites {
+            background-color: var(--surface-color);
+            padding: 15px 20px;
+            border-radius: 4px;
+            margin: 0 20px 20px 20px;
+        }
+
+        .favorites h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .favorite-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .favorite-btn {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .favorite-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+            opacity: 1;
+        }
+
+        .results {
+            background-color: var(--surface-color);
+            padding: 20px;
+            border-radius: 4px;
+            margin: 0 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--bg-color);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        td {
+            font-size: 15px;
+        }
+
+        /* De-referenced columns - data fetched from another table via JOIN */
+        th.dereferenced, td.dereferenced {
+            background-color: #fef08a !important; /* light yellow - more visible */
+        }
+
+        .pagination {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            align-items: center;
+        }
+
+        .page-info {
+            color: var(--secondary-color);
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 0 20px 20px 20px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background-color: #dcfce7;
+            color: var(--success-color);
+        }
+
+        .status.error {
+            background-color: #fee2e2;
+            color: var(--error-color);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--surface-color);
+            border-radius: 8px;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--secondary-color);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: var(--text-color);
+            opacity: 1;
+        }
+
+        .column-description {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: var(--bg-color);
+            border-radius: 4px;
+        }
+
+        .column-name {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-family: 'Courier New', monospace;
+            margin-bottom: 5px;
+        }
+
+        .column-desc-text {
+            color: var(--text-color);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Mobile-responsive CSS */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            header {
+                padding: 15px 10px;
+                margin-bottom: 20px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-right {
+                margin-top: 10px;
+                text-align: left;
+                font-size: 10px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            select, input, button {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .favorites {
+                padding: 10px;
+            }
+
+            .favorite-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .favorite-btn {
+                width: 100%;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+
+            .pagination {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .pagination button {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 18px;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th, td {
+                padding: 6px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>WKMP Database Review</h1>
+                    <p class="subtitle">Read-only database inspection tool</p>
+                </div>
+                <div class="header-right" id="buildInfo">
+                    <div class="build-info-line">Loading build info...</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="status" class="status hidden"></div>
+
+        <div class="favorites">
+            <h3>Saved Searches</h3>
+            <div class="favorite-buttons" id="favoriteButtons">
+                <em style="color: var(--secondary-color);">No saved searches yet</em>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="viewType">View Type</label>
+                <select id="viewType">
+                    <option value="table">Browse Table</option>
+                    <option value="filter-passages">Filter: Passages without MBID</option>
+                    <option value="filter-files">Filter: Files without passages</option>
+                    <option value="search-work">Search: By Work ID</option>
+                    <option value="search-path">Search: By File Path</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="tableGroup">
+                <label for="tableName">Table Name</label>
+                <select id="tableName">
+                    <option value="songs">songs</option>
+                    <option value="passages">passages</option>
+                    <option value="files">files</option>
+                    <option value="artists">artists</option>
+                    <option value="albums">albums</option>
+                    <option value="works">works</option>
+                </select>
+            </div>
+
+            <div class="control-group hidden" id="workIdGroup">
+                <label for="workId">Work ID (UUID)</label>
+                <input type="text" id="workId" placeholder="e.g., d32f33ba-cf2b-42f9-9e33-dad524034a04">
+            </div>
+
+            <div class="control-group hidden" id="pathPatternGroup">
+                <label for="pathPattern">Path Pattern</label>
+                <input type="text" id="pathPattern" placeholder="e.g., %.mp3">
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="loadBtn">Load</button>
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="saveBtn" class="secondary">Save Search</button>
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="clearBtn" class="secondary">Clear All</button>
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="semanticsBtn" class="secondary">Table Semantics</button>
+            </div>
+        </div>
+
+        <div class="results">
+            <div id="resultInfo" class="page-info">Select a view type and click Load</div>
+            <div id="tableContainer"></div>
+            <div class="pagination hidden" id="pagination">
+                <button id="prevBtn">Previous</button>
+                <span class="page-info" id="pageInfo"></span>
+                <button id="nextBtn">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Table Semantics -->
+    <div id="semanticsModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTableName">Table Semantics</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div id="modalBody">
+                <!-- Column descriptions will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API shared secret for authentication
+        // Per API-AUTH-028-A: Embedded by server during page render
+        const API_SHARED_SECRET = "{{SHARED_SECRET}}";
+    </script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

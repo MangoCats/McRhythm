@@ -11,6 +11,7 @@ use uuid::Uuid;
 pub struct Song {
     pub guid: Uuid,
     pub recording_mbid: String,
+    pub title: Option<String>,
     pub work_id: Option<Uuid>,
     pub related_songs: Option<String>,
     pub lyrics: Option<String>,
@@ -21,11 +22,12 @@ pub struct Song {
 }
 
 impl Song {
-    /// Create new song from MusicBrainz recording MBID
-    pub fn new(recording_mbid: String) -> Self {
+    /// Create new song from MusicBrainz recording MBID and optional title
+    pub fn new(recording_mbid: String, title: Option<String>) -> Self {
         Self {
             guid: Uuid::new_v4(),
             recording_mbid,
+            title,
             work_id: None,
             related_songs: None,
             lyrics: None,
@@ -42,11 +44,12 @@ pub async fn save_song(pool: &SqlitePool, song: &Song) -> Result<()> {
     sqlx::query(
         r#"
         INSERT INTO songs (
-            guid, recording_mbid, work_id, related_songs, lyrics,
+            guid, recording_mbid, title, work_id, related_songs, lyrics,
             base_probability, min_cooldown, ramping_cooldown, last_played_at,
             created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(recording_mbid) DO UPDATE SET
+            title = excluded.title,
             work_id = excluded.work_id,
             related_songs = excluded.related_songs,
             lyrics = excluded.lyrics,
@@ -58,6 +61,7 @@ pub async fn save_song(pool: &SqlitePool, song: &Song) -> Result<()> {
     )
     .bind(song.guid.to_string())
     .bind(&song.recording_mbid)
+    .bind(&song.title)
     .bind(song.work_id.map(|id| id.to_string()))
     .bind(&song.related_songs)
     .bind(&song.lyrics)
@@ -75,7 +79,7 @@ pub async fn save_song(pool: &SqlitePool, song: &Song) -> Result<()> {
 pub async fn load_song_by_mbid(pool: &SqlitePool, recording_mbid: &str) -> Result<Option<Song>> {
     let row = sqlx::query(
         r#"
-        SELECT guid, recording_mbid, work_id, related_songs, lyrics,
+        SELECT guid, recording_mbid, title, work_id, related_songs, lyrics,
                base_probability, min_cooldown, ramping_cooldown, last_played_at
         FROM songs
         WHERE recording_mbid = ?
@@ -93,6 +97,7 @@ pub async fn load_song_by_mbid(pool: &SqlitePool, recording_mbid: &str) -> Resul
             Ok(Some(Song {
                 guid: Uuid::parse_str(&guid_str)?,
                 recording_mbid: row.get("recording_mbid"),
+                title: row.get("title"),
                 work_id: work_id_str.and_then(|s| Uuid::parse_str(&s).ok()),
                 related_songs: row.get("related_songs"),
                 lyrics: row.get("lyrics"),
@@ -143,11 +148,26 @@ mod tests {
             .await
             .expect("Failed to create in-memory database");
 
-        crate::db::schema::initialize_schema(&pool)
-            .await
-            .expect("Schema initialization failed");
+        // Initialize schema for test database
+        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+        sqlx::query(r#"
+            CREATE TABLE IF NOT EXISTS songs (
+                guid TEXT PRIMARY KEY,
+                recording_mbid TEXT UNIQUE NOT NULL,
+                title TEXT,
+                work_id TEXT,
+                related_songs TEXT,
+                lyrics TEXT,
+                base_probability REAL NOT NULL DEFAULT 1.0,
+                min_cooldown INTEGER NOT NULL DEFAULT 604800,
+                ramping_cooldown INTEGER NOT NULL DEFAULT 1209600,
+                last_played_at TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        "#).execute(&pool).await.unwrap();
 
-        let song = Song::new("recording-mbid-123".to_string());
+        let song = Song::new("recording-mbid-123".to_string(), Some("Test Song".to_string()));
 
         save_song(&pool, &song).await.expect("Failed to save song");
 

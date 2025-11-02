@@ -3,6 +3,7 @@
 //! Exposes public APIs for integration testing
 
 pub mod api;
+pub mod config;
 pub mod db;
 pub mod error;
 pub mod models;
@@ -11,7 +12,13 @@ pub mod services;
 pub use crate::error::{ApiError, ApiResult};
 
 use axum::Router;
+use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 use wkmp_common::events::EventBus;
 
 /// Application state shared across handlers
@@ -21,11 +28,23 @@ pub struct AppState {
     pub db: SqlitePool,
     /// Event bus for SSE broadcasting **[AIA-MS-010]**
     pub event_bus: EventBus,
+    /// Cancellation tokens for active import sessions **[AIA-ASYNC-010]**
+    pub cancellation_tokens: Arc<RwLock<HashMap<Uuid, CancellationToken>>>,
+    /// Service startup timestamp for uptime tracking **[HIGH-005]**
+    pub startup_time: DateTime<Utc>,
+    /// Last error for diagnostic purposes **[HIGH-005]**
+    pub last_error: Arc<RwLock<Option<String>>>,
 }
 
 impl AppState {
     pub fn new(db: SqlitePool, event_bus: EventBus) -> Self {
-        Self { db, event_bus }
+        Self {
+            db,
+            event_bus,
+            cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
+            startup_time: Utc::now(),
+            last_error: Arc::new(RwLock::new(None)),
+        }
     }
 }
 
@@ -44,6 +63,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/import/events", get(api::import_event_stream))
         .merge(api::amplitude_routes())
         .merge(api::parameter_routes())
+        .merge(api::settings_routes())
         .merge(api::health_routes())
         .with_state(state)
 }

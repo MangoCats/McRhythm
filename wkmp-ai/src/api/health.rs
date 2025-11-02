@@ -1,6 +1,9 @@
 //! Health check endpoint
+//!
+//! **[HIGH-005]** Real uptime tracking and diagnostics
 
-use axum::{routing::get, Json, Router};
+use axum::{extract::State, routing::get, Json, Router};
+use chrono::Utc;
 use serde::Serialize;
 
 use crate::AppState;
@@ -12,18 +15,28 @@ pub struct HealthResponse {
     pub module: String,
     pub version: String,
     pub uptime_seconds: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
 }
 
 /// GET /health
 ///
 /// Health check endpoint for monitoring.
-pub async fn health_check() -> Json<HealthResponse> {
-    // TODO: Track actual uptime
+/// **[HIGH-005]** Returns real uptime and last error for diagnostics
+pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
+    // Calculate uptime from startup timestamp
+    let uptime = Utc::now().signed_duration_since(state.startup_time);
+    let uptime_seconds = uptime.num_seconds().max(0) as u64;
+
+    // Get last error if any
+    let last_error = state.last_error.read().await.clone();
+
     Json(HealthResponse {
         status: "ok".to_string(),
         module: "wkmp-ai".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        uptime_seconds: 0, // Stub
+        uptime_seconds,
+        last_error,
     })
 }
 

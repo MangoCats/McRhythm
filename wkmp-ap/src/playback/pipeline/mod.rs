@@ -6,7 +6,6 @@
 
 pub mod decoder_chain;
 pub mod fader;
-pub mod mixer;
 pub mod timing;
 
 // Re-exports for external use (tests, other modules)

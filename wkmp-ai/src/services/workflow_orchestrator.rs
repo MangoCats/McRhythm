@@ -14,6 +14,7 @@ use anyhow::Result;
 use chrono::Utc;
 use sqlx::{Row, SqlitePool};
 use std::path::Path;
+use uuid::Uuid;
 use wkmp_common::events::{EventBus, WkmpEvent};
 
 /// Workflow orchestrator service
@@ -31,10 +32,30 @@ pub struct WorkflowOrchestrator {
 }
 
 impl WorkflowOrchestrator {
-    pub fn new(db: SqlitePool, event_bus: EventBus) -> Self {
+    pub fn new(db: SqlitePool, event_bus: EventBus, acoustid_api_key: Option<String>) -> Self {
         // Initialize API clients (can fail, so wrapped in Option)
         let mb_client = MusicBrainzClient::new().ok();
-        let acoustid_client = AcoustIDClient::new("YOUR_API_KEY".to_string()).ok();
+
+        // Initialize AcoustID client with provided API key (if available)
+        let acoustid_client = acoustid_api_key
+            .and_then(|key| {
+                if key.is_empty() {
+                    tracing::warn!("AcoustID API key is empty, fingerprinting disabled");
+                    None
+                } else {
+                    match AcoustIDClient::new(key, db.clone()) {
+                        Ok(client) => {
+                            tracing::info!("AcoustID client initialized with configured API key");
+                            Some(client)
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to initialize AcoustID client: {}", e);
+                            None
+                        }
+                    }
+                }
+            });
+
         let acousticbrainz_client = AcousticBrainzClient::new().ok();
         let essentia_client = EssentiaClient::new().ok();
 
@@ -62,7 +83,12 @@ impl WorkflowOrchestrator {
     /// Execute complete import workflow
     ///
     /// **[AIA-WF-010]** Progress through all states
-    pub async fn execute_import(&self, mut session: ImportSession) -> Result<ImportSession> {
+    /// **[AIA-ASYNC-010]** Respects cancellation token
+    pub async fn execute_import(
+        &self,
+        mut session: ImportSession,
+        cancel_token: tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         let start_time = std::time::Instant::now();
 
         tracing::info!(
@@ -79,22 +105,37 @@ impl WorkflowOrchestrator {
         });
 
         // Phase 1: SCANNING - Discover audio files
-        session = self.phase_scanning(session, start_time).await?;
+        session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 2: EXTRACTING - Extract metadata
-        session = self.phase_extracting(session, start_time).await?;
+        session = self.phase_extracting(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
-        session = self.phase_fingerprinting(session, start_time).await?;
+        session = self.phase_fingerprinting(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 4: SEGMENTING - Passage detection (stub)
-        session = self.phase_segmenting(session, start_time).await?;
+        session = self.phase_segmenting(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 5: ANALYZING - Amplitude analysis (stub)
-        session = self.phase_analyzing(session, start_time).await?;
+        session = self.phase_analyzing(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 6: FLAVORING - Musical flavor extraction (stub)
-        session = self.phase_flavoring(session, start_time).await?;
+        session = self.phase_flavoring(session, start_time, &cancel_token).await?;
 
         // Phase 7: COMPLETED
         session.transition_to(ImportState::Completed);
@@ -105,6 +146,20 @@ impl WorkflowOrchestrator {
         );
 
         crate::db::sessions::save_session(&self.db, &session).await?;
+
+        // Clean up temporary mapping tables
+        if let Err(e) = sqlx::query("DELETE FROM temp_file_songs")
+            .execute(&self.db)
+            .await
+        {
+            tracing::warn!("Failed to clean up temp_file_songs table: {}", e);
+        }
+        if let Err(e) = sqlx::query("DELETE FROM temp_file_albums")
+            .execute(&self.db)
+            .await
+        {
+            tracing::warn!("Failed to clean up temp_file_albums table: {}", e);
+        }
 
         let duration_seconds = start_time.elapsed().as_secs();
 
@@ -126,7 +181,13 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 1: SCANNING - File discovery and database persistence
-    async fn phase_scanning(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    /// **[AIA-ASYNC-010]** Checks cancellation token during file processing
+    async fn phase_scanning(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Scanning);
         session.update_progress(0, 0, "Scanning for audio files...".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
@@ -156,7 +217,83 @@ impl WorkflowOrchestrator {
         // Save discovered files to database
         let mut saved_count = 0;
         for file_path in &scan_result.files {
-            // Calculate file hash
+            // **[AIA-ASYNC-010]** Check for cancellation every file
+            if cancel_token.is_cancelled() {
+                tracing::info!(
+                    session_id = %session.session_id,
+                    files_processed = saved_count,
+                    "Import cancelled during scanning phase"
+                );
+                session.transition_to(ImportState::Cancelled);
+                session.progress.current_file = None;
+                session.update_progress(
+                    saved_count,
+                    scan_result.files.len(),
+                    "Import cancelled by user".to_string(),
+                );
+                crate::db::sessions::save_session(&self.db, &session).await?;
+                return Ok(session);
+            }
+
+            // Get file metadata (fast - needed for modification time)
+            let metadata = match std::fs::metadata(file_path) {
+                Ok(m) => m,
+                Err(e) => {
+                    tracing::warn!(
+                        session_id = %session.session_id,
+                        file = %file_path.display(),
+                        error = %e,
+                        "Failed to read file metadata, skipping"
+                    );
+                    continue;
+                }
+            };
+            let mod_time = metadata.modified()?;
+            let mod_time_utc = chrono::DateTime::<Utc>::from(mod_time);
+
+            // Create relative path from root folder (fast)
+            let root_path = Path::new(&session.root_folder);
+            let relative_path = file_path.strip_prefix(root_path)
+                .unwrap_or(file_path)
+                .to_string_lossy()
+                .to_string();
+
+            // **[OPTIMIZATION]** Update progress BEFORE expensive operations (hash calculation)
+            // This ensures UI shows activity even during slow hash operations
+            // **[REQ-AIA-UI-004]** Set current file being processed
+            session.progress.current_file = Some(relative_path.clone());
+            session.update_progress(
+                saved_count,
+                scan_result.files.len(),
+                format!("Checking file {} of {}: {}", saved_count + 1, scan_result.files.len(), relative_path),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
+
+            // **[OPTIMIZATION]** Check if file exists and is unchanged
+            // Skip expensive hash calculation for unchanged files (95% speedup on re-scans)
+            if let Ok(Some(existing)) = crate::db::files::load_file_by_path(&self.db, &relative_path).await {
+                if existing.modification_time == mod_time_utc {
+                    // File unchanged since last import - skip hashing entirely
+                    tracing::debug!(
+                        session_id = %session.session_id,
+                        file = %relative_path,
+                        "File unchanged (same modification time), skipping hash calculation"
+                    );
+                    saved_count += 1;
+                    continue;
+                }
+                // File modified - log and fall through to hash calculation
+                tracing::debug!(
+                    session_id = %session.session_id,
+                    file = %relative_path,
+                    old_mtime = %existing.modification_time,
+                    new_mtime = %mod_time_utc,
+                    "File modification time changed, recalculating hash"
+                );
+            }
+
+            // Calculate file hash (only for new or modified files)
             let hash = match crate::db::files::calculate_file_hash(file_path) {
                 Ok(h) => h,
                 Err(e) => {
@@ -170,36 +307,46 @@ impl WorkflowOrchestrator {
                 }
             };
 
-            // Get file modification time
-            let metadata = std::fs::metadata(file_path)?;
-            let mod_time = metadata.modified()?;
-            let mod_time_utc = chrono::DateTime::<Utc>::from(mod_time);
-
-            // Create relative path from root folder
-            let root_path = Path::new(&session.root_folder);
-            let relative_path = file_path.strip_prefix(root_path)
-                .unwrap_or(file_path)
-                .to_string_lossy()
-                .to_string();
-
-            // Check for duplicate by hash
+            // Check for duplicate by hash (different file path, same content)
             if let Ok(Some(existing)) = crate::db::files::load_file_by_hash(&self.db, &hash).await {
                 tracing::debug!(
                     session_id = %session.session_id,
                     new_path = %relative_path,
                     existing_path = %existing.path,
-                    "Duplicate file detected (same hash)"
+                    "Duplicate file detected (different path, same hash)"
                 );
                 saved_count += 1;
                 continue;
             }
 
+            // Extract audio metadata (format, sample_rate, channels, file_size_bytes)
+            let metadata = match self.metadata_extractor.extract(file_path) {
+                Ok(meta) => Some(meta),
+                Err(e) => {
+                    tracing::warn!(
+                        session_id = %session.session_id,
+                        file = %relative_path,
+                        error = %e,
+                        "Failed to extract metadata, saving file without metadata"
+                    );
+                    None
+                }
+            };
+
             // Create audio file record
-            let audio_file = crate::db::files::AudioFile::new(
+            let mut audio_file = crate::db::files::AudioFile::new(
                 relative_path.clone(),
                 hash,
                 mod_time_utc,
             );
+
+            // Populate metadata fields if extraction succeeded
+            if let Some(meta) = metadata {
+                audio_file.format = Some(meta.format);
+                audio_file.sample_rate = meta.sample_rate.map(|sr| sr as i32);
+                audio_file.channels = meta.channels.map(|ch| ch as i32);
+                audio_file.file_size_bytes = Some(meta.file_size_bytes as i64);
+            }
 
             // Save to database
             if let Err(e) = crate::db::files::save_file(&self.db, &audio_file).await {
@@ -217,17 +364,6 @@ impl WorkflowOrchestrator {
                     file_id = %audio_file.guid,
                     "File saved to database"
                 );
-            }
-
-            // Update progress periodically
-            if saved_count % 10 == 0 {
-                session.update_progress(
-                    saved_count,
-                    scan_result.files.len(),
-                    format!("Saved {}/{} files to database", saved_count, scan_result.files.len()),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
             }
         }
 
@@ -251,7 +387,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 2: EXTRACTING - Metadata extraction and persistence
-    async fn phase_extracting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_extracting(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Extracting);
         session.update_progress(0, session.progress.total, "Extracting metadata...".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
@@ -269,7 +410,35 @@ impl WorkflowOrchestrator {
         let root_path = Path::new(&root_folder);
 
         let mut extracted_count = 0;
+        let mut skipped_count = 0;
         for file in &files {
+            // **[OPTIMIZATION]** Skip extraction if file already has metadata (duration indicates success)
+            // REQ-F-003: Changed from file.duration to file.duration_ticks
+            if file.duration_ticks.is_some() {
+                skipped_count += 1;
+                tracing::debug!(
+                    session_id = %session.session_id,
+                    file = %file.path,
+                    "Skipping extraction - metadata already exists"
+                );
+
+                // Update progress
+                session.progress.current_file = Some(file.path.clone());
+                session.update_progress(
+                    extracted_count + skipped_count,
+                    files.len(),
+                    format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
+                );
+
+                // Periodic progress broadcast (every 100 files)
+                if (extracted_count + skipped_count) % 100 == 0 {
+                    crate::db::sessions::save_session(&self.db, &session).await?;
+                    self.broadcast_progress(&session, start_time);
+                }
+
+                continue;
+            }
+
             // Construct absolute path
             let file_path = root_path.join(&file.path);
 
@@ -287,8 +456,10 @@ impl WorkflowOrchestrator {
                     );
 
                     // Update file duration if available
-                    if let Some(duration) = metadata.duration_seconds {
-                        if let Err(e) = crate::db::files::update_file_duration(&self.db, file.guid, duration).await {
+                    // REQ-F-003: Convert seconds to ticks before storing
+                    if let Some(duration_seconds) = metadata.duration_seconds {
+                        let duration_ticks = wkmp_common::timing::seconds_to_ticks(duration_seconds);
+                        if let Err(e) = crate::db::files::update_file_duration(&self.db, file.guid, duration_ticks).await {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
@@ -342,21 +513,23 @@ impl WorkflowOrchestrator {
             }
 
             // Update progress periodically
-            if extracted_count % 10 == 0 {
+            let total_processed = extracted_count + skipped_count;
+            if total_processed % 10 == 0 {
                 session.update_progress(
-                    extracted_count,
+                    total_processed,
                     files.len(),
-                    format!("Extracted metadata from {}/{} files", extracted_count, files.len()),
+                    format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
                 );
                 crate::db::sessions::save_session(&self.db, &session).await?;
                 self.broadcast_progress(&session, start_time);
             }
         }
 
+        let total_processed = extracted_count + skipped_count;
         session.update_progress(
-            extracted_count,
-            extracted_count,
-            format!("Extracted metadata from {} files", extracted_count),
+            total_processed,
+            total_processed,
+            format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
@@ -364,6 +537,7 @@ impl WorkflowOrchestrator {
         tracing::info!(
             session_id = %session.session_id,
             extracted_count,
+            skipped_count,
             "Metadata extraction completed"
         );
 
@@ -371,8 +545,24 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
-    async fn phase_fingerprinting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_fingerprinting(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Fingerprinting);
+
+        // **[REQ-AIA-UI-003]** Initialize sub-task counters for fingerprinting phase
+        use crate::models::import_session::SubTaskStatus;
+        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+            phase.subtasks = vec![
+                SubTaskStatus::new("Chromaprint"),
+                SubTaskStatus::new("AcoustID"),
+                SubTaskStatus::new("MusicBrainz"),
+            ];
+        }
+
         session.update_progress(
             0,
             session.progress.total,
@@ -397,17 +587,39 @@ impl WorkflowOrchestrator {
             // Construct absolute path
             let file_path = root_path.join(&file.path);
 
+            // **[REQ-AIA-UI-004]** Set current file
+            session.progress.current_file = Some(file.path.clone());
+
             // Generate Chromaprint fingerprint
             let fingerprint = match self.fingerprinter.fingerprint_file(&file_path) {
-                Ok(fp) => fp,
+                Ok(fp) => {
+                    // **[REQ-AIA-UI-003]** Increment Chromaprint success counter
+                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "Chromaprint") {
+                            subtask.success_count += 1;
+                        }
+                    }
+                    fp
+                }
                 Err(e) => {
                     tracing::warn!("Failed to fingerprint {}: {}", file.path, e);
+                    // **[REQ-AIA-UI-003]** Increment Chromaprint failure counter
+                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "Chromaprint") {
+                            subtask.failure_count += 1;
+                        }
+                    }
                     processed_count += 1;
                     continue;
                 }
             };
 
-            let duration = file.duration.unwrap_or(120.0) as u64;
+            // REQ-F-003: Convert from ticks to seconds for AcoustID API
+            let duration = if let Some(ticks) = file.duration_ticks {
+                wkmp_common::timing::ticks_to_seconds(ticks) as u64
+            } else {
+                120  // Default 120 seconds if duration unknown
+            };
 
             // Query AcoustID if client available
             if let Some(ref acoustid) = self.acoustid_client {
@@ -417,12 +629,51 @@ impl WorkflowOrchestrator {
                         if let Some(top_result) = response.results.first() {
                             if let Some(ref recordings) = top_result.recordings {
                                 if let Some(recording) = recordings.first() {
+                                    // **[REQ-AIA-UI-003]** Increment AcoustID success counter (found)
+                                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                            subtask.success_count += 1;
+                                        }
+                                    }
+
                                     // Query MusicBrainz for detailed metadata
                                     if let Some(ref mb) = self.mb_client {
-                                        if let Ok(mb_recording) = mb.lookup_recording(&recording.id).await {
-                                            // Save song
-                                            let song = crate::db::songs::Song::new(recording.id.clone());
-                                            crate::db::songs::save_song(&self.db, &song).await?;
+                                        match mb.lookup_recording(&recording.id).await {
+                                            Ok(mb_recording) => {
+                                            // **[REQ-AIA-UI-003]** Increment MusicBrainz success counter
+                                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "MusicBrainz") {
+                                                    subtask.success_count += 1;
+                                                }
+                                            }
+                                            // Save song with MusicBrainz title (may update existing if recording_mbid exists)
+                                            let song = crate::db::songs::Song::new(
+                                                recording.id.clone(),
+                                                Some(mb_recording.title.clone())
+                                            );
+                                            if let Err(e) = crate::db::songs::save_song(&self.db, &song).await {
+                                                tracing::error!(
+                                                    song_id = %song.guid,
+                                                    recording_mbid = %recording.id,
+                                                    file_path = %file.path,
+                                                    error = %e,
+                                                    "FK constraint failed when saving song"
+                                                );
+                                                return Err(e.into());
+                                            }
+
+                                            // Load the song back to get the actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                            let song = match crate::db::songs::load_song_by_mbid(&self.db, &recording.id).await? {
+                                                Some(s) => s,
+                                                None => {
+                                                    tracing::error!(
+                                                        recording_mbid = %recording.id,
+                                                        file_path = %file.path,
+                                                        "Song not found after save"
+                                                    );
+                                                    continue;
+                                                }
+                                            };
 
                                             // Save artists and link to song
                                             for artist_credit in &mb_recording.artist_credit {
@@ -430,11 +681,42 @@ impl WorkflowOrchestrator {
                                                     artist_credit.artist.id.clone(),
                                                     artist_credit.artist.name.clone(),
                                                 );
-                                                crate::db::artists::save_artist(&self.db, &artist).await?;
+                                                if let Err(e) = crate::db::artists::save_artist(&self.db, &artist).await {
+                                                    tracing::error!(
+                                                        artist_id = %artist.guid,
+                                                        artist_mbid = %artist_credit.artist.id,
+                                                        file_path = %file.path,
+                                                        error = %e,
+                                                        "FK constraint failed when saving artist"
+                                                    );
+                                                    return Err(e.into());
+                                                }
+
+                                                // Load artist back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                let artist = match crate::db::artists::load_artist_by_mbid(&self.db, &artist_credit.artist.id).await? {
+                                                    Some(a) => a,
+                                                    None => {
+                                                        tracing::warn!(
+                                                            artist_mbid = %artist_credit.artist.id,
+                                                            file_path = %file.path,
+                                                            "Artist not found after save"
+                                                        );
+                                                        continue;
+                                                    }
+                                                };
 
                                                 // Link song to artist (equal weight)
                                                 let weight = 1.0 / mb_recording.artist_credit.len() as f64;
-                                                crate::db::artists::link_song_to_artist(&self.db, song.guid, artist.guid, weight).await?;
+                                                if let Err(e) = crate::db::artists::link_song_to_artist(&self.db, song.guid, artist.guid, weight).await {
+                                                    tracing::error!(
+                                                        song_id = %song.guid,
+                                                        artist_id = %artist.guid,
+                                                        file_path = %file.path,
+                                                        error = %e,
+                                                        "FK constraint failed when linking song to artist"
+                                                    );
+                                                    return Err(e.into());
+                                                }
                                             }
 
                                             // Save album if available
@@ -444,12 +726,49 @@ impl WorkflowOrchestrator {
                                                         release.id.clone(),
                                                         release.title.clone(),
                                                     );
-                                                    crate::db::albums::save_album(&self.db, &album).await?;
+                                                    if let Err(e) = crate::db::albums::save_album(&self.db, &album).await {
+                                                        tracing::error!(
+                                                            album_id = %album.guid,
+                                                            album_mbid = %release.id,
+                                                            file_path = %file.path,
+                                                            error = %e,
+                                                            "FK constraint failed when saving album"
+                                                        );
+                                                        return Err(e.into());
+                                                    }
 
-                                                    // Link passage to album
-                                                    let passages = crate::db::passages::load_passages_for_file(&self.db, file.guid).await?;
-                                                    for passage in passages {
-                                                        crate::db::albums::link_passage_to_album(&self.db, passage.guid, album.guid).await?;
+                                                    // Load album back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                    let album = match crate::db::albums::load_album_by_mbid(&self.db, &release.id).await? {
+                                                        Some(a) => a,
+                                                        None => {
+                                                            tracing::warn!(
+                                                                album_mbid = %release.id,
+                                                                file_path = %file.path,
+                                                                "Album not found after save"
+                                                            );
+                                                            continue;
+                                                        }
+                                                    };
+
+                                                    // Store file → album mapping for later passage linking
+                                                    // (passages don't exist yet - they're created in segmenting phase)
+                                                    if let Err(e) = sqlx::query(
+                                                        "INSERT INTO temp_file_albums (file_id, album_id) VALUES (?, ?)
+                                                         ON CONFLICT(file_id, album_id) DO NOTHING"
+                                                    )
+                                                    .bind(file.guid.to_string())
+                                                    .bind(album.guid.to_string())
+                                                    .execute(&self.db)
+                                                    .await
+                                                    {
+                                                        tracing::error!(
+                                                            file_id = %file.guid,
+                                                            album_id = %album.guid,
+                                                            file_path = %file.path,
+                                                            error = %e,
+                                                            "FK constraint failed when inserting into temp_file_albums"
+                                                        );
+                                                        return Err(e.into());
                                                     }
                                                 }
                                             }
@@ -463,25 +782,65 @@ impl WorkflowOrchestrator {
                                                                 work.id.clone(),
                                                                 work.title.clone(),
                                                             );
-                                                            crate::db::works::save_work(&self.db, &db_work).await?;
+                                                            if let Err(e) = crate::db::works::save_work(&self.db, &db_work).await {
+                                                                tracing::error!(
+                                                                    work_id = %db_work.guid,
+                                                                    work_mbid = %work.id,
+                                                                    file_path = %file.path,
+                                                                    error = %e,
+                                                                    "FK constraint failed when saving work"
+                                                                );
+                                                                return Err(e.into());
+                                                            }
+
+                                                            // Load work back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                            let db_work = match crate::db::works::load_work_by_mbid(&self.db, &work.id).await? {
+                                                                Some(w) => w,
+                                                                None => {
+                                                                    tracing::warn!(
+                                                                        work_mbid = %work.id,
+                                                                        file_path = %file.path,
+                                                                        "Work not found after save"
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                            };
 
                                                             // Link song to work
-                                                            crate::db::works::link_song_to_work(&self.db, song.guid, db_work.guid).await?;
+                                                            if let Err(e) = crate::db::works::link_song_to_work(&self.db, song.guid, db_work.guid).await {
+                                                                tracing::error!(
+                                                                    song_id = %song.guid,
+                                                                    work_id = %db_work.guid,
+                                                                    file_path = %file.path,
+                                                                    error = %e,
+                                                                    "FK constraint failed when linking song to work"
+                                                                );
+                                                                return Err(e.into());
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
 
-                                            // Link passages to song
-                                            let passages = crate::db::passages::load_passages_for_file(&self.db, file.guid).await?;
-                                            for passage in passages {
-                                                crate::db::songs::link_passage_to_song(
-                                                    &self.db,
-                                                    passage.guid,
-                                                    song.guid,
-                                                    passage.start_time_ticks,
-                                                    passage.end_time_ticks,
-                                                ).await?;
+                                            // Store file → song mapping for later passage linking
+                                            // (passages don't exist yet - they're created in segmenting phase)
+                                            if let Err(e) = sqlx::query(
+                                                "INSERT INTO temp_file_songs (file_id, song_id) VALUES (?, ?)
+                                                 ON CONFLICT(file_id) DO UPDATE SET song_id = excluded.song_id"
+                                            )
+                                            .bind(file.guid.to_string())
+                                            .bind(song.guid.to_string())
+                                            .execute(&self.db)
+                                            .await
+                                            {
+                                                tracing::error!(
+                                                    file_id = %file.guid,
+                                                    song_id = %song.guid,
+                                                    file_path = %file.path,
+                                                    error = %e,
+                                                    "FK constraint failed when inserting into temp_file_songs"
+                                                );
+                                                return Err(e.into());
                                             }
 
                                             tracing::info!(
@@ -489,41 +848,82 @@ impl WorkflowOrchestrator {
                                                 recording_mbid = %recording.id,
                                                 "Successfully fingerprinted and linked to MusicBrainz"
                                             );
+                                            }
+                                            Err(e) => {
+                                                // Log MusicBrainz lookup error
+                                                tracing::warn!(
+                                                    recording_mbid = %recording.id,
+                                                    file = %file.path,
+                                                    error = ?e,
+                                                    "MusicBrainz lookup failed"
+                                                );
+                                            }
                                         }
                                     }
+                                } else {
+                                    // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no recording in result)
+                                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                            subtask.failure_count += 1;
+                                        }
+                                    }
+                                }
+                            } else {
+                                // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no recordings field)
+                                if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                    if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                        subtask.failure_count += 1;
+                                    }
+                                }
+                            }
+                        } else {
+                            // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no results)
+                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                    subtask.failure_count += 1;
                                 }
                             }
                         }
                     }
                     Err(e) => {
                         tracing::warn!("AcoustID lookup failed for {}: {}", file.path, e);
+                        // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (lookup error)
+                        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+                            if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                subtask.failure_count += 1;
+                            }
+                        }
                     }
                 }
             }
 
             processed_count += 1;
 
-            // Update progress every 5 files (fingerprinting is slow)
-            if processed_count % 5 == 0 {
-                session.update_progress(
-                    processed_count,
-                    files.len(),
-                    format!("Fingerprinted {}/{} files", processed_count, files.len()),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
-            }
+            // Update progress on every file (per-file progress indicator)
+            session.update_progress(
+                processed_count,
+                files.len(),
+                format!("Fingerprinting: {}/{} files", processed_count, files.len()),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
         }
 
         // Final progress update
         session.update_progress(processed_count, files.len(), "Fingerprinting completed".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
 
         Ok(session)
     }
 
     /// Phase 4: SEGMENTING - Passage creation
-    async fn phase_segmenting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_segmenting(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Segmenting);
         session.update_progress(
             0,
@@ -556,7 +956,12 @@ impl WorkflowOrchestrator {
             // 3. Use detected lead-in/lead-out timing
 
             // Get file duration (default to 180 seconds if not set)
-            let duration_sec = file.duration.unwrap_or(180.0);
+            // REQ-F-003: Convert from ticks to seconds for passage creation
+            let duration_sec = if let Some(ticks) = file.duration_ticks {
+                wkmp_common::timing::ticks_to_seconds(ticks)
+            } else {
+                180.0  // Default 180 seconds if duration unknown
+            };
 
             // Create passage spanning entire file
             let passage = crate::db::passages::Passage::new(
@@ -582,6 +987,58 @@ impl WorkflowOrchestrator {
                     duration_sec,
                     "Passage created"
                 );
+
+                // Link passage to song if fingerprinting identified one
+                if let Ok(Some(row)) = sqlx::query_as::<_, (String,)>(
+                    "SELECT song_id FROM temp_file_songs WHERE file_id = ?"
+                )
+                .bind(file.guid.to_string())
+                .fetch_optional(&self.db)
+                .await
+                {
+                    if let Ok(song_guid) = Uuid::parse_str(&row.0) {
+                        if let Err(e) = crate::db::songs::link_passage_to_song(
+                            &self.db,
+                            passage.guid,
+                            song_guid,
+                            passage.start_time_ticks,
+                            passage.end_time_ticks,
+                        ).await {
+                            tracing::warn!(
+                                session_id = %session.session_id,
+                                file = %file.path,
+                                error = %e,
+                                "Failed to link passage to song"
+                            );
+                        }
+                    }
+                }
+
+                // Link passage to albums if fingerprinting identified any
+                if let Ok(rows) = sqlx::query_as::<_, (String,)>(
+                    "SELECT album_id FROM temp_file_albums WHERE file_id = ?"
+                )
+                .bind(file.guid.to_string())
+                .fetch_all(&self.db)
+                .await
+                {
+                    for row in rows {
+                        if let Ok(album_guid) = Uuid::parse_str(&row.0) {
+                            if let Err(e) = crate::db::albums::link_passage_to_album(
+                                &self.db,
+                                passage.guid,
+                                album_guid,
+                            ).await {
+                                tracing::warn!(
+                                    session_id = %session.session_id,
+                                    file = %file.path,
+                                    error = %e,
+                                    "Failed to link passage to album"
+                                );
+                            }
+                        }
+                    }
+                }
             }
 
             // Update progress periodically
@@ -614,7 +1071,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 5: ANALYZING - Amplitude analysis (stub)
-    async fn phase_analyzing(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_analyzing(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Analyzing);
         session.update_progress(
             0,
@@ -708,7 +1170,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 6: FLAVORING - Musical flavor extraction via AcousticBrainz
-    async fn phase_flavoring(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_flavoring(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Flavoring);
         session.update_progress(
             0,
@@ -987,6 +1454,10 @@ impl WorkflowOrchestrator {
             current_operation: session.progress.current_operation.clone(),
             elapsed_seconds,
             estimated_remaining_seconds: session.progress.estimated_remaining_seconds,
+            // **[REQ-AIA-UI-001]** Convert phase tracking to event data
+            phases: session.progress.phases.iter().map(|p| p.into()).collect(),
+            // **[REQ-AIA-UI-004]** Include current file being processed
+            current_file: session.progress.current_file.clone(),
             timestamp: Utc::now(),
         });
     }

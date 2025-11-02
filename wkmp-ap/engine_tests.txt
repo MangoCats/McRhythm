@@ -1,0 +1,580 @@
+        let mixer_total_frames_mixed = self.mixer.read().await.get_frames_written();
+
+        crate::playback::PipelineMetrics::new(passages, mixer_total_frames_mixed)
+    }
+
+    /// Start automatic validation service
+    ///
+    /// **[ARCH-AUTO-VAL-001]** Starts periodic pipeline integrity validation
+    ///
+    /// Creates and starts a ValidationService background task that loads its
+    /// configuration from database settings and runs periodic validations,
+    /// emitting validation events via SSE.
+    ///
+    /// # Arguments
+    /// * `engine` - Arc reference to self (PlaybackEngine)
+    /// * `db_pool` - Database connection pool for loading configuration
+    ///
+    /// # Note
+    /// This should be called once during engine initialization. The validation
+    /// service will continue running in the background until the engine is dropped.
+    pub async fn start_validation_service(engine: Arc<Self>, db_pool: Pool<Sqlite>) {
+        use crate::playback::validation_service::{ValidationConfig, ValidationService};
+
+        // Load config from database
+        let config = ValidationConfig::from_database(&db_pool).await;
+
+        let validation_service = Arc::new(ValidationService::new(
+            config,
+            engine.clone(),
+            engine.state.clone(),
+        ));
+
+        validation_service.run();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn create_test_db() -> Pool<Sqlite> {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        // Create minimal schema
+        sqlx::query(
+            r#"
+            CREATE TABLE queue (
+                guid TEXT PRIMARY KEY,
+                file_path TEXT NOT NULL,
+                passage_guid TEXT,
+                play_order INTEGER NOT NULL,
+                start_time_ms INTEGER,
+                end_time_ms INTEGER,
+                lead_in_point_ms INTEGER,
+                lead_out_point_ms INTEGER,
+                fade_in_point_ms INTEGER,
+                fade_out_point_ms INTEGER,
+                fade_in_curve TEXT,
+                fade_out_curve TEXT
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create settings table for pause/resume configuration tests
+        sqlx::query(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_playback_engine_creation() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state).await;
+        assert!(engine.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_playback_state_control() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // Play
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+    }
+
+    #[tokio::test]
+    async fn test_skip_next() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // Create temporary files for testing
+        // [ISSUE-4] File existence validation requires real files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_song1.mp3");
+        let passage2 = temp_dir.join("test_song2.mp3");
+        let passage3 = temp_dir.join("test_song3.mp3");
+
+        // Create empty files
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+
+        // Enqueue 3 test passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+
+        // Verify queue has 3 entries
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 3);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip current passage
+        engine.skip_next().await.unwrap();
+
+        // Verify queue advanced (now has 2 entries)
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 2);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip again
+        engine.skip_next().await.unwrap();
+
+        // Verify queue advanced again (now has 1 entry)
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 1);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip final passage
+        engine.skip_next().await.unwrap();
+
+        // Verify queue is now empty
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 0);
+            assert!(queue.current().is_none());
+        }
+
+        // Clean up temporary files
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+    }
+
+    #[tokio::test]
+    async fn test_skip_empty_queue() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // [ISSUE-13] Try to skip with empty queue (should return error)
+        let result = engine.skip_next().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No passage to skip"));
+
+        // Queue should still be empty
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pause_integration() {
+        // [XFD-PAUS-010] Verify engine.pause() integrates with mixer and state
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db.clone(), state.clone()).await.unwrap();
+
+        // Start in Playing state
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+
+        // Verify state transitioned to Paused
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+
+        // Verify pause state persists in mixer (indirectly - mixer should output silence)
+        // Note: Cannot directly verify mixer.pause() was called due to encapsulation,
+        // but the state change verifies integration path was executed
+    }
+
+    #[tokio::test]
+    async fn test_resume_from_pause_with_custom_settings() {
+        // [XFD-PAUS-020] Verify engine.play() loads resume settings from database
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        // Set custom resume fade-in settings in database
+        crate::db::settings::set_setting(&db, "resume_from_pause_fade_in_duration", 1000u64)
+            .await
+            .unwrap();
+        crate::db::settings::set_setting(&db, "resume_from_pause_fade_in_curve", "linear".to_string())
+            .await
+            .unwrap();
+
+        let engine = PlaybackEngine::new(db.clone(), state.clone()).await.unwrap();
+
+        // Start playing
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+
+        // Resume (should load custom settings: 1000ms linear fade-in)
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Verify settings were loaded from database
+        let duration = crate::db::settings::load_resume_fade_in_duration(&db)
+            .await
+            .unwrap();
+        let curve = crate::db::settings::load_resume_fade_in_curve(&db)
+            .await
+            .unwrap();
+
+        assert_eq!(duration, 1000, "Custom resume fade-in duration should be 1000ms");
+        assert_eq!(curve, "linear", "Custom resume fade-in curve should be linear");
+
+        // Note: Cannot directly verify mixer.resume() parameters due to encapsulation,
+        // but state transitions and settings persistence verify integration path
+    }
+
+    /// **[ARCH-VOL-020]** Test that PlaybackEngine loads volume from database on startup
+    #[tokio::test]
+    async fn test_engine_loads_volume_from_database() {
+        let db = create_test_db().await;
+
+        // Set custom volume in database before creating engine
+        crate::db::settings::set_volume(&db, 0.6).await.unwrap();
+
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Verify volume was loaded from database
+        let volume_arc = engine.get_volume_arc();
+        let volume = *volume_arc.lock().unwrap();
+        assert_eq!(volume, 0.6, "Engine should load volume 0.6 from database");
+    }
+
+    /// **[ARCH-VOL-020]** Test that get_volume_arc() returns the correct shared Arc
+    #[tokio::test]
+    async fn test_get_volume_arc() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Get volume Arc
+        let volume_arc = engine.get_volume_arc();
+        let original_value = *volume_arc.lock().unwrap();
+
+        // Modify volume via Arc
+        *volume_arc.lock().unwrap() = 0.8;
+
+        // Get Arc again and verify it's the same instance
+        let volume_arc2 = engine.get_volume_arc();
+        let new_value = *volume_arc2.lock().unwrap();
+
+        assert_eq!(new_value, 0.8, "Volume Arc should reflect updated value");
+        assert_ne!(new_value, original_value, "Volume should have changed");
+    }
+
+    /// **[ARCH-VOL-020]** Test volume Arc synchronization between API and AudioOutput
+    #[tokio::test]
+    async fn test_volume_arc_synchronization() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Get shared volume Arc (simulating what API handler does)
+        let volume_arc = engine.get_volume_arc();
+
+        // Verify initial value
+        let initial = *volume_arc.lock().unwrap();
+        assert_eq!(initial, 0.5, "Initial volume should be 0.5 (default)");
+
+        // Update volume via Arc (simulating API handler)
+        *volume_arc.lock().unwrap() = 0.3;
+
+        // Get Arc again (simulating what AudioOutput would see)
+        let volume_arc2 = engine.get_volume_arc();
+        let updated = *volume_arc2.lock().unwrap();
+
+        assert_eq!(updated, 0.3, "Volume change should be visible through same Arc");
+
+        // Verify both Arcs point to same underlying data
+        *volume_arc.lock().unwrap() = 0.9;
+        let final_value = *volume_arc2.lock().unwrap();
+        assert_eq!(final_value, 0.9, "Changes via first Arc should be visible in second Arc");
+    }
+
+    /// **[DBD-OV-080]** Test get_buffer_chains() returns all 12 chains (passage-based iteration)
+    #[tokio::test]
+    async fn test_buffer_chain_12_passage_iteration() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files for testing
+        let temp_dir = std::env::temp_dir();
+        let mut passages = Vec::new();
+        for i in 0..15 {
+            let passage = temp_dir.join(format!("test_buffer_chain_{}.mp3", i));
+            std::fs::write(&passage, b"").unwrap();
+            passages.push(passage);
+        }
+
+        // Enqueue 15 passages (should see maximum_decode_streams = 12)
+        for passage in &passages {
+            engine.enqueue_file(passage.clone()).await.unwrap();
+        }
+
+        // Get buffer chains
+        let chains = engine.get_buffer_chains().await;
+
+        // Should always return exactly 12 chains (maximum_decode_streams default)
+        assert_eq!(chains.len(), 12, "get_buffer_chains() should return exactly 12 chains");
+
+        // First 12 should have queue_entry_id and passage_id (active chains)
+        for i in 0..12 {
+            assert!(
+                chains[i].queue_entry_id.is_some(),
+                "Chain {} should have queue_entry_id",
+                i
+            );
+        }
+
+        // Clean up
+        for passage in &passages {
+            let _ = std::fs::remove_file(passage);
+        }
+    }
+
+    /// **[DBD-OV-080]** Test passage-based association (queue_entry_id persistence)
+    #[tokio::test]
+    async fn test_buffer_chain_passage_based_association() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_passage_based_1.mp3");
+        let passage2 = temp_dir.join("test_passage_based_2.mp3");
+        let passage3 = temp_dir.join("test_passage_based_3.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+
+        // Enqueue 3 passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+
+        // Get initial buffer chains (3 passages + 9 idle)
+        let chains_before = engine.get_buffer_chains().await;
+
+        // Verify we have 12 chains total
+        assert_eq!(chains_before.len(), 12);
+
+        // **[DBD-OV-080]** Passages stay in their assigned chains
+        // Before skip: Passage1=chain0(pos0), Passage2=chain1(pos1), Passage3=chain2(pos2)
+        let passage2_qe_id = chains_before[1].queue_entry_id;
+        assert!(passage2_qe_id.is_some(), "Chain 1 should have passage");
+
+        // Skip current passage (advance queue - passage1 in chain 0)
+        engine.skip_next().await.unwrap();
+
+        // Get buffer chains again after queue advance
+        let chains_after = engine.get_buffer_chains().await;
+
+        // **[DBD-OV-080]** After skip: chain0=idle, Passage2 STILL in chain1 (now pos0), Passage3 STILL in chain2 (now pos1)
+        assert_eq!(
+            chains_after[0].queue_entry_id,
+            None,
+            "Chain 0 should be idle after passage was skipped and chain released"
+        );
+
+        // Passage2 should STILL be in chain 1 (chains remain associated with passages)
+        assert_eq!(
+            chains_after[1].queue_entry_id,
+            passage2_qe_id,
+            "Passage-based association: passage should stay in same chain 1"
+        );
+
+        // Passage2's queue_position should have changed from 1 to 0
+        assert_eq!(
+            chains_after[1].queue_position,
+            Some(0),
+            "queue_position should update to 0 (now playing)"
+        );
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+    }
+
+    /// **[DBD-OV-060]** **[DBD-OV-070]** Test queue_position tracking (1-indexed)
+    #[tokio::test]
+    async fn test_buffer_chain_queue_position_tracking() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_queue_pos_1.mp3");
+        let passage2 = temp_dir.join("test_queue_pos_2.mp3");
+        let passage3 = temp_dir.join("test_queue_pos_3.mp3");
+        let passage4 = temp_dir.join("test_queue_pos_4.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+        std::fs::write(&passage4, b"").unwrap();
+
+        // Enqueue 4 passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+        engine.enqueue_file(passage4.clone()).await.unwrap();
+
+        // Get buffer chains
+        let chains = engine.get_buffer_chains().await;
+
+        // Verify queue_position values (0-indexed per [SPEC020-MONITOR-050])
+        // **[DBD-OV-060]** Position 0 = "now playing"
+        assert_eq!(
+            chains[0].queue_position,
+            Some(0),
+            "Current passage should have queue_position 0 (now playing)"
+        );
+
+        // **[DBD-OV-070]** Position 1 = "playing next"
+        assert_eq!(
+            chains[1].queue_position,
+            Some(1),
+            "Next passage should have queue_position 1 (playing next)"
+        );
+
+        // Positions 2-3 = "queued passages"
+        assert_eq!(
+            chains[2].queue_position,
+            Some(2),
+            "Queued passage should have queue_position 2"
+        );
+        assert_eq!(
+            chains[3].queue_position,
+            Some(3),
+            "Queued passage should have queue_position 3"
+        );
+
+        // Positions 4-11 = idle (no queue_position)
+        for i in 4..12 {
+            assert_eq!(
+                chains[i].queue_position,
+                None,
+                "Idle chain {} should have queue_position None",
+                i
+            );
+        }
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+        let _ = std::fs::remove_file(&passage4);
+    }
+
+    /// **[DBD-OV-080]** Test idle chain filling when queue < 12 entries
+    #[tokio::test]
+    async fn test_buffer_chain_idle_filling() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Empty queue - should have 12 idle chains
+        let chains_empty = engine.get_buffer_chains().await;
+        assert_eq!(chains_empty.len(), 12, "Should always return 12 chains");
+
+        for (i, chain) in chains_empty.iter().enumerate() {
+            assert_eq!(
+                chain.queue_entry_id,
+                None,
+                "Empty queue: chain {} should have no queue_entry_id",
+                i
+            );
+            assert_eq!(
+                chain.queue_position,
+                None,
+                "Empty queue: chain {} should have no queue_position",
+                i
+            );
+            assert_eq!(
+                chain.buffer_state,
+                Some("Idle".to_string()),
+                "Empty queue: chain {} should be Idle",
+                i
+            );
+        }
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_idle_1.mp3");
+        let passage2 = temp_dir.join("test_idle_2.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+
+        // Enqueue 2 passages - should have 2 active + 10 idle chains
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+
+        let chains_partial = engine.get_buffer_chains().await;
+        assert_eq!(chains_partial.len(), 12, "Should always return 12 chains");
+
+        // First 2 should be active
+        for i in 0..2 {
+            assert!(
+                chains_partial[i].queue_entry_id.is_some(),
+                "Chain {} should be active",
+                i
+            );
+            assert!(
+                chains_partial[i].queue_position.is_some(),
+                "Chain {} should have queue_position",
+                i
+            );
+        }
+
+        // Remaining 10 should be idle
+        for i in 2..12 {
+            assert_eq!(
+                chains_partial[i].queue_entry_id,
+                None,
+                "Chain {} should be idle (no queue_entry_id)",
+                i

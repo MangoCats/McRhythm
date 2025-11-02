@@ -1,0 +1,2737 @@
+//! Core playback engine - lifecycle and orchestration
+//!
+//! **Responsibilities:**
+//! - PlaybackEngine struct definition and initialization
+//! - Lifecycle control (start, stop, play, pause, seek)
+//! - Orchestration hub (process_queue - coordinates mixer, buffer_manager, decoder_worker)
+//! - Buffer chain management (assign_chain, release_chain)
+//!
+//! **Traceability:**
+//! - [REQ-DEBT-QUALITY-002-010] Core module for lifecycle/orchestration
+//! - [SSD-FLOW-010] Complete playback sequence
+//! - [SSD-ENG-020] Queue processing
+
+use crate::audio::output::AudioOutput;
+use crate::audio::types::AudioFrame;
+use crate::db::passages::{create_ephemeral_passage, get_passage_album_uuids, get_passage_with_timing, PassageWithTiming};
+use crate::error::{Error, Result};
+use crate::playback::buffer_manager::BufferManager;
+use crate::playback::buffer_events::BufferEvent;
+use crate::playback::decoder_worker::DecoderWorker;
+use crate::playback::events::PlaybackEvent;
+use crate::playback::mixer::{Mixer, MixerState, PositionMarker, MarkerEvent};
+use crate::playback::queue_manager::{QueueEntry, QueueManager};
+use crate::playback::ring_buffer::{AudioRingBuffer, AudioProducer};
+use crate::playback::song_timeline::SongTimeline;
+use crate::playback::types::DecodePriority;
+use crate::state::{PlaybackState, SharedState};
+use sqlx::{Pool, Sqlite};
+use std::sync::{Arc, Mutex};
+use tokio::sync::mpsc;
+use tokio::sync::RwLock;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use tokio::time::{interval, Duration};
+use tracing::{debug, error, info, warn};
+use uuid::Uuid;
+use std::collections::{HashMap, BinaryHeap};
+use std::cmp::Reverse;
+
+/// Playback position tracking with lock-free atomic frame position
+///
+/// **[ISSUE-8]** Optimized to reduce lock contention in playback loop.
+/// Frame position is updated on every iteration (~100Hz), so uses AtomicU64.
+/// Queue entry ID is updated rarely (only on passage change), so uses RwLock.
+pub(super) struct PlaybackPosition {
+    /// Current passage UUID (queue entry) - updated infrequently
+    pub(super) queue_entry_id: Arc<RwLock<Option<Uuid>>>,
+
+    /// Current frame position in buffer - updated every loop iteration
+    /// [ISSUE-8] AtomicU64 for lock-free updates in hot path
+    pub(super) frame_position: Arc<AtomicU64>,
+}
+
+impl PlaybackPosition {
+    fn new() -> Self {
+        Self {
+            queue_entry_id: Arc::new(RwLock::new(None)),
+            frame_position: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    /// Clone the inner Arcs for sharing across threads
+    fn clone_handles(&self) -> Self {
+        Self {
+            queue_entry_id: Arc::clone(&self.queue_entry_id),
+            frame_position: Arc::clone(&self.frame_position),
+        }
+    }
+}
+
+/// Playback engine - orchestrates all playback components
+///
+/// [SSD-FLOW-010] Top-level coordinator for the entire playback pipeline.
+pub struct PlaybackEngine {
+    /// Database connection pool
+    pub(super) db_pool: Pool<Sqlite>,
+
+    /// Shared state
+    pub(super) state: Arc<SharedState>,
+
+    /// Queue manager (tracks current/next/queued)
+    pub(super) queue: Arc<RwLock<QueueManager>>,
+
+    /// Buffer manager (manages buffer lifecycle)
+    pub(super) buffer_manager: Arc<BufferManager>,
+
+    /// Decoder worker (single-threaded decoder using DecoderChain architecture)
+    pub(super) decoder_worker: Arc<DecoderWorker>,
+
+    /// SPEC016-compliant mixer (batch mixing with event-driven markers)
+    /// [SSD-MIX-010] Mixer component for audio frame generation
+    /// [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (SPEC016)
+    pub(super) mixer: Arc<RwLock<Mixer>>,
+
+    /// Passage start time for elapsed time calculations
+    /// [SUB-INC-4B] Tracked in engine (not in mixer) for passage lifecycle
+    pub(super) passage_start_time: Arc<RwLock<Option<tokio::time::Instant>>>,
+
+    /// Current playback position
+    /// [ISSUE-8] Now uses internal atomics for lock-free frame position updates
+    pub(super) position: PlaybackPosition,
+
+    /// Playback loop running flag
+    pub(super) running: Arc<RwLock<bool>>,
+
+    /// Position event channel sender
+    /// **[REV002]** Event-driven position tracking
+    /// Mixer sends position events to handler via this channel
+    pub(super) position_event_tx: mpsc::UnboundedSender<PlaybackEvent>,
+
+    /// Master volume control (shared with AudioOutput)
+    /// **[ARCH-VOL-020]** Volume Arc shared between engine and audio output
+    /// Updated by API handlers, read by audio callback
+    pub(super) volume: Arc<Mutex<f32>>,
+
+    /// Position event channel receiver
+    /// **[REV002]** Taken by position_event_handler on start
+    /// Wrapped in Option so it can be taken once
+    pub(super) position_event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<PlaybackEvent>>>>,
+
+    /// Song timeline for current passage
+    /// **[REV002]** Loaded when passage starts, used for boundary detection
+    /// None when no passage playing or passage has no songs
+    pub(super) current_song_timeline: Arc<RwLock<Option<SongTimeline>>>,
+
+    /// Audio expected flag for ring buffer underrun classification
+    /// Set to true when Playing state with non-empty queue
+    /// Set to false when Paused or queue is empty
+    /// Shared with audio ring buffer consumer for context-aware logging
+    pub(super) audio_expected: Arc<AtomicBool>,
+
+    /// Audio callback monitor (for gap/stutter detection)
+    /// Created in audio thread, stored here for API access
+    pub(super) callback_monitor: Arc<RwLock<Option<Arc<crate::playback::callback_monitor::CallbackMonitor>>>>,
+
+    /// Buffer event channel receiver for instant mixer start
+    /// **[PERF-POLL-010]** Event-driven buffer readiness
+    /// Receives ReadyForStart events when buffers reach minimum threshold
+    pub(super) buffer_event_rx: Arc<RwLock<Option<mpsc::UnboundedReceiver<BufferEvent>>>>,
+
+    /// Maximum number of decoder-resampler-fade-buffer chains
+    /// **[DBD-PARAM-050]** Configurable maximum decode streams (default: 12)
+    pub(super) maximum_decode_streams: usize,
+
+    /// Chain assignment tracking
+    /// **[DBD-LIFECYCLE-040]** Maps queue_entry_id to chain_index for persistent association
+    /// Implements requirement that chains remain associated with passages throughout lifecycle
+    pub(super) chain_assignments: Arc<RwLock<HashMap<Uuid, usize>>>,
+
+    /// Available chain pool
+    /// **[DBD-LIFECYCLE-030]** Min-heap for lowest-numbered chain allocation
+    /// Chains are allocated in ascending order (0, 1, 2, ...) for visual consistency
+    pub(super) available_chains: Arc<RwLock<BinaryHeap<Reverse<usize>>>>,
+
+    /// Buffer chain monitor update rate (milliseconds)
+    /// **[SPEC020-MONITOR-120]** Client-controlled SSE emission rate
+    /// Values: 100 (fast), 1000 (normal), or 0 (manual/disabled)
+    pub(super) buffer_monitor_rate_ms: Arc<RwLock<u64>>,
+
+    /// Force immediate buffer chain status emission
+    /// **[SPEC020-MONITOR-130]** Manual update trigger
+    /// Set to true to force one immediate emission, then automatically reset
+    pub(super) buffer_monitor_update_now: Arc<AtomicBool>,
+
+    /// Audio output buffer size in frames per callback
+    /// **[DBD-PARAM-110]** Configurable audio buffer size (default: 512)
+    pub(super) audio_buffer_size: u32,
+
+    /// Working sample rate (Hz) - matches audio device native rate
+    /// **[DBD-PARAM-020]** Determines resampling target in decoder chain
+    /// All decoded audio is resampled to this rate before playback
+    /// Set from AudioOutput device configuration (e.g., 44100, 48000, 96000)
+    /// Uses std::sync::RwLock for compatibility with DecoderWorker (non-async context)
+    pub(super) working_sample_rate: Arc<std::sync::RwLock<u32>>,
+
+    /// Position marker interval in milliseconds
+    /// **[DEBT-004]** Loaded from settings (default: 1000ms)
+    /// **[REV002]** Event-driven position tracking interval
+    /// Clamped to range: 100-5000ms
+    pub(super) position_interval_ms: u32,
+}
+
+impl PlaybackEngine {
+    /// Create new playback engine
+    ///
+    /// [SSD-FLOW-010] Initialize all components
+    /// **[REV002]** Configure event-driven position tracking
+    pub async fn new(db_pool: Pool<Sqlite>, state: Arc<SharedState>) -> Result<Self> {
+        use std::time::Instant;
+        let engine_start = Instant::now();
+        info!("Creating playback engine");
+
+        // **[PERF-INIT-010]** Parallel database queries for faster initialization
+        let db_start = Instant::now();
+        let (initial_volume, min_buffer_threshold, interval_ms, grace_period_ms, mixer_config, maximum_decode_streams, resume_hysteresis, mixer_min_start_level, audio_buffer_size, buffer_capacity, buffer_headroom) = tokio::join!(
+            crate::db::settings::get_volume(&db_pool),
+            crate::db::settings::load_minimum_buffer_threshold(&db_pool),
+            crate::db::settings::load_position_event_interval(&db_pool),
+            crate::db::settings::load_ring_buffer_grace_period(&db_pool),
+            crate::db::settings::load_mixer_thread_config(&db_pool),
+            crate::db::settings::load_maximum_decode_streams(&db_pool),
+            crate::db::settings::get_decoder_resume_hysteresis(&db_pool),
+            crate::db::settings::load_mixer_min_start_level(&db_pool), // [DBD-PARAM-088]
+            crate::db::settings::load_audio_buffer_size(&db_pool), // [DBD-PARAM-110]
+            crate::db::settings::load_playout_ringbuffer_capacity(&db_pool), // [DBD-PARAM-070]
+            crate::db::settings::load_playout_ringbuffer_headroom(&db_pool), // [DBD-PARAM-080]
+        );
+        let db_elapsed = db_start.elapsed();
+
+        let initial_volume = initial_volume?;
+        let min_buffer_threshold = min_buffer_threshold?;
+        let interval_ms = interval_ms?;
+        let _grace_period_ms = grace_period_ms?;  // Loaded in parallel for performance
+        let _mixer_config = mixer_config?;  // Loaded in parallel for performance
+        let maximum_decode_streams = maximum_decode_streams?;
+        let resume_hysteresis = resume_hysteresis?;
+        let _mixer_min_start_level = mixer_min_start_level?; // [DBD-PARAM-088] Reserved for future use
+        let audio_buffer_size = audio_buffer_size?; // [DBD-PARAM-110]
+        let buffer_capacity = buffer_capacity?; // [DBD-PARAM-070]
+        let buffer_headroom = buffer_headroom?; // [DBD-PARAM-080]
+
+        info!(
+            "⚡ Parallel config loaded in {:.2}ms: volume={:.2}, buffer_threshold={}ms, interval={}ms",
+            db_elapsed.as_secs_f64() * 1000.0,
+            initial_volume,
+            min_buffer_threshold,
+            interval_ms
+        );
+
+        let volume = Arc::new(Mutex::new(initial_volume));
+
+        // **[DBD-PARAM-020]** Create working sample rate (default 44.1kHz, updated by audio thread)
+        // Uses std::sync::RwLock for DecoderWorker compatibility (non-async context)
+        let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+
+        // **[PERF-POLL-010]** Create buffer event channel for instant mixer start
+        let (buffer_event_tx, buffer_event_rx) = mpsc::unbounded_channel();
+
+        // Create buffer manager
+        let buffer_manager = Arc::new(BufferManager::new());
+
+        // **[PERF-POLL-010]** Configure buffer manager with event channel and threshold
+        buffer_manager.set_event_channel(buffer_event_tx).await;
+        buffer_manager.set_min_buffer_threshold(min_buffer_threshold).await;
+        buffer_manager.set_resume_hysteresis(resume_hysteresis).await;
+        // **[DBD-PARAM-070]** Configure buffer capacity from database
+        buffer_manager.set_buffer_capacity(buffer_capacity).await;
+        // **[DBD-PARAM-080]** Configure buffer headroom from database
+        buffer_manager.set_buffer_headroom(buffer_headroom).await;
+
+        // Load queue from database (before DecoderWorker::new since it needs queue reference)
+        let queue_start = Instant::now();
+        let queue_manager = QueueManager::load_from_db(&db_pool).await?;
+        let queue_elapsed = queue_start.elapsed();
+        info!(
+            "Queue loaded in {:.2}ms: {} entries",
+            queue_elapsed.as_secs_f64() * 1000.0,
+            queue_manager.len()
+        );
+
+        // Create queue Arc (needed for DecoderWorker and PlaybackEngine)
+        let queue = Arc::new(RwLock::new(queue_manager));
+
+        // Create decoder worker
+        // **[Phase 7]** Pass shared_state and db_pool for error handling
+        // **[DBD-PARAM-020]** Pass working_sample_rate for device-matched resampling
+        // **Query-based prioritization:** Pass queue for play_order queries
+        let decoder_worker = Arc::new(DecoderWorker::new(
+            Arc::clone(&buffer_manager),
+            Arc::clone(&state),
+            db_pool.clone(),
+            Arc::clone(&working_sample_rate),
+            Arc::clone(&queue),
+        ));
+
+        // **[REV002]** Create position event channel
+        let (position_event_tx, position_event_rx) = mpsc::unbounded_channel();
+
+        // Create mixer
+        // [SSD-MIX-010] SPEC016-compliant mixer for batch mixing
+        // [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (event-driven markers)
+        // **[DEBT-003]** Master volume loaded from settings (default: 0.5)
+        let mixer = Mixer::new(initial_volume);
+        let mixer = Arc::new(RwLock::new(mixer));
+
+        // **[DBD-LIFECYCLE-030]** Initialize available chains pool with all chain indices
+        // Implements lowest-numbered allocation strategy (0, 1, 2, ...)
+        let mut available_chains_heap = BinaryHeap::new();
+        for i in 0..maximum_decode_streams {
+            available_chains_heap.push(Reverse(i));
+        }
+        debug!(
+            "Initialized {} decoder-buffer chains for assignment pool",
+            maximum_decode_streams
+        );
+
+        let total_elapsed = engine_start.elapsed();
+        info!(
+            "✅ Playback engine created in {:.2}ms",
+            total_elapsed.as_secs_f64() * 1000.0
+        );
+
+        Ok(Self {
+            db_pool,
+            state,
+            queue,
+            buffer_manager,
+            decoder_worker,
+            mixer,
+            passage_start_time: Arc::new(RwLock::new(None)), // [SUB-INC-4B] Track passage start time
+            position: PlaybackPosition::new(), // [ISSUE-8] Direct initialization, Arcs inside
+            running: Arc::new(RwLock::new(false)),
+            position_event_tx,
+            volume, // [ARCH-VOL-020] Shared volume control
+            position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
+            current_song_timeline: Arc::new(RwLock::new(None)),
+            audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
+            callback_monitor: Arc::new(RwLock::new(None)), // Created later in audio thread
+            buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
+            maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
+            chain_assignments: Arc::new(RwLock::new(HashMap::new())), // [DBD-LIFECYCLE-040] Track passage→chain mapping
+            available_chains: Arc::new(RwLock::new(available_chains_heap)), // [DBD-LIFECYCLE-030] Min-heap for lowest-first allocation
+            buffer_monitor_rate_ms: Arc::new(RwLock::new(1000)), // [SPEC020-MONITOR-120] Default 1000ms update rate
+            buffer_monitor_update_now: Arc::new(AtomicBool::new(false)), // [SPEC020-MONITOR-130] Manual update trigger
+            audio_buffer_size, // [DBD-PARAM-110] Configurable audio buffer size
+            working_sample_rate, // [DBD-PARAM-020] Default 44.1kHz, updated when AudioOutput starts
+            position_interval_ms: interval_ms, // [DEBT-004] Position marker interval from settings
+        })
+    }
+
+    /// Assign chains to all queue entries loaded from database
+    ///
+    /// **[DBD-LIFECYCLE-060]** Post-load chain assignment for database restore path
+    ///
+    /// This method should be called after engine creation to assign chains to
+    /// passages that were loaded from database during initialization. Ensures
+    /// uniform handling of chain assignment regardless of enqueue source.
+    pub async fn assign_chains_to_loaded_queue(&self) {
+        debug!("🔍 assign_chains_to_loaded_queue: START");
+        let queue = self.queue.read().await;
+        debug!("🔍 assign_chains_to_loaded_queue: Acquired queue read lock");
+
+        // Collect all queue entry IDs
+        let mut queue_entry_ids = Vec::new();
+        if let Some(current) = queue.current() {
+            debug!("🔍 assign_chains_to_loaded_queue: Found current entry: {}", current.queue_entry_id);
+            queue_entry_ids.push(current.queue_entry_id);
+        }
+        if let Some(next) = queue.next() {
+            debug!("🔍 assign_chains_to_loaded_queue: Found next entry: {}", next.queue_entry_id);
+            queue_entry_ids.push(next.queue_entry_id);
+        }
+        for entry in queue.queued() {
+            debug!("🔍 assign_chains_to_loaded_queue: Found queued entry: {}", entry.queue_entry_id);
+            queue_entry_ids.push(entry.queue_entry_id);
+        }
+        drop(queue);
+        debug!("🔍 assign_chains_to_loaded_queue: Dropped queue lock");
+
+        // Save count before moving vector
+        let count = queue_entry_ids.len();
+        debug!("🔍 assign_chains_to_loaded_queue: Will assign chains to {} entries", count);
+
+        // Assign chains to each entry
+        for (idx, queue_entry_id) in queue_entry_ids.iter().enumerate() {
+            debug!("🔍 assign_chains_to_loaded_queue: Processing entry {}/{}: {}", idx + 1, count, queue_entry_id);
+            self.assign_chain(*queue_entry_id).await;
+            debug!("🔍 assign_chains_to_loaded_queue: Completed entry {}/{}", idx + 1, count);
+        }
+
+        info!("Assigned chains to {} loaded queue entries", count);
+        debug!("🔍 assign_chains_to_loaded_queue: DONE");
+    }
+
+    /// Start playback engine background tasks
+    ///
+    /// [SSD-FLOW-010] Begin processing queue and managing buffers
+    /// [ISSUE-1] Lock-free audio callback using ring buffer
+    pub async fn start(&self) -> Result<()> {
+        use std::time::Instant;
+        info!("Starting playback engine");
+
+        // Mark as running
+        *self.running.write().await = true;
+
+        // Start decoder worker
+        Arc::clone(&self.decoder_worker).start();
+        info!("Decoder worker started");
+
+        // Start playback loop in background
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            if let Err(e) = self_clone.playback_loop().await {
+                error!("Playback loop error: {}", e);
+            }
+        });
+
+        // **[REV002]** Start position event handler (replaces position_tracking_loop)
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.position_event_handler().await;
+        });
+
+        // **[PERF-POLL-010]** Start buffer event handler for instant mixer start
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.buffer_event_handler().await;
+        });
+
+        // **[SSE-UI-030]** Start PlaybackPosition emission task (every 1s)
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.playback_position_emitter().await;
+        });
+
+        // Start BufferChainStatus emission task with client-controlled rate
+        let self_clone = self.clone_handles();
+        tokio::spawn(async move {
+            self_clone.buffer_chain_status_emitter().await;
+        });
+
+        // Create lock-free ring buffer for audio frames
+        // [SSD-OUT-012] Real-time audio callback requires lock-free operation
+        // [ISSUE-1] Replaces try_write() pattern with lock-free ring buffer
+        // [SSD-RBUF-014] Load grace period from database settings
+        info!("Creating lock-free audio ring buffer");
+        let rb_start = Instant::now();
+        let grace_period_ms = crate::db::settings::load_ring_buffer_grace_period(&self.db_pool).await?;
+        let mixer_config = crate::db::settings::load_mixer_thread_config(&self.db_pool).await?;
+        let ring_buffer = AudioRingBuffer::new(None, grace_period_ms, Arc::clone(&self.audio_expected)); // Use default size (2048 frames = ~46ms @ 44.1kHz)
+        let (mut producer, mut consumer) = ring_buffer.split();
+        let rb_elapsed = rb_start.elapsed();
+
+        info!(
+            "⚡ Ring buffer created in {:.2}ms (grace_period={}ms, check_interval={}μs)",
+            rb_elapsed.as_secs_f64() * 1000.0,
+            grace_period_ms,
+            mixer_config.check_interval_us
+        );
+
+        // Set initial audio_expected flag based on current state
+        self.update_audio_expected_flag().await;
+
+        // Start mixer thread that fills the ring buffer
+        // [SUB-INC-4B] Now uses batch mixing with event-driven markers
+        let mixer_clone = Arc::clone(&self.mixer);
+        let running_clone = Arc::clone(&self.running);
+        let audio_expected_clone = Arc::clone(&self.audio_expected);
+        let check_interval_us = mixer_config.check_interval_us;
+        let _batch_size_low = mixer_config.batch_size_low; // Reserved for adaptive batch sizing
+        let _batch_size_optimal = mixer_config.batch_size_optimal; // Reserved for adaptive batch sizing
+        // [SUB-INC-4B] Clone additional variables for batch mixing
+        let buffer_manager_clone = Arc::clone(&self.buffer_manager);
+        let position_event_tx_clone = self.position_event_tx.clone();
+        tokio::spawn(async move {
+            info!("Mixer thread started");
+            let mut check_interval = interval(Duration::from_micros(check_interval_us));
+
+            // [SUB-INC-4B] Track crossfade state and current passages
+            let mut is_crossfading = false;
+            let mut current_passage_id: Option<Uuid> = None;
+            let mut current_queue_entry_id: Option<Uuid> = None;
+            let mut next_passage_id: Option<Uuid> = None;
+
+            // [SUB-INC-4B] Fixed batch size for SPEC016 mixer (512 frames ~= 11ms @ 44.1kHz)
+            const BATCH_SIZE_FRAMES: usize = 512;
+
+            // [SUB-INC-4B] Helper function for batch mixing and ring buffer push
+            async fn mix_and_push_batch(
+                mixer: &Arc<RwLock<Mixer>>,
+                buffer_manager: &Arc<BufferManager>,
+                event_tx: &mpsc::UnboundedSender<PlaybackEvent>,
+                producer: &mut AudioProducer,
+                is_crossfading: &mut bool,
+                current_passage_id: &mut Option<Uuid>,
+                current_queue_entry_id: &mut Option<Uuid>,
+                _next_passage_id: &mut Option<Uuid>,
+                frames_to_mix: usize,
+            ) {
+                // Allocate output buffer (stereo: 2 samples per frame)
+                let mut output = vec![0.0f32; frames_to_mix * 2];
+
+                let mut mixer_guard = mixer.write().await;
+
+                // Update current passage ID and queue entry ID if changed
+                *current_passage_id = mixer_guard.get_current_passage_id();
+                *current_queue_entry_id = mixer_guard.get_current_queue_entry_id();
+
+                // If no passage playing, fill with silence
+                let Some(passage_id) = *current_passage_id else {
+                    // No passage - push silence
+                    for _ in 0..frames_to_mix {
+                        if !producer.push(AudioFrame::zero()) {
+                            break;
+                        }
+                    }
+                    return;
+                };
+
+                // Mix batch
+                let events = if *is_crossfading {
+                    // **[PLAN014]** Crossfade mixing now handled via marker system (StartCrossfade marker)
+                    // This branch should not be reached - crossfading transitions via markers
+                    warn!("Unexpected crossfade state - should be marker-driven");
+                    mixer_guard.mix_single(buffer_manager, passage_id, &mut output)
+                        .await
+                        .unwrap_or_else(|e| {
+                            error!("Mix error: {}", e);
+                            vec![]
+                        })
+                } else {
+                    // Single passage mixing
+                    mixer_guard.mix_single(buffer_manager, passage_id, &mut output)
+                        .await
+                        .unwrap_or_else(|e| {
+                            error!("Mix error: {}", e);
+                            vec![]
+                        })
+                };
+
+                // Release mixer lock before pushing to ring buffer
+                drop(mixer_guard);
+
+                // Handle marker events
+                handle_marker_events(events, event_tx, is_crossfading, current_queue_entry_id);
+
+                // Push frames to ring buffer
+                for i in (0..output.len()).step_by(2) {
+                    let frame = AudioFrame {
+                        left: output[i],
+                        right: output[i + 1],
+                    };
+                    if !producer.push(frame) {
+                        // Ring buffer full, stop pushing
+                        break;
+                    }
+                }
+            }
+
+            // [SUB-INC-4B] Convert MarkerEvents to PlaybackEvents
+            fn handle_marker_events(
+                events: Vec<MarkerEvent>,
+                event_tx: &mpsc::UnboundedSender<PlaybackEvent>,
+                is_crossfading: &mut bool,
+                current_queue_entry_id: &Option<Uuid>,
+            ) {
+                for event in events {
+                    match event {
+                        MarkerEvent::PositionUpdate { position_ms } => {
+                            if let Some(queue_entry_id) = *current_queue_entry_id {
+                                event_tx.send(PlaybackEvent::PositionUpdate { queue_entry_id, position_ms }).ok();
+                            }
+                        }
+                        MarkerEvent::StartCrossfade { next_passage_id: _ } => {
+                            *is_crossfading = true;
+                            // **[PLAN014]** Crossfade start now marker-driven via REV002 system
+                            // State tracked automatically; mixer applies fade curves to pre-decoded samples
+                        }
+                        MarkerEvent::PassageComplete => {
+                            *is_crossfading = false;
+                            // Send PassageComplete event to trigger queue advancement
+                            if let Some(queue_entry_id) = *current_queue_entry_id {
+                                event_tx.send(PlaybackEvent::PassageComplete { queue_entry_id }).ok();
+                                debug!("Sent PassageComplete event for queue_entry_id: {}", queue_entry_id);
+                            }
+                        }
+                        MarkerEvent::SongBoundary { new_song_id: _ } => {
+                            // **[PLAN014]** Song boundary tracking now marker-driven
+                            // Currently no action needed; reserved for future cooldown system integration
+                        }
+                        MarkerEvent::EndOfFile { unreachable_markers } => {
+                            warn!("EOF reached with {} unreachable markers", unreachable_markers.len());
+                            // Treat EOF as passage complete - emit PassageComplete event
+                            *is_crossfading = false;
+                            if let Some(queue_entry_id) = *current_queue_entry_id {
+                                event_tx.send(PlaybackEvent::PassageComplete { queue_entry_id }).ok();
+                                debug!("Sent PassageComplete event (EOF) for queue_entry_id: {}", queue_entry_id);
+                            }
+                        }
+                        MarkerEvent::EndOfFileBeforeLeadOut { planned_crossfade_tick, .. } => {
+                            warn!("EOF before crossfade at tick {}", planned_crossfade_tick);
+                            // Treat early EOF as passage complete - emit PassageComplete event
+                            *is_crossfading = false;
+                            if let Some(queue_entry_id) = *current_queue_entry_id {
+                                event_tx.send(PlaybackEvent::PassageComplete { queue_entry_id }).ok();
+                                debug!("Sent PassageComplete event (early EOF) for queue_entry_id: {}", queue_entry_id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            loop {
+                // Check if engine stopped
+                if !*running_clone.read().await {
+                    info!("Mixer thread stopping");
+                    break;
+                }
+
+                // Check if audio output is expected (queue has passages to play)
+                let audio_expected = audio_expected_clone.load(std::sync::atomic::Ordering::Acquire);
+
+                if !audio_expected {
+                    // Queue is empty or paused - yield when idle
+                    check_interval.tick().await;
+
+                    let occupied = producer.occupied_len();
+                    let capacity = producer.capacity();
+                    let fill_percent = occupied as f32 / capacity as f32;
+
+                    if fill_percent < 0.10 {
+                        // Buffer nearly empty - add silence
+                        // [XFD-PAUS-010] When paused, output flatline silence (not audio)
+                        for _ in 0..4 {
+                            if !producer.push(AudioFrame::zero()) {
+                                break;
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                // Audio IS expected - check if mixer is actually playing
+                let mixer_playing = {
+                    let mixer = mixer_clone.read().await;
+                    mixer.get_current_passage_id().is_some()
+                };
+
+                if !mixer_playing {
+                    // Mixer not playing yet (still in None state) - yield and wait
+                    check_interval.tick().await;
+                    continue;
+                }
+
+                // **[BUGFIX]** Graduated filling strategy with underrun prevention
+                // [SSD-MIX-020] Use configurable batch sizes from database
+                //
+                // Three-tier strategy to prevent ring buffer underruns:
+                // - CRITICAL (< 25%): Fill aggressively without sleeping (underrun imminent!)
+                // - LOW (25-50%): Fill moderately with minimal sleep
+                // - OPTIMAL (50-75%): Top up conservatively
+                // - HIGH (> 75%): Just sleep and wait
+
+                let occupied = producer.occupied_len();
+                let capacity = producer.capacity();
+                let fill_percent = occupied as f32 / capacity as f32;
+
+                let needs_filling = producer.needs_frames(); // < 50%
+                let is_optimal = producer.is_fill_optimal(); // 50-75%
+                let is_critical = fill_percent < 0.25; // < 25% = underrun risk!
+
+                // [SUB-INC-4B] Replaced frame-by-frame with batch mixing
+                if is_critical {
+                    // **[BUGFIX]** Buffer CRITICALLY low (< 25%) - UNDERRUN IMMINENT!
+                    // Fill aggressively WITHOUT sleeping to prevent gaps in audio
+                    let frames_to_mix = BATCH_SIZE_FRAMES * 2;
+                    mix_and_push_batch(
+                        &mixer_clone,
+                        &buffer_manager_clone,
+                        &position_event_tx_clone,
+                        &mut producer,
+                        &mut is_crossfading,
+                        &mut current_passage_id,
+                        &mut current_queue_entry_id,
+                        &mut next_passage_id,
+                        frames_to_mix,
+                    ).await;
+                    // NO SLEEP - loop immediately to refill!
+
+                } else if needs_filling {
+                    // Buffer LOW (25-50%) - fill moderately
+                    let frames_to_mix = BATCH_SIZE_FRAMES;
+                    mix_and_push_batch(
+                        &mixer_clone,
+                        &buffer_manager_clone,
+                        &position_event_tx_clone,
+                        &mut producer,
+                        &mut is_crossfading,
+                        &mut current_passage_id,
+                        &mut current_queue_entry_id,
+                        &mut next_passage_id,
+                        frames_to_mix,
+                    ).await;
+
+                    // Minimal sleep when buffer is low
+                    check_interval.tick().await;
+
+                } else if is_optimal {
+                    // Buffer OPTIMAL (50-75%) - top up conservatively
+                    check_interval.tick().await;
+
+                    let frames_to_mix = BATCH_SIZE_FRAMES / 2;
+                    mix_and_push_batch(
+                        &mixer_clone,
+                        &buffer_manager_clone,
+                        &position_event_tx_clone,
+                        &mut producer,
+                        &mut is_crossfading,
+                        &mut current_passage_id,
+                        &mut current_queue_entry_id,
+                        &mut next_passage_id,
+                        frames_to_mix,
+                    ).await;
+                } else {
+                    // Buffer HIGH (> 75%) - just yield and wait for consumption
+                    check_interval.tick().await;
+                }
+            }
+
+            info!("Mixer thread stopped");
+        });
+
+        // Initialize audio output in a background thread
+        // [SSD-OUT-010] Create audio device interface
+        // [SSD-OUT-012] Begin audio stream with lock-free callback
+        // Note: AudioOutput is not Send/Sync due to cpal::Stream, so we create it in a thread
+        // that just keeps it alive. The audio stream runs independently once started.
+        info!("Initializing audio output with lock-free callback");
+        let running_clone2 = Arc::clone(&self.running);
+        let volume_clone = Arc::clone(&self.volume); // [ARCH-VOL-020] Share volume with audio output
+        let state_clone = Arc::clone(&self.state); // For callback monitor event emission
+        let callback_monitor_slot = Arc::clone(&self.callback_monitor);
+        let audio_expected_clone = Arc::clone(&self.audio_expected); // For callback monitor idle detection
+        let working_sample_rate_clone = Arc::clone(&self.working_sample_rate); // [DBD-PARAM-020] Update from device config
+
+        // Capture runtime handle while we're still in async context
+        let rt_handle = tokio::runtime::Handle::current();
+
+        // Use buffer size already loaded from database
+        // [DBD-PARAM-110] Audio buffer size configuration
+        let buffer_size = self.audio_buffer_size;
+
+        std::thread::spawn(move || {
+            // Create audio output (must be done on non-async thread for cpal)
+            // [ARCH-VOL-020] Pass shared volume Arc for synchronized control
+            // [DBD-PARAM-110] Pass configurable buffer size
+            let mut audio_output = match AudioOutput::new_with_volume(None, Some(volume_clone), Some(buffer_size)) {
+                Ok(output) => output,
+                Err(e) => {
+                    error!("Failed to create audio output: {}", e);
+                    return;
+                }
+            };
+
+            // Create callback monitor for gap/stutter detection with actual device configuration
+            let actual_sample_rate = audio_output.sample_rate();
+            let actual_buffer_size = audio_output.buffer_size();
+
+            info!(
+                "Audio device config: {}Hz, {} frames per callback ({:.2}ms interval)",
+                actual_sample_rate,
+                actual_buffer_size,
+                (actual_buffer_size as f64 / actual_sample_rate as f64) * 1000.0
+            );
+
+            let monitor = Arc::new(crate::playback::callback_monitor::CallbackMonitor::new(
+                actual_sample_rate,
+                actual_buffer_size,
+                Some(state_clone),
+                audio_expected_clone,
+            ));
+
+            // Store monitor in engine for API access and clone for monitoring task
+            rt_handle.block_on(async {
+                *callback_monitor_slot.write().await = Some(Arc::clone(&monitor));
+            });
+
+            // Update working sample rate to match device configuration
+            // [DBD-PARAM-020] Decoder chains will resample to this rate
+            *working_sample_rate_clone.write().unwrap() = actual_sample_rate;
+            info!("Working sample rate set to {}Hz (matches device)", actual_sample_rate);
+
+            // Clone for monitoring task (spawn_monitoring_task takes ownership)
+            let monitor_for_task = Arc::clone(&monitor);
+
+            // Spawn monitoring task for logging and event emission
+            // Runs on tokio runtime, separate from real-time audio callback
+            let monitor_shutdown = monitor_for_task.spawn_monitoring_task(rt_handle.clone());
+
+            let monitor_clone = Arc::clone(&monitor);
+
+            // Lock-free audio callback - reads from ring buffer only
+            // [SSD-OUT-012] Real-time audio callback with no locks
+            // [ISSUE-1] Fixed: No more try_write() or block_on() in audio callback
+            let audio_callback = move || {
+                // Lock-free read from ring buffer
+                match consumer.pop() {
+                    Some(frame) => frame,
+                    None => {
+                        // Buffer underrun - record and return silence
+                        monitor_clone.record_underrun();
+                        AudioFrame::zero()
+                    }
+                }
+            };
+
+            // Pass monitor to AudioOutput so it can record callback timing once per buffer
+            if let Err(e) = audio_output.start(audio_callback, Some(monitor.clone())) {
+                error!("Failed to start audio output: {}", e);
+                return;
+            }
+
+            info!("Audio output started successfully with lock-free callback");
+
+            // Keep audio output alive while engine is running
+            // The audio stream continues running as long as audio_output isn't dropped
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+
+                // Check if engine stopped (blocking check is ok on this thread)
+                // Use captured runtime handle from async context
+                let should_stop = rt_handle.block_on(async {
+                    !*running_clone2.read().await
+                });
+
+                if should_stop {
+                    info!("Audio output stopping");
+                    break;
+                }
+            }
+
+            // Shutdown monitoring task
+            monitor_shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
+
+            // Log final callback statistics
+            let stats = monitor.stats();
+            info!(
+                "Audio output stopped - Callback stats: {} total callbacks, {} underruns, {} irregular intervals ({:.1}% irregular)",
+                stats.callback_count,
+                stats.underrun_count,
+                stats.irregular_intervals,
+                (stats.irregular_intervals as f64 / stats.callback_count.max(1) as f64) * 100.0
+            );
+        });
+
+        info!("Playback engine started with lock-free audio architecture");
+        Ok(())
+    }
+
+    /// Stop playback engine gracefully
+    ///
+    /// [SSD-DEC-033] Shutdown decoder pool with timeout
+    /// [ISSUE-2] Persist playback state on clean shutdown
+    /// [ISSUE-12] Handle decoder pool shutdown errors gracefully
+    pub async fn stop(&self) -> Result<()> {
+        info!("Stopping playback engine");
+
+        // Persist playback state before shutdown
+        // [ISSUE-2] Save state on clean shutdown
+        if let Some(passage) = self.state.get_current_passage().await {
+            // Save current position (convert u64 to i64 safely)
+            let position_ms_i64 = passage.position_ms.min(i64::MAX as u64) as i64;
+            if let Err(e) = crate::db::settings::save_playback_position(&self.db_pool, position_ms_i64).await {
+                warn!("Failed to persist playback position on shutdown: {}", e);
+            }
+
+            // Save current passage ID
+            if let Some(passage_id) = passage.passage_id {
+                if let Err(e) = crate::db::settings::save_last_passage_id(&self.db_pool, passage_id).await {
+                    warn!("Failed to persist last passage ID on shutdown: {}", e);
+                }
+            }
+
+            // Save queue state
+            if let Err(e) = crate::db::settings::save_queue_state(&self.db_pool, Some(passage.queue_entry_id)).await {
+                warn!("Failed to persist queue state on shutdown: {}", e);
+            }
+
+            info!("Persisted playback state on clean shutdown");
+        }
+
+        // Mark as not running
+        *self.running.write().await = false;
+
+        // Shutdown decoder worker
+        Arc::clone(&self.decoder_worker).shutdown().await;
+        info!("Decoder worker shut down successfully");
+
+        info!("Playback engine stopped");
+        Ok(())
+    }
+
+    /// Play (resume)
+    ///
+    /// [API] POST /playback/play
+    pub async fn play(&self) -> Result<()> {
+        info!("Play command received");
+        let old_state = self.state.get_playback_state().await;
+
+        // [XFD-PAUS-020] Check if resuming from pause
+        let resuming_from_pause = old_state == PlaybackState::Paused;
+
+        self.state.set_playback_state(PlaybackState::Playing).await;
+
+        // [XFD-PAUS-020] If resuming from pause, initiate resume fade-in
+        if resuming_from_pause {
+            // Load resume fade-in settings from database
+            let fade_duration_ms = crate::db::settings::load_resume_fade_in_duration(&self.db_pool)
+                .await
+                .unwrap_or(500); // Default: 0.5 seconds
+            let fade_curve_str = crate::db::settings::load_resume_fade_in_curve(&self.db_pool)
+                .await
+                .unwrap_or_else(|_| "exponential".to_string());
+
+            // [SUB-INC-4B] Replace resume() with start_resume_fade() + set_state(Playing)
+            {
+                let sample_rate = *self.working_sample_rate.read().unwrap(); // [DBD-PARAM-020] Use device sample rate
+                let fade_samples = ((fade_duration_ms as u64 * sample_rate as u64) / 1000) as usize;
+                let fade_curve = wkmp_common::FadeCurve::from_str(&fade_curve_str)
+                    .unwrap_or(wkmp_common::FadeCurve::Exponential);
+
+                let mut mixer = self.mixer.write().await;
+                mixer.start_resume_fade(fade_samples, fade_curve);
+                mixer.set_state(MixerState::Playing);
+            }
+
+            info!("Resuming from pause with {}ms {} fade-in", fade_duration_ms, fade_curve_str);
+        }
+
+        // Emit PlaybackStateChanged event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
+            old_state: old_state,
+            new_state: wkmp_common::events::PlaybackState::Playing,
+            timestamp: chrono::Utc::now(),
+        });
+
+        // Also emit PlaybackProgress immediately
+        if let Some(passage) = self.state.get_current_passage().await {
+            self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
+                passage_id: passage.passage_id.unwrap_or_else(|| Uuid::nil()),
+                position_ms: passage.position_ms,
+                duration_ms: passage.duration_ms,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+
+        info!("Playback state changed: {:?} -> Playing", old_state);
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
+
+        Ok(())
+    }
+
+    /// Pause
+    ///
+    /// [API] POST /playback/pause
+    /// [REQ-PERS-011] Persist playback position on pause
+    /// [ISSUE-2] Database persistence for playback state
+    pub async fn pause(&self) -> Result<()> {
+        info!("Pause command received");
+        let old_state = self.state.get_playback_state().await;
+        self.state.set_playback_state(PlaybackState::Paused).await;
+
+        // [XFD-PAUS-010] Tell mixer to enter pause state (outputs silence)
+        // [SUB-INC-4B] Replace pause() with set_state(Paused)
+        self.mixer.write().await.set_state(MixerState::Paused);
+
+        // Persist playback state to database
+        // [REQ-PERS-011] Save position and passage ID on pause
+        if let Some(passage) = self.state.get_current_passage().await {
+            // Save current position (convert u64 to i64 safely)
+            let position_ms_i64 = passage.position_ms.min(i64::MAX as u64) as i64;
+            if let Err(e) = crate::db::settings::save_playback_position(&self.db_pool, position_ms_i64).await {
+                warn!("Failed to persist playback position: {}", e);
+            }
+
+            // Save current passage ID
+            if let Some(passage_id) = passage.passage_id {
+                if let Err(e) = crate::db::settings::save_last_passage_id(&self.db_pool, passage_id).await {
+                    warn!("Failed to persist last passage ID: {}", e);
+                }
+            }
+
+            // Save queue entry ID
+            if let Err(e) = crate::db::settings::save_queue_state(&self.db_pool, Some(passage.queue_entry_id)).await {
+                warn!("Failed to persist queue state: {}", e);
+            }
+
+            debug!("Persisted playback state: position={} ms, passage_id={:?}",
+                passage.position_ms, passage.passage_id);
+        }
+
+        // Emit PlaybackStateChanged event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
+            old_state: old_state,
+            new_state: wkmp_common::events::PlaybackState::Paused,
+            timestamp: chrono::Utc::now(),
+        });
+
+        // Also emit PlaybackProgress immediately
+        if let Some(passage) = self.state.get_current_passage().await {
+            self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
+                passage_id: passage.passage_id.unwrap_or_else(|| Uuid::nil()),
+                position_ms: passage.position_ms,
+                duration_ms: passage.duration_ms,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+
+        info!("Playback state changed: {:?} -> Paused", old_state);
+
+        // Update audio_expected flag for ring buffer underrun classification
+        self.update_audio_expected_flag().await;
+
+        Ok(())
+    }
+
+    /// Seek to position in current passage
+    ///
+    /// [API] POST /playback/seek
+    pub async fn seek(&self, position_ms: u64) -> Result<()> {
+        info!("Seek command received: position={}ms", position_ms);
+
+        // Get current passage to validate seek bounds
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        drop(queue);
+
+        if current.is_none() {
+            return Err(Error::Playback("Cannot seek: no passage playing".to_string()));
+        }
+
+        let current = current.unwrap();
+
+        // Get buffer to calculate position in frames
+        let buffer_ref = self.buffer_manager.get_buffer(current.queue_entry_id).await;
+        if buffer_ref.is_none() {
+            return Err(Error::Playback("Cannot seek: buffer not available".to_string()));
+        }
+
+        let buffer = buffer_ref.unwrap();
+        // No lock needed - buffer methods use &self with atomics
+        let sample_rate = *self.working_sample_rate.read().unwrap(); // [DBD-PARAM-020] Use device sample rate
+
+        // Convert milliseconds to frames
+        let position_frames = ((position_ms as f32 / 1000.0) * sample_rate as f32) as usize;
+
+        // Clamp to buffer bounds
+        let stats = buffer.stats();
+        let max_frames = stats.total_written as usize;
+        let clamped_position = position_frames.min(max_frames.saturating_sub(1));
+
+        // Update mixer position
+        // [SUB-INC-4B] Replace set_position() with set_current_passage()
+        // Note: Marker recalculation deferred to Phase 4 (currently just updates position)
+        let mut mixer = self.mixer.write().await;
+        if let Some(passage_id) = current.passage_id {
+            let seek_tick = clamped_position as i64; // Convert frames to ticks (1:1 for now)
+            mixer.set_current_passage(passage_id, current.queue_entry_id, seek_tick);
+            // **[PLAN014]** Marker recalculation from seek deferred to future enhancement
+            // Current implementation: markers calculate from passage start; seek invalidates markers
+        }
+        drop(mixer);
+
+        // Emit PlaybackProgress event with new position
+        if let Some(passage_id) = current.passage_id {
+            let actual_position_ms = ((clamped_position as f32 / sample_rate as f32) * 1000.0) as u64;
+
+            // Get passage timing to calculate duration
+            if let Ok(passage) = self.get_passage_timing(&current).await {
+                let duration_ticks = if let Some(end_ticks) = passage.end_time_ticks {
+                    end_ticks - passage.start_time_ticks
+                } else {
+                    // If end_time is None, calculate from buffer total_written
+                    wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
+                };
+                let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
+
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
+                    passage_id,
+                    position_ms: actual_position_ms,
+                    duration_ms,
+                    timestamp: chrono::Utc::now(),
+                });
+            }
+
+            info!("Seek complete: new position={}ms ({}ms requested)", actual_position_ms, position_ms);
+        }
+
+        Ok(())
+    }
+
+    /// Update audio_expected flag based on current state
+    pub(super) async fn update_audio_expected_flag(&self) {
+        let state = self.state.get_playback_state().await;
+        let queue = self.queue.read().await;
+        let has_passages = queue.len() > 0;
+        drop(queue);
+
+        let expected = state == PlaybackState::Playing && has_passages;
+
+        // Use Release ordering to ensure visibility across threads
+        self.audio_expected.store(expected, Ordering::Release);
+
+        debug!("Audio expected flag updated: {} (state={:?}, queue_len={})",
+               expected, state, if has_passages { "non-empty" } else { "empty" });
+    }
+
+    /// Calculate crossfade start milliseconds from passage timing
+    async fn calculate_crossfade_start_ms(&self, passage: &PassageWithTiming, queue_entry_id: Uuid) -> u64 {
+        // Convert fade_out_point from ticks to ms
+        if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+            wkmp_common::timing::ticks_to_ms(fade_out_ticks) as u64
+        } else {
+            // If no explicit fade_out_point, calculate from end
+            // Default: start crossfade 5 seconds before end
+
+            // **[DBD-BUF-065]** Check for discovered endpoint first
+            let queue = self.queue.read().await;
+            let discovered_end = queue.get_discovered_endpoint(queue_entry_id);
+            drop(queue);
+
+            let end_ticks = if let Some(discovered) = discovered_end {
+                debug!(
+                    "Using discovered endpoint for crossfade calculation: {} ticks ({} ms)",
+                    discovered,
+                    wkmp_common::timing::ticks_to_ms(discovered)
+                );
+                Some(discovered)
+            } else {
+                passage.end_time_ticks
+            };
+
+            if let Some(end_ticks) = end_ticks {
+                let end_ms = wkmp_common::timing::ticks_to_ms(end_ticks) as u64;
+                if end_ms > 5000 {
+                    end_ms - 5000
+                } else {
+                    end_ms
+                }
+            } else {
+                // No endpoint known yet - return max value to prevent premature crossfade
+                // Crossfade will be triggered once discovered endpoint is available
+                debug!("No endpoint available for crossfade calculation, delaying crossfade");
+                u64::MAX
+            }
+        }
+    }
+
+    /// Check if crossfade should be triggered
+    ///
+    /// [ISSUE-7] Extracted helper method to reduce complexity
+    /// Returns true if all conditions are met for crossfade triggering
+    async fn should_trigger_crossfade(
+        &self,
+        _current_queue_entry_id: Uuid,
+        position_ms: u64,
+        crossfade_start_ms: u64,
+    ) -> bool {
+        // Check position reached trigger point
+        if position_ms < crossfade_start_ms {
+            return false;
+        }
+
+        // Check we have a next passage in queue
+        let queue = self.queue.read().await;
+        let next = queue.next();
+
+        match next {
+            Some(next_entry) => {
+                // Verify next buffer is ready
+                self.buffer_manager.is_ready(next_entry.queue_entry_id).await
+            }
+            None => false,
+        }
+    }
+
+    /// Try to trigger crossfade transition
+    ///
+    /// [ISSUE-7] Refactored from complex nested logic
+    /// [SSD-MIX-040] Crossfade initiation
+    /// [XFD-IMPL-070] Crossfade timing
+    async fn try_trigger_crossfade(
+        &self,
+        current: &QueueEntry,
+        current_passage: &PassageWithTiming,
+        position_ms: u64,
+        _crossfade_start_ms: u64,
+    ) -> Result<bool> {
+        // Get next queue entry
+        let queue = self.queue.read().await;
+        let next = match queue.next() {
+            Some(n) => n.clone(),
+            None => return Ok(false),
+        };
+        drop(queue);
+
+        // Get next buffer
+        let _next_buffer = match self.buffer_manager.get_buffer(next.queue_entry_id).await {
+            Some(buf) => buf,
+            None => {
+                warn!("Next buffer marked ready but not found: {}", next.queue_entry_id);
+                return Ok(false);
+            }
+        };
+
+        // Get next passage timing
+        let next_passage = match self.get_passage_timing(&next).await {
+            Ok(p) => p,
+            Err(_) => {
+                warn!("Could not get timing for next passage {}", next.queue_entry_id);
+                return Ok(false);
+            }
+        };
+
+        info!(
+            "Triggering crossfade: {} → {} at position {}ms",
+            current.queue_entry_id, next.queue_entry_id, position_ms
+        );
+
+        // Calculate crossfade durations (in ticks)
+        // **BUG FIX**: Duration should be (end - fade_out_point), NOT (end - crossfade_start_ms)
+        // Using crossfade_start_ms causes ticks→ms→ticks conversion loss and incorrect duration
+        let fade_out_duration_ticks = if let Some(fade_out_ticks) = current_passage.fade_out_point_ticks {
+            // Use discovered or defined endpoint
+            let end_ticks = if let Some(discovered) = self.queue.read().await.get_discovered_endpoint(current.queue_entry_id) {
+                discovered
+            } else {
+                current_passage.end_time_ticks.unwrap_or(fade_out_ticks)
+            };
+            end_ticks.saturating_sub(fade_out_ticks)
+        } else {
+            // No fade_out_point set - use default crossfade duration (5 seconds)
+            wkmp_common::timing::ms_to_ticks(5000)
+        };
+
+        let fade_in_duration_ticks = next_passage
+            .fade_in_point_ticks
+            .saturating_sub(next_passage.start_time_ticks);
+
+        // Convert ticks to samples for mixer (calculated for validation, not used in marker-driven crossfade)
+        let _fade_out_duration_samples = wkmp_common::timing::ticks_to_samples(
+            fade_out_duration_ticks,
+            44100 // STANDARD_SAMPLE_RATE
+        );
+
+        let _fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+            fade_in_duration_ticks,
+            44100 // STANDARD_SAMPLE_RATE
+        );
+
+        // Start the crossfade!
+        // [SUB-INC-4B] Crossfading now handled via StartCrossfade marker
+        //
+        // **Control Flow Explanation:**
+        // 1. The StartCrossfade marker was added earlier in process_queue() when the current
+        //    passage was loaded (see core.rs:1497-1501)
+        // 2. The marker's tick position was calculated based on fade_out_point or lead_out
+        //    (5 seconds before end if no explicit fade-out point)
+        // 3. When the mixer reaches that tick during playback, it triggers this handler
+        // 4. This handler broadcasts the CrossfadeStarted event and marks the next buffer as playing
+        //
+        // The actual crossfade mixing happens in the audio thread via fader multiplication,
+        // not in this event handler. This just coordinates state transitions.
+        info!("Crossfade trigger handled via StartCrossfade marker (added in process_queue)");
+
+        // **[SSE-UI-040]** Emit CrossfadeStarted event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::CrossfadeStarted {
+            from_passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+            to_passage_id: next.passage_id.unwrap_or_else(|| Uuid::nil()),
+            timestamp: chrono::Utc::now(),
+        });
+
+        // Mark next buffer as playing
+        self.buffer_manager.mark_playing(next.queue_entry_id).await;
+
+        // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
+        let album_uuids = if let Some(pid) = next.passage_id {
+            get_passage_album_uuids(&self.db_pool, pid)
+                .await
+                .unwrap_or_else(|e| {
+                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                    Vec::new()
+                })
+        } else {
+            Vec::new()
+        };
+
+        // Emit PassageStarted event for next passage
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
+            passage_id: next.passage_id.unwrap_or_else(|| Uuid::nil()),
+            album_uuids,
+            timestamp: chrono::Utc::now(),
+        });
+
+        Ok(true)
+    }
+
+    /// Main playback loop
+    ///
+    /// [SSD-FLOW-010] Core orchestration logic
+    async fn playback_loop(&self) -> Result<()> {
+        info!("Playback loop started");
+        let mut tick = interval(Duration::from_millis(100)); // Check every 100ms
+
+        loop {
+            tick.tick().await;
+
+            // Check if we should continue running
+            if !*self.running.read().await {
+                debug!("Playback loop stopping");
+                break;
+            }
+
+            // Check playback state
+            let playback_state = self.state.get_playback_state().await;
+            if playback_state != PlaybackState::Playing {
+                debug!("Playback loop: State is {:?}, skipping", playback_state);
+                continue; // Paused, skip processing
+            }
+
+            // Process queue
+            self.process_queue().await?;
+        }
+
+        info!("Playback loop stopped");
+        Ok(())
+    }
+
+    /// Process queue: trigger decodes for current/next/queued passages
+    ///
+    /// **CRITICAL:** This is the core orchestration hub - do NOT split this method!
+    /// It coordinates mixer, buffer_manager, and decoder_worker in complex interplay.
+    pub(super) async fn process_queue(&self) -> Result<()> {
+        // **[ASYNC-LOCK-001]** Clone queue entries immediately to avoid holding lock across awaits
+        // Holding RwLock read guard across await points can cause deadlocks when other tasks
+        // (like SSE handlers) try to acquire read locks while a write lock request is pending
+        let (current_entry, next_entry, queued_entries) = {
+            let queue = self.queue.read().await;
+            (
+                queue.current().cloned(),
+                queue.next().cloned(),
+                queue.queued().to_vec(),
+            )
+        }; // Lock is dropped here
+
+        // Trigger decode for current passage if needed
+        // **Fix for queue flooding:** Only request decode if buffer doesn't exist yet
+        // Previously checked is_ready() which allowed duplicate requests while Decoding
+        if let Some(current) = &current_entry {
+            if !self.buffer_manager.is_managed(current.queue_entry_id).await {
+                debug!("Requesting decode for current passage: {}", current.queue_entry_id);
+                self.request_decode(current, DecodePriority::Immediate, true)
+                    .await?;
+            }
+        }
+
+        // Start mixer if current passage has minimum playback buffer
+        // [SSD-MIX-030] Single passage playback initiation
+        // [SSD-PBUF-028] Start playback with minimum buffer (3 seconds)
+        if let Some(current) = &current_entry {
+            debug!("process_queue: Found current passage: {}", current.queue_entry_id);
+
+            // Check if buffer has minimum playback buffer available (3 seconds)
+            // This enables instant play start - decode continues in background
+            const MIN_PLAYBACK_BUFFER_MS: u64 = 3000;
+            let buffer_has_minimum = self.buffer_manager
+                .has_minimum_playback_buffer(current.queue_entry_id, MIN_PLAYBACK_BUFFER_MS)
+                .await;
+            debug!("process_queue: Minimum buffer for {}: {}", current.queue_entry_id, buffer_has_minimum);
+
+            if buffer_has_minimum {
+                // Check if mixer is currently idle
+                let mixer = self.mixer.read().await;
+                let mixer_idle = mixer.get_current_passage_id().is_none();
+                debug!("process_queue: Mixer idle: {}", mixer_idle);
+
+                if mixer_idle {
+                    // Mixer is idle and buffer is ready - start playback!
+                    drop(mixer); // Release read lock before acquiring write lock
+
+                    // Get buffer from buffer manager
+                    if let Some(_buffer) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
+                        // Get passage timing information
+                        let passage = self.get_passage_timing(current).await?;
+
+                        // **[REV002]** Load song timeline for passage
+                        if let Some(passage_id) = current.passage_id {
+                            match crate::db::passage_songs::load_song_timeline(&self.db_pool, passage_id).await {
+                                Ok(timeline) => {
+                                    // Get initial song at position 0
+                                    let initial_song_id = timeline.get_current_song(0);
+                                    let timeline_len = timeline.len();
+                                    let timeline_not_empty = !timeline.is_empty();
+
+                                    // Store timeline for boundary detection
+                                    *self.current_song_timeline.write().await = Some(timeline);
+
+                                    // Emit initial CurrentSongChanged if passage starts within a song
+                                    if initial_song_id.is_some() || timeline_not_empty {
+                                        debug!(
+                                            "Passage starts with song: {:?}",
+                                            initial_song_id
+                                        );
+
+                                        // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
+                                        let song_albums = crate::db::passages::get_passage_album_uuids(&self.db_pool, passage_id)
+                                            .await
+                                            .unwrap_or_else(|e| {
+                                                warn!("Failed to fetch album UUIDs for passage {}: {}", passage_id, e);
+                                                Vec::new()
+                                            });
+
+                                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
+                                            passage_id,
+                                            song_id: initial_song_id,
+                                            song_albums,
+                                            position_ms: 0,
+                                            timestamp: chrono::Utc::now(),
+                                        });
+                                    }
+
+                                    info!("Loaded song timeline: {} entries", timeline_len);
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        "Failed to load song timeline for passage {}: {} (continuing without song boundaries)",
+                                        passage_id, e
+                                    );
+                                    // Continue playback without song boundary detection
+                                    *self.current_song_timeline.write().await = None;
+                                }
+                            }
+                        } else {
+                            // Ephemeral passage - no song timeline
+                            *self.current_song_timeline.write().await = None;
+                        }
+
+                        // Calculate fade-in duration from timing points (in ticks)
+                        // fade_in_point_ticks is where fade-in completes, so duration = fade_in - start
+                        let fade_in_duration_ticks = passage.fade_in_point_ticks.saturating_sub(passage.start_time_ticks);
+
+                        // Convert ticks to samples for mixer
+                        let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+                            fade_in_duration_ticks,
+                            44100 // STANDARD_SAMPLE_RATE
+                        );
+
+                        // Determine fade-in curve (default to Exponential if not specified)
+                        let fade_in_curve = if let Some(curve_str) = current.fade_in_curve.as_ref() {
+                            wkmp_common::FadeCurve::from_str(curve_str)
+                                .unwrap_or(wkmp_common::FadeCurve::Exponential)
+                        } else {
+                            wkmp_common::FadeCurve::Exponential
+                        };
+
+                        info!(
+                            "Starting playback of passage {} (queue_entry: {}) with fade-in: {} samples ({} ticks)",
+                            current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                            current.queue_entry_id,
+                            fade_in_duration_samples,
+                            fade_in_duration_ticks
+                        );
+
+                        // Start mixer
+                        // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
+                        {
+                            let mut mixer = self.mixer.write().await;
+
+                            // Use passage_id or Uuid::nil() for ephemeral passages
+                            let mixer_passage_id = current.passage_id.unwrap_or_else(|| Uuid::nil());
+                            mixer.set_current_passage(mixer_passage_id, current.queue_entry_id, 0);
+
+                            // [SUB-INC-4B] Calculate and add markers
+                            // For ephemeral passages (passage_id = None), only add position/complete markers
+                            // Per SPEC007: ephemeral passages have no crossfade (all lead/fade points = 0)
+
+                            // 1. Position update markers (configurable interval from settings)
+                            // **[DEBT-004]** Load from settings (default: 1000ms, range: 100-5000ms)
+                            let position_interval_ms = self.position_interval_ms as i64;
+                            let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
+
+                            // Calculate passage duration in ticks
+                            // Default to 24 hours for ephemeral passages (safety fallback - EOF detection is primary mechanism)
+                            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(86_400_000)))); // Default 24hr max
+                            let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
+
+                            // Add position update markers
+                            let marker_count = (passage_duration_ticks / position_interval_ticks) as usize;
+                            for i in 1..=marker_count {
+                                let tick = i as i64 * position_interval_ticks;
+                                let position_ms = wkmp_common::timing::ticks_to_ms(tick) as u64;
+
+                                mixer.add_marker(PositionMarker {
+                                    tick,
+                                    passage_id: mixer_passage_id,
+                                    event_type: MarkerEvent::PositionUpdate { position_ms },
+                                });
+                            }
+
+                            // 2. Crossfade marker (if next passage exists AND current is not ephemeral)
+                            if current.passage_id.is_some() {
+                                if let Some(ref _next) = next_entry {
+                                    // Calculate crossfade start point
+                                    let fade_out_start_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                                        fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                                    } else {
+                                        // No explicit fade-out point, use lead-out - 5 seconds
+                                        let lead_out_tick = passage.lead_out_point_ticks.unwrap_or(passage_duration_ticks);
+                                        lead_out_tick.saturating_sub(wkmp_common::timing::ms_to_ticks(5000))
+                                    };
+
+                                    // Only add if there's a next passage in queue
+                                    if let Some(next_passage_id) = next_entry.as_ref().and_then(|n| n.passage_id) {
+                                        mixer.add_marker(PositionMarker {
+                                            tick: fade_out_start_tick,
+                                            passage_id: mixer_passage_id,
+                                            event_type: MarkerEvent::StartCrossfade { next_passage_id },
+                                        });
+
+                                        debug!(
+                                            "Added crossfade marker at tick {} for passage {} → {}",
+                                            fade_out_start_tick, mixer_passage_id, next_passage_id
+                                        );
+                                    }
+                                }
+                            } else {
+                                debug!("Ephemeral passage - skipping crossfade marker (no crossfade per SPEC007)");
+                            }
+
+                            // 3. Passage complete marker (at fade-out end)
+                            let complete_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                                fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                            } else {
+                                passage_duration_ticks
+                            };
+
+                            mixer.add_marker(PositionMarker {
+                                tick: complete_tick,
+                                passage_id: mixer_passage_id,
+                                event_type: MarkerEvent::PassageComplete,
+                            });
+
+                            debug!(
+                                "Added markers for passage {}: {} position updates, complete at tick {}",
+                                mixer_passage_id, marker_count, complete_tick
+                            );
+
+                            // 4. Handle fade-in via start_resume_fade() if needed
+                            if fade_in_duration_samples > 0 {
+                                mixer.start_resume_fade(fade_in_duration_samples as usize, fade_in_curve);
+                                debug!(
+                                    "Started fade-in: {} samples, curve: {:?}",
+                                    fade_in_duration_samples, fade_in_curve
+                                );
+                            }
+
+                            // Set passage start time
+                            *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
+                        }
+
+                        // Mark buffer as playing
+                        self.buffer_manager.mark_playing(current.queue_entry_id).await;
+
+                        // Update position tracking
+                        // [ISSUE-8] Use internal RwLock for queue_entry_id
+                        *self.position.queue_entry_id.write().await = Some(current.queue_entry_id);
+
+                        // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
+                        let album_uuids = if let Some(pid) = current.passage_id {
+                            get_passage_album_uuids(&self.db_pool, pid)
+                                .await
+                                .unwrap_or_else(|e| {
+                                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                                    Vec::new()
+                                })
+                        } else {
+                            Vec::new()
+                        };
+
+                        // Emit PassageStarted event
+                        // [Event-PassageStarted] Passage playback began
+                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
+                            passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                            album_uuids,
+                            timestamp: chrono::Utc::now(),
+                        });
+
+                        info!("Passage started successfully");
+                    } else {
+                        warn!("Buffer ready but not found in BufferManager for {}", current.queue_entry_id);
+                    }
+                }
+            }
+        }
+
+        // Check for crossfade triggering
+        // [XFD-IMPL-070] Crossfade initiation timing
+        // [SSD-MIX-040] Crossfade state transition
+        // [ISSUE-7] Refactored to use helper methods for reduced complexity
+        let mixer = self.mixer.read().await;
+        // [SUB-INC-4B] TODO: Track crossfade state in engine (marker-driven)
+        let is_crossfading = false; // Stub: crossfading handled by markers now
+        let current_passage_id = mixer.get_current_passage_id();
+        // [SUB-INC-4B] Replace get_position() with get_current_tick()
+        let mixer_position_frames = mixer.get_current_tick() as usize; // Convert tick to frames
+        drop(mixer);
+
+        // Only trigger crossfade if mixer is playing and not already crossfading
+        if let Some(current_id) = current_passage_id {
+            if !is_crossfading {
+                // Verify current matches queue
+                if let Some(current) = &current_entry {
+                    if current.queue_entry_id == current_id {
+                        // Get passage timing and buffer to calculate position
+                        if let Ok(passage) = self.get_passage_timing(current).await {
+                            if let Some(_buffer_ref) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
+                                // Convert frame position to milliseconds
+                                // [DBD-BUF-010] Fixed 44.1kHz sample rate
+                                let position_ms = (mixer_position_frames as u64 * 1000) / 44100;
+
+                                // Calculate when crossfade should start
+                                // **[DBD-BUF-065]** Pass queue_entry_id to check for discovered endpoint
+                                let crossfade_start_ms = self.calculate_crossfade_start_ms(&passage, current.queue_entry_id).await;
+
+                                // Check if conditions are met for crossfade
+                                if self.should_trigger_crossfade(current_id, position_ms, crossfade_start_ms).await {
+                                    // Attempt to trigger crossfade
+                                    if let Err(e) = self.try_trigger_crossfade(current, &passage, position_ms, crossfade_start_ms).await {
+                                        error!("Failed to trigger crossfade: {}", e);
+                                    }
+                                } else if position_ms >= crossfade_start_ms {
+                                    // Position reached but buffer not ready
+                                    debug!("Next passage buffer not ready yet at crossfade point (position: {}ms)", position_ms);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Trigger decode for next passage if needed
+        // [SSD-FBUF-011] Full decode for currently playing OR next-to-be-played
+        // [SSD-PBUF-013] Facilitate instant skip to queued passages
+        // This MUST happen before completion check to ensure prefetch while playing
+        // **Fix for queue flooding:** Only request if not already managed
+        if let Some(next) = &next_entry {
+            if !self.buffer_manager.is_managed(next.queue_entry_id).await {
+                debug!("Requesting decode for next passage: {}", next.queue_entry_id);
+                self.request_decode(next, DecodePriority::Next, true)
+                    .await?;
+            }
+        }
+
+        // Trigger decode for queued passages
+        // [SSD-PBUF-010] Partial buffer decode for queued passages
+        // **[DBD-PARAM-050]** Decode up to (maximum_decode_streams - 2) queued passages
+        // Subtract 2 for current and next passages
+        // **CRITICAL FIX:** Always request FULL decode (full=true) to prevent
+        // third-file bug where passages decoded as "queued" with full=false
+        // never get upgraded to full decode when promoted to "next".
+        // Trade-off: Slightly higher memory usage, but guarantees correct playback.
+        let max_queued = self.maximum_decode_streams.saturating_sub(2);
+        for queued in queued_entries.iter().take(max_queued) {
+            if !self.buffer_manager.is_managed(queued.queue_entry_id).await {
+                debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
+                self.request_decode(queued, DecodePriority::Prefetch, true)
+                    .await?;
+            }
+        }
+
+        // **[XFD-COMP-010]** Check for crossfade completion BEFORE normal completion
+        // When a crossfade completes, the outgoing passage has finished fading out
+        // and the incoming passage continues playing as the new current passage.
+        // We must advance the queue WITHOUT stopping the mixer to avoid interrupting
+        // the already-playing incoming passage.
+        //
+        // **[XFD-COMP-020]** Critical: Do NOT call mixer.stop() in this path!
+        // [SUB-INC-4B] Crossfade completion now handled via markers (PassageComplete event)
+        // This legacy polling mechanism is obsolete with event-driven markers
+        let crossfade_completed_id = {
+            None::<Uuid> // Stub: crossfade completion detected via markers
+        };
+
+        if let Some(completed_id) = crossfade_completed_id {
+            debug!("Processing crossfade completion for passage {}", completed_id);
+
+            // Verify this is the current passage in queue
+            let queue = self.queue.read().await;
+            if let Some(current) = queue.current() {
+                if current.queue_entry_id == completed_id {
+                    let passage_id_opt = current.passage_id;
+                    drop(queue);
+
+                    info!("Passage {} completed (via crossfade)", completed_id);
+
+                    // Fetch album UUIDs for PassageCompleted event **[REQ-DEBT-FUNC-003]**
+                    let album_uuids = if let Some(pid) = passage_id_opt {
+                        get_passage_album_uuids(&self.db_pool, pid)
+                            .await
+                            .unwrap_or_else(|e| {
+                                warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                                Vec::new()
+                            })
+                    } else {
+                        Vec::new()
+                    };
+
+                    // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+                    // [SUB-INC-4B] passage_start_time now tracked in engine
+                    let duration_played = {
+                        if let Some(start_time) = *self.passage_start_time.read().await {
+                            start_time.elapsed().as_secs_f64()
+                        } else {
+                            0.0
+                        }
+                    };
+
+                    // **[Event-PassageCompleted]** Emit completion event for OUTGOING passage
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
+                        passage_id: passage_id_opt.unwrap_or_else(|| Uuid::nil()),
+                        album_uuids,
+                        duration_played,
+                        completed: true, // Crossfade completed naturally
+                        timestamp: chrono::Utc::now(),
+                    });
+
+                    // **[DBD-LIFECYCLE-020]** Release decoder-buffer chain before removing from queue
+                    // Passage completed via crossfade, free chain for reassignment
+                    self.release_chain(completed_id).await;
+
+                    // **[XFD-COMP-020]** Advance queue WITHOUT stopping mixer
+                    // The incoming passage is already playing as current in the mixer
+                    let mut queue_write = self.queue.write().await;
+                    queue_write.advance();
+                    drop(queue_write);
+
+                    // **[SSE-UI-020]** Emit QueueStateUpdate after queue advance
+                    let queue_entries = self.get_queue_entries().await;
+                    let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                        .map(|e| wkmp_common::events::QueueEntryInfo {
+                            queue_entry_id: e.queue_entry_id,
+                            passage_id: e.passage_id,
+                            file_path: e.file_path.to_string_lossy().to_string(),
+                        })
+                        .collect();
+                    self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                        timestamp: chrono::Utc::now(),
+                        queue: queue_info,
+                    });
+
+                    // Remove completed passage from database to keep in sync
+                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        warn!("Failed to remove completed passage from database: {}", e);
+                    } else {
+                        info!("Queue advanced (crossfade) and synced to database (removed {})", completed_id);
+                    }
+
+                    // Update audio_expected flag
+                    self.update_audio_expected_flag().await;
+
+                    // **[XFD-COMP-020]** Clean up outgoing buffer (incoming continues playing)
+                    if let Some(p_id) = passage_id_opt {
+                        self.buffer_manager.remove(p_id).await;
+                    }
+
+                    // **[XFD-COMP-020]** CRITICAL: DO NOT stop mixer!
+                    // The incoming passage is already playing seamlessly in the mixer.
+                    // Stopping would interrupt playback and cause the bug we're fixing.
+                    debug!("Crossfade completion handled - mixer continues playing incoming passage");
+
+                    return Ok(()); // Exit early - do not fall through to normal completion
+                } else {
+                    warn!(
+                        "Crossfade completed ID {} doesn't match queue current {}",
+                        completed_id, current.queue_entry_id
+                    );
+                }
+            }
+        }
+
+        // Check for passage completion (normal case - no crossfade)
+        // [SSD-MIX-060] Passage completion detection
+        // [SSD-ENG-020] Queue processing and advancement
+        // [SUB-INC-4B] Passage completion now handled via PassageComplete marker event
+        // This polling mechanism is obsolete with event-driven markers
+        let is_finished = false; // Stub: completion detected via markers
+
+        if is_finished {
+            // Get current queue entry for event emission and logging
+            // **[ASYNC-LOCK-001]** Acquire lock only for the data we need, then drop immediately
+            let (current_qe_id, current_pid) = {
+                let queue = self.queue.read().await;
+                if let Some(current) = queue.current() {
+                    (Some(current.queue_entry_id), current.passage_id)
+                } else {
+                    (None, None)
+                }
+            };
+
+            if let Some(queue_entry_id) = current_qe_id {
+                info!("Passage {} completed", queue_entry_id);
+
+                // Fetch album UUIDs for PassageCompleted event **[REQ-DEBT-FUNC-003]**
+                let album_uuids = if let Some(pid) = current_pid {
+                    get_passage_album_uuids(&self.db_pool, pid)
+                        .await
+                        .unwrap_or_else(|e| {
+                            warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                            Vec::new()
+                        })
+                } else {
+                    Vec::new()
+                };
+
+                // Calculate duration_played **[REQ-DEBT-FUNC-002]**
+                // [SUB-INC-4B] passage_start_time now tracked in engine
+                let duration_played = {
+                    if let Some(start_time) = *self.passage_start_time.read().await {
+                        start_time.elapsed().as_secs_f64()
+                    } else {
+                        0.0
+                    }
+                };
+
+                // Emit PassageCompleted event
+                // [Event-PassageCompleted] Passage playback finished
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
+                    passage_id: current_pid.unwrap_or_else(|| Uuid::nil()),
+                    album_uuids,
+                    duration_played,
+                    completed: true, // true = finished naturally, false = skipped/interrupted
+                    timestamp: chrono::Utc::now(),
+                });
+
+                // Mark buffer as exhausted
+                self.buffer_manager.mark_exhausted(queue_entry_id).await;
+
+                info!("Marked buffer {} as exhausted", queue_entry_id);
+
+                // Capture passage_id for buffer cleanup later (after queue advance)
+                let passage_id_for_cleanup = current_pid;
+
+                // [ISSUE-6] Sync queue advance to database
+                // Store ID of completed passage before advancing
+                let completed_queue_entry_id = {
+                    let queue_read = self.queue.read().await;
+                    queue_read.current().map(|c| c.queue_entry_id)
+                };
+
+                // **[DBD-LIFECYCLE-020]** Release decoder-buffer chain before removing from queue
+                // Passage completed normally, free chain for reassignment
+                self.release_chain(queue_entry_id).await;
+
+                // Advance queue to next passage (in-memory)
+                // This removes the completed passage and moves next → current
+                let mut queue_write = self.queue.write().await;
+                queue_write.advance();
+                drop(queue_write);
+
+                // **[SSE-UI-020]** Emit QueueStateUpdate after queue advance
+                let queue_entries = self.get_queue_entries().await;
+                let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+                    .map(|e| wkmp_common::events::QueueEntryInfo {
+                        queue_entry_id: e.queue_entry_id,
+                        passage_id: e.passage_id,
+                        file_path: e.file_path.to_string_lossy().to_string(),
+                    })
+                    .collect();
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+                    timestamp: chrono::Utc::now(),
+                    queue: queue_info,
+                });
+
+                // Remove completed passage from database to keep in sync
+                if let Some(completed_id) = completed_queue_entry_id {
+                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        // Log error but don't fail - queue already advanced in memory
+                        warn!("Failed to remove completed passage from database queue: {} (continuing anyway)", e);
+                    } else {
+                        info!("Queue advanced and synced to database (removed {})", completed_id);
+                    }
+                } else {
+                    info!("Queue advanced to next passage");
+                }
+
+                // Update audio_expected flag for ring buffer underrun classification
+                // This ensures TRACE logging when queue becomes empty after passage finishes
+                self.update_audio_expected_flag().await;
+
+                // Clean up the exhausted buffer (free memory)
+                if let Some(p_id) = passage_id_for_cleanup {
+                    self.buffer_manager.remove(p_id).await;
+                }
+
+                // Stop the mixer (will be restarted on next iteration with new passage)
+                // [SUB-INC-4B] Replace stop() with SPEC016 operations
+                {
+                    let mut mixer = self.mixer.write().await;
+                    mixer.clear_all_markers();
+                    mixer.clear_passage();
+                    mixer.set_state(MixerState::Paused);
+                }
+
+                debug!("Mixer stopped after passage completion");
+
+                // Return early - next iteration will start the new current passage
+                return Ok(());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Request decode for a passage
+    async fn request_decode(
+        &self,
+        entry: &QueueEntry,
+        priority: DecodePriority,
+        full_decode: bool,
+    ) -> Result<()> {
+        // Get passage timing
+        let passage = self.get_passage_timing(entry).await?;
+
+        // Submit to decoder worker (async - registers buffer immediately)
+        self.decoder_worker
+            .submit(entry.queue_entry_id, passage, priority, full_decode)
+            .await?;
+
+        debug!(
+            "Submitted decode request for queue_entry_id={}, priority={:?}, full={}",
+            entry.queue_entry_id, priority, full_decode
+        );
+
+        Ok(())
+    }
+
+    /// Get passage timing from entry
+    pub(super) async fn get_passage_timing(&self, entry: &QueueEntry) -> Result<PassageWithTiming> {
+        // If entry has a passage_id, load from database
+        if let Some(passage_id) = entry.passage_id {
+            get_passage_with_timing(&self.db_pool, passage_id).await
+        } else {
+            // Ephemeral passage: create from entry data
+            Ok(create_ephemeral_passage(entry.file_path.clone()))
+        }
+    }
+
+    /// Handle buffer underrun with emergency refill
+    ///
+    /// **[REQ-AP-ERR-020]** Buffer underrun emergency refill with timeout
+    ///
+    /// # Strategy
+    /// 1. Emit BufferUnderrun event
+    /// 2. Request immediate priority decode (emergency refill)
+    /// 3. Wait up to timeout for buffer to reach minimum threshold
+    /// 4. If recovered: emit BufferUnderrunRecovered event
+    /// 5. If timeout: skip passage and continue
+    pub(super) async fn handle_buffer_underrun(&self, queue_entry_id: uuid::Uuid, headroom: usize) {
+        warn!(
+            "⚠️  Buffer underrun: queue_entry={}, headroom={} samples",
+            queue_entry_id, headroom
+        );
+
+        // Get current passage info for event emission
+        let queue = self.queue.read().await;
+        let current_entry = queue.current().cloned();
+        drop(queue);
+
+        let passage_id = current_entry
+            .as_ref()
+            .and_then(|e| e.passage_id)
+            .unwrap_or_else(|| uuid::Uuid::nil());
+
+        // Calculate buffer fill percent
+        // **[DBD-PARAM-080]** buffer capacity = playout_ringbuffer_size (from settings)
+        // For now, use standard 10-second buffer = 441,000 samples @ 44.1kHz stereo
+        const STANDARD_BUFFER_CAPACITY: usize = 441_000;
+        let buffer_fill_percent = (headroom as f32 / STANDARD_BUFFER_CAPACITY as f32) * 100.0;
+
+        // **[ERH-BUF-010]** Emit BufferUnderrun event
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferUnderrun {
+            passage_id,
+            buffer_fill_percent,
+            timestamp: chrono::Utc::now(),
+        });
+
+        // **[ERH-BUF-015]** Load recovery timeout from database settings
+        let recovery_timeout_ms = match crate::db::settings::load_buffer_underrun_timeout(&self.db_pool).await {
+            Ok(timeout) => timeout,
+            Err(e) => {
+                warn!("Failed to load buffer_underrun_recovery_timeout_ms from settings: {}, using default 2000ms", e);
+                2000 // Default: 2 seconds (spec says 500ms, but summary indicated 2000ms for slow hardware)
+            }
+        };
+
+        debug!(
+            "Buffer underrun recovery: timeout={}ms, requesting emergency decode",
+            recovery_timeout_ms
+        );
+
+        // **[ERH-BUF-010]** Request immediate priority decode (emergency refill)
+        if let Some(entry) = current_entry {
+            match self.request_decode(&entry, DecodePriority::Immediate, false).await {
+                Ok(_) => {
+                    debug!("Emergency decode request submitted for queue_entry={}", queue_entry_id);
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to request emergency decode for queue_entry={}: {}",
+                        queue_entry_id, e
+                    );
+                    // Continue with timeout logic anyway - buffer may already be refilling
+                }
+            }
+
+            // Wait for buffer recovery with timeout
+            let recovery_start = std::time::Instant::now();
+            let timeout_duration = std::time::Duration::from_millis(recovery_timeout_ms);
+
+            // **[DBD-PARAM-110]** mixer_min_start_level (configurable, default ~500ms)
+            // For recovery, we need at least this much buffered to resume playback
+            let min_buffer_threshold_ms = self.buffer_manager.get_min_buffer_threshold().await;
+            let min_buffer_samples = (min_buffer_threshold_ms as usize * 44100 / 1000) * 2; // Stereo
+
+            loop {
+                // Check if buffer has refilled to minimum threshold
+                if let Some(buffer) = self.buffer_manager.get_buffer(queue_entry_id).await {
+                    let available = buffer.occupied();
+                    if available >= min_buffer_samples {
+                        let recovery_time_ms = recovery_start.elapsed().as_millis() as u64;
+                        info!(
+                            "✅ Buffer underrun recovered: queue_entry={}, recovery_time={}ms, available={} samples",
+                            queue_entry_id, recovery_time_ms, available
+                        );
+
+                        // **[ERH-BUF-010]** Emit BufferUnderrunRecovered event
+                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::BufferUnderrunRecovered {
+                            passage_id,
+                            recovery_time_ms,
+                            timestamp: chrono::Utc::now(),
+                        });
+
+                        return; // Recovery successful
+                    }
+                }
+
+                // Check timeout
+                if recovery_start.elapsed() >= timeout_duration {
+                    error!(
+                        "❌ Buffer underrun recovery timeout after {}ms: queue_entry={}, skipping passage",
+                        recovery_timeout_ms, queue_entry_id
+                    );
+
+                    // **[ERH-BUF-010]** Timeout: skip passage and continue
+                    match self.skip_next().await {
+                        Ok(_) => {
+                            info!("Skipped to next passage after buffer underrun timeout");
+                        }
+                        Err(e) => {
+                            error!("Failed to skip passage after underrun timeout: {}", e);
+                        }
+                    }
+
+                    return;
+                }
+
+                // Sleep briefly before next check (10ms polling interval)
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+        } else {
+            warn!("No current passage found during buffer underrun, cannot request emergency decode");
+        }
+    }
+
+    /// Assign a decoder-buffer chain to a queue entry
+    ///
+    /// **[DBD-LIFECYCLE-010]** Chain assignment on enqueue
+    /// **[DBD-LIFECYCLE-030]** Lowest-numbered available chain allocation
+    ///
+    /// Allocates the lowest-numbered available chain from the pool and assigns it
+    /// to the given queue entry. Returns the assigned chain index, or None if all
+    /// chains are currently allocated.
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - UUID of the queue entry to assign a chain to
+    ///
+    /// # Returns
+    /// * `Some(chain_index)` - The chain index (0..maximum_decode_streams) assigned
+    /// * `None` - No chains available (all maximum_decode_streams chains in use)
+    pub(super) async fn assign_chain(&self, queue_entry_id: Uuid) -> Option<usize> {
+        debug!("🔍 assign_chain: START for {}", queue_entry_id);
+        debug!("🔍 assign_chain: Acquiring available_chains write lock...");
+        let mut available = self.available_chains.write().await;
+        debug!("🔍 assign_chain: Acquired available_chains write lock, {} chains available", available.len());
+        if let Some(Reverse(chain_index)) = available.pop() {
+            debug!("🔍 assign_chain: Popped chain_index {}, acquiring chain_assignments write lock...", chain_index);
+            let mut assignments = self.chain_assignments.write().await;
+            debug!("🔍 assign_chain: Acquired chain_assignments write lock");
+            assignments.insert(queue_entry_id, chain_index);
+            debug!(
+                queue_entry_id = %queue_entry_id,
+                chain_index = chain_index,
+                "Assigned decoder-buffer chain to passage"
+            );
+            debug!("🔍 assign_chain: DONE - returning Some({})", chain_index);
+            Some(chain_index)
+        } else {
+            warn!(
+                queue_entry_id = %queue_entry_id,
+                "No available chains for assignment (all {} chains in use)",
+                self.maximum_decode_streams
+            );
+            debug!("🔍 assign_chain: DONE - returning None");
+            None
+        }
+    }
+
+    /// Release a decoder-buffer chain from a queue entry
+    ///
+    /// **[DBD-LIFECYCLE-020]** Chain release on completion
+    /// **[DBD-LIFECYCLE-030]** Return chain to available pool for reuse
+    ///
+    /// Removes the passage→chain mapping and returns the chain to the available pool
+    /// for assignment to future queue entries. This is called when a passage completes
+    /// playback or is removed from the queue.
+    ///
+    /// # Arguments
+    /// * `queue_entry_id` - UUID of the queue entry whose chain should be released
+    pub(super) async fn release_chain(&self, queue_entry_id: Uuid) {
+        let mut assignments = self.chain_assignments.write().await;
+        if let Some(chain_index) = assignments.remove(&queue_entry_id) {
+            let mut available = self.available_chains.write().await;
+            available.push(Reverse(chain_index));
+            debug!(
+                queue_entry_id = %queue_entry_id,
+                chain_index = chain_index,
+                "Released decoder-buffer chain from passage"
+            );
+        } else {
+            // Not an error - passage may have been queued when all chains were allocated
+            debug!(
+                queue_entry_id = %queue_entry_id,
+                "No chain to release (passage was not assigned a chain)"
+            );
+        }
+    }
+
+    /// Clone the engine's handles for sharing across threads
+    fn clone_handles(&self) -> Self {
+        Self {
+            db_pool: self.db_pool.clone(),
+            state: Arc::clone(&self.state),
+            queue: Arc::clone(&self.queue),
+            buffer_manager: Arc::clone(&self.buffer_manager),
+            decoder_worker: Arc::clone(&self.decoder_worker),
+            mixer: Arc::clone(&self.mixer),
+            position: self.position.clone_handles(), // [ISSUE-8] Clone inner Arcs
+            running: Arc::clone(&self.running),
+            position_event_tx: self.position_event_tx.clone(), // **[REV002]** Clone sender
+            volume: Arc::clone(&self.volume), // [ARCH-VOL-020] Clone volume Arc
+            position_event_rx: Arc::clone(&self.position_event_rx), // **[REV002]** Clone receiver
+            current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
+            audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
+            buffer_event_rx: Arc::clone(&self.buffer_event_rx), // **[PERF-POLL-010]** Clone buffer event receiver
+            maximum_decode_streams: self.maximum_decode_streams, // [DBD-PARAM-050] Copy decode stream limit
+            chain_assignments: Arc::clone(&self.chain_assignments), // [DBD-LIFECYCLE-040] Clone chain assignment tracking
+            available_chains: Arc::clone(&self.available_chains), // [DBD-LIFECYCLE-030] Clone available chains pool
+            buffer_monitor_rate_ms: Arc::clone(&self.buffer_monitor_rate_ms), // [SPEC020-MONITOR-120] Clone monitor rate
+            buffer_monitor_update_now: Arc::clone(&self.buffer_monitor_update_now), // [SPEC020-MONITOR-130] Clone update trigger
+            callback_monitor: Arc::clone(&self.callback_monitor), // Clone callback monitor for gap detection
+            audio_buffer_size: self.audio_buffer_size, // [DBD-PARAM-110] Copy audio buffer size
+            passage_start_time: Arc::clone(&self.passage_start_time), // [SUB-INC-4B] Clone passage start time tracking
+            working_sample_rate: Arc::clone(&self.working_sample_rate), // [DBD-PARAM-020] Clone working sample rate
+            position_interval_ms: self.position_interval_ms, // [DEBT-004] Copy position interval from settings
+        }
+    }
+}
+
+// Note: Additional methods for PlaybackEngine are implemented in:
+// - queue.rs: Queue operations (skip_next, clear_queue, enqueue_file, etc.)
+// - diagnostics.rs: Diagnostics and monitoring (get_buffer_chains, event handlers, etc.)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn create_test_db() -> Pool<Sqlite> {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        // Create minimal schema
+        sqlx::query(
+            r#"
+            CREATE TABLE queue (
+                guid TEXT PRIMARY KEY,
+                file_path TEXT NOT NULL,
+                passage_guid TEXT,
+                play_order INTEGER NOT NULL,
+                start_time_ms INTEGER,
+                end_time_ms INTEGER,
+                lead_in_point_ms INTEGER,
+                lead_out_point_ms INTEGER,
+                fade_in_point_ms INTEGER,
+                fade_out_point_ms INTEGER,
+                fade_in_curve TEXT,
+                fade_out_curve TEXT
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Create settings table for pause/resume configuration tests
+        sqlx::query(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_playback_engine_creation() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state).await;
+        assert!(engine.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_playback_state_control() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // Play
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+    }
+
+    #[tokio::test]
+    async fn test_skip_next() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // Create temporary files for testing
+        // [ISSUE-4] File existence validation requires real files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_song1.mp3");
+        let passage2 = temp_dir.join("test_song2.mp3");
+        let passage3 = temp_dir.join("test_song3.mp3");
+
+        // Create empty files
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+
+        // Enqueue 3 test passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+
+        // Verify queue has 3 entries
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 3);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip current passage
+        engine.skip_next().await.unwrap();
+
+        // Verify queue advanced (now has 2 entries)
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 2);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip again
+        engine.skip_next().await.unwrap();
+
+        // Verify queue advanced again (now has 1 entry)
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 1);
+            assert!(queue.current().is_some());
+        }
+
+        // Skip final passage
+        engine.skip_next().await.unwrap();
+
+        // Verify queue is now empty
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 0);
+            assert!(queue.current().is_none());
+        }
+
+        // Clean up temporary files
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+    }
+
+    #[tokio::test]
+    async fn test_skip_empty_queue() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db, state.clone()).await.unwrap();
+
+        // [ISSUE-13] Try to skip with empty queue (should return error)
+        let result = engine.skip_next().await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No passage to skip"));
+
+        // Queue should still be empty
+        {
+            let queue = engine.queue.read().await;
+            assert_eq!(queue.len(), 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pause_integration() {
+        // [XFD-PAUS-010] Verify engine.pause() integrates with mixer and state
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        let engine = PlaybackEngine::new(db.clone(), state.clone()).await.unwrap();
+
+        // Start in Playing state
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+
+        // Verify state transitioned to Paused
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+
+        // Verify pause state persists in mixer (indirectly - mixer should output silence)
+        // Note: Cannot directly verify mixer.pause() was called due to encapsulation,
+        // but the state change verifies integration path was executed
+    }
+
+    #[tokio::test]
+    async fn test_resume_from_pause_with_custom_settings() {
+        // [XFD-PAUS-020] Verify engine.play() loads resume settings from database
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+
+        // Set custom resume fade-in settings in database
+        crate::db::settings::set_setting(&db, "resume_from_pause_fade_in_duration", 1000u64)
+            .await
+            .unwrap();
+        crate::db::settings::set_setting(&db, "resume_from_pause_fade_in_curve", "linear".to_string())
+            .await
+            .unwrap();
+
+        let engine = PlaybackEngine::new(db.clone(), state.clone()).await.unwrap();
+
+        // Start playing
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Pause
+        engine.pause().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Paused);
+
+        // Resume (should load custom settings: 1000ms linear fade-in)
+        engine.play().await.unwrap();
+        assert_eq!(state.get_playback_state().await, PlaybackState::Playing);
+
+        // Verify settings were loaded from database
+        let duration = crate::db::settings::load_resume_fade_in_duration(&db)
+            .await
+            .unwrap();
+        let curve = crate::db::settings::load_resume_fade_in_curve(&db)
+            .await
+            .unwrap();
+
+        assert_eq!(duration, 1000, "Custom resume fade-in duration should be 1000ms");
+        assert_eq!(curve, "linear", "Custom resume fade-in curve should be linear");
+
+        // Note: Cannot directly verify mixer.resume() parameters due to encapsulation,
+        // but state transitions and settings persistence verify integration path
+    }
+
+    /// **[ARCH-VOL-020]** Test that PlaybackEngine loads volume from database on startup
+    #[tokio::test]
+    async fn test_engine_loads_volume_from_database() {
+        let db = create_test_db().await;
+
+        // Set custom volume in database before creating engine
+        crate::db::settings::set_volume(&db, 0.6).await.unwrap();
+
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Verify volume was loaded from database
+        let volume_arc = engine.get_volume_arc();
+        let volume = *volume_arc.lock().unwrap();
+        assert_eq!(volume, 0.6, "Engine should load volume 0.6 from database");
+    }
+
+    /// **[ARCH-VOL-020]** Test that get_volume_arc() returns the correct shared Arc
+    #[tokio::test]
+    async fn test_get_volume_arc() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Get volume Arc
+        let volume_arc = engine.get_volume_arc();
+        let original_value = *volume_arc.lock().unwrap();
+
+        // Modify volume via Arc
+        *volume_arc.lock().unwrap() = 0.8;
+
+        // Get Arc again and verify it's the same instance
+        let volume_arc2 = engine.get_volume_arc();
+        let new_value = *volume_arc2.lock().unwrap();
+
+        assert_eq!(new_value, 0.8, "Volume Arc should reflect updated value");
+        assert_ne!(new_value, original_value, "Volume should have changed");
+    }
+
+    /// **[ARCH-VOL-020]** Test volume Arc synchronization between API and AudioOutput
+    #[tokio::test]
+    async fn test_volume_arc_synchronization() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Get shared volume Arc (simulating what API handler does)
+        let volume_arc = engine.get_volume_arc();
+
+        // Verify initial value
+        let initial = *volume_arc.lock().unwrap();
+        assert_eq!(initial, 0.5, "Initial volume should be 0.5 (default)");
+
+        // Update volume via Arc (simulating API handler)
+        *volume_arc.lock().unwrap() = 0.3;
+
+        // Get Arc again (simulating what AudioOutput would see)
+        let volume_arc2 = engine.get_volume_arc();
+        let updated = *volume_arc2.lock().unwrap();
+
+        assert_eq!(updated, 0.3, "Volume change should be visible through same Arc");
+
+        // Verify both Arcs point to same underlying data
+        *volume_arc.lock().unwrap() = 0.9;
+        let final_value = *volume_arc2.lock().unwrap();
+        assert_eq!(final_value, 0.9, "Changes via first Arc should be visible in second Arc");
+    }
+
+    /// **[DBD-OV-080]** Test get_buffer_chains() returns all 12 chains (passage-based iteration)
+    #[tokio::test]
+    async fn test_buffer_chain_12_passage_iteration() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files for testing
+        let temp_dir = std::env::temp_dir();
+        let mut passages = Vec::new();
+        for i in 0..15 {
+            let passage = temp_dir.join(format!("test_buffer_chain_{}.mp3", i));
+            std::fs::write(&passage, b"").unwrap();
+            passages.push(passage);
+        }
+
+        // Enqueue 15 passages (should see maximum_decode_streams = 12)
+        for passage in &passages {
+            engine.enqueue_file(passage.clone()).await.unwrap();
+        }
+
+        // Get buffer chains
+        let chains = engine.get_buffer_chains().await;
+
+        // Should always return exactly 12 chains (maximum_decode_streams default)
+        assert_eq!(chains.len(), 12, "get_buffer_chains() should return exactly 12 chains");
+
+        // First 12 should have queue_entry_id and passage_id (active chains)
+        for i in 0..12 {
+            assert!(
+                chains[i].queue_entry_id.is_some(),
+                "Chain {} should have queue_entry_id",
+                i
+            );
+        }
+
+        // Clean up
+        for passage in &passages {
+            let _ = std::fs::remove_file(passage);
+        }
+    }
+
+    /// **[DBD-OV-080]** Test passage-based association (queue_entry_id persistence)
+    #[tokio::test]
+    async fn test_buffer_chain_passage_based_association() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_passage_based_1.mp3");
+        let passage2 = temp_dir.join("test_passage_based_2.mp3");
+        let passage3 = temp_dir.join("test_passage_based_3.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+
+        // Enqueue 3 passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+
+        // Get initial buffer chains (3 passages + 9 idle)
+        let chains_before = engine.get_buffer_chains().await;
+
+        // Verify we have 12 chains total
+        assert_eq!(chains_before.len(), 12);
+
+        // **[DBD-OV-080]** Passages stay in their assigned chains
+        // Before skip: Passage1=chain0(pos0), Passage2=chain1(pos1), Passage3=chain2(pos2)
+        let passage2_qe_id = chains_before[1].queue_entry_id;
+        assert!(passage2_qe_id.is_some(), "Chain 1 should have passage");
+
+        // Skip current passage (advance queue - passage1 in chain 0)
+        engine.skip_next().await.unwrap();
+
+        // Get buffer chains again after queue advance
+        let chains_after = engine.get_buffer_chains().await;
+
+        // **[DBD-OV-080]** After skip: chain0=idle, Passage2 STILL in chain1 (now pos0), Passage3 STILL in chain2 (now pos1)
+        assert_eq!(
+            chains_after[0].queue_entry_id,
+            None,
+            "Chain 0 should be idle after passage was skipped and chain released"
+        );
+
+        // Passage2 should STILL be in chain 1 (chains remain associated with passages)
+        assert_eq!(
+            chains_after[1].queue_entry_id,
+            passage2_qe_id,
+            "Passage-based association: passage should stay in same chain 1"
+        );
+
+        // Passage2's queue_position should have changed from 1 to 0
+        assert_eq!(
+            chains_after[1].queue_position,
+            Some(0),
+            "queue_position should update to 0 (now playing)"
+        );
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+    }
+
+    /// **[DBD-OV-060]** **[DBD-OV-070]** Test queue_position tracking (1-indexed)
+    #[tokio::test]
+    async fn test_buffer_chain_queue_position_tracking() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_queue_pos_1.mp3");
+        let passage2 = temp_dir.join("test_queue_pos_2.mp3");
+        let passage3 = temp_dir.join("test_queue_pos_3.mp3");
+        let passage4 = temp_dir.join("test_queue_pos_4.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+        std::fs::write(&passage3, b"").unwrap();
+        std::fs::write(&passage4, b"").unwrap();
+
+        // Enqueue 4 passages
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+        engine.enqueue_file(passage3.clone()).await.unwrap();
+        engine.enqueue_file(passage4.clone()).await.unwrap();
+
+        // Get buffer chains
+        let chains = engine.get_buffer_chains().await;
+
+        // Verify queue_position values (0-indexed per [SPEC020-MONITOR-050])
+        // **[DBD-OV-060]** Position 0 = "now playing"
+        assert_eq!(
+            chains[0].queue_position,
+            Some(0),
+            "Current passage should have queue_position 0 (now playing)"
+        );
+
+        // **[DBD-OV-070]** Position 1 = "playing next"
+        assert_eq!(
+            chains[1].queue_position,
+            Some(1),
+            "Next passage should have queue_position 1 (playing next)"
+        );
+
+        // Positions 2-3 = "queued passages"
+        assert_eq!(
+            chains[2].queue_position,
+            Some(2),
+            "Queued passage should have queue_position 2"
+        );
+        assert_eq!(
+            chains[3].queue_position,
+            Some(3),
+            "Queued passage should have queue_position 3"
+        );
+
+        // Positions 4-11 = idle (no queue_position)
+        for i in 4..12 {
+            assert_eq!(
+                chains[i].queue_position,
+                None,
+                "Idle chain {} should have queue_position None",
+                i
+            );
+        }
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+        let _ = std::fs::remove_file(&passage3);
+        let _ = std::fs::remove_file(&passage4);
+    }
+
+    /// **[DBD-OV-080]** Test idle chain filling when queue < 12 entries
+    #[tokio::test]
+    async fn test_buffer_chain_idle_filling() {
+        let db = create_test_db().await;
+        let state = Arc::new(SharedState::new());
+        let engine = PlaybackEngine::new(db, state).await.unwrap();
+
+        // Empty queue - should have 12 idle chains
+        let chains_empty = engine.get_buffer_chains().await;
+        assert_eq!(chains_empty.len(), 12, "Should always return 12 chains");
+
+        for (i, chain) in chains_empty.iter().enumerate() {
+            assert_eq!(
+                chain.queue_entry_id,
+                None,
+                "Empty queue: chain {} should have no queue_entry_id",
+                i
+            );
+            assert_eq!(
+                chain.queue_position,
+                None,
+                "Empty queue: chain {} should have no queue_position",
+                i
+            );
+            assert_eq!(
+                chain.buffer_state,
+                Some("Idle".to_string()),
+                "Empty queue: chain {} should be Idle",
+                i
+            );
+        }
+
+        // Create temporary files
+        let temp_dir = std::env::temp_dir();
+        let passage1 = temp_dir.join("test_idle_1.mp3");
+        let passage2 = temp_dir.join("test_idle_2.mp3");
+
+        std::fs::write(&passage1, b"").unwrap();
+        std::fs::write(&passage2, b"").unwrap();
+
+        // Enqueue 2 passages - should have 2 active + 10 idle chains
+        engine.enqueue_file(passage1.clone()).await.unwrap();
+        engine.enqueue_file(passage2.clone()).await.unwrap();
+
+        let chains_partial = engine.get_buffer_chains().await;
+        assert_eq!(chains_partial.len(), 12, "Should always return 12 chains");
+
+        // First 2 should be active
+        for i in 0..2 {
+            assert!(
+                chains_partial[i].queue_entry_id.is_some(),
+                "Chain {} should be active",
+                i
+            );
+            assert!(
+                chains_partial[i].queue_position.is_some(),
+                "Chain {} should have queue_position",
+                i
+            );
+        }
+
+        // Remaining 10 should be idle
+        for i in 2..12 {
+            assert_eq!(
+                chains_partial[i].queue_entry_id,
+                None,
+                "Chain {} should be idle (no queue_entry_id)",
+                i
+            );
+            assert_eq!(
+                chains_partial[i].queue_position,
+                None,
+                "Chain {} should be idle (no queue_position)",
+                i
+            );
+            assert_eq!(
+                chains_partial[i].buffer_state,
+                Some("Idle".to_string()),
+                "Chain {} should have Idle state",
+                i
+            );
+        }
+
+        // Clean up
+        let _ = std::fs::remove_file(&passage1);
+        let _ = std::fs::remove_file(&passage2);
+    }
+}

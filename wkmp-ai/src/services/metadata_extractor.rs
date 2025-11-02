@@ -68,6 +68,9 @@ pub struct AudioMetadata {
 
     /// Bitrate (kbps)
     pub bitrate: Option<u32>,
+
+    /// File size in bytes
+    pub file_size_bytes: u64,
 }
 
 /// Metadata extractor service
@@ -82,6 +85,9 @@ impl MetadataExtractor {
     ///
     /// **[AIA-COMP-010]** Parse audio tags and properties
     pub fn extract(&self, file_path: &Path) -> Result<AudioMetadata, MetadataError> {
+        // Get file size
+        let file_size_bytes = std::fs::metadata(file_path)?.len();
+
         // Probe the file to determine format
         let tagged_file = Probe::open(file_path)
             .map_err(|e| MetadataError::ReadError(e.to_string()))?
@@ -147,6 +153,7 @@ impl MetadataExtractor {
             bit_depth,
             channels,
             bitrate,
+            file_size_bytes,
         })
     }
 

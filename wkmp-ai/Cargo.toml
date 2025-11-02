@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 wkmp-common = { path = "../wkmp-common" }
 tokio = { workspace = true }
+tokio-util = "0.7"
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -24,6 +25,7 @@ tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 sqlx = { workspace = true }
+toml = { workspace = true }
 walkdir = "2.4"
 infer = "0.16"
 reqwest = { version = "0.11", features = ["json"] }
@@ -31,17 +33,28 @@ governor = "0.6"
 lofty = "0.19"
 async-stream = "0.3"
 futures = "0.3"
-# Audio fingerprinting (Decision 3: static linking)
-chromaprint-sys-next = "1.6"
+# Audio fingerprinting
+# Platform-specific: static linking on Windows, dynamic on Linux/macOS
+chromaprint-sys-next = { version = "1.6" }
 base64 = "0.22"
 # File hashing for deduplication
 sha2 = "0.10"
 # Audio decoding and resampling
 symphonia = { version = "0.5", features = ["all"] }
 rubato = "0.15"
+# Static file serving
+tower-http = { version = "0.6", features = ["fs"] }
+
+[build-dependencies]
+chrono = { workspace = true }
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }
 hyper = { version = "1.0", features = ["full"] }
 http-body-util = "0.1"
 tempfile = "3.8"
+serial_test = "3.0"
+
+# Windows-specific: Enable static linking for chromaprint to avoid DLL dependencies
+[target.'cfg(windows)'.dependencies]
+chromaprint-sys-next = { version = "1.6", features = ["static"] }

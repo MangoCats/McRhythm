@@ -106,6 +106,7 @@ impl DecoderChain {
         chain_index: usize,
         passage: &PassageWithTiming,
         buffer_manager: &BufferManager,
+        working_sample_rate: u32,
     ) -> Result<Self> {
         info!(
             "[Chain {}] Creating decoder chain for passage: {}",
@@ -132,7 +133,15 @@ impl DecoderChain {
             .unwrap_or(u64::MAX); // Undefined endpoint = decode to file end
 
         // Create streaming decoder
-        let decoder = StreamingDecoder::new(&passage.file_path, start_ms, end_ms)?;
+        // **[PERF-FIX]** Wrap blocking I/O in spawn_blocking to prevent starving async runtime
+        // File::open() and format probing are synchronous operations that can take 50-300ms
+        // and would otherwise block the tokio worker thread, causing audio underruns
+        let file_path_clone = passage.file_path.clone();
+        let decoder = tokio::task::spawn_blocking(move || {
+            StreamingDecoder::new(&file_path_clone, start_ms, end_ms)
+        })
+        .await
+        .map_err(|e| Error::Decode(format!("Decoder creation task failed: {}", e)))??;
         let (source_sample_rate, source_channels) = decoder.format_info();
 
         debug!(
@@ -141,11 +150,12 @@ impl DecoderChain {
         );
 
         // Create stateful resampler
+        // **[DBD-PARAM-020]** Resample to device native rate (not hardcoded 44.1kHz)
         // Chunk size for resampler = samples per chunk at source rate
         let chunk_size_samples = (source_sample_rate as u64 * chunk_duration_ms / 1000) as usize;
         let resampler = StatefulResampler::new(
             source_sample_rate,
-            44100, // TARGET_SAMPLE_RATE
+            working_sample_rate, // Matches audio device native rate (e.g., 48kHz)
             source_channels,
             chunk_size_samples,
         )?;
@@ -155,8 +165,8 @@ impl DecoderChain {
         let fader = Fader::new(passage, source_sample_rate, None);
 
         debug!(
-            "[Chain {}] Pipeline initialized: decode({}Hz) -> resample(44.1kHz) -> fade -> buffer",
-            chain_index, source_sample_rate
+            "[Chain {}] Pipeline initialized: decode({}Hz) -> resample({}Hz) -> fade -> buffer",
+            chain_index, source_sample_rate, working_sample_rate
         );
 
         Ok(Self {
@@ -458,6 +468,14 @@ impl DecoderChain {
     /// Get file path being decoded
     pub fn file_path(&self) -> &PathBuf {
         &self.file_path
+    }
+
+    /// Get source file sample rate (before resampling)
+    ///
+    /// **[DEBT-007]** Buffer chain telemetry - expose actual source file sample rate
+    pub fn source_sample_rate(&self) -> u32 {
+        let (sample_rate, _channels) = self.decoder.format_info();
+        sample_rate
     }
 
     /// Check if this was a partial decode (truncated file)

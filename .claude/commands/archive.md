@@ -69,48 +69,7 @@ When archiving documents:
 
 ---
 
-## ⚠️ WARNING: Serial Execution Required
-
-**DO NOT run multiple /archive commands simultaneously.** This command:
-- Switches git branches (checkout conflicts)
-- Modifies shared file REG002 (data corruption)
-- Invokes /commit (staging conflicts)
-
-Parallel execution will cause git state corruption and data loss.
-
-**Protection:** Lockfile mechanism (.archive.lock) prevents concurrent execution.
-
----
-
 ## Simplified Workflow
-
-### Step 0: Acquire Lockfile
-
-**Purpose:** Prevent parallel /archive execution
-
-**Check for existing lock:**
-```bash
-test -f .archive.lock
-```
-
-**If lock exists:**
-- Report error: "❌ ERROR: Another /archive operation is in progress"
-- Display message: "Lockfile exists: .archive.lock"
-- Display instructions: "If no archive is running, remove stale lock: rm .archive.lock"
-- STOP workflow
-
-**If no lock exists, create lockfile:**
-```bash
-echo "Archive lock created at $(date -Iseconds)" > .archive.lock
-```
-
-**Error Handling:**
-- If lock exists: Report error with removal instructions, STOP workflow
-- If lock creation fails: Report error, STOP workflow
-
-**Cleanup Requirement:** Lock MUST be removed in Step 6 (success) or on ANY error exit throughout workflow
-
----
 
 ### Step 1: Validate Document
 
@@ -121,7 +80,6 @@ test -f <document_path>
 
 **If not found:**
 - Report error: "Document not found: <document_path>"
-- Remove lockfile: `rm -f .archive.lock`
 - STOP workflow
 
 **If found:**
@@ -153,7 +111,7 @@ Confirm archival? [y/N]
 
 **Accept:**
 - "y", "yes", "Y" → Continue to Step 3
-- "n", "no", "N", or any other input → Remove lockfile (`rm -f .archive.lock`), STOP with "Archival cancelled"
+- "n", "no", "N", or any other input → STOP with "Archival cancelled"
 
 ---
 
@@ -177,10 +135,10 @@ git checkout dev
 ```
 
 **Error Handling:**
-- If archive branch doesn't exist: Report "Archive branch not found", remove lockfile (`rm -f .archive.lock`), and STOP
-- If checkout fails: Report error, remove lockfile (`rm -f .archive.lock`), and STOP
+- If archive branch doesn't exist: Report "Archive branch not found" and STOP
+- If checkout fails: Report error and STOP
 - If no changes to commit: Continue silently (already synced)
-- If commit fails: Report error, remove lockfile (`rm -f .archive.lock`), and STOP
+- If commit fails: Report error and STOP
 
 **Result:** Document safely preserved in archive branch before deletion
 
@@ -195,7 +153,7 @@ git rm <document_path>
 **Result:** File staged for deletion from working branch
 
 **Error Handling:**
-- If git rm fails: Report error, remove lockfile (`rm -f .archive.lock`), and STOP
+- If git rm fails: Report error and STOP
 
 ---
 
@@ -247,12 +205,6 @@ All changes staged, ready for /commit
 - Archive index: Updated with retrieval command ✓
 - Change history: Updated via `/commit` ✓
 
-**Cleanup:**
-After successful commit, remove lockfile:
-```bash
-rm -f .archive.lock
-```
-
 ---
 
 ## Retrieval
@@ -302,30 +254,25 @@ git checkout archive
 
 ## Error Scenarios
 
-**Scenario: "Another /archive operation is in progress"**
-- Cause: Lockfile (.archive.lock) exists from concurrent or crashed archive operation
-- Resolution: If no archive is running, remove stale lock: `rm .archive.lock`
-- Recovery: Retry /archive command after removing stale lock
-
 **Scenario: "Archive branch not found"**
 - Cause: Archive branch doesn't exist yet
 - Resolution: Create archive branch first or skip archival
-- Recovery: Document remains in working branch, lockfile cleaned up
+- Recovery: Document remains in working branch
 
 **Scenario: "Document not found"**
 - Cause: Path incorrect or already archived
 - Resolution: Check path, check archive index
-- Recovery: N/A (no changes made), lockfile cleaned up
+- Recovery: N/A (no changes made)
 
 **Scenario: "Archive sync failed"**
 - Cause: Checkout failed or commit failed in Step 3
 - Resolution: Report error, STOP before deletion
-- Recovery: Manual sync or retry, lockfile cleaned up
+- Recovery: Manual sync or retry
 
 **Scenario: "User cancelled"**
 - Cause: User responded "n" to confirmation
 - Resolution: Clean exit, no changes
-- Recovery: N/A (intentional cancellation), lockfile cleaned up
+- Recovery: N/A (intentional cancellation)
 
 ---
 
@@ -348,14 +295,13 @@ git checkout archive
 ## Success Criteria
 
 A successful archival results in:
-1. ✓ Lockfile acquired (Step 0) and released (Step 6)
-2. ✓ Document removed from working branch
-3. ✓ Document preserved in archive branch (verified in Step 3)
-4. ✓ Archive index updated with retrieval command
-5. ✓ `/commit` workflow used (not manual commits)
-6. ✓ Change history updated
-7. ✓ Full git history preserved
-8. ✓ Document retrievable via archive index commands
+1. ✓ Document removed from working branch
+2. ✓ Document preserved in archive branch (verified in Step 3)
+3. ✓ Archive index updated with retrieval command
+4. ✓ `/commit` workflow used (not manual commits)
+5. ✓ Change history updated
+6. ✓ Full git history preserved
+7. ✓ Document retrievable via archive index commands
 
 ---
 
