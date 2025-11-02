@@ -51,12 +51,18 @@ fn get_semantics(table_name: &str) -> Option<Vec<ColumnDescription>> {
 
     // songs table
     map.insert("songs", vec![
-        ("guid", "Unique identifier for this song (MusicBrainz recording)"),
-        ("mbid", "MusicBrainz Recording ID"),
-        ("title", "Song title from MusicBrainz"),
-        ("duration_ms", "Total duration in milliseconds"),
+        ("title", "Song title from MusicBrainz (UTF-8 text, NULL when unavailable)"),
+        ("lyrics", "Lyrics text for this song (optional)"),
+        ("related_songs", "Related songs metadata (JSON)"),
+        ("base_probability", "Selection weight 0.0-1.0 for this song, default 1.0"),
+        ("min_cooldown", "Minimum time before song can repeat (milliseconds)"),
+        ("ramping_cooldown", "Progressive cooldown multiplier for repeated plays"),
+        ("last_played_at", "Timestamp of most recent playback (NULL if never played)"),
         ("created_at", "When this record was created"),
         ("updated_at", "When this record was last updated"),
+        ("guid", "Unique identifier for this song"),
+        ("recording_mbid", "MusicBrainz Recording ID"),
+        ("work_id", "Reference to works table (musical work/composition)"),
     ]);
 
     // passages table

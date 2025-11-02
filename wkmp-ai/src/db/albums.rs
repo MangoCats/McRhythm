@@ -108,9 +108,9 @@ mod tests {
             .await
             .expect("Failed to create in-memory database");
 
-        crate::db::schema::initialize_schema(&pool)
-            .await
-            .expect("Schema initialization failed");
+        // Initialize schema for test database
+        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+        wkmp_common::db::init::create_albums_table(&pool).await.unwrap();
 
         let album = Album::new("release-mbid-789".to_string(), "Test Album".to_string());
 

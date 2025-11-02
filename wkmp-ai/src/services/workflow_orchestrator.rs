@@ -561,8 +561,11 @@ impl WorkflowOrchestrator {
                                                     subtask.success_count += 1;
                                                 }
                                             }
-                                            // Save song (may update existing if recording_mbid exists)
-                                            let song = crate::db::songs::Song::new(recording.id.clone());
+                                            // Save song with MusicBrainz title (may update existing if recording_mbid exists)
+                                            let song = crate::db::songs::Song::new(
+                                                recording.id.clone(),
+                                                Some(mb_recording.title.clone())
+                                            );
                                             if let Err(e) = crate::db::songs::save_song(&self.db, &song).await {
                                                 tracing::error!(
                                                     song_id = %song.guid,

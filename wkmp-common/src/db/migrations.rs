@@ -43,7 +43,7 @@ use tracing::{info, warn};
 /// Current schema version
 ///
 /// **IMPORTANT:** Increment this when adding new migrations
-const CURRENT_SCHEMA_VERSION: i32 = 1;
+const CURRENT_SCHEMA_VERSION: i32 = 2;
 
 /// Get current schema version from database
 ///
@@ -120,12 +120,11 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
         info!("✓ Migration v1 completed");
     }
 
-    // Future migrations go here:
-    // if current_version < 2 {
-    //     migrate_v2(pool).await?;
-    //     set_schema_version(pool, 2).await?;
-    //     info!("✓ Migration v2 completed");
-    // }
+    if current_version < 2 {
+        migrate_v2(pool).await?;
+        set_schema_version(pool, 2).await?;
+        info!("✓ Migration v2 completed");
+    }
 
     info!("All migrations completed successfully");
     Ok(())
@@ -176,6 +175,55 @@ async fn migrate_v1(pool: &SqlitePool) -> Result<()> {
         .await?;
 
     info!("  ✓ Added import_metadata column to passages table");
+    Ok(())
+}
+
+/// Migration v2: Add title column to songs table
+///
+/// **Background:** The songs table was initially created without a title column.
+/// MusicBrainz provides song titles, but they were not being stored in the database.
+/// This migration adds the title column to enable storing MusicBrainz song titles.
+///
+/// **[ARCH-DB-MIG-030]** Idempotent implementation
+async fn migrate_v2(pool: &SqlitePool) -> Result<()> {
+    info!("Running migration v2: Add title column to songs");
+
+    // Check if songs table exists
+    let table_exists: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='songs'
+        )
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    if !table_exists {
+        // Table doesn't exist yet - will be created with correct schema
+        info!("  Songs table doesn't exist yet - skipping migration");
+        return Ok(());
+    }
+
+    // Check if title column already exists
+    let has_column: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pragma_table_info('songs') WHERE name = 'title'"
+    )
+    .fetch_one(pool)
+    .await?;
+
+    if has_column > 0 {
+        info!("  title column already exists - skipping");
+        return Ok(());
+    }
+
+    // Add the column
+    sqlx::query("ALTER TABLE songs ADD COLUMN title TEXT")
+        .execute(pool)
+        .await?;
+
+    info!("  ✓ Added title column to songs table");
     Ok(())
 }
 
@@ -337,11 +385,11 @@ mod tests {
         // Run migrations
         run_migrations(&pool).await.unwrap();
 
-        // Verify version was set
+        // Verify version was set to current version
         let version = get_schema_version(&pool).await.unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, CURRENT_SCHEMA_VERSION);
 
-        // Verify column was added
+        // Verify v1 column was added
         let has_column: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM pragma_table_info('passages') WHERE name = 'import_metadata'"
         )

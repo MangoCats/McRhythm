@@ -51,6 +51,76 @@ pub struct TableDataResponse {
     pub rows: Vec<Vec<serde_json::Value>>,
 }
 
+/// Reorder columns for logical display: human-readable first, UUIDs last
+///
+/// Returns all columns from db_columns in a more logical order:
+/// - Human-readable columns (title, name, path) first
+/// - Data columns in the middle
+/// - Unknown columns (not in priority list)
+/// - UUID/ID/GUID columns last (all together on right side)
+fn get_column_order(table_name: &str, db_columns: &[String]) -> Vec<String> {
+    // Define priority columns for each table (human-readable first)
+    // ID/UUID/GUID/MBID columns are identified by pattern, not listed here
+    let priority_cols: Vec<&str> = match table_name {
+        "songs" => vec!["title", "lyrics", "related_songs", "base_probability", "min_cooldown",
+                       "ramping_cooldown", "last_played_at", "created_at", "updated_at"],
+        "passages" => vec!["title", "passage_number", "start_sample", "end_sample",
+                          "crossfade_start_sample", "crossfade_end_sample",
+                          "fade_in_curve", "fade_out_curve", "musical_flavor",
+                          "base_probability", "last_played_at", "created_at", "updated_at"],
+        "files" => vec!["path", "format", "sample_rate", "channels",
+                       "duration_samples", "file_hash", "file_size_bytes",
+                       "created_at", "updated_at"],
+        "artists" => vec!["name", "sort_name", "created_at", "updated_at"],
+        "albums" => vec!["title", "artist_credit", "release_date"],
+        "works" => vec!["title", "composer_credit"],
+        "passage_songs" => vec![],
+        "album_songs" => vec!["track_number"],
+        "settings" => vec!["key", "value"],
+        "timeslots" => vec!["hour", "target_flavor"],
+        _ => vec![],
+    };
+
+    // Helper function to check if column is a UUID/ID/GUID/MBID column
+    let is_id_column = |col: &str| -> bool {
+        col == "id"
+            || col == "guid"
+            || col == "mbid"
+            || col.ends_with("_id")
+            || col.ends_with("_guid")
+            || col.ends_with("_mbid")
+            || col == "musicbrainz_id"
+            || col == "recording_mbid"
+            || col.contains("uuid")
+    };
+
+    let mut ordered: Vec<String> = Vec::new();
+
+    // Step 1: Add priority columns that exist in db_columns
+    for &col in &priority_cols {
+        if db_columns.contains(&col.to_string()) {
+            ordered.push(col.to_string());
+        }
+    }
+
+    // Step 2: Add unknown columns (not in priority list, not ID/UUID columns)
+    for col in db_columns {
+        let col_str = col.as_str();
+        if !priority_cols.contains(&col_str) && !is_id_column(col_str) {
+            ordered.push(col.clone());
+        }
+    }
+
+    // Step 3: Add all ID/UUID/GUID columns last (together on right side)
+    for col in db_columns {
+        if is_id_column(col.as_str()) {
+            ordered.push(col.clone());
+        }
+    }
+
+    ordered
+}
+
 /// GET /api/table/:name
 ///
 /// Returns paginated table data with optional sorting.
@@ -102,8 +172,8 @@ pub async fn get_table_data(
         .await
         .map_err(|e| TableError::DatabaseError(e.to_string()))?;
 
-    // Get column names
-    let columns = if let Some(first_row) = rows.first() {
+    // Get column names from database
+    let db_columns: Vec<String> = if let Some(first_row) = rows.first() {
         first_row
             .columns()
             .iter()
@@ -114,12 +184,27 @@ pub async fn get_table_data(
         get_table_columns(&state, &table_name).await?
     };
 
-    // Convert rows to JSON values
+    // Reorder columns: human-readable first, UUIDs last
+    let column_order = get_column_order(&table_name, &db_columns);
+
+    // Create index mapping from display order to database order
+    let column_indices: Vec<usize> = column_order
+        .iter()
+        .map(|col_name| {
+            db_columns
+                .iter()
+                .position(|db_col| db_col == col_name)
+                .unwrap_or(0)
+        })
+        .collect();
+
+    // Convert rows to JSON values with reordered columns
     let json_rows: Vec<Vec<serde_json::Value>> = rows
         .iter()
         .map(|row| {
-            (0..row.len())
-                .map(|i| {
+            column_indices
+                .iter()
+                .map(|&i| {
                     // Convert SQLite value to JSON
                     row.try_get_raw(i)
                         .ok()
@@ -156,7 +241,7 @@ pub async fn get_table_data(
         page: p.page,
         page_size: PAGE_SIZE,
         total_pages: p.total_pages,
-        columns,
+        columns: column_order,
         rows: json_rows,
     }))
 }
