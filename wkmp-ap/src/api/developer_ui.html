@@ -933,8 +933,8 @@
         }
 
         function handleVolumeChanged(data) {
-            addEvent('VolumeChanged', `Volume: ${Math.round(data.volume * 100)}%`);
-            updateVolumeDisplay(data.volume);
+            addEvent('VolumeChanged', `Volume: ${Math.round(data.new_volume * 100)}%`);
+            updateVolumeDisplay(data.new_volume);
         }
 
         function handlePlaybackStateChanged(data) {
@@ -1158,8 +1158,15 @@
         }
 
         function updateVolumeDisplay(volume) {
-            document.getElementById('volume').textContent = Math.round(volume * 100) + '%';
-            document.getElementById('volume-input').value = Math.round(volume * 100);
+            // Validate that volume is a valid number
+            if (typeof volume !== 'number' || isNaN(volume)) {
+                console.warn('Invalid volume value received:', volume);
+                return; // Keep existing display values
+            }
+
+            const volumePercent = Math.round(volume * 100);
+            document.getElementById('volume').textContent = volumePercent + '%';
+            document.getElementById('volume-input').value = volumePercent;
         }
 
         function updatePlaybackState(state) {
