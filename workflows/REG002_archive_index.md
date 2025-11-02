@@ -64,9 +64,11 @@ git checkout dev  # Return to working branch
 
 <!-- Entries organized by category, reverse chronological within each category -->
 
-### No documents archived yet
+### Work-In-Progress Archives
 
-Use the `/archive` workflow to archive completed or superseded documents.
+| Filename | Reason | Date | Retrieval Command |
+|----------|--------|------|-------------------|
+| spec017_compliance_review.md | Completed - remediation implemented | 2025-11-02 | `git show archive:wip/spec017_compliance_review.md` |
 
 ---
 
