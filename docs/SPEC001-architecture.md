@@ -110,29 +110,26 @@ WKMP consists of 6 independent microservices + 1 shared library:
 
 **Responsibilities:**
 - Serve web UI (HTML/CSS/JavaScript)
-- User authentication (UUID-based placeholders)
+- User authentication and session management
 - API request proxying to other modules
-- Session management
-- Static asset serving
 
 **Key Capabilities:**
 - SSE (Server-Sent Events) for real-time updates
 - Multi-user coordination
-- Embedded shared secret for authentication
 - Developer UI with API testing tools
 
 **Port:** 5720
 **Technology:** Rust, Tokio, Axum, HTML/CSS/JS
 
+**See:**
+- [SPEC009: UI Specification](SPEC009-ui_specification.md) - User interface design
+- [SPEC012: Multi-User Coordination](SPEC012-multi_user_coordination.md) - Multi-user patterns
+
 #### wkmp-pd: Program Director (Automatic Selection)
 
 **Responsibilities:**
-- Automatic passage selection based on:
-  - Musical flavor distance from time-of-day target
-  - Cooldown periods (song/artist/work level)
-  - User-configured base probabilities
+- Automatic passage selection based on musical flavor distance, cooldowns, and probabilities
 - Timeslot management (time-of-day scheduling)
-- Selection algorithm execution
 
 **Key Capabilities:**
 - Euclidean distance calculation in musical flavor space
@@ -142,24 +139,24 @@ WKMP consists of 6 independent microservices + 1 shared library:
 **Port:** 5722
 **Technology:** Rust, Tokio, Axum
 
+**See:** [SPEC005: Program Director](SPEC005-program_director.md) for selection algorithm details
+
 #### wkmp-ai: Audio Ingest (File Import & Identification)
 
 **Responsibilities:**
 - Import wizard UI (browser-based)
-- File system scanning
-- Audio file segmentation (passage boundary detection)
+- File system scanning and passage boundary detection
 - MusicBrainz lookup and metadata matching
-- AcousticBrainz data import
-- Silence detection
 
 **Key Capabilities:**
 - Multi-phase import workflow with progress tracking
 - Cancellable long-running operations
-- Visual waveform display
 - MusicBrainz API integration with rate limiting
 
 **Port:** 5723 (on-demand)
 **Technology:** Rust, Tokio, Axum, symphonia
+
+**See:** [SPEC024: Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) for import workflow details
 
 #### wkmp-le: Lyric Editor (Lyric Timing Editor)
 
@@ -327,44 +324,29 @@ See [REQ002: Entity Definitions](REQ002-entity_definitions.md) for detailed enti
 
 ### 5.2 Audio Pipeline Components
 
-**Pipeline:** Decoder → Fader → Buffer → Mixer → Output
+**Pipeline:** Decoder → Resampler → Fader → Buffer → Mixer → Output
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│ Decoder  │ --> │  Fader   │ --> │  Buffer  │ --> │  Mixer   │ --> │  Output  │
-│ (Worker) │     │ (Worker) │     │  (Mgr)   │     │  (Main)  │     │  (cpal)  │
-└──────────┘     └──────────┘     └──────────┘     └──────────┘     └──────────┘
+┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+│ Decoder  │ --> │Resampler │ --> │  Fader   │ --> │  Buffer  │ --> │  Mixer   │ --> │  Output  │
+│ (symphon)│     │ (rubato) │     │ (Worker) │     │  (Mgr)   │     │  (Main)  │     │  (cpal)  │
+└──────────┘     └──────────┘     └──────────┘     └──────────┘     └──────────┘     └──────────┘
 ```
 
-#### Decoder (DecoderWorker)
-- **Technology:** symphonia (Rust audio decoding library)
-- **Responsibility:** Decode compressed audio (MP3, FLAC, Opus) to PCM
-- **Output:** Raw PCM samples at native sample rate
-- **Threading:** Background async task per passage
+**High-Level Summary:**
+- **Decoder:** symphonia decodes compressed audio (MP3, FLAC, Opus) to PCM at native sample rate
+- **Resampler:** rubato converts to standard 44.1kHz (stateful, preserves phase across chunks)
+- **Fader:** Applies fade curves (Linear, EqualPower, Logarithmic, Exponential, SCurve) BEFORE buffering
+- **Buffer:** Stores pre-decoded, pre-faded PCM (10s capacity, lock-free access)
+- **Mixer:** Simple addition of pre-faded samples (no runtime fade calculations)
+- **Output:** cpal writes to hardware (platform-dependent latency)
 
-#### Fader (Pre-fading)
-- **Responsibility:** Apply fade curves to PCM samples BEFORE buffering
-- **Curves:** Linear, EqualPower, Logarithmic, Exponential, SCurve
-- **Timing:** Sample-accurate fade-in/fade-out point calculation
-- **Architecture:** Fading separated from mixing ([DBD-MIX-042])
-
-#### Buffer (BufferManager)
-- **Responsibility:** Store pre-decoded, pre-faded PCM samples
-- **Capacity:** 10 seconds of audio per passage ([REQ-BUF-030])
-- **Access:** Lock-free read for audio thread (ring buffer)
-- **Management:** Automatic decode triggering when buffer < 5 seconds
-
-#### Mixer
-- **Responsibility:** Mix multiple audio streams (crossfade, pause decay)
-- **Algorithm:** Simple addition of pre-faded samples ([DBD-MIX-041])
-- **NO runtime fade calculations** - reads pre-faded samples from buffers
-- **Master volume:** Applied after mixing
-
-#### Output (cpal)
-- **Technology:** cpal (cross-platform audio library)
-- **Responsibility:** Write mixed audio to hardware
-- **Buffer:** cpal-managed output buffer
-- **Latency:** Platform-dependent (typically 10-50ms)
+**See detailed specifications:**
+- [SPEC013: Single-Stream Playback](SPEC013-single_stream_playback.md) - Overall audio pipeline architecture
+- [SPEC016: Decoder & Buffer Design](SPEC016-decoder_buffer_design.md) - Decoder and buffer implementation
+- [SPEC017: Sample Rate Conversion](SPEC017-sample_rate_conversion.md) - Resampling strategy and rubato integration
+- [SPEC002: Crossfade](SPEC002-crossfade.md) - Fade curve algorithms and timing
+- [SPEC028: Playback Orchestration](SPEC028-playback_orchestration.md) - Pipeline coordination and threading
 
 ### 5.3 Marker-Based Event System
 
@@ -415,54 +397,21 @@ mixer.add_marker(PositionMarker {
 
 ### 6.2 Startup Sequence (Per Module)
 
-```rust
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Step 0: Initialize tracing subscriber [ARCH-INIT-003]
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| "module_name=debug,wkmp_common=info".into()))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+**High-Level Steps:**
+1. Initialize tracing subscriber [ARCH-INIT-003]
+2. Log build identification [ARCH-INIT-004]
+3. Resolve root folder (4-tier priority via `RootFolderResolver`)
+4. Create directory if missing (via `RootFolderInitializer`)
+5. Connect to database (`<root_folder>/wkmp.db`)
+6. Initialize database schema (migrations via `wkmp_common::db::init`)
+7. Start HTTP server (Axum on module-specific port)
 
-    // [ARCH-INIT-004] Log build identification IMMEDIATELY
-    info!(
-        "Starting WKMP [Module Name] (module-id) v{} [{}] built {} ({})",
-        env!("CARGO_PKG_VERSION"),
-        env!("GIT_HASH"),
-        env!("BUILD_TIMESTAMP"),
-        env!("BUILD_PROFILE")
-    );
+**Implementation Utilities:**
+- `wkmp_common::config::RootFolderResolver` - 4-tier priority resolution
+- `wkmp_common::config::RootFolderInitializer` - Directory creation and database path
+- `wkmp_common::db::init::init_database()` - Schema initialization and migrations
 
-    // Step 1: Resolve root folder (4-tier priority)
-    let resolver = wkmp_common::config::RootFolderResolver::new("module-name");
-    let root_folder = resolver.resolve();
-
-    // Step 2: Create directory if missing
-    let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
-    initializer.ensure_directory_exists()?;
-
-    // Step 3: Get database path
-    let db_path = initializer.database_path();  // root_folder/wkmp.db
-
-    // Step 4: Connect to database and run migrations
-    let db_pool = SqlitePool::connect(&format!("sqlite:{}?mode=rwc", db_path.display())).await?;
-    wkmp_common::db::init::init_database(&db_pool).await?;
-
-    // Step 5: Start HTTP server
-    let app = Router::new()
-        .route("/health", get(health_check))
-        // ... other routes
-        .with_state(AppState::new(db_pool, event_bus));
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:<PORT>").await?;
-    axum::serve(listener, app).await?;
-
-    Ok(())
-}
-```
-
-**Critical:** [ARCH-INIT-004] requires logging build ID IMMEDIATELY after tracing init, before database operations (provides instant startup feedback).
+**See:** [ADR-003: Zero-Configuration Strategy](ADR-003-zero_configuration_strategy.md) for complete implementation example and rationale
 
 ### 6.3 Database Initialization
 
@@ -584,7 +533,7 @@ async fn main() -> Result<()> {
 | 5722 | wkmp-pd | Yes | wkmp-ui proxies requests |
 | 5723 | wkmp-ai | On-demand | User clicks "Import" → opens in new tab |
 | 5724 | wkmp-le | On-demand | User clicks "Edit Lyrics" → opens in new tab |
-| 5725 | wkmp-dr | Yes | User clicks "Database" → opens in new tab |
+| 5725 | wkmp-dr | On-demand | User clicks "Database" → opens in new tab |
 
 ---
 
