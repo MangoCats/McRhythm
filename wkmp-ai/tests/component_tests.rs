@@ -139,26 +139,64 @@ fn tc_comp_002_symlink_cycle_detection() {
 /// **Type:** Unit Test | **Priority:** P0
 #[test]
 fn tc_comp_003_id3_tag_parsing() {
-    // Note: This test requires a real MP3 file with ID3 tags
-    // For now, test that extractor initializes correctly
-    let _extractor = MetadataExtractor::new();
+    use std::path::Path;
 
-    // TODO: Add test MP3 file with known tags
-    // For MVP, verify extractor exists
-    assert!(true, "MetadataExtractor initialized");
+    // **[AIA-TEST-010]** Test MP3 metadata extraction with fixture
+    let fixture_path = Path::new("tests/fixtures/test_tagged.mp3");
+
+    // Skip if fixture not generated (not critical for CI)
+    if !fixture_path.exists() {
+        eprintln!("SKIP: Fixture not found. Generate with:");
+        eprintln!("  cd tests/fixtures && bash generate_fixtures.sh");
+        eprintln!("  (or generate_fixtures.ps1 on Windows)");
+        return;
+    }
+
+    let extractor = MetadataExtractor::new();
+    match extractor.extract(fixture_path) {
+        Ok(metadata) => {
+            // Verify expected metadata
+            assert_eq!(metadata.title, Some("Test Track".to_string()), "Title mismatch");
+            assert_eq!(metadata.artist, Some("Test Artist".to_string()), "Artist mismatch");
+            assert_eq!(metadata.album, Some("Test Album".to_string()), "Album mismatch");
+            println!("✓ ID3 tag parsing successful: {:?}", metadata);
+        }
+        Err(e) => {
+            panic!("Failed to extract MP3 metadata: {}", e);
+        }
+    }
 }
 
 /// TC-COMP-004: Vorbis Tag Parsing
 /// **Type:** Unit Test | **Priority:** P0
 #[test]
 fn tc_comp_004_vorbis_tag_parsing() {
-    // Note: This test requires a real FLAC file with Vorbis comments
-    // For now, test that extractor initializes correctly
-    let _extractor = MetadataExtractor::new();
+    use std::path::Path;
 
-    // TODO: Add test FLAC file with known tags
-    // For MVP, verify extractor exists
-    assert!(true, "MetadataExtractor initialized for Vorbis");
+    // **[AIA-TEST-010]** Test FLAC metadata extraction with fixture
+    let fixture_path = Path::new("tests/fixtures/test_tagged.flac");
+
+    // Skip if fixture not generated (not critical for CI)
+    if !fixture_path.exists() {
+        eprintln!("SKIP: Fixture not found. Generate with:");
+        eprintln!("  cd tests/fixtures && bash generate_fixtures.sh");
+        eprintln!("  (or generate_fixtures.ps1 on Windows)");
+        return;
+    }
+
+    let extractor = MetadataExtractor::new();
+    match extractor.extract(fixture_path) {
+        Ok(metadata) => {
+            // Verify expected metadata (Vorbis comments)
+            assert_eq!(metadata.title, Some("Test FLAC Track".to_string()), "Title mismatch");
+            assert_eq!(metadata.artist, Some("Test FLAC Artist".to_string()), "Artist mismatch");
+            assert_eq!(metadata.album, Some("Test FLAC Album".to_string()), "Album mismatch");
+            println!("✓ Vorbis tag parsing successful: {:?}", metadata);
+        }
+        Err(e) => {
+            panic!("Failed to extract FLAC metadata: {}", e);
+        }
+    }
 }
 
 // =============================================================================

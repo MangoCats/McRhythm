@@ -1,0 +1,27 @@
+# Test Fixtures Git Configuration
+#
+# Allow small test fixtures (<1MB) but ignore large audio files
+
+# Allow specific test fixtures
+!test_tagged.mp3
+!test_tagged.flac
+!test_untagged.mp3
+!README.md
+!generate_fixtures.sh
+!generate_fixtures.ps1
+
+# Ignore all other audio files by default
+*.mp3
+*.flac
+*.wav
+*.aiff
+*.m4a
+*.ogg
+*.opus
+*.wma
+*.ape
+*.mka
+
+# Ignore large/temporary files
+*.tmp
+*.cache
