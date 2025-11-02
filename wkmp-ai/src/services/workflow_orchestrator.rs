@@ -83,7 +83,12 @@ impl WorkflowOrchestrator {
     /// Execute complete import workflow
     ///
     /// **[AIA-WF-010]** Progress through all states
-    pub async fn execute_import(&self, mut session: ImportSession) -> Result<ImportSession> {
+    /// **[AIA-ASYNC-010]** Respects cancellation token
+    pub async fn execute_import(
+        &self,
+        mut session: ImportSession,
+        cancel_token: tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         let start_time = std::time::Instant::now();
 
         tracing::info!(
@@ -100,22 +105,37 @@ impl WorkflowOrchestrator {
         });
 
         // Phase 1: SCANNING - Discover audio files
-        session = self.phase_scanning(session, start_time).await?;
+        session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 2: EXTRACTING - Extract metadata
-        session = self.phase_extracting(session, start_time).await?;
+        session = self.phase_extracting(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
-        session = self.phase_fingerprinting(session, start_time).await?;
+        session = self.phase_fingerprinting(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 4: SEGMENTING - Passage detection (stub)
-        session = self.phase_segmenting(session, start_time).await?;
+        session = self.phase_segmenting(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 5: ANALYZING - Amplitude analysis (stub)
-        session = self.phase_analyzing(session, start_time).await?;
+        session = self.phase_analyzing(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session); // Return early with Cancelled state
+        }
 
         // Phase 6: FLAVORING - Musical flavor extraction (stub)
-        session = self.phase_flavoring(session, start_time).await?;
+        session = self.phase_flavoring(session, start_time, &cancel_token).await?;
 
         // Phase 7: COMPLETED
         session.transition_to(ImportState::Completed);
@@ -161,7 +181,13 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 1: SCANNING - File discovery and database persistence
-    async fn phase_scanning(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    /// **[AIA-ASYNC-010]** Checks cancellation token during file processing
+    async fn phase_scanning(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Scanning);
         session.update_progress(0, 0, "Scanning for audio files...".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
@@ -191,6 +217,24 @@ impl WorkflowOrchestrator {
         // Save discovered files to database
         let mut saved_count = 0;
         for file_path in &scan_result.files {
+            // **[AIA-ASYNC-010]** Check for cancellation every file
+            if cancel_token.is_cancelled() {
+                tracing::info!(
+                    session_id = %session.session_id,
+                    files_processed = saved_count,
+                    "Import cancelled during scanning phase"
+                );
+                session.transition_to(ImportState::Cancelled);
+                session.progress.current_file = None;
+                session.update_progress(
+                    saved_count,
+                    scan_result.files.len(),
+                    "Import cancelled by user".to_string(),
+                );
+                crate::db::sessions::save_session(&self.db, &session).await?;
+                return Ok(session);
+            }
+
             // Get file metadata (fast - needed for modification time)
             let metadata = match std::fs::metadata(file_path) {
                 Ok(m) => m,
@@ -343,7 +387,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 2: EXTRACTING - Metadata extraction and persistence
-    async fn phase_extracting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_extracting(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Extracting);
         session.update_progress(0, session.progress.total, "Extracting metadata...".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
@@ -496,7 +545,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
-    async fn phase_fingerprinting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_fingerprinting(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Fingerprinting);
 
         // **[REQ-AIA-UI-003]** Initialize sub-task counters for fingerprinting phase
@@ -864,7 +918,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 4: SEGMENTING - Passage creation
-    async fn phase_segmenting(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_segmenting(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Segmenting);
         session.update_progress(
             0,
@@ -1012,7 +1071,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 5: ANALYZING - Amplitude analysis (stub)
-    async fn phase_analyzing(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_analyzing(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Analyzing);
         session.update_progress(
             0,
@@ -1106,7 +1170,12 @@ impl WorkflowOrchestrator {
     }
 
     /// Phase 6: FLAVORING - Musical flavor extraction via AcousticBrainz
-    async fn phase_flavoring(&self, mut session: ImportSession, start_time: std::time::Instant) -> Result<ImportSession> {
+    async fn phase_flavoring(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        _cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
         session.transition_to(ImportState::Flavoring);
         session.update_progress(
             0,

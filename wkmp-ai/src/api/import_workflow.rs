@@ -97,17 +97,25 @@ pub async fn start_import(
         "Import session started and persisted to database"
     );
 
+    // **[AIA-ASYNC-010]** Create cancellation token for this session
+    let cancel_token = tokio_util::sync::CancellationToken::new();
+    {
+        let mut tokens = state.cancellation_tokens.write().await;
+        tokens.insert(session.session_id, cancel_token.clone());
+    }
+
     // **[AIA-WF-010]** Spawn background task for workflow orchestration
     let state_clone = state.clone();
     let session_clone = session.clone();
     let session_id_for_logging = session.session_id;
+    let cancel_token_clone = cancel_token.clone();
     tokio::spawn(async move {
         tracing::info!(
             session_id = %session_id_for_logging,
             "Background import workflow task started"
         );
 
-        if let Err(e) = execute_import_workflow(state_clone, session_clone).await {
+        if let Err(e) = execute_import_workflow(state_clone, session_clone, cancel_token_clone).await {
             tracing::error!(
                 session_id = %session_id_for_logging,
                 error = %e,
@@ -176,7 +184,22 @@ pub async fn cancel_import(
         )));
     }
 
-    // TODO: Signal background task to cancel (AIA-ASYNC-010)
+    // **[AIA-ASYNC-010]** Signal background task to cancel
+    {
+        let mut tokens = state.cancellation_tokens.write().await;
+        if let Some(token) = tokens.remove(&session_id) {
+            tracing::info!(
+                session_id = %session_id,
+                "Triggering cancellation token for import session"
+            );
+            token.cancel();
+        } else {
+            tracing::warn!(
+                session_id = %session_id,
+                "No cancellation token found - background task may have already completed"
+            );
+        }
+    }
 
     // Transition to cancelled state
     session.transition_to(ImportState::Cancelled);
@@ -200,7 +223,12 @@ pub async fn cancel_import(
 /// Background task for workflow execution
 ///
 /// **[AIA-WF-010]** Execute complete import workflow through all states
-async fn execute_import_workflow(state: AppState, session: ImportSession) -> anyhow::Result<()> {
+/// **[AIA-ASYNC-010]** Respects cancellation token
+async fn execute_import_workflow(
+    state: AppState,
+    session: ImportSession,
+    cancel_token: tokio_util::sync::CancellationToken,
+) -> anyhow::Result<()> {
     use crate::services::WorkflowOrchestrator;
 
     let session_id = session.session_id;
@@ -228,13 +256,18 @@ async fn execute_import_workflow(state: AppState, session: ImportSession) -> any
     );
 
     // Execute workflow with error handling
-    match orchestrator.execute_import(session).await {
+    match orchestrator.execute_import(session, cancel_token).await {
         Ok(final_session) => {
             tracing::info!(
                 session_id = %session_id,
                 state = ?final_session.state,
                 "Import workflow completed"
             );
+
+            // Clean up cancellation token (if still present)
+            let mut tokens = state.cancellation_tokens.write().await;
+            tokens.remove(&session_id);
+
             Ok(())
         }
         Err(e) => {
@@ -298,6 +331,10 @@ async fn execute_import_workflow(state: AppState, session: ImportSession) -> any
                     .await;
                 }
             }
+
+            // Clean up cancellation token (if still present)
+            let mut tokens = state.cancellation_tokens.write().await;
+            tokens.remove(&session_id);
 
             Err(e)
         }

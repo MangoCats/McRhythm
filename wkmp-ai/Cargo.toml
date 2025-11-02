@@ -14,6 +14,7 @@ path = "src/main.rs"
 [dependencies]
 wkmp-common = { path = "../wkmp-common" }
 tokio = { workspace = true }
+tokio-util = "0.7"
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
