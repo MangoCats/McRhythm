@@ -68,6 +68,12 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| test_fixes_summary.md | Completed - all fixes applied | 2025-11-02 | `git show archive:wip/test_fixes_summary.md` |
+| plan_registry_backfill_analysis.md | Completed - registry backfilled | 2025-11-02 | `git show archive:wip/plan_registry_backfill_analysis.md` |
+| plan_numbering_analysis_results.md | Completed - numbering in REG001 | 2025-11-02 | `git show archive:wip/plan_numbering_analysis_results.md` |
+| wkmp_ap_test_investigation.md | Completed - tests fixed | 2025-11-02 | `git show archive:wip/wkmp_ap_test_investigation.md` |
+| _attitude_adjustment_analysis_results.md | Completed - process applied | 2025-11-02 | `git show archive:wip/_attitude_adjustment_analysis_results.md` |
+| _deprioritize_effort_analysis_results.md | Completed - decision applied | 2025-11-02 | `git show archive:wip/_deprioritize_effort_analysis_results.md` |
 | _database_review_analysis.md | Completed - wkmp-dr implemented | 2025-11-02 | `git show archive:wip/_database_review_analysis.md` |
 | spec017_compliance_review_analysis_results.md | Completed - duplicate of review | 2025-11-02 | `git show archive:wip/spec017_compliance_review_analysis_results.md` |
 | spec017_compliance_review.md | Completed - remediation implemented | 2025-11-02 | `git show archive:wip/spec017_compliance_review.md` |
