@@ -17,7 +17,7 @@
 - **TODOs:** 23 TODO/FIXME comments indicating incomplete features
 - **Unsafe Code:** Minimal (4 files, only FFI bindings - no custom unsafe)
 
-**Recommended Actions:** ~~4~~ 2 CRITICAL, ~~6~~ 1 HIGH, 8 MEDIUM priority items (2 CRITICAL + 5 HIGH resolved 2025-11-02)
+**Recommended Actions:** ~~4~~ 2 CRITICAL, ~~6~~ 1 HIGH, ~~8~~ 7 MEDIUM priority items (2 CRITICAL + 5 HIGH + 1 MEDIUM resolved 2025-11-02)
 
 ---
 
@@ -560,18 +560,48 @@ let app = Router::new()
 ---
 
 ### MED-004: Marker Added During start_passage()
-**Severity:** 🟡 MEDIUM (documentation)
-**Impact:** Code maintainability
+**Severity:** 🟢 RESOLVED (2025-11-02)
+**Impact:** Code maintainability improved
 
-**Evidence:**
+**Original Evidence:**
 ```rust
 // wkmp-ap/src/playback/engine/core.rs:1245
 // TODO: Marker was added during start_passage() with crossfade timing
 ```
 
-**Context:** TODO comment indicates control flow that may not be obvious.
+**Resolution:**
+✅ **COMPLETE** - TODO comment replaced with comprehensive explanatory comment
 
-**Recommendation:** Convert TODO to explanatory comment or refactor for clarity.
+**Implementation:** ([core.rs:1245-1254](../wkmp-ap/src/playback/engine/core.rs#L1245-L1254))
+
+Replaced ambiguous TODO with detailed control flow explanation documenting:
+1. Where the StartCrossfade marker is added (`process_queue()` at line 1497)
+2. How the tick position is calculated (fade_out_point or lead_out - 5 seconds)
+3. When the handler is triggered (mixer reaches the marker tick during playback)
+4. What the handler does (broadcasts event, marks next buffer as playing)
+5. Where actual crossfade mixing occurs (audio thread via fader multiplication)
+
+**Before:**
+```rust
+// TODO: Marker was added during start_passage() with crossfade timing
+```
+
+**After:**
+```rust
+// **Control Flow Explanation:**
+// 1. The StartCrossfade marker was added earlier in process_queue() when the current
+//    passage was loaded (see core.rs:1497-1501)
+// 2. The marker's tick position was calculated based on fade_out_point or lead_out
+//    (5 seconds before end if no explicit fade-out point)
+// 3. When the mixer reaches that tick during playback, it triggers this handler
+// 4. This handler broadcasts the CrossfadeStarted event and marks the next buffer as playing
+```
+
+**Benefits:**
+- Future developers can understand the marker system without tracing code
+- Documents the separation between event coordination and audio mixing
+- Provides direct line number reference to where marker is added
+- Clarifies that crossfade mixing is handled separately in the audio thread
 
 ---
 

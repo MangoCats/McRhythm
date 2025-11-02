@@ -1241,10 +1241,18 @@ impl PlaybackEngine {
 
         // Start the crossfade!
         // [SUB-INC-4B] Crossfading now handled via StartCrossfade marker
-        // When marker is reached during mixing, crossfade begins automatically
-        // TODO: Marker was added during start_passage() with crossfade timing
-        // For now, just log that crossfade triggering is stubbed
-        info!("Crossfade trigger stubbed (handled by StartCrossfade marker)");
+        //
+        // **Control Flow Explanation:**
+        // 1. The StartCrossfade marker was added earlier in process_queue() when the current
+        //    passage was loaded (see core.rs:1497-1501)
+        // 2. The marker's tick position was calculated based on fade_out_point or lead_out
+        //    (5 seconds before end if no explicit fade-out point)
+        // 3. When the mixer reaches that tick during playback, it triggers this handler
+        // 4. This handler broadcasts the CrossfadeStarted event and marks the next buffer as playing
+        //
+        // The actual crossfade mixing happens in the audio thread via fader multiplication,
+        // not in this event handler. This just coordinates state transitions.
+        info!("Crossfade trigger handled via StartCrossfade marker (added in process_queue)");
 
         // **[SSE-UI-040]** Emit CrossfadeStarted event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::CrossfadeStarted {
