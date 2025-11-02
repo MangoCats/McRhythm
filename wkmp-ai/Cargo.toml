@@ -32,8 +32,9 @@ governor = "0.6"
 lofty = "0.19"
 async-stream = "0.3"
 futures = "0.3"
-# Audio fingerprinting (Decision 3: static linking)
-chromaprint-sys-next = { version = "1.6", features = ["static"] }
+# Audio fingerprinting
+# Platform-specific: static linking on Windows, dynamic on Linux/macOS
+chromaprint-sys-next = { version = "1.6" }
 base64 = "0.22"
 # File hashing for deduplication
 sha2 = "0.10"
@@ -52,3 +53,7 @@ hyper = { version = "1.0", features = ["full"] }
 http-body-util = "0.1"
 tempfile = "3.8"
 serial_test = "3.0"
+
+# Windows-specific: Enable static linking for chromaprint to avoid DLL dependencies
+[target.'cfg(windows)'.dependencies]
+chromaprint-sys-next = { version = "1.6", features = ["static"] }
