@@ -96,6 +96,18 @@ pub struct EnqueueResponse {
     queue_entry_id: Uuid,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct EnqueueFolderRequest {
+    folder_path: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct EnqueueFolderResponse {
+    status: String,
+    files_enqueued: usize,
+    files_skipped: usize,
+}
+
 #[derive(Debug, Serialize)]
 pub struct QueueResponse {
     queue: Vec<QueueEntryInfo>,
@@ -404,6 +416,117 @@ pub async fn enqueue_passage(
             ))
         }
     }
+}
+
+/// POST /playback/enqueue-folder - Recursively enqueue all audio files in folder
+pub async fn enqueue_folder(
+    State(ctx): State<AppContext>,
+    Json(req): Json<EnqueueFolderRequest>,
+) -> Result<Json<EnqueueFolderResponse>, (StatusCode, Json<StatusResponse>)> {
+    use std::fs;
+
+    info!("Enqueue folder request: {}", req.folder_path);
+
+    let folder_path = PathBuf::from(&req.folder_path);
+
+    // Validate directory exists
+    if !folder_path.is_dir() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(StatusResponse {
+                status: "Not a directory".to_string(),
+            }),
+        ));
+    }
+
+    // Supported audio extensions (same as browse_files)
+    let audio_extensions = vec!["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
+
+    let mut files_enqueued = 0;
+    let mut files_skipped = 0;
+
+    // Recursive function to traverse directories and collect audio files
+    fn collect_audio_files(
+        dir: &std::path::Path,
+        extensions: &[&str],
+        files: &mut Vec<PathBuf>,
+    ) -> std::io::Result<()> {
+        if dir.is_dir() {
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    // Recursively traverse subdirectories
+                    collect_audio_files(&path, extensions, files)?;
+                } else if let Some(ext) = path.extension() {
+                    if let Some(ext_str) = ext.to_str() {
+                        if extensions.contains(&ext_str.to_lowercase().as_str()) {
+                            files.push(path);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    let mut audio_files = Vec::new();
+    if let Err(e) = collect_audio_files(&folder_path, &audio_extensions, &mut audio_files) {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(StatusResponse {
+                status: format!("Failed to traverse directory: {}", e),
+            }),
+        ));
+    }
+
+    info!("Found {} audio files in folder tree", audio_files.len());
+
+    // Enqueue each file
+    for file_path in audio_files {
+        match ctx.engine.enqueue_file(file_path.clone()).await {
+            Ok(_) => {
+                files_enqueued += 1;
+                info!("Enqueued: {}", file_path.display());
+            }
+            Err(e) => {
+                files_skipped += 1;
+                warn!("Failed to enqueue {}: {}", file_path.display(), e);
+            }
+        }
+    }
+
+    // **[SSE-UI-020]** Broadcast queue update events (same pattern as enqueue_passage)
+    let queue_entries = ctx.engine.get_queue_entries().await;
+    let queue_ids: Vec<uuid::Uuid> = queue_entries.iter()
+        .filter_map(|e| e.passage_id)
+        .collect();
+
+    ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueChanged {
+        queue: queue_ids.clone(),
+        trigger: wkmp_common::events::QueueChangeTrigger::UserEnqueue,
+        timestamp: chrono::Utc::now(),
+    });
+
+    let queue_info: Vec<wkmp_common::events::QueueEntryInfo> = queue_entries.into_iter()
+        .map(|e| wkmp_common::events::QueueEntryInfo {
+            queue_entry_id: e.queue_entry_id,
+            passage_id: e.passage_id,
+            file_path: e.file_path.to_string_lossy().to_string(),
+        })
+        .collect();
+    ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::QueueStateUpdate {
+        timestamp: chrono::Utc::now(),
+        queue: queue_info,
+    });
+
+    info!("Folder enqueue complete: {} enqueued, {} skipped", files_enqueued, files_skipped);
+
+    Ok(Json(EnqueueFolderResponse {
+        status: "ok".to_string(),
+        files_enqueued,
+        files_skipped,
+    }))
 }
 
 /// DELETE /playback/queue/:queue_entry_id - Remove queue entry

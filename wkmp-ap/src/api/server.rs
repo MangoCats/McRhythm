@@ -94,6 +94,7 @@ pub async fn run(
 
         // Playback control
         .route("/playback/enqueue", post(super::handlers::enqueue_passage))
+        .route("/playback/enqueue-folder", post(super::handlers::enqueue_folder))
         .route("/playback/queue/:queue_entry_id", delete(super::handlers::remove_from_queue))
         .route("/playback/queue/clear", post(super::handlers::clear_queue))
         .route("/playback/queue/reorder", post(super::handlers::reorder_queue_entry))
