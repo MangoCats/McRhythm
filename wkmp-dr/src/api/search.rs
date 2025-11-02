@@ -165,7 +165,7 @@ pub async fn search_by_path(
 
     // Query files
     let rows = sqlx::query(
-        "SELECT guid, path, duration, hash, created_at
+        "SELECT guid, path, duration_ticks, hash, created_at
          FROM files
          WHERE path LIKE ?
          ORDER BY path ASC
@@ -182,7 +182,7 @@ pub async fn search_by_path(
     let columns = vec![
         "guid".to_string(),
         "path".to_string(),
-        "duration".to_string(),
+        "duration_ticks".to_string(),
         "hash".to_string(),
         "created_at".to_string(),
     ];
@@ -193,7 +193,7 @@ pub async fn search_by_path(
             vec![
                 row.get::<String, _>(0).into(),
                 row.get::<String, _>(1).into(),
-                row.try_get::<Option<f64>, _>(2)
+                row.try_get::<Option<i64>, _>(2)
                     .ok()
                     .flatten()
                     .map(|v| json!(v))
