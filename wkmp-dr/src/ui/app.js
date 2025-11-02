@@ -357,18 +357,25 @@ function renderTable(data) {
     document.getElementById('resultInfo').textContent =
         `${data.total_results} total ${resultType} (page ${data.page} of ${data.total_pages})`;
 
+    // Track de-referenced columns for styling
+    const dereferencedCols = new Set(data.dereferenced_columns || []);
+
     // Render table
     let html = '<table><thead><tr>';
     data.columns.forEach(col => {
-        html += `<th>${col}</th>`;
+        const isDereferenced = dereferencedCols.has(col);
+        const className = isDereferenced ? ' class="dereferenced"' : '';
+        html += `<th${className}>${col}</th>`;
     });
     html += '</tr></thead><tbody>';
 
     data.rows.forEach(row => {
         html += '<tr>';
-        row.forEach(cell => {
+        row.forEach((cell, index) => {
             const value = cell === null ? '<em>null</em>' : String(cell);
-            html += `<td>${value}</td>`;
+            const isDereferenced = dereferencedCols.has(data.columns[index]);
+            const className = isDereferenced ? ' class="dereferenced"' : '';
+            html += `<td${className}>${value}</td>`;
         });
         html += '</tr>';
     });

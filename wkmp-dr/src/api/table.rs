@@ -48,6 +48,8 @@ pub struct TableDataResponse {
     pub page_size: i64,
     pub total_pages: i64,
     pub columns: Vec<String>,
+    /// Columns that are de-referenced from other tables (e.g., "path" from files table)
+    pub dereferenced_columns: Vec<String>,
     pub rows: Vec<Vec<serde_json::Value>>,
 }
 
@@ -64,10 +66,11 @@ fn get_column_order(table_name: &str, db_columns: &[String]) -> Vec<String> {
     let priority_cols: Vec<&str> = match table_name {
         "songs" => vec!["title", "lyrics", "related_songs", "base_probability", "min_cooldown",
                        "ramping_cooldown", "last_played_at", "created_at", "updated_at"],
-        "passages" => vec!["title", "passage_number", "start_sample", "end_sample",
-                          "crossfade_start_sample", "crossfade_end_sample",
-                          "fade_in_curve", "fade_out_curve", "musical_flavor",
-                          "base_probability", "last_played_at", "created_at", "updated_at"],
+        "passages" => vec!["path", "title", "user_title", "start_time_ticks", "end_time_ticks",
+                          "fade_in_start_ticks", "lead_in_start_ticks",
+                          "lead_out_start_ticks", "fade_out_start_ticks",
+                          "fade_in_curve", "fade_out_curve", "artist", "album",
+                          "musical_flavor_vector", "decode_status", "created_at", "updated_at"],
         "files" => vec!["path", "format", "sample_rate", "channels",
                        "duration_samples", "file_hash", "file_size_bytes",
                        "created_at", "updated_at"],
@@ -121,6 +124,29 @@ fn get_column_order(table_name: &str, db_columns: &[String]) -> Vec<String> {
     ordered
 }
 
+/// Build SELECT query with de-referenced columns for special tables
+///
+/// Returns (SQL query, list of de-referenced column names)
+fn build_select_query(table_name: &str) -> (String, Vec<String>) {
+    match table_name {
+        "passages" => {
+            // JOIN with files table to de-reference file_id → path
+            let sql = r#"
+                SELECT
+                    passages.*,
+                    files.path AS path
+                FROM passages
+                LEFT JOIN files ON passages.file_id = files.guid
+            "#.to_string();
+            (sql, vec!["path".to_string()])
+        },
+        _ => {
+            // Default: simple SELECT *
+            (format!("SELECT * FROM {}", table_name), vec![])
+        }
+    }
+}
+
 /// GET /api/table/:name
 ///
 /// Returns paginated table data with optional sorting.
@@ -144,9 +170,9 @@ pub async fn get_table_data(
     // Calculate pagination
     let p = calculate_pagination(total_rows, query.page);
 
-    // Build query with optional sorting
+    // Build query with optional sorting and de-referenced columns
     // [DR-SEC-060] Table name is whitelisted, safe to use directly
-    let mut sql = format!("SELECT * FROM {}", table_name);
+    let (mut sql, dereferenced_columns) = build_select_query(&table_name);
 
     if let Some(sort_column) = &query.sort {
         // Validate sort column exists
@@ -242,6 +268,7 @@ pub async fn get_table_data(
         page_size: PAGE_SIZE,
         total_pages: p.total_pages,
         columns: column_order,
+        dereferenced_columns,
         rows: json_rows,
     }))
 }
