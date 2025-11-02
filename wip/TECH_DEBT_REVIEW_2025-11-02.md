@@ -17,7 +17,7 @@
 - **TODOs:** 23 TODO/FIXME comments indicating incomplete features
 - **Unsafe Code:** Minimal (4 files, only FFI bindings - no custom unsafe)
 
-**Recommended Actions:** ~~4~~ 2 CRITICAL, ~~6~~ 2 HIGH, 8 MEDIUM priority items (2 CRITICAL + 4 HIGH resolved 2025-11-02)
+**Recommended Actions:** ~~4~~ 2 CRITICAL, ~~6~~ 1 HIGH, 8 MEDIUM priority items (2 CRITICAL + 5 HIGH resolved 2025-11-02)
 
 ---
 
@@ -419,29 +419,48 @@ cargo test --package wkmp-ai tc_comp_003 tc_comp_004
 ---
 
 ### HIGH-005: Health Endpoint Returns Placeholder Data
-**Severity:** 🟠 HIGH (monitoring)
-**Impact:** Cannot monitor service health accurately
+**Severity:** 🟢 RESOLVED (2025-11-02)
+**Impact:** Service health monitoring now accurate
 
-**Evidence:**
+**Original Evidence:**
 ```rust
 // wkmp-ai/src/api/health.rs:21
 // TODO: Track actual uptime
 ```
 
-**Context:** Health endpoint exists but doesn't track real uptime.
+**Resolution:**
+✅ **COMPLETE** - Health endpoint now tracks real uptime and last error
 
-**Problem:**
-- Operations cannot distinguish restarts from long-running processes
-- Debugging startup issues difficult
-- SRE monitoring unreliable
+**Implementation Details:**
 
-**Recommendation:**
-1. Add startup timestamp to AppState
-2. Calculate uptime: `Utc::now() - startup_time`
-3. Return uptime in health response
-4. Add last_error field for diagnostic purposes
+1. **AppState Enhancement** ([lib.rs:34-36](../wkmp-ai/src/lib.rs#L34-L36)):
+   - Added `startup_time: DateTime<Utc>` field (initialized in constructor)
+   - Added `last_error: Arc<RwLock<Option<String>>>` field for diagnostics
 
-**Priority:** Complete before production deployment
+2. **Health Endpoint** ([health.rs:26-40](../wkmp-ai/src/api/health.rs#L26-L40)):
+   - Calculates real uptime: `Utc::now() - state.startup_time`
+   - Returns `uptime_seconds` as u64
+   - Includes optional `last_error` field (omitted from JSON if None)
+
+3. **Response Schema:**
+```json
+{
+  "status": "ok",
+  "module": "wkmp-ai",
+  "version": "0.1.0",
+  "uptime_seconds": 3600,
+  "last_error": null
+}
+```
+
+**Test Coverage:**
+- ✅ `tc_http_006_health_endpoint_returns_json` - Validates JSON response structure
+- ✅ `test_health_endpoint` - Integration test for health endpoint
+
+**Benefits:**
+- Operations can now track service restarts and uptime
+- Last error field aids debugging without log access
+- SRE monitoring can detect frequent restarts
 
 ---
 
@@ -793,7 +812,7 @@ McRhythm/
 ## 9. Performance Considerations
 
 ### Monitoring Gaps
-🟠 **HIGH-005:** Health endpoint doesn't track real uptime
+✅ **HIGH-005:** Health endpoint now tracks real uptime (RESOLVED 2025-11-02)
 🟡 **MED-001:** Decoder state tracking incomplete
 🟡 **MED-002:** Fader stage not exposed in diagnostics
 
@@ -825,7 +844,7 @@ McRhythm/
 6. 🔄 **Implement amplitude analysis** (HIGH-001)
 7. ✅ **Add task cancellation** (HIGH-003) - RESOLVED 2025-11-02
 8. ✅ **Create test audio fixtures** (HIGH-004) - RESOLVED 2025-11-02
-9. 🔄 **Fix health endpoint uptime** (HIGH-005)
+9. ✅ **Fix health endpoint uptime** (HIGH-005) - RESOLVED 2025-11-02
 
 ### Next Quarter
 10. 🔄 **Gradual unwrap() cleanup** (MED-006)

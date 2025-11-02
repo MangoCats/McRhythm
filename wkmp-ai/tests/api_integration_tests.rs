@@ -50,11 +50,7 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
     let event_bus = EventBus::new(100);
 
     // Create app state
-    let state = wkmp_ai::AppState {
-        db: pool.clone(),
-        event_bus,
-        cancellation_tokens: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-    };
+    let state = wkmp_ai::AppState::new(pool.clone(), event_bus);
 
     // Build router (wkmp-ai needs to have a lib.rs for this to work, or use main module)
     // Since wkmp-ai is a binary, we need to expose AppState and build_router
