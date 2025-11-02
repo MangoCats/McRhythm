@@ -275,12 +275,34 @@ impl WorkflowOrchestrator {
                 continue;
             }
 
+            // Extract audio metadata (format, sample_rate, channels, file_size_bytes)
+            let metadata = match self.metadata_extractor.extract(file_path) {
+                Ok(meta) => Some(meta),
+                Err(e) => {
+                    tracing::warn!(
+                        session_id = %session.session_id,
+                        file = %relative_path,
+                        error = %e,
+                        "Failed to extract metadata, saving file without metadata"
+                    );
+                    None
+                }
+            };
+
             // Create audio file record
-            let audio_file = crate::db::files::AudioFile::new(
+            let mut audio_file = crate::db::files::AudioFile::new(
                 relative_path.clone(),
                 hash,
                 mod_time_utc,
             );
+
+            // Populate metadata fields if extraction succeeded
+            if let Some(meta) = metadata {
+                audio_file.format = Some(meta.format);
+                audio_file.sample_rate = meta.sample_rate.map(|sr| sr as i32);
+                audio_file.channels = meta.channels.map(|ch| ch as i32);
+                audio_file.file_size_bytes = Some(meta.file_size_bytes as i64);
+            }
 
             // Save to database
             if let Err(e) = crate::db::files::save_file(&self.db, &audio_file).await {

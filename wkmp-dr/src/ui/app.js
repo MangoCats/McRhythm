@@ -363,6 +363,13 @@ const COOLDOWN_COLUMNS = {
     'ramping_cooldown': 1209600,  // Typical max: 14 days
 };
 
+// Float columns (REAL type in database) - always display with at least 1 decimal place
+const FLOAT_COLUMNS = [
+    'base_probability',     // songs, artists, works tables
+    'weight',               // related_songs table (and other tables)
+    'progress_percentage',  // import_progress table
+];
+
 /**
  * Convert ticks to seconds with 3 decimal places (millisecond precision).
  * @param {number} ticks - Tick value (i64 from database)
@@ -429,6 +436,102 @@ function formatHumanTime(seconds, typicalMax) {
     }
 }
 
+/**
+ * Format relative time from now (e.g., "2.3d ago" or "0:01:23 in the future").
+ * Uses SPEC024 extended format for display.
+ * @param {number} timestampSeconds - Unix timestamp in seconds
+ * @param {number} currentTimeSeconds - Current time as Unix timestamp in seconds
+ * @returns {string} Formatted relative time string with "ago" or "in the future" suffix
+ */
+function formatRelativeTime(timestampSeconds, currentTimeSeconds) {
+    const diff = currentTimeSeconds - timestampSeconds;
+
+    if (diff >= 0) {
+        // Past: timestamp is before current time
+        let formatted;
+        if (diff < 90000) {  // < 25 hours
+            // H:MM:SS format
+            const hours = Math.floor(diff / 3600);
+            const mins = Math.floor((diff % 3600) / 60);
+            const secs = Math.floor(diff % 60);
+            formatted = `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            // >= 25 hours: X.XXd format
+            const days = diff / 86400.0;
+            const rounded2dp = Math.round(days * 100) / 100;
+            const rounded1dp = Math.round(days * 10) / 10;
+
+            if (Math.abs(rounded2dp - Math.floor(rounded2dp)) < 0.001) {
+                formatted = `${Math.floor(rounded2dp)}d`;
+            } else if (Math.abs(rounded2dp * 10 - Math.floor(rounded2dp * 10)) < 0.001) {
+                formatted = `${rounded1dp.toFixed(1)}d`;
+            } else {
+                formatted = `${rounded2dp.toFixed(2)}d`;
+            }
+        }
+        return `${formatted} ago`;
+    } else {
+        // Future: timestamp is after current time
+        const absDiff = Math.abs(diff);
+        let formatted;
+        if (absDiff < 90000) {  // < 25 hours
+            // H:MM:SS format
+            const hours = Math.floor(absDiff / 3600);
+            const mins = Math.floor((absDiff % 3600) / 60);
+            const secs = Math.floor(absDiff % 60);
+            formatted = `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            // >= 25 hours: X.XXd format
+            const days = absDiff / 86400.0;
+            const rounded2dp = Math.round(days * 100) / 100;
+            const rounded1dp = Math.round(days * 10) / 10;
+
+            if (Math.abs(rounded2dp - Math.floor(rounded2dp)) < 0.001) {
+                formatted = `${Math.floor(rounded2dp)}d`;
+            } else if (Math.abs(rounded2dp * 10 - Math.floor(rounded2dp * 10)) < 0.001) {
+                formatted = `${rounded1dp.toFixed(1)}d`;
+            } else {
+                formatted = `${rounded2dp.toFixed(2)}d`;
+            }
+        }
+        return `${formatted} in the future`;
+    }
+}
+
+/**
+ * Format float values with at least 1 decimal place and up to 6 decimal places.
+ * Trailing zeros are removed, but at least 1 decimal place is always shown.
+ *
+ * Examples:
+ * - 1.0 → "1.0"
+ * - 1.035000 → "1.035"
+ * - 1.1234567 → "1.123457" (rounded to 6 decimals)
+ * - 0.5 → "0.5"
+ *
+ * @param {number} value - Float value to format
+ * @returns {string} Formatted string
+ */
+function formatFloat(value) {
+    // Round to 6 decimal places
+    const rounded = Math.round(value * 1e6) / 1e6;
+
+    // Convert to string with fixed 6 decimals, then remove trailing zeros
+    // but keep at least 1 decimal place
+    let formatted = rounded.toFixed(6);
+
+    // Remove trailing zeros, but stop before the first decimal place
+    formatted = formatted.replace(/(\.\d*?)0+$/, '$1');
+
+    // Ensure at least 1 decimal place (if we removed all decimals, add .0)
+    if (!formatted.includes('.')) {
+        formatted += '.0';
+    } else if (formatted.endsWith('.')) {
+        formatted += '0';
+    }
+
+    return formatted;
+}
+
 function renderTable(data) {
     const container = document.getElementById('tableContainer');
 
@@ -485,10 +588,50 @@ function renderTable(data) {
                     html += `<td${className}>${humanTime}</td>`;
                 }
             }
+            // Display modification_time with relative format (e.g., "2.3d ago")
+            else if (colName === 'modification_time') {
+                if (cell === null) {
+                    html += `<td${className}><em>null</em></td>`;
+                } else {
+                    // modification_time is stored as RFC3339 string or Unix timestamp
+                    let timestampSeconds;
+
+                    // Try parsing as RFC3339 string first (e.g., "2025-11-02T12:34:56Z")
+                    if (typeof cell === 'string' && cell.includes('T')) {
+                        const date = new Date(cell);
+                        timestampSeconds = Math.floor(date.getTime() / 1000);
+                    } else {
+                        // Fall back to integer parsing
+                        timestampSeconds = parseInt(cell);
+
+                        // If timestamp appears to be in milliseconds (> year 2100 in seconds), convert it
+                        if (timestampSeconds > 4102444800) {
+                            timestampSeconds = Math.floor(timestampSeconds / 1000);
+                        }
+                    }
+
+                    const currentTimeSeconds = Math.floor(Date.now() / 1000);
+                    const relative = formatRelativeTime(timestampSeconds, currentTimeSeconds);
+                    html += `<td${className}>${cell} (${relative})</td>`;
+                }
+            }
             else {
-                // Non-timing columns: original behavior
-                const value = cell === null ? '<em>null</em>' : String(cell);
-                html += `<td${className}>${value}</td>`;
+                // Non-timing columns: format floats, otherwise use original value
+                if (cell === null) {
+                    html += `<td${className}><em>null</em></td>`;
+                } else if (FLOAT_COLUMNS.includes(colName)) {
+                    // Column is defined as REAL in database: always format as float
+                    // (even if JavaScript sees it as integer, e.g., base_probability = 1)
+                    const formatted = formatFloat(Number(cell));
+                    html += `<td${className}>${formatted}</td>`;
+                } else if (typeof cell === 'number' && !Number.isInteger(cell)) {
+                    // Float value: format with at least 1 decimal place, up to 6
+                    const formatted = formatFloat(cell);
+                    html += `<td${className}>${formatted}</td>`;
+                } else {
+                    // Integer, string, or other type: use original value
+                    html += `<td${className}>${String(cell)}</td>`;
+                }
             }
         });
         html += '</tr>';

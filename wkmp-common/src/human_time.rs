@@ -172,6 +172,86 @@ pub fn format_human_time_opt(seconds_opt: Option<i64>, typical_max: i64) -> Stri
     }
 }
 
+/// Format relative time from now (e.g., "2.3d ago" or "0:01:23 in the future").
+///
+/// Uses SPEC024 extended format for display:
+/// - Values < 25h: H:MM:SS format (e.g., "2:30:45 ago")
+/// - Values ≥ 25h: X.XXd format (e.g., "7.5d ago")
+///
+/// # Arguments
+///
+/// * `timestamp_seconds` - Unix timestamp in seconds
+/// * `current_time_seconds` - Current time as Unix timestamp in seconds
+///
+/// # Returns
+///
+/// Formatted relative time string with "ago" or "in the future" suffix
+///
+/// # Examples
+///
+/// ```
+/// use wkmp_common::human_time::format_relative_time;
+///
+/// let now = 1000000;
+/// let past = now - 7200;  // 2 hours ago
+/// assert_eq!(format_relative_time(past, now), "2:00:00 ago");
+///
+/// let future = now + 3600;  // 1 hour in future
+/// assert_eq!(format_relative_time(future, now), "1:00:00 in the future");
+/// ```
+pub fn format_relative_time(timestamp_seconds: i64, current_time_seconds: i64) -> String {
+    let diff = current_time_seconds - timestamp_seconds;
+
+    if diff >= 0 {
+        // Past: timestamp is before current time
+        let formatted = if diff < LONG_FORMAT_MAX {
+            // < 25 hours: H:MM:SS
+            let hours = diff / 3600;
+            let mins = (diff % 3600) / 60;
+            let secs = diff % 60;
+            format!("{}:{:02}:{:02}", hours, mins, secs)
+        } else {
+            // >= 25 hours: X.XXd
+            let days = diff as f64 / 86400.0;
+            let rounded_2dp = (days * 100.0).round() / 100.0;
+            let rounded_1dp = (days * 10.0).round() / 10.0;
+
+            if (rounded_2dp - rounded_2dp.floor()).abs() < 0.001 {
+                format!("{:.0}d", rounded_2dp)
+            } else if (rounded_2dp * 10.0 - (rounded_2dp * 10.0).floor()).abs() < 0.001 {
+                format!("{:.1}d", rounded_1dp)
+            } else {
+                format!("{:.2}d", rounded_2dp)
+            }
+        };
+        format!("{} ago", formatted)
+    } else {
+        // Future: timestamp is after current time
+        let abs_diff = diff.abs();
+        let formatted = if abs_diff < LONG_FORMAT_MAX {
+            // < 25 hours: H:MM:SS
+            let hours = abs_diff / 3600;
+            let mins = (abs_diff % 3600) / 60;
+            let secs = abs_diff % 60;
+            format!("{}:{:02}:{:02}", hours, mins, secs)
+        } else {
+            // >= 25 hours: X.XXd
+            let days = abs_diff as f64 / 86400.0;
+            let rounded_2dp = (days * 100.0).round() / 100.0;
+            let rounded_1dp = (days * 10.0).round() / 10.0;
+
+            if (rounded_2dp - rounded_2dp.floor()).abs() < 0.001 {
+                format!("{:.0}d", rounded_2dp)
+            } else if (rounded_2dp * 10.0 - (rounded_2dp * 10.0).floor()).abs() < 0.001 {
+                format!("{:.1}d", rounded_1dp)
+            } else {
+                format!("{:.2}d", rounded_2dp)
+            }
+        };
+        format!("{} in the future", formatted)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,5 +347,43 @@ mod tests {
         // Work cooldowns: 3-7 days (always >= 25h, use days format)
         assert_eq!(format_human_time(259200, 1209600), "3d");
         assert_eq!(format_human_time(604800, 1209600), "7d");
+    }
+
+    #[test]
+    fn test_relative_time_past() {
+        let now = 1000000;
+
+        // Past times (< 25 hours): H:MM:SS format
+        assert_eq!(format_relative_time(now - 3600, now), "1:00:00 ago");
+        assert_eq!(format_relative_time(now - 7200, now), "2:00:00 ago");
+        assert_eq!(format_relative_time(now - 86399, now), "23:59:59 ago");
+
+        // Past times (>= 25 hours): days format
+        assert_eq!(format_relative_time(now - 90000, now), "1.04d ago");     // 25 hours
+        assert_eq!(format_relative_time(now - 604800, now), "7d ago");       // 7 days
+        assert_eq!(format_relative_time(now - 613786, now), "7.1d ago");     // 7.104 days
+        assert_eq!(format_relative_time(now - 654307, now), "7.57d ago");    // 7.573 days
+    }
+
+    #[test]
+    fn test_relative_time_future() {
+        let now = 1000000;
+
+        // Future times (< 25 hours): H:MM:SS format
+        assert_eq!(format_relative_time(now + 3600, now), "1:00:00 in the future");
+        assert_eq!(format_relative_time(now + 7200, now), "2:00:00 in the future");
+        assert_eq!(format_relative_time(now + 83, now), "0:01:23 in the future");
+
+        // Future times (>= 25 hours): days format
+        assert_eq!(format_relative_time(now + 90000, now), "1.04d in the future");
+        assert_eq!(format_relative_time(now + 604800, now), "7d in the future");
+    }
+
+    #[test]
+    fn test_relative_time_now() {
+        let now = 1000000;
+
+        // Exactly now (0 seconds difference)
+        assert_eq!(format_relative_time(now, now), "0:00:00 ago");
     }
 }

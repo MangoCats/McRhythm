@@ -25,6 +25,18 @@ pub struct AudioFile {
     /// None if duration unknown or cannot be determined from metadata.
     pub duration_ticks: Option<i64>,
 
+    /// Audio format (e.g., "FLAC", "MP3", "AAC", "WAV", "Opus")
+    pub format: Option<String>,
+
+    /// Sample rate in Hz (e.g., 44100, 48000, 96000)
+    pub sample_rate: Option<i32>,
+
+    /// Number of audio channels (1 = mono, 2 = stereo, 6 = 5.1, etc.)
+    pub channels: Option<i32>,
+
+    /// File size in bytes
+    pub file_size_bytes: Option<i64>,
+
     pub modification_time: DateTime<Utc>,
 }
 
@@ -36,6 +48,10 @@ impl AudioFile {
             path,
             hash,
             duration_ticks: None,  // REQ-F-003: Changed from `duration: None`
+            format: None,
+            sample_rate: None,
+            channels: None,
+            file_size_bytes: None,
             modification_time,
         }
     }
@@ -55,11 +71,15 @@ pub fn calculate_file_hash(file_path: &Path) -> Result<String> {
 pub async fn save_file(pool: &SqlitePool, file: &AudioFile) -> Result<()> {
     sqlx::query(
         r#"
-        INSERT INTO files (guid, path, hash, duration_ticks, modification_time, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO files (guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(path) DO UPDATE SET
             hash = excluded.hash,
             duration_ticks = excluded.duration_ticks,
+            format = excluded.format,
+            sample_rate = excluded.sample_rate,
+            channels = excluded.channels,
+            file_size_bytes = excluded.file_size_bytes,
             modification_time = excluded.modification_time,
             updated_at = CURRENT_TIMESTAMP
         "#,
@@ -68,6 +88,10 @@ pub async fn save_file(pool: &SqlitePool, file: &AudioFile) -> Result<()> {
     .bind(&file.path)
     .bind(&file.hash)
     .bind(file.duration_ticks)  // REQ-F-003: Changed from file.duration
+    .bind(&file.format)
+    .bind(file.sample_rate)
+    .bind(file.channels)
+    .bind(file.file_size_bytes)
     .bind(file.modification_time.to_rfc3339())
     .execute(pool)
     .await?;
@@ -80,7 +104,7 @@ pub async fn save_file(pool: &SqlitePool, file: &AudioFile) -> Result<()> {
 pub async fn load_file_by_path(pool: &SqlitePool, path: &str) -> Result<Option<AudioFile>> {
     let row = sqlx::query(
         r#"
-        SELECT guid, path, hash, duration_ticks, modification_time
+        SELECT guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time
         FROM files
         WHERE path = ?
         "#,
@@ -103,6 +127,10 @@ pub async fn load_file_by_path(pool: &SqlitePool, path: &str) -> Result<Option<A
                 path: row.get("path"),
                 hash: row.get("hash"),
                 duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+                format: row.get("format"),
+                sample_rate: row.get("sample_rate"),
+                channels: row.get("channels"),
+                file_size_bytes: row.get("file_size_bytes"),
                 modification_time,
             }))
         }
@@ -115,7 +143,7 @@ pub async fn load_file_by_path(pool: &SqlitePool, path: &str) -> Result<Option<A
 pub async fn load_file_by_hash(pool: &SqlitePool, hash: &str) -> Result<Option<AudioFile>> {
     let row = sqlx::query(
         r#"
-        SELECT guid, path, hash, duration_ticks, modification_time
+        SELECT guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time
         FROM files
         WHERE hash = ?
         LIMIT 1
@@ -139,6 +167,10 @@ pub async fn load_file_by_hash(pool: &SqlitePool, hash: &str) -> Result<Option<A
                 path: row.get("path"),
                 hash: row.get("hash"),
                 duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+                format: row.get("format"),
+                sample_rate: row.get("sample_rate"),
+                channels: row.get("channels"),
+                file_size_bytes: row.get("file_size_bytes"),
                 modification_time,
             }))
         }
@@ -159,7 +191,7 @@ pub async fn count_files(pool: &SqlitePool) -> Result<i64> {
 pub async fn load_all_files(pool: &SqlitePool) -> Result<Vec<AudioFile>> {
     let rows = sqlx::query(
         r#"
-        SELECT guid, path, hash, duration_ticks, modification_time
+        SELECT guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time
         FROM files
         ORDER BY path
         "#,
@@ -181,6 +213,10 @@ pub async fn load_all_files(pool: &SqlitePool) -> Result<Vec<AudioFile>> {
             path: row.get("path"),
             hash: row.get("hash"),
             duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+            format: row.get("format"),
+            sample_rate: row.get("sample_rate"),
+            channels: row.get("channels"),
+            file_size_bytes: row.get("file_size_bytes"),
             modification_time,
         });
     }

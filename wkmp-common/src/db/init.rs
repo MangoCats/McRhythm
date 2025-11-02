@@ -302,10 +302,17 @@ async fn create_files_table(pool: &SqlitePool) -> Result<()> {
             path TEXT NOT NULL UNIQUE,
             hash TEXT NOT NULL,
             duration_ticks INTEGER,
+            format TEXT,
+            sample_rate INTEGER,
+            channels INTEGER,
+            file_size_bytes INTEGER,
             modification_time TIMESTAMP NOT NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (duration_ticks IS NULL OR duration_ticks > 0)
+            CHECK (duration_ticks IS NULL OR duration_ticks > 0),
+            CHECK (sample_rate IS NULL OR sample_rate > 0),
+            CHECK (channels IS NULL OR (channels > 0 AND channels <= 32)),
+            CHECK (file_size_bytes IS NULL OR file_size_bytes >= 0)
         )
         "#,
     )

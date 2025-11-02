@@ -94,12 +94,13 @@ fn get_semantics(table_name: &str) -> Option<Vec<ColumnDescription>> {
     map.insert("files", vec![
         ("guid", "Unique identifier for this audio file"),
         ("path", "File path relative to root folder, forward-slash separated"),
-        ("format", "Audio format: FLAC, MP3, AAC, etc."),
-        ("sample_rate", "Sample rate in Hz (e.g., 44100, 48000)"),
-        ("channels", "Number of audio channels (1=mono, 2=stereo)"),
-        ("duration_samples", "Total file length in samples"),
-        ("file_hash", "SHA-256 hash for duplicate detection"),
+        ("hash", "SHA-256 hash for duplicate detection"),
+        ("duration_ticks", "File duration in ticks (28,224,000 Hz tick rate)"),
+        ("format", "Audio format: FLAC, MP3, AAC, WAV, Opus, etc."),
+        ("sample_rate", "Sample rate in Hz (e.g., 44100, 48000, 96000)"),
+        ("channels", "Number of audio channels (1=mono, 2=stereo, 6=5.1)"),
         ("file_size_bytes", "File size in bytes"),
+        ("modification_time", "File last modified timestamp (from filesystem)"),
         ("created_at", "When this record was created"),
         ("updated_at", "When this record was last updated"),
     ]);

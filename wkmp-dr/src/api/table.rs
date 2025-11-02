@@ -71,9 +71,8 @@ fn get_column_order(table_name: &str, db_columns: &[String]) -> Vec<String> {
                           "lead_out_start_ticks", "fade_out_start_ticks",
                           "fade_in_curve", "fade_out_curve", "artist", "album",
                           "musical_flavor_vector", "decode_status", "created_at", "updated_at"],
-        "files" => vec!["path", "format", "sample_rate", "channels",
-                       "duration_samples", "file_hash", "file_size_bytes",
-                       "created_at", "updated_at"],
+        "files" => vec!["path", "duration_ticks", "format", "sample_rate", "channels", "file_size_bytes",
+                       "modification_time", "created_at", "updated_at"],
         "artists" => vec!["name", "sort_name", "created_at", "updated_at"],
         "albums" => vec!["title", "artist_credit", "release_date"],
         "works" => vec!["title", "composer_credit"],
@@ -106,15 +105,23 @@ fn get_column_order(table_name: &str, db_columns: &[String]) -> Vec<String> {
         }
     }
 
-    // Step 2: Add unknown columns (not in priority list, not ID/UUID columns)
+    // Step 2: Add unknown columns (not in priority list, not ID/UUID columns, not hash for files table)
     for col in db_columns {
         let col_str = col.as_str();
-        if !priority_cols.contains(&col_str) && !is_id_column(col_str) {
+        let is_files_hash = table_name == "files" && col_str == "hash";
+        if !priority_cols.contains(&col_str) && !is_id_column(col_str) && !is_files_hash {
             ordered.push(col.clone());
         }
     }
 
-    // Step 3: Add all ID/UUID/GUID columns last (together on right side)
+    // Step 3: Add hash before ID columns for files table, then add all ID/UUID/GUID columns
+    // For files table: hash should appear before guid (both on right side)
+    if table_name == "files" {
+        if db_columns.contains(&"hash".to_string()) {
+            ordered.push("hash".to_string());
+        }
+    }
+
     for col in db_columns {
         if is_id_column(col.as_str()) {
             ordered.push(col.clone());

@@ -128,12 +128,19 @@ Audio files discovered by the library scanner.
 | path | TEXT | NOT NULL UNIQUE | File path relative to root folder |
 | hash | TEXT | NOT NULL | SHA-256 hash of file contents |
 | duration_ticks | INTEGER | | REQ-F-003: File duration in ticks per SPEC017 (NULL = not yet scanned or unknown) |
+| format | TEXT | | Audio format (FLAC, MP3, AAC, WAV, Opus, etc.) extracted via lofty |
+| sample_rate | INTEGER | | Sample rate in Hz (e.g., 44100, 48000, 96000) |
+| channels | INTEGER | | Number of audio channels (1=mono, 2=stereo, 6=5.1, etc.) |
+| file_size_bytes | INTEGER | | File size in bytes |
 | modification_time | TIMESTAMP | NOT NULL | File last modified timestamp |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
 **Constraints:**
 - CHECK: `duration_ticks IS NULL OR duration_ticks > 0`
+- CHECK: `sample_rate IS NULL OR sample_rate > 0`
+- CHECK: `channels IS NULL OR (channels > 0 AND channels <= 32)`
+- CHECK: `file_size_bytes IS NULL OR file_size_bytes >= 0`
 
 **Breaking Change (REQ-F-003):**
 - Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
