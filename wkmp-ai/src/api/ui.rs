@@ -112,8 +112,11 @@ async fn root_page() -> impl IntoResponse {
 /// **[AIA-SSE-010]** Real-time progress updates
 /// **[REQ-AIA-UI-001 through REQ-AIA-UI-006]** Enhanced multi-level progress display
 async fn import_progress_page() -> impl IntoResponse {
-    Html(
-        r#"
+    // Get platform-appropriate default root folder path [REQ-NF-033]
+    let default_root = wkmp_common::config::get_default_root_folder();
+    let default_root_str = default_root.to_string_lossy();
+
+    let html = r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -360,7 +363,7 @@ async fn import_progress_page() -> impl IntoResponse {
     <div id="setup">
         <div class="form-group">
             <label for="root-folder">Music Root Folder:</label>
-            <input type="text" id="root-folder" placeholder="/home/sw/Music" value="/home/sw/Music">
+            <input type="text" id="root-folder" placeholder="DEFAULT_ROOT_PLACEHOLDER" value="DEFAULT_ROOT_PLACEHOLDER">
         </div>
         <button class="button" id="start-btn" onclick="startImport()">Start Import</button>
         <div id="error" class="error" style="display: none;"></div>
@@ -652,8 +655,12 @@ async fn import_progress_page() -> impl IntoResponse {
     </script>
 </body>
 </html>
-        "#,
-    )
+        "#;
+
+    // Replace placeholder with actual default root folder path
+    let html = html.replace("DEFAULT_ROOT_PLACEHOLDER", &default_root_str);
+
+    Html(html)
 }
 
 /// Segment Editor Page - Waveform visualization with draggable markers

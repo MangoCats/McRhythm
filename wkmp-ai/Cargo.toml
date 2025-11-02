@@ -33,7 +33,7 @@ lofty = "0.19"
 async-stream = "0.3"
 futures = "0.3"
 # Audio fingerprinting (Decision 3: static linking)
-chromaprint-sys-next = "1.6"
+chromaprint-sys-next = { version = "1.6", features = ["static"] }
 base64 = "0.22"
 # File hashing for deduplication
 sha2 = "0.10"

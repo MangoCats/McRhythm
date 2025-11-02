@@ -11,7 +11,6 @@ let currentView = {
     type: 'table',
     params: { table: 'songs' }
 };
-let currentTableName = null;
 
 // Preference Management
 class PreferenceManager {
@@ -224,13 +223,10 @@ async function loadData() {
 
 function renderTable(data) {
     const container = document.getElementById('tableContainer');
-    const semanticsBtn = document.getElementById('semanticsBtn');
 
     if (!data.rows || data.rows.length === 0) {
         container.innerHTML = '<p>No results found</p>';
         document.getElementById('resultInfo').textContent = 'No results';
-        semanticsBtn.classList.add('hidden');
-        currentTableName = null;
         return;
     }
 
@@ -238,15 +234,6 @@ function renderTable(data) {
     const resultType = data.table_name || data.filter_name || data.search_type || 'results';
     document.getElementById('resultInfo').textContent =
         `${data.total_results} total ${resultType} (page ${data.page} of ${data.total_pages})`;
-
-    // Show semantics button only for table views
-    if (data.table_name) {
-        currentTableName = data.table_name;
-        semanticsBtn.classList.remove('hidden');
-    } else {
-        currentTableName = null;
-        semanticsBtn.classList.add('hidden');
-    }
 
     // Render table
     let html = '<table><thead><tr>';
@@ -293,13 +280,16 @@ function saveCurrentSearch() {
 
 // Modal Functions
 async function showTableSemantics() {
-    if (!currentTableName) {
+    // Get the currently selected table from the dropdown
+    const tableName = document.getElementById('tableName').value;
+
+    if (!tableName) {
         showStatus('No table selected', 'error');
         return;
     }
 
     try {
-        const response = await fetch(`/api/semantics/${currentTableName}`);
+        const response = await fetch(`/api/semantics/${tableName}`);
         const data = await response.json();
 
         if (data.error) {
@@ -362,13 +352,37 @@ document.getElementById('nextBtn').addEventListener('click', () => {
 document.getElementById('semanticsBtn').addEventListener('click', showTableSemantics);
 document.getElementById('modalClose').addEventListener('click', closeModal);
 
-// Close modal when clicking outside
+// Close modal when clicking outside (but not when clicking modal content)
 document.getElementById('semanticsModal').addEventListener('click', (e) => {
     if (e.target.id === 'semanticsModal') {
         closeModal();
     }
 });
 
+// Prevent clicks on modal content from closing the modal
+document.querySelector('.modal-content').addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+// Fetch and display build info
+async function loadBuildInfo() {
+    try {
+        const response = await fetch('/api/buildinfo');
+        const data = await response.json();
+
+        const buildInfoEl = document.getElementById('buildInfo');
+        buildInfoEl.innerHTML = `
+            <div class="build-info-line">v${data.version} [${data.git_hash}]</div>
+            <div class="build-info-line">${data.build_timestamp}</div>
+            <div class="build-info-line">(${data.build_profile})</div>
+        `;
+    } catch (error) {
+        console.error('Failed to load build info:', error);
+        document.getElementById('buildInfo').innerHTML = '<div class="build-info-line">Build info unavailable</div>';
+    }
+}
+
 // Initialize
 updateViewControls();
 renderFavorites();
+loadBuildInfo();

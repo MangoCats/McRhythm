@@ -42,6 +42,27 @@
             margin-bottom: 30px;
         }
 
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .header-right {
+            text-align: right;
+            font-size: 12px;
+            color: var(--secondary-color);
+            font-family: 'Courier New', monospace;
+        }
+
+        .build-info-line {
+            margin-bottom: 3px;
+        }
+
         h1 {
             font-size: 24px;
             margin-bottom: 5px;
@@ -188,7 +209,7 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         /* Modal styles */
@@ -285,6 +306,17 @@
                 margin-bottom: 20px;
             }
 
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-right {
+                margin-top: 10px;
+                text-align: left;
+                font-size: 10px;
+            }
+
             h1 {
                 font-size: 20px;
             }
@@ -352,8 +384,15 @@
 <body>
     <header>
         <div class="container">
-            <h1>WKMP Database Review</h1>
-            <p class="subtitle">Read-only database inspection tool</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>WKMP Database Review</h1>
+                    <p class="subtitle">Read-only database inspection tool</p>
+                </div>
+                <div class="header-right" id="buildInfo">
+                    <div class="build-info-line">Loading build info...</div>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -420,7 +459,7 @@
         <div class="results">
             <div id="resultInfo" class="page-info">
                 Select a view type and click Load
-                <button id="semanticsBtn" class="semantics-btn hidden">Table Semantics</button>
+                <button id="semanticsBtn" class="semantics-btn">Table Semantics</button>
             </div>
             <div id="tableContainer"></div>
             <div class="pagination hidden" id="pagination">
