@@ -68,6 +68,13 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| _toml_directory_creation.md | Superseded by increment2_zero_config | 2025-11-02 | `git show archive:wip/_toml_directory_creation.md` |
+| _context_engineering.md | Incorporated into workflows | 2025-11-02 | `git show archive:wip/_context_engineering.md` |
+| _attitude_adjustment.md | Superseded by analysis_results | 2025-11-02 | `git show archive:wip/_attitude_adjustment.md` |
+| TECHNICAL_DEBT_REPORT.md | Superseded by TECH_DEBT_REVIEW | 2025-11-02 | `git show archive:wip/TECHNICAL_DEBT_REPORT.md` |
+| PLAN008_sprint3_completion_report.md | Sprint report complete | 2025-11-02 | `git show archive:wip/PLAN008_sprint3_completion_report.md` |
+| PLAN011_execution_status.md | PLAN011 complete | 2025-11-02 | `git show archive:wip/PLAN011_execution_status.md` |
+| PLAN011_COMPLETE.md | Implementation complete | 2025-11-02 | `git show archive:wip/PLAN011_COMPLETE.md` |
 | test_fixes_summary.md | Completed - all fixes applied | 2025-11-02 | `git show archive:wip/test_fixes_summary.md` |
 | plan_registry_backfill_analysis.md | Completed - registry backfilled | 2025-11-02 | `git show archive:wip/plan_registry_backfill_analysis.md` |
 | plan_numbering_analysis_results.md | Completed - numbering in REG001 | 2025-11-02 | `git show archive:wip/plan_numbering_analysis_results.md` |
