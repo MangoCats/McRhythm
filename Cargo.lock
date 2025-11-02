@@ -4624,6 +4624,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "dirs",
+ "once_cell",
  "rand",
  "serde",
  "serde_json",
