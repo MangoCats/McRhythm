@@ -4,6 +4,128 @@
 
 const STORAGE_KEY = 'wkmp-dr-preferences';
 
+// ============================================================================
+// API Authentication Functions
+// Per SPEC007 API-AUTH-025, API-AUTH-027, API-AUTH-028-A
+// ============================================================================
+
+/**
+ * Convert JavaScript object to canonical JSON string
+ * (sorted keys, no whitespace)
+ */
+function toCanonicalJSON(obj) {
+    if (obj === null) return 'null';
+    if (typeof obj === 'boolean') return obj.toString();
+    if (typeof obj === 'number') return obj.toString();
+    if (typeof obj === 'string') {
+        const escaped = obj.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        return `"${escaped}"`;
+    }
+    if (Array.isArray(obj)) {
+        const items = obj.map(toCanonicalJSON);
+        return `[${items.join(',')}]`;
+    }
+    if (typeof obj === 'object') {
+        const keys = Object.keys(obj).sort();
+        const pairs = keys.map(k => `"${k}":${toCanonicalJSON(obj[k])}`);
+        return `{${pairs.join(',')}}`;
+    }
+    return 'null';
+}
+
+/**
+ * Calculate SHA-256 hash for API authentication
+ * Per SPEC007 API-AUTH-027
+ */
+async function calculateHash(jsonObj, sharedSecret) {
+    // Step 1: Clone object and replace hash with dummy hash (64 zeros)
+    const objWithDummyHash = { ...jsonObj };
+    objWithDummyHash.hash = '0000000000000000000000000000000000000000000000000000000000000000';
+
+    // Step 2: Convert to canonical JSON (sorted keys, no whitespace)
+    const canonical = toCanonicalJSON(objWithDummyHash);
+
+    // Step 3: Append shared secret as decimal string
+    const toHash = canonical + sharedSecret.toString();
+
+    // Step 4: Calculate SHA-256 using SubtleCrypto API
+    const encoder = new TextEncoder();
+    const data = encoder.encode(toHash);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+    // Step 5: Convert to 64 hex characters
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    return hashHex;
+}
+
+/**
+ * Wrapper for fetch() that adds timestamp and hash authentication
+ * Per SPEC007 API-AUTH-025
+ */
+async function authenticatedFetch(url, options = {}) {
+    // Check if authentication is disabled (shared_secret = 0)
+    if (API_SHARED_SECRET === "0") {
+        // Bypass mode: send dummy hash
+        const timestamp = Date.now();
+        const dummyHash = '0000000000000000000000000000000000000000000000000000000000000000';
+
+        if (options.method && (options.method === 'POST' || options.method === 'PUT')) {
+            // Add to body for POST/PUT
+            if (options.body) {
+                const bodyObj = JSON.parse(options.body);
+                bodyObj.timestamp = timestamp;
+                bodyObj.hash = dummyHash;
+                options.body = JSON.stringify(bodyObj);
+            } else {
+                options.body = JSON.stringify({ timestamp, hash: dummyHash });
+            }
+        } else {
+            // Add to query string for GET/DELETE
+            const separator = url.includes('?') ? '&' : '?';
+            url = `${url}${separator}timestamp=${timestamp}&hash=${dummyHash}`;
+        }
+
+        return fetch(url, options);
+    }
+
+    // Normal authenticated mode
+    const timestamp = Date.now();
+
+    if (options.method && (options.method === 'POST' || options.method === 'PUT')) {
+        // POST/PUT: Add timestamp and hash to body
+        let bodyObj = {};
+        if (options.body) {
+            bodyObj = JSON.parse(options.body);
+        }
+        bodyObj.timestamp = timestamp;
+
+        // Calculate hash
+        const hash = await calculateHash(bodyObj, API_SHARED_SECRET);
+        bodyObj.hash = hash;
+
+        options.body = JSON.stringify(bodyObj);
+        options.headers = options.headers || {};
+        options.headers['Content-Type'] = 'application/json';
+
+        return fetch(url, options);
+    } else {
+        // GET/DELETE: Add timestamp and hash to query string
+        const queryObj = { timestamp, hash: 'dummy' };
+        const hash = await calculateHash(queryObj, API_SHARED_SECRET);
+
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}timestamp=${timestamp}&hash=${hash}`;
+
+        return fetch(url, options);
+    }
+}
+
+// ============================================================================
+// Application State and UI
+// ============================================================================
+
 // Current state
 let currentData = null;
 let currentPage = 1;
@@ -205,7 +327,7 @@ async function loadData() {
     }
 
     try {
-        const response = await fetch(url);
+        const response = await authenticatedFetch(url);
         const data = await response.json();
 
         if (data.error) {
@@ -289,7 +411,7 @@ async function showTableSemantics() {
     }
 
     try {
-        const response = await fetch(`/api/semantics/${tableName}`);
+        const response = await authenticatedFetch(`/api/semantics/${tableName}`);
         const data = await response.json();
 
         if (data.error) {
@@ -367,7 +489,7 @@ document.querySelector('.modal-content').addEventListener('click', (e) => {
 // Fetch and display build info
 async function loadBuildInfo() {
     try {
-        const response = await fetch('/api/buildinfo');
+        const response = await authenticatedFetch('/api/buildinfo');
         const data = await response.json();
 
         const buildInfoEl = document.getElementById('buildInfo');

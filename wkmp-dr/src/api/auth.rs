@@ -6,7 +6,7 @@
 use axum::{
     body::Body,
     extract::{Request, State},
-    http::StatusCode,
+    http::{Method, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     Json,
@@ -45,6 +45,84 @@ pub async fn auth_middleware(
         return Ok(next.run(request).await);
     }
 
+    // Validate authentication based on HTTP method
+    // Per API-AUTH-025: GET/DELETE use query params, POST/PUT use JSON body
+    match request.method() {
+        &Method::GET | &Method::DELETE => {
+            // Extract timestamp and hash from query parameters
+            validate_query_auth(request, state.shared_secret, next).await
+        }
+        &Method::POST | &Method::PUT => {
+            // Extract timestamp and hash from JSON body
+            validate_body_auth(request, state.shared_secret, next).await
+        }
+        _ => {
+            Err(AuthError::Other("HTTP method not supported".to_string()))
+        }
+    }
+}
+
+/// Validate authentication from query parameters (GET/DELETE)
+async fn validate_query_auth(
+    request: Request,
+    shared_secret: i64,
+    next: Next,
+) -> Result<Response, AuthError> {
+    let query = request.uri().query().unwrap_or("");
+
+    // Parse query string for auth fields
+    let mut timestamp: Option<i64> = None;
+    let mut hash: Option<String> = None;
+
+    for pair in query.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            match key {
+                "timestamp" => timestamp = value.parse::<i64>().ok(),
+                "hash" => hash = Some(value.to_string()),
+                _ => {}
+            }
+        }
+    }
+
+    let timestamp = timestamp
+        .ok_or_else(|| AuthError::MissingFields("Query parameter 'timestamp' is required".to_string()))?;
+
+    let hash = hash
+        .ok_or_else(|| AuthError::MissingFields("Query parameter 'hash' is required".to_string()))?;
+
+    // Step 1: Validate timestamp [API-AUTH-029, API-AUTH-030]
+    validate_timestamp(timestamp).map_err(|e| match e {
+        ApiAuthError::InvalidTimestamp { reason, .. } => AuthError::InvalidTimestamp(reason),
+        _ => AuthError::Other(e.to_string()),
+    })?;
+
+    // Step 2: Validate hash [API-AUTH-027]
+    let json_value = json!({
+        "timestamp": timestamp,
+        "hash": &hash
+    });
+
+    validate_hash(&hash, &json_value, shared_secret).map_err(|e| match e {
+        ApiAuthError::InvalidHash { provided, calculated } => {
+            warn!(
+                "Hash validation failed: provided={}, calculated={}",
+                provided, calculated
+            );
+            AuthError::InvalidHash
+        }
+        _ => AuthError::Other(e.to_string()),
+    })?;
+
+    // Authentication successful - proceed to handler
+    Ok(next.run(request).await)
+}
+
+/// Validate authentication from JSON body (POST/PUT)
+async fn validate_body_auth(
+    request: Request,
+    shared_secret: i64,
+    next: Next,
+) -> Result<Response, AuthError> {
     // Extract body for hash validation
     // [DR-SEC-050] Limit body size to 10MB to prevent DoS via memory exhaustion
     let (parts, body) = request.into_parts();
@@ -66,7 +144,7 @@ pub async fn auth_middleware(
     })?;
 
     // Step 2: Validate hash [API-AUTH-027]
-    validate_hash(&auth_fields.hash, &json_value, state.shared_secret).map_err(|e| match e {
+    validate_hash(&auth_fields.hash, &json_value, shared_secret).map_err(|e| match e {
         ApiAuthError::InvalidHash { provided, calculated } => {
             warn!(
                 "Hash validation failed: provided={}, calculated={}",
