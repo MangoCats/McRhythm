@@ -27,7 +27,9 @@ async fn test_database_deletion_recovers_from_toml() {
         .connect(&db_url)
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     migrate_key_to_database(
         "test-key-recovery".to_string(),
@@ -58,7 +60,9 @@ async fn test_database_deletion_recovers_from_toml() {
         .connect(&db_url2)
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool2).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool2).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool2).await.unwrap();
 
     // Step 4: Load TOML config and resolve key
     let toml_content = std::fs::read_to_string(&toml_path).unwrap();
@@ -98,7 +102,9 @@ async fn test_database_deletion_no_toml_fails() {
         .connect(&db_url)
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     // No TOML file exists
     assert!(!toml_path.exists());
@@ -139,7 +145,9 @@ async fn test_toml_write_back_survives_database_deletion() {
         .connect(&db_url)
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     wkmp_ai::db::settings::set_acoustid_api_key(&pool, "durable-key".to_string())
         .await

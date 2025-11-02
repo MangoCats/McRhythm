@@ -26,7 +26,9 @@ async fn test_set_api_key_success() {
         .connect(":memory:")
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     let event_bus = EventBus::new(100);
     let state = AppState::new(pool.clone(), event_bus);
@@ -74,7 +76,9 @@ async fn test_set_api_key_rejects_empty_key() {
         .connect(":memory:")
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     let event_bus = EventBus::new(100);
     let state = AppState::new(pool.clone(), event_bus);
@@ -112,7 +116,9 @@ async fn test_set_api_key_rejects_whitespace_key() {
         .connect(":memory:")
         .await
         .unwrap();
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     let event_bus = EventBus::new(100);
     let state = AppState::new(pool.clone(), event_bus);

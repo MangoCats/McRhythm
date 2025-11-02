@@ -123,7 +123,7 @@ async fn create_users_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
+pub async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS settings (
@@ -291,7 +291,7 @@ async fn create_module_config_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_files_table(pool: &SqlitePool) -> Result<()> {
+pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     // REQ-F-003: File duration migration to ticks (BREAKING CHANGE)
     // Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
     // Per SPEC017: All passage timing uses tick-based representation for consistency
@@ -330,7 +330,7 @@ async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
+pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS passages (
@@ -471,7 +471,7 @@ async fn create_songs_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
+pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS artists (
@@ -503,7 +503,7 @@ async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_works_table(pool: &SqlitePool) -> Result<()> {
+pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS works (
@@ -535,7 +535,7 @@ async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-async fn create_albums_table(pool: &SqlitePool) -> Result<()> {
+pub async fn create_albums_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS albums (

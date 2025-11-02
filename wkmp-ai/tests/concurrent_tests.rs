@@ -79,7 +79,9 @@ async fn test_concurrent_database_reads_safe() {
         .await
         .unwrap();
 
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     // Set API key
     wkmp_ai::db::settings::set_acoustid_api_key(&pool, "db-concurrent-key".to_string())
@@ -131,7 +133,9 @@ async fn test_concurrent_database_writes_safe() {
         .await
         .unwrap();
 
-    wkmp_ai::db::schema::initialize_schema(&pool).await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     // Spawn 10 concurrent writes with different values
     let pool = Arc::new(pool);
