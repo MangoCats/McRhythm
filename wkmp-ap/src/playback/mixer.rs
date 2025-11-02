@@ -233,6 +233,12 @@ pub struct Mixer {
     ///
     /// Used for accurate playback position reporting (accounting for buffering).
     frames_written: u64,
+
+    /// Working sample rate (matches audio device)
+    ///
+    /// **[DBD-PARAM-020]** Shared global parameter, read-frequently/write-rarely.
+    /// Updated when audio device initializes. Used for sample→tick conversions.
+    working_sample_rate: Arc<std::sync::RwLock<u32>>,
 }
 
 impl Mixer {
@@ -241,14 +247,15 @@ impl Mixer {
     /// # Arguments
     ///
     /// * `master_volume` - Master volume (0.0 to 1.0)
+    /// * `working_sample_rate` - Shared working sample rate parameter
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// let mixer = Mixer::new(1.0); // 100% volume
-    /// let mixer = Mixer::new(0.5); // 50% volume
+    /// let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+    /// let mixer = Mixer::new(1.0, working_sample_rate); // 100% volume
     /// ```
-    pub fn new(master_volume: f32) -> Self {
+    pub fn new(master_volume: f32, working_sample_rate: Arc<std::sync::RwLock<u32>>) -> Self {
         Self {
             master_volume: master_volume.clamp(0.0, 1.0),
             state: MixerState::Playing,
@@ -262,6 +269,7 @@ impl Mixer {
             current_passage_id: None,
             current_queue_entry_id: None,
             frames_written: 0,
+            working_sample_rate,
         }
     }
 
@@ -614,8 +622,10 @@ impl Mixer {
                 }
 
                 // Update position tracking
-                // Convert frames to ticks for marker comparison (TICK_RATE = 28.224MHz vs 44.1kHz sample rate)
-                let tick_increment = wkmp_common::timing::samples_to_ticks(frames_read, 44100);
+                // Convert frames to ticks for marker comparison
+                // **[DBD-PARAM-020]** Use working sample rate (matches audio device)
+                let sample_rate = *self.working_sample_rate.read().unwrap();
+                let tick_increment = wkmp_common::timing::samples_to_ticks(frames_read, sample_rate);
                 self.current_tick += tick_increment;
                 self.frames_written += frames_read as u64;
 
@@ -769,8 +779,10 @@ impl Mixer {
         }
 
         // Update position tracking
-        // Convert frames to ticks for marker comparison (TICK_RATE = 28.224MHz vs 44.1kHz sample rate)
-        let tick_increment = wkmp_common::timing::samples_to_ticks(frames_read, 44100);
+        // Convert frames to ticks for marker comparison
+        // **[DBD-PARAM-020]** Use working sample rate (matches audio device)
+        let sample_rate = *self.working_sample_rate.read().unwrap();
+        let tick_increment = wkmp_common::timing::samples_to_ticks(frames_read, sample_rate);
         self.current_tick += tick_increment;
         self.frames_written += frames_read as u64;
 

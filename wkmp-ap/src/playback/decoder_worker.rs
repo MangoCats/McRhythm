@@ -507,9 +507,13 @@ impl DecoderWorker {
         let mut best_id = None;
         let mut best_priority = i64::MAX;
 
+        debug!("Selecting highest priority chain from {} active chains", state.active_chains.len());
+
         for queue_entry_id in state.active_chains.keys() {
             // Query current play_order from queue manager
             let play_order = Self::get_play_order_for_entry(&queue, *queue_entry_id);
+
+            debug!("  Chain {}: play_order={}", queue_entry_id, play_order);
 
             if play_order < best_priority {
                 best_priority = play_order;
@@ -517,7 +521,10 @@ impl DecoderWorker {
             }
         }
 
-        best_id.expect("active_chains is non-empty")
+        let selected_id = best_id.expect("active_chains is non-empty");
+        debug!("Selected chain {} with play_order={}", selected_id, best_priority);
+
+        selected_id
     }
 
     /// Get play_order for a queue entry
@@ -733,9 +740,11 @@ impl DecoderWorker {
                 );
 
                 // Emit warning event
-                // Convert frames to milliseconds @ 44.1kHz
-                let expected_ms = (*expected_frames as u64 * 1000) / 44100;
-                let actual_ms = (*actual_frames as u64 * 1000) / 44100;
+                // Convert frames to milliseconds @ working sample rate
+                // **[DBD-PARAM-020]** Use working sample rate (matches device)
+                let working_rate = *self.working_sample_rate.read().unwrap();
+                let expected_ms = (*expected_frames as u64 * 1000) / working_rate as u64;
+                let actual_ms = (*actual_frames as u64 * 1000) / working_rate as u64;
                 let delta_ms = (expected_ms as i64) - (actual_ms as i64);
 
                 self.shared_state.broadcast_event(WkmpEvent::PositionDriftWarning {

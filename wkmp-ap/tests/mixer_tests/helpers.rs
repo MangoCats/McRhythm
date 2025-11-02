@@ -88,7 +88,8 @@ pub async fn create_test_buffer_manager_without_completion(
 
 /// Create mixer with standard test configuration
 pub fn create_test_mixer() -> Mixer {
-    Mixer::new(1.0) // Full volume
+    let working_sample_rate = Arc::new(std::sync::RwLock::new(44100)); // Test uses 44.1kHz
+    Mixer::new(1.0, working_sample_rate) // Full volume
 }
 
 /// Create position marker for testing

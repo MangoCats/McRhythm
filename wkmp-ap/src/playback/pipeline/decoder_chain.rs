@@ -296,11 +296,13 @@ impl DecoderChain {
                 self.chain_index, decoded_frames
             );
 
-            // **[DBD-DEC-110] Step 2:** Resample to 44.1kHz
+            // **[DBD-DEC-110] Step 2:** Resample to working sample rate
             // **[REQ-AP-ERR-051]** Catch resampling runtime errors and add position context
             let resampled_samples = self.resampler.process_chunk(&chunk_samples).map_err(|e| {
                 // Calculate current position in milliseconds for error reporting
-                let position_ms = (self.fader.current_frame() as u64 * 1000) / 44100;
+                // **[DBD-PARAM-020]** Use resampler's output rate (matches device)
+                let output_rate = self.resampler.output_rate();
+                let position_ms = (self.fader.current_frame() as u64 * 1000) / output_rate as u64;
                 match e {
                     Error::Decode(msg) if msg.contains("Resampling failed") => {
                         Error::ResamplingRuntimeError {

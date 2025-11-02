@@ -279,7 +279,8 @@ impl PlaybackEngine {
         // [SSD-MIX-010] SPEC016-compliant mixer for batch mixing
         // [SUB-INC-4B] Replaced CrossfadeMixer with Mixer (event-driven markers)
         // **[DEBT-003]** Master volume loaded from settings (default: 0.5)
-        let mixer = Mixer::new(initial_volume);
+        // **[DBD-PARAM-020]** Pass working_sample_rate to mixer for tick calculations
+        let mixer = Mixer::new(initial_volume, Arc::clone(&working_sample_rate));
         let mixer = Arc::new(RwLock::new(mixer));
 
         // **[DBD-LIFECYCLE-030]** Initialize available chains pool with all chain indices
@@ -1062,7 +1063,8 @@ impl PlaybackEngine {
                     end_ticks - passage.start_time_ticks
                 } else {
                     // If end_time is None, calculate from buffer total_written
-                    wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
+                    // **[DBD-PARAM-020]** Use working sample rate (matches device)
+                    wkmp_common::timing::samples_to_ticks(stats.total_written as usize, sample_rate)
                 };
                 let duration_ms = wkmp_common::timing::ticks_to_ms(duration_ticks) as u64;
 
@@ -1606,8 +1608,9 @@ impl PlaybackEngine {
                         if let Ok(passage) = self.get_passage_timing(current).await {
                             if let Some(_buffer_ref) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
                                 // Convert frame position to milliseconds
-                                // [DBD-BUF-010] Fixed 44.1kHz sample rate
-                                let position_ms = (mixer_position_frames as u64 * 1000) / 44100;
+                                // **[DBD-PARAM-020]** Use working sample rate (matches audio device)
+                                let sample_rate = *self.working_sample_rate.read().unwrap();
+                                let position_ms = (mixer_position_frames as u64 * 1000) / sample_rate as u64;
 
                                 // Calculate when crossfade should start
                                 // **[DBD-BUF-065]** Pass queue_entry_id to check for discovered endpoint
@@ -2012,7 +2015,9 @@ impl PlaybackEngine {
             // **[DBD-PARAM-110]** mixer_min_start_level (configurable, default ~500ms)
             // For recovery, we need at least this much buffered to resume playback
             let min_buffer_threshold_ms = self.buffer_manager.get_min_buffer_threshold().await;
-            let min_buffer_samples = (min_buffer_threshold_ms as usize * 44100 / 1000) * 2; // Stereo
+            // **[DBD-PARAM-020]** Use working sample rate (matches device)
+            let sample_rate = *self.working_sample_rate.read().unwrap();
+            let min_buffer_samples = (min_buffer_threshold_ms as usize * sample_rate as usize / 1000) * 2; // Stereo
 
             loop {
                 // Check if buffer has refilled to minimum threshold

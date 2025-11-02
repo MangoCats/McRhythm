@@ -471,6 +471,8 @@ impl PlaybackEngine {
             // Wait for position event
             match rx.recv().await {
                 Some(PlaybackEvent::PositionUpdate { queue_entry_id, position_ms }) => {
+                    // **[DBD-PARAM-020]** Read working sample rate on each event (may change during runtime)
+                    let sample_rate = *self.working_sample_rate.read().unwrap();
                     // [1] Check song boundary
                     let mut timeline = self.current_song_timeline.write().await;
                     if let Some(timeline) = timeline.as_mut() {
@@ -530,7 +532,8 @@ impl PlaybackEngine {
                                     if let Some(buffer_ref) = self.buffer_manager.get_buffer(queue_entry_id).await {
                                         // No lock needed - stats() uses atomics
                                         let stats = buffer_ref.stats();
-                                        wkmp_common::timing::samples_to_ticks(stats.total_written as usize, 44100)
+                                        // **[DBD-PARAM-020]** Use working sample rate (matches device)
+                                        wkmp_common::timing::samples_to_ticks(stats.total_written as usize, sample_rate)
                                     } else {
                                         0
                                     }
