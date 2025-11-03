@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 23 (PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~19,781 lines total: 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 27 (PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~39,664 lines total: 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -68,12 +68,16 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| PLAN014_mixer_refactoring/ | PLAN014 complete - SPEC016 mixer integration (legacy mixer removed, event-driven markers, 219 tests pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN014_mixer_refactoring` |
+| PLAN008_wkmp_ap_technical_debt/ | PLAN008 complete - All 3 sprints (37 requirements, Oct 30); engine refactoring via PLAN016 (Nov 1) | 2025-11-03 | `git checkout archive && cd wip/PLAN008_wkmp_ap_technical_debt` |
 | PLAN009_engine_module_extraction/ | Superseded by PLAN016 - Same goal (engine.rs refactoring) achieved via comprehensive /plan workflow | 2025-11-03 | `git checkout archive && cd wip/PLAN009_engine_module_extraction` |
 | PLAN016_engine_refactoring/ | PLAN016 complete - Engine refactored into modular structure (4,251→4,324 lines across 4 modules, 219 tests pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN016_engine_refactoring` |
 | PLAN019_dry_metadata_validation/ | PLAN019 complete - DRY metadata validation (14 parameters, ~160 LOC eliminated, 100% test pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN019_dry_metadata_validation` |
 | PLAN017_spec017_compliance/ | PLAN017 complete - SPEC017 compliance remediation (7 requirements, 100% test pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN017_spec017_compliance` |
 | PLAN018_centralized_global_parameters/ | PLAN018 complete - All 15 parameters migrated to GlobalParams | 2025-11-02 | `git checkout archive && cd wip/PLAN018_centralized_global_parameters` |
 | PLAN012_api_key_multi_tier_config/ | PLAN012 complete - API key config implemented | 2025-11-02 | `git checkout archive && cd wip/PLAN012_api_key_multi_tier_config` |
+| PLAN006_wkmp_ai_ui_spec_updates/ | PLAN006 complete - wkmp-ai UI clarification (6 spec files updated, "on-demand" pattern defined) | 2025-10-28 | `git checkout archive && cd wip/PLAN006_wkmp_ai_ui_spec_updates` |
+| PLAN010_workflow_quality_standards/ | PLAN010 complete - Workflow quality standards (Professional Objectivity, plan execution standards, Phase 9 tech debt) | 2025-10-30 | `git checkout archive && cd wip/PLAN010_workflow_quality_standards` |
 | PLAN011_import_progress_ui/ | PLAN011 complete | 2025-11-02 | `git checkout archive && cd wip/PLAN011_import_progress_ui` |
 | _toml_directory_creation.md | Superseded by increment2_zero_config | 2025-11-02 | `git show archive:wip/_toml_directory_creation.md` |
 | _context_engineering.md | Incorporated into workflows | 2025-11-02 | `git show archive:wip/_context_engineering.md` |
