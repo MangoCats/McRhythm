@@ -823,14 +823,16 @@ mod tests {
 
     #[test]
     fn test_mixer_creation() {
-        let mixer = Mixer::new(1.0);
+        let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+        let mixer = Mixer::new(1.0, working_sample_rate);
         assert_eq!(mixer.master_volume(), 1.0);
         assert_eq!(mixer.state(), MixerState::Playing);
     }
 
     #[test]
     fn test_master_volume_clamping() {
-        let mut mixer = Mixer::new(1.5); // Over 1.0
+        let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+        let mut mixer = Mixer::new(1.5, working_sample_rate); // Over 1.0
         assert_eq!(mixer.master_volume(), 1.0);
 
         mixer.set_master_volume(-0.5); // Below 0.0
@@ -842,7 +844,8 @@ mod tests {
 
     #[test]
     fn test_mixer_state() {
-        let mut mixer = Mixer::new(1.0);
+        let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+        let mut mixer = Mixer::new(1.0, working_sample_rate);
         assert_eq!(mixer.state(), MixerState::Playing);
 
         mixer.set_state(MixerState::Paused);
@@ -862,7 +865,8 @@ mod tests {
 
     #[test]
     fn test_pause_mode_output() {
-        let mut mixer = Mixer::new(1.0);
+        let working_sample_rate = Arc::new(std::sync::RwLock::new(44100));
+        let mut mixer = Mixer::new(1.0, working_sample_rate);
 
         // Set last sample
         mixer.last_sample_left = 1.0;

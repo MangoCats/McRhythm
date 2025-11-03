@@ -325,7 +325,9 @@ impl DecoderWorker {
 
             // Assign chain index
             let chain_index = state.next_chain_index;
-            state.next_chain_index = (state.next_chain_index + 1) % 12;
+            // **[DBD-PARAM-050]** Use maximum_decode_streams from GlobalParams
+            state.next_chain_index = (state.next_chain_index + 1)
+                % *wkmp_common::params::PARAMS.maximum_decode_streams.read().unwrap();
 
             // Create decoder chain
             // **[DBD-PARAM-020]** Read working_sample_rate (set by audio thread after device init)
