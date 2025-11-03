@@ -195,6 +195,23 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     ensure_setting(pool, "validation_interval_secs", "10").await?;
     ensure_setting(pool, "validation_tolerance_samples", "8192").await?;
 
+    // GlobalParams defaults **[PLAN018]** - All 15 database-backed parameters
+    // These match the defaults in wkmp-common/src/params.rs
+    ensure_setting(pool, "working_sample_rate", "44100").await?;              // [DBD-PARAM-020]
+    ensure_setting(pool, "output_ringbuffer_size", "8192").await?;            // [DBD-PARAM-030]
+    ensure_setting(pool, "maximum_decode_streams", "12").await?;              // [DBD-PARAM-050]
+    ensure_setting(pool, "decode_work_period", "5000").await?;                // [DBD-PARAM-060]
+    ensure_setting(pool, "chunk_duration_ms", "1000").await?;                 // [DBD-PARAM-065]
+    ensure_setting(pool, "playout_ringbuffer_size", "661941").await?;         // [DBD-PARAM-070]
+    ensure_setting(pool, "playout_ringbuffer_headroom", "4410").await?;       // [DBD-PARAM-080]
+    ensure_setting(pool, "decoder_resume_hysteresis_samples", "44100").await?; // [DBD-PARAM-085]
+    ensure_setting(pool, "mixer_min_start_level", "22050").await?;            // [DBD-PARAM-088]
+    ensure_setting(pool, "pause_decay_factor", "0.95").await?;                // [DBD-PARAM-090]
+    ensure_setting(pool, "pause_decay_floor", "0.0001778").await?;            // [DBD-PARAM-100]
+    ensure_setting(pool, "audio_buffer_size", "2208").await?;                 // [DBD-PARAM-110]
+    ensure_setting(pool, "mixer_check_interval_ms", "10").await?;             // [DBD-PARAM-111]
+    // Note: volume_level (DBD-PARAM-010) already set above in "Core playback settings"
+
     info!("Default settings initialized");
     Ok(())
 }

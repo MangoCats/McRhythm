@@ -211,6 +211,25 @@ impl Default for GlobalParams {
 }
 
 impl GlobalParams {
+    /// Reset all parameters to defaults (for testing only)
+    #[cfg(test)]
+    fn reset_to_defaults(&self) {
+        *self.volume_level.write().unwrap() = 0.5;
+        *self.working_sample_rate.write().unwrap() = 44100;
+        *self.output_ringbuffer_size.write().unwrap() = 8192;
+        *self.maximum_decode_streams.write().unwrap() = 12;
+        *self.decode_work_period.write().unwrap() = 5000;
+        *self.chunk_duration_ms.write().unwrap() = 1000;
+        *self.playout_ringbuffer_size.write().unwrap() = 661941;
+        *self.playout_ringbuffer_headroom.write().unwrap() = 4410;
+        *self.decoder_resume_hysteresis_samples.write().unwrap() = 44100;
+        *self.mixer_min_start_level.write().unwrap() = 22050;
+        *self.pause_decay_factor.write().unwrap() = 0.95;
+        *self.pause_decay_floor.write().unwrap() = 0.0001778;
+        *self.audio_buffer_size.write().unwrap() = 2208;
+        *self.mixer_check_interval_ms.write().unwrap() = 10;
+    }
+
     /// Initialize all parameters from database
     ///
     /// Called once at wkmp-ap startup. Loads values from settings table.
@@ -224,11 +243,170 @@ impl GlobalParams {
     /// 4. Out of range: Log WARN, use default, continue
     /// 5. Process all independently (no fail-fast)
     pub async fn init_from_database(
-        _db_pool: &sqlx::SqlitePool,
+        db_pool: &sqlx::SqlitePool,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // TODO: Implement database loading
-        // For now, just use defaults
-        tracing::info!("GlobalParams initialized with default values (database loading not yet implemented)");
+        use tracing::{info, warn};
+
+        info!("Loading GlobalParams from database...");
+
+        // Process each parameter independently (no fail-fast)
+        // Each failure logs warning and uses default value
+
+        // [DBD-PARAM-010] volume_level (f32, range: [0.0, 1.0])
+        match load_f32_param(db_pool, "volume_level").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_volume_level(value) {
+                    warn!("volume_level validation failed: {}, using default", e);
+                }
+            }
+            Ok(None) => warn!("volume_level not found in database, using default (0.5)"),
+            Err(e) => warn!("Failed to load volume_level: {}, using default", e),
+        }
+
+        // [DBD-PARAM-020] working_sample_rate (u32, range: [8000, 192000])
+        match load_u32_param(db_pool, "working_sample_rate").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_working_sample_rate(value) {
+                    warn!("working_sample_rate validation failed: {}, using default", e);
+                }
+            }
+            Ok(None) => warn!("working_sample_rate not found in database, using default (44100)"),
+            Err(e) => warn!("Failed to load working_sample_rate: {}, using default", e),
+        }
+
+        // [DBD-PARAM-030] output_ringbuffer_size (usize, range: [2048, 262144])
+        match load_usize_param(db_pool, "output_ringbuffer_size").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_output_ringbuffer_size(value) {
+                    warn!("{}, using default (8192)", e);
+                }
+            }
+            Ok(None) => warn!("output_ringbuffer_size not found in database, using default (8192)"),
+            Err(e) => warn!("Failed to load output_ringbuffer_size: {}, using default", e),
+        }
+
+        // [DBD-PARAM-050] maximum_decode_streams (usize, range: [1, 32])
+        match load_usize_param(db_pool, "maximum_decode_streams").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_maximum_decode_streams(value) {
+                    warn!("{}, using default (12)", e);
+                }
+            }
+            Ok(None) => warn!("maximum_decode_streams not found in database, using default (12)"),
+            Err(e) => warn!("Failed to load maximum_decode_streams: {}, using default", e),
+        }
+
+        // [DBD-PARAM-060] decode_work_period (u64, range: [100, 60000])
+        match load_u64_param(db_pool, "decode_work_period").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_decode_work_period(value) {
+                    warn!("{}, using default (5000)", e);
+                }
+            }
+            Ok(None) => warn!("decode_work_period not found in database, using default (5000)"),
+            Err(e) => warn!("Failed to load decode_work_period: {}, using default", e),
+        }
+
+        // [DBD-PARAM-065] chunk_duration_ms (u64, range: [250, 5000])
+        match load_u64_param(db_pool, "chunk_duration_ms").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_chunk_duration_ms(value) {
+                    warn!("{}, using default (1000)", e);
+                }
+            }
+            Ok(None) => warn!("chunk_duration_ms not found in database, using default (1000)"),
+            Err(e) => warn!("Failed to load chunk_duration_ms: {}, using default", e),
+        }
+
+        // [DBD-PARAM-070] playout_ringbuffer_size (usize, range: [44100, 10000000])
+        match load_usize_param(db_pool, "playout_ringbuffer_size").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_playout_ringbuffer_size(value) {
+                    warn!("{}, using default (661941)", e);
+                }
+            }
+            Ok(None) => warn!("playout_ringbuffer_size not found in database, using default (661941)"),
+            Err(e) => warn!("Failed to load playout_ringbuffer_size: {}, using default", e),
+        }
+
+        // [DBD-PARAM-080] playout_ringbuffer_headroom (usize, range: [2205, 88200])
+        match load_usize_param(db_pool, "playout_ringbuffer_headroom").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_playout_ringbuffer_headroom(value) {
+                    warn!("{}, using default (4410)", e);
+                }
+            }
+            Ok(None) => warn!("playout_ringbuffer_headroom not found in database, using default (4410)"),
+            Err(e) => warn!("Failed to load playout_ringbuffer_headroom: {}, using default", e),
+        }
+
+        // [DBD-PARAM-085] decoder_resume_hysteresis_samples (u64, range: [2205, 441000])
+        match load_u64_param(db_pool, "decoder_resume_hysteresis_samples").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_decoder_resume_hysteresis_samples(value) {
+                    warn!("{}, using default (44100)", e);
+                }
+            }
+            Ok(None) => warn!("decoder_resume_hysteresis_samples not found in database, using default (44100)"),
+            Err(e) => warn!("Failed to load decoder_resume_hysteresis_samples: {}, using default", e),
+        }
+
+        // [DBD-PARAM-088] mixer_min_start_level (usize, range: [2205, 88200])
+        match load_usize_param(db_pool, "mixer_min_start_level").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_mixer_min_start_level(value) {
+                    warn!("{}, using default (22050)", e);
+                }
+            }
+            Ok(None) => warn!("mixer_min_start_level not found in database, using default (22050)"),
+            Err(e) => warn!("Failed to load mixer_min_start_level: {}, using default", e),
+        }
+
+        // [DBD-PARAM-090] pause_decay_factor (f64, range: [0.5, 0.99])
+        match load_f64_param(db_pool, "pause_decay_factor").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_pause_decay_factor(value) {
+                    warn!("{}, using default (0.95)", e);
+                }
+            }
+            Ok(None) => warn!("pause_decay_factor not found in database, using default (0.95)"),
+            Err(e) => warn!("Failed to load pause_decay_factor: {}, using default", e),
+        }
+
+        // [DBD-PARAM-100] pause_decay_floor (f64, range: [0.00001, 0.001])
+        match load_f64_param(db_pool, "pause_decay_floor").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_pause_decay_floor(value) {
+                    warn!("{}, using default (0.0001778)", e);
+                }
+            }
+            Ok(None) => warn!("pause_decay_floor not found in database, using default (0.0001778)"),
+            Err(e) => warn!("Failed to load pause_decay_floor: {}, using default", e),
+        }
+
+        // [DBD-PARAM-110] audio_buffer_size (u32, range: [512, 8192])
+        match load_u32_param(db_pool, "audio_buffer_size").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_audio_buffer_size(value) {
+                    warn!("{}, using default (2208)", e);
+                }
+            }
+            Ok(None) => warn!("audio_buffer_size not found in database, using default (2208)"),
+            Err(e) => warn!("Failed to load audio_buffer_size: {}, using default", e),
+        }
+
+        // [DBD-PARAM-111] mixer_check_interval_ms (u64, range: [5, 100])
+        match load_u64_param(db_pool, "mixer_check_interval_ms").await {
+            Ok(Some(value)) => {
+                if let Err(e) = PARAMS.set_mixer_check_interval_ms(value) {
+                    warn!("{}, using default (10)", e);
+                }
+            }
+            Ok(None) => warn!("mixer_check_interval_ms not found in database, using default (10)"),
+            Err(e) => warn!("Failed to load mixer_check_interval_ms: {}, using default", e),
+        }
+
+        info!("GlobalParams initialized from database");
         Ok(())
     }
 
@@ -268,11 +446,285 @@ impl GlobalParams {
         Ok(())
     }
 
-    // TODO: Add setter methods for remaining 13 parameters with validation
-    // Following same pattern as above:
-    // - Range validation
-    // - Clear error messages
-    // - Type-safe
+    /// Validate and update output_ringbuffer_size
+    ///
+    /// # Validation
+    /// - Must be in range [2048, 262144] frames
+    pub fn set_output_ringbuffer_size(&self, value: usize) -> Result<(), String> {
+        if value < 2048 || value > 262144 {
+            return Err(format!(
+                "output_ringbuffer_size {} out of range [2048, 262144]",
+                value
+            ));
+        }
+        *self.output_ringbuffer_size.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update maximum_decode_streams
+    ///
+    /// # Validation
+    /// - Must be in range [1, 32]
+    pub fn set_maximum_decode_streams(&self, value: usize) -> Result<(), String> {
+        if value < 1 || value > 32 {
+            return Err(format!(
+                "maximum_decode_streams {} out of range [1, 32]",
+                value
+            ));
+        }
+        *self.maximum_decode_streams.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update decode_work_period
+    ///
+    /// # Validation
+    /// - Must be in range [100, 60000] ms
+    pub fn set_decode_work_period(&self, value: u64) -> Result<(), String> {
+        if value < 100 || value > 60000 {
+            return Err(format!(
+                "decode_work_period {} out of range [100, 60000]",
+                value
+            ));
+        }
+        *self.decode_work_period.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update chunk_duration_ms
+    ///
+    /// # Validation
+    /// - Must be in range [250, 5000] ms
+    pub fn set_chunk_duration_ms(&self, value: u64) -> Result<(), String> {
+        if value < 250 || value > 5000 {
+            return Err(format!(
+                "chunk_duration_ms {} out of range [250, 5000]",
+                value
+            ));
+        }
+        *self.chunk_duration_ms.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update playout_ringbuffer_size
+    ///
+    /// # Validation
+    /// - Must be in range [44100, 10000000] samples
+    pub fn set_playout_ringbuffer_size(&self, value: usize) -> Result<(), String> {
+        if value < 44100 || value > 10000000 {
+            return Err(format!(
+                "playout_ringbuffer_size {} out of range [44100, 10000000]",
+                value
+            ));
+        }
+        *self.playout_ringbuffer_size.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update playout_ringbuffer_headroom
+    ///
+    /// # Validation
+    /// - Must be in range [2205, 88200] samples
+    pub fn set_playout_ringbuffer_headroom(&self, value: usize) -> Result<(), String> {
+        if value < 2205 || value > 88200 {
+            return Err(format!(
+                "playout_ringbuffer_headroom {} out of range [2205, 88200]",
+                value
+            ));
+        }
+        *self.playout_ringbuffer_headroom.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update decoder_resume_hysteresis_samples
+    ///
+    /// # Validation
+    /// - Must be in range [2205, 441000] samples
+    pub fn set_decoder_resume_hysteresis_samples(&self, value: u64) -> Result<(), String> {
+        if value < 2205 || value > 441000 {
+            return Err(format!(
+                "decoder_resume_hysteresis_samples {} out of range [2205, 441000]",
+                value
+            ));
+        }
+        *self.decoder_resume_hysteresis_samples.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update mixer_min_start_level
+    ///
+    /// # Validation
+    /// - Must be in range [2205, 88200] samples
+    pub fn set_mixer_min_start_level(&self, value: usize) -> Result<(), String> {
+        if value < 2205 || value > 88200 {
+            return Err(format!(
+                "mixer_min_start_level {} out of range [2205, 88200]",
+                value
+            ));
+        }
+        *self.mixer_min_start_level.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update pause_decay_factor
+    ///
+    /// # Validation
+    /// - Must be in range [0.5, 0.99]
+    pub fn set_pause_decay_factor(&self, value: f64) -> Result<(), String> {
+        if value < 0.5 || value > 0.99 {
+            return Err(format!(
+                "pause_decay_factor {} out of range [0.5, 0.99]",
+                value
+            ));
+        }
+        *self.pause_decay_factor.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update pause_decay_floor
+    ///
+    /// # Validation
+    /// - Must be in range [0.00001, 0.001]
+    pub fn set_pause_decay_floor(&self, value: f64) -> Result<(), String> {
+        if value < 0.00001 || value > 0.001 {
+            return Err(format!(
+                "pause_decay_floor {} out of range [0.00001, 0.001]",
+                value
+            ));
+        }
+        *self.pause_decay_floor.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update audio_buffer_size
+    ///
+    /// # Validation
+    /// - Must be in range [512, 8192] frames
+    pub fn set_audio_buffer_size(&self, value: u32) -> Result<(), String> {
+        if value < 512 || value > 8192 {
+            return Err(format!(
+                "audio_buffer_size {} out of range [512, 8192]",
+                value
+            ));
+        }
+        *self.audio_buffer_size.write().unwrap() = value;
+        Ok(())
+    }
+
+    /// Validate and update mixer_check_interval_ms
+    ///
+    /// # Validation
+    /// - Must be in range [5, 100] ms
+    pub fn set_mixer_check_interval_ms(&self, value: u64) -> Result<(), String> {
+        if value < 5 || value > 100 {
+            return Err(format!(
+                "mixer_check_interval_ms {} out of range [5, 100]",
+                value
+            ));
+        }
+        *self.mixer_check_interval_ms.write().unwrap() = value;
+        Ok(())
+    }
+}
+
+/// Helper function to load f32 parameter from database
+async fn load_f32_param(
+    pool: &sqlx::SqlitePool,
+    key: &str,
+) -> Result<Option<f32>, Box<dyn std::error::Error>> {
+    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+
+    match row {
+        Some((Some(value_str),)) => {
+            let value = value_str.parse::<f32>()?;
+            Ok(Some(value))
+        }
+        Some((None,)) => Ok(None), // NULL value
+        None => Ok(None),           // Missing row
+    }
+}
+
+/// Helper function to load f64 parameter from database
+async fn load_f64_param(
+    pool: &sqlx::SqlitePool,
+    key: &str,
+) -> Result<Option<f64>, Box<dyn std::error::Error>> {
+    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+
+    match row {
+        Some((Some(value_str),)) => {
+            let value = value_str.parse::<f64>()?;
+            Ok(Some(value))
+        }
+        Some((None,)) => Ok(None), // NULL value
+        None => Ok(None),           // Missing row
+    }
+}
+
+/// Helper function to load u32 parameter from database
+async fn load_u32_param(
+    pool: &sqlx::SqlitePool,
+    key: &str,
+) -> Result<Option<u32>, Box<dyn std::error::Error>> {
+    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+
+    match row {
+        Some((Some(value_str),)) => {
+            let value = value_str.parse::<u32>()?;
+            Ok(Some(value))
+        }
+        Some((None,)) => Ok(None), // NULL value
+        None => Ok(None),           // Missing row
+    }
+}
+
+/// Helper function to load u64 parameter from database
+async fn load_u64_param(
+    pool: &sqlx::SqlitePool,
+    key: &str,
+) -> Result<Option<u64>, Box<dyn std::error::Error>> {
+    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+
+    match row {
+        Some((Some(value_str),)) => {
+            let value = value_str.parse::<u64>()?;
+            Ok(Some(value))
+        }
+        Some((None,)) => Ok(None), // NULL value
+        None => Ok(None),           // Missing row
+    }
+}
+
+/// Helper function to load usize parameter from database
+async fn load_usize_param(
+    pool: &sqlx::SqlitePool,
+    key: &str,
+) -> Result<Option<usize>, Box<dyn std::error::Error>> {
+    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(pool)
+        .await?;
+
+    match row {
+        Some((Some(value_str),)) => {
+            let value = value_str.parse::<usize>()?;
+            Ok(Some(value))
+        }
+        Some((None,)) => Ok(None), // NULL value
+        None => Ok(None),           // Missing row
+    }
 }
 
 #[cfg(test)]
@@ -453,5 +905,304 @@ mod tests {
 
         assert!(params.set_volume_level(-0.1).is_ok());
         assert_eq!(*params.volume_level.read().unwrap(), 0.0);
+    }
+
+    // Database loading tests
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_init_from_database_with_all_values() {
+        // TC-DB-001: Load all parameters from database when all values present
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Insert all parameter values
+        insert_setting(&pool, "volume_level", "0.75").await;
+        insert_setting(&pool, "working_sample_rate", "48000").await;
+        insert_setting(&pool, "output_ringbuffer_size", "16384").await;
+        insert_setting(&pool, "maximum_decode_streams", "8").await;
+        insert_setting(&pool, "decode_work_period", "3000").await;
+        insert_setting(&pool, "chunk_duration_ms", "500").await;
+        insert_setting(&pool, "playout_ringbuffer_size", "882000").await;
+        insert_setting(&pool, "playout_ringbuffer_headroom", "8820").await;
+        insert_setting(&pool, "decoder_resume_hysteresis_samples", "88200").await;
+        insert_setting(&pool, "mixer_min_start_level", "44100").await;
+        insert_setting(&pool, "pause_decay_factor", "0.90").await;
+        insert_setting(&pool, "pause_decay_floor", "0.0002").await;
+        insert_setting(&pool, "audio_buffer_size", "4096").await;
+        insert_setting(&pool, "mixer_check_interval_ms", "20").await;
+
+        // Initialize from database
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify all values loaded
+        assert_eq!(*PARAMS.volume_level.read().unwrap(), 0.75);
+        assert_eq!(*PARAMS.working_sample_rate.read().unwrap(), 48000);
+        assert_eq!(*PARAMS.output_ringbuffer_size.read().unwrap(), 16384);
+        assert_eq!(*PARAMS.maximum_decode_streams.read().unwrap(), 8);
+        assert_eq!(*PARAMS.decode_work_period.read().unwrap(), 3000);
+        assert_eq!(*PARAMS.chunk_duration_ms.read().unwrap(), 500);
+        assert_eq!(*PARAMS.playout_ringbuffer_size.read().unwrap(), 882000);
+        assert_eq!(*PARAMS.playout_ringbuffer_headroom.read().unwrap(), 8820);
+        assert_eq!(*PARAMS.decoder_resume_hysteresis_samples.read().unwrap(), 88200);
+        assert_eq!(*PARAMS.mixer_min_start_level.read().unwrap(), 44100);
+        assert_eq!(*PARAMS.pause_decay_factor.read().unwrap(), 0.90);
+        assert_eq!(*PARAMS.pause_decay_floor.read().unwrap(), 0.0002);
+        assert_eq!(*PARAMS.audio_buffer_size.read().unwrap(), 4096);
+        assert_eq!(*PARAMS.mixer_check_interval_ms.read().unwrap(), 20);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_init_from_database_with_missing_values() {
+        // TC-DB-002: Use defaults when parameters missing from database
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Don't insert any parameters
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify defaults used (should match Default implementation)
+        assert_eq!(*PARAMS.volume_level.read().unwrap(), 0.5);
+        assert_eq!(*PARAMS.working_sample_rate.read().unwrap(), 44100);
+        assert_eq!(*PARAMS.output_ringbuffer_size.read().unwrap(), 8192);
+        assert_eq!(*PARAMS.maximum_decode_streams.read().unwrap(), 12);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_init_from_database_with_out_of_range_values() {
+        // TC-DB-003: Use defaults when parameters out of range
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Insert out-of-range values
+        insert_setting(&pool, "working_sample_rate", "7000").await;  // Too low (min: 8000)
+        insert_setting(&pool, "maximum_decode_streams", "50").await;  // Too high (max: 32)
+        insert_setting(&pool, "audio_buffer_size", "100000").await;   // Too high (max: 8192)
+
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify defaults used for out-of-range values
+        assert_eq!(*PARAMS.working_sample_rate.read().unwrap(), 44100);
+        assert_eq!(*PARAMS.maximum_decode_streams.read().unwrap(), 12);
+        assert_eq!(*PARAMS.audio_buffer_size.read().unwrap(), 2208);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_init_from_database_with_type_mismatch() {
+        // TC-DB-004: Use defaults when type mismatch (invalid parse)
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Insert non-numeric values for numeric parameters
+        insert_setting(&pool, "working_sample_rate", "not-a-number").await;
+        insert_setting(&pool, "volume_level", "invalid").await;
+
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify defaults used when parsing fails
+        assert_eq!(*PARAMS.working_sample_rate.read().unwrap(), 44100);
+        assert_eq!(*PARAMS.volume_level.read().unwrap(), 0.5);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_init_from_database_with_null_values() {
+        // TC-DB-005: Use defaults when values are NULL
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Insert NULL values
+        sqlx::query("INSERT INTO settings (key, value) VALUES (?, NULL)")
+            .bind("working_sample_rate")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify defaults used for NULL values
+        assert_eq!(*PARAMS.working_sample_rate.read().unwrap(), 44100);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_init_from_database_partial_values() {
+        // TC-DB-006: Load some parameters, use defaults for others
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Insert only some parameters
+        insert_setting(&pool, "volume_level", "0.8").await;
+        insert_setting(&pool, "working_sample_rate", "96000").await;
+        // Omit other parameters
+
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify loaded parameters
+        assert_eq!(*PARAMS.volume_level.read().unwrap(), 0.8);
+        assert_eq!(*PARAMS.working_sample_rate.read().unwrap(), 96000);
+
+        // Verify defaults for missing parameters
+        assert_eq!(*PARAMS.output_ringbuffer_size.read().unwrap(), 8192);
+        assert_eq!(*PARAMS.maximum_decode_streams.read().unwrap(), 12);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn test_volume_level_clamping_from_database() {
+        // TC-DB-007: Volume level clamping works when loading from database
+        PARAMS.reset_to_defaults(); // Reset before test
+        let pool = create_test_db().await;
+
+        // Insert out-of-range volume (should be clamped)
+        insert_setting(&pool, "volume_level", "1.5").await;
+
+        GlobalParams::init_from_database(&pool).await.unwrap();
+
+        // Verify clamped to 1.0
+        assert_eq!(*PARAMS.volume_level.read().unwrap(), 1.0);
+    }
+
+    // Setter validation tests
+    #[test]
+    fn test_set_output_ringbuffer_size_valid() {
+        let params = GlobalParams::default();
+
+        // Valid values
+        assert!(params.set_output_ringbuffer_size(2048).is_ok());
+        assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 2048);
+
+        assert!(params.set_output_ringbuffer_size(16384).is_ok());
+        assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 16384);
+
+        assert!(params.set_output_ringbuffer_size(262144).is_ok());
+        assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 262144);
+    }
+
+    #[test]
+    fn test_set_output_ringbuffer_size_out_of_range() {
+        let params = GlobalParams::default();
+
+        // Out of range values
+        assert!(params.set_output_ringbuffer_size(2047).is_err());
+        assert!(params.set_output_ringbuffer_size(262145).is_err());
+
+        // Value should remain at default after failed set
+        assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 8192);
+    }
+
+    #[test]
+    fn test_set_pause_decay_factor_valid() {
+        let params = GlobalParams::default();
+
+        // Valid values
+        assert!(params.set_pause_decay_factor(0.5).is_ok());
+        assert_eq!(*params.pause_decay_factor.read().unwrap(), 0.5);
+
+        assert!(params.set_pause_decay_factor(0.90).is_ok());
+        assert_eq!(*params.pause_decay_factor.read().unwrap(), 0.90);
+
+        assert!(params.set_pause_decay_factor(0.99).is_ok());
+        assert_eq!(*params.pause_decay_factor.read().unwrap(), 0.99);
+    }
+
+    #[test]
+    fn test_set_pause_decay_factor_out_of_range() {
+        let params = GlobalParams::default();
+
+        // Out of range values
+        assert!(params.set_pause_decay_factor(0.49).is_err());
+        assert!(params.set_pause_decay_factor(1.0).is_err());
+
+        // Value should remain at default after failed set
+        assert_eq!(*params.pause_decay_factor.read().unwrap(), 0.95);
+    }
+
+    #[test]
+    fn test_set_audio_buffer_size_valid() {
+        let params = GlobalParams::default();
+
+        // Valid values
+        assert!(params.set_audio_buffer_size(512).is_ok());
+        assert_eq!(*params.audio_buffer_size.read().unwrap(), 512);
+
+        assert!(params.set_audio_buffer_size(4096).is_ok());
+        assert_eq!(*params.audio_buffer_size.read().unwrap(), 4096);
+
+        assert!(params.set_audio_buffer_size(8192).is_ok());
+        assert_eq!(*params.audio_buffer_size.read().unwrap(), 8192);
+    }
+
+    #[test]
+    fn test_set_audio_buffer_size_out_of_range() {
+        let params = GlobalParams::default();
+
+        // Out of range values
+        assert!(params.set_audio_buffer_size(511).is_err());
+        assert!(params.set_audio_buffer_size(8193).is_err());
+
+        // Value should remain at default after failed set
+        assert_eq!(*params.audio_buffer_size.read().unwrap(), 2208);
+    }
+
+    #[test]
+    fn test_set_maximum_decode_streams_valid() {
+        let params = GlobalParams::default();
+
+        // Valid values
+        assert!(params.set_maximum_decode_streams(1).is_ok());
+        assert_eq!(*params.maximum_decode_streams.read().unwrap(), 1);
+
+        assert!(params.set_maximum_decode_streams(16).is_ok());
+        assert_eq!(*params.maximum_decode_streams.read().unwrap(), 16);
+
+        assert!(params.set_maximum_decode_streams(32).is_ok());
+        assert_eq!(*params.maximum_decode_streams.read().unwrap(), 32);
+    }
+
+    #[test]
+    fn test_set_maximum_decode_streams_out_of_range() {
+        let params = GlobalParams::default();
+
+        // Out of range values
+        assert!(params.set_maximum_decode_streams(0).is_err());
+        assert!(params.set_maximum_decode_streams(33).is_err());
+
+        // Value should remain at default after failed set
+        assert_eq!(*params.maximum_decode_streams.read().unwrap(), 12);
+    }
+
+    // Test helper functions
+    async fn create_test_db() -> sqlx::SqlitePool {
+        let pool = sqlx::SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("Failed to create test database");
+
+        // Create settings table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .expect("Failed to create settings table");
+
+        pool
+    }
+
+    async fn insert_setting(pool: &sqlx::SqlitePool, key: &str, value: &str) {
+        sqlx::query("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)")
+            .bind(key)
+            .bind(value)
+            .execute(pool)
+            .await
+            .expect("Failed to insert setting");
     }
 }
