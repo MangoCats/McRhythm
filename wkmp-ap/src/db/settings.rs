@@ -499,10 +499,11 @@ pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
 /// Load playout ring buffer capacity from database
 ///
 /// **[DBD-PARAM-070]** Playout ring buffer capacity in stereo frames
-/// - Default: 661,941 frames (15.01 seconds @ 44.1kHz stereo)
+/// - Default: GlobalParams.playout_ringbuffer_size (661941 frames = 15.01s @ 44.1kHz)
 /// - Range: 88,200 to 2,646,000 frames (2-60 seconds @ 44.1kHz)
 pub async fn load_playout_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
-    load_clamped_setting(db, "playout_ringbuffer_capacity", 88_200, 2_646_000, 661_941).await
+    let default = *wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap();
+    load_clamped_setting(db, "playout_ringbuffer_capacity", 88_200, 2_646_000, default).await
 }
 
 /// Load playout ring buffer headroom threshold from database

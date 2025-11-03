@@ -43,9 +43,10 @@ use thiserror::Error;
 use tracing::{debug, trace};
 use uuid::Uuid;
 
-/// Default playout ring buffer capacity in stereo frames
-/// **[DBD-PARAM-070]** 661,941 samples = 15.01 seconds @ 44.1kHz
-const DEFAULT_CAPACITY: usize = 661_941;
+/// **[DBD-PARAM-070]** Default playout ring buffer capacity (661941 samples = 15.01s @ 44.1kHz)
+fn default_capacity() -> usize {
+    *wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap()
+}
 
 /// Default headroom in stereo frames
 /// **[DBD-PARAM-080]** 4410 samples = 0.1 seconds @ 44.1kHz
@@ -199,7 +200,7 @@ impl PlayoutRingBuffer {
         resume_hysteresis: Option<usize>,
         passage_id: Option<Uuid>,
     ) -> Self {
-        let capacity = capacity.unwrap_or(DEFAULT_CAPACITY);
+        let capacity = capacity.unwrap_or_else(default_capacity);
         let headroom = headroom.unwrap_or(DEFAULT_HEADROOM);
         let resume_hysteresis = resume_hysteresis.unwrap_or(44100); // 1.0 second @ 44.1kHz
 
