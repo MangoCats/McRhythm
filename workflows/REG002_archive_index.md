@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 28 (IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~40,271 lines total: 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 29 (increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~40,741 lines total: 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -68,6 +68,7 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| increment2_zero_config_analysis.md | PLAN015 Increment 2 analysis complete - Zero-config implementation finished | 2025-11-03 | `git show archive:wip/increment2_zero_config_analysis.md` |
 | IMPL-GLOBAL-PARAMS-centralized_global_parameters.md | Implementation complete - Superseded by PLAN018 (centralized GlobalParams system) | 2025-11-03 | `git show archive:wip/IMPL-GLOBAL-PARAMS-centralized_global_parameters.md` |
 | PLAN014_mixer_refactoring/ | PLAN014 complete - SPEC016 mixer integration (legacy mixer removed, event-driven markers, 219 tests pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN014_mixer_refactoring` |
 | PLAN008_wkmp_ap_technical_debt/ | PLAN008 complete - All 3 sprints (37 requirements, Oct 30); engine refactoring via PLAN016 (Nov 1) | 2025-11-03 | `git checkout archive && cd wip/PLAN008_wkmp_ap_technical_debt` |
