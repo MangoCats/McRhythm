@@ -318,8 +318,9 @@ pub async fn load_mixer_thread_config(db: &Pool<Sqlite>) -> Result<MixerThreadCo
     // [DBD-PARAM-111] Load mixer check interval from database (in milliseconds)
     // Clamp to valid range: 1-100ms
     // Too low = async overhead dominates, too high = buffer underruns
-    // Default: 10ms - Conservative value for VeryHigh stability confidence (empirically tuned)
-    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, 10u64).await?;
+    // Default: GlobalParams.mixer_check_interval_ms (10ms) - VeryHigh stability confidence
+    let default = *wkmp_common::params::PARAMS.mixer_check_interval_ms.read().unwrap();
+    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, default).await?;
 
     // Convert milliseconds to microseconds for tokio::time::interval
     let check_interval_us = check_interval_ms * 1000;
