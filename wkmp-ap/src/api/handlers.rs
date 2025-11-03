@@ -1255,9 +1255,6 @@ pub async fn get_all_settings(
         // SPEC016 [DBD-PARAM-030] - Output Ring Buffer
         ("output_ringbuffer_size", "usize", "[DBD-PARAM-030] Max samples in output ring buffer", Some("2048-16384"), "88200"),
 
-        // SPEC016 [DBD-PARAM-040] - Output Refill Period
-        ("output_refill_period", "u64", "[DBD-PARAM-040] Milliseconds between mixer checks (ms)", Some("10-500"), "90"),
-
         // SPEC016 [DBD-PARAM-050] - Maximum Decode Streams
         ("maximum_decode_streams", "usize", "[DBD-PARAM-050] Maximum number of parallel decoder chains", Some("2-32"), "12"),
 

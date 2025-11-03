@@ -59,13 +59,6 @@ pub struct GlobalParams {
     /// Lock-free SPSC ring buffer between mixer thread and audio callback
     pub output_ringbuffer_size: RwLock<usize>,
 
-    /// **[DBD-PARAM-040]** Milliseconds between mixer checks
-    ///
-    /// Valid range: [10, 1000] ms
-    /// Default: 90 ms
-    /// How often mixer wakes to refill output buffer
-    pub output_refill_period: RwLock<u64>,
-
     /// **[DBD-PARAM-050]** Max parallel decoder chains
     ///
     /// Valid range: [1, 32]
@@ -180,9 +173,6 @@ impl Default for GlobalParams {
 
             // [DBD-PARAM-030] Output ring buffer capacity (mixer → callback, 186ms @ 44.1kHz)
             output_ringbuffer_size: RwLock::new(8192),
-
-            // [DBD-PARAM-040] Output refill period
-            output_refill_period: RwLock::new(90),
 
             // [DBD-PARAM-050] Maximum decode streams
             maximum_decode_streams: RwLock::new(12),
@@ -303,9 +293,6 @@ mod tests {
         // DBD-PARAM-030
         let _: usize = *params.output_ringbuffer_size.read().unwrap();
 
-        // DBD-PARAM-040
-        let _: u64 = *params.output_refill_period.read().unwrap();
-
         // DBD-PARAM-050
         let _: usize = *params.maximum_decode_streams.read().unwrap();
 
@@ -351,7 +338,6 @@ mod tests {
         let _: f32 = *params.volume_level.read().unwrap();
         let _: u32 = *params.working_sample_rate.read().unwrap();
         let _: usize = *params.output_ringbuffer_size.read().unwrap();
-        let _: u64 = *params.output_refill_period.read().unwrap();
         let _: usize = *params.maximum_decode_streams.read().unwrap();
         let _: u64 = *params.decode_work_period.read().unwrap();
         let _: u64 = *params.chunk_duration_ms.read().unwrap();
@@ -373,7 +359,6 @@ mod tests {
         assert_eq!(*params.volume_level.read().unwrap(), 0.5);
         assert_eq!(*params.working_sample_rate.read().unwrap(), 44100);
         assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 8192); // [DBD-PARAM-030] 8192 frames = 186ms @ 44.1kHz
-        assert_eq!(*params.output_refill_period.read().unwrap(), 90);
         assert_eq!(*params.maximum_decode_streams.read().unwrap(), 12);
         assert_eq!(*params.decode_work_period.read().unwrap(), 5000);
         assert_eq!(*params.chunk_duration_ms.read().unwrap(), 1000);

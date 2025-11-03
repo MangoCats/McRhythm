@@ -162,7 +162,6 @@ All parameters in this section are **STRUCTURAL (RESTART REQUIRED)** unless expl
 **Structural Parameters (Load-Once at Startup):**
 - working_sample_rate ([DBD-PARAM-020])
 - output_ringbuffer_size ([DBD-PARAM-030])
-- output_refill_period ([DBD-PARAM-040])
 - maximum_decode_streams ([DBD-PARAM-050])
 - decode_work_period ([DBD-PARAM-060])
 - decode_chunk_size ([DBD-PARAM-065])
@@ -208,14 +207,6 @@ Note: This section documents decode/buffer-related structural parameters only. I
   - Larger buffers: More stable, higher latency
   - Default (8192) provides 186ms buffer for VeryHigh stability confidence
 - **History:** Originally specified as 88200 samples (2.0s) in SPEC016, reduced to 8192 frames (186ms) in production for optimal balance between stability and latency
-
-### output_refill_period
-
-**[DBD-PARAM-040]** **[STRUCTURAL - RESTART REQUIRED]** The monotonic elapsed time interval (milliseconds) between mixer checks of the output ring buffer state. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
-
-- **Default value:** 90ms
-- **Behavior:** Each output_refill_period the mixer passes enough (stereo) samples to fill the output ring buffer from the active decoder-buffer chain(s) and its mixer algorithms
-- **Equivalent:** Just under half of the output ring buffer capacity
 
 ### maximum_decode_streams
 
@@ -868,7 +859,7 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 ---
 
-**Document Version:** 1.7
+**Document Version:** 1.8
 **Created:** 2025-10-19
 **Last Updated:** 2025-11-02
 **Status:** Current
@@ -876,6 +867,12 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.8 (2025-11-02): Removed redundant DBD-PARAM-040 (output_refill_period)
+  - Removed [DBD-PARAM-040] output_refill_period parameter definition and documentation
+  - Rationale: Redundant with mixer_check_interval_ms ([DBD-PARAM-111]) which is actively used
+  - mixer_check_interval_ms controls mixer thread wake interval (default 10ms)
+  - output_refill_period was theoretical parameter that was never implemented
+  - Parameter count: 16 → 15 structural parameters
 - v1.7 (2025-11-02): Repurposed DBD-PARAM-030 for production ring buffer
   - Updated [DBD-PARAM-030] output_ringbuffer_size: now actively used for mixer→callback ring buffer
   - Changed default: 88200 samples (2.0s) → 8192 frames (186ms)
