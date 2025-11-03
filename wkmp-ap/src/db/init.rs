@@ -46,6 +46,11 @@ pub async fn init_settings_defaults(pool: &Pool<Sqlite>) -> Result<()> {
         // [DBD-PARAM-050] Maximum decoder-resampler-fade-buffer chains
         ("maximum_decode_streams", "12"),
 
+        // Output ring buffer configuration
+        // [DBD-PARAM-030] Output ring buffer capacity (mixer → audio callback)
+        // Default: 8192 frames = 186ms @ 44.1kHz - Empirically tuned for stability
+        ("output_ringbuffer_capacity", "8192"),
+
         // Mixer thread configuration
         // [DBD-PARAM-111] Mixer check interval in milliseconds
         // Default: 10ms - Conservative value for VeryHigh stability confidence (empirically tuned)

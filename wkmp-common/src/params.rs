@@ -52,11 +52,11 @@ pub struct GlobalParams {
     /// CRITICAL: Affects all timing calculations, position tracking, crossfade timing
     pub working_sample_rate: RwLock<u32>,
 
-    /// **[DBD-PARAM-030]** Output ring buffer max samples
+    /// **[DBD-PARAM-030]** Output ring buffer capacity (mixer → audio callback)
     ///
-    /// Valid range: [4410, 1000000] samples
-    /// Default: 88200 samples (2.0s @ 44.1kHz)
-    /// Size of audio output ring buffer
+    /// Valid range: [2048, 262144] frames (stereo pairs)
+    /// Default: 8192 frames (186ms @ 44.1kHz)
+    /// Lock-free SPSC ring buffer between mixer thread and audio callback
     pub output_ringbuffer_size: RwLock<usize>,
 
     /// **[DBD-PARAM-040]** Milliseconds between mixer checks
@@ -178,8 +178,8 @@ impl Default for GlobalParams {
             // [DBD-PARAM-020] Working sample rate (CRITICAL - timing accuracy)
             working_sample_rate: RwLock::new(44100),
 
-            // [DBD-PARAM-030] Output ring buffer size
-            output_ringbuffer_size: RwLock::new(88200),
+            // [DBD-PARAM-030] Output ring buffer capacity (mixer → callback, 186ms @ 44.1kHz)
+            output_ringbuffer_size: RwLock::new(8192),
 
             // [DBD-PARAM-040] Output refill period
             output_refill_period: RwLock::new(90),
@@ -372,7 +372,7 @@ mod tests {
 
         assert_eq!(*params.volume_level.read().unwrap(), 0.5);
         assert_eq!(*params.working_sample_rate.read().unwrap(), 44100);
-        assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 88200);
+        assert_eq!(*params.output_ringbuffer_size.read().unwrap(), 8192); // [DBD-PARAM-030] 8192 frames = 186ms @ 44.1kHz
         assert_eq!(*params.output_refill_period.read().unwrap(), 90);
         assert_eq!(*params.maximum_decode_streams.read().unwrap(), 12);
         assert_eq!(*params.decode_work_period.read().unwrap(), 5000);

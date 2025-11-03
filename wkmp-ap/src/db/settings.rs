@@ -520,6 +520,16 @@ pub async fn load_playout_ringbuffer_headroom(db: &Pool<Sqlite>) -> Result<usize
     load_clamped_setting(db, "playout_ringbuffer_headroom", 1_000, 44_100, default).await
 }
 
+/// Load output ring buffer capacity from database
+///
+/// **[DBD-PARAM-030]** Output ring buffer capacity (mixer → audio callback)
+/// - Default: GlobalParams.output_ringbuffer_size (8192 frames = 186ms @ 44.1kHz)
+/// - Range: 2,048 to 262,144 frames (~46ms to 5.9s @ 44.1kHz)
+pub async fn load_output_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
+    let default = *wkmp_common::params::PARAMS.output_ringbuffer_size.read().unwrap();
+    load_clamped_setting(db, "output_ringbuffer_capacity", 2_048, 262_144, default).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

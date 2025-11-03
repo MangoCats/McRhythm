@@ -148,15 +148,44 @@ See [SPEC007 API-QUEUE-PERSIST-010](SPEC007-api_design.md#post-playbackenqueue) 
 
 ## Operating Parameters
 
-**[DBD-PARAM-010]** These defined values are stored in the global settings table of the database, where they are read once at startup for run-time use. Changes of operating parameters' values may require a complete system restart for proper operation.
+**[DBD-PARAM-010]** Operating parameters are stored in the global settings table of the database and are classified by their modification behavior:
+
+- **Structural parameters** (buffer sizes, timing intervals, capacity limits): Read once at engine startup. Changes require complete engine restart to take effect.
+- **Runtime-modifiable parameters** (volume, device selection): Can be changed during operation via API without restart.
 
 See [IMPL001 Database Schema - Settings Table](IMPL001-database_schema.md#settings) for database storage of operating parameters.
 
-Note: This section lists decode/buffer-related parameters only. IMPL001 settings table includes additional configuration (volume_level, audio_sink, event intervals, etc.).
+### Parameter Classification
+
+All parameters in this section are **STRUCTURAL (RESTART REQUIRED)** unless explicitly marked as runtime-modifiable.
+
+**Structural Parameters (Load-Once at Startup):**
+- working_sample_rate ([DBD-PARAM-020])
+- output_ringbuffer_size ([DBD-PARAM-030])
+- output_refill_period ([DBD-PARAM-040])
+- maximum_decode_streams ([DBD-PARAM-050])
+- decode_work_period ([DBD-PARAM-060])
+- decode_chunk_size ([DBD-PARAM-065])
+- playout_ringbuffer_size ([DBD-PARAM-070])
+- playout_ringbuffer_headroom ([DBD-PARAM-080])
+- decoder_resume_hysteresis_samples ([DBD-PARAM-085])
+- mixer_min_start_level ([DBD-PARAM-088])
+- pause_decay_factor ([DBD-PARAM-090])
+- pause_decay_floor ([DBD-PARAM-100])
+- audio_buffer_size ([DBD-PARAM-110])
+- mixer_check_interval_ms ([DBD-PARAM-111])
+- mixer_batch_size_low ([DBD-PARAM-112])
+- mixer_batch_size_optimal ([DBD-PARAM-113])
+
+**Runtime-Modifiable Parameters:**
+- volume_level (see [IMPL001 Settings Table](IMPL001-database_schema.md#settings))
+- audio_sink (see [IMPL001 Settings Table](IMPL001-database_schema.md#settings))
+
+Note: This section documents decode/buffer-related structural parameters only. IMPL001 settings table includes additional runtime-modifiable configuration.
 
 ### working_sample_rate
 
-**[DBD-PARAM-020]** The sample rate that all decoded audio is converted to before buffering.
+**[DBD-PARAM-020]** **[STRUCTURAL - RESTART REQUIRED]** The sample rate that all decoded audio is converted to before buffering.
 
 - **Database Setting:** `working_sample_rate` (desired/preferred sample rate, default: 44100 Hz)
 - **Negotiation Behavior:** At startup, AudioOutput attempts to use the database-configured preferred rate. If the audio device doesn't support it, AudioOutput accepts the device's native sample rate instead.
@@ -166,14 +195,23 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 ### output_ringbuffer_size
 
-**[DBD-PARAM-030]** The maximum number of (stereo) samples that the output ring buffer (between the mixer and the output) can contain.
+**[DBD-PARAM-030]** **[STRUCTURAL - RESTART REQUIRED]** The capacity (in stereo frames) of the output ring buffer between the mixer thread and the audio callback.
 
-- **Default value:** 88200 samples
-- **Equivalent:** 2000ms of audio at 44.1kHz
+- **Default value:** 8192 frames
+- **Equivalent:** 186ms of audio at 44.1kHz
+- **Valid range:** 2,048-262,144 frames (~46ms to 5.9s @ 44.1kHz)
+- **Units:** Stereo frames (one stereo frame = left sample + right sample)
+- **Architecture:** Lock-free SPSC ring buffer for real-time audio delivery
+- **Database setting:** `output_ringbuffer_capacity`
+- **Tuning:**
+  - Smaller buffers: Lower latency, higher risk of underruns
+  - Larger buffers: More stable, higher latency
+  - Default (8192) provides 186ms buffer for VeryHigh stability confidence
+- **History:** Originally specified as 88200 samples (2.0s) in SPEC016, reduced to 8192 frames (186ms) in production for optimal balance between stability and latency
 
 ### output_refill_period
 
-**[DBD-PARAM-040]** The monotonic elapsed time interval (milliseconds) between mixer checks of the output ring buffer state. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
+**[DBD-PARAM-040]** **[STRUCTURAL - RESTART REQUIRED]** The monotonic elapsed time interval (milliseconds) between mixer checks of the output ring buffer state. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
 
 - **Default value:** 90ms
 - **Behavior:** Each output_refill_period the mixer passes enough (stereo) samples to fill the output ring buffer from the active decoder-buffer chain(s) and its mixer algorithms
@@ -181,14 +219,14 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 ### maximum_decode_streams
 
-**[DBD-PARAM-050]** The maximum number of audio decoders that will operate on passages in the queue.
+**[DBD-PARAM-050]** **[STRUCTURAL - RESTART REQUIRED]** The maximum number of audio decoders that will operate on passages in the queue.
 
 - **Default value:** 12
 - **Behavior:** When the queue has more passages than this, only the passages closest to being played will be decoded into buffers awaiting play. Other passages will start decoding when they advance to within maximum_decode_streams of the "now playing" first position in the queue
 
 ### decode_work_period
 
-**[DBD-PARAM-060]** The monotonic elapsed time interval (milliseconds) between decode job priority evaluation. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
+**[DBD-PARAM-060]** **[STRUCTURAL - RESTART REQUIRED]** The monotonic elapsed time interval (milliseconds) between decode job priority evaluation. See [SPEC023 Timing Type 2](SPEC023-timing_terminology.md#2-monotonic-elapsed-time-real-time-intervals).
 
 - **Default value:** 5000ms
 - **Behavior:** Once every decode_work_period the currently working decoder pauses **within its decode loop** (between chunks per [DBD-DEC-110]) to check the priority queue. The decoder must support incremental operation such that it can yield between chunks without losing state. If a higher priority job is pending, the current decoder's state is saved and the higher priority decoder is resumed.
@@ -199,7 +237,7 @@ Note: This section lists decode/buffer-related parameters only. IMPL001 settings
 
 ### decode_chunk_size
 
-**[DBD-PARAM-065]** The number of samples OUTPUT FROM THE RESAMPLER for each chunk of decoded audio output from the decoder.
+**[DBD-PARAM-065]** **[STRUCTURAL - RESTART REQUIRED]** The number of samples OUTPUT FROM THE RESAMPLER for each chunk of decoded audio output from the decoder.
 
 - **Default value:** 32000
 
@@ -211,7 +249,7 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### playout_ringbuffer_size
 
-**[DBD-PARAM-070]** The number of (stereo) samples that the decoded / resampled audio buffers contain.
+**[DBD-PARAM-070]** **[STRUCTURAL - RESTART REQUIRED]** The number of (stereo) samples that the decoded / resampled audio buffers contain.
 
 - **Default value:** 661941 samples
 - **Equivalent:** 15.01 seconds of audio at 44.1kHz
@@ -219,14 +257,14 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### playout_ringbuffer_headroom
 
-**[DBD-PARAM-080]** The number of (stereo) samples that the buffer reserves to handle additional samples that may arrive from the resampler after the decoder pauses due to a buffer full condition.
+**[DBD-PARAM-080]** **[STRUCTURAL - RESTART REQUIRED]** The number of (stereo) samples that the buffer reserves to handle additional samples that may arrive from the resampler after the decoder pauses due to a buffer full condition.
 
 - **Default value:** 32768 samples
 - **Equivalent:** 0.74 seconds of audio at 44.1kHz
 
 ### decoder_resume_hysteresis_samples
 
-**[DBD-PARAM-085]** The hysteresis gap (in stereo samples) between decoder pause and resume thresholds.
+**[DBD-PARAM-085]** **[STRUCTURAL - RESTART REQUIRED]** The hysteresis gap (in stereo samples) between decoder pause and resume thresholds.
 
 - **Default value:** 44100 samples
 - **Equivalent:** 1.0 second of audio at 44.1kHz
@@ -240,7 +278,7 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### mixer_min_start_level
 
-**[DBD-PARAM-088]** The number of samples required to be in a chain's buffer before the mixer will start playing from it.
+**[DBD-PARAM-088]** **[STRUCTURAL - RESTART REQUIRED]** The number of samples required to be in a chain's buffer before the mixer will start playing from it.
 
 - **Default value:** 22050 samples
 - **Equivalent:** 0.5 second of audio at 44.1kHz
@@ -256,20 +294,20 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### pause_decay_factor
 
-**[DBD-PARAM-090]** When in pause mode, instead of playing samples from the decoder-buffer chain(s), the mixer starts at the last played (stereo) sample values and recursively multiplies them by this pause_decay_factor at every subsequent sample.
+**[DBD-PARAM-090]** **[STRUCTURAL - RESTART REQUIRED]** When in pause mode, instead of playing samples from the decoder-buffer chain(s), the mixer starts at the last played (stereo) sample values and recursively multiplies them by this pause_decay_factor at every subsequent sample.
 
 - **Default value:** 0.96875 (31/32)
 - **Purpose:** Creates an exponential decay to zero, hopefully reducing audible "pop" from the sudden stop of going to pause mode
 
 ### pause_decay_floor
 
-**[DBD-PARAM-100]** When the absolute value of the pause mode output sample values drop below this pause_decay_floor, the mixer no longer bothers doing the multiplication and simply outputs 0.0
+**[DBD-PARAM-100]** **[STRUCTURAL - RESTART REQUIRED]** When the absolute value of the pause mode output sample values drop below this pause_decay_floor, the mixer no longer bothers doing the multiplication and simply outputs 0.0
 
 - **Default value:** 0.0001778
 
 ### audio_buffer_size
 
-**[DBD-PARAM-110]** The audio output buffer size in frames per callback.
+**[DBD-PARAM-110]** **[STRUCTURAL - RESTART REQUIRED]** The audio output buffer size in frames per callback.
 
 - **Default value:** 2208 frames
 - **Equivalent:** 50.1ms of audio at 44.1kHz
@@ -288,7 +326,7 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### mixer_check_interval_ms
 
-**[DBD-PARAM-111]** The mixer thread check interval in milliseconds.
+**[DBD-PARAM-111]** **[STRUCTURAL - RESTART REQUIRED]** The mixer thread check interval in milliseconds.
 
 - **Default value:** 10 ms
 - **Range:** 1-100 ms
@@ -339,7 +377,7 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### mixer_batch_size_low
 
-**[DBD-PARAM-112]** The number of frames the mixer fills per wake-up when the output ring buffer is below 50% capacity.
+**[DBD-PARAM-112]** **[STRUCTURAL - RESTART REQUIRED]** The number of frames the mixer fills per wake-up when the output ring buffer is below 50% capacity.
 
 - **Default value:** 512 frames
 - **Range:** 16-1024 frames
@@ -356,7 +394,7 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 ### mixer_batch_size_optimal
 
-**[DBD-PARAM-113]** The number of frames the mixer fills per wake-up when the output ring buffer is between 50-75% capacity.
+**[DBD-PARAM-113]** **[STRUCTURAL - RESTART REQUIRED]** The number of frames the mixer fills per wake-up when the output ring buffer is between 50-75% capacity.
 
 - **Default value:** 256 frames
 - **Range:** 16-512 frames
@@ -830,14 +868,28 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 ---
 
-**Document Version:** 1.5
+**Document Version:** 1.7
 **Created:** 2025-10-19
-**Last Updated:** 2025-01-30
+**Last Updated:** 2025-11-02
 **Status:** Current
 **Tier:** 2 - Design Specification
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v1.7 (2025-11-02): Repurposed DBD-PARAM-030 for production ring buffer
+  - Updated [DBD-PARAM-030] output_ringbuffer_size: now actively used for mixer→callback ring buffer
+  - Changed default: 88200 samples (2.0s) → 8192 frames (186ms)
+  - Changed units: samples → stereo frames
+  - Changed valid range: [4410, 1000000] samples → [2048, 262144] frames
+  - Added comprehensive tuning guidance and history note
+  - Semantic alignment: SPEC016's "output ring buffer" IS the production ring buffer, just scaled differently for stability
+  - Parameter status changed from UNUSED to ACTIVELY USED
+- v1.6 (2025-11-02): Clarified parameter load-once vs runtime-modifiable distinction
+  - Updated [DBD-PARAM-010] to explicitly distinguish structural (restart-required) from runtime-modifiable parameters
+  - Added Parameter Classification section listing all 16 structural parameters and 2 runtime-modifiable parameters
+  - Tagged all parameter definitions with [STRUCTURAL - RESTART REQUIRED] classification
+  - Addresses documentation gap: structural parameters (buffer sizes, timing intervals, capacity limits) require engine restart
+  - Runtime-modifiable parameters (volume_level, audio_sink) documented in IMPL001 settings table
 - v1.5 (2025-01-30): Added event-driven position tracking architecture
   - Added Position Tracking and Event-Driven Architecture section
   - Added [DBD-MIX-070] through [DBD-MIX-078] requirements

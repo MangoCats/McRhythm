@@ -427,7 +427,8 @@ impl PlaybackEngine {
         let rb_start = Instant::now();
         let grace_period_ms = crate::db::settings::load_ring_buffer_grace_period(&self.db_pool).await?;
         let mixer_config = crate::db::settings::load_mixer_thread_config(&self.db_pool).await?;
-        let ring_buffer = AudioRingBuffer::new(None, grace_period_ms, Arc::clone(&self.audio_expected)); // Use default size (2048 frames = ~46ms @ 44.1kHz)
+        let output_ring_capacity = crate::db::settings::load_output_ringbuffer_capacity(&self.db_pool).await?;
+        let ring_buffer = AudioRingBuffer::new(Some(output_ring_capacity), grace_period_ms, Arc::clone(&self.audio_expected)); // [DBD-PARAM-030]
         let (mut producer, mut consumer) = ring_buffer.split();
         let rb_elapsed = rb_start.elapsed();
 

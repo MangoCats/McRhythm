@@ -18,8 +18,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tracing::{warn, debug};
 
-/// Ring buffer configuration
-const DEFAULT_BUFFER_SIZE: usize = 8192; // ~186ms @ 44.1kHz - Increased for stability
+/// Get default ring buffer capacity from GlobalParams
+///
+/// **[DBD-PARAM-030]** Output ring buffer capacity (mixer → audio callback)
+/// Default: 8192 frames (186ms @ 44.1kHz)
+fn default_buffer_size() -> usize {
+    *wkmp_common::params::PARAMS.output_ringbuffer_size.read().unwrap()
+}
+
+/// Ring buffer fill targets
 const TARGET_FILL_MIN_PERCENT: f32 = 0.50; // 50% target minimum
 const TARGET_FILL_MAX_PERCENT: f32 = 0.75; // 75% target maximum
 
@@ -59,11 +66,11 @@ impl AudioRingBuffer {
     /// Create a new audio ring buffer
     ///
     /// # Arguments
-    /// * `capacity` - Buffer size in frames (default: 2048 frames = ~46ms @ 44.1kHz)
+    /// * `capacity` - Buffer size in frames (default: GlobalParams.output_ringbuffer_size = 8192 frames = 186ms @ 44.1kHz)
     /// * `grace_period_ms` - Startup grace period in milliseconds (from database setting)
     /// * `audio_expected` - Shared flag indicating if audio output is expected (managed by PlaybackEngine)
     pub fn new(capacity: Option<usize>, grace_period_ms: u64, audio_expected: Arc<AtomicBool>) -> Self {
-        let capacity = capacity.unwrap_or(DEFAULT_BUFFER_SIZE);
+        let capacity = capacity.unwrap_or_else(default_buffer_size);
 
         debug!(
             "Creating audio ring buffer with capacity: {} frames, grace period: {}ms",
