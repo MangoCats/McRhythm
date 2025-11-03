@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 25 (PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~35,425 lines total: 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 26 (PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~37,664 lines total: 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -76,6 +76,7 @@ git checkout dev  # Return to working branch
 | PLAN017_spec017_compliance/ | PLAN017 complete - SPEC017 compliance remediation (7 requirements, 100% test pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN017_spec017_compliance` |
 | PLAN018_centralized_global_parameters/ | PLAN018 complete - All 15 parameters migrated to GlobalParams | 2025-11-02 | `git checkout archive && cd wip/PLAN018_centralized_global_parameters` |
 | PLAN012_api_key_multi_tier_config/ | PLAN012 complete - API key config implemented | 2025-11-02 | `git checkout archive && cd wip/PLAN012_api_key_multi_tier_config` |
+| PLAN006_wkmp_ai_ui_spec_updates/ | PLAN006 complete - wkmp-ai UI clarification (6 spec files updated, "on-demand" pattern defined) | 2025-10-28 | `git checkout archive && cd wip/PLAN006_wkmp_ai_ui_spec_updates` |
 | PLAN011_import_progress_ui/ | PLAN011 complete | 2025-11-02 | `git checkout archive && cd wip/PLAN011_import_progress_ui` |
 | _toml_directory_creation.md | Superseded by increment2_zero_config | 2025-11-02 | `git show archive:wip/_toml_directory_creation.md` |
 | _context_engineering.md | Incorporated into workflows | 2025-11-02 | `git show archive:wip/_context_engineering.md` |
