@@ -60,7 +60,7 @@ pub async fn set_volume(db: &Pool<Sqlite>, volume: f32) -> Result<()> {
 
     // Validate using metadata validator
     (volume_meta.validator)(&volume.to_string())
-        .map_err(|e| Error::Config(e))?;
+        .map_err(Error::Config)?;
 
     set_setting(db, "volume_level", volume).await
 }

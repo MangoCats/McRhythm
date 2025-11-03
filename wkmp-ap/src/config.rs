@@ -128,7 +128,7 @@ impl Config {
             .idle_timeout(Some(std::time::Duration::from_secs(60)))
             .connect(&db_url)
             .await
-            .map_err(|e| Error::Database(e))?;
+            .map_err(Error::Database)?;
 
         info!("Connected to database: {}", database_path.display());
 

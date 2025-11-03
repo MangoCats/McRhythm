@@ -296,7 +296,7 @@ pub fn to_canonical_json(value: &Value) -> String {
             format!("{{{}}}", items.join(","))
         }
         Value::Array(arr) => {
-            let items: Vec<String> = arr.iter().map(|v| to_canonical_json(v)).collect();
+            let items: Vec<String> = arr.iter().map(to_canonical_json).collect();
             format!("[{}]", items.join(","))
         }
         Value::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),

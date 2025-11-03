@@ -116,11 +116,10 @@ fn get_column_order(table_name: &str, db_columns: &[String]) -> Vec<String> {
 
     // Step 3: Add hash before ID columns for files table, then add all ID/UUID/GUID columns
     // For files table: hash should appear before guid (both on right side)
-    if table_name == "files" {
-        if db_columns.contains(&"hash".to_string()) {
+    if table_name == "files"
+        && db_columns.contains(&"hash".to_string()) {
             ordered.push("hash".to_string());
         }
-    }
 
     for col in db_columns {
         if is_id_column(col.as_str()) {

@@ -263,9 +263,7 @@ fn run_tuning(mode: &TuningMode, runtime: tokio::runtime::Handle) -> Result<Tuni
         println!("  3. Check permissions: groups | grep audio");
         println!("  4. Run with debug logging: RUST_LOG=debug cargo run --bin tune-buffers");
 
-        return Err(format!(
-            "No stable intervals found even with maximum buffer (4096). Audio system may not be functional."
-        ));
+        return Err("No stable intervals found even with maximum buffer (4096). Audio system may not be functional.".to_string());
     }
 
     println!("\nViable intervals: {:?} (using buffer size: {} frames)",

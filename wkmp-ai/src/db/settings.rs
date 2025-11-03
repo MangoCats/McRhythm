@@ -35,7 +35,7 @@ where
     .bind(key)
     .fetch_optional(db)
     .await
-    .map_err(|e| Error::Database(e))?;
+    .map_err(Error::Database)?;
 
     match row {
         Some((value,)) => {
@@ -60,7 +60,7 @@ where
     .bind(value.to_string())
     .execute(db)
     .await
-    .map_err(|e| Error::Database(e))?;
+    .map_err(Error::Database)?;
 
     Ok(())
 }

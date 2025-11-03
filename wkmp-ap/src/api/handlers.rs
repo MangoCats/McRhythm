@@ -360,7 +360,7 @@ pub async fn set_volume(
 
     // Emit VolumeChanged event
     ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::VolumeChanged {
-        old_volume: old_volume,
+        old_volume,
         new_volume: req.volume,
         timestamp: chrono::Utc::now(),
     });
@@ -1074,7 +1074,7 @@ pub async fn browse_files(
     };
 
     // Supported audio file extensions
-    let audio_extensions = vec!["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
+    let audio_extensions = ["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
 
     // Build file list
     let mut file_entries = Vec::new();
@@ -1128,7 +1128,7 @@ pub async fn browse_files(
     } else {
         canonical_target
             .parent()
-            .map(|p| clean_path_for_display(p))
+            .map(clean_path_for_display)
     };
 
     Ok(Json(BrowseFilesResponse {

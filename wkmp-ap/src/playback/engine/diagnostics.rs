@@ -483,7 +483,7 @@ impl PlaybackEngine {
                             let queue = self.queue.read().await;
                             let passage_id = queue.current()
                                 .and_then(|e| e.passage_id)
-                                .unwrap_or_else(|| uuid::Uuid::nil());
+                                .unwrap_or_else(uuid::Uuid::nil);
                             drop(queue);
 
                             // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
@@ -553,7 +553,7 @@ impl PlaybackEngine {
                                 if position_ms >= last_progress_position_ms + progress_interval_ms {
                                     last_progress_position_ms = position_ms;
 
-                                    let passage_id = current.passage_id.unwrap_or_else(|| uuid::Uuid::nil());
+                                    let passage_id = current.passage_id.unwrap_or_else(uuid::Uuid::nil);
 
                                     debug!(
                                         "PlaybackProgress: position={}ms, duration={}ms",
@@ -740,7 +740,7 @@ impl PlaybackEngine {
 
                     info!(
                         "⚡ Starting playback instantly (buffer ready): passage={}, fade_in={} samples ({} ticks)",
-                        current.passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                        current.passage_id.unwrap_or_else(uuid::Uuid::nil),
                         fade_in_duration_samples,
                         fade_in_duration_ticks
                     );
@@ -754,7 +754,7 @@ impl PlaybackEngine {
                         let mut mixer = self.mixer.write().await;
 
                         // Use passage_id or Uuid::nil() for ephemeral passages
-                        let mixer_passage_id = current.passage_id.unwrap_or_else(|| Uuid::nil());
+                        let mixer_passage_id = current.passage_id.unwrap_or_else(Uuid::nil);
                         mixer.set_current_passage(mixer_passage_id, queue_entry_id, 0);
 
                         // [SUB-INC-4B] Calculate and add markers
@@ -864,7 +864,7 @@ impl PlaybackEngine {
 
                     // Emit PassageStarted event
                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
-                        passage_id: current.passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                        passage_id: current.passage_id.unwrap_or_else(uuid::Uuid::nil),
                         album_uuids,
                         timestamp: chrono::Utc::now(),
                     });

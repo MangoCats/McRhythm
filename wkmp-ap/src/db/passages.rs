@@ -70,7 +70,7 @@ pub async fn get_passage_with_timing(
     // 1 second = 28,224,000 ticks
     let start_time_ticks = row
         .get::<Option<f64>, _>("start_time")
-        .map(|s| wkmp_common::timing::seconds_to_ticks(s))
+        .map(wkmp_common::timing::seconds_to_ticks)
         .unwrap_or(0);
 
     let end_time_ticks = match (row.get::<Option<f64>, _>("end_time"), file_duration_s) {
@@ -81,21 +81,21 @@ pub async fn get_passage_with_timing(
 
     let lead_in_point_ticks = row
         .get::<Option<f64>, _>("lead_in_point")
-        .map(|s| wkmp_common::timing::seconds_to_ticks(s))
+        .map(wkmp_common::timing::seconds_to_ticks)
         .unwrap_or(start_time_ticks);
 
     let lead_out_point_ticks = row
         .get::<Option<f64>, _>("lead_out_point")
-        .map(|s| wkmp_common::timing::seconds_to_ticks(s));
+        .map(wkmp_common::timing::seconds_to_ticks);
 
     let fade_in_point_ticks = row
         .get::<Option<f64>, _>("fade_in_point")
-        .map(|s| wkmp_common::timing::seconds_to_ticks(s))
+        .map(wkmp_common::timing::seconds_to_ticks)
         .unwrap_or(start_time_ticks);
 
     let fade_out_point_ticks = row
         .get::<Option<f64>, _>("fade_out_point")
-        .map(|s| wkmp_common::timing::seconds_to_ticks(s));
+        .map(wkmp_common::timing::seconds_to_ticks);
 
     // Parse fade curves
     let fade_in_curve = row

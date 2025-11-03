@@ -238,7 +238,7 @@ impl DecoderWorker {
             }
 
             // Periodic logging (more frequent for debugging)
-            if iteration % 10 == 0 {
+            if iteration.is_multiple_of(10) {
                 let state = self.state.lock().await;
                 debug!(
                     "Worker iteration {}: pending={}, active={}, yielded={}",
@@ -678,7 +678,7 @@ impl DecoderWorker {
 
                 // Emit error event
                 self.shared_state.broadcast_event(WkmpEvent::ResamplingFailed {
-                    passage_id: passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                    passage_id: passage_id.unwrap_or_else(uuid::Uuid::nil),
                     source_rate: *source_rate,
                     target_rate: *target_rate,
                     error_message: message.clone(),
@@ -700,7 +700,7 @@ impl DecoderWorker {
 
                 // Emit error event
                 self.shared_state.broadcast_event(WkmpEvent::ResamplingRuntimeError {
-                    passage_id: passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                    passage_id: passage_id.unwrap_or_else(uuid::Uuid::nil),
                     position_ms: *position_ms,
                     error_message: message.clone(),
                     timestamp,
@@ -750,7 +750,7 @@ impl DecoderWorker {
                 let delta_ms = (expected_ms as i64) - (actual_ms as i64);
 
                 self.shared_state.broadcast_event(WkmpEvent::PositionDriftWarning {
-                    passage_id: passage_id.unwrap_or_else(|| uuid::Uuid::nil()),
+                    passage_id: passage_id.unwrap_or_else(uuid::Uuid::nil),
                     expected_position_ms: expected_ms,
                     actual_position_ms: actual_ms,
                     delta_ms,

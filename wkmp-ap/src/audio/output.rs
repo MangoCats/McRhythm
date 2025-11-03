@@ -283,12 +283,12 @@ impl AudioOutput {
 
                         // Clamp to prevent clipping
                         // **[REQ-DEBT-CODE-002]** Detect and warn on clipping
-                        let left_clipped = left < -1.0 || left > 1.0;
-                        let right_clipped = right < -1.0 || right > 1.0;
+                        let left_clipped = !(-1.0..=1.0).contains(&left);
+                        let right_clipped = !(-1.0..=1.0).contains(&right);
 
                         if left_clipped || right_clipped {
                             let count = clip_counter.fetch_add(1, Ordering::Relaxed);
-                            if count % clip_warn_threshold == 0 {
+                            if count.is_multiple_of(clip_warn_threshold) {
                                 warn!(
                                     "Audio clipping detected ({}th occurrence): L={:.3}, R={:.3} (volume={:.2})",
                                     count, left, right, current_volume
@@ -354,12 +354,12 @@ impl AudioOutput {
 
                         // Clamp to prevent clipping
                         // **[REQ-DEBT-CODE-002]** Detect and warn on clipping
-                        let left_clipped = left_raw < -1.0 || left_raw > 1.0;
-                        let right_clipped = right_raw < -1.0 || right_raw > 1.0;
+                        let left_clipped = !(-1.0..=1.0).contains(&left_raw);
+                        let right_clipped = !(-1.0..=1.0).contains(&right_raw);
 
                         if left_clipped || right_clipped {
                             let count = clip_counter.fetch_add(1, Ordering::Relaxed);
-                            if count % clip_warn_threshold == 0 {
+                            if count.is_multiple_of(clip_warn_threshold) {
                                 warn!(
                                     "Audio clipping detected ({}th occurrence): L={:.3}, R={:.3} (volume={:.2})",
                                     count, left_raw, right_raw, current_volume
@@ -428,12 +428,12 @@ impl AudioOutput {
 
                         // Clamp to prevent clipping
                         // **[REQ-DEBT-CODE-002]** Detect and warn on clipping
-                        let left_clipped = left_raw < -1.0 || left_raw > 1.0;
-                        let right_clipped = right_raw < -1.0 || right_raw > 1.0;
+                        let left_clipped = !(-1.0..=1.0).contains(&left_raw);
+                        let right_clipped = !(-1.0..=1.0).contains(&right_raw);
 
                         if left_clipped || right_clipped {
                             let count = clip_counter.fetch_add(1, Ordering::Relaxed);
-                            if count % clip_warn_threshold == 0 {
+                            if count.is_multiple_of(clip_warn_threshold) {
                                 warn!(
                                     "Audio clipping detected ({}th occurrence): L={:.3}, R={:.3} (volume={:.2})",
                                     count, left_raw, right_raw, current_volume

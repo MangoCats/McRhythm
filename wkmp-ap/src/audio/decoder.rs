@@ -161,7 +161,7 @@ impl SimpleDecoder {
         // [REQ-TECH-022A]: Use custom codec registry with Opus support
         let decoder_opts = DecoderOptions::default();
         let mut decoder = get_codec_registry()
-            .make(&codec_params, &decoder_opts)
+            .make(codec_params, &decoder_opts)
             .map_err(|e| Error::Decode(format!("Failed to create decoder: {}", e)))?;
 
         // Decode all packets
@@ -314,7 +314,7 @@ impl SimpleDecoder {
         // Create decoder
         let decoder_opts = DecoderOptions::default();
         let mut decoder = get_codec_registry()
-            .make(&codec_params, &decoder_opts)
+            .make(codec_params, &decoder_opts)
             .map_err(|e| Error::Decode(format!("Failed to create decoder: {}", e)))?;
 
         // Decode packets until we reach passage end
@@ -835,7 +835,7 @@ impl StreamingDecoder {
         // **[REQ-AP-ERR-011]** Codec creation failure = unsupported codec
         let decoder_opts = DecoderOptions::default();
         let decoder = get_codec_registry()
-            .make(&codec_params, &decoder_opts)
+            .make(codec_params, &decoder_opts)
             .map_err(|e| Error::UnsupportedCodec {
                 path: path.clone(),
                 codec: format!("{:?}", e)
@@ -965,12 +965,7 @@ impl StreamingDecoder {
             0
         };
 
-        let chunk_end_trim = if self.current_sample_idx > self.end_sample_idx {
-            // This chunk includes samples after passage end - trim them
-            self.current_sample_idx - self.end_sample_idx
-        } else {
-            0
-        };
+        let chunk_end_trim = self.current_sample_idx.saturating_sub(self.end_sample_idx);
 
         let trimmed_start = chunk_start_trim;
         let trimmed_end = chunk_samples.len().saturating_sub(chunk_end_trim);

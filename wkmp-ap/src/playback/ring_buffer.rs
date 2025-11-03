@@ -154,7 +154,7 @@ impl AudioProducer {
             Err(_) => {
                 // Buffer full - overrun
                 let count = self.overruns.fetch_add(1, Ordering::Relaxed) + 1;
-                if count % 1000 == 0 {
+                if count.is_multiple_of(1000) {
                     warn!("Audio ring buffer overrun (total: {})", count);
                 }
                 false

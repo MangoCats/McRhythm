@@ -920,7 +920,7 @@ impl PlaybackEngine {
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
-            old_state: old_state,
+            old_state,
             new_state: wkmp_common::events::PlaybackState::Playing,
             timestamp: chrono::Utc::now(),
         });
@@ -928,7 +928,7 @@ impl PlaybackEngine {
         // Also emit PlaybackProgress immediately
         if let Some(passage) = self.state.get_current_passage().await {
             self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
-                passage_id: passage.passage_id.unwrap_or_else(|| Uuid::nil()),
+                passage_id: passage.passage_id.unwrap_or_else(Uuid::nil),
                 position_ms: passage.position_ms,
                 duration_ms: passage.duration_ms,
                 timestamp: chrono::Utc::now(),
@@ -984,7 +984,7 @@ impl PlaybackEngine {
 
         // Emit PlaybackStateChanged event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackStateChanged {
-            old_state: old_state,
+            old_state,
             new_state: wkmp_common::events::PlaybackState::Paused,
             timestamp: chrono::Utc::now(),
         });
@@ -992,7 +992,7 @@ impl PlaybackEngine {
         // Also emit PlaybackProgress immediately
         if let Some(passage) = self.state.get_current_passage().await {
             self.state.broadcast_event(wkmp_common::events::WkmpEvent::PlaybackProgress {
-                passage_id: passage.passage_id.unwrap_or_else(|| Uuid::nil()),
+                passage_id: passage.passage_id.unwrap_or_else(Uuid::nil),
                 position_ms: passage.position_ms,
                 duration_ms: passage.duration_ms,
                 timestamp: chrono::Utc::now(),
@@ -1087,7 +1087,7 @@ impl PlaybackEngine {
     pub(super) async fn update_audio_expected_flag(&self) {
         let state = self.state.get_playback_state().await;
         let queue = self.queue.read().await;
-        let has_passages = queue.len() > 0;
+        let has_passages = !queue.is_empty();
         drop(queue);
 
         let expected = state == PlaybackState::Playing && has_passages;
@@ -1259,8 +1259,8 @@ impl PlaybackEngine {
 
         // **[SSE-UI-040]** Emit CrossfadeStarted event
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::CrossfadeStarted {
-            from_passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
-            to_passage_id: next.passage_id.unwrap_or_else(|| Uuid::nil()),
+            from_passage_id: current.passage_id.unwrap_or_else(Uuid::nil),
+            to_passage_id: next.passage_id.unwrap_or_else(Uuid::nil),
             timestamp: chrono::Utc::now(),
         });
 
@@ -1281,7 +1281,7 @@ impl PlaybackEngine {
 
         // Emit PassageStarted event for next passage
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
-            passage_id: next.passage_id.unwrap_or_else(|| Uuid::nil()),
+            passage_id: next.passage_id.unwrap_or_else(Uuid::nil),
             album_uuids,
             timestamp: chrono::Utc::now(),
         });
@@ -1449,7 +1449,7 @@ impl PlaybackEngine {
 
                         info!(
                             "Starting playback of passage {} (queue_entry: {}) with fade-in: {} samples ({} ticks)",
-                            current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                            current.passage_id.unwrap_or_else(Uuid::nil),
                             current.queue_entry_id,
                             fade_in_duration_samples,
                             fade_in_duration_ticks
@@ -1461,7 +1461,7 @@ impl PlaybackEngine {
                             let mut mixer = self.mixer.write().await;
 
                             // Use passage_id or Uuid::nil() for ephemeral passages
-                            let mixer_passage_id = current.passage_id.unwrap_or_else(|| Uuid::nil());
+                            let mixer_passage_id = current.passage_id.unwrap_or_else(Uuid::nil);
                             mixer.set_current_passage(mixer_passage_id, current.queue_entry_id, 0);
 
                             // [SUB-INC-4B] Calculate and add markers
@@ -1541,7 +1541,7 @@ impl PlaybackEngine {
 
                             // 4. Handle fade-in via start_resume_fade() if needed
                             if fade_in_duration_samples > 0 {
-                                mixer.start_resume_fade(fade_in_duration_samples as usize, fade_in_curve);
+                                mixer.start_resume_fade(fade_in_duration_samples, fade_in_curve);
                                 debug!(
                                     "Started fade-in: {} samples, curve: {:?}",
                                     fade_in_duration_samples, fade_in_curve
@@ -1574,7 +1574,7 @@ impl PlaybackEngine {
                         // Emit PassageStarted event
                         // [Event-PassageStarted] Passage playback began
                         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
-                            passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+                            passage_id: current.passage_id.unwrap_or_else(Uuid::nil),
                             album_uuids,
                             timestamp: chrono::Utc::now(),
                         });
@@ -1713,7 +1713,7 @@ impl PlaybackEngine {
 
                     // **[Event-PassageCompleted]** Emit completion event for OUTGOING passage
                     self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
-                        passage_id: passage_id_opt.unwrap_or_else(|| Uuid::nil()),
+                        passage_id: passage_id_opt.unwrap_or_else(Uuid::nil),
                         album_uuids,
                         duration_played,
                         completed: true, // Crossfade completed naturally
@@ -1821,7 +1821,7 @@ impl PlaybackEngine {
                 // Emit PassageCompleted event
                 // [Event-PassageCompleted] Passage playback finished
                 self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
-                    passage_id: current_pid.unwrap_or_else(|| Uuid::nil()),
+                    passage_id: current_pid.unwrap_or_else(Uuid::nil),
                     album_uuids,
                     duration_played,
                     completed: true, // true = finished naturally, false = skipped/interrupted
@@ -1965,7 +1965,7 @@ impl PlaybackEngine {
         let passage_id = current_entry
             .as_ref()
             .and_then(|e| e.passage_id)
-            .unwrap_or_else(|| uuid::Uuid::nil());
+            .unwrap_or_else(uuid::Uuid::nil);
 
         // Calculate buffer fill percent
         // **[DBD-PARAM-080]** buffer capacity = playout_ringbuffer_size (from settings)

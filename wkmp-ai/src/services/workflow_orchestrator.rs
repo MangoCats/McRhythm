@@ -659,7 +659,7 @@ impl WorkflowOrchestrator {
                                                     error = %e,
                                                     "FK constraint failed when saving song"
                                                 );
-                                                return Err(e.into());
+                                                return Err(e);
                                             }
 
                                             // Load the song back to get the actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -689,7 +689,7 @@ impl WorkflowOrchestrator {
                                                         error = %e,
                                                         "FK constraint failed when saving artist"
                                                     );
-                                                    return Err(e.into());
+                                                    return Err(e);
                                                 }
 
                                                 // Load artist back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -715,7 +715,7 @@ impl WorkflowOrchestrator {
                                                         error = %e,
                                                         "FK constraint failed when linking song to artist"
                                                     );
-                                                    return Err(e.into());
+                                                    return Err(e);
                                                 }
                                             }
 
@@ -734,7 +734,7 @@ impl WorkflowOrchestrator {
                                                             error = %e,
                                                             "FK constraint failed when saving album"
                                                         );
-                                                        return Err(e.into());
+                                                        return Err(e);
                                                     }
 
                                                     // Load album back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -790,7 +790,7 @@ impl WorkflowOrchestrator {
                                                                     error = %e,
                                                                     "FK constraint failed when saving work"
                                                                 );
-                                                                return Err(e.into());
+                                                                return Err(e);
                                                             }
 
                                                             // Load work back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -815,7 +815,7 @@ impl WorkflowOrchestrator {
                                                                     error = %e,
                                                                     "FK constraint failed when linking song to work"
                                                                 );
-                                                                return Err(e.into());
+                                                                return Err(e);
                                                             }
                                                         }
                                                     }

@@ -64,7 +64,7 @@ impl PlaybackEngine {
 
         // Emit PassageCompleted event with completed=false (skipped)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
-            passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+            passage_id: current.passage_id.unwrap_or_else(Uuid::nil),
             album_uuids,
             duration_played,
             completed: false, // false = skipped
@@ -224,11 +224,11 @@ impl PlaybackEngine {
             passage.passage_id,
             None, // Append to end
             Some(wkmp_common::timing::ticks_to_ms(passage.start_time_ticks)),
-            passage.end_time_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            passage.end_time_ticks.map(wkmp_common::timing::ticks_to_ms),
             Some(wkmp_common::timing::ticks_to_ms(passage.lead_in_point_ticks)),
-            passage.lead_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            passage.lead_out_point_ticks.map(wkmp_common::timing::ticks_to_ms),
             Some(wkmp_common::timing::ticks_to_ms(passage.fade_in_point_ticks)),
-            passage.fade_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            passage.fade_out_point_ticks.map(wkmp_common::timing::ticks_to_ms),
             Some(passage.fade_in_curve.to_db_string().to_string()),
             Some(passage.fade_out_curve.to_db_string().to_string()),
         )

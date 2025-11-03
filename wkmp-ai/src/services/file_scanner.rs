@@ -81,11 +81,10 @@ impl FileScanner {
         for entry in walker {
             match entry {
                 Ok(entry) => {
-                    if entry.file_type().is_file() {
-                        if self.is_audio_file(entry.path())? {
+                    if entry.file_type().is_file()
+                        && self.is_audio_file(entry.path())? {
                             audio_files.push(entry.path().to_path_buf());
                         }
-                    }
                 }
                 Err(e) => {
                     tracing::warn!("Error accessing entry: {}", e);

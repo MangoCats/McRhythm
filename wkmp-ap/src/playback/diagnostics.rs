@@ -105,11 +105,7 @@ impl PipelineMetrics {
             total_buffer_read += metrics.buffer_samples_read;
 
             // Rule 1: decoder_frames × 2 ≈ buffer_samples_written (±tolerance)
-            let diff_1 = if decoder_samples > metrics.buffer_samples_written {
-                decoder_samples - metrics.buffer_samples_written
-            } else {
-                metrics.buffer_samples_written - decoder_samples
-            };
+            let diff_1 = decoder_samples.abs_diff(metrics.buffer_samples_written);
 
             if diff_1 > tolerance_samples {
                 result.add_error(ValidationError::DecoderBufferMismatch {
@@ -137,11 +133,7 @@ impl PipelineMetrics {
         // Mixer counts frames (stereo pairs), buffer counts samples
         // So mixer_frames should ≈ buffer_samples_read / 2
         let expected_mixer_frames = total_buffer_read / 2;
-        let diff_3 = if expected_mixer_frames > self.mixer_total_frames_mixed {
-            expected_mixer_frames - self.mixer_total_frames_mixed
-        } else {
-            self.mixer_total_frames_mixed - expected_mixer_frames
-        };
+        let diff_3 = expected_mixer_frames.abs_diff(self.mixer_total_frames_mixed);
 
         // Tolerance for mixer should account for buffering (divide by 2 since comparing frames not samples)
         let mixer_tolerance_frames = tolerance_samples / 2;
