@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 0
-- **Context Reduction:** 0% (baseline)
+- **Archived Documents:** 19 (PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~6,500 lines from PLAN018 alone)
 
 ---
 
@@ -68,6 +68,7 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| PLAN018_centralized_global_parameters/ | PLAN018 complete - All 15 parameters migrated to GlobalParams | 2025-11-02 | `git checkout archive && cd wip/PLAN018_centralized_global_parameters` |
 | PLAN012_api_key_multi_tier_config/ | PLAN012 complete - API key config implemented | 2025-11-02 | `git checkout archive && cd wip/PLAN012_api_key_multi_tier_config` |
 | PLAN011_import_progress_ui/ | PLAN011 complete | 2025-11-02 | `git checkout archive && cd wip/PLAN011_import_progress_ui` |
 | _toml_directory_creation.md | Superseded by increment2_zero_config | 2025-11-02 | `git show archive:wip/_toml_directory_creation.md` |
