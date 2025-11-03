@@ -5,6 +5,7 @@
 //! **Traceability:** TUNE-OUT-010
 
 use serde::{Deserialize, Serialize};
+use std::fs;
 
 /// System information for tuning reports
 #[derive(Debug, Clone, Serialize, Deserialize)]
