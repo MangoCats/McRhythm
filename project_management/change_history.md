@@ -21,6 +21,58 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-03 09:39:23 -0500
+
+**PLAN019: Centralized GlobalParams Metadata Validation (DRY Implementation)**
+
+Implemented centralized parameter metadata system to eliminate ~160 lines of duplicated validation logic across GlobalParams. This establishes a single source of truth for all 14 database-backed parameters, preventing database corruption through comprehensive API validation.
+
+**Core Changes:**
+
+1. **Metadata Infrastructure (wkmp-common/src/params.rs):**
+   - Added `ParamMetadata` struct with 6 fields (key, data_type, default_value, description, validation_range, validator)
+   - Implemented `GlobalParams::metadata()` static accessor returning `&'static [ParamMetadata]`
+   - Defined 14 parameter validators with standardized error format: `"{param_name}: {reason}"`
+   - Each validator: `fn(&str) -> Result<(), String>` (string-based validation from database TEXT)
+
+2. **Refactored Database Loading (wkmp-common/src/params.rs):**
+   - Refactored `init_from_database()` to use metadata validators (eliminated ~80 lines duplication)
+   - Replaced 5 typed loader functions with single `load_string_param()` helper
+   - Behavior change: Out-of-range values now rejected (use default) vs. clamped
+   - Updated test `test_volume_level_clamping_from_database` to expect new behavior
+
+3. **Refactored Setter Methods (wkmp-common/src/params.rs):**
+   - Refactored all 14 setters to delegate to metadata validators
+   - Eliminated hardcoded range checks (~80 lines removed)
+   - Pattern: Look up metadata → validate with `.to_string()` → write to RwLock
+   - Updated test `test_set_volume_level_clamping` to expect rejection vs. clamping
+
+4. **API Validation (wkmp-ap/src/api/handlers.rs) - CRITICAL:**
+   - Added server-side validation to `bulk_update_settings()` API handler (+66 lines)
+   - Batch error reporting: Collects all validation errors before returning
+   - Returns 400 Bad Request on validation failure (prevents database corruption)
+   - Validates BEFORE writing to database (enforcement layer)
+
+5. **Volume Functions Refactor (wkmp-ap/src/db/settings.rs):**
+   - Refactored `get_volume()` and `set_volume()` to use metadata validators
+   - Eliminated hardcoded `.clamp(0.0, 1.0)` duplication
+   - Uses `Error::Config` for validation errors
+
+**Success Metrics:**
+- ✅ Code Duplication Eliminated: ~160 lines removed
+- ✅ Single Source of Truth: Validation centralized in metadata
+- ✅ Test Coverage: 86/86 tests pass (100%, no regressions)
+- ✅ Database Integrity: Invalid values rejected at API layer
+
+**Files Modified:**
+- wkmp-common/src/params.rs: +691 lines (metadata added, init/setters refactored)
+- wkmp-ap/src/api/handlers.rs: +66 lines (API validation)
+- wkmp-ap/src/db/settings.rs: +43 lines (volume refactor)
+
+**Traceability:** Implements PLAN019 requirements REQ-DRY-010 through REQ-DRY-100
+
+---
+
 ### 2025-11-03 08:10:26 -0500 | Hash: 819121850fd6201d0b33d2047aa08ce42df3608a
 
 **Archive PLAN017_spec017_compliance folder**

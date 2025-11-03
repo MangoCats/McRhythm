@@ -14,24 +14,55 @@ use uuid::Uuid;
 
 /// Get volume setting (0.0-1.0)
 ///
+/// **[PLAN019-REQ-DRY-080]** Refactored to use metadata validator.
+///
 /// **Traceability:** DB-SETTINGS-020
 pub async fn get_volume(db: &Pool<Sqlite>) -> Result<f32> {
+    // Get metadata for volume_level parameter
+    let metadata = wkmp_common::params::GlobalParams::metadata();
+    let volume_meta = metadata.iter()
+        .find(|m| m.key == "volume_level")
+        .expect("volume_level metadata must exist");
+
     match get_setting::<f32>(db, "volume_level").await? {
-        Some(vol) => Ok(vol.clamp(0.0, 1.0)),
+        Some(vol) => {
+            // Validate using metadata validator
+            if (volume_meta.validator)(&vol.to_string()).is_ok() {
+                Ok(vol)
+            } else {
+                // Invalid value in database, use default
+                let default: f32 = volume_meta.default_value.parse()
+                    .expect("volume_level default must be valid f32");
+                Ok(default)
+            }
+        }
         None => {
-            // Default volume is 0.5 (50%)
-            set_volume(db, 0.5).await?;
-            Ok(0.5)
+            // No value in database, use default from metadata
+            let default: f32 = volume_meta.default_value.parse()
+                .expect("volume_level default must be valid f32");
+            set_volume(db, default).await?;
+            Ok(default)
         }
     }
 }
 
 /// Set volume setting (0.0-1.0)
 ///
+/// **[PLAN019-REQ-DRY-080]** Refactored to use metadata validator.
+///
 /// **Traceability:** DB-SETTINGS-030
 pub async fn set_volume(db: &Pool<Sqlite>, volume: f32) -> Result<()> {
-    let clamped = volume.clamp(0.0, 1.0);
-    set_setting(db, "volume_level", clamped).await
+    // Get metadata for volume_level parameter
+    let metadata = wkmp_common::params::GlobalParams::metadata();
+    let volume_meta = metadata.iter()
+        .find(|m| m.key == "volume_level")
+        .expect("volume_level metadata must exist");
+
+    // Validate using metadata validator
+    (volume_meta.validator)(&volume.to_string())
+        .map_err(|e| Error::Config(e))?;
+
+    set_setting(db, "volume_level", volume).await
 }
 
 /// Get audio device/sink identifier

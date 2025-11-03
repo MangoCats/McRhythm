@@ -1343,6 +1343,34 @@ pub async fn get_all_settings(
 /// during runtime. Therefore, the application must be restarted for changes to take effect.
 ///
 /// **Traceability:** Developer UI - Settings management table
+/// Bulk update multiple settings
+///
+/// **[PLAN019-REQ-DRY-060]** Added server-side validation using metadata validators.
+///
+/// # Validation Strategy
+///
+/// **IMPORTANT:** All settings are validated BEFORE any database writes occur.
+/// If ANY validation fails, NO settings are written (transactional behavior).
+///
+/// **Batch Error Reporting ([PLAN019-HIGH-002]):**
+/// - Collects all validation errors
+/// - Returns 400 Bad Request with all error messages
+/// - User sees all problems at once (better UX than fail-fast)
+///
+/// # Example Validation Error Response
+///
+/// ```json
+/// {
+///   "status": "Validation failed: volume_level: value 2.0 out of range [0.0, 1.0], audio_buffer_size: value 100000 out of range [512, 8192]"
+/// }
+/// ```
+///
+/// # Success Flow
+///
+/// 1. Validate all settings using metadata validators
+/// 2. If all valid, write to database
+/// 3. Schedule graceful shutdown (settings require restart)
+/// 4. Return 200 OK with updated count
 pub async fn bulk_update_settings(
     State(ctx): State<AppContext>,
     Json(req): Json<BulkUpdateSettingsRequest>,
@@ -1351,9 +1379,43 @@ pub async fn bulk_update_settings(
 
     info!("Bulk settings update request: {} settings to update", req.settings.len());
 
+    // **[PLAN019-REQ-DRY-060]** Step 1: Validate ALL settings before writing to database
+    let metadata = wkmp_common::params::GlobalParams::metadata();
+    let metadata_map: std::collections::HashMap<&str, &wkmp_common::params::ParamMetadata> =
+        metadata.iter().map(|m| (m.key, m)).collect();
+
+    let mut validation_errors = Vec::new();
+
+    for (key, value) in &req.settings {
+        // Check if parameter exists in metadata
+        if let Some(meta) = metadata_map.get(key.as_str()) {
+            // Validate using metadata validator
+            if let Err(e) = (meta.validator)(value) {
+                validation_errors.push(e);
+            }
+        } else {
+            // Unknown parameter (not in GlobalParams metadata)
+            warn!("Unknown parameter in bulk update: {}", key);
+            validation_errors.push(format!("{}: unknown parameter", key));
+        }
+    }
+
+    // **[PLAN019-REQ-DRY-070]** If validation failed, return 400 Bad Request
+    // NO database writes occur
+    if !validation_errors.is_empty() {
+        let error_message = format!("Validation failed: {}", validation_errors.join(", "));
+        error!("{}", error_message);
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(StatusResponse {
+                status: error_message,
+            }),
+        ));
+    }
+
+    // Step 2: All validations passed, now write to database
     let mut updated_count = 0;
 
-    // Update each setting in the database
     for (key, value) in &req.settings {
         match settings::set_setting(&ctx.db_pool, key, value.clone()).await {
             Ok(_) => {
@@ -1366,7 +1428,7 @@ pub async fn bulk_update_settings(
         }
     }
 
-    // Schedule graceful shutdown after delay to allow response to be sent
+    // Step 3: Schedule graceful shutdown after delay to allow response to be sent
     tokio::spawn(async {
         info!("Settings updated. Scheduling shutdown in 2 seconds...");
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;

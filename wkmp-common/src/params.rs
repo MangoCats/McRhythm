@@ -210,6 +210,332 @@ impl Default for GlobalParams {
     }
 }
 
+// ============================================================================
+// **[PLAN019]** Centralized Parameter Metadata
+// ============================================================================
+
+/// Metadata for a single GlobalParam parameter
+///
+/// **[PLAN019-REQ-DRY-010]** Encapsulates all metadata about a parameter including
+/// its validation logic. This eliminates 3-way duplication across:
+/// - Database loading (`init_from_database()`)
+/// - Setter methods (`set_volume_level()`, etc.)
+/// - API validation (`bulk_update_settings()`)
+///
+/// # Fields
+///
+/// - `key`: Parameter name (e.g., "volume_level")
+/// - `data_type`: Rust type as string (e.g., "f32")
+/// - `default_value`: Default value as string (e.g., "0.5")
+/// - `description`: Human-readable description with traceability ID
+/// - `validation_range`: Valid range as string (e.g., "0.0-1.0")
+/// - `validator`: Closure that validates string input
+///
+/// # Validator Closure Signature
+///
+/// All validators must have signature: `fn(&str) -> Result<(), String>`
+///
+/// **Error Format Standard** ([PLAN019-HIGH-001]):
+/// `"{param_name}: {specific_reason}"`
+///
+/// # Example
+///
+/// ```rust
+/// # use wkmp_common::params::ParamMetadata;
+/// let meta = ParamMetadata {
+///     key: "volume_level",
+///     data_type: "f32",
+///     default_value: "0.5",
+///     description: "[DBD-PARAM-010] Audio output volume",
+///     validation_range: "0.0-1.0",
+///     validator: |s| {
+///         let v: f32 = s.parse()
+///             .map_err(|_| "volume_level: invalid number format".to_string())?;
+///         if v < 0.0 || v > 1.0 {
+///             return Err(format!("volume_level: value {} out of range [0.0, 1.0]", v));
+///         }
+///         Ok(())
+///     },
+/// };
+///
+/// assert!(meta.validator("0.5").is_ok());
+/// assert!(meta.validator("2.0").is_err());
+/// ```
+pub struct ParamMetadata {
+    pub key: &'static str,
+    pub data_type: &'static str,
+    pub default_value: &'static str,
+    pub description: &'static str,
+    pub validation_range: &'static str,
+    pub validator: fn(&str) -> Result<(), String>,
+}
+
+impl GlobalParams {
+    /// Get metadata for all 14 database-backed parameters
+    ///
+    /// **[PLAN019-REQ-DRY-020]** Returns static reference to parameter metadata array.
+    /// This is the single source of truth for:
+    /// - Parameter names and types
+    /// - Default values
+    /// - Validation ranges
+    /// - Validation logic
+    ///
+    /// # Example: Validating a Parameter
+    ///
+    /// ```rust
+    /// # use wkmp_common::params::GlobalParams;
+    /// let metadata = GlobalParams::metadata();
+    /// let volume_meta = metadata.iter()
+    ///     .find(|m| m.key == "volume_level")
+    ///     .unwrap();
+    ///
+    /// // Validate value using metadata
+    /// assert!((volume_meta.validator)("0.5").is_ok());
+    /// assert!((volume_meta.validator)("2.0").is_err());
+    /// ```
+    pub fn metadata() -> &'static [ParamMetadata] {
+        &[
+            // [DBD-PARAM-010] Volume Level
+            ParamMetadata {
+                key: "volume_level",
+                data_type: "f32",
+                default_value: "0.5",
+                description: "[DBD-PARAM-010] Audio output volume",
+                validation_range: "0.0-1.0",
+                validator: |s| {
+                    let v: f32 = s.parse()
+                        .map_err(|_| "volume_level: invalid number format".to_string())?;
+                    if v < 0.0 || v > 1.0 {
+                        return Err(format!("volume_level: value {} out of range [0.0, 1.0]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-020] Working Sample Rate
+            ParamMetadata {
+                key: "working_sample_rate",
+                data_type: "u32",
+                default_value: "44100",
+                description: "[DBD-PARAM-020] Working sample rate for decoded audio (Hz)",
+                validation_range: "8000-192000",
+                validator: |s| {
+                    let v: u32 = s.parse()
+                        .map_err(|_| "working_sample_rate: invalid number format".to_string())?;
+                    if v < 8000 || v > 192000 {
+                        return Err(format!("working_sample_rate: value {} out of range [8000, 192000]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-030] Output Ring Buffer Size
+            ParamMetadata {
+                key: "output_ringbuffer_size",
+                data_type: "usize",
+                default_value: "8192",
+                description: "[DBD-PARAM-030] Output ring buffer capacity (stereo frames)",
+                validation_range: "2048-262144",
+                validator: |s| {
+                    let v: usize = s.parse()
+                        .map_err(|_| "output_ringbuffer_size: invalid number format".to_string())?;
+                    if v < 2048 || v > 262144 {
+                        return Err(format!("output_ringbuffer_size: value {} out of range [2048, 262144]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-050] Maximum Decode Streams
+            ParamMetadata {
+                key: "maximum_decode_streams",
+                data_type: "usize",
+                default_value: "12",
+                description: "[DBD-PARAM-050] Maximum parallel decoder chains",
+                validation_range: "1-32",
+                validator: |s| {
+                    let v: usize = s.parse()
+                        .map_err(|_| "maximum_decode_streams: invalid number format".to_string())?;
+                    if v < 1 || v > 32 {
+                        return Err(format!("maximum_decode_streams: value {} out of range [1, 32]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-060] Decode Work Period
+            ParamMetadata {
+                key: "decode_work_period",
+                data_type: "u64",
+                default_value: "5000",
+                description: "[DBD-PARAM-060] Decode priority evaluation period (ms)",
+                validation_range: "100-60000",
+                validator: |s| {
+                    let v: u64 = s.parse()
+                        .map_err(|_| "decode_work_period: invalid number format".to_string())?;
+                    if v < 100 || v > 60000 {
+                        return Err(format!("decode_work_period: value {} out of range [100, 60000]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-065] Chunk Duration
+            ParamMetadata {
+                key: "chunk_duration_ms",
+                data_type: "u64",
+                default_value: "1000",
+                description: "[DBD-PARAM-065] Decode chunk duration (ms)",
+                validation_range: "250-5000",
+                validator: |s| {
+                    let v: u64 = s.parse()
+                        .map_err(|_| "chunk_duration_ms: invalid number format".to_string())?;
+                    if v < 250 || v > 5000 {
+                        return Err(format!("chunk_duration_ms: value {} out of range [250, 5000]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-070] Playout Ring Buffer Size
+            ParamMetadata {
+                key: "playout_ringbuffer_size",
+                data_type: "usize",
+                default_value: "661941",
+                description: "[DBD-PARAM-070] Decoded audio buffer size (samples)",
+                validation_range: "44100-10000000",
+                validator: |s| {
+                    let v: usize = s.parse()
+                        .map_err(|_| "playout_ringbuffer_size: invalid number format".to_string())?;
+                    if v < 44100 || v > 10000000 {
+                        return Err(format!("playout_ringbuffer_size: value {} out of range [44100, 10000000]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-080] Playout Buffer Headroom
+            ParamMetadata {
+                key: "playout_ringbuffer_headroom",
+                data_type: "usize",
+                default_value: "4410",
+                description: "[DBD-PARAM-080] Buffer headroom for late resampler samples (stereo frames)",
+                validation_range: "2205-88200",
+                validator: |s| {
+                    let v: usize = s.parse()
+                        .map_err(|_| "playout_ringbuffer_headroom: invalid number format".to_string())?;
+                    if v < 2205 || v > 88200 {
+                        return Err(format!("playout_ringbuffer_headroom: value {} out of range [2205, 88200]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-085] Decoder Resume Hysteresis
+            ParamMetadata {
+                key: "decoder_resume_hysteresis_samples",
+                data_type: "u64",
+                default_value: "44100",
+                description: "[DBD-PARAM-085] Hysteresis for decoder pause/resume (samples)",
+                validation_range: "2205-441000",
+                validator: |s| {
+                    let v: u64 = s.parse()
+                        .map_err(|_| "decoder_resume_hysteresis_samples: invalid number format".to_string())?;
+                    if v < 2205 || v > 441000 {
+                        return Err(format!("decoder_resume_hysteresis_samples: value {} out of range [2205, 441000]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-088] Mixer Minimum Start Level
+            ParamMetadata {
+                key: "mixer_min_start_level",
+                data_type: "usize",
+                default_value: "22050",
+                description: "[DBD-PARAM-088] Min samples before mixer starts playback",
+                validation_range: "2205-88200",
+                validator: |s| {
+                    let v: usize = s.parse()
+                        .map_err(|_| "mixer_min_start_level: invalid number format".to_string())?;
+                    if v < 2205 || v > 88200 {
+                        return Err(format!("mixer_min_start_level: value {} out of range [2205, 88200]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-090] Pause Decay Factor
+            ParamMetadata {
+                key: "pause_decay_factor",
+                data_type: "f64",
+                default_value: "0.95",
+                description: "[DBD-PARAM-090] Exponential decay factor in pause mode",
+                validation_range: "0.5-0.99",
+                validator: |s| {
+                    let v: f64 = s.parse()
+                        .map_err(|_| "pause_decay_factor: invalid number format".to_string())?;
+                    if v < 0.5 || v > 0.99 {
+                        return Err(format!("pause_decay_factor: value {} out of range [0.5, 0.99]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-100] Pause Decay Floor
+            ParamMetadata {
+                key: "pause_decay_floor",
+                data_type: "f64",
+                default_value: "0.0001778",
+                description: "[DBD-PARAM-100] Minimum level before outputting zero",
+                validation_range: "0.00001-0.001",
+                validator: |s| {
+                    let v: f64 = s.parse()
+                        .map_err(|_| "pause_decay_floor: invalid number format".to_string())?;
+                    if v < 0.00001 || v > 0.001 {
+                        return Err(format!("pause_decay_floor: value {} out of range [0.00001, 0.001]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-110] Audio Buffer Size
+            ParamMetadata {
+                key: "audio_buffer_size",
+                data_type: "u32",
+                default_value: "2208",
+                description: "[DBD-PARAM-110] Audio output buffer size (frames/callback)",
+                validation_range: "512-8192",
+                validator: |s| {
+                    let v: u32 = s.parse()
+                        .map_err(|_| "audio_buffer_size: invalid number format".to_string())?;
+                    if v < 512 || v > 8192 {
+                        return Err(format!("audio_buffer_size: value {} out of range [512, 8192]", v));
+                    }
+                    Ok(())
+                },
+            },
+
+            // [DBD-PARAM-111] Mixer Check Interval
+            ParamMetadata {
+                key: "mixer_check_interval_ms",
+                data_type: "u64",
+                default_value: "10",
+                description: "[DBD-PARAM-111] Mixer thread check interval (ms)",
+                validation_range: "5-100",
+                validator: |s| {
+                    let v: u64 = s.parse()
+                        .map_err(|_| "mixer_check_interval_ms: invalid number format".to_string())?;
+                    if v < 5 || v > 100 {
+                        return Err(format!("mixer_check_interval_ms: value {} out of range [5, 100]", v));
+                    }
+                    Ok(())
+                },
+            },
+        ]
+    }
+}
+
 impl GlobalParams {
     /// Reset all parameters to defaults (for testing only)
     #[cfg(test)]
@@ -232,6 +558,8 @@ impl GlobalParams {
 
     /// Initialize all parameters from database
     ///
+    /// **[PLAN019-REQ-DRY-040]** Refactored to use metadata validators for all parameters.
+    ///
     /// Called once at wkmp-ap startup. Loads values from settings table.
     /// Falls back to defaults if database entry missing.
     ///
@@ -242,6 +570,14 @@ impl GlobalParams {
     /// 3. Type mismatch: Log WARN, use default, continue
     /// 4. Out of range: Log WARN, use default, continue
     /// 5. Process all independently (no fail-fast)
+    ///
+    /// # Metadata-Based Loading
+    ///
+    /// Uses ParamMetadata validators to eliminate duplication. For each parameter:
+    /// 1. Load string value from database
+    /// 2. Validate using metadata validator
+    /// 3. If valid, call setter to update value
+    /// 4. If invalid/missing, log warning and use default
     pub async fn init_from_database(
         db_pool: &sqlx::SqlitePool,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -249,161 +585,102 @@ impl GlobalParams {
 
         info!("Loading GlobalParams from database...");
 
-        // Process each parameter independently (no fail-fast)
-        // Each failure logs warning and uses default value
+        // Helper: Load and validate parameter using metadata
+        async fn load_and_validate_param(
+            db_pool: &sqlx::SqlitePool,
+            meta: &ParamMetadata,
+        ) -> Option<String> {
+            use tracing::warn;
 
-        // [DBD-PARAM-010] volume_level (f32, range: [0.0, 1.0])
-        match load_f32_param(db_pool, "volume_level").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_volume_level(value) {
-                    warn!("volume_level validation failed: {}, using default", e);
+            match load_string_param(db_pool, meta.key).await {
+                Ok(Some(value_str)) => {
+                    match (meta.validator)(&value_str) {
+                        Ok(()) => Some(value_str),
+                        Err(e) => {
+                            warn!("{}, using default ({})", e, meta.default_value);
+                            None
+                        }
+                    }
+                }
+                Ok(None) => {
+                    warn!("{} not found in database, using default ({})", meta.key, meta.default_value);
+                    None
+                }
+                Err(e) => {
+                    warn!("Failed to load {}: {}, using default ({})", meta.key, e, meta.default_value);
+                    None
                 }
             }
-            Ok(None) => warn!("volume_level not found in database, using default (0.5)"),
-            Err(e) => warn!("Failed to load volume_level: {}, using default", e),
         }
 
-        // [DBD-PARAM-020] working_sample_rate (u32, range: [8000, 192000])
-        match load_u32_param(db_pool, "working_sample_rate").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_working_sample_rate(value) {
-                    warn!("working_sample_rate validation failed: {}, using default", e);
-                }
-            }
-            Ok(None) => warn!("working_sample_rate not found in database, using default (44100)"),
-            Err(e) => warn!("Failed to load working_sample_rate: {}, using default", e),
-        }
+        // Get metadata array
+        let metadata = Self::metadata();
 
-        // [DBD-PARAM-030] output_ringbuffer_size (usize, range: [2048, 262144])
-        match load_usize_param(db_pool, "output_ringbuffer_size").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_output_ringbuffer_size(value) {
-                    warn!("{}, using default (8192)", e);
-                }
+        // Process each parameter using metadata validators
+        for meta in metadata {
+            if let Some(value_str) = load_and_validate_param(db_pool, meta).await {
+                // Value validated successfully, now call setter with parsed value
+                // Setters handle type conversion and provide additional safeguards
+                let _ = match meta.key {
+                    "volume_level" => {
+                        let v: f32 = value_str.parse().unwrap(); // Already validated
+                        PARAMS.set_volume_level(v)
+                    }
+                    "working_sample_rate" => {
+                        let v: u32 = value_str.parse().unwrap();
+                        PARAMS.set_working_sample_rate(v)
+                    }
+                    "output_ringbuffer_size" => {
+                        let v: usize = value_str.parse().unwrap();
+                        PARAMS.set_output_ringbuffer_size(v)
+                    }
+                    "maximum_decode_streams" => {
+                        let v: usize = value_str.parse().unwrap();
+                        PARAMS.set_maximum_decode_streams(v)
+                    }
+                    "decode_work_period" => {
+                        let v: u64 = value_str.parse().unwrap();
+                        PARAMS.set_decode_work_period(v)
+                    }
+                    "chunk_duration_ms" => {
+                        let v: u64 = value_str.parse().unwrap();
+                        PARAMS.set_chunk_duration_ms(v)
+                    }
+                    "playout_ringbuffer_size" => {
+                        let v: usize = value_str.parse().unwrap();
+                        PARAMS.set_playout_ringbuffer_size(v)
+                    }
+                    "playout_ringbuffer_headroom" => {
+                        let v: usize = value_str.parse().unwrap();
+                        PARAMS.set_playout_ringbuffer_headroom(v)
+                    }
+                    "decoder_resume_hysteresis_samples" => {
+                        let v: u64 = value_str.parse().unwrap();
+                        PARAMS.set_decoder_resume_hysteresis_samples(v)
+                    }
+                    "mixer_min_start_level" => {
+                        let v: usize = value_str.parse().unwrap();
+                        PARAMS.set_mixer_min_start_level(v)
+                    }
+                    "pause_decay_factor" => {
+                        let v: f64 = value_str.parse().unwrap();
+                        PARAMS.set_pause_decay_factor(v)
+                    }
+                    "pause_decay_floor" => {
+                        let v: f64 = value_str.parse().unwrap();
+                        PARAMS.set_pause_decay_floor(v)
+                    }
+                    "audio_buffer_size" => {
+                        let v: u32 = value_str.parse().unwrap();
+                        PARAMS.set_audio_buffer_size(v)
+                    }
+                    "mixer_check_interval_ms" => {
+                        let v: u64 = value_str.parse().unwrap();
+                        PARAMS.set_mixer_check_interval_ms(v)
+                    }
+                    _ => Ok(()), // Unknown parameter, skip
+                };
             }
-            Ok(None) => warn!("output_ringbuffer_size not found in database, using default (8192)"),
-            Err(e) => warn!("Failed to load output_ringbuffer_size: {}, using default", e),
-        }
-
-        // [DBD-PARAM-050] maximum_decode_streams (usize, range: [1, 32])
-        match load_usize_param(db_pool, "maximum_decode_streams").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_maximum_decode_streams(value) {
-                    warn!("{}, using default (12)", e);
-                }
-            }
-            Ok(None) => warn!("maximum_decode_streams not found in database, using default (12)"),
-            Err(e) => warn!("Failed to load maximum_decode_streams: {}, using default", e),
-        }
-
-        // [DBD-PARAM-060] decode_work_period (u64, range: [100, 60000])
-        match load_u64_param(db_pool, "decode_work_period").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_decode_work_period(value) {
-                    warn!("{}, using default (5000)", e);
-                }
-            }
-            Ok(None) => warn!("decode_work_period not found in database, using default (5000)"),
-            Err(e) => warn!("Failed to load decode_work_period: {}, using default", e),
-        }
-
-        // [DBD-PARAM-065] chunk_duration_ms (u64, range: [250, 5000])
-        match load_u64_param(db_pool, "chunk_duration_ms").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_chunk_duration_ms(value) {
-                    warn!("{}, using default (1000)", e);
-                }
-            }
-            Ok(None) => warn!("chunk_duration_ms not found in database, using default (1000)"),
-            Err(e) => warn!("Failed to load chunk_duration_ms: {}, using default", e),
-        }
-
-        // [DBD-PARAM-070] playout_ringbuffer_size (usize, range: [44100, 10000000])
-        match load_usize_param(db_pool, "playout_ringbuffer_size").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_playout_ringbuffer_size(value) {
-                    warn!("{}, using default (661941)", e);
-                }
-            }
-            Ok(None) => warn!("playout_ringbuffer_size not found in database, using default (661941)"),
-            Err(e) => warn!("Failed to load playout_ringbuffer_size: {}, using default", e),
-        }
-
-        // [DBD-PARAM-080] playout_ringbuffer_headroom (usize, range: [2205, 88200])
-        match load_usize_param(db_pool, "playout_ringbuffer_headroom").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_playout_ringbuffer_headroom(value) {
-                    warn!("{}, using default (4410)", e);
-                }
-            }
-            Ok(None) => warn!("playout_ringbuffer_headroom not found in database, using default (4410)"),
-            Err(e) => warn!("Failed to load playout_ringbuffer_headroom: {}, using default", e),
-        }
-
-        // [DBD-PARAM-085] decoder_resume_hysteresis_samples (u64, range: [2205, 441000])
-        match load_u64_param(db_pool, "decoder_resume_hysteresis_samples").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_decoder_resume_hysteresis_samples(value) {
-                    warn!("{}, using default (44100)", e);
-                }
-            }
-            Ok(None) => warn!("decoder_resume_hysteresis_samples not found in database, using default (44100)"),
-            Err(e) => warn!("Failed to load decoder_resume_hysteresis_samples: {}, using default", e),
-        }
-
-        // [DBD-PARAM-088] mixer_min_start_level (usize, range: [2205, 88200])
-        match load_usize_param(db_pool, "mixer_min_start_level").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_mixer_min_start_level(value) {
-                    warn!("{}, using default (22050)", e);
-                }
-            }
-            Ok(None) => warn!("mixer_min_start_level not found in database, using default (22050)"),
-            Err(e) => warn!("Failed to load mixer_min_start_level: {}, using default", e),
-        }
-
-        // [DBD-PARAM-090] pause_decay_factor (f64, range: [0.5, 0.99])
-        match load_f64_param(db_pool, "pause_decay_factor").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_pause_decay_factor(value) {
-                    warn!("{}, using default (0.95)", e);
-                }
-            }
-            Ok(None) => warn!("pause_decay_factor not found in database, using default (0.95)"),
-            Err(e) => warn!("Failed to load pause_decay_factor: {}, using default", e),
-        }
-
-        // [DBD-PARAM-100] pause_decay_floor (f64, range: [0.00001, 0.001])
-        match load_f64_param(db_pool, "pause_decay_floor").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_pause_decay_floor(value) {
-                    warn!("{}, using default (0.0001778)", e);
-                }
-            }
-            Ok(None) => warn!("pause_decay_floor not found in database, using default (0.0001778)"),
-            Err(e) => warn!("Failed to load pause_decay_floor: {}, using default", e),
-        }
-
-        // [DBD-PARAM-110] audio_buffer_size (u32, range: [512, 8192])
-        match load_u32_param(db_pool, "audio_buffer_size").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_audio_buffer_size(value) {
-                    warn!("{}, using default (2208)", e);
-                }
-            }
-            Ok(None) => warn!("audio_buffer_size not found in database, using default (2208)"),
-            Err(e) => warn!("Failed to load audio_buffer_size: {}, using default", e),
-        }
-
-        // [DBD-PARAM-111] mixer_check_interval_ms (u64, range: [5, 100])
-        match load_u64_param(db_pool, "mixer_check_interval_ms").await {
-            Ok(Some(value)) => {
-                if let Err(e) = PARAMS.set_mixer_check_interval_ms(value) {
-                    warn!("{}, using default (10)", e);
-                }
-            }
-            Ok(None) => warn!("mixer_check_interval_ms not found in database, using default (10)"),
-            Err(e) => warn!("Failed to load mixer_check_interval_ms: {}, using default", e),
         }
 
         info!("GlobalParams initialized from database");
@@ -412,16 +689,18 @@ impl GlobalParams {
 
     /// Validate and update working_sample_rate
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [8000, 192000] Hz
-    /// - Common audio sample rates preferred
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [8000, 192000] Hz (see ParamMetadata)
     pub fn set_working_sample_rate(&self, value: u32) -> Result<(), String> {
-        if value < 8000 || value > 192000 {
-            return Err(format!(
-                "working_sample_rate {} out of range [8000, 192000]",
-                value
-            ));
-        }
+        // Delegate to metadata validator
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "working_sample_rate")
+            .expect("working_sample_rate metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
 
         *self.working_sample_rate.write().unwrap() = value;
         Ok(())
@@ -429,299 +708,256 @@ impl GlobalParams {
 
     /// Validate and update volume_level
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [0.0, 1.0]
-    /// - Values clamped to range
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [0.0, 1.0] (see ParamMetadata)
     pub fn set_volume_level(&self, value: f32) -> Result<(), String> {
-        let clamped = value.clamp(0.0, 1.0);
-        if clamped != value {
-            tracing::warn!(
-                "volume_level {} clamped to {}",
-                value,
-                clamped
-            );
-        }
+        // Delegate to metadata validator
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "volume_level")
+            .expect("volume_level metadata must exist");
 
-        *self.volume_level.write().unwrap() = clamped;
+        (meta.validator)(&value.to_string())?;
+
+        *self.volume_level.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update output_ringbuffer_size
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [2048, 262144] frames
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [2048, 262144] frames (see ParamMetadata)
     pub fn set_output_ringbuffer_size(&self, value: usize) -> Result<(), String> {
-        if value < 2048 || value > 262144 {
-            return Err(format!(
-                "output_ringbuffer_size {} out of range [2048, 262144]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "output_ringbuffer_size")
+            .expect("output_ringbuffer_size metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.output_ringbuffer_size.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update maximum_decode_streams
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [1, 32]
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [1, 32] (see ParamMetadata)
     pub fn set_maximum_decode_streams(&self, value: usize) -> Result<(), String> {
-        if value < 1 || value > 32 {
-            return Err(format!(
-                "maximum_decode_streams {} out of range [1, 32]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "maximum_decode_streams")
+            .expect("maximum_decode_streams metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.maximum_decode_streams.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update decode_work_period
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [100, 60000] ms
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [100, 60000] ms (see ParamMetadata)
     pub fn set_decode_work_period(&self, value: u64) -> Result<(), String> {
-        if value < 100 || value > 60000 {
-            return Err(format!(
-                "decode_work_period {} out of range [100, 60000]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "decode_work_period")
+            .expect("decode_work_period metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.decode_work_period.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update chunk_duration_ms
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [250, 5000] ms
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [250, 5000] ms (see ParamMetadata)
     pub fn set_chunk_duration_ms(&self, value: u64) -> Result<(), String> {
-        if value < 250 || value > 5000 {
-            return Err(format!(
-                "chunk_duration_ms {} out of range [250, 5000]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "chunk_duration_ms")
+            .expect("chunk_duration_ms metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.chunk_duration_ms.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update playout_ringbuffer_size
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [44100, 10000000] samples
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [44100, 10000000] samples (see ParamMetadata)
     pub fn set_playout_ringbuffer_size(&self, value: usize) -> Result<(), String> {
-        if value < 44100 || value > 10000000 {
-            return Err(format!(
-                "playout_ringbuffer_size {} out of range [44100, 10000000]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "playout_ringbuffer_size")
+            .expect("playout_ringbuffer_size metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.playout_ringbuffer_size.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update playout_ringbuffer_headroom
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [2205, 88200] samples
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [2205, 88200] samples (see ParamMetadata)
     pub fn set_playout_ringbuffer_headroom(&self, value: usize) -> Result<(), String> {
-        if value < 2205 || value > 88200 {
-            return Err(format!(
-                "playout_ringbuffer_headroom {} out of range [2205, 88200]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "playout_ringbuffer_headroom")
+            .expect("playout_ringbuffer_headroom metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.playout_ringbuffer_headroom.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update decoder_resume_hysteresis_samples
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [2205, 441000] samples
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [2205, 441000] samples (see ParamMetadata)
     pub fn set_decoder_resume_hysteresis_samples(&self, value: u64) -> Result<(), String> {
-        if value < 2205 || value > 441000 {
-            return Err(format!(
-                "decoder_resume_hysteresis_samples {} out of range [2205, 441000]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "decoder_resume_hysteresis_samples")
+            .expect("decoder_resume_hysteresis_samples metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.decoder_resume_hysteresis_samples.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update mixer_min_start_level
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [2205, 88200] samples
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [2205, 88200] samples (see ParamMetadata)
     pub fn set_mixer_min_start_level(&self, value: usize) -> Result<(), String> {
-        if value < 2205 || value > 88200 {
-            return Err(format!(
-                "mixer_min_start_level {} out of range [2205, 88200]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "mixer_min_start_level")
+            .expect("mixer_min_start_level metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.mixer_min_start_level.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update pause_decay_factor
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [0.5, 0.99]
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [0.5, 0.99] (see ParamMetadata)
     pub fn set_pause_decay_factor(&self, value: f64) -> Result<(), String> {
-        if value < 0.5 || value > 0.99 {
-            return Err(format!(
-                "pause_decay_factor {} out of range [0.5, 0.99]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "pause_decay_factor")
+            .expect("pause_decay_factor metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.pause_decay_factor.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update pause_decay_floor
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [0.00001, 0.001]
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [0.00001, 0.001] (see ParamMetadata)
     pub fn set_pause_decay_floor(&self, value: f64) -> Result<(), String> {
-        if value < 0.00001 || value > 0.001 {
-            return Err(format!(
-                "pause_decay_floor {} out of range [0.00001, 0.001]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "pause_decay_floor")
+            .expect("pause_decay_floor metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.pause_decay_floor.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update audio_buffer_size
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [512, 8192] frames
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [512, 8192] frames (see ParamMetadata)
     pub fn set_audio_buffer_size(&self, value: u32) -> Result<(), String> {
-        if value < 512 || value > 8192 {
-            return Err(format!(
-                "audio_buffer_size {} out of range [512, 8192]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "audio_buffer_size")
+            .expect("audio_buffer_size metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.audio_buffer_size.write().unwrap() = value;
         Ok(())
     }
 
     /// Validate and update mixer_check_interval_ms
     ///
+    /// **[PLAN019-REQ-DRY-050]** Refactored to use metadata validator.
+    ///
     /// # Validation
-    /// - Must be in range [5, 100] ms
+    /// - Delegates to metadata validator for range checking
+    /// - Must be in range [5, 100] ms (see ParamMetadata)
     pub fn set_mixer_check_interval_ms(&self, value: u64) -> Result<(), String> {
-        if value < 5 || value > 100 {
-            return Err(format!(
-                "mixer_check_interval_ms {} out of range [5, 100]",
-                value
-            ));
-        }
+        let meta = Self::metadata().iter()
+            .find(|m| m.key == "mixer_check_interval_ms")
+            .expect("mixer_check_interval_ms metadata must exist");
+
+        (meta.validator)(&value.to_string())?;
+
         *self.mixer_check_interval_ms.write().unwrap() = value;
         Ok(())
     }
 }
 
-/// Helper function to load f32 parameter from database
-async fn load_f32_param(
+/// Helper function to load string parameter from database (used by metadata validators)
+///
+/// **[PLAN019-REQ-DRY-040]** Generic string loader for metadata-based validation.
+/// Replaces type-specific loaders (load_f32_param, load_u32_param, etc.) which
+/// are no longer needed with metadata-based validation.
+async fn load_string_param(
     pool: &sqlx::SqlitePool,
     key: &str,
-) -> Result<Option<f32>, Box<dyn std::error::Error>> {
+) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
         .bind(key)
         .fetch_optional(pool)
         .await?;
 
     match row {
-        Some((Some(value_str),)) => {
-            let value = value_str.parse::<f32>()?;
-            Ok(Some(value))
-        }
-        Some((None,)) => Ok(None), // NULL value
-        None => Ok(None),           // Missing row
-    }
-}
-
-/// Helper function to load f64 parameter from database
-async fn load_f64_param(
-    pool: &sqlx::SqlitePool,
-    key: &str,
-) -> Result<Option<f64>, Box<dyn std::error::Error>> {
-    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-        .bind(key)
-        .fetch_optional(pool)
-        .await?;
-
-    match row {
-        Some((Some(value_str),)) => {
-            let value = value_str.parse::<f64>()?;
-            Ok(Some(value))
-        }
-        Some((None,)) => Ok(None), // NULL value
-        None => Ok(None),           // Missing row
-    }
-}
-
-/// Helper function to load u32 parameter from database
-async fn load_u32_param(
-    pool: &sqlx::SqlitePool,
-    key: &str,
-) -> Result<Option<u32>, Box<dyn std::error::Error>> {
-    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-        .bind(key)
-        .fetch_optional(pool)
-        .await?;
-
-    match row {
-        Some((Some(value_str),)) => {
-            let value = value_str.parse::<u32>()?;
-            Ok(Some(value))
-        }
-        Some((None,)) => Ok(None), // NULL value
-        None => Ok(None),           // Missing row
-    }
-}
-
-/// Helper function to load u64 parameter from database
-async fn load_u64_param(
-    pool: &sqlx::SqlitePool,
-    key: &str,
-) -> Result<Option<u64>, Box<dyn std::error::Error>> {
-    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-        .bind(key)
-        .fetch_optional(pool)
-        .await?;
-
-    match row {
-        Some((Some(value_str),)) => {
-            let value = value_str.parse::<u64>()?;
-            Ok(Some(value))
-        }
-        Some((None,)) => Ok(None), // NULL value
-        None => Ok(None),           // Missing row
-    }
-}
-
-/// Helper function to load usize parameter from database
-async fn load_usize_param(
-    pool: &sqlx::SqlitePool,
-    key: &str,
-) -> Result<Option<usize>, Box<dyn std::error::Error>> {
-    let row: Option<(Option<String>,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
-        .bind(key)
-        .fetch_optional(pool)
-        .await?;
-
-    match row {
-        Some((Some(value_str),)) => {
-            let value = value_str.parse::<usize>()?;
-            Ok(Some(value))
-        }
+        Some((Some(value_str),)) => Ok(Some(value_str)),
         Some((None,)) => Ok(None), // NULL value
         None => Ok(None),           // Missing row
     }
@@ -893,18 +1129,20 @@ mod tests {
 
     #[test]
     fn test_set_volume_level_clamping() {
-        // TC-U-102-01: Validate volume_level range (with clamping)
+        // TC-U-102-01: Validate volume_level range (metadata validator)
+        // **[PLAN019-REQ-DRY-050]** Updated test: volume_level now uses metadata validator,
+        // which rejects out-of-range values instead of clamping
         let params = GlobalParams::default();
 
         assert!(params.set_volume_level(0.75).is_ok());
         assert_eq!(*params.volume_level.read().unwrap(), 0.75);
 
-        // Out of range values get clamped
-        assert!(params.set_volume_level(1.5).is_ok());
-        assert_eq!(*params.volume_level.read().unwrap(), 1.0);
+        // Out of range values now rejected (old behavior: clamped)
+        assert!(params.set_volume_level(1.5).is_err());
+        assert_eq!(*params.volume_level.read().unwrap(), 0.75); // Unchanged
 
-        assert!(params.set_volume_level(-0.1).is_ok());
-        assert_eq!(*params.volume_level.read().unwrap(), 0.0);
+        assert!(params.set_volume_level(-0.1).is_err());
+        assert_eq!(*params.volume_level.read().unwrap(), 0.75); // Unchanged
     }
 
     // Database loading tests
@@ -1052,17 +1290,21 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn test_volume_level_clamping_from_database() {
-        // TC-DB-007: Volume level clamping works when loading from database
+        // TC-DB-007: Volume level out-of-range handling (metadata validation)
+        // **[PLAN019-REQ-DRY-040]** Updated test: metadata validators reject out-of-range,
+        // use default per error handling policy
         PARAMS.reset_to_defaults(); // Reset before test
         let pool = create_test_db().await;
 
-        // Insert out-of-range volume (should be clamped)
+        // Insert out-of-range volume (should be rejected, use default)
         insert_setting(&pool, "volume_level", "1.5").await;
 
         GlobalParams::init_from_database(&pool).await.unwrap();
 
-        // Verify clamped to 1.0
-        assert_eq!(*PARAMS.volume_level.read().unwrap(), 1.0);
+        // Verify default (0.5) used instead of clamping to 1.0
+        // Old behavior: clamped to 1.0
+        // New behavior (PLAN019): rejected, use default (0.5)
+        assert_eq!(*PARAMS.volume_level.read().unwrap(), 0.5);
     }
 
     // Setter validation tests
