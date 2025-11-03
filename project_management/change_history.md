@@ -21,7 +21,41 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-03 10:32:41 -0500
+
+**Archive PLAN008: WKMP-AP Technical Debt Remediation (Complete)**
+
+Archived PLAN008 technical debt remediation plan (13 files, 4,020 lines) after successful completion of all 3 sprints targeting 37 requirements across 13 technical debt items.
+
+**Implementation Timeline:**
+- Sprint 1 (Oct 30): Quality foundational improvements (6 increments, 12 requirements)
+- Sprint 2 (Oct 30): Quality optimizations (3 increments, 10 requirements)
+- Sprint 3 (Oct 30): Deferred items (3 increments, 15 requirements)
+- Engine refactoring (Increments 18-20): Deferred to PLAN016 (Nov 1)
+
+**Key Achievements:**
+- Transitioned from ad-hoc technical debt to specification-driven remediation via SPEC024
+- Established modular test organization pattern (test_core.rs, test_queue.rs, test_diagnostics.rs)
+- Unified error handling approach across playback engine
+- Comprehensive integration test coverage for queue operations
+
+**Deferred Work:**
+- Engine.rs decomposition completed via PLAN016 (4,251→4,324 lines across 4 modules)
+- PLAN009 superseded by PLAN016 for same objective
+
+**Archival Changes:**
+- Removed wip/PLAN008_wkmp_ap_technical_debt/ (13 files including sprint reports, completion analysis)
+- Updated workflows/REG002_archive_index.md with retrieval command
+- Archive count: 24 documents totaling ~23,801 lines (4,020 from PLAN008)
+
+**Traceability:** Implements SPEC024 technical debt specification, establishes precedent for specification-driven debt remediation.
+
+**Previous Commit:** 961b90c0adea8acddd34318fc4f4c6065fe41c5b
+
+---
+
 ### 2025-11-03 10:13:02 -0500
+**Commit:** 961b90c0adea8acddd34318fc4f4c6065fe41c5b
 
 **Archive PLAN009: Engine Module Extraction Plan (Superseded)**
 

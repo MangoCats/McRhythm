@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 23 (PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~19,781 lines total: 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 24 (PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~23,801 lines total: 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -68,6 +68,7 @@ git checkout dev  # Return to working branch
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| PLAN008_wkmp_ap_technical_debt/ | PLAN008 complete - All 3 sprints (37 requirements, Oct 30); engine refactoring via PLAN016 (Nov 1) | 2025-11-03 | `git checkout archive && cd wip/PLAN008_wkmp_ap_technical_debt` |
 | PLAN009_engine_module_extraction/ | Superseded by PLAN016 - Same goal (engine.rs refactoring) achieved via comprehensive /plan workflow | 2025-11-03 | `git checkout archive && cd wip/PLAN009_engine_module_extraction` |
 | PLAN016_engine_refactoring/ | PLAN016 complete - Engine refactored into modular structure (4,251→4,324 lines across 4 modules, 219 tests pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN016_engine_refactoring` |
 | PLAN019_dry_metadata_validation/ | PLAN019 complete - DRY metadata validation (14 parameters, ~160 LOC eliminated, 100% test pass) | 2025-11-03 | `git checkout archive && cd wip/PLAN019_dry_metadata_validation` |
