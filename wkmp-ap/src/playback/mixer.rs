@@ -261,7 +261,8 @@ impl Mixer {
             state: MixerState::Playing,
             last_sample_left: 0.0,
             last_sample_right: 0.0,
-            pause_decay_factor: 0.96875, // 31/32 per SPEC016 DBD-PARAM-090
+            // **[DBD-PARAM-090]** Read pause decay factor from GlobalParams (default: 0.95 per SPEC016)
+            pause_decay_factor: *wkmp_common::params::PARAMS.pause_decay_factor.read().unwrap() as f32,
             pause_decay_floor: 0.0001778, // per SPEC016 DBD-PARAM-100
             resume_state: None,
             markers: BinaryHeap::new(),
