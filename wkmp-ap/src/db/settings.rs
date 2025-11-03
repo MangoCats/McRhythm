@@ -477,10 +477,11 @@ pub async fn load_maximum_decode_streams(db: &Pool<Sqlite>) -> Result<usize> {
 /// **[DBD-PARAM-088]** Minimum buffer samples required before mixer starts playback
 ///
 /// # Returns
-/// Number of samples (default: 44100 = 1.0 second @ 44.1kHz)
+/// Number of samples (default: GlobalParams.mixer_min_start_level = 22050 = 0.5s @ 44.1kHz)
 /// Clamped to valid range: 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
 pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
-    load_clamped_setting(db, "mixer_min_start_level", 8820usize, 220500usize, 44100usize).await
+    let default = *wkmp_common::params::PARAMS.mixer_min_start_level.read().unwrap();
+    load_clamped_setting(db, "mixer_min_start_level", 8820usize, 220500usize, default).await
 }
 
 /// Load audio buffer size from database
