@@ -21,7 +21,45 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-03 10:41:09 -0500
+
+**Fix PLAN019 Test Side Effects (3 Test Failures)**
+
+Fixed 3 test failures caused by PLAN019's behavior change from value clamping to validation rejection. These failures blocked archival of completed implementation plans.
+
+**Root Cause:**
+PLAN019 (DRY metadata validation) changed GlobalParams behavior to reject out-of-range values instead of silently clamping them. Tests written before PLAN019 expected clamping behavior and failed after validation was centralized.
+
+**Test Fixes:**
+
+1. **test_volume_get_set** ([settings.rs:605-613](wkmp-ap/src/db/settings.rs#L605-L613))
+   - Changed from `set_volume(&db, 1.5).await.unwrap()` expecting clamp to 1.0
+   - To `assert!(set_volume(&db, 1.5).await.is_err())` expecting rejection
+   - Volume remains unchanged at 0.75 after rejection
+
+2. **test_volume_persistence_continues_after_errors** ([settings.rs:656-664](wkmp-ap/src/db/settings.rs#L656-L664))
+   - Changed from extreme values (999.0, -999.0) expecting clamps
+   - To validation rejection with volume remaining at 0.7
+
+3. **test_backup_file_operations** ([safety.rs:301-330](wkmp-ap/src/tuning/safety.rs#L301-L330))
+   - Added `serial_test = "3.2"` crate to [Cargo.toml:67](wkmp-ap/Cargo.toml#L67)
+   - Applied `#[serial_test::serial]` to prevent race condition
+   - Both `test_backup_file_operations` and `test_load_nonexistent_backup` access same temp file
+
+**Test Results:**
+- Before: 216 passed, 3 failed
+- After: 219 passed, 0 failed (100% pass rate)
+
+**Traceability:**
+- Implements [PLAN019-REQ-DRY-080] validation rejection behavior
+- Fixes test debt blocking PLAN008/PLAN016/PLAN014 archival
+
+**Previous Commit:** cbd6c86705fa1b2f771c3e47f7f0c9e77a1dbc6b
+
+---
+
 ### 2025-11-03 10:32:41 -0500
+**Commit:** cbd6c86705fa1b2f771c3e47f7f0c9e77a1dbc6b
 
 **Archive PLAN008: WKMP-AP Technical Debt Remediation (Complete)**
 

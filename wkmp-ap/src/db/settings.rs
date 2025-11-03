@@ -602,14 +602,15 @@ mod tests {
         let vol = get_volume(&db).await.unwrap();
         assert_eq!(vol, 0.75);
 
-        // Volume should be clamped
-        set_volume(&db, 1.5).await.unwrap();
+        // **[PLAN019-REQ-DRY-080]** Out-of-range values should be rejected (not clamped)
+        // Behavior changed from clamping to validation rejection
+        assert!(set_volume(&db, 1.5).await.is_err(), "Should reject value > 1.0");
         let vol = get_volume(&db).await.unwrap();
-        assert_eq!(vol, 1.0);
+        assert_eq!(vol, 0.75, "Volume should remain unchanged after rejection");
 
-        set_volume(&db, -0.5).await.unwrap();
+        assert!(set_volume(&db, -0.5).await.is_err(), "Should reject value < 0.0");
         let vol = get_volume(&db).await.unwrap();
-        assert_eq!(vol, 0.0);
+        assert_eq!(vol, 0.75, "Volume should remain unchanged after rejection");
     }
 
     /// **[DB-SETTINGS-020]** Test default volume on first run (empty database)
@@ -652,14 +653,15 @@ mod tests {
         // without significant mocking infrastructure. The actual error handling is in the
         // API handler (handlers.rs:265) which logs errors but continues.
 
-        // Verify that clamping still works even with extreme values
-        set_volume(&db, 999.0).await.unwrap();
+        // **[PLAN019-REQ-DRY-080]** Verify that validation rejects extreme values
+        // Behavior changed from clamping to validation rejection
+        assert!(set_volume(&db, 999.0).await.is_err(), "Should reject extreme positive value");
         let vol = get_volume(&db).await.unwrap();
-        assert_eq!(vol, 1.0, "Volume should be clamped to 1.0");
+        assert_eq!(vol, 0.7, "Volume should remain unchanged after rejection");
 
-        set_volume(&db, -999.0).await.unwrap();
+        assert!(set_volume(&db, -999.0).await.is_err(), "Should reject extreme negative value");
         let vol = get_volume(&db).await.unwrap();
-        assert_eq!(vol, 0.0, "Volume should be clamped to 0.0");
+        assert_eq!(vol, 0.7, "Volume should remain unchanged after rejection");
     }
 
     #[tokio::test]

@@ -298,7 +298,13 @@ mod tests {
         assert_eq!(restored_buffer, 512);
     }
 
+    /// Test backup file write/read operations
+    ///
+    /// **Note:** Uses `#[serial]` to prevent test isolation issues.
+    /// Both this test and `test_load_nonexistent_backup` access the same
+    /// backup file in the system temp directory.
     #[test]
+    #[serial_test::serial]
     fn test_backup_file_operations() {
         let backup = SettingsBackup {
             mixer_check_interval_ms: 10,
@@ -323,7 +329,12 @@ mod tests {
         assert!(!path.exists());
     }
 
+    /// Test loading backup when file doesn't exist
+    ///
+    /// **Note:** Uses `#[serial]` to prevent race condition with
+    /// `test_backup_file_operations` accessing the same temp file.
     #[test]
+    #[serial_test::serial]
     fn test_load_nonexistent_backup() {
         // Ensure no backup file exists
         cleanup_backup_file();

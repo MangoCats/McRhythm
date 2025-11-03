@@ -4600,6 +4600,7 @@ dependencies = [
  "rubato",
  "serde",
  "serde_json",
+ "serial_test",
  "sqlx",
  "symphonia",
  "symphonia-adapter-libopus",
