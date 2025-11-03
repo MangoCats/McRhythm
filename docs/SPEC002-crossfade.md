@@ -807,7 +807,7 @@ function volume_update_loop():
   - Higher values (e.g., 50ms): Lower CPU usage, may have audible steps in fade curves
   - Recommended: 10ms provides smooth, artifact-free transitions with reasonable CPU usage
 
-Note: This is distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms), which controls mixer-to-output ring buffer fills. Volume updates occur more frequently for smooth fade curves.
+Note: This is distinct from [SPEC016 DBD-PARAM-111] mixer_check_interval_ms (10ms), which controls mixer thread wake timing. Volume updates occur more frequently for smooth fade curves.
 
 **Implementation Notes:**
 - Update timer runs continuously during playback (even when not crossfading)

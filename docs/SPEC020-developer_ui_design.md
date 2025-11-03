@@ -600,46 +600,38 @@ SSE: Connected
 
 ### 6.4 Supported Settings
 
-**[SPEC016-SETTINGS-040]** Settings panel MUST display all wkmp-ap database settings (26+ parameters):
+**[SPEC016-SETTINGS-040]** Settings panel MUST display all wkmp-ap database settings:
 
-**SPEC016 Decoder/Buffer Parameters:**
-- `working_sample_rate` [DBD-PARAM-020]
-- `output_ringbuffer_size` [DBD-PARAM-030]
-- `output_refill_period` [DBD-PARAM-040]
-- `maximum_decode_streams` [DBD-PARAM-050]
-- `decode_work_period` [DBD-PARAM-060]
-- `decode_chunk_size` [DBD-PARAM-065]
-- `playout_ringbuffer_size` [DBD-PARAM-070]
-- `playout_ringbuffer_headroom` [DBD-PARAM-080]
-- `decoder_resume_hysteresis_samples` [DBD-PARAM-085]
-- `mixer_min_start_level` [DBD-PARAM-088]
-- `pause_decay_factor` [DBD-PARAM-090]
-- `pause_decay_floor` [DBD-PARAM-100]
-- `audio_buffer_size` [DBD-PARAM-110]
-- `mixer_check_interval_ms` [DBD-PARAM-111]
+**Audio Output & Volume:**
+- `volume_level` (f32) [DBD-PARAM-010] - Audio output volume (range: 0.0-1.0, default: 0.5)
+- `audio_sink` (String) - Audio output device identifier (default: "default")
 
-**Audio Output:**
-- `volume_level` [DBD-PARAM-010]
-- `audio_sink`
-
-**Crossfade:**
-- `global_crossfade_time`
-- `global_fade_curve`
+**Crossfade Settings:**
+- `global_crossfade_time` (f32) - Global crossfade duration in seconds (default: 2.0)
+- `global_fade_curve` (String) - Global fade curve type (default: "exponential_logarithmic")
 
 **Event Intervals:**
-- `position_event_interval_ms`
-- `playback_progress_interval_ms`
+- `position_event_interval_ms` (u32) - Interval for position event updates in ms (range: 100-5000, default: 1000)
+- `playback_progress_interval_ms` (u64) - Minimum interval between progress SSE events in ms (range: 1000-60000, default: 5000)
 
-**Mixer/Buffer (legacy):**
-- `minimum_buffer_threshold_ms`
-- `audio_ring_buffer_grace_period_ms`
-- `mixer_check_interval_us`
-- `mixer_batch_size_low`
-- `mixer_batch_size_optimal`
+**SPEC016 Decoder/Buffer Parameters:**
+- `working_sample_rate` (u32) [DBD-PARAM-020] - Sample rate for decoded audio in Hz (valid: 44100, 48000, 88200, 96000; default: 44100)
+- `output_ringbuffer_size` (usize) [DBD-PARAM-030] - Output ring buffer capacity in stereo frames (range: 2048-262144, default: 8192)
+- `maximum_decode_streams` (usize) [DBD-PARAM-050] - Maximum parallel decoder chains (range: 2-32, default: 12)
+- `decode_work_period` (u64) [DBD-PARAM-060] - Decode job priority evaluation period in ms (range: 1000-10000, default: 5000)
+- `chunk_duration_ms` (u64) [DBD-PARAM-065] - Decode chunk duration in ms (range: 250-5000, default: 1000)
+- `playout_ringbuffer_size` (usize) [DBD-PARAM-070] - Decoded audio buffer size in stereo samples (range: 220500-1323000, default: 661941)
+- `playout_ringbuffer_headroom` (usize) [DBD-PARAM-080] - Buffer headroom for late resampler samples (range: 1000-44100, default: 4410)
+- `decoder_resume_hysteresis_samples` (u64) [DBD-PARAM-085] - Hysteresis for decoder pause/resume in samples (range: 882-88200, default: 44100)
+- `mixer_min_start_level` (usize) [DBD-PARAM-088] - Minimum samples before mixer starts playback (range: 8820-220500, default: 22050)
+- `pause_decay_factor` (f64) [DBD-PARAM-090] - Exponential decay factor in pause mode (range: 0.90-0.99, default: 0.95)
+- `pause_decay_floor` (f64) [DBD-PARAM-100] - Minimum level before outputting zero (range: 0.0001-0.001, default: 0.0001778)
+- `audio_buffer_size` (u32) [DBD-PARAM-110] - Audio output buffer size in frames per callback (range: 64-65536, default: 2208)
+- `mixer_check_interval_ms` (u64) [DBD-PARAM-111] - Mixer thread check interval in ms (range: 1-100, default: 10)
 
 **Resume from Pause:**
-- `resume_from_pause_fade_in_duration`
-- `resume_from_pause_fade_in_curve`
+- `resume_from_pause_fade_in_duration` (u64) - Fade-in duration when resuming from pause in ms (range: 0-2000, default: 500)
+- `resume_from_pause_fade_in_curve` (String) - Fade-in curve type when resuming (default: "exponential")
 
 ### 6.5 Editing Workflow
 

@@ -1253,7 +1253,7 @@ pub async fn get_all_settings(
         ("working_sample_rate", "u32", "[DBD-PARAM-020] Sample rate for decoded audio (Hz)", Some("44100, 48000, 88200, 96000"), "44100"),
 
         // SPEC016 [DBD-PARAM-030] - Output Ring Buffer
-        ("output_ringbuffer_size", "usize", "[DBD-PARAM-030] Max samples in output ring buffer", Some("2048-16384"), "88200"),
+        ("output_ringbuffer_size", "usize", "[DBD-PARAM-030] Output ring buffer capacity (mixer → audio callback, stereo frames)", Some("2048-262144"), "8192"),
 
         // SPEC016 [DBD-PARAM-050] - Maximum Decode Streams
         ("maximum_decode_streams", "usize", "[DBD-PARAM-050] Maximum number of parallel decoder chains", Some("2-32"), "12"),
@@ -1268,7 +1268,7 @@ pub async fn get_all_settings(
         ("playout_ringbuffer_size", "usize", "[DBD-PARAM-070] Decoded audio buffer size (samples)", Some("220500-1323000"), "661941"),
 
         // SPEC016 [DBD-PARAM-080] - Playout Buffer Headroom
-        ("playout_ringbuffer_headroom", "usize", "[DBD-PARAM-080] Buffer headroom for late resampler samples", Some("1000-10000"), "4410"),
+        ("playout_ringbuffer_headroom", "usize", "[DBD-PARAM-080] Buffer headroom for late resampler samples (stereo frames)", Some("1000-44100"), "4410"),
 
         // SPEC016 [DBD-PARAM-085] - Decoder Resume Hysteresis
         ("decoder_resume_hysteresis_samples", "u64", "[DBD-PARAM-085] Hysteresis for decoder pause/resume (samples)", Some("882-88200"), "44100"),
