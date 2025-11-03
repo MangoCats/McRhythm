@@ -1264,8 +1264,8 @@ pub async fn get_all_settings(
         // SPEC016 [DBD-PARAM-060] - Decode Work Period
         ("decode_work_period", "u64", "[DBD-PARAM-060] Decode job priority evaluation period (ms)", Some("1000-10000"), "5000"),
 
-        // SPEC016 [DBD-PARAM-065] - Decode Chunk Size
-        ("decode_chunk_size", "usize", "[DBD-PARAM-065] Samples per decode chunk (at working rate)", Some("10000-100000"), "25000"),
+        // SPEC016 [DBD-PARAM-065] - Decode Chunk Duration
+        ("chunk_duration_ms", "u64", "[DBD-PARAM-065] Decode chunk duration (ms) - see [DBD-DEC-110]", Some("250-5000"), "1000"),
 
         // SPEC016 [DBD-PARAM-070] - Playout Ring Buffer Size
         ("playout_ringbuffer_size", "usize", "[DBD-PARAM-070] Decoded audio buffer size (samples)", Some("220500-1323000"), "661941"),

@@ -122,8 +122,9 @@ impl DecoderChain {
             )));
         }
 
-        // **[DBD-DEC-110]** Use 1 second chunks
-        let chunk_duration_ms = 1000;
+        // **[DBD-DEC-110]** Read chunk duration from GlobalParams
+        // **[DBD-PARAM-065]** chunk_duration_ms (default: 1000ms)
+        let chunk_duration_ms = *wkmp_common::params::PARAMS.chunk_duration_ms.read().unwrap();
 
         // Convert passage timing to milliseconds for decoder
         let start_ms = wkmp_common::timing::ticks_to_ms(passage.start_time_ticks) as u64;

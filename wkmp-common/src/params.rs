@@ -80,12 +80,36 @@ pub struct GlobalParams {
     /// How often decoders check priority queue
     pub decode_work_period: RwLock<u64>,
 
-    /// **[DBD-PARAM-065]** Samples per decode chunk
+    /// **[DBD-PARAM-065]** Decode chunk duration
     ///
-    /// Valid range: [4410, 441000] samples
-    /// Default: 25000 samples (~0.57s @ 44.1kHz)
-    /// Size of each decoder output chunk
-    pub decode_chunk_size: RwLock<usize>,
+    /// Valid range: [250, 5000] ms
+    /// Default: 1000 ms (1 second)
+    ///
+    /// **[DBD-DEC-110]** Duration of audio decoded per chunk. Controls decoder
+    /// memory usage, CPU overhead, and buffer management granularity.
+    ///
+    /// **Time-Based Chunking:** Chunks are defined by duration (ms), not sample count.
+    /// Converted to samples at source rate: `chunk_samples = source_rate * duration_ms / 1000`
+    ///
+    /// **Trade-offs:**
+    /// - **Smaller (250-500ms):** Lower memory, faster startup, finer buffer control, higher CPU overhead
+    /// - **Larger (1500-2000ms):** Lower CPU overhead, higher memory, slower startup, coarser buffer control
+    ///
+    /// **Performance Impact (12 chains, 96kHz source):**
+    /// - 250ms:  2.3 MB memory,  2880 decode calls/min (2.4% CPU)
+    /// - 500ms:  4.6 MB memory,  1440 decode calls/min (1.2% CPU)
+    /// - 1000ms: 9.2 MB memory,  720 decode calls/min (0.6% CPU) ← Recommended
+    /// - 2000ms: 18.4 MB memory, 360 decode calls/min (0.3% CPU)
+    ///
+    /// **Current value (1000ms) is optimal** for general use:
+    /// - ✅ Low CPU overhead (half of 500ms)
+    /// - ✅ Moderate memory usage (acceptable on modern systems)
+    /// - ✅ Good I/O efficiency (fewer syscalls)
+    /// - ✅ Acceptable buffer management overshoot
+    /// - ✅ Meets mixer_min_start_level in 1 chunk
+    ///
+    /// See: PLAN018 ANALYSIS_chunk_duration_ms.md for detailed analysis
+    pub chunk_duration_ms: RwLock<u64>,
 
     /// **[DBD-PARAM-070]** Decoded audio buffer size
     ///
@@ -166,8 +190,8 @@ impl Default for GlobalParams {
             // [DBD-PARAM-060] Decode work period
             decode_work_period: RwLock::new(5000),
 
-            // [DBD-PARAM-065] Decode chunk size
-            decode_chunk_size: RwLock::new(25000),
+            // [DBD-PARAM-065] Decode chunk duration (ms)
+            chunk_duration_ms: RwLock::new(1000),
 
             // [DBD-PARAM-070] Playout ring buffer size
             playout_ringbuffer_size: RwLock::new(661941),
@@ -289,7 +313,7 @@ mod tests {
         let _: u64 = *params.decode_work_period.read().unwrap();
 
         // DBD-PARAM-065
-        let _: usize = *params.decode_chunk_size.read().unwrap();
+        let _: u64 = *params.chunk_duration_ms.read().unwrap();
 
         // DBD-PARAM-070
         let _: usize = *params.playout_ringbuffer_size.read().unwrap();
@@ -330,7 +354,7 @@ mod tests {
         let _: u64 = *params.output_refill_period.read().unwrap();
         let _: usize = *params.maximum_decode_streams.read().unwrap();
         let _: u64 = *params.decode_work_period.read().unwrap();
-        let _: usize = *params.decode_chunk_size.read().unwrap();
+        let _: u64 = *params.chunk_duration_ms.read().unwrap();
         let _: usize = *params.playout_ringbuffer_size.read().unwrap();
         let _: usize = *params.playout_ringbuffer_headroom.read().unwrap();
         let _: u64 = *params.decoder_resume_hysteresis_samples.read().unwrap();
@@ -352,7 +376,7 @@ mod tests {
         assert_eq!(*params.output_refill_period.read().unwrap(), 90);
         assert_eq!(*params.maximum_decode_streams.read().unwrap(), 12);
         assert_eq!(*params.decode_work_period.read().unwrap(), 5000);
-        assert_eq!(*params.decode_chunk_size.read().unwrap(), 25000);
+        assert_eq!(*params.chunk_duration_ms.read().unwrap(), 1000);
         assert_eq!(*params.playout_ringbuffer_size.read().unwrap(), 661941);
         assert_eq!(*params.playout_ringbuffer_headroom.read().unwrap(), 4410);
         assert_eq!(*params.decoder_resume_hysteresis_samples.read().unwrap(), 44100);
