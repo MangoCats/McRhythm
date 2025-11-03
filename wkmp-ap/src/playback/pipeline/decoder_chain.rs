@@ -122,8 +122,9 @@ impl DecoderChain {
             )));
         }
 
-        // **[DBD-DEC-110]** Use 1 second chunks
-        let chunk_duration_ms = 1000;
+        // **[DBD-DEC-110]** Read chunk duration from GlobalParams
+        // **[DBD-PARAM-065]** chunk_duration_ms (default: 1000ms)
+        let chunk_duration_ms = *wkmp_common::params::PARAMS.chunk_duration_ms.read().unwrap();
 
         // Convert passage timing to milliseconds for decoder
         let start_ms = wkmp_common::timing::ticks_to_ms(passage.start_time_ticks) as u64;
@@ -296,11 +297,13 @@ impl DecoderChain {
                 self.chain_index, decoded_frames
             );
 
-            // **[DBD-DEC-110] Step 2:** Resample to 44.1kHz
+            // **[DBD-DEC-110] Step 2:** Resample to working sample rate
             // **[REQ-AP-ERR-051]** Catch resampling runtime errors and add position context
             let resampled_samples = self.resampler.process_chunk(&chunk_samples).map_err(|e| {
                 // Calculate current position in milliseconds for error reporting
-                let position_ms = (self.fader.current_frame() as u64 * 1000) / 44100;
+                // **[DBD-PARAM-020]** Use resampler's output rate (matches device)
+                let output_rate = self.resampler.output_rate();
+                let position_ms = (self.fader.current_frame() as u64 * 1000) / output_rate as u64;
                 match e {
                     Error::Decode(msg) if msg.contains("Resampling failed") => {
                         Error::ResamplingRuntimeError {

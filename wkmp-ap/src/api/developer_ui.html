@@ -1657,7 +1657,7 @@
                             <div class="file-item" data-path="${escapeHtml(entry.path)}" data-action="${action}">
                                 <span class="file-icon">${icon}</span>
                                 <span class="file-name" style="color: ${color};">${escapeHtml(entry.name)}</span>
-                                <button class="enqueue-folder-btn" onclick="event.stopPropagation(); enqueueFolderRecursive('${escapeHtml(entry.path)}');" style="padding: 2px 8px; font-size: 11px; background: #10b981; color: white; border: none; border-radius: 3px; cursor: pointer;">Enqueue</button>
+                                <button class="enqueue-folder-btn" onclick="event.stopPropagation(); enqueueFolderRecursive('${escapeJs(entry.path)}');" style="padding: 2px 8px; font-size: 11px; background: #10b981; color: white; border: none; border-radius: 3px; cursor: pointer;">Enqueue</button>
                             </div>
                         `;
                     } else {
@@ -1698,6 +1698,12 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Escape string for use in JavaScript string literals (e.g., onclick attributes)
+        // Handles backslashes in Windows paths
+        function escapeJs(text) {
+            return text.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         }
 
         // **[SPEC020-MONITOR-120]** Buffer Chain Update Rate Control Functions

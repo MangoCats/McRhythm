@@ -43,13 +43,20 @@ use thiserror::Error;
 use tracing::{debug, trace};
 use uuid::Uuid;
 
-/// Default playout ring buffer capacity in stereo frames
-/// **[DBD-PARAM-070]** 661,941 samples = 15.01 seconds @ 44.1kHz
-const DEFAULT_CAPACITY: usize = 661_941;
+/// **[DBD-PARAM-070]** Default playout ring buffer capacity (661941 samples = 15.01s @ 44.1kHz)
+fn default_capacity() -> usize {
+    *wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap()
+}
 
-/// Default headroom in stereo frames
-/// **[DBD-PARAM-080]** 4410 samples = 0.1 seconds @ 44.1kHz
-const DEFAULT_HEADROOM: usize = 4410;
+/// **[DBD-PARAM-080]** Default buffer headroom (4410 samples = 0.1s @ 44.1kHz)
+fn default_headroom() -> usize {
+    *wkmp_common::params::PARAMS.playout_ringbuffer_headroom.read().unwrap()
+}
+
+/// **[DBD-PARAM-085]** Default decoder resume hysteresis (44100 samples = 1.0s @ 44.1kHz)
+fn default_resume_hysteresis() -> usize {
+    *wkmp_common::params::PARAMS.decoder_resume_hysteresis_samples.read().unwrap() as usize
+}
 
 /// Error returned when attempting to push to a full buffer
 #[derive(Debug, Error)]
@@ -199,9 +206,9 @@ impl PlayoutRingBuffer {
         resume_hysteresis: Option<usize>,
         passage_id: Option<Uuid>,
     ) -> Self {
-        let capacity = capacity.unwrap_or(DEFAULT_CAPACITY);
-        let headroom = headroom.unwrap_or(DEFAULT_HEADROOM);
-        let resume_hysteresis = resume_hysteresis.unwrap_or(44100); // 1.0 second @ 44.1kHz
+        let capacity = capacity.unwrap_or_else(default_capacity);
+        let headroom = headroom.unwrap_or_else(default_headroom);
+        let resume_hysteresis = resume_hysteresis.unwrap_or_else(default_resume_hysteresis);
 
         debug!(
             "Creating playout ring buffer: capacity={} frames ({:.2}s @ 44.1kHz), headroom={} frames, resume_hysteresis={} frames, passage_id={:?}",

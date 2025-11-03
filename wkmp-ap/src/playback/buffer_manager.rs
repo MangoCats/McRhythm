@@ -20,8 +20,10 @@ use tokio::sync::{mpsc, RwLock};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
-/// Standard working sample rate (44.1kHz)
-const STANDARD_SAMPLE_RATE: u32 = 44100;
+/// **[DBD-PARAM-020]** Read working sample rate from GlobalParams (default: 44100 Hz per SPEC016)
+fn standard_sample_rate() -> u32 {
+    *wkmp_common::params::PARAMS.working_sample_rate.read().unwrap()
+}
 
 /// [DBD-PARAM-080] Buffer headroom threshold (5 seconds = 220,500 samples @ 44.1kHz stereo)
 const BUFFER_HEADROOM_THRESHOLD: usize = 220_500;
@@ -79,9 +81,12 @@ impl BufferManager {
             buffers: Arc::new(RwLock::new(HashMap::new())),
             event_tx: Arc::new(RwLock::new(None)),
             min_buffer_threshold_ms: Arc::new(RwLock::new(3000)), // Default: 3 seconds
-            resume_hysteresis: Arc::new(RwLock::new(44100)), // Default: 1.0 second @ 44.1kHz
-            buffer_capacity: Arc::new(RwLock::new(661_941)), // Default: 15.01s @ 44.1kHz
-            buffer_headroom: Arc::new(RwLock::new(4_410)), // Default: 0.1s @ 44.1kHz
+            // **[DBD-PARAM-085]** decoder_resume_hysteresis_samples (default: 44100 = 1.0s @ 44.1kHz)
+            resume_hysteresis: Arc::new(RwLock::new(*wkmp_common::params::PARAMS.decoder_resume_hysteresis_samples.read().unwrap() as usize)),
+            // **[DBD-PARAM-070]** playout_ringbuffer_size (default: 661941 = 15.01s @ 44.1kHz)
+            buffer_capacity: Arc::new(RwLock::new(*wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap())),
+            // **[DBD-PARAM-080]** playout_ringbuffer_headroom (default: 4410 = 0.1s @ 44.1kHz)
+            buffer_headroom: Arc::new(RwLock::new(*wkmp_common::params::PARAMS.playout_ringbuffer_headroom.read().unwrap())),
             ever_played: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -315,7 +320,7 @@ impl BufferManager {
 
                     // Calculate buffer duration
                     let buffer_duration_ms = (managed.metadata.write_position as u64 * 1000)
-                        / (STANDARD_SAMPLE_RATE as u64 * 2); // /2 for stereo
+                        / (standard_sample_rate() as u64 * 2); // /2 for stereo
 
                     debug!(
                         "Buffer {} transitioned Filling → Ready (threshold reached: {} samples, {}ms)",
@@ -356,7 +361,7 @@ impl BufferManager {
 
                     // Calculate buffer duration
                     let buffer_duration_ms = (managed.metadata.write_position as u64 * 1000)
-                        / (STANDARD_SAMPLE_RATE as u64 * 2); // /2 for stereo
+                        / (standard_sample_rate() as u64 * 2); // /2 for stereo
 
                     debug!(
                         "Buffer {} transitioned Filling → Ready (threshold reached: {} samples, {}ms)",
@@ -422,7 +427,7 @@ impl BufferManager {
 
         // Convert ms to frames (stereo @ 44.1kHz)
         // Note: Buffer counts stereo frames, not individual L+R samples
-        threshold_ms as usize * STANDARD_SAMPLE_RATE as usize / 1000
+        threshold_ms as usize * standard_sample_rate() as usize / 1000
     }
 
     /// Push samples to ring buffer (decoder writes)
@@ -851,7 +856,7 @@ impl BufferManager {
         if let Some(buffer_arc) = self.get_buffer(queue_entry_id).await {
             // No lock needed - occupied() uses atomics
             let occupied_frames = buffer_arc.occupied();
-            let available_ms = (occupied_frames as u64 * 1000) / STANDARD_SAMPLE_RATE as u64;
+            let available_ms = (occupied_frames as u64 * 1000) / standard_sample_rate() as u64;
             available_ms >= min_duration_ms
         } else {
             false
@@ -934,7 +939,7 @@ impl BufferManager {
             samples_buffered: occupied,
             capacity_samples: capacity,
             duration_ms: if occupied > 0 {
-                Some((occupied as u64 * 1000) / STANDARD_SAMPLE_RATE as u64)
+                Some((occupied as u64 * 1000) / standard_sample_rate() as u64)
             } else {
                 None
             },

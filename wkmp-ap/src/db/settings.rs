@@ -287,10 +287,11 @@ pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) 
 ///
 /// # Returns
 /// Hysteresis threshold in samples (frames)
-/// Default: 44100 samples (1.0 second @ 44.1kHz) - Large gap prevents oscillation
+/// Default: GlobalParams.decoder_resume_hysteresis_samples (44100 = 1.0s @ 44.1kHz)
 /// Clamped to valid range: 882-88200 samples (0.02-2.0 seconds)
 pub async fn get_decoder_resume_hysteresis(db: &Pool<Sqlite>) -> Result<usize> {
-    Ok(load_clamped_setting(db, "decoder_resume_hysteresis_samples", 882u64, 88200u64, 44100u64).await? as usize)
+    let default = *wkmp_common::params::PARAMS.decoder_resume_hysteresis_samples.read().unwrap();
+    Ok(load_clamped_setting(db, "decoder_resume_hysteresis_samples", 882u64, 88200u64, default).await? as usize)
 }
 
 /// Set decoder resume hysteresis in samples
@@ -317,8 +318,9 @@ pub async fn load_mixer_thread_config(db: &Pool<Sqlite>) -> Result<MixerThreadCo
     // [DBD-PARAM-111] Load mixer check interval from database (in milliseconds)
     // Clamp to valid range: 1-100ms
     // Too low = async overhead dominates, too high = buffer underruns
-    // Default: 10ms - Conservative value for VeryHigh stability confidence (empirically tuned)
-    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, 10u64).await?;
+    // Default: GlobalParams.mixer_check_interval_ms (10ms) - VeryHigh stability confidence
+    let default = *wkmp_common::params::PARAMS.mixer_check_interval_ms.read().unwrap();
+    let check_interval_ms = load_clamped_setting(db, "mixer_check_interval_ms", 1u64, 100u64, default).await?;
 
     // Convert milliseconds to microseconds for tokio::time::interval
     let check_interval_us = check_interval_ms * 1000;
@@ -476,10 +478,11 @@ pub async fn load_maximum_decode_streams(db: &Pool<Sqlite>) -> Result<usize> {
 /// **[DBD-PARAM-088]** Minimum buffer samples required before mixer starts playback
 ///
 /// # Returns
-/// Number of samples (default: 44100 = 1.0 second @ 44.1kHz)
+/// Number of samples (default: GlobalParams.mixer_min_start_level = 22050 = 0.5s @ 44.1kHz)
 /// Clamped to valid range: 8820-220500 samples (0.2-5.0 seconds @ 44.1kHz)
 pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
-    load_clamped_setting(db, "mixer_min_start_level", 8820usize, 220500usize, 44100usize).await
+    let default = *wkmp_common::params::PARAMS.mixer_min_start_level.read().unwrap();
+    load_clamped_setting(db, "mixer_min_start_level", 8820usize, 220500usize, default).await
 }
 
 /// Load audio buffer size from database
@@ -487,31 +490,44 @@ pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
 /// **[DBD-PARAM-110]** Audio output buffer size in frames per callback
 ///
 /// # Returns
-/// Buffer size in frames (default: 2208 - empirically tuned for stability)
+/// Buffer size in frames (default: GlobalParams.audio_buffer_size = 2208 = 50.1ms @ 44.1kHz)
 /// Clamped to valid range: 64-65536 frames
 /// - Smaller buffers: Lower latency but higher CPU usage
 /// - Larger buffers: Higher latency but more stable on slow systems
 /// - Default (2208 frames = 50.1ms) provides VeryHigh stability confidence
 pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
-    load_clamped_setting(db, "audio_buffer_size", 64, 65536, 2208).await
+    let default = *wkmp_common::params::PARAMS.audio_buffer_size.read().unwrap();
+    load_clamped_setting(db, "audio_buffer_size", 64, 65536, default).await
 }
 
 /// Load playout ring buffer capacity from database
 ///
 /// **[DBD-PARAM-070]** Playout ring buffer capacity in stereo frames
-/// - Default: 661,941 frames (15.01 seconds @ 44.1kHz stereo)
+/// - Default: GlobalParams.playout_ringbuffer_size (661941 frames = 15.01s @ 44.1kHz)
 /// - Range: 88,200 to 2,646,000 frames (2-60 seconds @ 44.1kHz)
 pub async fn load_playout_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
-    load_clamped_setting(db, "playout_ringbuffer_capacity", 88_200, 2_646_000, 661_941).await
+    let default = *wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap();
+    load_clamped_setting(db, "playout_ringbuffer_capacity", 88_200, 2_646_000, default).await
 }
 
 /// Load playout ring buffer headroom threshold from database
 ///
 /// **[DBD-PARAM-080]** Playout ring buffer headroom threshold in stereo frames
-/// - Default: 4,410 frames (0.1 seconds @ 44.1kHz stereo)
+/// - Default: GlobalParams.playout_ringbuffer_headroom (4410 frames = 0.1s @ 44.1kHz)
 /// - Range: 1,000 to 44,100 frames (0.023-1.0 seconds @ 44.1kHz)
 pub async fn load_playout_ringbuffer_headroom(db: &Pool<Sqlite>) -> Result<usize> {
-    load_clamped_setting(db, "playout_ringbuffer_headroom", 1_000, 44_100, 4_410).await
+    let default = *wkmp_common::params::PARAMS.playout_ringbuffer_headroom.read().unwrap();
+    load_clamped_setting(db, "playout_ringbuffer_headroom", 1_000, 44_100, default).await
+}
+
+/// Load output ring buffer capacity from database
+///
+/// **[DBD-PARAM-030]** Output ring buffer capacity (mixer → audio callback)
+/// - Default: GlobalParams.output_ringbuffer_size (8192 frames = 186ms @ 44.1kHz)
+/// - Range: 2,048 to 262,144 frames (~46ms to 5.9s @ 44.1kHz)
+pub async fn load_output_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
+    let default = *wkmp_common::params::PARAMS.output_ringbuffer_size.read().unwrap();
+    load_clamped_setting(db, "output_ringbuffer_capacity", 2_048, 262_144, default).await
 }
 
 #[cfg(test)]

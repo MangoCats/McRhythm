@@ -13,12 +13,13 @@ use rubato::{
 };
 use tracing::debug;
 
-/// Standard output sample rate for all audio
-/// **[SSD-FBUF-020]**
+/// **[DBD-PARAM-020]** Read working sample rate from GlobalParams (default: 44100 Hz per SPEC016)
 ///
-/// **Phase 4:** Target sample rate constant reserved for future configuration flexibility
+/// **Phase 4:** Target sample rate function provides dynamic access to GlobalParams
 #[allow(dead_code)]
-pub const TARGET_SAMPLE_RATE: u32 = 44100;
+pub fn target_sample_rate() -> u32 {
+    *wkmp_common::params::PARAMS.working_sample_rate.read().unwrap()
+}
 
 /// Stateful audio resampler that maintains filter state across chunks
 ///
@@ -111,6 +112,7 @@ impl StatefulResampler {
     /// # Notes
     /// - Filter state is preserved between calls for seamless streaming
     /// - **Input chunk size must match the chunk_size specified in `new()`** for Active resamplers
+    ///   - If input is smaller (e.g., final chunk), it will be zero-padded automatically
     /// - PassThrough mode accepts any chunk size
     pub fn process_chunk(&mut self, input: &[f32]) -> Result<Vec<f32>> {
         match self {
@@ -121,10 +123,30 @@ impl StatefulResampler {
             Self::Active {
                 resampler,
                 channels,
+                chunk_size,
                 ..
             } => {
+                // Calculate expected input size (interleaved)
+                let expected_samples = *chunk_size * (*channels as usize);
+                let actual_samples = input.len();
+
+                // Handle short chunks (e.g., final chunk of file) by padding with zeros
+                let padded_input = if actual_samples < expected_samples {
+                    debug!(
+                        "Short chunk detected: {} samples (expected {}), padding with {} zeros",
+                        actual_samples,
+                        expected_samples,
+                        expected_samples - actual_samples
+                    );
+                    let mut padded = input.to_vec();
+                    padded.resize(expected_samples, 0.0);
+                    padded
+                } else {
+                    input.to_vec()
+                };
+
                 // De-interleave samples for rubato
-                let planar_input = Resampler::deinterleave(input, *channels);
+                let planar_input = Resampler::deinterleave(&padded_input, *channels);
 
                 // Process through stateful resampler
                 let planar_output = resampler
@@ -132,7 +154,25 @@ impl StatefulResampler {
                     .map_err(|e| Error::Decode(format!("Resampling failed: {}", e)))?;
 
                 // Re-interleave output
-                Ok(Resampler::interleave(planar_output))
+                let mut interleaved_output = Resampler::interleave(planar_output);
+
+                // If we padded input, trim output proportionally
+                if actual_samples < expected_samples {
+                    let output_ratio = resampler.output_frames_next() as f64 / *chunk_size as f64;
+                    let expected_output_frames = ((actual_samples / (*channels as usize)) as f64 * output_ratio).ceil() as usize;
+                    let expected_output_samples = expected_output_frames * (*channels as usize);
+
+                    if interleaved_output.len() > expected_output_samples {
+                        debug!(
+                            "Trimming padded output: {} samples -> {} samples",
+                            interleaved_output.len(),
+                            expected_output_samples
+                        );
+                        interleaved_output.truncate(expected_output_samples);
+                    }
+                }
+
+                Ok(interleaved_output)
             }
         }
     }
@@ -148,7 +188,7 @@ impl StatefulResampler {
     #[allow(dead_code)]
     pub fn output_rate(&self) -> u32 {
         match self {
-            Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
+            Self::PassThrough { .. } => target_sample_rate(),
             Self::Active { output_rate, .. } => *output_rate,
         }
     }
@@ -159,7 +199,7 @@ impl StatefulResampler {
     #[allow(dead_code)]
     pub fn input_rate(&self) -> u32 {
         match self {
-            Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
+            Self::PassThrough { .. } => target_sample_rate(),
             Self::Active { input_rate, .. } => *input_rate,
         }
     }
@@ -190,7 +230,7 @@ impl Resampler {
     /// **Phase 4:** One-shot resampling reserved for future features (superseded by StatefulResampler)
     #[allow(dead_code)]
     pub fn resample(input: &[f32], input_rate: u32, channels: u16) -> Result<Vec<f32>> {
-        let output_rate = TARGET_SAMPLE_RATE;
+        let output_rate = target_sample_rate();
 
         // If already at target rate, return copy
         if input_rate == output_rate {

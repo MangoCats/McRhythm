@@ -20,7 +20,7 @@
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 016 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 019 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 
@@ -126,6 +126,9 @@
 | PLAN013 | chromaprint_fingerprinting | 2025-10-30 | PLAN | Auto | Chromaprint fingerprinting implementation for wkmp-ai (fixes 100% AcoustID lookup failures) |
 | PLAN014 | mixer_refactoring | 2025-10-30 | PLAN | Auto | Mixer refactoring to resolve architectural violations and eliminate code duplication |
 | PLAN015 | database_review_wkmp_dr | 2025-11-01 | PLAN | Manual | Implementation plan for wkmp-dr (Database Review) module - read-only database inspection tool |
+| PLAN016 | engine_refactoring | 2025-11-01 | PLAN | Auto | Engine refactoring - decompose monolithic engine.rs (4251 lines) into modular directory structure |
+| PLAN017 | spec017_compliance | 2025-11-02 | PLAN | Auto | SPEC017 compliance remediation - tick-based timing display and API documentation |
+| PLAN018 | centralized_global_parameters | 2025-11-02 | PLAN | Auto | Centralized global parameters implementation (SPEC016 database-backed parameters) |
 
 <!-- /doc-name workflow will append entries below -->
 
@@ -145,7 +148,7 @@
 | RPT | 0 | New |
 | DWI | 0 | New |
 | TMPL | 0 | New |
-| PLAN | 10 | 2025-11-01 |
+| PLAN | 13 | 2025-11-02 |
 | LOG | 0 | New |
 | REG | 2 | 2025-10-25 |
 
