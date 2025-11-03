@@ -21,7 +21,35 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-11-03 10:04:56 -0500
+### 2025-11-03 10:13:02 -0500
+
+**Archive PLAN009: Engine Module Extraction Plan (Superseded)**
+
+Archived PLAN009 engine module extraction plan (1 file, 540 lines) as it was superseded by PLAN016. Both plans targeted the same objective: refactoring monolithic engine.rs into smaller, maintainable modules.
+
+**Timeline:**
+- PLAN009 created October 29, 2025 (planning only, phases 1-3)
+- PLAN016 created November 1, 2025 (full 8-phase /plan workflow)
+- PLAN016 implemented November 1, 2025 (6 hours, all 219 tests passing)
+
+**Key Differences:**
+- PLAN009: Lightweight extraction plan targeting 300-500 line modules
+- PLAN016: Comprehensive refactoring with test specifications, risk analysis, traceability matrix
+- PLAN009: Based on PLAN008 deferred items
+- PLAN016: Based on SPEC024 formal technical debt specification
+
+**Result:** Same goal achieved via PLAN016's more comprehensive approach. PLAN009 preserved as historical record documenting evolution from initial concept to production implementation.
+
+**Archival Changes:**
+- Removed wip/PLAN009_engine_module_extraction/ (1 file: 00_PLAN_SUMMARY.md)
+- Updated workflows/REG002_archive_index.md with retrieval command
+- Archive count: 23 documents totaling ~19,781 lines (540 from PLAN009)
+
+**Traceability:** Documents planning evolution for REQ-DEBT-QUALITY-002 (engine.rs decomposition)
+
+---
+
+### 2025-11-03 10:04:56 -0500 | Hash: eff2f553eb5b9872eb89383c7c75633c5759a250
 
 **Archive PLAN016: Engine Refactoring Implementation Plan**
 
