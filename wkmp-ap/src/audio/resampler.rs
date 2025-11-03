@@ -13,12 +13,13 @@ use rubato::{
 };
 use tracing::debug;
 
-/// Standard output sample rate for all audio
-/// **[SSD-FBUF-020]**
+/// **[DBD-PARAM-020]** Read working sample rate from GlobalParams (default: 44100 Hz per SPEC016)
 ///
-/// **Phase 4:** Target sample rate constant reserved for future configuration flexibility
+/// **Phase 4:** Target sample rate function provides dynamic access to GlobalParams
 #[allow(dead_code)]
-pub const TARGET_SAMPLE_RATE: u32 = 44100;
+pub fn target_sample_rate() -> u32 {
+    *wkmp_common::params::PARAMS.working_sample_rate.read().unwrap()
+}
 
 /// Stateful audio resampler that maintains filter state across chunks
 ///
@@ -187,7 +188,7 @@ impl StatefulResampler {
     #[allow(dead_code)]
     pub fn output_rate(&self) -> u32 {
         match self {
-            Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
+            Self::PassThrough { .. } => target_sample_rate(),
             Self::Active { output_rate, .. } => *output_rate,
         }
     }
@@ -198,7 +199,7 @@ impl StatefulResampler {
     #[allow(dead_code)]
     pub fn input_rate(&self) -> u32 {
         match self {
-            Self::PassThrough { .. } => TARGET_SAMPLE_RATE,
+            Self::PassThrough { .. } => target_sample_rate(),
             Self::Active { input_rate, .. } => *input_rate,
         }
     }
@@ -229,7 +230,7 @@ impl Resampler {
     /// **Phase 4:** One-shot resampling reserved for future features (superseded by StatefulResampler)
     #[allow(dead_code)]
     pub fn resample(input: &[f32], input_rate: u32, channels: u16) -> Result<Vec<f32>> {
-        let output_rate = TARGET_SAMPLE_RATE;
+        let output_rate = target_sample_rate();
 
         // If already at target rate, return copy
         if input_rate == output_rate {
