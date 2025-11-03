@@ -81,7 +81,8 @@ impl BufferManager {
             buffers: Arc::new(RwLock::new(HashMap::new())),
             event_tx: Arc::new(RwLock::new(None)),
             min_buffer_threshold_ms: Arc::new(RwLock::new(3000)), // Default: 3 seconds
-            resume_hysteresis: Arc::new(RwLock::new(44100)), // Default: 1.0 second @ 44.1kHz
+            // **[DBD-PARAM-085]** decoder_resume_hysteresis_samples (default: 44100 = 1.0s @ 44.1kHz)
+            resume_hysteresis: Arc::new(RwLock::new(*wkmp_common::params::PARAMS.decoder_resume_hysteresis_samples.read().unwrap() as usize)),
             // **[DBD-PARAM-070]** playout_ringbuffer_size (default: 661941 = 15.01s @ 44.1kHz)
             buffer_capacity: Arc::new(RwLock::new(*wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap())),
             // **[DBD-PARAM-080]** playout_ringbuffer_headroom (default: 4410 = 0.1s @ 44.1kHz)

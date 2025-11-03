@@ -53,6 +53,11 @@ fn default_headroom() -> usize {
     *wkmp_common::params::PARAMS.playout_ringbuffer_headroom.read().unwrap()
 }
 
+/// **[DBD-PARAM-085]** Default decoder resume hysteresis (44100 samples = 1.0s @ 44.1kHz)
+fn default_resume_hysteresis() -> usize {
+    *wkmp_common::params::PARAMS.decoder_resume_hysteresis_samples.read().unwrap() as usize
+}
+
 /// Error returned when attempting to push to a full buffer
 #[derive(Debug, Error)]
 #[error("Buffer full: cannot push frame (capacity: {capacity}, occupied: {occupied})")]
@@ -203,7 +208,7 @@ impl PlayoutRingBuffer {
     ) -> Self {
         let capacity = capacity.unwrap_or_else(default_capacity);
         let headroom = headroom.unwrap_or_else(default_headroom);
-        let resume_hysteresis = resume_hysteresis.unwrap_or(44100); // 1.0 second @ 44.1kHz
+        let resume_hysteresis = resume_hysteresis.unwrap_or_else(default_resume_hysteresis);
 
         debug!(
             "Creating playout ring buffer: capacity={} frames ({:.2}s @ 44.1kHz), headroom={} frames, resume_hysteresis={} frames, passage_id={:?}",

@@ -287,10 +287,11 @@ pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) 
 ///
 /// # Returns
 /// Hysteresis threshold in samples (frames)
-/// Default: 44100 samples (1.0 second @ 44.1kHz) - Large gap prevents oscillation
+/// Default: GlobalParams.decoder_resume_hysteresis_samples (44100 = 1.0s @ 44.1kHz)
 /// Clamped to valid range: 882-88200 samples (0.02-2.0 seconds)
 pub async fn get_decoder_resume_hysteresis(db: &Pool<Sqlite>) -> Result<usize> {
-    Ok(load_clamped_setting(db, "decoder_resume_hysteresis_samples", 882u64, 88200u64, 44100u64).await? as usize)
+    let default = *wkmp_common::params::PARAMS.decoder_resume_hysteresis_samples.read().unwrap();
+    Ok(load_clamped_setting(db, "decoder_resume_hysteresis_samples", 882u64, 88200u64, default).await? as usize)
 }
 
 /// Set decoder resume hysteresis in samples
