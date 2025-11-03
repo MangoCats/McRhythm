@@ -21,7 +21,28 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-11-03 09:39:23 -0500
+### 2025-11-03 10:04:56 -0500
+
+**Archive PLAN016: Engine Refactoring Implementation Plan**
+
+Archived PLAN016 engine refactoring plan (14 files, 4,941 lines) after successful implementation completion. The plan documented the refactoring of monolithic engine.rs (4,251 lines) into a modular directory structure with 4 modules (mod.rs, core.rs, queue.rs, diagnostics.rs), achieving improved code organization while maintaining 100% API stability and test coverage.
+
+**Implementation Summary:**
+- Completed November 1, 2025 in 6 hours (under 8-12 hour estimate)
+- All 219 tests passing (zero API changes verified via compilation)
+- Implementation report preserved in wkmp-ap/PLAN016_implementation_report.md
+- Modular structure: 19 lines (mod.rs), 2,743 lines (core.rs), 511 lines (queue.rs), 1,051 lines (diagnostics.rs)
+
+**Archival Changes:**
+- Removed wip/PLAN016_engine_refactoring/ (14 files: summary, specs, tests, increments, risks, estimates)
+- Updated workflows/REG002_archive_index.md with retrieval command
+- Archive count: 22 documents totaling ~19,241 lines (4,941 from PLAN016)
+
+**Traceability:** Implements REQ-DEBT-QUALITY-002 (engine.rs decomposition) per SPEC024 technical debt remediation
+
+---
+
+### 2025-11-03 09:39:23 -0500 | Hash: d86f4d49d43ee7e16c8e504e253727ac0293dfc2
 
 **PLAN019: Centralized GlobalParams Metadata Validation (DRY Implementation)**
 
