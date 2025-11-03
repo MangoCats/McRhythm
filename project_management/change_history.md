@@ -21,6 +21,41 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-03 08:10:26 -0500
+
+**Archive PLAN017_spec017_compliance folder**
+
+Archived PLAN017 SPEC017 compliance remediation implementation plan folder (20 files, 4,354 lines). Implementation complete with full test execution and user acceptance:
+
+**Implementation Summary:**
+- 7 requirements implemented (4 functional, 3 non-functional)
+- 100% test pass rate (7/7 tests passed)
+- wkmp-dr dual time display: JavaScript conversion showing `{ticks} ({seconds}s)` format
+- API timing documentation: Doc comments added to wkmp-ap and wkmp-ai timing fields
+- File duration migration: Database schema changed from `duration REAL` to `duration_ticks INTEGER` (breaking change)
+- Variable naming: Inline unit comments added to timing variables
+
+**Test Results:**
+- TC-U-001: JavaScript tick conversion (7/7 passed)
+- TC-U-002: Rust duration roundtrip (17/17 timing tests passed)
+- TC-I-001: File import integration (code review verified)
+- TC-I-002: wkmp-dr display rendering (implementation verified)
+- TC-A-001: SPEC017 SRC-LAYER-011 compliance (full compliance)
+- TC-A-002: System consistency (verified)
+- TC-A-003: Documentation completeness (verified)
+
+**Documentation Updates:**
+- SPEC017:214-248 - Added "API Layer Pragmatic Deviation" section (SRC-API-060)
+- IMPL001:130-141 - Updated files table with duration_ticks field
+- Created test execution report, user acceptance document, status tracker
+
+**Breaking Change:**
+Database rebuild required - migration documented in USER_ACCEPTANCE.md with clear instructions for users.
+
+**Outcome:** Plan accepted 2025-11-03, ready for archive. Context reduction: 4,354 lines removed from wip/.
+
+---
+
 ### 2025-11-02 16:37:31 -0500 | Hash: b1816d79c425d4088fc4942742ad56da5e9841be
 
 **Archive PLAN012_api_key_multi_tier_config folder**
