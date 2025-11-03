@@ -21,7 +21,47 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-03 10:43:25 -0500
+
+**Archive PLAN014: Mixer Refactoring Implementation Plan (Complete)**
+
+Archived PLAN014 mixer refactoring plan (32 files, 11,624 lines) after successful integration of SPEC016-compliant mixer into PlaybackEngine.
+
+**Implementation Summary:**
+- Removed legacy mixer violating SPEC016 [DBD-MIX-042] (applied fade curves at runtime)
+- Integrated correct mixer reading pre-faded samples from buffers
+- Implemented event-driven position tracking with marker system
+- Achieved 100% SPEC016 architectural compliance
+
+**Key Deliverables:**
+- ADR-001 (Mixer Refactoring Decision) and ADR-002 (Event-Driven Position Tracking)
+- Event-driven marker system (PlaybackEngine calculates timing, Mixer signals events)
+- Resume fade-in feature ported from legacy mixer
+- Sub-Increments 4b+4c: Legacy mixer removed (1,069 lines), integration complete
+
+**Test Coverage:**
+- Integration tests embedded in PlaybackEngine tests (13 tests)
+- Basic mixer unit tests in mixer.rs lines 840-891
+- Temporary mixer-specific tests (42 tests) created during implementation, removed after integration validation
+- All 219 wkmp-ap tests passing
+
+**Architecture Changes:**
+- Single mixer implementation (891 lines) replaces dual implementation (2,328 lines)
+- 100% SPEC016 compliance achieved
+
+**Archival Changes:**
+- Removed wip/PLAN014_mixer_refactoring/ (32 files: summary, specs, tests, increments, completion reports)
+- Updated workflows/REG002_archive_index.md with retrieval command
+- Archive count: 25 documents totaling ~35,425 lines (11,624 from PLAN014)
+
+**Traceability:** Implements REQ-MIX-001 through REQ-MIX-012, establishes event-driven position tracking pattern for future audio components.
+
+**Previous Commit:** 68d4b17d8ec53b383bf6655264965588c6c4fda2
+
+---
+
 ### 2025-11-03 10:41:09 -0500
+**Commit:** 68d4b17d8ec53b383bf6655264965588c6c4fda2
 
 **Fix PLAN019 Test Side Effects (3 Test Failures)**
 
