@@ -489,13 +489,14 @@ pub async fn load_mixer_min_start_level(db: &Pool<Sqlite>) -> Result<usize> {
 /// **[DBD-PARAM-110]** Audio output buffer size in frames per callback
 ///
 /// # Returns
-/// Buffer size in frames (default: 2208 - empirically tuned for stability)
+/// Buffer size in frames (default: GlobalParams.audio_buffer_size = 2208 = 50.1ms @ 44.1kHz)
 /// Clamped to valid range: 64-65536 frames
 /// - Smaller buffers: Lower latency but higher CPU usage
 /// - Larger buffers: Higher latency but more stable on slow systems
 /// - Default (2208 frames = 50.1ms) provides VeryHigh stability confidence
 pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
-    load_clamped_setting(db, "audio_buffer_size", 64, 65536, 2208).await
+    let default = *wkmp_common::params::PARAMS.audio_buffer_size.read().unwrap();
+    load_clamped_setting(db, "audio_buffer_size", 64, 65536, default).await
 }
 
 /// Load playout ring buffer capacity from database
