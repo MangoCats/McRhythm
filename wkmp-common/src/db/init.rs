@@ -231,8 +231,10 @@ async fn ensure_setting(pool: &SqlitePool, key: &str, default_value: &str) -> Re
 
     if !exists {
         // Setting doesn't exist - create it
+        // Use INSERT OR IGNORE to handle concurrent initialization race conditions
+        // Multiple threads may pass the exists check simultaneously
         sqlx::query(
-            "INSERT INTO settings (key, value) VALUES (?, ?)"
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)"
         )
         .bind(key)
         .bind(default_value)

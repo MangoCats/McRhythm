@@ -306,6 +306,12 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_backup_file_operations() {
+        // Ensure clean state - remove any stale backup file from previous test runs
+        cleanup_backup_file();
+
+        // Small delay to ensure OS completes file deletion
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
         let backup = SettingsBackup {
             mixer_check_interval_ms: 10,
             audio_buffer_size: 1024,
