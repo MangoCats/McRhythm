@@ -263,7 +263,8 @@ impl Mixer {
             last_sample_right: 0.0,
             // **[DBD-PARAM-090]** Read pause decay factor from GlobalParams (default: 0.95 per SPEC016)
             pause_decay_factor: *wkmp_common::params::PARAMS.pause_decay_factor.read().unwrap() as f32,
-            pause_decay_floor: 0.0001778, // per SPEC016 DBD-PARAM-100
+            // **[DBD-PARAM-100]** Read pause decay floor from GlobalParams (default: 0.0001778 per SPEC016)
+            pause_decay_floor: *wkmp_common::params::PARAMS.pause_decay_floor.read().unwrap() as f32,
             resume_state: None,
             markers: BinaryHeap::new(),
             current_tick: 0,
