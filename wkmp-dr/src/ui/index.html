@@ -70,11 +70,35 @@
             font-size: 26px;
             margin-bottom: 5px;
             color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .subtitle {
             color: var(--secondary-color);
             font-size: 16px;
+        }
+
+        .connection-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-connected {
+            background: #10b981;
+            color: #fff;
+        }
+        .status-connecting {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .status-disconnected {
+            background: #ef4444;
+            color: #fff;
         }
 
         .controls {
@@ -406,7 +430,10 @@
         <div class="container">
             <div class="header-content">
                 <div class="header-left">
-                    <h1>WKMP Database Review</h1>
+                    <h1>
+                        WKMP Database Review
+                        <span class="connection-status" id="connection-status">Connecting...</span>
+                    </h1>
                     <p class="subtitle">Read-only database inspection tool</p>
                 </div>
                 <div class="header-right" id="buildInfo">

@@ -768,7 +768,43 @@ async function loadBuildInfo() {
     }
 }
 
+// Connection status management
+let eventSource = null;
+
+function updateConnectionStatus(status) {
+    const statusEl = document.getElementById('connection-status');
+    statusEl.className = 'connection-status status-' + status;
+    statusEl.textContent = status === 'connected' ? 'Connected' :
+                          status === 'connecting' ? 'Connecting...' : 'Disconnected';
+}
+
+function connectSSE() {
+    console.log('Connecting to SSE at /api/events');
+    updateConnectionStatus('connecting');
+
+    eventSource = new EventSource('/api/events');
+
+    eventSource.onopen = () => {
+        console.log('SSE connection opened');
+        updateConnectionStatus('connected');
+    };
+
+    eventSource.addEventListener('ConnectionStatus', (e) => {
+        console.log('ConnectionStatus event:', e.data);
+        if (e.data === 'connected') {
+            updateConnectionStatus('connected');
+        }
+    });
+
+    eventSource.onerror = (err) => {
+        console.error('SSE connection error:', err);
+        updateConnectionStatus('disconnected');
+        // EventSource automatically reconnects
+    };
+}
+
 // Initialize
 updateViewControls();
 renderFavorites();
 loadBuildInfo();
+connectSSE();

@@ -50,6 +50,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/", get(api::serve_index))
         .route("/static/app.js", get(api::serve_app_js))
         .route("/api/buildinfo", get(api::get_build_info))
+        .route("/api/events", get(api::event_stream))
         .route("/api/semantics/:table_name", get(api::get_table_semantics))
         .merge(api::health_routes());
 

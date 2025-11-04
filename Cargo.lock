@@ -4645,9 +4645,11 @@ name = "wkmp-dr"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "axum",
  "chrono",
  "clap",
+ "futures",
  "serde",
  "serde_json",
  "sqlx",

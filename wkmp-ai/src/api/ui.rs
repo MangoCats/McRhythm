@@ -94,10 +94,33 @@ async fn root_page() -> impl IntoResponse {
             font-size: 26px;
             margin-bottom: 5px;
             color: #4a9eff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }}
         .subtitle {{
             color: #888;
             font-size: 16px;
+        }}
+        .connection-status {{
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }}
+        .status-connected {{
+            background: #10b981;
+            color: #fff;
+        }}
+        .status-connecting {{
+            background: #f59e0b;
+            color: #fff;
+        }}
+        .status-disconnected {{
+            background: #ef4444;
+            color: #fff;
         }}
         .content {{
             padding: 0 20px;
@@ -130,7 +153,10 @@ async fn root_page() -> impl IntoResponse {
     <header>
         <div class="header-content">
             <div class="header-left">
-                <h1>WKMP Audio Import</h1>
+                <h1>
+                    WKMP Audio Import
+                    <span class="connection-status" id="connection-status">Connecting...</span>
+                </h1>
                 <p class="subtitle">Music collection import and identification</p>
             </div>
             <div class="header-right">
@@ -164,6 +190,30 @@ async fn root_page() -> impl IntoResponse {
         <a href=\"/settings\" class=\"button\">Settings</a>
         <a href=\"http://localhost:5725/\" target=\"_blank\" class=\"button\">Database Review</a>
     </p>
+    <script>
+        // Connect to SSE for connection status monitoring
+        function updateConnectionStatus(status) {{
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {{
+                statusEl.className = 'connection-status status-' + status;
+                statusEl.textContent = status === 'connected' ? 'Connected' :
+                                      status === 'connecting' ? 'Connecting...' : 'Disconnected';
+            }}
+        }}
+
+        updateConnectionStatus('connecting');
+        const eventSource = new EventSource('/events');
+
+        eventSource.onopen = () => {{
+            console.log('SSE connection opened');
+            updateConnectionStatus('connected');
+        }};
+
+        eventSource.onerror = (err) => {{
+            console.error('SSE connection error:', err);
+            updateConnectionStatus('disconnected');
+        }};
+    </script>
     </div>
 </body>
 </html>",
@@ -230,10 +280,33 @@ async fn import_progress_page() -> impl IntoResponse {
             font-size: 26px;
             margin-bottom: 5px;
             color: #4a9eff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }}
         .subtitle {{
             color: #888;
             font-size: 16px;
+        }}
+        .connection-status {{
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }}
+        .status-connected {{
+            background: #10b981;
+            color: #fff;
+        }}
+        .status-connecting {{
+            background: #f59e0b;
+            color: #fff;
+        }}
+        .status-disconnected {{
+            background: #ef4444;
+            color: #fff;
         }}
         .content {{
             padding: 0 20px;
@@ -478,7 +551,10 @@ async fn import_progress_page() -> impl IntoResponse {
     <header>
         <div class="header-content">
             <div class="header-left">
-                <h1>WKMP Audio Import</h1>
+                <h1>
+                    WKMP Audio Import
+                    <span class="connection-status" id="connection-status">Connecting...</span>
+                </h1>
                 <p class="subtitle">Live import progress and status</p>
             </div>
             <div class="header-right">
@@ -616,10 +692,33 @@ async fn segment_editor_page() -> impl IntoResponse {
             font-size: 26px;
             margin-bottom: 5px;
             color: #4a9eff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }}
         .subtitle {{
             color: #888;
             font-size: 16px;
+        }}
+        .connection-status {{
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }}
+        .status-connected {{
+            background: #10b981;
+            color: #fff;
+        }}
+        .status-connecting {{
+            background: #f59e0b;
+            color: #fff;
+        }}
+        .status-disconnected {{
+            background: #ef4444;
+            color: #fff;
         }}
         .content {{
             padding: 0 20px;
@@ -649,7 +748,10 @@ async fn segment_editor_page() -> impl IntoResponse {
     <header>
         <div class="header-content">
             <div class="header-left">
-                <h1>WKMP Audio Import</h1>
+                <h1>
+                    WKMP Audio Import
+                    <span class="connection-status" id="connection-status">Connecting...</span>
+                </h1>
                 <p class="subtitle">Passage boundary segment editor</p>
             </div>
             <div class="header-right">
@@ -685,6 +787,30 @@ async fn segment_editor_page() -> impl IntoResponse {
 
         console.log('Segment editor loaded (Canvas API ready)');
         // TODO: Implement waveform rendering and boundary markers
+    </script>
+    <script>
+        // Connect to SSE for connection status monitoring
+        function updateConnectionStatus(status) {{
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {{
+                statusEl.className = 'connection-status status-' + status;
+                statusEl.textContent = status === 'connected' ? 'Connected' :
+                                      status === 'connecting' ? 'Connecting...' : 'Disconnected';
+            }}
+        }}
+
+        updateConnectionStatus('connecting');
+        const eventSource = new EventSource('/events');
+
+        eventSource.onopen = () => {{
+            console.log('SSE connection opened');
+            updateConnectionStatus('connected');
+        }};
+
+        eventSource.onerror = (err) => {{
+            console.error('SSE connection error:', err);
+            updateConnectionStatus('disconnected');
+        }};
     </script>
     </div>
 </body>
@@ -750,10 +876,33 @@ async fn import_complete_page() -> impl IntoResponse {
             font-size: 26px;
             margin-bottom: 5px;
             color: #4a9eff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }}
         .subtitle {{
             color: #888;
             font-size: 16px;
+        }}
+        .connection-status {{
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }}
+        .status-connected {{
+            background: #10b981;
+            color: #fff;
+        }}
+        .status-connecting {{
+            background: #f59e0b;
+            color: #fff;
+        }}
+        .status-disconnected {{
+            background: #ef4444;
+            color: #fff;
         }}
         .content {{
             padding: 40px 20px;
@@ -788,7 +937,10 @@ async fn import_complete_page() -> impl IntoResponse {
     <header>
         <div class="header-content">
             <div class="header-left">
-                <h1>WKMP Audio Import</h1>
+                <h1>
+                    WKMP Audio Import
+                    <span class="connection-status" id="connection-status">Connecting...</span>
+                </h1>
                 <p class="subtitle">Import workflow complete</p>
             </div>
             <div class="header-right">
@@ -807,6 +959,30 @@ async fn import_complete_page() -> impl IntoResponse {
         <a href="http://localhost:5720" class="button">Return to wkmp-ui</a>
         <a href="/" class="button">Start Another Import</a>
     </div>
+    <script>
+        // Connect to SSE for connection status monitoring
+        function updateConnectionStatus(status) {{
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {{
+                statusEl.className = 'connection-status status-' + status;
+                statusEl.textContent = status === 'connected' ? 'Connected' :
+                                      status === 'connecting' ? 'Connecting...' : 'Disconnected';
+            }}
+        }}
+
+        updateConnectionStatus('connecting');
+        const eventSource = new EventSource('/events');
+
+        eventSource.onopen = () => {{
+            console.log('SSE connection opened');
+            updateConnectionStatus('connected');
+        }};
+
+        eventSource.onerror = (err) => {{
+            console.error('SSE connection error:', err);
+            updateConnectionStatus('disconnected');
+        }};
+    </script>
     </div>
 </body>
 </html>

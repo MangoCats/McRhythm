@@ -13,6 +13,40 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 use wkmp_common::events::WkmpEvent;
 
+/// GET /events - SSE event stream for general connection status
+///
+/// **[AIA-SSE-020]** Connection status monitoring
+///
+/// Streams heartbeat events for connection status monitoring
+pub async fn event_stream(
+    State(_state): State<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    info!("New SSE client connected to general events");
+
+    // Create stream that sends periodic status updates
+    let stream = async_stream::stream! {
+        info!("SSE: General event stream started");
+
+        // Send initial connected status
+        yield Ok(Event::default()
+            .event("ConnectionStatus")
+            .data("connected"));
+
+        loop {
+            // Heartbeat every 15 seconds
+            tokio::time::sleep(Duration::from_secs(15)).await;
+            debug!("SSE: Sending heartbeat");
+            yield Ok(Event::default().comment("heartbeat"));
+        }
+    };
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("heartbeat")
+    )
+}
+
 /// GET /import/events - SSE event stream for import progress
 ///
 /// **[AIA-MS-010]** Real-time progress updates for import workflow
