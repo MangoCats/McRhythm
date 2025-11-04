@@ -10,40 +10,51 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #1a1a1a;
             color: #e0e0e0;
-            padding: 8px;
             line-height: 1.4;
             min-height: 100vh;
             overflow-y: auto;
         }
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        h1 {
-            color: #4a9eff;
+        header {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            padding: 20px;
             margin-bottom: 8px;
-            font-size: 24px;
+        }
+        .header-content {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
         }
         .header-left {
+            flex: 1;
+        }
+        h1 {
+            font-size: 26px;
+            margin-bottom: 5px;
+            color: #4a9eff;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .header-center {
-            flex: 1;
-            text-align: center;
+        .subtitle {
             color: #888;
             font-size: 16px;
         }
         .header-right {
-            color: #666;
-            font-size: 16px;
-            font-family: 'Courier New', monospace;
             text-align: right;
+            font-size: 16px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+        }
+        .build-info-line {
+            margin-bottom: 1px;
+        }
+        .container {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         .grid {
             display: grid;
@@ -478,15 +489,21 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>
+    <header>
+        <div class="header-content">
             <div class="header-left">
-                WKMP Audio Player
-                <span class="connection-status" id="connection-status">Connecting...</span>
+                <h1>
+                    WKMP Audio Player
+                    <span class="connection-status" id="connection-status">Connecting...</span>
+                </h1>
+                <p class="subtitle">Developer Interface</p>
             </div>
-            <div class="header-center">Developer Interface</div>
-            <div class="header-right" id="build-info">Loading...</div>
-        </h1>
+            <div class="header-right" id="build-info">
+                <div class="build-info-line">Loading...</div>
+            </div>
+        </div>
+    </header>
+    <div class="container">
 
         <div class="grid">
             <!-- Module Status (half-width) -->
@@ -772,8 +789,11 @@
                 const buildResponse = await authenticatedFetch(`${API_BASE}/build_info`);
                 if (buildResponse.ok) {
                     const buildData = await buildResponse.json();
-                    const buildInfo = `v${buildData.version} [${buildData.git_hash}] ${buildData.build_timestamp} (${buildData.build_profile})`;
-                    document.getElementById('build-info').textContent = buildInfo;
+                    document.getElementById('build-info').innerHTML = `
+                        <div class="build-info-line">wkmp-ap v${buildData.version}</div>
+                        <div class="build-info-line">${buildData.git_hash} (${buildData.build_profile})</div>
+                        <div class="build-info-line">${buildData.build_timestamp}</div>
+                    `;
                 }
 
                 // Fetch playback state
