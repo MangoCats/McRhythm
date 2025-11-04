@@ -4623,8 +4623,11 @@ name = "wkmp-common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
+ "axum",
  "chrono",
  "dirs",
+ "futures",
  "once_cell",
  "rand",
  "serde",

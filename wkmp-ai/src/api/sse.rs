@@ -21,30 +21,7 @@ use wkmp_common::events::WkmpEvent;
 pub async fn event_stream(
     State(_state): State<AppState>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    info!("New SSE client connected to general events");
-
-    // Create stream that sends periodic status updates
-    let stream = async_stream::stream! {
-        info!("SSE: General event stream started");
-
-        // Send initial connected status
-        yield Ok(Event::default()
-            .event("ConnectionStatus")
-            .data("connected"));
-
-        loop {
-            // Heartbeat every 15 seconds
-            tokio::time::sleep(Duration::from_secs(15)).await;
-            debug!("SSE: Sending heartbeat");
-            yield Ok(Event::default().comment("heartbeat"));
-        }
-    };
-
-    Sse::new(stream).keep_alive(
-        axum::response::sse::KeepAlive::new()
-            .interval(Duration::from_secs(15))
-            .text("heartbeat")
-    )
+    wkmp_common::sse::create_heartbeat_sse_stream("wkmp-ai")
 }
 
 /// GET /import/events - SSE event stream for import progress

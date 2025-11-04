@@ -51,7 +51,9 @@ async fn root_page() -> impl IntoResponse {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WKMP Audio Import</title>
+    <link rel="stylesheet" href=\"/static/wkmp-ui.css\">
     <style>
+        /* Module-specific styles - shared styles in wkmp-ui.css */
         * {{
             margin: 0;
             padding: 0;
@@ -190,29 +192,11 @@ async fn root_page() -> impl IntoResponse {
         <a href=\"/settings\" class=\"button\">Settings</a>
         <a href=\"http://localhost:5725/\" target=\"_blank\" class=\"button\">Database Review</a>
     </p>
+    <script src=\"/static/wkmp-sse.js\"></script>
     <script>
-        // Connect to SSE for connection status monitoring
-        function updateConnectionStatus(status) {{
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {{
-                statusEl.className = 'connection-status status-' + status;
-                statusEl.textContent = status === 'connected' ? 'Connected' :
-                                      status === 'connecting' ? 'Connecting...' : 'Disconnected';
-            }}
-        }}
-
-        updateConnectionStatus('connecting');
-        const eventSource = new EventSource('/events');
-
-        eventSource.onopen = () => {{
-            console.log('SSE connection opened');
-            updateConnectionStatus('connected');
-        }};
-
-        eventSource.onerror = (err) => {{
-            console.error('SSE connection error:', err);
-            updateConnectionStatus('disconnected');
-        }};
+        // Connect to SSE for connection status monitoring using shared WKMP utility
+        const sse = new WkmpSSEConnection('/events', 'connection-status');
+        sse.connect();
     </script>
     </div>
 </body>
@@ -241,7 +225,9 @@ async fn import_progress_page() -> impl IntoResponse {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WKMP Audio Import - Progress</title>
+    <link rel="stylesheet" href="/static/wkmp-ui.css">
     <style>
+        /* Module-specific styles - shared styles in wkmp-ui.css */
         * {{
             margin: 0;
             padding: 0;
@@ -619,6 +605,7 @@ async fn import_progress_page() -> impl IntoResponse {
 
     <p><a href="/">← Back to Home</a></p>
 
+    <script src="/static/wkmp-sse.js"></script>
     <script src="/static/import-progress.js"></script>
     <script type="module">
         // Initialize default root folder placeholder
@@ -653,7 +640,9 @@ async fn segment_editor_page() -> impl IntoResponse {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WKMP Audio Import - Segment Editor</title>
+    <link rel="stylesheet" href=\"/static/wkmp-ui.css\">
     <style>
+        /* Module-specific styles - shared styles in wkmp-ui.css */
         * {{
             margin: 0;
             padding: 0;
@@ -788,29 +777,11 @@ async fn segment_editor_page() -> impl IntoResponse {
         console.log('Segment editor loaded (Canvas API ready)');
         // TODO: Implement waveform rendering and boundary markers
     </script>
+    <script src=\"/static/wkmp-sse.js\"></script>
     <script>
-        // Connect to SSE for connection status monitoring
-        function updateConnectionStatus(status) {{
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {{
-                statusEl.className = 'connection-status status-' + status;
-                statusEl.textContent = status === 'connected' ? 'Connected' :
-                                      status === 'connecting' ? 'Connecting...' : 'Disconnected';
-            }}
-        }}
-
-        updateConnectionStatus('connecting');
-        const eventSource = new EventSource('/events');
-
-        eventSource.onopen = () => {{
-            console.log('SSE connection opened');
-            updateConnectionStatus('connected');
-        }};
-
-        eventSource.onerror = (err) => {{
-            console.error('SSE connection error:', err);
-            updateConnectionStatus('disconnected');
-        }};
+        // Connect to SSE for connection status monitoring using shared WKMP utility
+        const sse = new WkmpSSEConnection('/events', 'connection-status');
+        sse.connect();
     </script>
     </div>
 </body>
@@ -835,7 +806,9 @@ async fn import_complete_page() -> impl IntoResponse {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WKMP Audio Import - Complete</title>
+    <link rel="stylesheet" href=\"/static/wkmp-ui.css\">
     <style>
+        /* Module-specific styles - shared styles in wkmp-ui.css */
         * {{
             margin: 0;
             padding: 0;
@@ -959,29 +932,11 @@ async fn import_complete_page() -> impl IntoResponse {
         <a href="http://localhost:5720" class="button">Return to wkmp-ui</a>
         <a href="/" class="button">Start Another Import</a>
     </div>
+    <script src=\"/static/wkmp-sse.js\"></script>
     <script>
-        // Connect to SSE for connection status monitoring
-        function updateConnectionStatus(status) {{
-            const statusEl = document.getElementById('connection-status');
-            if (statusEl) {{
-                statusEl.className = 'connection-status status-' + status;
-                statusEl.textContent = status === 'connected' ? 'Connected' :
-                                      status === 'connecting' ? 'Connecting...' : 'Disconnected';
-            }}
-        }}
-
-        updateConnectionStatus('connecting');
-        const eventSource = new EventSource('/events');
-
-        eventSource.onopen = () => {{
-            console.log('SSE connection opened');
-            updateConnectionStatus('connected');
-        }};
-
-        eventSource.onerror = (err) => {{
-            console.error('SSE connection error:', err);
-            updateConnectionStatus('disconnected');
-        }};
+        // Connect to SSE for connection status monitoring using shared WKMP utility
+        const sse = new WkmpSSEConnection('/events', 'connection-status');
+        sse.connect();
     </script>
     </div>
 </body>
