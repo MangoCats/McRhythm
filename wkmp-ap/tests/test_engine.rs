@@ -227,6 +227,24 @@ impl TestEngine {
         }).collect()
     }
 
+    /// Alias for get_queue() - get queue entries with play_order
+    pub async fn get_queue_entries(&self) -> Vec<QueueEntryInfo> {
+        self.get_queue().await
+    }
+
+    /// Get in-memory queue entries (what decoder uses for priority selection)
+    pub async fn get_queue_entries_from_memory(&self) -> Vec<QueueEntryInfo> {
+        let entries = self.engine.test_get_queue_entries_from_memory().await;
+
+        entries.into_iter().map(|e| {
+            QueueEntryInfo {
+                queue_entry_id: e.queue_entry_id,
+                passage_id: e.passage_id,
+                play_order: e.play_order,
+            }
+        }).collect()
+    }
+
     /// Get chain index for specific queue entry
     pub async fn get_chain_index(&self, queue_entry_id: Uuid) -> Option<usize> {
         let assignments = self.engine.test_get_chain_assignments().await;

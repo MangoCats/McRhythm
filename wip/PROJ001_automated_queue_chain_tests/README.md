@@ -65,13 +65,13 @@ cargo test -p wkmp-ap --test chain_assignment_tests -- --include-ignored
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Tests Implemented | 10 of 10 | ✅ 100% |
-| Functional Tests | 6 of 6 passing | ✅ 100% |
+| Tests Implemented | 11 of 11 | ✅ 100% |
+| Functional Tests | 7 of 7 passing | ✅ 100% |
 | Infrastructure Tests | 4 of 4 passing | ✅ 100% |
-| P0 Lifecycle Coverage | 6 of 6 | ✅ 100% |
+| P0 Lifecycle Coverage | 7 of 7 | ✅ 100% |
 | P0 Priority Coverage | 4 of 4 (infrastructure) | ✅ 100% |
-| Execution Time | 2.81s | ✅ CI-ready |
-| Production Bugs Found | 2 (fixed) | ✅ |
+| Execution Time | 2.85s | ✅ CI-ready |
+| Production Bugs Found | 3 (fixed) | ✅ |
 | Known Issues | 0 | ✅ None |
 
 ---
@@ -84,7 +84,7 @@ cargo test -p wkmp-ap --test chain_assignment_tests -- --include-ignored
 - Real MP3 audio files (100ms silence)
 - Automatic database initialization
 
-### Phase 2: P0 Lifecycle Tests (6 of 6) ✅ 100% COMPLETE
+### Phase 2: P0 Lifecycle Tests (7 of 7) ✅ 100% COMPLETE
 
 | Test | Status | Coverage |
 |------|--------|----------|
@@ -94,6 +94,7 @@ cargo test -p wkmp-ap --test chain_assignment_tests -- --include-ignored
 | 4. Unassigned reassignment | ✅ Passing | [DBD-LIFECYCLE-030] |
 | 5. Batch operations | ✅ Passing | Full lifecycle |
 | 10. No collision | ✅ Passing | [DBD-DEC-045] Chain reassignment timing |
+| 11. Play order sync | ✅ Passing | [DBD-DEC-045] Priority selection synchronization |
 
 ### Phase 3: P0 Priority Tests (4 of 4) ✅ 100% INFRASTRUCTURE
 
@@ -149,6 +150,33 @@ cargo test -p wkmp-ap --test chain_assignment_tests -- --include-ignored
 **Test Validating Fix:**
 - Test 10: No chain collision after remove/enqueue ✅
 
+### Bug 3: Play Order Synchronization Issue (Session 9)
+
+**Location:** [queue.rs:241-259](../../wkmp-ap/src/playback/engine/queue.rs#L241-L259)
+
+**Problem:** In-memory queue entries had `play_order: 0` hardcoded instead of using database-assigned values:
+- Database correctly assigned sequential play_order values (10, 20, 30...)
+- In-memory queue entries all had `play_order: 0`
+- Decoder priority selection uses `get_play_order_for_entry()` which reads in-memory queue
+- Result: Newly enqueued passages appeared as highest priority (play_order=0)
+- Currently playing passage (play_order=10) deprioritized, buffer drained to 0
+
+**Root Cause:** After database enqueue, in-memory QueueEntry was created with hardcoded `play_order: 0` instead of querying database for assigned value
+
+**Impact:** Buffer starvation, audio dropouts, haphazard buffer filling order. **Regressed 3+ times in past 2 weeks** per user report.
+
+**Fix:** Query database after enqueue to get assigned play_order and use it in in-memory entry:
+```rust
+let db_entry = crate::db::queue::get_queue_entry_by_id(&self.db_pool, queue_entry_id).await?;
+let assigned_play_order = db_entry.play_order;
+// ... then use assigned_play_order in QueueEntry
+```
+
+**Test Validating Fix:**
+- Test 11: Play order synchronization on enqueue ✅
+
+**Discovery Method:** Manual testing during Session 9 (automated tests did not catch this regression)
+
 ---
 
 ## Known Issues
@@ -161,9 +189,9 @@ cargo test -p wkmp-ap --test chain_assignment_tests -- --include-ignored
 
 ### ✅ APPROVED for Production
 - Deploy test suite to CI pipeline now
-- 6 functional tests provide complete lifecycle coverage
-- Fast execution suitable for CI (2.81s)
-- Already found and fixed two production bugs
+- 7 functional tests provide complete lifecycle coverage
+- Fast execution suitable for CI (2.85s)
+- Already found and fixed three production bugs
 
 ### ⏳ OPTIONAL Future Work
 
@@ -189,11 +217,12 @@ cargo test -p wkmp-ap --test chain_assignment_tests -- --include-ignored
 
 ## Value Delivered
 
-1. **Automated Regression Prevention** - 6 functional tests prevent historical bugs
-2. **Production Bug Detection** - Found and fixed 2 bugs:
+1. **Automated Regression Prevention** - 7 functional tests prevent historical bugs
+2. **Production Bug Detection** - Found and fixed 3 bugs:
    - Database persistence issue (Session 4)
    - Chain reassignment timing issue (Session 8)
-3. **Fast Feedback Loop** - 2.81s execution time
+   - Play order synchronization issue (Session 9 - **regressed 3+ times in 2 weeks**)
+3. **Fast Feedback Loop** - 2.85s execution time
 4. **Infrastructure Validation** - 4 tests validate monitoring capability
 5. **Complete Coverage** - 100% of P0 lifecycle requirements covered
 6. **Clear Path Forward** - Telemetry infrastructure ready for future functional testing

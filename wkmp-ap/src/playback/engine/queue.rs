@@ -238,13 +238,25 @@ impl PlaybackEngine {
         )
         .await?;
 
+        // **BUG FIX #3:** Get the play_order assigned by database
+        // Previously hardcoded to 0, causing all newly enqueued passages to have same priority
+        // This broke decoder priority selection, causing haphazard buffer filling order
+        // **[DBD-DEC-045]** Decoder uses get_play_order_for_entry() which reads in-memory queue
+        let db_entry = crate::db::queue::get_queue_entry_by_id(&self.db_pool, queue_entry_id).await?;
+        let assigned_play_order = db_entry.play_order;
+
+        debug!(
+            "Enqueued {} with play_order={} (assigned by database)",
+            queue_entry_id, assigned_play_order
+        );
+
         // Add to in-memory queue
         // Convert ticks to milliseconds for queue entry (matches database format)
         let entry = QueueEntry {
             queue_entry_id,
             passage_id: passage.passage_id,
             file_path,
-            play_order: 0, // Will be managed by database
+            play_order: assigned_play_order, // Use play_order from database
             start_time_ms: Some(wkmp_common::timing::ticks_to_ms(passage.start_time_ticks) as u64),
             end_time_ms: passage.end_time_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t) as u64),
             lead_in_point_ms: Some(wkmp_common::timing::ticks_to_ms(passage.lead_in_point_ticks) as u64),

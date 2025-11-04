@@ -529,6 +529,69 @@ async fn test_no_chain_collision() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Test 11: Play Order Synchronization on Enqueue
+///
+/// **Scenario:** Enqueue multiple passages and verify play_order is synchronized from database to memory
+/// **Expected:** In-memory queue entries have correct play_order values (not hardcoded to 0)
+/// **Verifies:** Bug #3 - play_order synchronization issue that caused priority selection failure
+///
+/// **Bug History:** This bug regressed 3+ times, causing decoder to fill buffers in haphazard order
+/// instead of respecting queue position. Newly enqueued passages had play_order=0 in memory while
+/// database had correct values, breaking decoder priority selection.
+#[tokio::test]
+async fn test_play_order_synchronization() -> anyhow::Result<()> {
+    let engine = TestEngine::new(12).await.unwrap();
+    let temp_dir = TempDir::new().unwrap();
+
+    // Enqueue first passage - should get play_order from database (typically 10)
+    let file_path1 = test_engine::create_test_audio_file_in_dir(temp_dir.path(), 1).unwrap();
+    let id1 = engine.enqueue_file(file_path1).await.unwrap();
+
+    // Enqueue second passage - should get next play_order (typically 20)
+    let file_path2 = test_engine::create_test_audio_file_in_dir(temp_dir.path(), 2).unwrap();
+    let id2 = engine.enqueue_file(file_path2).await.unwrap();
+
+    // Enqueue third passage - should get next play_order (typically 30)
+    let file_path3 = test_engine::create_test_audio_file_in_dir(temp_dir.path(), 3).unwrap();
+    let id3 = engine.enqueue_file(file_path3).await.unwrap();
+
+    // Get IN-MEMORY queue entries to check play_order values
+    // CRITICAL: Must use get_queue_entries_from_memory() not get_queue_entries()
+    // Bug #3 was in the in-memory queue state (what decoder uses), not database
+    let queue_entries = engine.get_queue_entries_from_memory().await;
+
+    // Find our entries in the queue
+    let entry1 = queue_entries.iter().find(|e| e.queue_entry_id == id1).expect("Entry 1 not found");
+    let entry2 = queue_entries.iter().find(|e| e.queue_entry_id == id2).expect("Entry 2 not found");
+    let entry3 = queue_entries.iter().find(|e| e.queue_entry_id == id3).expect("Entry 3 not found");
+
+    // CRITICAL: Verify play_order values are NOT all zero
+    // Bug #3 caused all newly enqueued entries to have play_order=0 in memory
+    assert_ne!(entry1.play_order, 0, "Entry 1 play_order should not be 0 (Bug #3 regression check)");
+    assert_ne!(entry2.play_order, 0, "Entry 2 play_order should not be 0 (Bug #3 regression check)");
+    assert_ne!(entry3.play_order, 0, "Entry 3 play_order should not be 0 (Bug #3 regression check)");
+
+    // Verify play_order values are sequential and increasing
+    assert!(
+        entry2.play_order > entry1.play_order,
+        "Entry 2 play_order ({}) should be > Entry 1 play_order ({})",
+        entry2.play_order, entry1.play_order
+    );
+    assert!(
+        entry3.play_order > entry2.play_order,
+        "Entry 3 play_order ({}) should be > Entry 2 play_order ({})",
+        entry3.play_order, entry2.play_order
+    );
+
+    // Verify play_order values are properly spaced (database uses gaps of 10)
+    let gap1 = entry2.play_order - entry1.play_order;
+    let gap2 = entry3.play_order - entry2.play_order;
+    assert_eq!(gap1, 10, "Gap between entry 1 and 2 should be 10");
+    assert_eq!(gap2, 10, "Gap between entry 2 and 3 should be 10");
+
+    Ok(())
+}
+
 // Helper functions (to be implemented)
 
 // async fn create_test_engine(max_streams: usize) -> TestEngine {

@@ -2320,6 +2320,33 @@ impl PlaybackEngine {
         Ok(entries)
     }
 
+    /// Get in-memory queue entries (NOT from database)
+    ///
+    /// **[TEST-HARNESS]** For testing only - returns in-memory queue state
+    /// This is what the decoder uses for priority selection via get_play_order_for_entry()
+    #[doc(hidden)]
+    pub async fn test_get_queue_entries_from_memory(&self) -> Vec<crate::playback::queue_manager::QueueEntry> {
+        let queue = self.queue.read().await;
+        let mut entries = Vec::new();
+
+        // Get current
+        if let Some(entry) = queue.current() {
+            entries.push(entry.clone());
+        }
+
+        // Get next
+        if let Some(entry) = queue.next() {
+            entries.push(entry.clone());
+        }
+
+        // Get queued
+        for entry in queue.queued() {
+            entries.push(entry.clone());
+        }
+
+        entries
+    }
+
     /// Get current decoder target (which buffer being filled)
     ///
     /// **[TEST-HARNESS]** For testing only
