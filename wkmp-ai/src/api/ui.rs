@@ -4,35 +4,110 @@
 //! **[AIA-UI-030]** Return navigation to wkmp-ui on completion
 
 use axum::{
-    response::{Html, IntoResponse},
+    http::StatusCode,
+    response::{Html, IntoResponse, Response},
     routing::get,
     Router,
 };
 
 use crate::AppState;
 
+// Embed static files at compile time (same pattern as wkmp-dr)
+const WKMP_SSE_JS: &str = include_str!("../../../wkmp-common/static/wkmp-sse.js");
+const WKMP_UI_CSS: &str = include_str!("../../../wkmp-common/static/wkmp-ui.css");
+const IMPORT_PROGRESS_JS: &str = include_str!("../../static/import-progress.js");
+const SETTINGS_HTML: &str = include_str!("../../static/settings.html");
+const SETTINGS_CSS: &str = include_str!("../../static/settings.css");
+const SETTINGS_JS: &str = include_str!("../../static/settings.js");
+
 /// Build UI routes
 pub fn ui_routes() -> Router<AppState> {
-    use tower_http::services::ServeDir;
-    use tower_http::set_header::SetResponseHeaderLayer;
-    use axum::http::header;
-    use tower::ServiceBuilder;
-
     Router::new()
         .route("/", get(root_page))
         .route("/import-progress", get(import_progress_page))
         .route("/segment-editor", get(segment_editor_page))
         .route("/import-complete", get(import_complete_page))
         .route("/settings", get(settings_page))
-        .nest_service(
-            "/static",
-            ServiceBuilder::new()
-                .layer(SetResponseHeaderLayer::overriding(
-                    header::CACHE_CONTROL,
-                    "no-cache, no-store, must-revalidate".parse::<axum::http::HeaderValue>().unwrap(),
-                ))
-                .service(ServeDir::new("wkmp-ai/static"))
-        )
+        .route("/static/wkmp-sse.js", get(serve_wkmp_sse_js))
+        .route("/static/wkmp-ui.css", get(serve_wkmp_ui_css))
+        .route("/static/import-progress.js", get(serve_import_progress_js))
+        .route("/static/settings.css", get(serve_settings_css))
+        .route("/static/settings.js", get(serve_settings_js))
+}
+
+/// GET /static/wkmp-sse.js
+///
+/// Serves the shared WKMP SSE utility from wkmp-common
+async fn serve_wkmp_sse_js() -> Response {
+    (
+        StatusCode::OK,
+        [
+            ("content-type", "application/javascript"),
+            ("cache-control", "no-cache, no-store, must-revalidate"),
+        ],
+        WKMP_SSE_JS,
+    )
+        .into_response()
+}
+
+/// GET /static/wkmp-ui.css
+///
+/// Serves the shared WKMP UI styles from wkmp-common
+async fn serve_wkmp_ui_css() -> Response {
+    (
+        StatusCode::OK,
+        [
+            ("content-type", "text/css"),
+            ("cache-control", "no-cache, no-store, must-revalidate"),
+        ],
+        WKMP_UI_CSS,
+    )
+        .into_response()
+}
+
+/// GET /static/import-progress.js
+///
+/// Serves the import progress page JavaScript
+async fn serve_import_progress_js() -> Response {
+    (
+        StatusCode::OK,
+        [
+            ("content-type", "application/javascript"),
+            ("cache-control", "no-cache, no-store, must-revalidate"),
+        ],
+        IMPORT_PROGRESS_JS,
+    )
+        .into_response()
+}
+
+/// GET /static/settings.css
+///
+/// Serves the settings page CSS
+async fn serve_settings_css() -> Response {
+    (
+        StatusCode::OK,
+        [
+            ("content-type", "text/css"),
+            ("cache-control", "no-cache, no-store, must-revalidate"),
+        ],
+        SETTINGS_CSS,
+    )
+        .into_response()
+}
+
+/// GET /static/settings.js
+///
+/// Serves the settings page JavaScript
+async fn serve_settings_js() -> Response {
+    (
+        StatusCode::OK,
+        [
+            ("content-type", "application/javascript"),
+            ("cache-control", "no-cache, no-store, must-revalidate"),
+        ],
+        SETTINGS_JS,
+    )
+        .into_response()
 }
 
 /// Root page - Audio Import Home
@@ -195,8 +270,17 @@ async fn root_page() -> impl IntoResponse {
     <script src=\"/static/wkmp-sse.js\"></script>
     <script>
         // Connect to SSE for connection status monitoring using shared WKMP utility
-        const sse = new WkmpSSEConnection('/events', 'connection-status');
-        sse.connect();
+        if (typeof WkmpSSEConnection !== 'undefined') {{
+            const sse = new WkmpSSEConnection('/events', 'connection-status');
+            sse.connect();
+        }} else {{
+            console.error('WkmpSSEConnection class not found - wkmp-sse.js failed to load');
+            const statusEl = document.getElementById('connection-status');
+            if (statusEl) {{
+                statusEl.className = 'connection-status status-disconnected';
+                statusEl.textContent = 'Script Error';
+            }}
+        }}
     </script>
     </div>
 </body>
@@ -212,6 +296,8 @@ async fn import_progress_page() -> impl IntoResponse {
     // Get platform-appropriate default root folder path [REQ-NF-033]
     let default_root = wkmp_common::config::get_default_root_folder();
     let default_root_str = default_root.to_string_lossy();
+    // Escape backslashes for JavaScript string
+    let default_root_escaped = default_root_str.replace("\\", "\\\\");
 
     let version = env!("CARGO_PKG_VERSION");
     let git_hash = env!("GIT_HASH");
@@ -618,7 +704,7 @@ async fn import_progress_page() -> impl IntoResponse {
     </div>
 </body>
 </html>
-        "#, version, &git_hash[..8], build_profile, build_timestamp, &default_root_str);
+        "#, version, &git_hash[..8], build_profile, build_timestamp, &default_root_escaped);
 
     Html(html)
 }
@@ -948,16 +1034,5 @@ async fn import_complete_page() -> impl IntoResponse {
 /// Settings Page - AcoustID API key configuration
 /// **[APIK-UI-040]** Settings page with API key input
 async fn settings_page() -> impl IntoResponse {
-    // Read static HTML file
-    match tokio::fs::read_to_string("wkmp-ai/static/settings.html").await {
-        Ok(content) => Html(content).into_response(),
-        Err(e) => {
-            tracing::error!("Failed to read settings.html: {}", e);
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "Settings page not found",
-            )
-                .into_response()
-        }
-    }
+    Html(SETTINGS_HTML)
 }
