@@ -50,7 +50,6 @@ use crate::state::PlaybackState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::Html,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -1538,16 +1537,6 @@ pub async fn get_pipeline_diagnostics(
 // ============================================================================
 // Developer UI
 // ============================================================================
-
-/// Serve developer UI HTML (bundled at compile time)
-///
-/// **[ARCH-PC-010]** Developer UI with status display, API testing, and event monitoring
-///
-/// TODO: This currently serves static HTML. Need to implement dynamic shared_secret embedding.
-///
-/// **Note:** Currently unused - server.rs uses template substitution instead.
-/// Kept for potential Phase 4 simplification.
-#[allow(dead_code)]
-pub async fn developer_ui() -> Html<&'static str> {
-    Html(include_str!("developer_ui.html"))
-}
+// Note: Developer UI serving is implemented in server.rs with dynamic shared_secret
+// embedding via template substitution (SPEC007 API-AUTH-028-A).
+// ============================================================================

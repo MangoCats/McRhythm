@@ -473,6 +473,52 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 
 **[DBD-DEC-040]** Decoding is handled serially in priority order, only one decode runs at a time to preserve cache coherency and reduce maximum processor loads, to avoid spinning up the cooling fans.
 
+**[DBD-DEC-045]** Buffer-fill-aware priority re-evaluation - The decoder worker MUST re-evaluate which buffer needs filling based on BOTH queue position (play_order) AND current buffer fill level.
+
+**Re-evaluation Triggers:**
+Re-evaluation occurs when any condition is met:
+1. **Chain assignments changed:** New chain assigned, chain released (decode finished/error), or chain yielded/resumed
+2. **Buffer full:** Currently filling buffer reaches hysteresis pause threshold (free_space ≤ playout_ringbuffer_headroom per [DBD-PARAM-080])
+3. **Time elapsed:** decode_work_period ([DBD-PARAM-060], default 5000ms) has elapsed since last re-evaluation
+
+**Chain Assignment Events (Trigger 1):**
+- **New chain assigned:** Passage enqueued and assigned to available decoder/buffer chain
+- **Chain released:** Passage decode finished (successful or error), passage removed from queue, or partial decode <50%
+- **Chain yielded:** Active chain moved to yielded state (buffer full)
+- **Chain resumed:** Yielded chain moved back to active state (buffer drained below resume threshold)
+
+**Rationale:** Queue changes alone do not trigger re-evaluation (passages keep their chains as they advance in queue). Only actual changes to chain assignments/releases require priority re-evaluation, as these events change which buffers are actively filling.
+
+**Priority Selection Algorithm (executed at each re-evaluation):**
+1. **Identify needy buffers:** Select all active decoder chains whose buffers are below the resume threshold (free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom per [DBD-PARAM-085])
+2. **Prioritize by queue position:** Among needy buffers, select the chain with the lowest play_order (0 = currently playing, 1 = next, 2+ = queued)
+3. **Process chunks:** Continue decoding selected chain until next re-evaluation trigger
+4. **Re-evaluate:** When trigger occurs, repeat from step 1
+
+**Real-time Buffer Dynamics:**
+- Position 0 (currently playing) buffer is actively **draining** as the mixer reads samples for playback
+- Position 1 (next) buffer may also be draining during crossfade overlap
+- Position 2+ buffers are static (not draining) until they advance in queue
+- Decoder must switch to filling position 0 or 1 immediately when their buffers drop below resume threshold, even if currently filling a lower-priority buffer
+
+**Threshold-based Activation:**
+- A buffer "needs filling" when: `free_space ≥ decoder_resume_hysteresis_samples + playout_ringbuffer_headroom`
+- A buffer is "full enough to yield" when: `free_space ≤ playout_ringbuffer_headroom`
+- Between these thresholds, buffer is eligible for continued filling
+
+**Edge Cases:**
+- If NO buffers need filling (all are above resume threshold or at hysteresis pause), decoder worker idles
+- If multiple buffers at same play_order need filling (should not occur), select arbitrarily
+
+**Rationale:**
+- Currently playing passage (position 0) is draining continuously - must maintain maximum buffer depth to prevent underruns
+- Next passage (position 1) may drain during crossfade - must be ready before crossfade starts
+- Lower priority buffers (those with higher queue position numbers) fill opportunistically when higher priority buffers are sufficiently full
+- Without fill-level awareness, decoder may fill position 2+ buffers while position 0 is dangerously low
+
+**Historical Note:**
+This requirement addresses a recurring defect where buffer filling rotated through all active chains regardless of fill level, causing position 0 (currently playing) and position 1 (next) buffers to under-fill while the decoder was busy filling static position 2+ buffers that were not being drained.
+
 **[DBD-DEC-050]** Decoding starts from the beginning of the audio file, even if the start point is after that.
 
 **[DBD-DEC-060]** Seek time estimation in compressed file decoding can be inaccurate, especially for variable bit rate encoded files.

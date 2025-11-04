@@ -1754,6 +1754,10 @@ impl PlaybackEngine {
                     // Update audio_expected flag
                     self.update_audio_expected_flag().await;
 
+                    // Try to assign freed chain to unassigned entries (now that queue is consistent)
+                    // **[DBD-DEC-045]** Must happen AFTER advance() to avoid reassigning to deleted entry
+                    self.assign_chains_to_unassigned_entries().await;
+
                     // **[XFD-COMP-020]** Clean up outgoing buffer (incoming continues playing)
                     if let Some(p_id) = passage_id_opt {
                         self.buffer_manager.remove(p_id).await;
@@ -1882,6 +1886,10 @@ impl PlaybackEngine {
                 // Update audio_expected flag for ring buffer underrun classification
                 // This ensures TRACE logging when queue becomes empty after passage finishes
                 self.update_audio_expected_flag().await;
+
+                // Try to assign freed chain to unassigned entries (now that queue is consistent)
+                // **[DBD-DEC-045]** Must happen AFTER advance() to avoid reassigning to deleted entry
+                self.assign_chains_to_unassigned_entries().await;
 
                 // Clean up the exhausted buffer (free memory)
                 if let Some(p_id) = passage_id_for_cleanup {
@@ -2125,6 +2133,11 @@ impl PlaybackEngine {
     /// # Arguments
     /// * `queue_entry_id` - UUID of the queue entry whose chain should be released
     pub(super) async fn release_chain(&self, queue_entry_id: Uuid) {
+        // **[DBD-DEC-045]** Cancel decode in decoder_worker first
+        // This removes the DecoderChain from active/yielded sets and removes buffer
+        self.decoder_worker.cancel_decode(queue_entry_id).await;
+
+        // Then release the chain index assignment
         let mut assignments = self.chain_assignments.write().await;
         if let Some(chain_index) = assignments.remove(&queue_entry_id) {
             let mut available = self.available_chains.write().await;
@@ -2140,6 +2153,65 @@ impl PlaybackEngine {
                 queue_entry_id = %queue_entry_id,
                 "No chain to release (passage was not assigned a chain)"
             );
+        }
+        drop(assignments);
+
+        // **[DBD-DEC-045]** DO NOT call assign_chains_to_unassigned_entries() here!
+        // Callers must ensure queue state is consistent before reassigning chains.
+        // If called here, we may reassign to entries that are being removed.
+        // See queue.rs:292 for proper placement after complete_passage_removal().
+    }
+
+    /// Assign chains to queue entries that don't have them yet
+    ///
+    /// Called after releasing chains to assign newly available chains to passages
+    /// that were enqueued when all chains were in use.
+    ///
+    /// **[DBD-DEC-045]** IMPORTANT: Only call this after queue state is consistent!
+    /// Do NOT call during removal operations while entry is still in queue.
+    pub(super) async fn assign_chains_to_unassigned_entries(&self) {
+        let queue = self.queue.read().await;
+        let mut unassigned_ids = Vec::new();
+
+        // Collect all queue entry IDs
+        let mut all_entries = Vec::new();
+        if let Some(current) = queue.current() {
+            all_entries.push(current.queue_entry_id);
+        }
+        if let Some(next) = queue.next() {
+            all_entries.push(next.queue_entry_id);
+        }
+        all_entries.extend(queue.queued().iter().map(|e| e.queue_entry_id));
+
+        debug!("Checking for unassigned entries: {} total queue entries", all_entries.len());
+        drop(queue);
+
+        // Check which ones don't have chain assignments
+        let assignments = self.chain_assignments.read().await;
+        for queue_entry_id in &all_entries {
+            if !assignments.contains_key(queue_entry_id) {
+                debug!("Found unassigned entry: {}", queue_entry_id);
+                unassigned_ids.push(*queue_entry_id);
+            }
+        }
+        drop(assignments);
+
+        if unassigned_ids.is_empty() {
+            debug!("No unassigned entries found");
+            return;
+        }
+
+        debug!("Attempting to assign chains to {} unassigned entries", unassigned_ids.len());
+
+        // Assign chains to unassigned entries (up to available chain limit)
+        for queue_entry_id in unassigned_ids {
+            if self.assign_chain(queue_entry_id).await.is_some() {
+                info!("Assigned newly available chain to queue_entry={}", queue_entry_id);
+                // Note: Decode request will be submitted on next process_queue() tick
+            } else {
+                warn!("Failed to assign chain to queue_entry={} (no chains available)", queue_entry_id);
+                break;
+            }
         }
     }
 
@@ -2170,6 +2242,124 @@ impl PlaybackEngine {
             passage_start_time: Arc::clone(&self.passage_start_time), // [SUB-INC-4B] Clone passage start time tracking
             working_sample_rate: Arc::clone(&self.working_sample_rate), // [DBD-PARAM-020] Clone working sample rate
             position_interval_ms: self.position_interval_ms, // [DEBT-004] Copy position interval from settings
+        }
+    }
+}
+
+// **[TEST-HARNESS]** Test helpers for integration testing
+// Note: These are NOT #[cfg(test)] so they're accessible from integration tests
+impl PlaybackEngine {
+    /// Get current chain assignments (queue_entry_id -> chain_index)
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    #[doc(hidden)]
+    pub async fn test_get_chain_assignments(&self) -> HashMap<Uuid, usize> {
+        self.chain_assignments.read().await.clone()
+    }
+
+    /// Get available chain indexes
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    #[doc(hidden)]
+    pub async fn test_get_available_chains(&self) -> Vec<usize> {
+        self.available_chains.read().await
+            .iter()
+            .map(|Reverse(idx)| *idx)
+            .collect()
+    }
+
+    /// Get buffer fill percentage for a queue entry
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    #[doc(hidden)]
+    pub async fn test_get_buffer_fill_percent(&self, queue_entry_id: Uuid) -> Option<f32> {
+        self.buffer_manager.get_fill_percent(queue_entry_id).await
+    }
+
+    /// Get queue entries for testing (test-specific version)
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    #[doc(hidden)]
+    pub async fn test_get_queue_entries_from_db(&self) -> Result<Vec<crate::playback::queue_manager::QueueEntry>> {
+        use crate::db::queue;
+
+        let db_entries = queue::get_queue(&self.db_pool).await?;
+
+        // Convert to playback QueueEntry
+        let mut entries = Vec::new();
+        for db_entry in db_entries {
+            let queue_entry_id = Uuid::parse_str(&db_entry.guid)
+                .map_err(|e| Error::Queue(format!("Invalid queue entry UUID: {}", e)))?;
+
+            let passage_id = db_entry.passage_guid
+                .as_ref()
+                .map(|s| Uuid::parse_str(s))
+                .transpose()
+                .map_err(|e| Error::Queue(format!("Invalid passage UUID: {}", e)))?;
+
+            entries.push(crate::playback::queue_manager::QueueEntry {
+                queue_entry_id,
+                passage_id,
+                file_path: std::path::PathBuf::from(db_entry.file_path),
+                play_order: db_entry.play_order,
+                start_time_ms: db_entry.start_time_ms.map(|v| v as u64),
+                end_time_ms: db_entry.end_time_ms.map(|v| v as u64),
+                lead_in_point_ms: db_entry.lead_in_point_ms.map(|v| v as u64),
+                lead_out_point_ms: db_entry.lead_out_point_ms.map(|v| v as u64),
+                fade_in_point_ms: db_entry.fade_in_point_ms.map(|v| v as u64),
+                fade_out_point_ms: db_entry.fade_out_point_ms.map(|v| v as u64),
+                fade_in_curve: db_entry.fade_in_curve,
+                fade_out_curve: db_entry.fade_out_curve,
+                discovered_end_ticks: None,
+            });
+        }
+
+        // Sort by play_order
+        entries.sort_by_key(|e| e.play_order);
+
+        Ok(entries)
+    }
+
+    /// Get current decoder target (which buffer being filled)
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    #[doc(hidden)]
+    pub async fn test_get_decoder_target(&self) -> Option<Uuid> {
+        self.decoder_worker.test_get_current_target().await
+    }
+
+    /// Get chain assignments generation counters
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    ///
+    /// Returns `(current_generation, last_observed_generation)`.
+    /// When these differ, re-evaluation is pending.
+    #[doc(hidden)]
+    pub async fn test_get_generation_counter(&self) -> (u64, u64) {
+        self.decoder_worker.test_get_generation().await
+    }
+
+    /// Wait for generation counter to change (re-evaluation occurred)
+    ///
+    /// **[TEST-HARNESS]** For testing only
+    ///
+    /// Returns `true` if generation changed within timeout, `false` if timeout.
+    #[doc(hidden)]
+    pub async fn test_wait_for_generation_change(&self, timeout_ms: u64) -> bool {
+        let (initial_gen, _) = self.test_get_generation_counter().await;
+        let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_millis(timeout_ms);
+
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+            let (current_gen, _) = self.test_get_generation_counter().await;
+            if current_gen != initial_gen {
+                return true; // Generation changed (re-evaluation occurred)
+            }
+
+            if tokio::time::Instant::now() >= deadline {
+                return false; // Timeout
+            }
         }
     }
 }

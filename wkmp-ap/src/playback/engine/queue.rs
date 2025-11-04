@@ -101,6 +101,10 @@ impl PlaybackEngine {
             error!("Failed to complete passage removal: {}", e);
         }
 
+        // Try to assign freed chain to unassigned entries (now that queue is consistent)
+        // **[DBD-DEC-045]** Must happen AFTER removal to avoid reassigning to deleted entry
+        self.assign_chains_to_unassigned_entries().await;
+
         // Start next passage if available
         // [SUB-INC-4B] Call process_queue to trigger playback of next entry
         if let Err(e) = self.process_queue().await {
@@ -315,7 +319,11 @@ impl PlaybackEngine {
             };
 
             if removed {
-                // 4. Start next passage if queue has one
+                // 4. Try to assign freed chain to unassigned entries (now that queue is consistent)
+                // **[DBD-DEC-045]** Must happen AFTER removal to avoid reassigning to deleted entry
+                self.assign_chains_to_unassigned_entries().await;
+
+                // 5. Start next passage if queue has one
                 // [REQ-FIX-050] Start next passage if queue non-empty
                 // [REQ-FIX-080] New passage starts correctly after removal
                 let has_current = self.queue.read().await.current().is_some();
@@ -333,12 +341,26 @@ impl PlaybackEngine {
         } else {
             // Non-current passage - simple removal (existing behavior)
             // [REQ-FIX-060] No disruption when removing non-current passage
+
+            // Persist to database first (queue state persistence principle)
+            if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
+                error!("Failed to remove entry from database: {}", e);
+            }
+
+            // Remove from in-memory queue
             let removed = self.queue.write().await.remove(queue_entry_id);
 
             if removed {
                 info!("Successfully removed queue entry {} from in-memory queue", queue_entry_id);
                 // Update audio_expected flag for ring buffer underrun classification
                 self.update_audio_expected_flag().await;
+
+                // Release chain if assigned (chain cleanup happens per-item)
+                self.release_chain(queue_entry_id).await;
+
+                // Try to assign freed chain to unassigned entries (now that queue is consistent)
+                // **[DBD-DEC-045]** Must happen AFTER removal to avoid reassigning to deleted entry
+                self.assign_chains_to_unassigned_entries().await;
             } else {
                 warn!("Queue entry {} not found in in-memory queue", queue_entry_id);
             }

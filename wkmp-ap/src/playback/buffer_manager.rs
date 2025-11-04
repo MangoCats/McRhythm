@@ -973,6 +973,18 @@ impl BufferManager {
 
         stats_map
     }
+
+    /// **[TEST-HARNESS]** Get buffer fill percentage for testing
+    #[doc(hidden)]
+    pub async fn get_fill_percent(&self, queue_entry_id: Uuid) -> Option<f32> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)?;
+
+        let occupied = managed.buffer.occupied();
+        let capacity = managed.buffer.capacity();
+
+        Some((occupied as f32 / capacity as f32) * 100.0)
+    }
 }
 
 /// Buffer monitoring information
