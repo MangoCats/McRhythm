@@ -43,7 +43,8 @@ sha2 = "0.10"
 symphonia = { version = "0.5", features = ["all"] }
 rubato = "0.15"
 # Static file serving
-tower-http = { version = "0.6", features = ["fs"] }
+tower-http = { version = "0.6", features = ["fs", "set-header"] }
+tower = { workspace = true }
 
 [build-dependencies]
 chrono = { workspace = true }

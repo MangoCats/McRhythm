@@ -758,9 +758,9 @@ async function loadBuildInfo() {
 
         const buildInfoEl = document.getElementById('buildInfo');
         buildInfoEl.innerHTML = `
-            <div class="build-info-line">v${data.version} [${data.git_hash}]</div>
+            <div class="build-info-line">wkmp-dr v${data.version}</div>
+            <div class="build-info-line">${data.git_hash} (${data.build_profile})</div>
             <div class="build-info-line">${data.build_timestamp}</div>
-            <div class="build-info-line">(${data.build_profile})</div>
         `;
     } catch (error) {
         console.error('Failed to load build info:', error);

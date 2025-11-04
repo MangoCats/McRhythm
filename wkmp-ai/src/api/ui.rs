@@ -14,6 +14,9 @@ use crate::AppState;
 /// Build UI routes
 pub fn ui_routes() -> Router<AppState> {
     use tower_http::services::ServeDir;
+    use tower_http::set_header::SetResponseHeaderLayer;
+    use axum::http::header;
+    use tower::ServiceBuilder;
 
     Router::new()
         .route("/", get(root_page))
@@ -21,13 +24,24 @@ pub fn ui_routes() -> Router<AppState> {
         .route("/segment-editor", get(segment_editor_page))
         .route("/import-complete", get(import_complete_page))
         .route("/settings", get(settings_page))
-        .nest_service("/static", ServeDir::new("wkmp-ai/static"))
+        .nest_service(
+            "/static",
+            ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    "no-cache, no-store, must-revalidate".parse::<axum::http::HeaderValue>().unwrap(),
+                ))
+                .service(ServeDir::new("wkmp-ai/static"))
+        )
 }
 
 /// Root page - Audio Import Home
 /// **[AIA-UI-010]** HTML entry point
 async fn root_page() -> impl IntoResponse {
     let build_timestamp = env!("BUILD_TIMESTAMP");
+    let version = env!("CARGO_PKG_VERSION");
+    let git_hash = env!("GIT_HASH");
+    let build_profile = env!("BUILD_PROFILE");
 
     let html = format!(
         r#"
@@ -36,49 +50,98 @@ async fn root_page() -> impl IntoResponse {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wkmp-ai - Audio Import</title>
+    <title>WKMP Audio Import</title>
     <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
         body {{
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
             line-height: 1.6;
         }}
-        .build-info {{
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            font-size: 11px;
-            color: #666;
-            background: #f5f5f5;
-            padding: 4px 8px;
-            border-radius: 3px;
-            font-family: monospace;
+        .container {{
+            padding: 20px;
+        }}
+        header {{
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            padding: 20px;
+            margin-bottom: 30px;
+        }}
+        .header-content {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .header-left {{
+            flex: 1;
+        }}
+        .header-right {{
+            text-align: right;
+            font-size: 16px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+        }}
+        .build-info-line {{
+            margin-bottom: 1px;
         }}
         h1 {{
-            color: #333;
-            border-bottom: 2px solid #0066cc;
-            padding-bottom: 10px;
+            font-size: 26px;
+            margin-bottom: 5px;
+            color: #4a9eff;
+        }}
+        .subtitle {{
+            color: #888;
+            font-size: 16px;
+        }}
+        .content {{
+            padding: 0 20px;
+        }}
+        h2 {{
+            color: #4a9eff;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }}
+        ul {{
+            margin-left: 20px;
+            margin-bottom: 20px;
         }}
         .button {{
             display: inline-block;
             padding: 10px 20px;
-            background: #0066cc;
+            background: #4a9eff;
             color: white;
             text-decoration: none;
             border-radius: 4px;
             margin: 10px 5px;
+            font-weight: 600;
         }}
         .button:hover {{
-            background: #0052a3;
+            background: #3a8eef;
         }}
     </style>
 </head>
 <body>
-    <div class="build-info">Built: {}</div>
-    <h1>wkmp-ai - Audio Import</h1>"#,
-        build_timestamp
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>WKMP Audio Import</h1>
+                <p class="subtitle">Music collection import and identification</p>
+            </div>
+            <div class="header-right">
+                <div class="build-info-line">wkmp-ai v{}</div>
+                <div class="build-info-line">{} ({})</div>
+                <div class="build-info-line">{}</div>
+            </div>
+        </div>
+    </header>
+    <div class="content">"#,
+        version, &git_hash[..8], build_profile, build_timestamp
     );
 
     Html(format!(
@@ -98,10 +161,10 @@ async fn root_page() -> impl IntoResponse {
     <p>
         <a href=\"/import-progress\" class=\"button\">Start Import</a>
         <a href=\"/segment-editor\" class=\"button\">Segment Editor</a>
+        <a href=\"/settings\" class=\"button\">Settings</a>
         <a href=\"http://localhost:5725/\" target=\"_blank\" class=\"button\">Database Review</a>
     </p>
-
-    <p><small>Module: wkmp-ai v0.1.0 | Port 5723</small></p>
+    </div>
 </body>
 </html>",
         html
@@ -116,249 +179,316 @@ async fn import_progress_page() -> impl IntoResponse {
     let default_root = wkmp_common::config::get_default_root_folder();
     let default_root_str = default_root.to_string_lossy();
 
-    let html = r#"
+    let version = env!("CARGO_PKG_VERSION");
+    let git_hash = env!("GIT_HASH");
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+    let build_profile = env!("BUILD_PROFILE");
+
+    let html = format!(r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import Progress - wkmp-ai</title>
+    <title>WKMP Audio Import - Progress</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 1000px;
-            margin: 20px auto;
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }}
+        header {{
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
             padding: 20px;
-            background: #f5f5f5;
-        }
-        h1 {
-            color: #333;
-            border-bottom: 3px solid #0066cc;
-            padding-bottom: 10px;
-        }
-        #setup {
-            background: white;
+            margin-bottom: 30px;
+        }}
+        .header-content {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .header-left {{
+            flex: 1;
+        }}
+        .header-right {{
+            text-align: right;
+            font-size: 16px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+        }}
+        .build-info-line {{
+            margin-bottom: 1px;
+        }}
+        h1 {{
+            font-size: 26px;
+            margin-bottom: 5px;
+            color: #4a9eff;
+        }}
+        .subtitle {{
+            color: #888;
+            font-size: 16px;
+        }}
+        .content {{
+            padding: 0 20px;
+        }}
+        h2 {{
+            color: #4a9eff;
+        }}
+        #setup {{
+            background: #2a2a2a;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .form-group {
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }}
+        .form-group {{
             margin: 15px 0;
-        }
-        .form-group label {
+        }}
+        .form-group label {{
             display: block;
             font-weight: bold;
             margin-bottom: 5px;
-        }
-        .form-group input {
+            color: #e0e0e0;
+        }}
+        .form-group input {{
             width: 100%;
             padding: 8px;
-            border: 1px solid #ccc;
+            border: 1px solid #3a3a3a;
             border-radius: 4px;
             font-size: 14px;
             box-sizing: border-box;
-        }
-        .button {
+            background: #333;
+            color: #e0e0e0;
+        }}
+        .button {{
             display: inline-block;
             padding: 10px 20px;
-            background: #0066cc;
+            background: #4a9eff;
             color: white;
             text-decoration: none;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
-        }
-        .button:hover {
-            background: #0052a3;
-        }
-        .button:disabled {
-            background: #999;
+            font-weight: 600;
+        }}
+        .button:hover {{
+            background: #3a8eef;
+        }}
+        .button:disabled {{
+            background: #666;
             cursor: not-allowed;
-        }
-        .error {
-            background: #ffebee;
-            color: #c62828;
+        }}
+        .error {{
+            background: rgba(220, 38, 38, 0.2);
+            color: #dc2626;
             padding: 10px;
             border-radius: 4px;
+            border: 1px solid #dc2626;
             margin: 10px 0;
-        }
+        }}
 
         /* REQ-AIA-UI-001: Workflow Checklist */
-        .workflow-checklist {
-            background: white;
+        .workflow-checklist {{
+            background: #2a2a2a;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             display: none;
-        }
-        .workflow-checklist h2 {
+        }}
+        .workflow-checklist h2 {{
             margin-top: 0;
-            color: #333;
-        }
-        .phase-item {
+            color: #4a9eff;
+        }}
+        .phase-item {{
             padding: 12px;
             margin: 8px 0;
-            border-left: 4px solid #ddd;
-            background: #f9f9f9;
+            border-left: 4px solid #3a3a3a;
+            background: #333;
             display: flex;
             align-items: center;
-        }
-        .phase-item.pending { border-color: #ccc; }
-        .phase-item.in-progress { border-color: #0066cc; background: #e3f2fd; }
-        .phase-item.completed { border-color: #4caf50; background: #e8f5e9; }
-        .phase-item.failed { border-color: #f44336; background: #ffebee; }
-        .phase-icon {
+        }}
+        .phase-item.pending {{ border-color: #666; }}
+        .phase-item.in-progress {{ border-color: #4a9eff; background: rgba(74, 158, 255, 0.2); }}
+        .phase-item.completed {{ border-color: #4ade80; background: rgba(74, 222, 128, 0.2); }}
+        .phase-item.failed {{ border-color: #dc2626; background: rgba(220, 38, 38, 0.2); }}
+        .phase-icon {{
             font-size: 24px;
             margin-right: 12px;
             width: 30px;
             text-align: center;
-        }
-        .phase-content {
+        }}
+        .phase-content {{
             flex: 1;
-        }
-        .phase-name {
+        }}
+        .phase-name {{
             font-weight: bold;
             font-size: 16px;
-        }
-        .phase-description {
-            color: #666;
+        }}
+        .phase-description {{
+            color: #888;
             font-size: 13px;
             font-style: italic;
             margin-top: 2px;
-        }
-        .phase-summary {
-            color: #666;
+        }}
+        .phase-summary {{
+            color: #888;
             font-size: 14px;
             margin-top: 4px;
-        }
+        }}
 
         /* REQ-AIA-UI-002: Active Phase Progress */
-        .active-progress {
-            background: white;
+        .active-progress {{
+            background: #2a2a2a;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             display: none;
-        }
-        .progress-header {
+        }}
+        .progress-header {{
             display: flex;
             justify-content: space-between;
             margin-bottom: 10px;
-        }
-        .progress-bar {
+        }}
+        .progress-bar {{
             width: 100%;
             height: 30px;
-            background: #e0e0e0;
+            background: #333;
             border-radius: 15px;
             overflow: hidden;
             margin: 10px 0;
-        }
-        .progress-fill {
+        }}
+        .progress-fill {{
             height: 100%;
-            background: linear-gradient(90deg, #0066cc, #0052a3);
+            background: linear-gradient(90deg, #4a9eff, #3a8eef);
             transition: width 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: bold;
-        }
+        }}
 
         /* REQ-AIA-UI-003: Sub-Task Status */
-        .subtask-status {
-            background: white;
+        .subtask-status {{
+            background: #2a2a2a;
             padding: 20px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             display: none;
-        }
-        .subtask-item {
+        }}
+        .subtask-item {{
             padding: 10px;
             margin: 8px 0;
-            border-left: 4px solid #ddd;
+            border-left: 4px solid #3a3a3a;
+            background: #333;
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-        .subtask-item.green { border-color: #4caf50; background: #e8f5e9; }
-        .subtask-item.yellow { border-color: #ff9800; background: #fff3e0; }
-        .subtask-item.red { border-color: #f44336; background: #ffebee; }
-        .subtask-name {
+        }}
+        .subtask-item.green {{ border-color: #4ade80; background: rgba(74, 222, 128, 0.2); }}
+        .subtask-item.yellow {{ border-color: #ff9800; background: rgba(255, 152, 0, 0.2); }}
+        .subtask-item.red {{ border-color: #dc2626; background: rgba(220, 38, 38, 0.2); }}
+        .subtask-name {{
             font-weight: bold;
-        }
-        .subtask-stats {
-            color: #666;
+        }}
+        .subtask-stats {{
+            color: #888;
             font-size: 14px;
-        }
+        }}
 
         /* REQ-AIA-UI-004: Current File Display */
-        .current-file {
-            background: white;
+        .current-file {{
+            background: #2a2a2a;
             padding: 15px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             display: none;
-        }
-        .current-file-label {
+        }}
+        .current-file-label {{
             font-weight: bold;
-            color: #666;
+            color: #888;
             font-size: 14px;
-        }
-        .current-file-path {
+        }}
+        .current-file-path {{
             font-family: monospace;
             font-size: 13px;
-            color: #333;
+            color: #e0e0e0;
             margin-top: 5px;
             word-break: break-all;
-        }
+        }}
 
         /* REQ-AIA-UI-005: Time Estimates */
-        .time-estimates {
+        .time-estimates {{
             display: flex;
             gap: 20px;
-            background: white;
+            background: #2a2a2a;
             padding: 15px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #3a3a3a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             display: none;
-        }
-        .time-item {
+        }}
+        .time-item {{
             flex: 1;
-        }
-        .time-label {
+        }}
+        .time-label {{
             font-weight: bold;
-            color: #666;
+            color: #888;
             font-size: 14px;
-        }
-        .time-value {
+        }}
+        .time-value {{
             font-size: 24px;
-            color: #0066cc;
+            color: #4a9eff;
             font-weight: bold;
             margin-top: 5px;
-        }
+        }}
 
         /* REQ-AIA-UI-NF-002: Mobile responsive */
-        @media (max-width: 768px) {
-            body {
+        @media (max-width: 768px) {{
+            body {{
                 margin: 10px;
                 padding: 10px;
-            }
-            .time-estimates {
+            }}
+            .time-estimates {{
                 flex-direction: column;
                 gap: 10px;
-            }
-        }
+            }}
+        }}
     </style>
 </head>
 <body>
-    <h1>Import Progress</h1>
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>WKMP Audio Import</h1>
+                <p class="subtitle">Live import progress and status</p>
+            </div>
+            <div class="header-right">
+                <div class="build-info-line">v{0}</div>
+                <div class="build-info-line">{1} ({2})</div>
+                <div class="build-info-line">{3}</div>
+            </div>
+        </div>
+    </header>
+    <div class="content">
 
     <div id="setup">
         <div class="form-group">
@@ -413,252 +543,19 @@ async fn import_progress_page() -> impl IntoResponse {
 
     <p><a href="/">← Back to Home</a></p>
 
-    <script>
-        let eventSource = null;
-        let currentSessionId = null;
-        let lastUpdateTime = 0;
-        const UPDATE_THROTTLE_MS = 100; // REQ-AIA-UI-NF-001: Max 10 updates/sec
-
-        // Start import workflow
-        async function startImport() {
-            const rootFolder = document.getElementById('root-folder').value.trim();
-            const startBtn = document.getElementById('start-btn');
-            const errorDiv = document.getElementById('error');
-
-            if (!rootFolder) {
-                showError('Please enter a root folder path');
-                return;
-            }
-
-            startBtn.disabled = true;
-            startBtn.textContent = 'Starting...';
-            errorDiv.style.display = 'none';
-
-            try {
-                const response = await fetch('/import/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ root_folder: rootFolder })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    const errorMessage = error?.error?.message || error?.message || 'Failed to start import';
-                    throw new Error(errorMessage);
-                }
-
-                const data = await response.json();
-                currentSessionId = data.session_id;
-
-                // Hide setup, show progress sections
-                document.getElementById('setup').style.display = 'none';
-                document.getElementById('workflow-checklist').style.display = 'block';
-                document.getElementById('active-progress').style.display = 'block';
-                document.getElementById('current-file').style.display = 'block';
-                document.getElementById('time-estimates').style.display = 'flex';
-
-                connectSSE();
-
-            } catch (error) {
-                console.error('Import start failed:', error);
-                showError(error.message || 'Failed to start import');
-                startBtn.disabled = false;
-                startBtn.textContent = 'Start Import';
-            }
-        }
-
-        // Connect to SSE event stream
-        function connectSSE() {
-            console.log('Connecting to SSE at /import/events');
-            eventSource = new EventSource('/import/events');
-
-            eventSource.addEventListener('ImportProgressUpdate', (e) => {
-                const event = JSON.parse(e.data);
-
-                // REQ-AIA-UI-NF-001: Throttle UI updates
-                const now = Date.now();
-                if (now - lastUpdateTime < UPDATE_THROTTLE_MS) {
-                    return; // Skip this update
-                }
-                lastUpdateTime = now;
-
-                console.log('ImportProgressUpdate:', event);
-                updateUI(event);
-            });
-
-            eventSource.addEventListener('ImportSessionCompleted', (e) => {
-                console.log('ImportSessionCompleted');
-                document.getElementById('current-phase-name').textContent = 'Import Completed ✓';
-                eventSource.close();
-                setTimeout(() => {
-                    window.location.href = '/import-complete';
-                }, 2000);
-            });
-
-            eventSource.addEventListener('ImportSessionFailed', (e) => {
-                const event = JSON.parse(e.data);
-                showError('Import failed: ' + (event.error || 'Unknown error'));
-                eventSource.close();
-            });
-        }
-
-        // REQ-AIA-UI-001 through REQ-AIA-UI-005: Update all UI sections
-        function updateUI(event) {
-            // REQ-AIA-UI-001: Update workflow checklist
-            if (event.phases && event.phases.length > 0) {
-                updateWorkflowChecklist(event.phases);
-                // Show sub-task status only for active phases with subtasks
-                const activePhase = event.phases.find(p => p.status === 'InProgress');
-                if (activePhase && activePhase.subtasks && activePhase.subtasks.length > 0) {
-                    updateSubTaskStatus(activePhase.subtasks);
-                    document.getElementById('subtask-status').style.display = 'block';
-                } else {
-                    document.getElementById('subtask-status').style.display = 'none';
-                }
-            }
-
-            // REQ-AIA-UI-002: Update active phase progress
-            const percent = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
-            document.getElementById('current-phase-name').textContent = 'Current Phase: ' + event.state;
-            document.getElementById('progress-text').textContent = `${event.current} / ${event.total} files`;
-            document.getElementById('progress-percent').textContent = `${percent}%`;
-            document.getElementById('progress-bar').style.width = `${percent}%`;
-            document.getElementById('progress-bar').textContent = `${percent}%`;
-
-            // REQ-AIA-UI-004: Update current file
-            if (event.current_file) {
-                const filename = truncateFilename(event.current_file);
-                document.getElementById('current-file-path').textContent = filename;
-            }
-
-            // REQ-AIA-UI-005: Update time estimates
-            document.getElementById('elapsed-time').textContent = formatSeconds(event.elapsed_seconds);
-            if (event.estimated_remaining_seconds) {
-                document.getElementById('remaining-time').textContent = formatSeconds(event.estimated_remaining_seconds);
-            } else {
-                document.getElementById('remaining-time').textContent = 'Estimating...';
-            }
-        }
-
-        // REQ-AIA-UI-001: Update workflow checklist
-        function updateWorkflowChecklist(phases) {
-            const container = document.getElementById('phases-container');
-            container.innerHTML = '';
-
-            phases.forEach(phase => {
-                const statusClass = phase.status.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase();
-                const icon = getPhaseIcon(phase.status);
-                const summary = getPhaseSum(phase, phase.status);
-
-                const phaseEl = document.createElement('div');
-                phaseEl.className = `phase-item ${statusClass}`;
-
-                // Compact: phase name • description • summary on single line
-                const parts = [phase.phase];
-                if (phase.description) parts.push(phase.description);
-                if (summary) parts.push(summary);
-                const compactText = parts.join(' • ');
-
-                phaseEl.innerHTML = `
-                    <div class="phase-icon">${icon}</div>
-                    <div class="phase-content">
-                        <div class="phase-name">${compactText}</div>
-                    </div>
-                `;
-                container.appendChild(phaseEl);
-            });
-        }
-
-        // REQ-AIA-UI-003: Update sub-task status
-        function updateSubTaskStatus(subtasks) {
-            const container = document.getElementById('subtasks-container');
-            container.innerHTML = '';
-
-            subtasks.forEach(subtask => {
-                const total = subtask.success_count + subtask.failure_count;
-                const successRate = total > 0 ? (subtask.success_count / total * 100).toFixed(1) : 0;
-                const colorClass = getColorClass(parseFloat(successRate));
-
-                const subtaskEl = document.createElement('div');
-                subtaskEl.className = `subtask-item ${colorClass}`;
-                subtaskEl.innerHTML = `
-                    <div>
-                        <div class="subtask-name">${subtask.name}</div>
-                        <div class="subtask-stats">${subtask.success_count} success, ${subtask.failure_count} failed</div>
-                    </div>
-                    <div style="font-weight: bold;">${successRate}% ${getStatusIcon(colorClass)}</div>
-                `;
-                container.appendChild(subtaskEl);
-            });
-        }
-
-        // Helper functions
-        function getPhaseIcon(status) {
-            const icons = {
-                'Pending': '○',
-                'InProgress': '⟳',
-                'Completed': '✓',
-                'Failed': '✗',
-                'CompletedWithWarnings': '⚠'
-            };
-            return icons[status] || '○';
-        }
-
-        function getPhaseSum(phase, status) {
-            if (status === 'Completed' || status === 'CompletedWithWarnings') {
-                return `Completed - ${phase.progress_current}/${phase.progress_total} processed`;
-            } else if (status === 'InProgress') {
-                return `In Progress - ${phase.progress_current}/${phase.progress_total} processed`;
-            } else if (status === 'Pending') {
-                return 'Pending';
-            }
-            return '';
-        }
-
-        function getColorClass(successRate) {
-            if (successRate > 95) return 'green';
-            if (successRate >= 85) return 'yellow';
-            return 'red';
-        }
-
-        function getStatusIcon(colorClass) {
-            if (colorClass === 'green') return '✓';
-            if (colorClass === 'yellow') return '⚠';
-            return '✗';
-        }
-
-        // REQ-AIA-UI-004: Truncate filename if >80 chars (show basename)
-        function truncateFilename(path) {
-            if (path.length <= 80) return path;
-            const parts = path.split('/');
-            return parts[parts.length - 1];
-        }
-
-        // REQ-AIA-UI-005: Format seconds to human-readable
-        function formatSeconds(seconds) {
-            if (!seconds) return '0s';
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            if (h > 0) return `${h}h ${m}m ${s}s`;
-            if (m > 0) return `${m}m ${s}s`;
-            return `${s}s`;
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-
-        console.log('Enhanced import progress page loaded (PLAN011)');
+    <script src="/static/import-progress.js"></script>
+    <script type="module">
+        // Initialize default root folder placeholder
+        const rootFolderInput = document.getElementById('root-folder');
+        if (rootFolderInput) {{
+            rootFolderInput.placeholder = '{4}';
+            rootFolderInput.value = '{4}';
+        }}
     </script>
+    </div>
 </body>
 </html>
-        "#;
-
-    // Replace placeholder with actual default root folder path
-    let html = html.replace("DEFAULT_ROOT_PLACEHOLDER", &default_root_str);
+        "#, version, &git_hash[..8], build_profile, build_timestamp, &default_root_str);
 
     Html(html)
 }
@@ -667,43 +564,102 @@ async fn import_progress_page() -> impl IntoResponse {
 /// **[AIA-UI-010]** Waveform editor for passage boundaries
 /// **Decision 2:** Client-side Canvas API for waveform rendering
 async fn segment_editor_page() -> impl IntoResponse {
-    Html(
+    let version = env!("CARGO_PKG_VERSION");
+    let git_hash = env!("GIT_HASH");
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+    let build_profile = env!("BUILD_PROFILE");
+
+    Html(format!(
         r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Segment Editor - wkmp-ai</title>
+    <title>WKMP Audio Import - Segment Editor</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 1200px;
-            margin: 40px auto;
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }}
+        header {{
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
             padding: 20px;
-        }
-        h1 {
-            color: #333;
-            border-bottom: 2px solid #0066cc;
-            padding-bottom: 10px;
-        }
-        #waveform-container {
+            margin-bottom: 30px;
+        }}
+        .header-content {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .header-left {{
+            flex: 1;
+        }}
+        .header-right {{
+            text-align: right;
+            font-size: 16px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+        }}
+        .build-info-line {{
+            margin-bottom: 1px;
+        }}
+        h1 {{
+            font-size: 26px;
+            margin-bottom: 5px;
+            color: #4a9eff;
+        }}
+        .subtitle {{
+            color: #888;
+            font-size: 16px;
+        }}
+        .content {{
+            padding: 0 20px;
+        }}
+        h2 {{
+            color: #4a9eff;
+        }}
+        a {{
+            color: #4a9eff;
+        }}
+        #waveform-container {{
             width: 100%;
             height: 200px;
-            background: #f5f5f5;
-            border: 1px solid #ccc;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
             border-radius: 4px;
             margin: 20px 0;
             position: relative;
-        }
-        canvas {
+        }}
+        canvas {{
             width: 100%;
             height: 100%;
-        }
+        }}
     </style>
 </head>
 <body>
-    <h1>Segment Editor</h1>
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>WKMP Audio Import</h1>
+                <p class="subtitle">Passage boundary segment editor</p>
+            </div>
+            <div class="header-right">
+                <div class="build-info-line">v{0}</div>
+                <div class="build-info-line">{1} ({2})</div>
+                <div class="build-info-line">{3}</div>
+            </div>
+        </div>
+    </header>
+    <div class="content">
 
     <p>Adjust passage boundaries by dragging markers on the waveform.</p>
 
@@ -721,77 +677,141 @@ async fn segment_editor_page() -> impl IntoResponse {
         const ctx = canvas.getContext('2d');
 
         // Draw placeholder waveform
-        ctx.fillStyle = '#0066cc';
+        ctx.fillStyle = '#4a9eff';
         ctx.fillRect(0, 100, canvas.width, 2);
         ctx.font = '14px system-ui';
+        ctx.fillStyle = '#e0e0e0';
         ctx.fillText('Waveform visualization will be implemented in Phase 13', 20, 50);
 
         console.log('Segment editor loaded (Canvas API ready)');
         // TODO: Implement waveform rendering and boundary markers
     </script>
+    </div>
 </body>
 </html>
-        "#,
-    )
+        "#, version, &git_hash[..8], build_profile, build_timestamp
+    ))
 }
 
 /// Import Complete Page - Summary with return link to wkmp-ui
 /// **[AIA-UI-030]** Return navigation to wkmp-ui
 async fn import_complete_page() -> impl IntoResponse {
-    Html(
+    let version = env!("CARGO_PKG_VERSION");
+    let git_hash = env!("GIT_HASH");
+    let build_timestamp = env!("BUILD_TIMESTAMP");
+    let build_profile = env!("BUILD_PROFILE");
+
+    Html(format!(
         r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import Complete - wkmp-ai</title>
+    <title>WKMP Audio Import - Complete</title>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 800px;
-            margin: 40px auto;
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }}
+        header {{
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
             padding: 20px;
+            margin-bottom: 30px;
+        }}
+        .header-content {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        .header-left {{
+            flex: 1;
+        }}
+        .header-right {{
+            text-align: right;
+            font-size: 16px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+        }}
+        .build-info-line {{
+            margin-bottom: 1px;
+        }}
+        h1 {{
+            font-size: 26px;
+            margin-bottom: 5px;
+            color: #4a9eff;
+        }}
+        .subtitle {{
+            color: #888;
+            font-size: 16px;
+        }}
+        .content {{
+            padding: 40px 20px;
             text-align: center;
-        }
-        h1 {
-            color: #0066cc;
-        }
-        .button {
+        }}
+        h2 {{
+            color: #4a9eff;
+            margin-bottom: 20px;
+        }}
+        .button {{
             display: inline-block;
             padding: 15px 30px;
-            background: #0066cc;
+            background: #4a9eff;
             color: white;
             text-decoration: none;
             border-radius: 4px;
-            margin: 20px;
+            margin: 10px;
             font-size: 16px;
-        }
-        .button:hover {
-            background: #0052a3;
-        }
-        .success {
-            color: #008800;
+            font-weight: 600;
+        }}
+        .button:hover {{
+            background: #3a8eef;
+        }}
+        .success {{
+            color: #4ade80;
             font-size: 48px;
             margin: 20px 0;
-        }
+        }}
     </style>
 </head>
 <body>
+    <header>
+        <div class="header-content">
+            <div class="header-left">
+                <h1>WKMP Audio Import</h1>
+                <p class="subtitle">Import workflow complete</p>
+            </div>
+            <div class="header-right">
+                <div class="build-info-line">v{0}</div>
+                <div class="build-info-line">{1} ({2})</div>
+                <div class="build-info-line">{3}</div>
+            </div>
+        </div>
+    </header>
+    <div class="content">
     <div class="success">✓</div>
-    <h1>Import Complete!</h1>
+    <h2>Import Complete!</h2>
     <p>Your music collection has been successfully imported.</p>
 
     <div>
         <a href="http://localhost:5720" class="button">Return to wkmp-ui</a>
         <a href="/" class="button">Start Another Import</a>
     </div>
-
-    <p><small>wkmp-ai v0.1.0</small></p>
+    </div>
 </body>
 </html>
-        "#,
-    )
+        "#, version, &git_hash[..8], build_profile, build_timestamp
+    ))
 }
 
 /// Settings Page - AcoustID API key configuration
