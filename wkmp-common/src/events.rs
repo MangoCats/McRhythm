@@ -665,6 +665,22 @@ pub enum WkmpEvent {
         files_skipped: usize,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+
+    /// **[PLAN020 Phase 5]** Watchdog intervention occurred
+    ///
+    /// Emitted when watchdog safety net must intervene due to event system failure.
+    ///
+    /// Triggers:
+    /// - SSE: Update watchdog status indicator immediately
+    /// - Developer UI: Flash indicator to draw attention
+    /// - Monitoring: Track event system health
+    WatchdogIntervention {
+        /// Type of intervention: "decode" or "mixer"
+        intervention_type: String,
+        /// Total interventions since startup
+        interventions_total: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -918,6 +934,8 @@ impl WkmpEvent {
             WkmpEvent::ImportSessionCompleted { .. } => "ImportSessionCompleted",
             WkmpEvent::ImportSessionFailed { .. } => "ImportSessionFailed",
             WkmpEvent::ImportSessionCancelled { .. } => "ImportSessionCancelled",
+            // **[PLAN020 Phase 5]** Watchdog monitoring event
+            WkmpEvent::WatchdogIntervention { .. } => "WatchdogIntervention",
         }
     }
 }

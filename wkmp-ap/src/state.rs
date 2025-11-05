@@ -6,6 +6,7 @@
 //! - CO-120 (Shared state pattern)
 //! - SSD-MIX-040 (Playback state management)
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 use wkmp_common::events::WkmpEvent;
@@ -43,6 +44,15 @@ pub struct SharedState {
 
     /// Event broadcaster for SSE events
     pub event_tx: broadcast::Sender<WkmpEvent>,
+
+    /// **[PLAN020 Phase 5]** Watchdog intervention counter
+    ///
+    /// Tracks total number of times watchdog had to intervene (event system failure).
+    /// - Decode interventions: Event system failed to trigger decode
+    /// - Mixer interventions: Event system failed to start mixer
+    ///
+    /// Used for UI visibility and monitoring event system health.
+    pub watchdog_interventions_total: AtomicU64,
 }
 
 impl SharedState {
@@ -54,6 +64,7 @@ impl SharedState {
             current_passage: RwLock::new(None),
             volume: RwLock::new(0.75), // Default 75% volume
             event_tx,
+            watchdog_interventions_total: AtomicU64::new(0),
         }
     }
 
@@ -96,6 +107,22 @@ impl SharedState {
     /// Set master volume (0.0-1.0)
     pub async fn set_volume(&self, volume: f32) {
         *self.volume.write().await = volume.clamp(0.0, 1.0);
+    }
+
+    /// **[PLAN020 Phase 5]** Increment watchdog intervention counter
+    ///
+    /// Called by watchdog when event system fails and intervention is required.
+    /// Uses atomic increment for lock-free thread-safe access.
+    pub fn increment_watchdog_interventions(&self) {
+        self.watchdog_interventions_total.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// **[PLAN020 Phase 5]** Get watchdog intervention count
+    ///
+    /// Returns total number of watchdog interventions since startup.
+    /// Used by API endpoint for UI visibility.
+    pub fn get_watchdog_interventions(&self) -> u64 {
+        self.watchdog_interventions_total.load(Ordering::Relaxed)
     }
 }
 

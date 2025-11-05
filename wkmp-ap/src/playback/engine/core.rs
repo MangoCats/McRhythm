@@ -3,7 +3,7 @@
 //! **Responsibilities:**
 //! - PlaybackEngine struct definition and initialization
 //! - Lifecycle control (start, stop, play, pause, seek)
-//! - Orchestration hub (process_queue - coordinates mixer, buffer_manager, decoder_worker)
+//! - Orchestration hub (watchdog_check - detection-only safety net for event-driven system)
 //! - Buffer chain management (assign_chain, release_chain)
 //!
 //! **Traceability:**
@@ -340,19 +340,24 @@ impl PlaybackEngine {
         let queue = self.queue.read().await;
         debug!("🔍 assign_chains_to_loaded_queue: Acquired queue read lock");
 
-        // Collect all queue entry IDs
+        // Collect all queue entry IDs with position for decode priority
         let mut queue_entry_ids = Vec::new();
+        let mut queue_entry_ids_with_position: Vec<(usize, Uuid)> = Vec::new();
+
         if let Some(current) = queue.current() {
             debug!("🔍 assign_chains_to_loaded_queue: Found current entry: {}", current.queue_entry_id);
             queue_entry_ids.push(current.queue_entry_id);
+            queue_entry_ids_with_position.push((0, current.queue_entry_id)); // Position 0 = Current
         }
         if let Some(next) = queue.next() {
             debug!("🔍 assign_chains_to_loaded_queue: Found next entry: {}", next.queue_entry_id);
             queue_entry_ids.push(next.queue_entry_id);
+            queue_entry_ids_with_position.push((1, next.queue_entry_id)); // Position 1 = Next
         }
-        for entry in queue.queued() {
+        for (queue_idx, entry) in queue.queued().iter().enumerate() {
             debug!("🔍 assign_chains_to_loaded_queue: Found queued entry: {}", entry.queue_entry_id);
             queue_entry_ids.push(entry.queue_entry_id);
+            queue_entry_ids_with_position.push((2 + queue_idx, entry.queue_entry_id)); // Position 2+ = Queued
         }
         drop(queue);
         debug!("🔍 assign_chains_to_loaded_queue: Dropped queue lock");
@@ -369,6 +374,60 @@ impl PlaybackEngine {
         }
 
         info!("Assigned chains to {} loaded queue entries", count);
+
+        // **[PLAN020 Phase 4 Fix]** Trigger decode for loaded queue entries
+        // Queue entries loaded from database need decode triggered (event-driven path)
+        // Before PLAN020: watchdog proactively triggered decode
+        // After PLAN020: must explicitly trigger decode for loaded entries
+        debug!("🔍 assign_chains_to_loaded_queue: Triggering decode for loaded entries");
+        for (idx, (position, queue_entry_id)) in queue_entry_ids_with_position.iter().enumerate() {
+            // Get the entry to pass to request_decode
+            let entry = {
+                let queue = self.queue.read().await;
+                // Check current, next, and queued
+                if let Some(current) = queue.current() {
+                    if current.queue_entry_id == *queue_entry_id {
+                        Some(current.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+                .or_else(|| {
+                    if let Some(next) = queue.next() {
+                        if next.queue_entry_id == *queue_entry_id {
+                            Some(next.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| {
+                    queue.queued().iter().find(|e| e.queue_entry_id == *queue_entry_id).cloned()
+                })
+            };
+
+            if let Some(entry) = entry {
+                // Map position to priority
+                let priority = match position {
+                    0 => DecodePriority::Immediate, // Current
+                    1 => DecodePriority::Next,      // Next
+                    _ => DecodePriority::Prefetch,  // Queued
+                };
+
+                debug!("🔍 assign_chains_to_loaded_queue: Triggering decode for entry {}/{}: {} (priority: {:?})",
+                       idx + 1, count, queue_entry_id, priority);
+
+                // Trigger decode (non-fatal if it fails - watchdog will retry)
+                if let Err(e) = self.request_decode(&entry, priority, true).await {
+                    warn!("Failed to trigger decode for loaded entry {}: {}", queue_entry_id, e);
+                }
+            }
+        }
+
         debug!("🔍 assign_chains_to_loaded_queue: DONE");
     }
 
@@ -1312,23 +1371,32 @@ impl PlaybackEngine {
                 continue; // Paused, skip processing
             }
 
-            // Process queue
-            self.process_queue().await?;
+            // Watchdog check (detection-only safety net)
+            self.watchdog_check().await?;
         }
 
         info!("Playback loop stopped");
         Ok(())
     }
 
-    /// Process queue: trigger decodes for current/next/queued passages
+    /// Watchdog check: detect and intervene when event-driven system fails
     ///
-    /// **CRITICAL:** This is the core orchestration hub - do NOT split this method!
-    /// It coordinates mixer, buffer_manager, and decoder_worker in complex interplay.
-    pub(super) async fn process_queue(&self) -> Result<()> {
+    /// **[PLAN020 Phase 4]** Converted from proactive orchestrator to detection-only safety net.
+    /// Event-driven paths (enqueue, queue advance, startup restoration, buffer events) handle all normal operations.
+    /// This watchdog detects stuck states and logs WARN when intervention is required.
+    ///
+    /// **Detection & Intervention:**
+    /// - Decode failures (no buffer exists for current passage) - triggers emergency decode
+    /// - Mixer startup failures (buffer ready but mixer not started) - starts mixer
+    ///
+    /// **Proactive Operations Removed:**
+    /// - Regular decode triggering (now event-driven via enqueue/queue advance/startup)
+    /// - See PLAN020 FR-001, FR-002 for event-driven implementation
+    pub(super) async fn watchdog_check(&self) -> Result<()> {
         // **[ASYNC-LOCK-001]** Clone queue entries immediately to avoid holding lock across awaits
         // Holding RwLock read guard across await points can cause deadlocks when other tasks
         // (like SSE handlers) try to acquire read locks while a write lock request is pending
-        let (current_entry, next_entry, queued_entries) = {
+        let (current_entry, _next_entry, _queued_entries) = {
             let queue = self.queue.read().await;
             (
                 queue.current().cloned(),
@@ -1337,253 +1405,77 @@ impl PlaybackEngine {
             )
         }; // Lock is dropped here
 
-        // Trigger decode for current passage if needed
-        // **Fix for queue flooding:** Only request decode if buffer doesn't exist yet
-        // Previously checked is_ready() which allowed duplicate requests while Decoding
+        // **[PLAN020 Phase 4]** Proactive decode operations removed - now event-driven
+        // Event-driven path: enqueue_file(), complete_passage_removal(), and assign_chains_to_loaded_queue() trigger decode immediately
+        // Watchdog role: Detection-only (check for missing buffers, WARN if event system failed)
+
+        // **[PLAN020 Phase 4 Bug Fix]** Watchdog: Detect decode failures (detection-only)
+        // Event-driven paths should trigger decode for all queue entries
+        // If current passage has no buffer, decode was never triggered (event system failure)
         if let Some(current) = &current_entry {
-            if !self.buffer_manager.is_managed(current.queue_entry_id).await {
-                debug!("Requesting decode for current passage: {}", current.queue_entry_id);
-                self.request_decode(current, DecodePriority::Immediate, true)
-                    .await?;
+            // Check if buffer exists for current passage
+            if self.buffer_manager.get_buffer(current.queue_entry_id).await.is_none() {
+                // No buffer exists - decode was never triggered or failed
+                warn!(
+                    "[WATCHDOG] Event system failure: No buffer exists for current passage {}. Triggering emergency decode...",
+                    current.queue_entry_id
+                );
+
+                // Trigger decode as emergency intervention
+                if let Err(e) = self.request_decode(current, DecodePriority::Immediate, true).await {
+                    warn!("[WATCHDOG] Failed to trigger emergency decode for {}: {}", current.queue_entry_id, e);
+                }
+
+                // **[PLAN020 Phase 5]** Increment watchdog intervention counter and emit SSE event
+                self.state.increment_watchdog_interventions();
+                self.state.broadcast_event(wkmp_common::events::WkmpEvent::WatchdogIntervention {
+                    intervention_type: "decode".to_string(),
+                    interventions_total: self.state.get_watchdog_interventions(),
+                    timestamp: chrono::Utc::now(),
+                });
             }
         }
 
-        // Start mixer if current passage has minimum playback buffer
+        // **[PLAN020 Phase 4]** Watchdog: Detect mixer startup failures (detection-only)
+        // Event-driven path: BufferEvent::ReadyForStart → buffer_event_handler() → start_mixer_for_current()
+        // Watchdog path: Detection-only safety net if event system fails
         // [SSD-MIX-030] Single passage playback initiation
         // [SSD-PBUF-028] Start playback with minimum buffer (3 seconds)
         if let Some(current) = &current_entry {
-            debug!("process_queue: Found current passage: {}", current.queue_entry_id);
-
             // Check if buffer has minimum playback buffer available (3 seconds)
-            // This enables instant play start - decode continues in background
             const MIN_PLAYBACK_BUFFER_MS: u64 = 3000;
             let buffer_has_minimum = self.buffer_manager
                 .has_minimum_playback_buffer(current.queue_entry_id, MIN_PLAYBACK_BUFFER_MS)
                 .await;
-            debug!("process_queue: Minimum buffer for {}: {}", current.queue_entry_id, buffer_has_minimum);
 
             if buffer_has_minimum {
-                // Check if mixer is currently idle
-                let mixer = self.mixer.read().await;
-                let mixer_idle = mixer.get_current_passage_id().is_none();
-                debug!("process_queue: Mixer idle: {}", mixer_idle);
-
-                if mixer_idle {
-                    // Mixer is idle and buffer is ready - start playback!
-                    drop(mixer); // Release read lock before acquiring write lock
-
-                    // Get buffer from buffer manager
-                    if let Some(_buffer) = self.buffer_manager.get_buffer(current.queue_entry_id).await {
-                        // Get passage timing information
-                        let passage = self.get_passage_timing(current).await?;
-
-                        // **[REV002]** Load song timeline for passage
-                        if let Some(passage_id) = current.passage_id {
-                            match crate::db::passage_songs::load_song_timeline(&self.db_pool, passage_id).await {
-                                Ok(timeline) => {
-                                    // Get initial song at position 0
-                                    let initial_song_id = timeline.get_current_song(0);
-                                    let timeline_len = timeline.len();
-                                    let timeline_not_empty = !timeline.is_empty();
-
-                                    // Store timeline for boundary detection
-                                    *self.current_song_timeline.write().await = Some(timeline);
-
-                                    // Emit initial CurrentSongChanged if passage starts within a song
-                                    if initial_song_id.is_some() || timeline_not_empty {
-                                        debug!(
-                                            "Passage starts with song: {:?}",
-                                            initial_song_id
-                                        );
-
-                                        // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
-                                        let song_albums = crate::db::passages::get_passage_album_uuids(&self.db_pool, passage_id)
-                                            .await
-                                            .unwrap_or_else(|e| {
-                                                warn!("Failed to fetch album UUIDs for passage {}: {}", passage_id, e);
-                                                Vec::new()
-                                            });
-
-                                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
-                                            passage_id,
-                                            song_id: initial_song_id,
-                                            song_albums,
-                                            position_ms: 0,
-                                            timestamp: chrono::Utc::now(),
-                                        });
-                                    }
-
-                                    info!("Loaded song timeline: {} entries", timeline_len);
-                                }
-                                Err(e) => {
-                                    warn!(
-                                        "Failed to load song timeline for passage {}: {} (continuing without song boundaries)",
-                                        passage_id, e
-                                    );
-                                    // Continue playback without song boundary detection
-                                    *self.current_song_timeline.write().await = None;
-                                }
-                            }
-                        } else {
-                            // Ephemeral passage - no song timeline
-                            *self.current_song_timeline.write().await = None;
-                        }
-
-                        // Calculate fade-in duration from timing points (in ticks)
-                        // fade_in_point_ticks is where fade-in completes, so duration = fade_in - start
-                        let fade_in_duration_ticks = passage.fade_in_point_ticks.saturating_sub(passage.start_time_ticks);
-
-                        // Convert ticks to samples for mixer
-                        let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
-                            fade_in_duration_ticks,
-                            44100 // STANDARD_SAMPLE_RATE
+                debug!("Watchdog: Buffer has minimum playback buffer for {}", current.queue_entry_id);
+                // Watchdog detection: Check if mixer should be playing but isn't
+                match self.start_mixer_for_current(current).await {
+                    Ok(true) => {
+                        // Watchdog INTERVENED - event system failed to start mixer
+                        warn!(
+                            "[WATCHDOG] Event system failure: Buffer ready ({} ms) but mixer not started for {}. Intervening...",
+                            MIN_PLAYBACK_BUFFER_MS, current.queue_entry_id
                         );
-
-                        // Determine fade-in curve (default to Exponential if not specified)
-                        let fade_in_curve = if let Some(curve_str) = current.fade_in_curve.as_ref() {
-                            wkmp_common::FadeCurve::from_str(curve_str)
-                                .unwrap_or(wkmp_common::FadeCurve::Exponential)
-                        } else {
-                            wkmp_common::FadeCurve::Exponential
-                        };
-
-                        info!(
-                            "Starting playback of passage {} (queue_entry: {}) with fade-in: {} samples ({} ticks)",
-                            current.passage_id.unwrap_or_else(Uuid::nil),
-                            current.queue_entry_id,
-                            fade_in_duration_samples,
-                            fade_in_duration_ticks
-                        );
-
-                        // Start mixer
-                        // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
-                        {
-                            let mut mixer = self.mixer.write().await;
-
-                            // Use passage_id or Uuid::nil() for ephemeral passages
-                            let mixer_passage_id = current.passage_id.unwrap_or_else(Uuid::nil);
-                            mixer.set_current_passage(mixer_passage_id, current.queue_entry_id, 0);
-
-                            // [SUB-INC-4B] Calculate and add markers
-                            // For ephemeral passages (passage_id = None), only add position/complete markers
-                            // Per SPEC007: ephemeral passages have no crossfade (all lead/fade points = 0)
-
-                            // 1. Position update markers (configurable interval from settings)
-                            // **[DEBT-004]** Load from settings (default: 1000ms, range: 100-5000ms)
-                            let position_interval_ms = self.position_interval_ms as i64;
-                            let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
-
-                            // Calculate passage duration in ticks
-                            // Default to 24 hours for ephemeral passages (safety fallback - EOF detection is primary mechanism)
-                            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(86_400_000)))); // Default 24hr max
-                            let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
-
-                            // Add position update markers
-                            let marker_count = (passage_duration_ticks / position_interval_ticks) as usize;
-                            for i in 1..=marker_count {
-                                let tick = i as i64 * position_interval_ticks;
-                                let position_ms = wkmp_common::timing::ticks_to_ms(tick) as u64;
-
-                                mixer.add_marker(PositionMarker {
-                                    tick,
-                                    passage_id: mixer_passage_id,
-                                    event_type: MarkerEvent::PositionUpdate { position_ms },
-                                });
-                            }
-
-                            // 2. Crossfade marker (if next passage exists AND current is not ephemeral)
-                            if current.passage_id.is_some() {
-                                if let Some(ref _next) = next_entry {
-                                    // Calculate crossfade start point
-                                    let fade_out_start_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
-                                        fade_out_ticks.saturating_sub(passage.start_time_ticks)
-                                    } else {
-                                        // No explicit fade-out point, use lead-out - 5 seconds
-                                        let lead_out_tick = passage.lead_out_point_ticks.unwrap_or(passage_duration_ticks);
-                                        lead_out_tick.saturating_sub(wkmp_common::timing::ms_to_ticks(5000))
-                                    };
-
-                                    // Only add if there's a next passage in queue
-                                    if let Some(next_passage_id) = next_entry.as_ref().and_then(|n| n.passage_id) {
-                                        mixer.add_marker(PositionMarker {
-                                            tick: fade_out_start_tick,
-                                            passage_id: mixer_passage_id,
-                                            event_type: MarkerEvent::StartCrossfade { next_passage_id },
-                                        });
-
-                                        debug!(
-                                            "Added crossfade marker at tick {} for passage {} → {}",
-                                            fade_out_start_tick, mixer_passage_id, next_passage_id
-                                        );
-                                    }
-                                }
-                            } else {
-                                debug!("Ephemeral passage - skipping crossfade marker (no crossfade per SPEC007)");
-                            }
-
-                            // 3. Passage complete marker (at fade-out end)
-                            let complete_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
-                                fade_out_ticks.saturating_sub(passage.start_time_ticks)
-                            } else {
-                                passage_duration_ticks
-                            };
-
-                            mixer.add_marker(PositionMarker {
-                                tick: complete_tick,
-                                passage_id: mixer_passage_id,
-                                event_type: MarkerEvent::PassageComplete,
-                            });
-
-                            debug!(
-                                "Added markers for passage {}: {} position updates, complete at tick {}",
-                                mixer_passage_id, marker_count, complete_tick
-                            );
-
-                            // 4. Handle fade-in via start_resume_fade() if needed
-                            if fade_in_duration_samples > 0 {
-                                mixer.start_resume_fade(fade_in_duration_samples, fade_in_curve);
-                                debug!(
-                                    "Started fade-in: {} samples, curve: {:?}",
-                                    fade_in_duration_samples, fade_in_curve
-                                );
-                            }
-
-                            // Set passage start time
-                            *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
-                        }
-
-                        // Mark buffer as playing
-                        self.buffer_manager.mark_playing(current.queue_entry_id).await;
-
-                        // Update position tracking
-                        // [ISSUE-8] Use internal RwLock for queue_entry_id
-                        *self.position.queue_entry_id.write().await = Some(current.queue_entry_id);
-
-                        // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
-                        let album_uuids = if let Some(pid) = current.passage_id {
-                            get_passage_album_uuids(&self.db_pool, pid)
-                                .await
-                                .unwrap_or_else(|e| {
-                                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
-                                    Vec::new()
-                                })
-                        } else {
-                            Vec::new()
-                        };
-
-                        // Emit PassageStarted event
-                        // [Event-PassageStarted] Passage playback began
-                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
-                            passage_id: current.passage_id.unwrap_or_else(Uuid::nil),
-                            album_uuids,
+                        // **[PLAN020 Phase 5]** Increment watchdog intervention counter and emit SSE event
+                        self.state.increment_watchdog_interventions();
+                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::WatchdogIntervention {
+                            intervention_type: "mixer".to_string(),
+                            interventions_total: self.state.get_watchdog_interventions(),
                             timestamp: chrono::Utc::now(),
                         });
-
-                        info!("Passage started successfully");
-                    } else {
-                        warn!("Buffer ready but not found in BufferManager for {}", current.queue_entry_id);
+                    }
+                    Ok(false) => {
+                        // No intervention needed - mixer already playing or buffer not ready
+                        debug!("Watchdog: No intervention needed for {} (mixer already playing or buffer not found)", current.queue_entry_id);
+                    }
+                    Err(e) => {
+                        warn!("[WATCHDOG] Failed to start mixer for {}: {}", current.queue_entry_id, e);
                     }
                 }
+            } else {
+                debug!("Watchdog: Buffer does NOT have minimum playback buffer for {}", current.queue_entry_id);
             }
         }
 
@@ -1634,35 +1526,11 @@ impl PlaybackEngine {
             }
         }
 
-        // Trigger decode for next passage if needed
-        // [SSD-FBUF-011] Full decode for currently playing OR next-to-be-played
-        // [SSD-PBUF-013] Facilitate instant skip to queued passages
-        // This MUST happen before completion check to ensure prefetch while playing
-        // **Fix for queue flooding:** Only request if not already managed
-        if let Some(next) = &next_entry {
-            if !self.buffer_manager.is_managed(next.queue_entry_id).await {
-                debug!("Requesting decode for next passage: {}", next.queue_entry_id);
-                self.request_decode(next, DecodePriority::Next, true)
-                    .await?;
-            }
-        }
-
-        // Trigger decode for queued passages
-        // [SSD-PBUF-010] Partial buffer decode for queued passages
-        // **[DBD-PARAM-050]** Decode up to (maximum_decode_streams - 2) queued passages
-        // Subtract 2 for current and next passages
-        // **CRITICAL FIX:** Always request FULL decode (full=true) to prevent
-        // third-file bug where passages decoded as "queued" with full=false
-        // never get upgraded to full decode when promoted to "next".
-        // Trade-off: Slightly higher memory usage, but guarantees correct playback.
-        let max_queued = self.maximum_decode_streams.saturating_sub(2);
-        for queued in queued_entries.iter().take(max_queued) {
-            if !self.buffer_manager.is_managed(queued.queue_entry_id).await {
-                debug!("Requesting decode for queued passage: {}", queued.queue_entry_id);
-                self.request_decode(queued, DecodePriority::Prefetch, true)
-                    .await?;
-            }
-        }
+        // **[PLAN020 Phase 4]** Proactive decode for next/queued passages removed
+        // Event-driven path handles all decode triggering:
+        // - enqueue_file(): Triggers decode for newly enqueued passage (any position)
+        // - complete_passage_removal(): Triggers decode for promoted passages
+        // Watchdog detection would go here (TC-WD-003: missing next buffer)
 
         // **[XFD-COMP-010]** Check for crossfade completion BEFORE normal completion
         // When a crossfade completes, the outgoing passage has finished fading out
@@ -1915,8 +1783,275 @@ impl PlaybackEngine {
         Ok(())
     }
 
+    /// Start mixer for current passage (event-driven mixer startup)
+    ///
+    /// **[PLAN020 FR-002]** Event-Driven Mixer Startup
+    /// Extracted from watchdog_check() to enable event-driven triggering via BufferEvent::ReadyForStart
+    ///
+    /// Starts playback when buffer reaches minimum threshold (3 seconds).
+    /// Handles:
+    /// - Mixer state initialization
+    /// - Song timeline loading
+    /// - Position markers
+    /// - Crossfade markers
+    /// - Fade-in curves
+    /// - PassageStarted event emission
+    ///
+    /// # Arguments
+    /// * `current` - Current queue entry to start playing
+    ///
+    /// # Returns
+    /// * `Ok(())` - Mixer started successfully
+    /// * `Err(_)` - Mixer startup failed
+    /// Start mixer for current passage (event-driven mixer startup)
+    ///
+    /// **[PLAN020 FR-002]** Event-Driven Mixer Startup
+    /// Extracted from watchdog_check() to enable event-driven triggering via BufferEvent::ReadyForStart
+    ///
+    /// **Returns:** `Ok(true)` if mixer was started, `Ok(false)` if mixer already playing or buffer not ready
+    pub(super) async fn start_mixer_for_current(&self, current: &QueueEntry) -> Result<bool> {
+        // Check if mixer is already playing (prevent duplicate start)
+        let mixer = self.mixer.read().await;
+        let mixer_idle = mixer.get_current_passage_id().is_none();
+        let mixer_passage_id = mixer.get_current_passage_id();
+        drop(mixer);
+
+        debug!("start_mixer_for_current: mixer_idle={}, mixer_passage_id={:?}, queue_entry_id={}",
+               mixer_idle, mixer_passage_id, current.queue_entry_id);
+
+        if !mixer_idle {
+            debug!("Mixer already playing passage {:?} - skipping start for {}", mixer_passage_id, current.queue_entry_id);
+            return Ok(false); // Not an intervention - mixer already running
+        }
+
+        // Get buffer from buffer manager
+        if self.buffer_manager.get_buffer(current.queue_entry_id).await.is_none() {
+            warn!("Buffer not found for {} - cannot start mixer", current.queue_entry_id);
+            return Ok(false); // Non-fatal: watchdog will retry if needed
+        }
+
+        debug!("start_mixer_for_current: Buffer found for {}, proceeding with mixer startup", current.queue_entry_id);
+
+        // Get passage timing information
+        let passage = self.get_passage_timing(current).await?;
+
+        // **[REV002]** Load song timeline for passage
+        if let Some(passage_id) = current.passage_id {
+            match crate::db::passage_songs::load_song_timeline(&self.db_pool, passage_id).await {
+                Ok(timeline) => {
+                    // Get initial song at position 0
+                    let initial_song_id = timeline.get_current_song(0);
+                    let timeline_len = timeline.len();
+                    let timeline_not_empty = !timeline.is_empty();
+
+                    // Store timeline for boundary detection
+                    *self.current_song_timeline.write().await = Some(timeline);
+
+                    // Emit initial CurrentSongChanged if passage starts within a song
+                    if initial_song_id.is_some() || timeline_not_empty {
+                        debug!(
+                            "Passage starts with song: {:?}",
+                            initial_song_id
+                        );
+
+                        // **[DEBT-005]** Fetch album UUIDs for CurrentSongChanged event
+                        let song_albums = crate::db::passages::get_passage_album_uuids(&self.db_pool, passage_id)
+                            .await
+                            .unwrap_or_else(|e| {
+                                warn!("Failed to fetch album UUIDs for passage {}: {}", passage_id, e);
+                                Vec::new()
+                            });
+
+                        self.state.broadcast_event(wkmp_common::events::WkmpEvent::CurrentSongChanged {
+                            passage_id,
+                            song_id: initial_song_id,
+                            song_albums,
+                            position_ms: 0,
+                            timestamp: chrono::Utc::now(),
+                        });
+                    }
+
+                    info!("Loaded song timeline: {} entries", timeline_len);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to load song timeline for passage {}: {} (continuing without song boundaries)",
+                        passage_id, e
+                    );
+                    // Continue playback without song boundary detection
+                    *self.current_song_timeline.write().await = None;
+                }
+            }
+        } else {
+            // Ephemeral passage - no song timeline
+            *self.current_song_timeline.write().await = None;
+        }
+
+        // Calculate fade-in duration from timing points (in ticks)
+        // fade_in_point_ticks is where fade-in completes, so duration = fade_in - start
+        let fade_in_duration_ticks = passage.fade_in_point_ticks.saturating_sub(passage.start_time_ticks);
+
+        // Convert ticks to samples for mixer
+        let fade_in_duration_samples = wkmp_common::timing::ticks_to_samples(
+            fade_in_duration_ticks,
+            44100 // STANDARD_SAMPLE_RATE
+        );
+
+        // Determine fade-in curve (default to Exponential if not specified)
+        let fade_in_curve = if let Some(curve_str) = current.fade_in_curve.as_ref() {
+            wkmp_common::FadeCurve::from_str(curve_str)
+                .unwrap_or(wkmp_common::FadeCurve::Exponential)
+        } else {
+            wkmp_common::FadeCurve::Exponential
+        };
+
+        info!(
+            "Starting playback of passage {} (queue_entry: {}) with fade-in: {} samples ({} ticks)",
+            current.passage_id.unwrap_or_else(Uuid::nil),
+            current.queue_entry_id,
+            fade_in_duration_samples,
+            fade_in_duration_ticks
+        );
+
+        // Start mixer
+        // [SUB-INC-4B] Replace start_passage() with set_current_passage() + markers
+        {
+            let mut mixer = self.mixer.write().await;
+
+            // Use passage_id or Uuid::nil() for ephemeral passages
+            let mixer_passage_id = current.passage_id.unwrap_or_else(Uuid::nil);
+            mixer.set_current_passage(mixer_passage_id, current.queue_entry_id, 0);
+
+            // [SUB-INC-4B] Calculate and add markers
+            // For ephemeral passages (passage_id = None), only add position/complete markers
+            // Per SPEC007: ephemeral passages have no crossfade (all lead/fade points = 0)
+
+            // 1. Position update markers (configurable interval from settings)
+            // **[DEBT-004]** Load from settings (default: 1000ms, range: 100-5000ms)
+            let position_interval_ms = self.position_interval_ms as i64;
+            let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
+
+            // Calculate passage duration in ticks
+            // Default to 24 hours for ephemeral passages (safety fallback - EOF detection is primary mechanism)
+            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(86_400_000)))); // Default 24hr max
+            let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
+
+            // Add position update markers
+            let marker_count = (passage_duration_ticks / position_interval_ticks) as usize;
+            for i in 1..=marker_count {
+                let tick = i as i64 * position_interval_ticks;
+                let position_ms = wkmp_common::timing::ticks_to_ms(tick) as u64;
+
+                mixer.add_marker(PositionMarker {
+                    tick,
+                    passage_id: mixer_passage_id,
+                    event_type: MarkerEvent::PositionUpdate { position_ms },
+                });
+            }
+
+            // Get next entry for crossfade marker
+            let next_entry = {
+                let queue = self.queue.read().await;
+                queue.next().cloned()
+            };
+
+            // 2. Crossfade marker (if next passage exists AND current is not ephemeral)
+            if current.passage_id.is_some() {
+                if let Some(ref _next) = next_entry {
+                    // Calculate crossfade start point
+                    let fade_out_start_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                        fade_out_ticks.saturating_sub(passage.start_time_ticks)
+                    } else {
+                        // No explicit fade-out point, use lead-out - 5 seconds
+                        let lead_out_tick = passage.lead_out_point_ticks.unwrap_or(passage_duration_ticks);
+                        lead_out_tick.saturating_sub(wkmp_common::timing::ms_to_ticks(5000))
+                    };
+
+                    // Only add if there's a next passage in queue
+                    if let Some(next_passage_id) = next_entry.as_ref().and_then(|n| n.passage_id) {
+                        mixer.add_marker(PositionMarker {
+                            tick: fade_out_start_tick,
+                            passage_id: mixer_passage_id,
+                            event_type: MarkerEvent::StartCrossfade { next_passage_id },
+                        });
+
+                        debug!(
+                            "Added crossfade marker at tick {} for passage {} → {}",
+                            fade_out_start_tick, mixer_passage_id, next_passage_id
+                        );
+                    }
+                }
+            } else {
+                debug!("Ephemeral passage - skipping crossfade marker (no crossfade per SPEC007)");
+            }
+
+            // 3. Passage complete marker (at fade-out end)
+            let complete_tick = if let Some(fade_out_ticks) = passage.fade_out_point_ticks {
+                fade_out_ticks.saturating_sub(passage.start_time_ticks)
+            } else {
+                passage_duration_ticks
+            };
+
+            mixer.add_marker(PositionMarker {
+                tick: complete_tick,
+                passage_id: mixer_passage_id,
+                event_type: MarkerEvent::PassageComplete,
+            });
+
+            debug!(
+                "Added markers for passage {}: {} position updates, complete at tick {}",
+                mixer_passage_id, marker_count, complete_tick
+            );
+
+            // 4. Handle fade-in via start_resume_fade() if needed
+            if fade_in_duration_samples > 0 {
+                mixer.start_resume_fade(fade_in_duration_samples, fade_in_curve);
+                debug!(
+                    "Started fade-in: {} samples, curve: {:?}",
+                    fade_in_duration_samples, fade_in_curve
+                );
+            }
+
+            // Set passage start time
+            *self.passage_start_time.write().await = Some(tokio::time::Instant::now());
+        }
+
+        // Mark buffer as playing
+        self.buffer_manager.mark_playing(current.queue_entry_id).await;
+
+        // Update position tracking
+        // [ISSUE-8] Use internal RwLock for queue_entry_id
+        *self.position.queue_entry_id.write().await = Some(current.queue_entry_id);
+
+        // Fetch album UUIDs for PassageStarted event **[REQ-DEBT-FUNC-003]**
+        let album_uuids = if let Some(pid) = current.passage_id {
+            get_passage_album_uuids(&self.db_pool, pid)
+                .await
+                .unwrap_or_else(|e| {
+                    warn!("Failed to fetch album UUIDs for passage {}: {}", pid, e);
+                    Vec::new()
+                })
+        } else {
+            Vec::new()
+        };
+
+        // Emit PassageStarted event
+        // [Event-PassageStarted] Passage playback began
+        self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageStarted {
+            passage_id: current.passage_id.unwrap_or_else(Uuid::nil),
+            album_uuids,
+            timestamp: chrono::Utc::now(),
+        });
+
+        info!("⚡ Mixer started for passage {} (event-driven)", current.queue_entry_id);
+
+        Ok(true) // Mixer was started successfully
+    }
+
     /// Request decode for a passage
-    async fn request_decode(
+    ///
+    /// **[PLAN020]** Made pub(super) for event-driven decode triggering from queue module
+    pub(super) async fn request_decode(
         &self,
         entry: &QueueEntry,
         priority: DecodePriority,
@@ -2388,6 +2523,67 @@ impl PlaybackEngine {
                 return false; // Timeout
             }
         }
+    }
+
+    /// Get current passage being played by mixer
+    ///
+    /// **[TEST-HARNESS][PLAN020 Phase 5]** For integration testing
+    ///
+    /// Returns `Some(queue_entry_id)` if mixer is playing, `None` if idle.
+    #[doc(hidden)]
+    pub async fn test_get_mixer_current_passage(&self) -> Option<Uuid> {
+        let mixer = self.mixer.read().await;
+        mixer.get_current_passage_id()
+    }
+
+    /// Simulate buffer fill and trigger ReadyForStart event
+    ///
+    /// **[TEST-HARNESS][PLAN020 Phase 5]** For integration testing
+    ///
+    /// Simulates buffer filling to threshold (3000ms) and emits BufferEvent::ReadyForStart
+    /// to test event-driven mixer startup without requiring real decode.
+    #[doc(hidden)]
+    pub async fn test_simulate_buffer_fill(&self, queue_entry_id: Uuid, target_ms: u64) -> anyhow::Result<()> {
+        use crate::playback::buffer_events::BufferEvent;
+
+        // Calculate samples for target duration (44.1kHz stereo = 88200 samples/sec)
+        let samples_buffered = ((target_ms as f64 / 1000.0) * 88200.0) as usize;
+
+        // If target >= 3000ms, emit ReadyForStart event
+        if target_ms >= 3000 {
+            let event = BufferEvent::ReadyForStart {
+                queue_entry_id,
+                samples_buffered,
+                buffer_duration_ms: target_ms,
+            };
+
+            // Emit via buffer manager's test method
+            self.buffer_manager.test_emit_event(event).await;
+
+            // Give event time to propagate
+            tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
+        }
+
+        Ok(())
+    }
+
+    /// Simulate passage completion (for queue advance testing)
+    ///
+    /// **[TEST-HARNESS][PLAN020 Phase 5]** For integration testing
+    ///
+    /// Simulates passage completing playback by:
+    /// 1. Removing the passage from queue (triggers queue advance)
+    /// 2. Waiting for event-driven decode to trigger for promoted passages
+    #[doc(hidden)]
+    pub async fn test_simulate_passage_complete(&self, queue_entry_id: Uuid) -> anyhow::Result<()> {
+        // Remove current passage (same as user skip or natural completion)
+        // Note: remove_queue_entry returns bool, not Result
+        let _removed = self.remove_queue_entry(queue_entry_id).await;
+
+        // Give event system time to process queue advance and trigger decode
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+
+        Ok(())
     }
 }
 

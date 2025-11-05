@@ -985,6 +985,16 @@ impl BufferManager {
 
         Some((occupied as f32 / capacity as f32) * 100.0)
     }
+
+    /// Emit test buffer event (for integration testing)
+    ///
+    /// **[TEST-HARNESS][PLAN020 Phase 5]** For integration testing
+    ///
+    /// Emits a BufferEvent through the event channel without requiring real decode.
+    #[doc(hidden)]
+    pub async fn test_emit_event(&self, event: BufferEvent) {
+        self.emit_event(event).await;
+    }
 }
 
 /// Buffer monitoring information

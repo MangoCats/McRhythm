@@ -270,6 +270,33 @@ impl TestEngine {
     pub async fn wait_for_generation_change(&self, timeout_ms: u64) -> bool {
         self.engine.test_wait_for_generation_change(timeout_ms).await
     }
+
+    /// Get mixer current passage ID
+    ///
+    /// **[PLAN020 Phase 5]** For integration testing
+    ///
+    /// Returns `Some(queue_entry_id)` if mixer is playing, `None` if idle.
+    pub async fn get_mixer_current_passage(&self) -> Option<Uuid> {
+        self.engine.test_get_mixer_current_passage().await
+    }
+
+    /// Simulate buffer fill and trigger ReadyForStart event
+    ///
+    /// **[PLAN020 Phase 5]** For integration testing
+    ///
+    /// Simulates buffer filling to threshold and emits BufferEvent::ReadyForStart.
+    pub async fn simulate_buffer_fill(&self, queue_entry_id: Uuid, target_ms: u64) -> anyhow::Result<()> {
+        self.engine.test_simulate_buffer_fill(queue_entry_id, target_ms).await
+    }
+
+    /// Simulate passage completion
+    ///
+    /// **[PLAN020 Phase 5]** For integration testing
+    ///
+    /// Simulates passage completing playback (removes from queue, triggers queue advance).
+    pub async fn simulate_passage_complete(&self, queue_entry_id: Uuid) -> anyhow::Result<()> {
+        self.engine.test_simulate_passage_complete(queue_entry_id).await
+    }
 }
 
 /// Create a minimal test audio file (100ms silence)

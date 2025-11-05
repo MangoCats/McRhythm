@@ -239,6 +239,28 @@
             color: #fff;
         }
 
+        /* **[PLAN020 Phase 5]** Watchdog intervention indicator styles */
+        .watchdog-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .watchdog-green {
+            background: #10b981;
+            color: #fff;
+        }
+        .watchdog-yellow {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .watchdog-red {
+            background: #ef4444;
+            color: #fff;
+        }
+
         .event-controls {
             display: flex;
             gap: 4px;
@@ -495,6 +517,7 @@
                 <h1>
                     WKMP Audio Player
                     <span class="connection-status" id="connection-status">Connecting...</span>
+                    <span class="watchdog-status watchdog-green" id="watchdog-status" title="Watchdog interventions: event system failures requiring watchdog correction">Watchdog: 0</span>
                 </h1>
                 <p class="subtitle">Developer Interface</p>
             </div>
@@ -783,6 +806,38 @@
         }
 
         // Fetch initial state from API
+        // **[PLAN020 Phase 5]** Fetch and update watchdog intervention count
+        async function fetchWatchdogStatus() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/playback/watchdog_status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateWatchdogDisplay(data.interventions_total);
+                }
+            } catch (err) {
+                console.error('Failed to fetch watchdog status:', err);
+            }
+        }
+
+        // **[PLAN020 Phase 5]** Update watchdog status indicator
+        function updateWatchdogDisplay(count) {
+            const statusEl = document.getElementById('watchdog-status');
+            if (!statusEl) return;
+
+            // Update text with count
+            statusEl.textContent = `Watchdog: ${count}`;
+
+            // Update color based on count
+            statusEl.className = 'watchdog-status';
+            if (count === 0) {
+                statusEl.classList.add('watchdog-green');
+            } else if (count >= 1 && count <= 9) {
+                statusEl.classList.add('watchdog-yellow');
+            } else {
+                statusEl.classList.add('watchdog-red');
+            }
+        }
+
         async function fetchInitialState() {
             try {
                 // Fetch build info
@@ -833,6 +888,9 @@
 
                 // Load settings
                 await loadSettings();
+
+                // **[PLAN020 Phase 5]** Fetch watchdog status
+                await fetchWatchdogStatus();
             } catch (err) {
                 console.error('Failed to fetch initial state:', err);
             }
@@ -842,6 +900,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchInitialState();
             connectEventStream();
+
+            // **[PLAN020 Phase 5]** Poll watchdog status every 30 seconds (SSE provides real-time updates)
+            setInterval(fetchWatchdogStatus, 30000);
         });
 
         // Connect to SSE event stream with auto-reconnect
@@ -859,6 +920,9 @@
             eventSource.onopen = () => {
                 updateConnectionStatus('connected');
                 addEvent('system', 'Connected to SSE event stream');
+
+                // **[PLAN020 Phase 5]** Sync watchdog status on SSE reconnection
+                fetchWatchdogStatus();
             };
 
             eventSource.onerror = (err) => {
@@ -905,6 +969,13 @@
 
             eventSource.addEventListener('BufferChainStatus', (e) => {
                 handleBufferChainStatus(JSON.parse(e.data));
+            });
+
+            // **[PLAN020 Phase 5]** Listen for watchdog intervention events
+            eventSource.addEventListener('WatchdogIntervention', (e) => {
+                const data = JSON.parse(e.data);
+                updateWatchdogDisplay(data.interventions_total);
+                addEvent('WatchdogIntervention', `${data.intervention_type} intervention (#${data.interventions_total})`);
             });
 
             // Fallback for unknown events

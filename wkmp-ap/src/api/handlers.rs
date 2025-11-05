@@ -197,6 +197,13 @@ pub struct BuildInfoResponse {
     build_profile: String,
 }
 
+/// **[PLAN020 Phase 5]** Watchdog status response
+#[derive(Debug, Serialize)]
+pub struct WatchdogStatusResponse {
+    /// Total number of watchdog interventions since startup
+    interventions_total: u64,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BrowseFilesRequest {
     path: Option<String>,
@@ -713,6 +720,23 @@ pub async fn get_playback_state(
     Json(serde_json::json!({
         "state": state_str
     }))
+}
+
+/// GET /playback/watchdog_status - Get watchdog intervention count
+///
+/// **[PLAN020 Phase 5]** Returns the total number of watchdog interventions since startup.
+/// Used by UI to display event system health indicator.
+///
+/// Returns:
+/// - interventions_total: Total watchdog interventions (0 = event system working perfectly)
+pub async fn get_watchdog_status(
+    State(ctx): State<AppContext>,
+) -> Json<WatchdogStatusResponse> {
+    let interventions_total = ctx.state.get_watchdog_interventions();
+
+    Json(WatchdogStatusResponse {
+        interventions_total,
+    })
 }
 
 /// GET /playback/position - Get current playback position

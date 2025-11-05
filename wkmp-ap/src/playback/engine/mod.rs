@@ -1,7 +1,7 @@
 //! Playback engine module - refactored from monolithic engine.rs
 //!
 //! **Module Structure:**
-//! - `core.rs`: Lifecycle, state management, orchestration (process_queue)
+//! - `core.rs`: Lifecycle, state management, orchestration (watchdog_check)
 //! - `queue.rs`: Queue operations (enqueue, skip, clear, reorder, remove)
 //! - `diagnostics.rs`: Monitoring, status accessors, event handlers
 //!

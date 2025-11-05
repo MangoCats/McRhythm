@@ -105,6 +105,7 @@ pub async fn run(
         .route("/playback/seek", post(super::handlers::seek))
         .route("/playback/queue", get(super::handlers::get_queue))
         .route("/playback/state", get(super::handlers::get_playback_state))
+        .route("/playback/watchdog_status", get(super::handlers::get_watchdog_status))
         .route("/playback/position", get(super::handlers::get_position))
         .route("/playback/buffer_status", get(super::handlers::get_buffer_status))
         .route("/playback/buffer_chains", get(super::handlers::get_buffer_chains))
