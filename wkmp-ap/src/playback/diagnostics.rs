@@ -26,7 +26,6 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct PassageMetrics {
     /// Passage/queue entry ID
-    #[allow(dead_code)]
     pub passage_id: Uuid,
 
     /// Total stereo frames pushed by decoder to buffer
@@ -198,7 +197,6 @@ impl ValidationResult {
     /// Format validation result as human-readable string
     ///
     /// **Phase 4:** Report formatting reserved for diagnostics UI (validation service not yet enabled)
-    #[allow(dead_code)]
     pub fn format_report(&self) -> String {
         let mut report = String::new();
 

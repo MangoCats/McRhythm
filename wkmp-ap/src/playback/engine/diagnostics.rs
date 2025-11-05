@@ -45,7 +45,6 @@ impl PlaybackEngine {
     /// Cloned Arc to BufferManager
     ///
     /// **Phase 4:** Buffer manager accessor reserved for integration tests (not yet used by API)
-    #[allow(dead_code)]
     pub fn get_buffer_manager(&self) -> Arc<BufferManager> {
         Arc::clone(&self.buffer_manager)
     }

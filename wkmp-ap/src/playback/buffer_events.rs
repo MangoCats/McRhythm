@@ -63,7 +63,6 @@ pub struct BufferMetadata {
     /// **[DBD-DEC-095]** Set when decoder discovers actual file duration
     ///
     /// **Phase 4:** Endpoint discovery reserved for future feature (passage timing validation)
-    #[allow(dead_code)]
     pub discovered_end_ticks: Option<i64>,
 
     /// When buffer was created
@@ -125,7 +124,6 @@ impl BufferMetadata {
     /// Check if buffer is exhausted (read caught up to write, and decode finished)
     ///
     /// **Phase 4:** Exhaustion check reserved for buffer cleanup logic (currently handled by mixer)
-    #[allow(dead_code)]
     pub fn is_exhausted(&self) -> bool {
         if let Some(total) = self.total_samples {
             // Decode finished: exhausted if read position >= total
@@ -153,15 +151,10 @@ pub enum BufferEvent {
     /// Buffer state changed
     ///
     /// **Phase 4:** StateChanged variant reserved for buffer lifecycle telemetry
-    #[allow(dead_code)]
     StateChanged {
-        #[allow(dead_code)]
         queue_entry_id: Uuid,
-        #[allow(dead_code)]
         old_state: BufferState,
-        #[allow(dead_code)]
         new_state: BufferState,
-        #[allow(dead_code)]
         samples_buffered: usize,
     },
 
@@ -169,7 +162,6 @@ pub enum BufferEvent {
     /// [PERF-POLL-010] Replaces polling-based readiness checks
     ReadyForStart {
         queue_entry_id: Uuid,
-        #[allow(dead_code)]
         samples_buffered: usize,
         buffer_duration_ms: u64,
     },
@@ -178,9 +170,7 @@ pub enum BufferEvent {
     /// [DBD-BUF-070] Underrun detection
     ///
     /// **Phase 4:** Exhausted variant reserved for underrun telemetry (currently handled by mixer)
-    #[allow(dead_code)]
     Exhausted {
-        #[allow(dead_code)]
         queue_entry_id: Uuid,
         headroom: usize,
     },
@@ -189,11 +179,8 @@ pub enum BufferEvent {
     /// [DBD-BUF-060] Completion notification
     ///
     /// **Phase 4:** Finished variant reserved for decode completion events
-    #[allow(dead_code)]
     Finished {
-        #[allow(dead_code)]
         queue_entry_id: Uuid,
-        #[allow(dead_code)]
         total_samples: usize,
     },
 
@@ -201,7 +188,6 @@ pub enum BufferEvent {
     /// **[DBD-DEC-095]** Emitted when decoder discovers actual file duration for undefined endpoints
     ///
     /// **Phase 4:** EndpointDiscovered variant reserved for endpoint discovery feature
-    #[allow(dead_code)]
     EndpointDiscovered {
         queue_entry_id: Uuid,
         actual_end_ticks: i64,

@@ -132,7 +132,6 @@ pub struct AudioProducer {
     producer: ringbuf::HeapProd<AudioFrame>,
     overruns: Arc<AtomicU64>,
     buffer_has_been_filled: Arc<AtomicBool>,
-    #[allow(dead_code)]
     buffer_filled_timestamp_ms: Arc<AtomicU64>,
 }
 
@@ -198,13 +197,9 @@ impl AudioProducer {
 pub struct AudioConsumer {
     consumer: ringbuf::HeapCons<AudioFrame>,
     underruns: Arc<AtomicU64>,
-    #[allow(dead_code)]
     buffer_has_been_filled: Arc<AtomicBool>,
-    #[allow(dead_code)]
     buffer_filled_timestamp_ms: Arc<AtomicU64>,
-    #[allow(dead_code)]
     grace_period_ms: u64,
-    #[allow(dead_code)]
     audio_expected: Arc<AtomicBool>,
 }
 

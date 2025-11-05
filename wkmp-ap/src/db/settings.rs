@@ -92,7 +92,6 @@ pub async fn set_audio_device(db: &Pool<Sqlite>, device: String) -> Result<()> {
 /// **Traceability:** XFD-IMPL-030
 ///
 /// **Phase 4:** Legacy crossfade config reserved for backward compatibility (superseded by individual timing queries)
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CrossfadeDefaults {
     /// Global crossfade time in seconds
@@ -106,7 +105,6 @@ pub struct CrossfadeDefaults {
 /// **Traceability:** DB-SETTINGS-060
 ///
 /// **Phase 4:** Legacy crossfade loader reserved for backward compatibility (superseded by individual timing queries)
-#[allow(dead_code)]
 pub async fn get_crossfade_defaults(db: &Pool<Sqlite>) -> Result<CrossfadeDefaults> {
     let crossfade_time_s = match get_setting::<f64>(db, "global_crossfade_time").await? {
         Some(time) => time,
@@ -147,7 +145,6 @@ pub async fn save_playback_position(db: &Pool<Sqlite>, position_ms: i64) -> Resu
 /// [REQ-PERS-011] Restore last played position
 ///
 /// **Phase 4:** Position restore reserved for persistence feature (not yet implemented in engine)
-#[allow(dead_code)]
 pub async fn load_playback_position(db: &Pool<Sqlite>) -> Result<Option<i64>> {
     get_setting::<i64>(db, "last_played_position_ms").await
 }
@@ -164,7 +161,6 @@ pub async fn save_last_passage_id(db: &Pool<Sqlite>, passage_id: Uuid) -> Result
 /// [REQ-PERS-011] Restore last played passage
 ///
 /// **Phase 4:** Passage restore reserved for persistence feature (not yet implemented in engine)
-#[allow(dead_code)]
 pub async fn load_last_passage_id(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
     match get_setting::<String>(db, "last_played_passage_id").await? {
         Some(id_str) => {
@@ -197,7 +193,6 @@ pub async fn save_queue_state(db: &Pool<Sqlite>, current_id: Option<Uuid>) -> Re
 /// [ARCH-QP-020] Queue state restoration
 ///
 /// **Phase 4:** Queue state restore reserved for persistence feature (not yet implemented in engine)
-#[allow(dead_code)]
 pub async fn load_queue_state(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
     match get_setting::<String>(db, "queue_current_id").await? {
         Some(id_str) => {
@@ -300,7 +295,6 @@ pub async fn load_minimum_buffer_threshold(db: &Pool<Sqlite>) -> Result<u64> {
 /// * `threshold_ms` - Minimum buffer duration in milliseconds (will be clamped to 500-5000)
 ///
 /// **Phase 4:** Threshold setter reserved for future tuning UI (load is used, set is not yet needed)
-#[allow(dead_code)]
 pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) -> Result<()> {
     let clamped = threshold_ms.clamp(500, 5000);
     set_setting(db, "minimum_buffer_threshold_ms", clamped).await
@@ -333,7 +327,6 @@ pub async fn get_decoder_resume_hysteresis(db: &Pool<Sqlite>) -> Result<usize> {
 /// * `samples` - Hysteresis threshold in samples (will be clamped to 882-88200)
 ///
 /// **Phase 4:** Hysteresis setter reserved for future tuning UI (load is used, set is not yet needed)
-#[allow(dead_code)]
 pub async fn set_decoder_resume_hysteresis(db: &Pool<Sqlite>, samples: usize) -> Result<()> {
     let clamped = (samples as u64).clamp(882, 88200);
     set_setting(db, "decoder_resume_hysteresis_samples", clamped).await

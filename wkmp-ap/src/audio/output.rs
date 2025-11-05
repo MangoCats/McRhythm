@@ -36,7 +36,6 @@ pub struct AudioOutput {
     /// Original device name requested (None = default)
     ///
     /// **Phase 4:** Device tracking reserved for future device switching and recovery telemetry
-    #[allow(dead_code)]
     requested_device: Option<String>,
 }
 

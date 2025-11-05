@@ -40,7 +40,6 @@ struct DecodeRequest {
     queue_entry_id: Uuid,
     passage: PassageWithTiming,
     priority: DecodePriority,
-    #[allow(dead_code)]
     full_decode: bool,
 }
 
@@ -79,7 +78,6 @@ struct WorkerState {
     /// Stop flag
     ///
     /// **Phase 4:** Stop flag reserved for graceful shutdown (currently uses drop-based cleanup)
-    #[allow(dead_code)]
     stop_flag: Arc<AtomicBool>,
 
     /// Chain counter for assigning chain indices

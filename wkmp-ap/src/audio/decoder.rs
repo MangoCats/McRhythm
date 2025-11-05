@@ -23,7 +23,6 @@ use tracing::{debug, warn};
 /// **[DBD-DEC-090]** Endpoint discovery support for undefined endpoints
 ///
 /// **Phase 4:** Reserved for endpoint discovery feature (undefined endpoint detection)
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DecodeResult {
     /// Decoded PCM samples (interleaved)
@@ -70,7 +69,6 @@ fn get_codec_registry() -> &'static CodecRegistry {
 /// **[REQ-AP-ERR-013]** Helper for panic error messages
 ///
 /// **Phase 4:** Reserved for decoder panic handling in telemetry/diagnostics
-#[allow(dead_code)]
 fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
     if let Some(s) = payload.downcast_ref::<&str>() {
         s.to_string()
@@ -104,7 +102,6 @@ impl SimpleDecoder {
     /// - Decode error
     ///
     /// **Phase 4:** Full-file decode reserved for future features (metadata analysis, waveform generation)
-    #[allow(dead_code)]
     pub fn decode_file(path: &PathBuf) -> Result<DecodeResult> {
         debug!("Decoding entire file: {}", path.display());
 
@@ -238,7 +235,6 @@ impl SimpleDecoder {
     /// **[DBD-DEC-095]** Calculates actual_end_ticks = start_ticks + samples_to_ticks(sample_count)
     ///
     /// **Phase 4:** One-shot passage decode reserved for future features (superseded by StreamingDecoder)
-    #[allow(dead_code)]
     pub fn decode_passage(
         path: &PathBuf,
         start_ms: u64,

@@ -17,16 +17,13 @@ use sqlx::SqlitePool;
 #[derive(Debug, Clone, Deserialize)]
 pub struct TomlConfig {
     /// Database file path
-    #[allow(dead_code)]
     pub database_path: PathBuf,
 
     /// HTTP server port
     #[serde(default = "default_port")]
-    #[allow(dead_code)]
     pub port: u16,
 
     /// Root folder for audio files (optional, loaded from database if not specified)
-    #[allow(dead_code)]
     pub root_folder: Option<PathBuf>,
 }
 
@@ -40,18 +37,15 @@ fn default_port() -> u16 {
 #[derive(Debug, Clone)]
 pub struct Config {
     /// Database file path
-    #[allow(dead_code)]
     pub database_path: PathBuf,
 
     /// HTTP server port
     pub port: u16,
 
     /// Root folder for audio files
-    #[allow(dead_code)]
     pub root_folder: Option<PathBuf>,
 
     /// Database connection pool
-    #[allow(dead_code)]
     pub db_pool: Option<SqlitePool>,
 }
 
@@ -79,7 +73,6 @@ impl Config {
     /// **Traceability:** XFD-DB-030 (Global settings from database)
     ///
     /// **Phase 4:** Legacy Config::load() reserved for backward compatibility (superseded by wkmp_common::config)
-    #[allow(dead_code)]
     pub async fn load(
         config_path: &PathBuf,
         database_override: Option<PathBuf>,
@@ -174,7 +167,6 @@ impl Config {
     /// to ensure consistency across all WKMP modules.
     ///
     /// **Phase 4:** Legacy method reserved for backward compatibility (use wkmp_common::config directly)
-    #[allow(dead_code)]
     pub fn get_os_default_root_folder() -> PathBuf {
         wkmp_common::config::get_default_root_folder()
     }
@@ -184,7 +176,6 @@ impl Config {
     /// **Traceability:** Database schema - settings table (root_folder key)
     ///
     /// **Phase 4:** Legacy method reserved for backward compatibility (use wkmp_common::config directly)
-    #[allow(dead_code)]
     async fn load_root_folder_from_db(pool: &SqlitePool) -> Result<Option<PathBuf>> {
         let row: Option<(String,)> = sqlx::query_as(
             "SELECT value FROM settings WHERE key = 'root_folder'"
@@ -198,7 +189,6 @@ impl Config {
     /// Get database connection pool
     ///
     /// **Phase 4:** Legacy method reserved for backward compatibility (use wkmp_common::config directly)
-    #[allow(dead_code)]
     pub fn db_pool(&self) -> &SqlitePool {
         self.db_pool.as_ref().expect("Database pool not initialized")
     }

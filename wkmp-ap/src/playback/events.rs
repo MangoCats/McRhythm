@@ -56,7 +56,6 @@ pub enum PlaybackEvent {
     /// state change notifications beyond position updates.
     ///
     /// **Phase 4:** StateChanged variant reserved for future state transition events
-    #[allow(dead_code)]
     StateChanged {
         // Reserved for future implementation
         // Possible fields: PlaybackState, timestamp, reason
