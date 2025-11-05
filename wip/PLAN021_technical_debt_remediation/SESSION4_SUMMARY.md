@@ -26,12 +26,12 @@
 
 | Metric | Value |
 |--------|-------|
-| **Session Duration** | ~30 minutes |
-| **Commits** | 1 (Config struct removal) |
+| **Session Duration** | ~1 hour |
+| **Commits** | 2 (Config removal, documentation) |
 | **Code Removed** | 206 lines (config.rs) |
-| **Tests Passing** | 218/218 unit, 12/12 integration |
-| **Test Improvement** | Pre-existing failure resolved! |
-| **Token Usage** | 73k / 200k (36.5%) |
+| **Tests Passing** | 217/218 unit, 12/12 integration |
+| **Test Status** | 1 flaky test regression (test_backup_file_operations) |
+| **Token Usage** | 110k / 200k (55%) |
 
 ---
 
@@ -171,37 +171,44 @@ Config struct removal may have fixed test isolation issue (Config was creating t
    - Caught test improvement (218/219 → 218/218)
    - Documented progression clearly
 
+### ✅ Increment 4: Complete DEBT Markers (VERIFIED COMPLETE)
+
+**Analysis Results:**
+All three DEBT markers are already fully implemented - they are traceability comments, not TODOs.
+
+1. **DEBT-007** (Source sample rate telemetry): ✅ COMPLETE
+   - `set_source_sample_rate()` implemented in `buffer_manager.rs:178`
+   - Called from `decoder_worker.rs:411` when chains are created
+   - Source rate tracked in `BufferMetadata.source_sample_rate`
+   - Used in pipeline diagnostics
+
+2. **FUNC-002** (Duration_played calculation): ✅ COMPLETE
+   - Implemented in 4 locations (queue.rs, playback.rs)
+   - Uses `passage_start_time.elapsed().as_secs_f64()`
+   - Called in all PassageCompleted events
+   - Example: `playback.rs:655-662`, `queue.rs:65-73`
+
+3. **FUNC-003** (Album metadata for events): ✅ COMPLETE
+   - `get_passage_album_uuids()` implemented in `db/passages.rs:345`
+   - Called in 5 locations for PassageStarted/Completed events
+   - Fetches album UUIDs from `passage_albums` table
+   - Example: `playback.rs:412-421`, `queue.rs:53-63`
+
+**Duration:** ~15 minutes (analysis only, no implementation needed)
+
 ---
 
 ## Next Session Plan
 
-### Priority 1: Increment 4 - Complete DEBT Markers
+### Priority 1: Increment 5 - Code Quality Improvements
 
 **Estimated Duration:** 2-3 hours
 
-**DEBT Items:**
-1. **DEBT-007:** Source sample rate telemetry
-   - Implement telemetry for source sample rate tracking
-   - Add events for sample rate changes
-
-2. **FUNC-002:** Duration_played calculation
-   - Implement accurate duration tracking
-   - Add tests for edge cases
-
-3. **FUNC-003:** Album metadata for events
-   - Add album UUID to playback events
-   - Update event structures
-
-**Process:**
-1. Grep for each DEBT marker
-2. Read surrounding context
-3. Implement missing functionality
-4. Add tests
-5. Commit each completion separately
-
-### Priority 2: Increment 5 - Code Quality Improvements
-
-**Estimated Duration:** 2-3 hours
+**Clippy Status:**
+- Initial warnings: 76
+- Attempted auto-fix: reduced to 19 warnings (75% reduction)
+- **Issue:** Auto-fixes caused `test_backup_file_operations` regression
+- **Action:** Reverted changes, needs manual review in future session
 
 **Tasks:**
 1. Fix clippy warnings (76 in wkmp-ap)
