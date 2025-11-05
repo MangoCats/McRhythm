@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 39 (PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~51,101 lines total: 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 40 (PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~54,402 lines total: 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -65,6 +65,48 @@ git checkout dev  # Return to working branch
 <!-- Entries organized by category, reverse chronological within each category -->
 
 ### Archived Plan Documents
+
+#### PROJ001: Automated Queue Chain Tests (2025-11-04)
+
+Archived complete test infrastructure project folder from wip/PROJ001_automated_queue_chain_tests/
+
+**Contents:** 11 files, 3301 lines
+- FINAL_TEST_SUITE_STATUS.md (536 lines)
+- README.md (249 lines)
+- telemetry_implementation_plan.md (346 lines)
+- test_harness_implementation_summary.md (316 lines)
+- test_implementation_checklist.md (166 lines)
+- test_results_summary.md (229 lines)
+- test_session_4_summary.md (263 lines)
+- test_session_5_summary.md (245 lines)
+- test_session_6_summary.md (362 lines)
+- test_session_7_summary.md (330 lines)
+- test_session_8_summary.md (259 lines)
+
+**Reason:** Test infrastructure project completed (7/7 tests passing, comprehensive test harness)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PROJ001_automated_queue_chain_tests/
+
+# Or view archive branch
+git checkout archive
+cd wip/PROJ001_automated_queue_chain_tests/
+# Browse files normally
+git checkout dev  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View specific file
+git show archive:wip/PROJ001_automated_queue_chain_tests/README.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PROJ001_automated_queue_chain_tests/
+```
+
+---
 
 #### PLAN020: Event-Driven Playback Orchestration (2025-11-04)
 
