@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 38 (SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~45,981 lines total: 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 39 (PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~51,101 lines total: 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -63,6 +63,52 @@ git checkout dev  # Return to working branch
 ## Archived Documents
 
 <!-- Entries organized by category, reverse chronological within each category -->
+
+### Archived Plan Documents
+
+#### PLAN020: Event-Driven Playback Orchestration (2025-11-04)
+
+Archived complete implementation plan folder from wip/PLAN020_event_driven_playback/
+
+**Contents:** 16 files, 5120 lines
+- 00_PLAN_SUMMARY.md (508 lines)
+- 01_specification_issues.md (399 lines)
+- 02_test_specifications/ (4 files, 794 lines)
+- DEFERRED_TESTS_ANALYSIS.md (254 lines)
+- IMPLEMENTATION_PROGRESS.md (529 lines)
+- PHASE_6_7_DOCUMENTATION_PLAN.md (372 lines)
+- requirements_index.md (356 lines)
+- SESSION_2025-11-04_PHASE5_SUMMARY.md (248 lines)
+- SESSION_2025-11-04_SUMMARY.md (274 lines)
+- SESSION_2025-11-04_WATCHDOG_VISIBILITY.md (541 lines)
+- traceability_matrix.md (352 lines)
+- WATCHDOG_SSE_ENHANCEMENT.md (282 lines)
+- WATCHDOG_VISIBILITY_FEATURE.md (211 lines)
+
+**Reason:** Plan implementation completed (all 7 phases, 12/12 tests passing, SPEC028 v2.0 documented)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN020_event_driven_playback/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN020_event_driven_playback/
+# Browse files normally
+git checkout dev  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View specific file
+git show archive:wip/PLAN020_event_driven_playback/00_PLAN_SUMMARY.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN020_event_driven_playback/
+```
+
+---
 
 ### Work-In-Progress Archives
 
