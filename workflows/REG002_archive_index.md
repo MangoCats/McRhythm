@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 44 (SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~57,135 lines total: 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 45 (SSE_troubleshooting + SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~57,393 lines total: 258 from SSE_troubleshooting + 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -156,6 +156,7 @@ git ls-tree -r archive -- wip/PLAN020_event_driven_playback/
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| SSE_troubleshooting.md | SSE troubleshooting complete - Connection issues resolved | 2025-11-04 | `git show archive:wip/SSE_troubleshooting.md` |
 | SPEC_event_driven_playback_refactor.md | PLAN020 specification - Integrated into SPEC028 v2.0 | 2025-11-04 | `git show archive:wip/SPEC_event_driven_playback_refactor.md` |
 | SPEC_import_progress_ui_enhancement.md | Import progress UI specification - Implementation complete | 2025-11-04 | `git show archive:wip/SPEC_import_progress_ui_enhancement.md` |
 | DRY_analysis_ui_components.md | DRY analysis complete - UI components and styles consolidated | 2025-11-04 | `git show archive:wip/DRY_analysis_ui_components.md` |
