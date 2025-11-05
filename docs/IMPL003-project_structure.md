@@ -65,9 +65,8 @@ mcrhythm/
 ├── wkmp-ap/                      # Audio Player binary
 │   ├── Cargo.toml
 │   ├── src/
-│   │   ├── main.rs              # Binary entrypoint
-│   │   ├── config.rs            # Module-specific config
-│   │   ├── server.rs            # HTTP server setup
+│   │   ├── main.rs              # Binary entrypoint (uses wkmp_common::config)
+│   │   │                        # **[PLAN021]** config.rs removed - superseded by wkmp_common::config
 │   │   ├── api/
 │   │   │   ├── mod.rs
 │   │   │   ├── playback.rs      # Playback endpoints
@@ -75,9 +74,11 @@ mcrhythm/
 │   │   │   └── events.rs        # SSE endpoint
 │   │   ├── playback/
 │   │   │   ├── mod.rs
-│   │   │   ├── engine/          # **[PLAN016]** Refactored modular engine
+│   │   │   ├── engine/          # **[PLAN016, PLAN021]** Refactored modular engine
 │   │   │   │   ├── mod.rs       # Public API re-exports
-│   │   │   │   ├── core.rs      # Lifecycle, orchestration, process_queue (2,724 lines)
+│   │   │   │   ├── core.rs      # **[PLAN021]** Lifecycle, orchestration (1,801 lines, 43% reduction)
+│   │   │   │   ├── chains.rs    # **[PLAN021]** Buffer chain management (279 lines, extracted from core.rs)
+│   │   │   │   ├── playback.rs  # **[PLAN021]** Playback operations: play, pause, seek, crossfade (1,133 lines, extracted from core.rs)
 │   │   │   │   ├── queue.rs     # Queue operations (skip, enqueue, clear, remove) (511 lines)
 │   │   │   │   └── diagnostics.rs # Monitoring, status, event handlers (1,019 lines)
 │   │   │   ├── events.rs        # Internal PlaybackEvent types (not exposed via SSE)
@@ -1206,6 +1207,76 @@ codegen-units = 1
 - Shared code in `common/` has no runtime overhead (inlined by compiler)
 - Each module is a separate process (no shared memory)
 - HTTP communication between modules (~2-5ms latency)
+
+---
+
+## Playback Engine Refactoring (PLAN021)
+
+**Implemented:** November 2025
+**Objective:** Reduce core.rs size and improve module cohesion
+
+### Module Extraction
+
+**core.rs** (original: 3,156 LOC → final: 1,801 LOC, 43% reduction):
+
+1. **chains.rs** (279 LOC) - Buffer chain management
+   - `assign_chains_to_loaded_queue()` - Assign chains to database-loaded queue entries
+   - `assign_chain()` - Assign specific chain to queue entry
+   - `release_chain()` - Release chain back to pool
+   - `assign_chains_to_unassigned_entries()` - Auto-assign available chains
+   - Test helpers: `get_chain_assignments()`, `get_available_chains()`
+
+2. **playback.rs** (1,133 LOC) - Playback operations
+   - `play()` - Start playback
+   - `pause()` - Pause playback
+   - `seek()` - Seek to position
+   - `skip_next()` - Skip to next passage
+   - `skip_previous()` - Skip to previous passage
+   - `watchdog_check()` - Playback state monitoring
+   - `handle_crossfade_start()` - Crossfade initiation
+   - `handle_position_marker()` - Position event handling
+   - Fade curve application and passage lifecycle management
+
+3. **core.rs** (1,801 LOC remaining) - Lifecycle & orchestration
+   - PlaybackEngine struct definition
+   - `new()` - Engine initialization
+   - `start()` / `stop()` - Lifecycle control
+   - Event handlers: `position_event_handler()`, `buffer_event_handler()`
+   - Pipeline validation and integrity checks
+
+**Rationale:**
+- Original core.rs was 3,156 LOC (maintainability threshold: ~1,000 LOC)
+- Functional cohesion: chains.rs (resource management), playback.rs (user operations), core.rs (orchestration)
+- Reduced cognitive load for future modifications
+- Preserved all public API (no breaking changes)
+
+### Config Struct Removal
+
+**wkmp-ap/src/config.rs** (DELETED - 206 LOC)
+
+**Reason for Removal:**
+- Marked "Phase 4: Legacy" throughout codebase
+- Superseded by `wkmp_common::config` module (zero-configuration startup pattern)
+- Only usage: passing `port` to `api::server::run()`
+- Simplified to direct parameter passing: `api::server::run(port: u16, ...)`
+
+**Migration:**
+- `main.rs`: Uses `wkmp_common::config::load_module_config()` for database-first configuration
+- `api::server::run()`: Accepts `port: u16` directly instead of Config struct
+- No external dependencies on wkmp-ap config module
+
+**Benefits:**
+- Reduced code duplication (wkmp-common provides canonical config pattern)
+- Consistent zero-config startup across all modules
+- Simplified API server initialization
+
+### Testing
+
+All refactoring validated with existing test suite:
+- 217/218 unit tests passing (1 pre-existing flaky test)
+- 12/12 integration tests passing
+- No regressions introduced by refactoring
+- Test coverage maintained for extracted modules
 
 ---
 
