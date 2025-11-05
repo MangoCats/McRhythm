@@ -19,13 +19,11 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod api;
 mod audio;
-mod config;
 mod db;
 mod error;
 mod playback;
 mod state;
 
-use crate::config::Config;
 use crate::playback::engine::PlaybackEngine;
 use crate::state::SharedState;
 
@@ -140,21 +138,14 @@ async fn main() -> Result<()> {
         }
     };
 
-    // Create Config struct for API server (temporary bridge to old config system)
-    let config = Config {
-        database_path: db_path.clone(),
-        port: module_config.port,
-        root_folder: Some(initializer.database_path().parent().unwrap().to_path_buf()),
-        db_pool: None,
-    };
-
     // Start HTTP API server
     let api_handle = tokio::spawn({
         let state = Arc::clone(&shared_state);
         let engine_ref = Arc::clone(&engine);
         let db_pool_clone = db_pool.clone();
+        let port = module_config.port;
         async move {
-            if let Err(e) = api::server::run(config, state, engine_ref, db_pool_clone, shared_secret).await {
+            if let Err(e) = api::server::run(port, state, engine_ref, db_pool_clone, shared_secret).await {
                 error!("API server error: {}", e);
             }
         }
