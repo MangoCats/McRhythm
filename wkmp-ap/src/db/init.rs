@@ -1,9 +1,8 @@
-///! Database initialization functions
-///!
-///! [ARCH-INIT-010] Module startup sequence
-///! [ARCH-INIT-020] Default value initialization behavior
-///! [ISSUE-3] Initialize required tables with defaults
-
+//! Database initialization functions
+//!
+//! [ARCH-INIT-010] Module startup sequence
+//! [ARCH-INIT-020] Default value initialization behavior
+//! [ISSUE-3] Initialize required tables with defaults
 use crate::error::Result;
 use sqlx::{Pool, Sqlite};
 use tracing::{info, warn};

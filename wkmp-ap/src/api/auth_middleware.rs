@@ -3,16 +3,12 @@
 //! Validates timestamp and hash per SPEC007 API-AUTH-025
 //! Uses wkmp_common authentication functions
 //!
-//! **Implementation Note:** Uses custom extractor pattern instead of middleware
-//! due to Axum 0.7 state handling complexity. See AUTHENTICATION_STATUS.md for details.
+//! **Implementation Note:** Uses Tower Layer pattern for Axum 0.7 compatibility.
 
-use crate::api::server::AppContext;
 use axum::{
-    async_trait,
     body::Body,
-    extract::{FromRef, FromRequestParts, Request, State},
-    http::{request::Parts, Method, StatusCode},
-    middleware::Next,
+    extract::Request,
+    http::{Method, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };

@@ -13,28 +13,32 @@
 
 use crate::audio::output::AudioOutput;
 use crate::audio::types::AudioFrame;
-use crate::db::passages::{create_ephemeral_passage, get_passage_album_uuids, get_passage_with_timing, PassageWithTiming};
+use crate::db::passages::{create_ephemeral_passage, get_passage_with_timing, PassageWithTiming};
 use crate::error::{Error, Result};
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::buffer_events::BufferEvent;
 use crate::playback::decoder_worker::DecoderWorker;
 use crate::playback::events::PlaybackEvent;
-use crate::playback::mixer::{Mixer, MixerState, PositionMarker, MarkerEvent};
+use crate::playback::mixer::{Mixer, MarkerEvent};
 use crate::playback::queue_manager::{QueueEntry, QueueManager};
 use crate::playback::ring_buffer::{AudioRingBuffer, AudioProducer};
 use crate::playback::song_timeline::SongTimeline;
 use crate::playback::types::DecodePriority;
-use crate::state::{PlaybackState, SharedState};
+use crate::state::SharedState;
 use sqlx::{Pool, Sqlite};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use std::collections::{HashMap, BinaryHeap};
 use std::cmp::Reverse;
+
+// Test-only imports
+#[cfg(test)]
+use crate::state::PlaybackState;
 
 /// Playback position tracking with lock-free atomic frame position
 ///

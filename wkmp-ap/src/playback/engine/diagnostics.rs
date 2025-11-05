@@ -12,11 +12,9 @@
 //! - [SSD-ENG-020] Status reporting and diagnostics
 
 use super::core::PlaybackEngine;
-use crate::db::passages::get_passage_album_uuids;
 use crate::playback::buffer_manager::BufferManager;
 use crate::playback::buffer_events::BufferEvent;
 use crate::playback::events::PlaybackEvent;
-use crate::playback::mixer::{MarkerEvent, PositionMarker};
 use crate::state::CurrentPassage;
 use sqlx::{Pool, Sqlite};
 use std::sync::{Arc, Mutex};

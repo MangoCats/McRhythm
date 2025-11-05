@@ -8,7 +8,7 @@
 //!
 //! ALL queue modifications MUST emit both required SSE events:
 //!
-//! ```rust
+//! ```rust,ignore
 //! // Step 1: Perform database/memory modification
 //! ctx.engine.some_queue_operation().await;
 //!
