@@ -45,8 +45,8 @@ pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Resul
 - **Rejected:** Pollutes logs with ERROR messages for normal race conditions
 
 **Requirements:**
-- **[SPEC027-IDEMP-010]** All queue database operations MUST be idempotent
-- **[SPEC027-IDEMP-020]** Return value MUST distinguish "action taken" from "already done"
+- **[SPEC029-IDEMP-010]** All queue database operations MUST be idempotent
+- **[SPEC029-IDEMP-020]** Return value MUST distinguish "action taken" from "already done"
 
 ---
 
@@ -78,10 +78,10 @@ pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Resul
 - **Deferred:** May revisit in future for cleaner architecture
 
 **Requirements:**
-- **[SPEC027-DEDUP-010]** PassageComplete events MUST be deduplicated per queue_entry_id
-- **[SPEC027-DEDUP-020]** Deduplication window MUST be 5 seconds minimum
-- **[SPEC027-DEDUP-030]** Stale cache entries MUST be automatically cleaned up
-- **[SPEC027-DEDUP-040]** Deduplication state MUST be thread-safe
+- **[SPEC029-DEDUP-010]** PassageComplete events MUST be deduplicated per queue_entry_id
+- **[SPEC029-DEDUP-020]** Deduplication window MUST be 5 seconds minimum
+- **[SPEC029-DEDUP-030]** Stale cache entries MUST be automatically cleaned up
+- **[SPEC029-DEDUP-040]** Deduplication state MUST be thread-safe
 
 ---
 
@@ -110,9 +110,9 @@ pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Resul
 - **Rejected:** Harder to maintain correct ordering as system evolves
 
 **Requirements:**
-- **[SPEC027-CLEANUP-010]** Cleanup operations MUST follow canonical order
-- **[SPEC027-CLEANUP-020]** Single cleanup implementation (DRY principle)
-- **[SPEC027-CLEANUP-030]** All cleanup callers MUST use helper method
+- **[SPEC029-CLEANUP-010]** Cleanup operations MUST follow canonical order
+- **[SPEC029-CLEANUP-020]** Single cleanup implementation (DRY principle)
+- **[SPEC029-CLEANUP-030]** All cleanup callers MUST use helper method
 
 ---
 
@@ -131,9 +131,9 @@ pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Resul
 - **Atomic counters:** Statistics (watchdog interventions, etc.)
 
 **Requirements:**
-- **[SPEC027-THREAD-010]** All shared queue state MUST be thread-safe
-- **[SPEC027-THREAD-020]** Use RwLock for read-heavy access patterns
-- **[SPEC027-THREAD-030]** Use atomic operations for counters
+- **[SPEC029-THREAD-010]** All shared queue state MUST be thread-safe
+- **[SPEC029-THREAD-020]** Use RwLock for read-heavy access patterns
+- **[SPEC029-THREAD-030]** Use atomic operations for counters
 
 ---
 
@@ -143,25 +143,25 @@ pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Resul
 
 **Event-Driven Model:**
 - SPEC028 defines event-driven playback orchestration
-- SPEC027 adds resilience to event processing (deduplication, idempotency)
+- SPEC029 adds resilience to event processing (deduplication, idempotency)
 - Events remain primary coordination mechanism
 - Deduplication is transparent layer, doesn't change event semantics
 
 **Watchdog Coordination:**
 - SPEC028 defines watchdog as detection-only safety net
-- SPEC027 ensures watchdog can safely retry operations (idempotency)
+- SPEC029 ensures watchdog can safely retry operations (idempotency)
 - Multiple watchdog checks won't cause duplicate removals
 
 ### Integration with SPEC016 (Decoder Buffer Design)
 
 **Chain Lifecycle:**
 - SPEC016 defines chain assignment, decoding, playback, release
-- SPEC027 ensures cleanup respects chain lifecycle (release before reassignment)
+- SPEC029 ensures cleanup respects chain lifecycle (release before reassignment)
 - Cleanup helper encapsulates chain release timing
 
 **Buffer Management:**
 - SPEC016 defines per-chain buffer lifecycle
-- SPEC027 ensures buffers released in correct cleanup phase
+- SPEC029 ensures buffers released in correct cleanup phase
 - Idempotent buffer removal (no error if already released)
 
 ---

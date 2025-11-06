@@ -115,7 +115,7 @@
 | SPEC024 | SPEC024-audio_ingest_architecture.md | 2025-10-26 | SPEC | Manual | Architecture for Audio Ingest module (wkmp-ai) |
 | SPEC025 | SPEC025-amplitude_analysis.md | 2025-10-26 | SPEC | Manual | Amplitude analysis for crossfade timing |
 | SPEC026 | SPEC026-api_key_configuration.md | 2025-10-30 | SPEC | Manual | Multi-tier API key configuration system (migrated from wip/) |
-| SPEC027 | SPEC027-queue_handling_resilience.md | 2025-11-06 | SPEC | Auto | Queue handling resilience specification (idempotency, deduplication, cleanup ordering) |
+| SPEC029 | SPEC029-queue_handling_resilience.md | 2025-11-06 | SPEC | Auto | Queue handling resilience specification (idempotency, deduplication, cleanup ordering) |
 | GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
 | PLAN006 | wkmp_ai_ui_spec_updates | 2025-10-28 | PLAN | Manual | Specification updates to define wkmp-ai's dedicated web UI and on-demand microservice pattern |
 | PLAN007 | wkmp_ai_implementation | 2025-10-28 | PLAN | Auto | Implementation plan for complete wkmp-ai microservice (import wizard, MusicBrainz ID, passage detection, Musical Flavor extraction) |

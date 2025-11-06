@@ -1,21 +1,21 @@
 # PLAN022 Design Decisions
 
 **Implementation Plan:** PLAN022 - Queue Handling Resilience
-**SPEC Reference:** [SPEC027 Queue Handling Resilience](../../docs/SPEC027-queue_handling_resilience.md)
+**SPEC Reference:** [SPEC029 Queue Handling Resilience](../../docs/SPEC029-queue_handling_resilience.md)
 **Status:** Completed 2025-11-06
 
 ---
 
 ## Purpose
 
-This document captures implementation-specific decisions made during PLAN022 execution. These are tactical choices for how to implement SPEC027's strategic design, including:
+This document captures implementation-specific decisions made during PLAN022 execution. These are tactical choices for how to implement SPEC029's strategic design, including:
 - Specific code patterns and locations
 - Test implementation details
 - Performance optimization choices
 - Implementation order and phasing
 
-**Distinction from SPEC027:**
-- **SPEC027:** WHAT/WHY - Strategic design decisions (idempotency, deduplication, cleanup order)
+**Distinction from SPEC029:**
+- **SPEC029:** WHAT/WHY - Strategic design decisions (idempotency, deduplication, cleanup order)
 - **This doc:** HOW - Tactical implementation choices (HashMap vs BTreeMap, per-event spawn vs background task)
 
 ---
@@ -252,7 +252,7 @@ assert_eq!(removed, true);
 
 ## Code Location Map
 
-Quick reference for where each SPEC027 concept is implemented:
+Quick reference for where each SPEC029 concept is implemented:
 
 ### Idempotent Database Operations
 - **Signature change:** `wkmp-ap/src/db/queue.rs:165-178`
@@ -361,7 +361,7 @@ Quick reference for where each SPEC027 concept is implemented:
 
 ## Summary
 
-PLAN022 successfully implemented SPEC027 Queue Handling Resilience with these key implementation choices:
+PLAN022 successfully implemented SPEC029 Queue Handling Resilience with these key implementation choices:
 
 1. **Per-event cleanup spawn** instead of background task (simpler, adequate performance)
 2. **Inline deduplication logic** instead of extracted method (single caller, aids debugging)
