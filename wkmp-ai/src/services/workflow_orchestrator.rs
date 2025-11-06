@@ -422,20 +422,6 @@ impl WorkflowOrchestrator {
                     "Skipping extraction - metadata already exists"
                 );
 
-                // Update progress
-                session.progress.current_file = Some(file.path.clone());
-                session.update_progress(
-                    extracted_count + skipped_count,
-                    files.len(),
-                    format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
-                );
-
-                // Periodic progress broadcast (every 100 files)
-                if (extracted_count + skipped_count) % 100 == 0 {
-                    crate::db::sessions::save_session(&self.db, &session).await?;
-                    self.broadcast_progress(&session, start_time);
-                }
-
                 continue;
             }
 
@@ -512,17 +498,16 @@ impl WorkflowOrchestrator {
                 }
             }
 
-            // Update progress periodically
+            // Update progress for every file processed
             let total_processed = extracted_count + skipped_count;
-            if total_processed % 10 == 0 {
-                session.update_progress(
-                    total_processed,
-                    files.len(),
-                    format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
-            }
+            session.progress.current_file = Some(file.path.clone());
+            session.update_progress(
+                total_processed,
+                files.len(),
+                format!("Extracting metadata from file {} of {}", total_processed, files.len()),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
         }
 
         let total_processed = extracted_count + skipped_count;
@@ -659,7 +644,7 @@ impl WorkflowOrchestrator {
                                                     error = %e,
                                                     "FK constraint failed when saving song"
                                                 );
-                                                return Err(e.into());
+                                                return Err(e);
                                             }
 
                                             // Load the song back to get the actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -689,7 +674,7 @@ impl WorkflowOrchestrator {
                                                         error = %e,
                                                         "FK constraint failed when saving artist"
                                                     );
-                                                    return Err(e.into());
+                                                    return Err(e);
                                                 }
 
                                                 // Load artist back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -715,7 +700,7 @@ impl WorkflowOrchestrator {
                                                         error = %e,
                                                         "FK constraint failed when linking song to artist"
                                                     );
-                                                    return Err(e.into());
+                                                    return Err(e);
                                                 }
                                             }
 
@@ -734,7 +719,7 @@ impl WorkflowOrchestrator {
                                                             error = %e,
                                                             "FK constraint failed when saving album"
                                                         );
-                                                        return Err(e.into());
+                                                        return Err(e);
                                                     }
 
                                                     // Load album back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -790,7 +775,7 @@ impl WorkflowOrchestrator {
                                                                     error = %e,
                                                                     "FK constraint failed when saving work"
                                                                 );
-                                                                return Err(e.into());
+                                                                return Err(e);
                                                             }
 
                                                             // Load work back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
@@ -815,7 +800,7 @@ impl WorkflowOrchestrator {
                                                                     error = %e,
                                                                     "FK constraint failed when linking song to work"
                                                                 );
-                                                                return Err(e.into());
+                                                                return Err(e);
                                                             }
                                                         }
                                                     }
@@ -900,10 +885,11 @@ impl WorkflowOrchestrator {
             processed_count += 1;
 
             // Update progress on every file (per-file progress indicator)
+            session.progress.current_file = Some(file.path.clone());
             session.update_progress(
                 processed_count,
                 files.len(),
-                format!("Fingerprinting: {}/{} files", processed_count, files.len()),
+                format!("Fingerprinting file {} of {}", processed_count, files.len()),
             );
             crate::db::sessions::save_session(&self.db, &session).await?;
             self.broadcast_progress(&session, start_time);
@@ -1041,16 +1027,15 @@ impl WorkflowOrchestrator {
                 }
             }
 
-            // Update progress periodically
-            if passages_created % 10 == 0 {
-                session.update_progress(
-                    passages_created,
-                    files.len(),
-                    format!("Created {}/{} passages", passages_created, files.len()),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
-            }
+            // Update progress for every file processed
+            session.progress.current_file = Some(file.path.clone());
+            session.update_progress(
+                passages_created,
+                files.len(),
+                format!("Creating passage {} of {}", passages_created, files.len()),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
         }
 
         session.update_progress(
@@ -1150,16 +1135,15 @@ impl WorkflowOrchestrator {
 
             analyzed_count += 1;
 
-            // Update progress every 10 files
-            if analyzed_count % 10 == 0 {
-                session.update_progress(
-                    analyzed_count,
-                    files.len(),
-                    format!("Analyzed {}/{} files", analyzed_count, files.len()),
-                );
-                crate::db::sessions::save_session(&self.db, &session).await?;
-                self.broadcast_progress(&session, start_time);
-            }
+            // Update progress for every file processed
+            session.progress.current_file = Some(file.path.clone());
+            session.update_progress(
+                analyzed_count,
+                files.len(),
+                format!("Analyzing amplitude profile for file {} of {}", analyzed_count, files.len()),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
         }
 
         // Final progress update
@@ -1344,19 +1328,18 @@ impl WorkflowOrchestrator {
 
                 processed_count += 1;
 
-                // Update progress every 10 passages
-                if processed_count % 10 == 0 {
-                    session.update_progress(
-                        processed_count,
-                        processed_count, // Use processed as total since we don't know passage count upfront
-                        format!(
-                            "Flavoring: {} AB, {} Essentia, {} unavailable",
-                            acousticbrainz_count, essentia_count, not_found_count
-                        ),
-                    );
-                    crate::db::sessions::save_session(&self.db, &session).await?;
-                    self.broadcast_progress(&session, start_time);
-                }
+                // Update progress for every passage processed
+                session.progress.current_file = Some(file.path.clone());
+                session.update_progress(
+                    processed_count,
+                    processed_count, // Use processed as total since we don't know passage count upfront
+                    format!(
+                        "Extracting musical flavor for passage {} (AB: {}, Essentia: {}, unavailable: {})",
+                        processed_count, acousticbrainz_count, essentia_count, not_found_count
+                    ),
+                );
+                crate::db::sessions::save_session(&self.db, &session).await?;
+                self.broadcast_progress(&session, start_time);
             }
         }
 

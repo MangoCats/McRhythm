@@ -63,6 +63,8 @@ walkdir = "2.4"
 # Audio test file generation (for pipeline integrity tests)
 hound = "3.5"
 tempfile = "3.8"
+# Test serialization for shared resource access
+serial_test = "3.2"
 
 # Performance Benchmarks
 # See docs/validation/IMPL-TESTS-003-performance-benchmarks.md

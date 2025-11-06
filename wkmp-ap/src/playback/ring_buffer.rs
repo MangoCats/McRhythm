@@ -132,7 +132,6 @@ pub struct AudioProducer {
     producer: ringbuf::HeapProd<AudioFrame>,
     overruns: Arc<AtomicU64>,
     buffer_has_been_filled: Arc<AtomicBool>,
-    #[allow(dead_code)]
     buffer_filled_timestamp_ms: Arc<AtomicU64>,
 }
 
@@ -154,7 +153,7 @@ impl AudioProducer {
             Err(_) => {
                 // Buffer full - overrun
                 let count = self.overruns.fetch_add(1, Ordering::Relaxed) + 1;
-                if count % 1000 == 0 {
+                if count.is_multiple_of(1000) {
                     warn!("Audio ring buffer overrun (total: {})", count);
                 }
                 false
@@ -198,13 +197,9 @@ impl AudioProducer {
 pub struct AudioConsumer {
     consumer: ringbuf::HeapCons<AudioFrame>,
     underruns: Arc<AtomicU64>,
-    #[allow(dead_code)]
     buffer_has_been_filled: Arc<AtomicBool>,
-    #[allow(dead_code)]
     buffer_filled_timestamp_ms: Arc<AtomicU64>,
-    #[allow(dead_code)]
     grace_period_ms: u64,
-    #[allow(dead_code)]
     audio_expected: Arc<AtomicBool>,
 }
 

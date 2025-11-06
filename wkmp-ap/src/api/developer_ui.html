@@ -10,40 +10,51 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #1a1a1a;
             color: #e0e0e0;
-            padding: 8px;
             line-height: 1.4;
             min-height: 100vh;
             overflow-y: auto;
         }
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        h1 {
-            color: #4a9eff;
+        header {
+            background-color: #2a2a2a;
+            border-bottom: 1px solid #3a3a3a;
+            padding: 20px;
             margin-bottom: 8px;
-            font-size: 24px;
+        }
+        .header-content {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
         }
         .header-left {
+            flex: 1;
+        }
+        h1 {
+            font-size: 26px;
+            margin-bottom: 5px;
+            color: #4a9eff;
             display: flex;
             align-items: center;
             gap: 10px;
         }
-        .header-center {
-            flex: 1;
-            text-align: center;
+        .subtitle {
             color: #888;
             font-size: 16px;
         }
         .header-right {
-            color: #666;
-            font-size: 16px;
-            font-family: 'Courier New', monospace;
             text-align: right;
+            font-size: 16px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+        }
+        .build-info-line {
+            margin-bottom: 1px;
+        }
+        .container {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         .grid {
             display: grid;
@@ -224,6 +235,28 @@
             color: #fff;
         }
         .status-disconnected {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        /* **[PLAN020 Phase 5]** Watchdog intervention indicator styles */
+        .watchdog-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+        .watchdog-green {
+            background: #10b981;
+            color: #fff;
+        }
+        .watchdog-yellow {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .watchdog-red {
             background: #ef4444;
             color: #fff;
         }
@@ -478,15 +511,22 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>
+    <header>
+        <div class="header-content">
             <div class="header-left">
-                WKMP Audio Player
-                <span class="connection-status" id="connection-status">Connecting...</span>
+                <h1>
+                    WKMP Audio Player
+                    <span class="connection-status" id="connection-status">Connecting...</span>
+                    <span class="watchdog-status watchdog-green" id="watchdog-status" title="Watchdog interventions: event system failures requiring watchdog correction">Watchdog: 0</span>
+                </h1>
+                <p class="subtitle">Developer Interface</p>
             </div>
-            <div class="header-center">Developer Interface</div>
-            <div class="header-right" id="build-info">Loading...</div>
-        </h1>
+            <div class="header-right" id="build-info">
+                <div class="build-info-line">Loading...</div>
+            </div>
+        </div>
+    </header>
+    <div class="container">
 
         <div class="grid">
             <!-- Module Status (half-width) -->
@@ -766,14 +806,49 @@
         }
 
         // Fetch initial state from API
+        // **[PLAN020 Phase 5]** Fetch and update watchdog intervention count
+        async function fetchWatchdogStatus() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/playback/watchdog_status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateWatchdogDisplay(data.interventions_total);
+                }
+            } catch (err) {
+                console.error('Failed to fetch watchdog status:', err);
+            }
+        }
+
+        // **[PLAN020 Phase 5]** Update watchdog status indicator
+        function updateWatchdogDisplay(count) {
+            const statusEl = document.getElementById('watchdog-status');
+            if (!statusEl) return;
+
+            // Update text with count
+            statusEl.textContent = `Watchdog: ${count}`;
+
+            // Update color based on count
+            statusEl.className = 'watchdog-status';
+            if (count === 0) {
+                statusEl.classList.add('watchdog-green');
+            } else if (count >= 1 && count <= 9) {
+                statusEl.classList.add('watchdog-yellow');
+            } else {
+                statusEl.classList.add('watchdog-red');
+            }
+        }
+
         async function fetchInitialState() {
             try {
                 // Fetch build info
                 const buildResponse = await authenticatedFetch(`${API_BASE}/build_info`);
                 if (buildResponse.ok) {
                     const buildData = await buildResponse.json();
-                    const buildInfo = `v${buildData.version} [${buildData.git_hash}] ${buildData.build_timestamp} (${buildData.build_profile})`;
-                    document.getElementById('build-info').textContent = buildInfo;
+                    document.getElementById('build-info').innerHTML = `
+                        <div class="build-info-line">wkmp-ap v${buildData.version}</div>
+                        <div class="build-info-line">${buildData.git_hash} (${buildData.build_profile})</div>
+                        <div class="build-info-line">${buildData.build_timestamp}</div>
+                    `;
                 }
 
                 // Fetch playback state
@@ -813,6 +888,9 @@
 
                 // Load settings
                 await loadSettings();
+
+                // **[PLAN020 Phase 5]** Fetch watchdog status
+                await fetchWatchdogStatus();
             } catch (err) {
                 console.error('Failed to fetch initial state:', err);
             }
@@ -822,6 +900,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchInitialState();
             connectEventStream();
+
+            // **[PLAN020 Phase 5]** Poll watchdog status every 30 seconds (SSE provides real-time updates)
+            setInterval(fetchWatchdogStatus, 30000);
         });
 
         // Connect to SSE event stream with auto-reconnect
@@ -839,6 +920,9 @@
             eventSource.onopen = () => {
                 updateConnectionStatus('connected');
                 addEvent('system', 'Connected to SSE event stream');
+
+                // **[PLAN020 Phase 5]** Sync watchdog status on SSE reconnection
+                fetchWatchdogStatus();
             };
 
             eventSource.onerror = (err) => {
@@ -885,6 +969,13 @@
 
             eventSource.addEventListener('BufferChainStatus', (e) => {
                 handleBufferChainStatus(JSON.parse(e.data));
+            });
+
+            // **[PLAN020 Phase 5]** Listen for watchdog intervention events
+            eventSource.addEventListener('WatchdogIntervention', (e) => {
+                const data = JSON.parse(e.data);
+                updateWatchdogDisplay(data.interventions_total);
+                addEvent('WatchdogIntervention', `${data.intervention_type} intervention (#${data.interventions_total})`);
             });
 
             // Fallback for unknown events

@@ -64,7 +64,6 @@ struct TestAudioGenerator {
     /// Sample rate (48000 Hz for generation, resampled to 44100 Hz)
     ///
     /// **Phase 4:** Sample rate reserved for future rate-flexible test generator
-    #[allow(dead_code)]
     sample_rate: u32,
 
     /// Current phase for sine wave generation
@@ -251,7 +250,7 @@ impl TestHarness {
         let frames_per_cycle = ((self.config.mixer_check_interval_ms as f64 * 44.1) * 1.2) as usize;
 
         // Round up to nearest 1024 boundary for efficient resampling
-        let chunk_size = ((frames_per_cycle + 1023) / 1024) * 1024;
+        let chunk_size = frames_per_cycle.div_ceil(1024) * 1024;
 
         info!(
             "Mixer simulation: generating {} frames every {}ms ({}ms of audio)",

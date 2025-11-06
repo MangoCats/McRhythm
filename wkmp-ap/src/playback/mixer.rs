@@ -553,7 +553,7 @@ impl Mixer {
     /// ```
     pub async fn mix_single(&mut self, buffer_manager: &Arc<BufferManager>, _passage_id: Uuid, output: &mut [f32]) -> Result<Vec<MarkerEvent>> {
         // Validate stereo sample count
-        if output.len() % 2 != 0 {
+        if !output.len().is_multiple_of(2) {
             return Err(Error::Config(format!(
                 "Invalid sample count: {} (must be even for stereo)", output.len()
             )));
@@ -701,7 +701,7 @@ impl Mixer {
         output: &mut [f32],
     ) -> Result<Vec<MarkerEvent>> {
         // Validate stereo sample count
-        if output.len() % 2 != 0 {
+        if !output.len().is_multiple_of(2) {
             return Err(Error::Config(format!(
                 "Invalid sample count: {} (must be even for stereo)", output.len()
             )));

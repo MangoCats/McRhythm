@@ -305,7 +305,7 @@ impl CallbackMonitor {
                     }
 
                     // Log every 100 irregular intervals
-                    if new_irregular >= 100 || stats.irregular_intervals % 1000 == 0 {
+                    if new_irregular >= 100 || stats.irregular_intervals.is_multiple_of(1000) {
                         // Calculate overall percentage
                         let overall_pct = if stats.callback_count > 0 {
                             (stats.irregular_intervals as f64 / stats.callback_count as f64) * 100.0
@@ -346,7 +346,7 @@ impl CallbackMonitor {
                 }
 
                 // Periodic health check (every ~30 seconds)
-                if stats.callback_count > last_callback_count && stats.callback_count % 3000 == 0 {
+                if stats.callback_count > last_callback_count && stats.callback_count.is_multiple_of(3000) {
                     debug!(
                         "Audio callback health: {} callbacks, {} underruns, {} irregular intervals ({:.1}% irregular)",
                         stats.callback_count,

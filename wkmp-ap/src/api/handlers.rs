@@ -8,7 +8,7 @@
 //!
 //! ALL queue modifications MUST emit both required SSE events:
 //!
-//! ```rust
+//! ```rust,ignore
 //! // Step 1: Perform database/memory modification
 //! ctx.engine.some_queue_operation().await;
 //!
@@ -50,7 +50,6 @@ use crate::state::PlaybackState;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::Html,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -196,6 +195,13 @@ pub struct BuildInfoResponse {
     git_hash: String,
     build_timestamp: String,
     build_profile: String,
+}
+
+/// **[PLAN020 Phase 5]** Watchdog status response
+#[derive(Debug, Serialize)]
+pub struct WatchdogStatusResponse {
+    /// Total number of watchdog interventions since startup
+    interventions_total: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -360,7 +366,7 @@ pub async fn set_volume(
 
     // Emit VolumeChanged event
     ctx.state.broadcast_event(wkmp_common::events::WkmpEvent::VolumeChanged {
-        old_volume: old_volume,
+        old_volume,
         new_volume: req.volume,
         timestamp: chrono::Utc::now(),
     });
@@ -714,6 +720,23 @@ pub async fn get_playback_state(
     Json(serde_json::json!({
         "state": state_str
     }))
+}
+
+/// GET /playback/watchdog_status - Get watchdog intervention count
+///
+/// **[PLAN020 Phase 5]** Returns the total number of watchdog interventions since startup.
+/// Used by UI to display event system health indicator.
+///
+/// Returns:
+/// - interventions_total: Total watchdog interventions (0 = event system working perfectly)
+pub async fn get_watchdog_status(
+    State(ctx): State<AppContext>,
+) -> Json<WatchdogStatusResponse> {
+    let interventions_total = ctx.state.get_watchdog_interventions();
+
+    Json(WatchdogStatusResponse {
+        interventions_total,
+    })
 }
 
 /// GET /playback/position - Get current playback position
@@ -1074,7 +1097,7 @@ pub async fn browse_files(
     };
 
     // Supported audio file extensions
-    let audio_extensions = vec!["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
+    let audio_extensions = ["mp3", "flac", "ogg", "wav", "m4a", "aac", "opus", "wma"];
 
     // Build file list
     let mut file_entries = Vec::new();
@@ -1128,7 +1151,7 @@ pub async fn browse_files(
     } else {
         canonical_target
             .parent()
-            .map(|p| clean_path_for_display(p))
+            .map(clean_path_for_display)
     };
 
     Ok(Json(BrowseFilesResponse {
@@ -1538,16 +1561,6 @@ pub async fn get_pipeline_diagnostics(
 // ============================================================================
 // Developer UI
 // ============================================================================
-
-/// Serve developer UI HTML (bundled at compile time)
-///
-/// **[ARCH-PC-010]** Developer UI with status display, API testing, and event monitoring
-///
-/// TODO: This currently serves static HTML. Need to implement dynamic shared_secret embedding.
-///
-/// **Note:** Currently unused - server.rs uses template substitution instead.
-/// Kept for potential Phase 4 simplification.
-#[allow(dead_code)]
-pub async fn developer_ui() -> Html<&'static str> {
-    Html(include_str!("developer_ui.html"))
-}
+// Note: Developer UI serving is implemented in server.rs with dynamic shared_secret
+// embedding via template substitution (SPEC007 API-AUTH-028-A).
+// ============================================================================

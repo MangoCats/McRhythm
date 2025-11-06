@@ -14,9 +14,19 @@ use super::core::PlaybackEngine;
 use crate::error::{Error, Result};
 use crate::db::passages::{create_ephemeral_passage, get_passage_album_uuids, validate_passage_timing};
 use crate::playback::queue_manager::QueueEntry;
+use crate::playback::types::DecodePriority; // **[PLAN020]** For event-driven decode triggering
 use uuid::Uuid;
 use std::path::PathBuf;
 use tracing::{debug, error, info, warn};
+
+/// Queue position for event-driven decode priority selection
+/// **[PLAN020 FR-001]** Maps queue position to decode priority
+#[derive(Debug, Clone, Copy)]
+enum QueuePosition {
+    Current,
+    Next,
+    Queued(usize), // Index in queued array
+}
 
 impl PlaybackEngine {
     /// Skip to next passage in queue
@@ -64,7 +74,7 @@ impl PlaybackEngine {
 
         // Emit PassageCompleted event with completed=false (skipped)
         self.state.broadcast_event(wkmp_common::events::WkmpEvent::PassageCompleted {
-            passage_id: current.passage_id.unwrap_or_else(|| Uuid::nil()),
+            passage_id: current.passage_id.unwrap_or_else(Uuid::nil),
             album_uuids,
             duration_played,
             completed: false, // false = skipped
@@ -101,10 +111,14 @@ impl PlaybackEngine {
             error!("Failed to complete passage removal: {}", e);
         }
 
+        // Try to assign freed chain to unassigned entries (now that queue is consistent)
+        // **[DBD-DEC-045]** Must happen AFTER removal to avoid reassigning to deleted entry
+        self.assign_chains_to_unassigned_entries().await;
+
         // Start next passage if available
-        // [SUB-INC-4B] Call process_queue to trigger playback of next entry
-        if let Err(e) = self.process_queue().await {
-            error!("Failed to process queue after skip: {}", e);
+        // [SUB-INC-4B] Call watchdog_check to trigger playback of next entry
+        if let Err(e) = self.watchdog_check().await {
+            error!("Failed to run watchdog check after skip: {}", e);
         }
 
         Ok(())
@@ -224,15 +238,27 @@ impl PlaybackEngine {
             passage.passage_id,
             None, // Append to end
             Some(wkmp_common::timing::ticks_to_ms(passage.start_time_ticks)),
-            passage.end_time_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            passage.end_time_ticks.map(wkmp_common::timing::ticks_to_ms),
             Some(wkmp_common::timing::ticks_to_ms(passage.lead_in_point_ticks)),
-            passage.lead_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            passage.lead_out_point_ticks.map(wkmp_common::timing::ticks_to_ms),
             Some(wkmp_common::timing::ticks_to_ms(passage.fade_in_point_ticks)),
-            passage.fade_out_point_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t)),
+            passage.fade_out_point_ticks.map(wkmp_common::timing::ticks_to_ms),
             Some(passage.fade_in_curve.to_db_string().to_string()),
             Some(passage.fade_out_curve.to_db_string().to_string()),
         )
         .await?;
+
+        // **BUG FIX #3:** Get the play_order assigned by database
+        // Previously hardcoded to 0, causing all newly enqueued passages to have same priority
+        // This broke decoder priority selection, causing haphazard buffer filling order
+        // **[DBD-DEC-045]** Decoder uses get_play_order_for_entry() which reads in-memory queue
+        let db_entry = crate::db::queue::get_queue_entry_by_id(&self.db_pool, queue_entry_id).await?;
+        let assigned_play_order = db_entry.play_order;
+
+        debug!(
+            "Enqueued {} with play_order={} (assigned by database)",
+            queue_entry_id, assigned_play_order
+        );
 
         // Add to in-memory queue
         // Convert ticks to milliseconds for queue entry (matches database format)
@@ -240,7 +266,7 @@ impl PlaybackEngine {
             queue_entry_id,
             passage_id: passage.passage_id,
             file_path,
-            play_order: 0, // Will be managed by database
+            play_order: assigned_play_order, // Use play_order from database
             start_time_ms: Some(wkmp_common::timing::ticks_to_ms(passage.start_time_ticks) as u64),
             end_time_ms: passage.end_time_ticks.map(|t| wkmp_common::timing::ticks_to_ms(t) as u64),
             lead_in_point_ms: Some(wkmp_common::timing::ticks_to_ms(passage.lead_in_point_ticks) as u64),
@@ -252,7 +278,19 @@ impl PlaybackEngine {
             discovered_end_ticks: None, // **[DBD-BUF-065]** Will be set when endpoint discovered
         };
 
-        self.queue.write().await.enqueue(entry);
+        // Determine queue position before enqueue for event-driven decode triggering
+        let position_before_enqueue = {
+            let queue = self.queue.read().await;
+            if queue.current().is_none() {
+                QueuePosition::Current
+            } else if queue.next().is_none() {
+                QueuePosition::Next
+            } else {
+                QueuePosition::Queued(queue.queued().len())
+            }
+        };
+
+        self.queue.write().await.enqueue(entry.clone());
 
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;
@@ -260,6 +298,29 @@ impl PlaybackEngine {
         // **[DBD-LIFECYCLE-010]** Assign decoder-buffer chain on enqueue if available
         // Implements requirement that chains are assigned immediately when passage is enqueued
         self.assign_chain(queue_entry_id).await;
+
+        // **[PLAN020 FR-001]** Event-Driven Decode Initiation
+        // Trigger decode immediately based on queue position (<1ms latency vs 0-100ms polling)
+        // Spec: wip/PLAN020_event_driven_playback §4.3.1
+        let priority = match position_before_enqueue {
+            QueuePosition::Current => DecodePriority::Immediate,
+            QueuePosition::Next => DecodePriority::Next,
+            QueuePosition::Queued(_) => DecodePriority::Prefetch,
+        };
+
+        debug!(
+            "Event-driven decode trigger: queue_entry_id={}, position={:?}, priority={:?}",
+            queue_entry_id, position_before_enqueue, priority
+        );
+
+        // Trigger decode immediately (event-driven, not polled)
+        if let Err(e) = self.request_decode(&entry, priority, true).await {
+            error!(
+                "Failed to trigger event-driven decode for queue_entry_id={}: {}",
+                queue_entry_id, e
+            );
+            // Non-fatal: watchdog will detect missing decode and intervene
+        }
 
         Ok(queue_entry_id)
     }
@@ -315,13 +376,17 @@ impl PlaybackEngine {
             };
 
             if removed {
-                // 4. Start next passage if queue has one
+                // 4. Try to assign freed chain to unassigned entries (now that queue is consistent)
+                // **[DBD-DEC-045]** Must happen AFTER removal to avoid reassigning to deleted entry
+                self.assign_chains_to_unassigned_entries().await;
+
+                // 5. Start next passage if queue has one
                 // [REQ-FIX-050] Start next passage if queue non-empty
                 // [REQ-FIX-080] New passage starts correctly after removal
                 let has_current = self.queue.read().await.current().is_some();
                 if has_current {
                     info!("Starting next passage after current removed");
-                    if let Err(e) = self.process_queue().await {
+                    if let Err(e) = self.watchdog_check().await {
                         warn!("Failed to start next passage after removal: {}", e);
                     }
                 } else {
@@ -333,12 +398,26 @@ impl PlaybackEngine {
         } else {
             // Non-current passage - simple removal (existing behavior)
             // [REQ-FIX-060] No disruption when removing non-current passage
+
+            // Persist to database first (queue state persistence principle)
+            if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
+                error!("Failed to remove entry from database: {}", e);
+            }
+
+            // Remove from in-memory queue
             let removed = self.queue.write().await.remove(queue_entry_id);
 
             if removed {
                 info!("Successfully removed queue entry {} from in-memory queue", queue_entry_id);
                 // Update audio_expected flag for ring buffer underrun classification
                 self.update_audio_expected_flag().await;
+
+                // Release chain if assigned (chain cleanup happens per-item)
+                self.release_chain(queue_entry_id).await;
+
+                // Try to assign freed chain to unassigned entries (now that queue is consistent)
+                // **[DBD-DEC-045]** Must happen AFTER removal to avoid reassigning to deleted entry
+                self.assign_chains_to_unassigned_entries().await;
             } else {
                 warn!("Queue entry {} not found in in-memory queue", queue_entry_id);
             }
@@ -479,6 +558,16 @@ impl PlaybackEngine {
         queue_entry_id: Uuid,
         trigger: wkmp_common::events::QueueChangeTrigger,
     ) -> Result<bool> {
+        // **[PLAN020 FR-001]** Event-Driven Decode on Queue Advance
+        // Capture queue state BEFORE removal to detect promotions
+        let (next_before, queued_first_before) = {
+            let queue = self.queue.read().await;
+            (
+                queue.next().map(|e| e.queue_entry_id),
+                queue.queued().first().map(|e| e.queue_entry_id),
+            )
+        };
+
         // Remove from database FIRST (persistence before memory)
         // [SUB-INC-4B] Persist removal to database (matches PassageComplete handler)
         if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
@@ -498,6 +587,44 @@ impl PlaybackEngine {
         }
 
         info!("Removed queue entry: {}", queue_entry_id);
+
+        // **[PLAN020 FR-001]** Trigger decode for newly promoted passages
+        // Queue advance happens during remove(), so we need to check what changed
+        {
+            let queue = self.queue.read().await;
+            let current_after = queue.current().map(|e| e.clone());
+            let next_after = queue.next().map(|e| e.clone());
+
+            // If next_before became current_after, it was promoted (next → current)
+            if let (Some(promoted_id), Some(promoted_entry)) = (next_before, current_after) {
+                if promoted_entry.queue_entry_id == promoted_id {
+                    debug!(
+                        "Event-driven decode trigger: queue advance promoted next→current, id={}",
+                        promoted_id
+                    );
+                    // Trigger decode with Immediate priority (now current)
+                    if let Err(e) = self.request_decode(&promoted_entry, DecodePriority::Immediate, true).await {
+                        error!("Failed to trigger decode for promoted current passage {}: {}", promoted_id, e);
+                        // Non-fatal: watchdog will detect missing decode
+                    }
+                }
+            }
+
+            // If queued_first_before became next_after, it was promoted (queued[0] → next)
+            if let (Some(promoted_id), Some(promoted_entry)) = (queued_first_before, next_after) {
+                if promoted_entry.queue_entry_id == promoted_id {
+                    debug!(
+                        "Event-driven decode trigger: queue advance promoted queued[0]→next, id={}",
+                        promoted_id
+                    );
+                    // Trigger decode with Next priority (now next)
+                    if let Err(e) = self.request_decode(&promoted_entry, DecodePriority::Next, true).await {
+                        error!("Failed to trigger decode for promoted next passage {}: {}", promoted_id, e);
+                        // Non-fatal: watchdog will detect missing decode
+                    }
+                }
+            }
+        }
 
         // Update audio_expected flag for ring buffer underrun classification
         self.update_audio_expected_flag().await;

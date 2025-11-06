@@ -20,7 +20,7 @@
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 020 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 022 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 
@@ -129,6 +129,9 @@
 | PLAN016 | engine_refactoring | 2025-11-01 | PLAN | Auto | Engine refactoring - decompose monolithic engine.rs (4251 lines) into modular directory structure |
 | PLAN017 | spec017_compliance | 2025-11-02 | PLAN | Auto | SPEC017 compliance remediation - tick-based timing display and API documentation |
 | PLAN018 | centralized_global_parameters | 2025-11-02 | PLAN | Auto | Centralized global parameters implementation (SPEC016 database-backed parameters) |
+| PLAN019 | (reserved) | - | PLAN | - | - |
+| PLAN020 | (reserved) | - | PLAN | - | - |
+| PLAN021 | technical_debt_remediation | 2025-11-05 | PLAN | Auto | Technical debt remediation for wkmp-ap (8 debt items, 6 increments, core.rs refactoring) |
 
 <!-- /doc-name workflow will append entries below -->
 
@@ -148,7 +151,7 @@
 | RPT | 0 | New |
 | DWI | 0 | New |
 | TMPL | 0 | New |
-| PLAN | 13 | 2025-11-02 |
+| PLAN | 14 | 2025-11-05 |
 | LOG | 0 | New |
 | REG | 2 | 2025-10-25 |
 

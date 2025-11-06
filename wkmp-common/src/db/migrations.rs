@@ -219,12 +219,22 @@ async fn migrate_v2(pool: &SqlitePool) -> Result<()> {
     }
 
     // Add the column
-    sqlx::query("ALTER TABLE songs ADD COLUMN title TEXT")
+    // Catch duplicate column error for concurrent initialization race conditions
+    match sqlx::query("ALTER TABLE songs ADD COLUMN title TEXT")
         .execute(pool)
-        .await?;
-
-    info!("  ✓ Added title column to songs table");
-    Ok(())
+        .await
+    {
+        Ok(_) => {
+            info!("  ✓ Added title column to songs table");
+            Ok(())
+        }
+        Err(sqlx::Error::Database(db_err)) if db_err.message().contains("duplicate column") => {
+            // Another thread beat us to it - that's fine
+            info!("  title column added by concurrent thread - skipping");
+            Ok(())
+        }
+        Err(e) => Err(e.into())
+    }
 }
 
 #[cfg(test)]

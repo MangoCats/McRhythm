@@ -1,0 +1,1906 @@
+   Compiling wkmp-pd v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-pd)
+   Compiling wkmp-ui v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ui)
+   Compiling wkmp-common v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-common)
+warning: unused variable: `resolver`
+   --> wkmp-common\tests\config_tests.rs:215:9
+    |
+215 |     let resolver = RootFolderResolver::new("test-module");
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resolver`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: `wkmp-common` (test "config_tests") generated 1 warning
+   Compiling wkmp-le v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-le)
+warning: unused import: `crate::db::passages::get_passage_album_uuids`
+  --> wkmp-ap\src\playback\engine\diagnostics.rs:15:5
+   |
+15 | use crate::db::passages::get_passage_album_uuids;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `MarkerEvent` and `PositionMarker`
+  --> wkmp-ap\src\playback\engine\diagnostics.rs:19:30
+   |
+19 | use crate::playback::mixer::{MarkerEvent, PositionMarker};
+   |                              ^^^^^^^^^^^  ^^^^^^^^^^^^^^
+
+warning: unused import: `std::fs`
+ --> wkmp-ap\src\tuning\system_info.rs:8:5
+  |
+8 | use std::fs;
+  |     ^^^^^^^
+
+warning: function `panic_payload_to_string` is never used
+  --> wkmp-ap\src\audio\decoder.rs:72:4
+   |
+72 | fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
+   |    ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: associated function `create_sinc_resampler` is never used
+   --> wkmp-ap\src\audio\resampler.rs:298:8
+    |
+207 | impl Resampler {
+    | -------------- associated function in this implementation
+...
+298 |     fn create_sinc_resampler(
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `full_decode` is never read
+  --> wkmp-ap\src\playback\decoder_worker.rs:43:5
+   |
+39 | struct DecodeRequest {
+   |        ------------- field in this struct
+...
+43 |     full_decode: bool,
+   |     ^^^^^^^^^^^
+   |
+   = note: `DecodeRequest` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: field `stop_flag` is never read
+  --> wkmp-ap\src\playback\decoder_worker.rs:81:5
+   |
+68 | struct WorkerState {
+   |        ----------- field in this struct
+...
+81 |     stop_flag: Arc<AtomicBool>,
+   |     ^^^^^^^^^
+
+warning: field `0` is never read
+  --> wkmp-ap\src\playback\engine\queue.rs:28:12
+   |
+28 |     Queued(usize), // Index in queued array
+   |     ------ ^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `QueuePosition` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+28 -     Queued(usize), // Index in queued array
+28 +     Queued(()), // Index in queued array
+   |
+
+warning: fields `passage_start_ticks`, `passage_end_ticks`, and `sample_rate` are never read
+  --> wkmp-ap\src\playback\pipeline\fader.rs:26:5
+   |
+23 | pub struct Fader {
+   |            ----- fields in this struct
+...
+26 |     passage_start_ticks: i64,
+   |     ^^^^^^^^^^^^^^^^^^^
+27 |     passage_end_ticks: Option<i64>,
+   |     ^^^^^^^^^^^^^^^^^
+...
+46 |     sample_rate: u32,
+   |     ^^^^^^^^^^^
+
+warning: field `buffer_filled_timestamp_ms` is never read
+   --> wkmp-ap\src\playback\ring_buffer.rs:135:5
+    |
+131 | pub struct AudioProducer {
+    |            ------------- field in this struct
+...
+135 |     buffer_filled_timestamp_ms: Arc<AtomicU64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `buffer_has_been_filled`, `buffer_filled_timestamp_ms`, `grace_period_ms`, and `audio_expected` are never read
+   --> wkmp-ap\src\playback\ring_buffer.rs:200:5
+    |
+197 | pub struct AudioConsumer {
+    |            ------------- fields in this struct
+...
+200 |     buffer_has_been_filled: Arc<AtomicBool>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+201 |     buffer_filled_timestamp_ms: Arc<AtomicU64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+202 |     grace_period_ms: u64,
+    |     ^^^^^^^^^^^^^^^
+203 |     audio_expected: Arc<AtomicBool>,
+    |     ^^^^^^^^^^^^^^
+
+warning: field `sample_rate` is never read
+  --> wkmp-ap\src\tuning\test_harness.rs:67:5
+   |
+63 | struct TestAudioGenerator {
+   |        ------------------ field in this struct
+...
+67 |     sample_rate: u32,
+   |     ^^^^^^^^^^^
+
+   Compiling wkmp-dr v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-dr)
+warning: `wkmp-ap` (lib) generated 12 warnings (run `cargo fix --lib -p wkmp-ap` to apply 3 suggestions)
+warning: function `format_bytes` is never used
+   --> wkmp-ai\src\api\import_workflow.rs:345:4
+    |
+345 | fn format_bytes(bytes: u64) -> String {
+    |    ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: constant `ACOUSTID_API_KEY` is never used
+  --> wkmp-ai\src\services\acoustid_client.rs:16:7
+   |
+16 | const ACOUSTID_API_KEY: &str = "YOUR_API_KEY";
+   |       ^^^^^^^^^^^^^^^^
+
+warning: field `params` is never read
+  --> wkmp-ai\src\services\amplitude_analyzer.rs:52:5
+   |
+51 | pub struct AmplitudeAnalyzer {
+   |            ----------------- field in this struct
+52 |     params: AmplitudeParameters,
+   |     ^^^^^^
+
+   Compiling wkmp-ap v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ap)
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: `wkmp-ai` (lib) generated 3 warnings
+warning: unused import: `Verdict`
+   --> wkmp-ap\src\tuning\report.rs:220:71
+    |
+220 |     use crate::tuning::{CurveStatus, ConfidenceLevel, Recommendation, Verdict};
+    |                                                                       ^^^^^^^
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\audio\resampler.rs:462:13
+    |
+462 |         let mut resampler = StatefulResampler::new(48000, 44100, 2, 1000).unwrap();
+    |             ----^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:619:13
+    |
+619 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:653:13
+    |
+653 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:676:13
+    |
+676 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:709:13
+    |
+709 |         let mut buffer = PlayoutRingBuffer::new(Some(capacity), Some(headroom), Some(0), None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:737:13
+    |
+737 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:768:13
+    |
+768 |         let mut buffer = PlayoutRingBuffer::new(Some(5), Some(1), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:786:13
+    |
+786 |         let mut buffer = PlayoutRingBuffer::new(Some(1000), Some(50), Some(100), None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:817:13
+    |
+817 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:856:13
+    |
+856 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, Some(Uuid::new_v4()));
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:913:13
+    |
+913 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:953:13
+    |
+953 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:968:13
+    |
+968 |         let mut buffer = PlayoutRingBuffer::new(Some(capacity), Some(headroom), None, None);
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:984:13
+    |
+984 |         let mut buffer = PlayoutRingBuffer::new(None, None, None, None); // Use defaults (661,941 frames)
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> wkmp-ap\src\playback\playout_ring_buffer.rs:1009:13
+     |
+1009 |         let mut buffer = PlayoutRingBuffer::new(Some(100), Some(5), None, None);
+     |             ----^^^^^^
+     |             |
+     |             help: remove this `mut`
+
+warning: `wkmp-ap` (lib test) generated 28 warnings (12 duplicates) (run `cargo fix --lib -p wkmp-ap --tests` to apply 16 suggestions)
+warning: unused import: `std::path::PathBuf`
+  --> wkmp-ap\tests\chain_assignment_tests.rs:17:5
+   |
+17 | use std::path::PathBuf;
+   |     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `uuid::Uuid`
+  --> wkmp-ap\tests\chain_assignment_tests.rs:20:5
+   |
+20 | use uuid::Uuid;
+   |     ^^^^^^^^^^
+
+warning: unused variable: `id1`
+   --> wkmp-ap\tests\chain_assignment_tests.rs:102:9
+    |
+102 |     let id1 = engine.enqueue_file(file_path1).await.unwrap();
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_id1`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `id3`
+   --> wkmp-ap\tests\chain_assignment_tests.rs:108:9
+    |
+108 |     let id3 = engine.enqueue_file(file_path3).await.unwrap();
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_id3`
+
+warning: unused import: `std::path::PathBuf`
+ --> wkmp-ai\tests\component_tests.rs:7:5
+  |
+7 | use std::path::PathBuf;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unnecessary parentheses around closure body
+   --> wkmp-ai\tests\component_tests.rs:328:18
+    |
+328 |         .map(|i| (i as f32 / 132300.0)) // Linear ramp
+    |                  ^                   ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+328 -         .map(|i| (i as f32 / 132300.0)) // Linear ramp
+328 +         .map(|i| i as f32 / 132300.0) // Linear ramp
+    |
+
+warning: fields `db_pool` and `state` are never read
+  --> wkmp-ap\tests\test_engine.rs:18:9
+   |
+16 | pub struct TestEngine {
+   |            ---------- fields in this struct
+17 |     pub engine: Arc<wkmp_ap::playback::engine::PlaybackEngine>,
+18 |     pub db_pool: Pool<Sqlite>,
+   |         ^^^^^^^
+19 |     pub state: Arc<SharedState>,
+   |         ^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: fields `queue_position` and `buffer_fill_percent` are never read
+  --> wkmp-ap\tests\test_engine.rs:28:9
+   |
+25 | pub struct ChainInfo {
+   |            --------- fields in this struct
+...
+28 |     pub queue_position: Option<u32>,
+   |         ^^^^^^^^^^^^^^
+29 |     pub buffer_fill_percent: f32,
+   |         ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ChainInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `passage_id` is never read
+  --> wkmp-ap\tests\test_engine.rs:36:9
+   |
+34 | pub struct QueueEntryInfo {
+   |            -------------- field in this struct
+35 |     pub queue_entry_id: Uuid,
+36 |     pub passage_id: Option<Uuid>,
+   |         ^^^^^^^^^^
+   |
+   = note: `QueueEntryInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple methods are never used
+   --> wkmp-ap\tests\test_engine.rs:176:18
+    |
+ 40 | impl TestEngine {
+    | --------------- methods in this implementation
+...
+176 |     pub async fn play(&self) -> anyhow::Result<()> {
+    |                  ^^^^
+...
+231 |     pub async fn get_queue_entries(&self) -> Vec<QueueEntryInfo> {
+    |                  ^^^^^^^^^^^^^^^^^
+...
+255 |     pub async fn get_decoder_target(&self) -> Option<Uuid> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+263 |     pub async fn get_generation_counter(&self) -> (u64, u64) {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+...
+270 |     pub async fn wait_for_generation_change(&self, timeout_ms: u64) -> bool {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+279 |     pub async fn get_mixer_current_passage(&self) -> Option<Uuid> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+288 |     pub async fn simulate_buffer_fill(&self, queue_entry_id: Uuid, target_ms: u64) -> anyhow::Result<()> {
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+297 |     pub async fn simulate_passage_complete(&self, queue_entry_id: Uuid) -> anyhow::Result<()> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `create_test_audio_file` is never used
+   --> wkmp-ap\tests\test_engine.rs:305:8
+    |
+305 | pub fn create_test_audio_file(temp_dir: &TempDir, index: usize) -> anyhow::Result<PathBuf> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: comparison is useless due to type limits
+   --> wkmp-ai\tests\workflow_tests.rs:231:13
+    |
+231 |     assert!(session.progress.elapsed_seconds >= 0);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_comparisons)]` on by default
+
+warning: unused import: `super::*`
+    --> wkmp-ai\src\services\workflow_orchestrator.rs:1451:9
+     |
+1451 |     use super::*;
+     |         ^^^^^^^^
+     |
+     = note: `#[warn(unused_imports)]` on by default
+
+warning: struct `ChainInfo` is never constructed
+  --> wkmp-ap\tests\test_engine.rs:25:12
+   |
+25 | pub struct ChainInfo {
+   |            ^^^^^^^^^
+
+warning: fields `passage_id` and `play_order` are never read
+  --> wkmp-ap\tests\test_engine.rs:36:9
+   |
+34 | pub struct QueueEntryInfo {
+   |            -------------- fields in this struct
+35 |     pub queue_entry_id: Uuid,
+36 |     pub passage_id: Option<Uuid>,
+   |         ^^^^^^^^^^
+37 |     pub play_order: i64,
+   |         ^^^^^^^^^^
+   |
+   = note: `QueueEntryInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple methods are never used
+   --> wkmp-ap\tests\test_engine.rs:176:18
+    |
+ 40 | impl TestEngine {
+    | --------------- methods in this implementation
+...
+176 |     pub async fn play(&self) -> anyhow::Result<()> {
+    |                  ^^^^
+...
+186 |     pub async fn get_buffer_chains(&self) -> Vec<ChainInfo> {
+    |                  ^^^^^^^^^^^^^^^^^
+...
+236 |     pub async fn get_queue_entries_from_memory(&self) -> Vec<QueueEntryInfo> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+255 |     pub async fn get_decoder_target(&self) -> Option<Uuid> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+263 |     pub async fn get_generation_counter(&self) -> (u64, u64) {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+...
+270 |     pub async fn wait_for_generation_change(&self, timeout_ms: u64) -> bool {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+279 |     pub async fn get_mixer_current_passage(&self) -> Option<Uuid> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+288 |     pub async fn simulate_buffer_fill(&self, queue_entry_id: Uuid, target_ms: u64) -> anyhow::Result<()> {
+    |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `create_test_audio_file_in_dir` is never used
+   --> wkmp-ap\tests\test_engine.rs:321:8
+    |
+321 | pub fn create_test_audio_file_in_dir(dir: &std::path::Path, index: usize) -> anyhow::Result<PathBuf> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (test "workflow_tests") generated 1 warning
+warning: `wkmp-ai` (test "component_tests") generated 2 warnings (run `cargo fix --test "component_tests"` to apply 2 suggestions)
+warning: `wkmp-ap` (test "event_driven_playback_tests") generated 5 warnings (1 duplicate)
+warning: `wkmp-ap` (test "chain_assignment_tests") generated 9 warnings (run `cargo fix --test "chain_assignment_tests"` to apply 2 suggestions)
+warning: `wkmp-ai` (lib test) generated 3 warnings (2 duplicates) (run `cargo fix --lib -p wkmp-ai --tests` to apply 1 suggestion)
+warning: field `shared_secret` is never read
+  --> wkmp-ap\src\api\server.rs:38:9
+   |
+28 | pub struct AppContext {
+   |            ---------- field in this struct
+...
+38 |     pub shared_secret: i64,
+   |         ^^^^^^^^^^^^^
+   |
+   = note: `AppContext` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `auth_middleware` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:276:14
+    |
+276 | pub async fn auth_middleware(
+    |              ^^^^^^^^^^^^^^^
+
+warning: function `auth_middleware_fn` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:290:14
+    |
+290 | pub async fn auth_middleware_fn(
+    |              ^^^^^^^^^^^^^^^^^^
+
+warning: function `extract_auth_from_query` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:366:4
+    |
+366 | fn extract_auth_from_query(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `extract_auth_from_body` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:409:10
+    |
+409 | async fn extract_auth_from_body(
+    |          ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `auth_middleware_with_state` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:572:14
+    |
+572 | pub async fn auth_middleware_with_state(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `auth_middleware_impl` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:591:10
+    |
+591 | async fn auth_middleware_impl(
+    |          ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `validate_query_auth` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:635:4
+    |
+635 | fn validate_query_auth(
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `validate_body_auth` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:697:10
+    |
+697 | async fn validate_body_auth(
+    |          ^^^^^^^^^^^^^^^^^^
+
+warning: struct `Authenticated` is never constructed
+   --> wkmp-ap\src\api\auth_middleware.rs:795:12
+    |
+795 | pub struct Authenticated;
+    |            ^^^^^^^^^^^^^
+
+warning: function `extract_auth_from_query_parts` is never used
+   --> wkmp-ap\src\api\auth_middleware.rs:875:4
+    |
+875 | fn extract_auth_from_query_parts(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `PassageBuffer` is never constructed
+  --> wkmp-ap\src\audio\types.rs:24:12
+   |
+24 | pub struct PassageBuffer {
+   |            ^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> wkmp-ap\src\audio\types.rs:57:12
+    |
+ 55 | impl PassageBuffer {
+    | ------------------ associated items in this implementation
+ 56 |     /// Create a new PassageBuffer from decoded and resampled audio data
+ 57 |     pub fn new(passage_id: Uuid, samples: Vec<f32>, sample_rate: u32, channel_count: u16) -> Self {
+    |            ^^^
+...
+ 76 |     pub fn duration_ms(&self) -> u64 {
+    |            ^^^^^^^^^^^
+...
+ 83 |     pub fn duration_seconds(&self) -> f32 {
+    |            ^^^^^^^^^^^^^^^^
+...
+ 88 |     pub fn get_frame(&self, frame_index: usize) -> Option<AudioFrame> {
+    |            ^^^^^^^^^
+...
+110 |     pub fn append_samples(&mut self, new_samples: Vec<f32>) {
+    |            ^^^^^^^^^^^^^^
+...
+120 |     pub fn reserve_capacity(&mut self, total_frames: usize) {
+    |            ^^^^^^^^^^^^^^^^
+...
+136 |     pub fn finalize(&mut self) {
+    |            ^^^^^^^^
+...
+157 |     pub fn is_exhausted(&self, position: usize) -> bool {
+    |            ^^^^^^^^^^^^
+
+warning: associated items `from_mono`, `apply_volume`, `add`, and `clamp` are never used
+   --> wkmp-ap\src\audio\types.rs:187:12
+    |
+178 | impl AudioFrame {
+    | --------------- associated items in this implementation
+...
+187 |     pub fn from_mono(sample: f32) -> Self {
+    |            ^^^^^^^^^
+...
+197 |     pub fn apply_volume(&mut self, volume: f32) {
+    |            ^^^^^^^^^^^^
+...
+203 |     pub fn add(&mut self, other: &AudioFrame) {
+    |            ^^^
+...
+209 |     pub fn clamp(&mut self) {
+    |            ^^^^^
+
+warning: struct `DecodeResult` is never constructed
+  --> wkmp-ap\src\audio\decoder.rs:27:12
+   |
+27 | pub struct DecodeResult {
+   |            ^^^^^^^^^^^^
+
+warning: function `panic_payload_to_string` is never used
+  --> wkmp-ap\src\audio\decoder.rs:72:4
+   |
+72 | fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
+   |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated functions `decode_file` and `decode_passage` are never used
+   --> wkmp-ap\src\audio\decoder.rs:105:12
+    |
+ 87 | impl SimpleDecoder {
+    | ------------------ associated functions in this implementation
+...
+105 |     pub fn decode_file(path: &PathBuf) -> Result<DecodeResult> {
+    |            ^^^^^^^^^^^
+...
+238 |     pub fn decode_passage(
+    |            ^^^^^^^^^^^^^^
+
+warning: field `channels` is never read
+  --> wkmp-ap\src\audio\resampler.rs:38:9
+   |
+37 |     PassThrough {
+   |     ----------- field in this variant
+38 |         channels: u16
+   |         ^^^^^^^^
+
+warning: field `input_rate` is never read
+  --> wkmp-ap\src\audio\resampler.rs:48:9
+   |
+46 |     Active {
+   |     ------ field in this variant
+47 |         resampler: FastFixedIn<f32>,
+48 |         input_rate: u32,
+   |         ^^^^^^^^^^
+
+warning: method `input_rate` is never used
+   --> wkmp-ap\src\audio\resampler.rs:193:12
+    |
+ 55 | impl StatefulResampler {
+    | ---------------------- method in this implementation
+...
+193 |     pub fn input_rate(&self) -> u32 {
+    |            ^^^^^^^^^^
+
+warning: associated functions `resample` and `create_sinc_resampler` are never used
+   --> wkmp-ap\src\audio\resampler.rs:224:12
+    |
+207 | impl Resampler {
+    | -------------- associated functions in this implementation
+...
+224 |     pub fn resample(input: &[f32], input_rate: u32, channels: u16) -> Result<Vec<f32>> {
+    |            ^^^^^^^^
+...
+298 |     fn create_sinc_resampler(
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `requested_device` is never read
+  --> wkmp-ap\src\audio\output.rs:39:5
+   |
+25 | pub struct AudioOutput {
+   |            ----------- field in this struct
+...
+39 |     requested_device: Option<String>,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> wkmp-ap\src\audio\output.rs:80:12
+    |
+ 42 | impl AudioOutput {
+    | ---------------- associated items in this implementation
+...
+ 80 |     pub fn new(device_name: Option<String>) -> Result<Self> {
+    |            ^^^
+...
+488 |     pub fn set_volume(&self, volume: f32) {
+    |            ^^^^^^^^^^
+...
+495 |     pub fn get_volume(&self) -> f32 {
+    |            ^^^^^^^^^^
+...
+500 |     pub fn device_name(&self) -> String {
+    |            ^^^^^^^^^^^
+...
+528 |     pub fn channels(&self) -> u16 {
+    |            ^^^^^^^^
+...
+539 |     pub fn has_error(&self) -> bool {
+    |            ^^^^^^^^^
+...
+548 |     pub fn clear_error(&self) {
+    |            ^^^^^^^^^^^
+...
+560 |     pub fn get_error_count(&self) -> u32 {
+    |            ^^^^^^^^^^^^^^^
+...
+586 |     pub fn try_recover<F>(&mut self, callback: F) -> Result<()>
+    |            ^^^^^^^^^^^
+
+warning: struct `TomlConfig` is never constructed
+  --> wkmp-ap\src\config.rs:18:12
+   |
+18 | pub struct TomlConfig {
+   |            ^^^^^^^^^^
+
+warning: function `default_port` is never used
+  --> wkmp-ap\src\config.rs:30:4
+   |
+30 | fn default_port() -> u16 {
+   |    ^^^^^^^^^^^^
+
+warning: fields `database_path`, `root_folder`, and `db_pool` are never read
+  --> wkmp-ap\src\config.rs:40:9
+   |
+38 | pub struct Config {
+   |            ------ fields in this struct
+39 |     /// Database file path
+40 |     pub database_path: PathBuf,
+   |         ^^^^^^^^^^^^^
+...
+46 |     pub root_folder: Option<PathBuf>,
+   |         ^^^^^^^^^^^
+...
+49 |     pub db_pool: Option<SqlitePool>,
+   |         ^^^^^^^
+   |
+   = note: `Config` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: associated items `load`, `get_os_default_root_folder`, `load_root_folder_from_db`, and `db_pool` are never used
+   --> wkmp-ap\src\config.rs:76:18
+    |
+ 52 | impl Config {
+    | ----------- associated items in this implementation
+...
+ 76 |     pub async fn load(
+    |                  ^^^^
+...
+170 |     pub fn get_os_default_root_folder() -> PathBuf {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+179 |     async fn load_root_folder_from_db(pool: &SqlitePool) -> Result<Option<PathBuf>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+192 |     pub fn db_pool(&self) -> &SqlitePool {
+    |            ^^^^^^^
+
+warning: function `get_audio_file_path` is never used
+   --> wkmp-ap\src\db\passages.rs:133:14
+    |
+133 | pub async fn get_audio_file_path(db: &Pool<Sqlite>, passage_id: Uuid) -> Result<PathBuf> {
+    |              ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `CrossfadeDefaults` is never constructed
+  --> wkmp-ap\src\db\settings.rs:96:12
+   |
+96 | pub struct CrossfadeDefaults {
+   |            ^^^^^^^^^^^^^^^^^
+
+warning: function `get_crossfade_defaults` is never used
+   --> wkmp-ap\src\db\settings.rs:108:14
+    |
+108 | pub async fn get_crossfade_defaults(db: &Pool<Sqlite>) -> Result<CrossfadeDefaults> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `load_playback_position` is never used
+   --> wkmp-ap\src\db\settings.rs:148:14
+    |
+148 | pub async fn load_playback_position(db: &Pool<Sqlite>) -> Result<Option<i64>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `load_last_passage_id` is never used
+   --> wkmp-ap\src\db\settings.rs:164:14
+    |
+164 | pub async fn load_last_passage_id(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
+    |              ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `load_queue_state` is never used
+   --> wkmp-ap\src\db\settings.rs:196:14
+    |
+196 | pub async fn load_queue_state(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
+    |              ^^^^^^^^^^^^^^^^
+
+warning: function `set_minimum_buffer_threshold` is never used
+   --> wkmp-ap\src\db\settings.rs:298:14
+    |
+298 | pub async fn set_minimum_buffer_threshold(db: &Pool<Sqlite>, threshold_ms: u64) -> Result<()> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `set_decoder_resume_hysteresis` is never used
+   --> wkmp-ap\src\db\settings.rs:330:14
+    |
+330 | pub async fn set_decoder_resume_hysteresis(db: &Pool<Sqlite>, samples: usize) -> Result<()> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `PartialDecode`, `InvalidTiming`, `NotFound`, `NotImplemented`, `BadRequest`, and `Internal` are never constructed
+   --> wkmp-ap\src\error.rs:50:5
+    |
+ 11 | pub enum Error {
+    |          ----- variants in this enum
+...
+ 50 |     PartialDecode {
+    |     ^^^^^^^^^^^^^
+...
+118 |     InvalidTiming(String),
+    |     ^^^^^^^^^^^^^
+...
+132 |     NotFound(String),
+    |     ^^^^^^^^
+...
+138 |     NotImplemented(String),
+    |     ^^^^^^^^^^^^^^
+...
+144 |     BadRequest(String),
+    |     ^^^^^^^^^^
+...
+150 |     Internal(String),
+    |     ^^^^^^^^
+    |
+    = note: `Error` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `discovered_end_ticks` and `created_at` are never read
+  --> wkmp-ap\src\playback\buffer_events.rs:66:9
+   |
+49 | pub struct BufferMetadata {
+   |            -------------- fields in this struct
+...
+66 |     pub discovered_end_ticks: Option<i64>,
+   |         ^^^^^^^^^^^^^^^^^^^^
+...
+69 |     pub created_at: Instant,
+   |         ^^^^^^^^^^
+   |
+   = note: `BufferMetadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `is_exhausted` is never used
+   --> wkmp-ap\src\playback\buffer_events.rs:127:12
+    |
+ 98 | impl BufferMetadata {
+    | ------------------- method in this implementation
+...
+127 |     pub fn is_exhausted(&self) -> bool {
+    |            ^^^^^^^^^^^^
+
+warning: fields `queue_entry_id`, `old_state`, `new_state`, and `samples_buffered` are never read
+   --> wkmp-ap\src\playback\buffer_events.rs:155:9
+    |
+154 |     StateChanged {
+    |     ------------ fields in this variant
+155 |         queue_entry_id: Uuid,
+    |         ^^^^^^^^^^^^^^
+156 |         old_state: BufferState,
+    |         ^^^^^^^^^
+157 |         new_state: BufferState,
+    |         ^^^^^^^^^
+158 |         samples_buffered: usize,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `BufferEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `samples_buffered` is never read
+   --> wkmp-ap\src\playback\buffer_events.rs:165:9
+    |
+163 |     ReadyForStart {
+    |     ------------- field in this variant
+164 |         queue_entry_id: Uuid,
+165 |         samples_buffered: usize,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `BufferEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `queue_entry_id` and `total_samples` are never read
+   --> wkmp-ap\src\playback\buffer_events.rs:183:9
+    |
+182 |     Finished {
+    |     -------- fields in this variant
+183 |         queue_entry_id: Uuid,
+    |         ^^^^^^^^^^^^^^
+184 |         total_samples: usize,
+    |         ^^^^^^^^^^^^^
+    |
+    = note: `BufferEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `EndpointDiscovered` is never constructed
+   --> wkmp-ap\src\playback\buffer_events.rs:191:5
+    |
+150 | pub enum BufferEvent {
+    |          ----------- variant in this enum
+...
+191 |     EndpointDiscovered {
+    |     ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `BufferEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple associated items are never used
+   --> wkmp-ap\src\playback\buffer_manager.rs:139:18
+    |
+ 77 | impl BufferManager {
+    | ------------------ associated items in this implementation
+...
+139 |     pub async fn set_decode_started(&self, queue_entry_id: Uuid) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+152 |     pub async fn set_decode_completed(&self, queue_entry_id: Uuid) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+165 |     pub async fn set_file_path(&self, queue_entry_id: Uuid, file_path: String) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^
+...
+204 |     pub fn validate_buffer_config(capacity: usize, headroom: usize) -> Result<(), String> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+232 |     pub async fn get_buffer_capacity(&self) -> usize {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+237 |     pub async fn get_buffer_headroom(&self) -> usize {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+558 |     pub async fn set_discovered_endpoint(&self, queue_entry_id: Uuid, actual_end_ticks: i64) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+677 |     pub async fn advance_read_position(&self, queue_entry_id: Uuid, count: usize) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^
+...
+694 |     pub async fn get_headroom(&self, queue_entry_id: Uuid) -> Result<usize, String> {
+    |                  ^^^^^^^^^^^^
+...
+746 |     pub async fn get_state(&self, queue_entry_id: Uuid) -> Option<BufferState> {
+    |                  ^^^^^^^^^
+...
+760 |     pub async fn is_managed(&self, queue_entry_id: Uuid) -> bool {
+    |                  ^^^^^^^^^^
+...
+802 |     pub async fn mark_ready(&self, queue_entry_id: Uuid) {
+    |                  ^^^^^^^^^^
+...
+815 |     pub async fn update_decode_progress(&self, _queue_entry_id: Uuid, _progress_percent: u8) {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+...
+841 |     pub async fn get_status(&self, queue_entry_id: Uuid) -> Option<crate::audio::types::BufferStatus> {
+    |                  ^^^^^^^^^^
+...
+867 |     pub async fn get_decode_elapsed(&self, queue_entry_id: Uuid) -> Option<std::time::Duration> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+876 |     pub async fn pop_frame(&self, queue_entry_id: Uuid) -> Option<AudioFrame> {
+    |                  ^^^^^^^^^
+...
+897 |     pub async fn is_buffer_exhausted(&self, queue_entry_id: Uuid) -> Option<bool> {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+979 |     pub async fn get_fill_percent(&self, queue_entry_id: Uuid) -> Option<f32> {
+    |                  ^^^^^^^^^^^^^^^^
+...
+995 |     pub async fn test_emit_event(&self, event: BufferEvent) {
+    |                  ^^^^^^^^^^^^^^^
+
+warning: methods `test_get_current_target` and `test_get_generation` are never used
+    --> wkmp-ap\src\playback\decoder_worker.rs:1026:18
+     |
+ 133 | impl DecoderWorker {
+     | ------------------ methods in this implementation
+...
+1026 |     pub async fn test_get_current_target(&self) -> Option<Uuid> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+1038 |     pub async fn test_get_generation(&self) -> (u64, u64) {
+     |                  ^^^^^^^^^^^^^^^^^^^
+
+warning: field `passage_id` is never read
+  --> wkmp-ap\src\playback\diagnostics.rs:29:9
+   |
+27 | pub struct PassageMetrics {
+   |            -------------- field in this struct
+28 |     /// Passage/queue entry ID
+29 |     pub passage_id: Uuid,
+   |         ^^^^^^^^^^
+   |
+   = note: `PassageMetrics` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `format_report` is never used
+   --> wkmp-ap\src\playback\diagnostics.rs:200:12
+    |
+174 | impl ValidationResult {
+    | --------------------- method in this implementation
+...
+200 |     pub fn format_report(&self) -> String {
+    |            ^^^^^^^^^^^^^
+
+warning: multiple fields are never read
+   --> wkmp-ap\src\playback\validation_service.rs:100:9
+    |
+ 99 | pub struct ValidationHistoryEntry {
+    |            ---------------------- fields in this struct
+100 |     pub timestamp: chrono::DateTime<chrono::Utc>,
+    |         ^^^^^^^^^
+101 |     pub passed: bool,
+    |         ^^^^^^
+102 |     pub passage_count: usize,
+    |         ^^^^^^^^^^^^^
+103 |     pub total_decoder_samples: u64,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+104 |     pub total_buffer_written: u64,
+    |         ^^^^^^^^^^^^^^^^^^^^
+105 |     pub total_buffer_read: u64,
+    |         ^^^^^^^^^^^^^^^^^
+106 |     pub total_mixer_frames: u64,
+    |         ^^^^^^^^^^^^^^^^^^
+107 |     pub errors: Vec<String>,
+    |         ^^^^^^
+108 |     pub warnings: Vec<String>,
+    |         ^^^^^^^^
+    |
+    = note: `ValidationHistoryEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `get_history` and `get_latest` are never used
+   --> wkmp-ap\src\playback\validation_service.rs:139:18
+    |
+121 | impl ValidationService {
+    | ---------------------- methods in this implementation
+...
+139 |     pub async fn get_history(&self) -> Vec<ValidationHistoryEntry> {
+    |                  ^^^^^^^^^^^
+...
+147 |     pub async fn get_latest(&self) -> Option<ValidationHistoryEntry> {
+    |                  ^^^^^^^^^^
+
+warning: multiple methods are never used
+    --> wkmp-ap\src\playback\engine\core.rs:2391:18
+     |
+2386 | impl PlaybackEngine {
+     | ------------------- methods in this implementation
+...
+2391 |     pub async fn test_get_chain_assignments(&self) -> HashMap<Uuid, usize> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2399 |     pub async fn test_get_available_chains(&self) -> Vec<usize> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2410 |     pub async fn test_get_buffer_fill_percent(&self, queue_entry_id: Uuid) -> Option<f32> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2418 |     pub async fn test_get_queue_entries_from_db(&self) -> Result<Vec<crate::playback::queue_manager::QueueEntry>> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2463 |     pub async fn test_get_queue_entries_from_memory(&self) -> Vec<crate::playback::queue_manager::QueueEntry> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2489 |     pub async fn test_get_decoder_target(&self) -> Option<Uuid> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+2500 |     pub async fn test_get_generation_counter(&self) -> (u64, u64) {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2510 |     pub async fn test_wait_for_generation_change(&self, timeout_ms: u64) -> bool {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2534 |     pub async fn test_get_mixer_current_passage(&self) -> Option<Uuid> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2546 |     pub async fn test_simulate_buffer_fill(&self, queue_entry_id: Uuid, target_ms: u64) -> anyhow::Result<()> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2578 |     pub async fn test_simulate_passage_complete(&self, queue_entry_id: Uuid) -> anyhow::Result<()> {
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `queue_len` is never used
+   --> wkmp-ap\src\playback\engine\queue.rs:467:18
+    |
+ 31 | impl PlaybackEngine {
+    | ------------------- method in this implementation
+...
+467 |     pub async fn queue_len(&self) -> usize {
+    |                  ^^^^^^^^^
+
+warning: methods `get_buffer_manager` and `verify_queue_sync` are never used
+   --> wkmp-ap\src\playback\engine\diagnostics.rs:48:12
+    |
+ 27 | impl PlaybackEngine {
+    | ------------------- methods in this implementation
+...
+ 48 |     pub fn get_buffer_manager(&self) -> Arc<BufferManager> {
+    |            ^^^^^^^^^^^^^^^^^^
+...
+283 |     pub async fn verify_queue_sync(&self) -> bool {
+    |                  ^^^^^^^^^^^^^^^^^
+
+warning: variant `StateChanged` is never constructed
+  --> wkmp-ap\src\playback\events.rs:59:5
+   |
+22 | pub enum PlaybackEvent {
+   |          ------------- variant in this enum
+...
+59 |     StateChanged {
+   |     ^^^^^^^^^^^^
+   |
+   = note: `PlaybackEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variant `SongBoundary` is never constructed
+   --> wkmp-ap\src\playback\mixer.rs:120:5
+    |
+100 | pub enum MarkerEvent {
+    |          ----------- variant in this enum
+...
+120 |     SongBoundary {
+    |     ^^^^^^^^^^^^
+    |
+    = note: `MarkerEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `set_master_volume`, `master_volume`, `state`, `is_resume_fading`, `clear_markers_for_passage`, and `mix_crossfade` are never used
+   --> wkmp-ap\src\playback\mixer.rs:289:12
+    |
+244 | impl Mixer {
+    | ---------- methods in this implementation
+...
+289 |     pub fn set_master_volume(&mut self, volume: f32) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+294 |     pub fn master_volume(&self) -> f32 {
+    |            ^^^^^^^^^^^^^
+...
+314 |     pub fn state(&self) -> MixerState {
+    |            ^^^^^
+...
+355 |     pub fn is_resume_fading(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^
+...
+392 |     pub fn clear_markers_for_passage(&mut self, passage_id: Uuid) {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+696 |     pub async fn mix_crossfade(
+    |                  ^^^^^^^^^^^^^
+
+warning: methods `is_finished`, `queue_entry_id`, `total_frames_pushed`, and `chunk_count` are never used
+   --> wkmp-ap\src\playback\pipeline\decoder_chain.rs:441:12
+    |
+ 90 | impl DecoderChain {
+    | ----------------- methods in this implementation
+...
+441 |     pub fn is_finished(&self) -> bool {
+    |            ^^^^^^^^^^^
+...
+446 |     pub fn queue_entry_id(&self) -> Uuid {
+    |            ^^^^^^^^^^^^^^
+...
+462 |     pub fn total_frames_pushed(&self) -> usize {
+    |            ^^^^^^^^^^^^^^^^^^^
+...
+467 |     pub fn chunk_count(&self) -> u64 {
+    |            ^^^^^^^^^^^
+
+warning: fields `passage_start_ticks`, `passage_end_ticks`, `total_passage_duration_samples`, and `sample_rate` are never read
+  --> wkmp-ap\src\playback\pipeline\fader.rs:26:5
+   |
+23 | pub struct Fader {
+   |            ----- fields in this struct
+...
+26 |     passage_start_ticks: i64,
+   |     ^^^^^^^^^^^^^^^^^^^
+27 |     passage_end_ticks: Option<i64>,
+   |     ^^^^^^^^^^^^^^^^^
+...
+39 |     total_passage_duration_samples: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+46 |     sample_rate: u32,
+   |     ^^^^^^^^^^^
+
+warning: methods `total_duration_frames` and `is_complete` are never used
+   --> wkmp-ap\src\playback\pipeline\fader.rs:223:12
+    |
+ 52 | impl Fader {
+    | ---------- methods in this implementation
+...
+223 |     pub fn total_duration_frames(&self) -> usize {
+    |            ^^^^^^^^^^^^^^^^^^^^^
+...
+232 |     pub fn is_complete(&self) -> bool {
+    |            ^^^^^^^^^^^
+
+warning: struct `PassageTiming` is never constructed
+  --> wkmp-ap\src\playback\pipeline\timing.rs:16:12
+   |
+16 | pub struct PassageTiming {
+   |            ^^^^^^^^^^^^^
+
+warning: struct `CrossfadeTiming` is never constructed
+  --> wkmp-ap\src\playback\pipeline\timing.rs:40:12
+   |
+40 | pub struct CrossfadeTiming {
+   |            ^^^^^^^^^^^^^^^
+
+warning: associated items `calculate`, `crossfade_trigger_sample`, `ms_to_samples`, and `to_samples` are never used
+   --> wkmp-ap\src\playback\pipeline\timing.rs:72:12
+    |
+ 60 | impl CrossfadeTiming {
+    | -------------------- associated items in this implementation
+...
+ 72 |     pub fn calculate(
+    |            ^^^^^^^^^
+...
+163 |     pub fn crossfade_trigger_sample(&self, sample_rate: u32) -> usize {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+169 |     fn ms_to_samples(&self, ms: u64, sample_rate: u32) -> usize {
+    |        ^^^^^^^^^^^^^
+...
+176 |     pub fn to_samples(&self, sample_rate: u32) -> (usize, usize) {
+    |            ^^^^^^^^^^
+
+warning: field `passage_id` is never read
+  --> wkmp-ap\src\playback\playout_ring_buffer.rs:90:9
+   |
+82 | pub struct BufferStatistics {
+   |            ---------------- field in this struct
+...
+90 |     pub passage_id: Option<Uuid>,
+   |         ^^^^^^^^^^
+   |
+   = note: `BufferStatistics` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `passage_id`, `headroom`, and `resume_hysteresis` are never used
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:476:12
+    |
+190 | impl PlayoutRingBuffer {
+    | ---------------------- methods in this implementation
+...
+476 |     pub fn passage_id(&self) -> Option<Uuid> {
+    |            ^^^^^^^^^^
+...
+491 |     pub fn headroom(&self) -> usize {
+    |            ^^^^^^^^
+...
+498 |     pub fn resume_hysteresis(&self) -> usize {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: multiple fields are never read
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:562:9
+    |
+560 | pub struct PlayoutBufferStats {
+    |            ------------------ fields in this struct
+561 |     /// Total buffer capacity in frames
+562 |     pub capacity: usize,
+    |         ^^^^^^^^
+...
+565 |     pub occupied: usize,
+    |         ^^^^^^^^
+...
+568 |     pub free: usize,
+    |         ^^^^
+...
+571 |     pub fill_percent: f32,
+    |         ^^^^^^^^^^^^
+...
+574 |     pub should_pause: bool,
+    |         ^^^^^^^^^^^^
+...
+577 |     pub decode_complete: bool,
+    |         ^^^^^^^^^^^^^^^
+...
+580 |     pub is_exhausted: bool,
+    |         ^^^^^^^^^^^^
+...
+586 |     pub total_read: u64,
+    |         ^^^^^^^^^^
+    |
+    = note: `PlayoutBufferStats` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `is_healthy` is never used
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:591:12
+    |
+589 | impl PlayoutBufferStats {
+    | ----------------------- method in this implementation
+590 |     /// Check if buffer is healthy (reasonable fill level)
+591 |     pub fn is_healthy(&self) -> bool {
+    |            ^^^^^^^^^^
+
+warning: fields `lead_in_point_ms`, `lead_out_point_ms`, `fade_in_point_ms`, `fade_out_point_ms`, and `fade_out_curve` are never read
+  --> wkmp-ap\src\playback\queue_manager.rs:38:9
+   |
+22 | pub struct QueueEntry {
+   |            ---------- fields in this struct
+...
+38 |     pub lead_in_point_ms: Option<u64>,
+   |         ^^^^^^^^^^^^^^^^
+39 |     pub lead_out_point_ms: Option<u64>,
+   |         ^^^^^^^^^^^^^^^^^
+40 |     pub fade_in_point_ms: Option<u64>,
+   |         ^^^^^^^^^^^^^^^^
+41 |     pub fade_out_point_ms: Option<u64>,
+   |         ^^^^^^^^^^^^^^^^^
+42 |     pub fade_in_curve: Option<String>,
+43 |     pub fade_out_curve: Option<String>,
+   |         ^^^^^^^^^^^^^^
+   |
+   = note: `QueueEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `stats` is never used
+   --> wkmp-ap\src\playback\ring_buffer.rs:118:12
+    |
+ 65 | impl AudioRingBuffer {
+    | -------------------- method in this implementation
+...
+118 |     pub fn stats(&self) -> RingBufferStats {
+    |            ^^^^^
+
+warning: method `occupied_len` is never used
+   --> wkmp-ap\src\playback\ring_buffer.rs:228:12
+    |
+206 | impl AudioConsumer {
+    | ------------------ method in this implementation
+...
+228 |     pub fn occupied_len(&self) -> usize {
+    |            ^^^^^^^^^^^^
+
+warning: struct `RingBufferStats` is never constructed
+   --> wkmp-ap\src\playback\ring_buffer.rs:235:12
+    |
+235 | pub struct RingBufferStats {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `fill_percent` and `is_healthy` are never used
+   --> wkmp-ap\src\playback\ring_buffer.rs:251:12
+    |
+249 | impl RingBufferStats {
+    | -------------------- methods in this implementation
+250 |     /// Get buffer fill percentage (0.0 to 1.0)
+251 |     pub fn fill_percent(&self) -> f32 {
+    |            ^^^^^^^^^^^^
+...
+256 |     pub fn is_healthy(&self) -> bool {
+    |            ^^^^^^^^^^
+
+warning: variants `PartialDecode`, `NotFound`, `NotImplemented`, `BadRequest`, and `Internal` are never constructed
+   --> wkmp-ap\src\error.rs:50:5
+    |
+ 11 | pub enum Error {
+    |          ----- variants in this enum
+...
+ 50 |     PartialDecode {
+    |     ^^^^^^^^^^^^^
+...
+132 |     NotFound(String),
+    |     ^^^^^^^^
+...
+138 |     NotImplemented(String),
+    |     ^^^^^^^^^^^^^^
+...
+144 |     BadRequest(String),
+    |     ^^^^^^^^^^
+...
+150 |     Internal(String),
+    |     ^^^^^^^^
+    |
+    = note: `Error` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: multiple associated items are never used
+   --> wkmp-ap\src\playback\buffer_manager.rs:139:18
+    |
+ 77 | impl BufferManager {
+    | ------------------ associated items in this implementation
+...
+139 |     pub async fn set_decode_started(&self, queue_entry_id: Uuid) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+152 |     pub async fn set_decode_completed(&self, queue_entry_id: Uuid) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^^^
+...
+165 |     pub async fn set_file_path(&self, queue_entry_id: Uuid, file_path: String) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^
+...
+204 |     pub fn validate_buffer_config(capacity: usize, headroom: usize) -> Result<(), String> {
+    |            ^^^^^^^^^^^^^^^^^^^^^^
+...
+232 |     pub async fn get_buffer_capacity(&self) -> usize {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+237 |     pub async fn get_buffer_headroom(&self) -> usize {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+558 |     pub async fn set_discovered_endpoint(&self, queue_entry_id: Uuid, actual_end_ticks: i64) -> Result<(), String> {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+...
+802 |     pub async fn mark_ready(&self, queue_entry_id: Uuid) {
+    |                  ^^^^^^^^^^
+...
+815 |     pub async fn update_decode_progress(&self, _queue_entry_id: Uuid, _progress_percent: u8) {
+    |                  ^^^^^^^^^^^^^^^^^^^^^^
+...
+841 |     pub async fn get_status(&self, queue_entry_id: Uuid) -> Option<crate::audio::types::BufferStatus> {
+    |                  ^^^^^^^^^^
+...
+867 |     pub async fn get_decode_elapsed(&self, queue_entry_id: Uuid) -> Option<std::time::Duration> {
+    |                  ^^^^^^^^^^^^^^^^^^
+...
+876 |     pub async fn pop_frame(&self, queue_entry_id: Uuid) -> Option<AudioFrame> {
+    |                  ^^^^^^^^^
+...
+897 |     pub async fn is_buffer_exhausted(&self, queue_entry_id: Uuid) -> Option<bool> {
+    |                  ^^^^^^^^^^^^^^^^^^^
+...
+979 |     pub async fn get_fill_percent(&self, queue_entry_id: Uuid) -> Option<f32> {
+    |                  ^^^^^^^^^^^^^^^^
+...
+995 |     pub async fn test_emit_event(&self, event: BufferEvent) {
+    |                  ^^^^^^^^^^^^^^^
+
+warning: fields `timestamp`, `total_decoder_samples`, `total_buffer_written`, `total_buffer_read`, and `total_mixer_frames` are never read
+   --> wkmp-ap\src\playback\validation_service.rs:100:9
+    |
+ 99 | pub struct ValidationHistoryEntry {
+    |            ---------------------- fields in this struct
+100 |     pub timestamp: chrono::DateTime<chrono::Utc>,
+    |         ^^^^^^^^^
+...
+103 |     pub total_decoder_samples: u64,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+104 |     pub total_buffer_written: u64,
+    |         ^^^^^^^^^^^^^^^^^^^^
+105 |     pub total_buffer_read: u64,
+    |         ^^^^^^^^^^^^^^^^^
+106 |     pub total_mixer_frames: u64,
+    |         ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `ValidationHistoryEntry` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `is_resume_fading`, `clear_markers_for_passage`, and `mix_crossfade` are never used
+   --> wkmp-ap\src\playback\mixer.rs:355:12
+    |
+244 | impl Mixer {
+    | ---------- methods in this implementation
+...
+355 |     pub fn is_resume_fading(&self) -> bool {
+    |            ^^^^^^^^^^^^^^^^
+...
+392 |     pub fn clear_markers_for_passage(&mut self, passage_id: Uuid) {
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+696 |     pub async fn mix_crossfade(
+    |                  ^^^^^^^^^^^^^
+
+warning: method `is_complete` is never used
+   --> wkmp-ap\src\playback\pipeline\fader.rs:232:12
+    |
+ 52 | impl Fader {
+    | ---------- method in this implementation
+...
+232 |     pub fn is_complete(&self) -> bool {
+    |            ^^^^^^^^^^^
+
+warning: method `resume_hysteresis` is never used
+   --> wkmp-ap\src\playback\playout_ring_buffer.rs:498:12
+    |
+190 | impl PlayoutRingBuffer {
+    | ---------------------- method in this implementation
+...
+498 |     pub fn resume_hysteresis(&self) -> usize {
+    |            ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ap` (bin "wkmp-ap" test) generated 72 warnings (66 duplicates)
+warning: `wkmp-ap` (bin "wkmp-ap") generated 76 warnings (7 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.28s
+     Running unittests src\lib.rs (target\debug\deps\wkmp_ai-43399f0e870942ff.exe)
+
+running 49 tests
+test db::passages::tests::test_passage_duration ... ok
+test services::acousticbrainz_client::tests::test_flavor_vector_serialization ... ok
+test services::acoustid_client::tests::test_get_best_mbid ... ok
+test services::acousticbrainz_client::tests::test_client_creation ... ok
+test services::acoustid_client::tests::test_get_best_mbid_no_results ... ok
+test services::acoustid_client::tests::test_fingerprint_hash_uniqueness ... ok
+test services::amplitude_analyzer::tests::test_analyze_stub ... ok
+test services::amplitude_analyzer::tests::test_analyzer_creation ... ok
+test services::acoustid_client::tests::test_rate_limiter_creation ... ok
+test services::essentia_client::tests::test_essentia_output_parsing ... ok
+test services::file_scanner::tests::test_audio_extension_detection ... ok
+test services::essentia_client::tests::test_flavor_vector_compatibility ... ok
+test services::file_scanner::tests::test_scan_file_as_directory ... ok
+test services::essentia_client::tests::test_essentia_availability_check ... ok
+test services::file_scanner::tests::test_scan_nonexistent_path ... ok
+test services::fingerprinter::tests::test_audio_too_short ... ok
+test services::fingerprinter::tests::test_encode_base64 ... ok
+test services::file_scanner::tests::test_scan_empty_directory ... ok
+test services::fingerprinter::tests::test_fingerprinter_creation ... ok
+test services::acoustid_client::tests::test_client_creation ... ok
+test services::metadata_extractor::tests::test_extract_nonexistent_file ... ok
+test services::fingerprinter::tests::test_fingerprinter_with_duration ... ok
+test services::metadata_extractor::tests::test_extractor_creation ... ok
+test services::musicbrainz_client::tests::test_client_creation ... ok
+test services::musicbrainz_client::tests::test_rate_limiter_creation ... ok
+test services::silence_detector::tests::test_db_conversion ... ok
+test services::acoustid_client::tests::test_fingerprint_hash_determinism ... ok
+test services::silence_detector::tests::test_invalid_threshold ... ok
+test services::silence_detector::tests::test_silence_detector_creation ... ok
+test services::silence_detector::tests::test_with_threshold ... ok
+test services::workflow_orchestrator::tests::test_orchestrator_creation ... ok
+test services::silence_detector::tests::test_rms_calculation ... ok
+test services::acoustid_client::tests::test_cache_miss ... ok
+test services::acoustid_client::tests::test_cache_hit ... ok
+test services::acoustid_client::tests::test_cache_insert ... ok
+test services::acoustid_client::tests::test_cache_upsert ... ok
+test db::albums::tests::test_save_and_load_album ... ok
+test db::songs::tests::test_save_and_load_song ... ok
+test db::artists::tests::test_save_and_load_artist ... ok
+test db::files::tests::test_save_and_load_file ... ok
+test db::files::tests::test_deduplication_by_hash ... ok
+test db::works::tests::test_save_and_load_work ... ok
+test db::passages::tests::test_save_passage ... ok
+test services::silence_detector::tests::test_detect_silence_simple ... ok
+test services::silence_detector::tests::test_minimum_duration_filter ... ok
+test services::acousticbrainz_client::tests::test_rate_limiter_timing ... ok
+test services::fingerprinter::tests::test_fingerprint_pcm_valid ... ok
+test services::acoustid_client::tests::test_rate_limiter_allows_3_per_second ... ok
+test services::musicbrainz_client::tests::test_rate_limiter_timing ... ok
+
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+     Running unittests src\main.rs (target\debug\deps\wkmp_ai-0e5e3309fa0ecc8f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\api_integration_tests.rs (target\debug\deps\api_integration_tests-5a8ea60200ecb33f.exe)
+
+running 9 tests
+test test_import_start_nonexistent_folder ... ok
+test test_sse_endpoint_connection ... ok
+test test_import_cancel_not_found ... ok
+test test_health_endpoint ... ok
+test test_import_status_not_found ... ok
+test test_amplitude_analysis_endpoint ... ok
+test test_import_start_file_not_directory ... ok
+test test_import_start_success ... ok
+test test_parameters_get_and_update ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\component_tests.rs (target\debug\deps\component_tests-3b45e6424f76bf50.exe)
+
+running 18 tests
+test tc_comp_016_essentia_json_parsing ... ok
+test tc_comp_004_vorbis_tag_parsing ... ok
+test tc_comp_018_per_file_overrides ... ok
+test tc_comp_007_mbid_lookup ... ok
+test tc_comp_008_rate_limiting ... ok
+test tc_comp_010_acoustid_response_caching ... ok
+test tc_comp_003_id3_tag_parsing ... ok
+test tc_comp_017_global_defaults ... ok
+test tc_comp_015_essentia_subprocess ... ok
+test tc_comp_005_chromaprint_generation ... ok
+test tc_comp_009_acoustid_fingerprint_to_mbid ... ok
+test tc_comp_006_base64_encoding ... ok
+test tc_comp_012_lead_in_out_detection ... ok
+test tc_comp_011_rms_calculation ... ok
+test tc_comp_002_symlink_cycle_detection ... ok
+test tc_comp_001_directory_traversal ... ok
+test tc_comp_013_silence_threshold_detection ... ok
+test tc_comp_014_minimum_duration_filtering ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests\concurrent_tests.rs (target\debug\deps\concurrent_tests-1f71a51324bab85b.exe)
+
+running 3 tests
+test test_concurrent_database_writes_safe ... ok
+test test_concurrent_database_reads_safe ... ok
+test test_concurrent_toml_reads_safe ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\config_tests.rs (target\debug\deps\config_tests-617737bfc0b6b272.exe)
+
+running 16 tests
+test test_empty_key_rejected ... ok
+test test_valid_key_accepted ... ok
+test test_whitespace_key_rejected ... ok
+test test_database_ignores_toml ... ok
+test test_database_ignores_env ... ok
+test test_env_fallback_when_database_empty ... ok
+test test_env_ignores_toml ... ok
+test test_error_when_no_key_found ... ok
+test test_database_overrides_env_and_toml ... ok
+test test_multiple_sources_warning ... ok
+test test_toml_fallback_when_db_and_env_empty ... ok
+test test_migrate_key_from_toml_writes_only_db ... ok
+test test_toml_write_failure_graceful_degradation ... ok
+test test_sync_settings_to_toml_creates_file ... ok
+test test_migrate_key_from_env_writes_both_db_and_toml ... ok
+test test_sync_settings_preserves_existing_fields ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests\db_settings_tests.rs (target\debug\deps\db_settings_tests-591368efdb545523.exe)
+
+running 4 tests
+test test_set_acoustid_api_key_writes_value ... ok
+test test_get_acoustid_api_key_returns_none_when_missing ... ok
+test test_get_acoustid_api_key_returns_value ... ok
+test test_set_acoustid_api_key_updates_existing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\http_server_tests.rs (target\debug\deps\http_server_tests-72ab072ea4386e7a.exe)
+
+running 8 tests
+test tc_http_001_verify_port_5723 ... ok
+test tc_http_006_health_endpoint_returns_json ... ok
+test tc_http_007_completion_page_return_link ... ok
+test tc_http_008_static_asset_serving ... ok
+test tc_http_004_segment_editor_route_exists ... ok
+test tc_http_002_root_route_serves_html ... ok
+test tc_http_003_import_progress_route_exists ... ok
+test tc_http_005_api_routes_exist ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\recovery_tests.rs (target\debug\deps\recovery_tests-d2be4a1764fc46bb.exe)
+
+running 3 tests
+test test_database_deletion_no_toml_fails ... ok
+test test_toml_write_back_survives_database_deletion ... ok
+test test_database_deletion_recovers_from_toml ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\settings_api_tests.rs (target\debug\deps\settings_api_tests-aa414b0d1a719280.exe)
+
+running 3 tests
+test test_set_api_key_rejects_whitespace_key ... ok
+test test_set_api_key_rejects_empty_key ... ok
+test test_set_api_key_success ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\workflow_tests.rs (target\debug\deps\workflow_tests-b66399eb6edb9a02.exe)
+
+running 12 tests
+test tc_wf_001_scanning_to_extracting ... ok
+test tc_wf_004_segmenting_to_analyzing ... ok
+test tc_wf_010_session_uuid_generation ... ok
+test tc_wf_002_extracting_to_fingerprinting ... ok
+test tc_wf_007_any_state_to_cancelled ... ok
+test tc_wf_003_fingerprinting_to_segmenting ... ok
+test tc_wf_012_terminal_states ... ok
+test tc_wf_011_progress_tracking ... ok
+test tc_wf_005_analyzing_to_flavoring ... ok
+test tc_wf_008_error_to_failed ... ok
+test tc_wf_006_flavoring_to_completed ... ok
+test tc_wf_009_session_state_persistence ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\wkmp_ap-2f2f080192c4326a.exe)
+
+running 219 tests
+test audio::output::tests::test_audio_callback_applies_volume ... ok
+test audio::output::tests::test_volume_clamping ... ok
+test audio::decoder::tests::test_mono_to_stereo ... ok
+test audio::resampler::tests::test_deinterleave_mono ... ok
+test audio::types::tests::test_append_samples_basic ... ok
+test audio::resampler::tests::test_interleave_empty ... ok
+test audio::resampler::tests::test_stateful_resampler_active ... ok
+test audio::resampler::tests::test_resample_same_rate ... ok
+test audio::resampler::tests::test_stateful_resampler_pass_through ... ok
+test audio::resampler::tests::test_interleave ... ok
+test audio::types::tests::test_append_samples_empty_vec ... ok
+test audio::output::tests::test_audio_output_with_external_volume_arc ... ok
+test audio::types::tests::test_append_samples_updates_duration ... ok
+test audio::resampler::tests::test_deinterleave ... ok
+test audio::types::tests::test_audio_frame_apply_volume ... ok
+test audio::resampler::tests::test_resample_different_rate ... ok
+test audio::types::tests::test_audio_frame_add ... ok
+test audio::types::tests::test_append_samples_panics_on_odd_length - should panic ... ok
+test audio::types::tests::test_audio_frame_from_mono ... ok
+test audio::types::tests::test_is_exhausted_after_finalize ... ok
+test audio::types::tests::test_finalize_sets_all_fields ... ok
+test audio::types::tests::test_finalize_with_empty_buffer ... ok
+test audio::types::tests::test_audio_frame_clamp ... ok
+test audio::types::tests::test_get_frame_after_append ... ok
+test audio::types::tests::test_passage_buffer_get_frame ... ok
+test audio::types::tests::test_reserve_capacity ... ok
+test audio::types::tests::test_duration_uses_cached_value_after_finalize ... ok
+test audio::types::tests::test_passage_buffer_creation ... ok
+test audio::types::tests::test_is_exhausted_before_finalize ... ok
+test audio::types::tests::test_passage_buffer_duration ... ok
+test audio::types::tests::test_is_exhausted_exact_boundary ... ok
+test audio::types::tests::test_append_samples_multiple_times ... ok
+test audio::types::tests::test_audio_frame_zero ... ok
+test audio::types::tests::test_duration_fixed_after_finalize ... ok
+test config::tests::test_default_port ... ok
+test db::passages::tests::test_passage_timing_validation_start_end ... ok
+test db::passages::tests::test_ephemeral_passage_creation ... ok
+test db::passages::tests::test_passage_timing_validation_fade_points ... ok
+test db::passages::tests::test_passage_timing_validation_lead_ordering ... ok
+test db::passages::tests::test_fade_curve_conversion ... ok
+test audio::resampler::tests::test_stateful_resampler_maintains_state_across_chunks ... ok
+test audio::resampler::tests::test_stateful_resampler_consistent_chunk_size ... ok
+test audio::types::tests::test_reserve_capacity_reduces_reallocations ... ok
+test db::passage_songs::tests::test_missing_table_returns_empty ... ok
+test db::passage_songs::tests::test_empty_passage_songs ... ok
+test db::passage_songs::tests::test_single_song ... ok
+test db::passage_songs::tests::test_invalid_uuid_filtered_out ... ok
+test db::passage_songs::tests::test_gap_with_null_song_guid ... ok
+test db::settings::tests::test_generic_setting_get_set ... ok
+test db::settings::tests::test_audio_device_get_set ... ok
+test db::init::tests::test_init_module_config ... ok
+test db::queue::tests::test_get_next_play_order ... ok
+test db::passage_songs::tests::test_invalid_time_range_filtered_out ... ok
+test db::settings::tests::test_default_volume_on_first_run ... ok
+test db::queue::tests::test_enqueue_and_get_queue ... ok
+test db::passage_songs::tests::test_multiple_songs ... ok
+test db::settings::tests::test_crossfade_defaults ... ok
+test db::queue::tests::test_clear_queue ... ok
+test db::settings::tests::test_last_passage_id_persistence ... ok
+test playback::buffer_events::tests::test_buffer_metadata_creation ... ok
+test db::queue::tests::test_remove_from_queue ... ok
+test db::init::tests::test_init_settings_defaults ... ok
+test playback::buffer_events::tests::test_buffer_state_transitions ... ok
+test db::settings::tests::test_maximum_decode_streams_default ... ok
+test playback::buffer_events::tests::test_headroom_underflow_protection ... ok
+test db::settings::tests::test_resume_fade_in_curve_default ... ok
+test db::settings::tests::test_load_clamped_setting_u64 ... ok
+test playback::buffer_events::tests::test_headroom_calculation ... ok
+test playback::buffer_events::tests::test_is_exhausted_finished_and_read ... ok
+test playback::buffer_events::tests::test_is_exhausted_not_finished ... ok
+test playback::buffer_events::tests::test_is_exhausted_finished_not_read ... ok
+test playback::buffer_events::tests::test_is_exhausted_read_past_end ... ok
+test db::settings::tests::test_load_clamped_setting_usize ... ok
+test playback::buffer_manager::tests::test_allocate_buffer_empty_state ... ok
+test playback::buffer_manager::tests::test_clear_all_buffers ... ok
+test playback::buffer_manager::tests::test_buffer_manager_creation ... ok
+test db::settings::tests::test_load_clamped_setting_u32 ... ok
+test playback::buffer_manager::tests::test_first_passage_optimization ... ok
+test playback::buffer_manager::tests::test_buffer_state_transitions ... ok
+test db::settings::tests::test_setting_update ... ok
+test db::settings::tests::test_resume_fade_in_duration_default ... ok
+test playback::buffer_manager::tests::test_event_deduplication ... ok
+test db::settings::tests::test_queue_state_persistence ... ok
+test db::settings::tests::test_resume_fade_in_curve_custom ... ok
+test db::settings::tests::test_maximum_decode_streams_custom ... ok
+test playback::buffer_manager::tests::test_headroom_calculation ... ok
+test playback::buffer_manager::tests::test_get_buffer_state ... ok
+test playback::diagnostics::tests::test_within_tolerance ... ok
+test db::settings::tests::test_volume_persistence_continues_after_errors ... ok
+test playback::buffer_manager::tests::test_remove_buffer ... ok
+test playback::diagnostics::tests::test_validation_report_format ... ok
+test db::settings::tests::test_playback_position_persistence ... ok
+test playback::diagnostics::tests::test_decoder_buffer_mismatch ... ok
+test playback::diagnostics::tests::test_multiple_passages ... ok
+test playback::diagnostics::tests::test_buffer_fifo_violation ... ok
+test db::settings::tests::test_maximum_decode_streams_clamping ... ok
+test playback::diagnostics::tests::test_perfect_pipeline ... ok
+test db::settings::tests::test_resume_fade_in_duration_custom ... ok
+test db::init::tests::test_init_settings_idempotent ... ok
+test playback::buffer_manager::tests::test_ready_threshold_detection ... ok
+test db::settings::tests::test_volume_get_set ... ok
+test playback::events::tests::test_state_changed_creation ... ok
+test playback::mixer::tests::test_mixer_creation ... ok
+test playback::events::tests::test_event_clone ... ok
+test playback::events::tests::test_position_update_creation ... ok
+test playback::events::tests::test_event_debug ... ok
+test playback::mixer::tests::test_master_volume_clamping ... ok
+test playback::mixer::tests::test_mixer_state ... ok
+test playback::mixer::tests::test_pause_mode_output ... ok
+test playback::pipeline::decoder_chain::tests::test_chunk_process_result_equality ... ok
+test playback::pipeline::decoder_chain::tests::test_chunk_process_result_variants ... ok
+test playback::pipeline::fader::tests::test_fade_in_linear ... ok
+test playback::pipeline::fader::tests::test_discovered_endpoint_used_when_undefined ... ok
+test playback::pipeline::fader::tests::test_fade_out_linear ... ok
+test playback::pipeline::fader::tests::test_pass_through_processes_without_modification ... ok
+test playback::pipeline::fader::tests::test_pass_through_mode_zero_duration_fades ... ok
+test playback::pipeline::timing::tests::test_asymmetric_fade_durations ... ok
+test playback::pipeline::timing::tests::test_basic_crossfade_timing ... ok
+test playback::pipeline::timing::tests::test_crossfade_trigger_sample ... ok
+test playback::pipeline::timing::tests::test_crossfade_with_clamping ... ok
+test playback::pipeline::timing::tests::test_invalid_passage_timing ... ok
+test playback::pipeline::fader::tests::test_multiple_chunks_maintain_position ... ok
+test playback::pipeline::timing::tests::test_crossfade_with_explicit_timing ... ok
+test playback::playout_ring_buffer::tests::test_basic_push_pop ... ok
+test playback::pipeline::timing::tests::test_to_samples ... ok
+test playback::playout_ring_buffer::tests::test_buffer_full_error ... ok
+test playback::pipeline::timing::tests::test_zero_duration_crossfade ... ok
+test playback::playout_ring_buffer::tests::test_buffer_exhaustion_detection ... ok
+test playback::playout_ring_buffer::tests::test_buffer_starts_empty ... ok
+test playback::playout_ring_buffer::tests::test_decoder_pause_threshold ... ok
+test playback::playout_ring_buffer::tests::test_default_parameters ... ok
+test playback::playout_ring_buffer::tests::test_empty_buffer_exhaustion ... ok
+test playback::playout_ring_buffer::tests::test_fill_percentage_calculation ... ok
+test playback::playout_ring_buffer::tests::test_concurrent_fill_drain_pattern ... ok
+test playback::playout_ring_buffer::tests::test_health_check_logic ... ok
+test playback::engine::core::tests::test_playback_engine_creation ... ok
+test playback::playout_ring_buffer::tests::test_passage_id_tracking ... ok
+test playback::playout_ring_buffer::tests::test_lifetime_counters ... ok
+test playback::playout_ring_buffer::tests::test_pause_threshold_exact_boundary ... ok
+test playback::playout_ring_buffer::tests::test_stats_snapshot ... ok
+test playback::engine::core::tests::test_pause_integration ... ok
+test playback::queue_manager::tests::test_queue_manager_creation ... ok
+test playback::queue_manager::tests::test_queue_manager_advance ... ok
+test playback::engine::core::tests::test_engine_loads_volume_from_database ... ok
+test playback::playout_ring_buffer::tests::test_pop_from_empty_returns_last_frame ... ok
+test playback::queue_manager::tests::test_queue_manager_clear ... ok
+test playback::playout_ring_buffer::tests::test_reset_buffer ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_not_found ... ok
+test playback::queue_manager::tests::test_queue_manager_enqueue ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_current ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_next ... ok
+test playback::queue_manager::tests::test_queue_manager_remove_queued ... ok
+test playback::ring_buffer::tests::test_fill_level_check ... ok
+test playback::ring_buffer::tests::test_buffer_filled_flag_tracking ... ok
+test playback::engine::core::tests::test_buffer_chain_idle_filling ... ok
+test playback::ring_buffer::tests::test_underrun_with_audio_not_expected ... ok
+test playback::ring_buffer::tests::test_ring_buffer_basic ... ok
+test playback::ring_buffer::tests::test_ring_buffer_overrun ... ok
+test playback::ring_buffer::tests::test_ring_buffer_underrun ... ok
+test playback::engine::core::tests::test_get_volume_arc ... ok
+test playback::ring_buffer::tests::test_underrun_with_audio_expected_and_grace_period ... ok
+test playback::song_timeline::tests::test_backward_seek ... ok
+test playback::song_timeline::tests::test_empty_timeline ... ok
+test playback::song_timeline::tests::test_entry_equality ... ok
+test playback::song_timeline::tests::test_get_current_song_no_state_change ... ok
+test playback::song_timeline::tests::test_single_song ... ok
+test playback::song_timeline::tests::test_multiple_songs_with_gaps ... ok
+test playback::song_timeline::tests::test_gap_only_passage ... ok
+test playback::song_timeline::tests::test_unsorted_entries_get_sorted ... ok
+test playback::validation_service::tests::test_validation_history_entry_creation ... ok
+test playback::engine::core::tests::test_buffer_chain_passage_based_association ... ok
+test playback::song_timeline::tests::test_forward_seek_across_songs ... ok
+test state::tests::test_playback_state ... ok
+test state::tests::test_current_passage ... ok
+test playback::validation_service::tests::test_validation_config_defaults ... ok
+test tuning::curve::tests::test_calculate_latency ... ok
+test tuning::curve::tests::test_curve_status_from_verdict ... ok
+test state::tests::test_volume ... ok
+test playback::engine::core::tests::test_playback_state_control ... ok
+test tuning::curve::tests::test_conservative_larger_than_primary ... ok
+test tuning::curve::tests::test_no_stable_points ... ok
+test tuning::curve::tests::test_generate_recommendations ... ok
+test tuning::metrics::tests::test_buffer_occupancy_metrics ... ok
+test tuning::metrics::tests::test_cpu_metrics ... ok
+test tuning::metrics::tests::test_underrun_metrics ... ok
+test tuning::metrics::tests::test_verdict_classification ... ok
+test tuning::report::tests::test_create_report ... ok
+test tuning::metrics::tests::test_jitter_metrics ... ok
+test tuning::metrics::tests::test_test_result ... ok
+test tuning::report::tests::test_format_curve_summary ... ok
+test tuning::report::tests::test_format_recommendations ... ok
+test tuning::report::tests::test_format_system_info ... ok
+test playback::engine::core::tests::test_skip_empty_queue ... ok
+test tuning::search::tests::test_binary_search_all_stable ... ok
+test tuning::search::tests::test_binary_search_all_unstable ... ok
+test playback::engine::core::tests::test_volume_arc_synchronization ... ok
+test tuning::search::tests::test_filter_viable_intervals ... ok
+test tuning::search::tests::test_coarse_sweep ... ok
+test tuning::system_info::tests::test_audio_backend_known ... ok
+test tuning::search::tests::test_early_termination ... ok
+test tuning::search::tests::test_binary_search_convergence ... ok
+test tuning::search::tests::test_explore_parameter_space ... ok
+test tuning::test_harness::tests::test_audio_generator_creates ... ok
+test tuning::test_harness::tests::test_config_builder ... ok
+test tuning::system_info::tests::test_with_device ... ok
+test tuning::system_info::tests::test_system_info_detect ... ok
+test playback::engine::core::tests::test_buffer_chain_queue_position_tracking ... ok
+test tuning::test_harness::tests::test_audio_generator_produces_frames ... ok
+test playback::engine::core::tests::test_resume_from_pause_with_custom_settings ... ok
+test tuning::safety::tests::test_backup_with_defaults ... ok
+test playback::engine::core::tests::test_skip_next ... ok
+test tuning::safety::tests::test_restore_settings ... ok
+test tuning::report::tests::test_json_export_import ... ok
+test playback::engine::core::tests::test_buffer_chain_12_passage_iteration ... ok
+test tuning::safety::tests::test_backup_file_operations ... FAILED
+test tuning::safety::tests::test_backup_settings ... ok
+test tuning::safety::tests::test_load_nonexistent_backup ... ok
+test audio::output::tests::test_list_devices ... ok
+test playback::playout_ring_buffer::tests::test_large_buffer_fill_drain_cycle ... ok
+
+failures:
+
+---- tuning::safety::tests::test_backup_file_operations stdout ----
+
+thread 'tuning::safety::tests::test_backup_file_operations' panicked at wkmp-ap\src\tuning\safety.rs:326:9:
+assertion failed: path.exists()
+
+
+failures:
+    tuning::safety::tests::test_backup_file_operations
+
+test result: FAILED. 218 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+error: test failed, to rerun pass `-p wkmp-ap --lib`

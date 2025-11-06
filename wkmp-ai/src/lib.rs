@@ -60,6 +60,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(api::ui_routes())
         // API routes
         .merge(api::import_routes())
+        .route("/events", get(api::event_stream))
         .route("/import/events", get(api::import_event_stream))
         .merge(api::amplitude_routes())
         .merge(api::parameter_routes())

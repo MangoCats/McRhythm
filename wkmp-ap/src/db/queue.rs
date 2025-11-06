@@ -227,7 +227,7 @@ pub async fn reorder_queue(
     };
 
     // Check for overflow protection (renumber if approaching limits)
-    if target_play_order > 2_000_000_000 || target_play_order < -2_000_000_000 {
+    if !(-2_000_000_000..=2_000_000_000).contains(&target_play_order) {
         renumber_queue(db).await?;
         // After renumbering, recalculate target position
         // Avoid recursion - just renumber and continue

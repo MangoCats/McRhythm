@@ -973,6 +973,28 @@ impl BufferManager {
 
         stats_map
     }
+
+    /// **[TEST-HARNESS]** Get buffer fill percentage for testing
+    #[doc(hidden)]
+    pub async fn get_fill_percent(&self, queue_entry_id: Uuid) -> Option<f32> {
+        let buffers = self.buffers.read().await;
+        let managed = buffers.get(&queue_entry_id)?;
+
+        let occupied = managed.buffer.occupied();
+        let capacity = managed.buffer.capacity();
+
+        Some((occupied as f32 / capacity as f32) * 100.0)
+    }
+
+    /// Emit test buffer event (for integration testing)
+    ///
+    /// **[TEST-HARNESS][PLAN020 Phase 5]** For integration testing
+    ///
+    /// Emits a BufferEvent through the event channel without requiring real decode.
+    #[doc(hidden)]
+    pub async fn test_emit_event(&self, event: BufferEvent) {
+        self.emit_event(event).await;
+    }
 }
 
 /// Buffer monitoring information

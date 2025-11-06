@@ -298,8 +298,20 @@ mod tests {
         assert_eq!(restored_buffer, 512);
     }
 
+    /// Test backup file write/read operations
+    ///
+    /// **Note:** Uses `#[serial]` to prevent test isolation issues.
+    /// Both this test and `test_load_nonexistent_backup` access the same
+    /// backup file in the system temp directory.
     #[test]
+    #[serial_test::serial]
     fn test_backup_file_operations() {
+        // Ensure clean state - remove any stale backup file from previous test runs
+        cleanup_backup_file();
+
+        // Small delay to ensure OS completes file deletion
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
         let backup = SettingsBackup {
             mixer_check_interval_ms: 10,
             audio_buffer_size: 1024,
@@ -323,7 +335,12 @@ mod tests {
         assert!(!path.exists());
     }
 
+    /// Test loading backup when file doesn't exist
+    ///
+    /// **Note:** Uses `#[serial]` to prevent race condition with
+    /// `test_backup_file_operations` accessing the same temp file.
     #[test]
+    #[serial_test::serial]
     fn test_load_nonexistent_backup() {
         // Ensure no backup file exists
         cleanup_backup_file();

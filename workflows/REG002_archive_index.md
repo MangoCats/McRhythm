@@ -2,7 +2,7 @@
 
 **Purpose:** Track archived documents and provide retrieval commands
 **Maintained by:** /archive and /archive-plan workflows (automated)
-**Last Updated:** 2025-11-03
+**Last Updated:** 2025-11-05
 
 ---
 
@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 37 (SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~45,144 lines total: 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 48 (PLAN021 + wkmp-ai_static_serving + wkmp-ai_path_escaping + SSE_troubleshooting + SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~65,273 lines total: 7,543 from PLAN021 + 159 from wkmp-ai_static_serving + 178 from wkmp-ai_path_escaping + 258 from SSE_troubleshooting + 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -64,10 +64,159 @@ git checkout dev  # Return to working branch
 
 <!-- Entries organized by category, reverse chronological within each category -->
 
+### Archived Plan Documents
+
+#### PLAN021: Technical Debt Remediation (2025-11-05)
+
+Archived complete technical debt remediation plan folder from wip/PLAN021_technical_debt_remediation/
+
+**Contents:** 17 files, 7,543 lines
+- SESSION1_SUMMARY.md through SESSION6_SUMMARY.md (6 session summaries)
+- PROGRESS.md (master progress tracker)
+- SPEC_technical_debt_remediation.md (implementation specification)
+- core_refactoring_roadmap.md (refactoring design)
+- test_baseline.md (initial test status)
+- wkmp_common_test_coverage_report.md (test coverage analysis)
+- PLAN_technical_debt_remediation_scope_statement.md
+- PLAN_technical_debt_remediation_requirements_index.md
+- PLAN_technical_debt_remediation_acceptance_tests.md
+- PLAN_technical_debt_remediation_dependencies_map.md
+- PLAN_technical_debt_remediation_specification_gaps.md
+- PLAN_recommendations_applied.md
+
+**Reason:** Technical debt remediation completed (100% - all 7 increments complete, 12 commits, 2,715 LOC removed, 25 tests added, all documentation updated)
+
+**Key Deliverables:**
+- core.rs refactored: 3,156 → 1,801 LOC (43% reduction)
+- Extracted modules: chains.rs (279 LOC), playback.rs (1,133 LOC)
+- Removed deprecated code: config.rs (206 LOC), auth_middleware duplicates (577 LOC)
+- Code quality: 10 clippy warnings fixed, 25 tests added (uuid_utils, time, events)
+- Documentation: IMPL003-project_structure.md updated with refactoring details
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN021_technical_debt_remediation/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN021_technical_debt_remediation/
+# Browse files normally
+git checkout dev  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View specific session summary
+git show archive:wip/PLAN021_technical_debt_remediation/SESSION6_SUMMARY.md
+
+# View progress tracker
+git show archive:wip/PLAN021_technical_debt_remediation/PROGRESS.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN021_technical_debt_remediation/
+```
+
+---
+
+#### PROJ001: Automated Queue Chain Tests (2025-11-04)
+
+Archived complete test infrastructure project folder from wip/PROJ001_automated_queue_chain_tests/
+
+**Contents:** 11 files, 3301 lines
+- FINAL_TEST_SUITE_STATUS.md (536 lines)
+- README.md (249 lines)
+- telemetry_implementation_plan.md (346 lines)
+- test_harness_implementation_summary.md (316 lines)
+- test_implementation_checklist.md (166 lines)
+- test_results_summary.md (229 lines)
+- test_session_4_summary.md (263 lines)
+- test_session_5_summary.md (245 lines)
+- test_session_6_summary.md (362 lines)
+- test_session_7_summary.md (330 lines)
+- test_session_8_summary.md (259 lines)
+
+**Reason:** Test infrastructure project completed (7/7 tests passing, comprehensive test harness)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PROJ001_automated_queue_chain_tests/
+
+# Or view archive branch
+git checkout archive
+cd wip/PROJ001_automated_queue_chain_tests/
+# Browse files normally
+git checkout dev  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View specific file
+git show archive:wip/PROJ001_automated_queue_chain_tests/README.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PROJ001_automated_queue_chain_tests/
+```
+
+---
+
+#### PLAN020: Event-Driven Playback Orchestration (2025-11-04)
+
+Archived complete implementation plan folder from wip/PLAN020_event_driven_playback/
+
+**Contents:** 16 files, 5120 lines
+- 00_PLAN_SUMMARY.md (508 lines)
+- 01_specification_issues.md (399 lines)
+- 02_test_specifications/ (4 files, 794 lines)
+- DEFERRED_TESTS_ANALYSIS.md (254 lines)
+- IMPLEMENTATION_PROGRESS.md (529 lines)
+- PHASE_6_7_DOCUMENTATION_PLAN.md (372 lines)
+- requirements_index.md (356 lines)
+- SESSION_2025-11-04_PHASE5_SUMMARY.md (248 lines)
+- SESSION_2025-11-04_SUMMARY.md (274 lines)
+- SESSION_2025-11-04_WATCHDOG_VISIBILITY.md (541 lines)
+- traceability_matrix.md (352 lines)
+- WATCHDOG_SSE_ENHANCEMENT.md (282 lines)
+- WATCHDOG_VISIBILITY_FEATURE.md (211 lines)
+
+**Reason:** Plan implementation completed (all 7 phases, 12/12 tests passing, SPEC028 v2.0 documented)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN020_event_driven_playback/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN020_event_driven_playback/
+# Browse files normally
+git checkout dev  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View specific file
+git show archive:wip/PLAN020_event_driven_playback/00_PLAN_SUMMARY.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN020_event_driven_playback/
+```
+
+---
+
 ### Work-In-Progress Archives
 
 | Filename | Reason | Date | Retrieval Command |
 |----------|--------|------|-------------------|
+| wkmp-ai_static_serving_fix.md | wkmp-ai static file serving fix complete - All static files served correctly | 2025-11-04 | `git show archive:wip/wkmp-ai_static_serving_fix.md` |
+| wkmp-ai_path_escaping_fix.md | wkmp-ai path escaping fix complete - Windows backslash paths working | 2025-11-04 | `git show archive:wip/wkmp-ai_path_escaping_fix.md` |
+| SSE_troubleshooting.md | SSE troubleshooting complete - Connection issues resolved | 2025-11-04 | `git show archive:wip/SSE_troubleshooting.md` |
+| SPEC_event_driven_playback_refactor.md | PLAN020 specification - Integrated into SPEC028 v2.0 | 2025-11-04 | `git show archive:wip/SPEC_event_driven_playback_refactor.md` |
+| SPEC_import_progress_ui_enhancement.md | Import progress UI specification - Implementation complete | 2025-11-04 | `git show archive:wip/SPEC_import_progress_ui_enhancement.md` |
+| DRY_analysis_ui_components.md | DRY analysis complete - UI components and styles consolidated | 2025-11-04 | `git show archive:wip/DRY_analysis_ui_components.md` |
+| DRY_implementation_summary.md | DRY implementation complete - Shared styles integrated across modules | 2025-11-04 | `git show archive:wip/DRY_implementation_summary.md` |
+| SPEC024-wkmp_ap_technical_debt_remediation.md | SPEC024 technical debt remediation draft - Superseded by PLAN008 implementation | 2025-11-03 | `git show archive:wip/SPEC024-wkmp_ap_technical_debt_remediation.md` |
 | SPEC024_human_readable_time_implementation.md | SPEC024 implementation complete - Human-readable time display deployed | 2025-11-03 | `git show archive:wip/SPEC024_human_readable_time_implementation.md` |
 | wkmp-ap_technical_debt_report.md | wkmp-ap technical debt report (Oct 29) - Superseded by PLAN008 and broader TECH_DEBT_REVIEW | 2025-11-03 | `git show archive:wip/wkmp-ap_technical_debt_report.md` |
 | TECH_DEBT_REVIEW_2025-11-02.md | Complete codebase technical debt review (6 microservices + shared library) - Historical snapshot | 2025-11-03 | `git show archive:wip/TECH_DEBT_REVIEW_2025-11-02.md` |

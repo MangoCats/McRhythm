@@ -6,7 +6,6 @@
 //! - API Design - Audio Player API (Base URL: http://localhost:5721)
 //! - CO-144 (Tokio channel types)
 
-use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::playback::engine::PlaybackEngine;
 use crate::state::SharedState;
@@ -41,7 +40,7 @@ pub struct AppContext {
 /// Run HTTP API server
 ///
 /// **Arguments:**
-/// - `config`: Application configuration
+/// - `port`: HTTP server port
 /// - `state`: Shared playback state
 /// - `engine`: Playback engine reference
 /// - `db_pool`: Database connection pool
@@ -49,7 +48,7 @@ pub struct AppContext {
 ///
 /// **Traceability:** API Design - Port 5721 (configurable)
 pub async fn run(
-    config: Config,
+    port: u16,
     state: Arc<SharedState>,
     engine: Arc<PlaybackEngine>,
     db_pool: Pool<Sqlite>,
@@ -105,6 +104,7 @@ pub async fn run(
         .route("/playback/seek", post(super::handlers::seek))
         .route("/playback/queue", get(super::handlers::get_queue))
         .route("/playback/state", get(super::handlers::get_playback_state))
+        .route("/playback/watchdog_status", get(super::handlers::get_watchdog_status))
         .route("/playback/position", get(super::handlers::get_position))
         .route("/playback/buffer_status", get(super::handlers::get_buffer_status))
         .route("/playback/buffer_chains", get(super::handlers::get_buffer_chains))
@@ -141,7 +141,7 @@ pub async fn run(
         .layer(CorsLayer::permissive());
 
     // Bind to configured port
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     info!("Starting HTTP server on {}", addr);
 
     // Start server

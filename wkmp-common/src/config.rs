@@ -251,11 +251,10 @@ impl RootFolderResolver {
 
         for i in 0..args.len() {
             // Check for --root-folder <path> or --root <path>
-            if args[i] == "--root-folder" || args[i] == "--root" {
-                if i + 1 < args.len() {
+            if (args[i] == "--root-folder" || args[i] == "--root")
+                && i + 1 < args.len() {
                     return Some(PathBuf::from(&args[i + 1]));
                 }
-            }
 
             // Check for --root-folder=<path> or --root=<path>
             if let Some(path) = args[i].strip_prefix("--root-folder=") {

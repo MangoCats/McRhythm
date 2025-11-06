@@ -21,6 +21,9 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 uuid = { workspace = true }
+# SSE streaming support
+async-stream = "0.3"
+futures = "0.3"
 
 [build-dependencies]
 # For build.rs to capture build timestamp

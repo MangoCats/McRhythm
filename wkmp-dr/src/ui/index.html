@@ -4,77 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WKMP Database Review</title>
+    <link rel="stylesheet" href="/static/wkmp-ui.css">
     <style>
-        :root {
-            --primary-color: #2563eb;
-            --secondary-color: #64748b;
-            --bg-color: #f8fafc;
-            --surface-color: #ffffff;
-            --text-color: #1e293b;
-            --border-color: #e2e8f0;
-            --success-color: #16a34a;
-            --error-color: #dc2626;
-        }
+        /* Module-specific styles only - shared styles loaded from wkmp-ui.css */
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
-        }
-
+        /* Module-specific overrides */
         .container {
             padding: 20px 0;
-        }
-
-        header {
-            background-color: var(--surface-color);
-            border-bottom: 2px solid var(--border-color);
-            padding: 20px 20px;
-            margin-bottom: 30px;
         }
 
         header .container {
             padding: 0;
         }
 
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left {
-            flex: 1;
-        }
-
-        .header-right {
-            text-align: right;
-            font-size: 12px;
-            color: var(--secondary-color);
-            font-family: 'Courier New', monospace;
-        }
-
-        .build-info-line {
-            margin-bottom: 3px;
-        }
-
-        h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .subtitle {
-            color: var(--secondary-color);
-            font-size: 14px;
-        }
-
+        /* Database review specific controls */
         .controls {
             display: flex;
             gap: 20px;
@@ -103,7 +46,13 @@
         }
 
         select, input {
-            background-color: var(--surface-color);
+            background-color: #333;
+            color: var(--text-color);
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary-color);
         }
 
         button {
@@ -111,15 +60,20 @@
             color: white;
             cursor: pointer;
             border: none;
-            font-weight: 500;
+            font-weight: 600;
+            transition: background 0.2s;
         }
 
         button:hover {
-            opacity: 0.9;
+            background: #3a8eef;
         }
 
         button.secondary {
-            background-color: var(--secondary-color);
+            background-color: #666;
+        }
+
+        button.secondary:hover {
+            background-color: #777;
         }
 
         .favorites {
@@ -141,7 +95,7 @@
         }
 
         .favorite-btn {
-            background-color: var(--bg-color);
+            background-color: #333;
             color: var(--text-color);
             border: 1px solid var(--border-color);
             padding: 6px 12px;
@@ -151,7 +105,6 @@
         .favorite-btn:hover {
             background-color: var(--primary-color);
             color: white;
-            opacity: 1;
         }
 
         .results {
@@ -176,7 +129,8 @@
         th {
             background-color: var(--bg-color);
             font-weight: 600;
-            font-size: 16px;
+            font-size: 14px;
+            color: var(--primary-color);
         }
 
         td {
@@ -185,7 +139,8 @@
 
         /* De-referenced columns - data fetched from another table via JOIN */
         th.dereferenced, td.dereferenced {
-            background-color: #fef08a !important; /* light yellow - more visible */
+            background-color: rgba(251, 191, 36, 0.2) !important; /* orange tint for dark mode */
+            border-left: 2px solid #fbbf24;
         }
 
         .pagination {
@@ -208,13 +163,15 @@
         }
 
         .status.success {
-            background-color: #dcfce7;
+            background-color: rgba(74, 222, 128, 0.2);
             color: var(--success-color);
+            border: 1px solid var(--success-color);
         }
 
         .status.error {
-            background-color: #fee2e2;
+            background-color: rgba(220, 38, 38, 0.2);
             color: var(--error-color);
+            border: 1px solid var(--error-color);
         }
 
         .hidden {
@@ -281,8 +238,9 @@
         .column-description {
             margin-bottom: 15px;
             padding: 12px;
-            background: var(--bg-color);
+            background: #333;
             border-radius: 4px;
+            border: 1px solid var(--border-color);
         }
 
         .column-name {
@@ -293,7 +251,7 @@
         }
 
         .column-desc-text {
-            color: var(--text-color);
+            color: #888;
             font-size: 14px;
             line-height: 1.5;
         }
@@ -389,7 +347,10 @@
         <div class="container">
             <div class="header-content">
                 <div class="header-left">
-                    <h1>WKMP Database Review</h1>
+                    <h1>
+                        WKMP Database Review
+                        <span class="connection-status" id="connection-status">Connecting...</span>
+                    </h1>
                     <p class="subtitle">Read-only database inspection tool</p>
                 </div>
                 <div class="header-right" id="buildInfo">
@@ -493,6 +454,7 @@
         // Per API-AUTH-028-A: Embedded by server during page render
         const API_SHARED_SECRET = "{{SHARED_SECRET}}";
     </script>
+    <script src="/static/wkmp-common/wkmp-sse.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

@@ -130,7 +130,6 @@ pub struct DecoderChain {
     passage_end_ticks: i64,
 
     /// Working sample rate (stored for potential diagnostics)
-    #[allow(dead_code)]
     sample_rate: u32,
 }
 

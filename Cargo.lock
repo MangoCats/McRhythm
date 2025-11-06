@@ -4600,6 +4600,7 @@ dependencies = [
  "rubato",
  "serde",
  "serde_json",
+ "serial_test",
  "sqlx",
  "symphonia",
  "symphonia-adapter-libopus",
@@ -4622,8 +4623,11 @@ name = "wkmp-common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
+ "axum",
  "chrono",
  "dirs",
+ "futures",
  "once_cell",
  "rand",
  "serde",
@@ -4644,9 +4648,11 @@ name = "wkmp-dr"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
  "axum",
  "chrono",
  "clap",
+ "futures",
  "serde",
  "serde_json",
  "sqlx",

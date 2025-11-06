@@ -13,6 +13,17 @@ use std::time::Duration;
 use tracing::{debug, info, warn};
 use wkmp_common::events::WkmpEvent;
 
+/// GET /events - SSE event stream for general connection status
+///
+/// **[AIA-SSE-020]** Connection status monitoring
+///
+/// Streams heartbeat events for connection status monitoring
+pub async fn event_stream(
+    State(_state): State<AppState>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    wkmp_common::sse::create_heartbeat_sse_stream("wkmp-ai")
+}
+
 /// GET /import/events - SSE event stream for import progress
 ///
 /// **[AIA-MS-010]** Real-time progress updates for import workflow

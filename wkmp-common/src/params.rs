@@ -305,7 +305,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: f32 = s.parse()
                         .map_err(|_| "volume_level: invalid number format".to_string())?;
-                    if v < 0.0 || v > 1.0 {
+                    if !(0.0..=1.0).contains(&v) {
                         return Err(format!("volume_level: value {} out of range [0.0, 1.0]", v));
                     }
                     Ok(())
@@ -322,7 +322,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: u32 = s.parse()
                         .map_err(|_| "working_sample_rate: invalid number format".to_string())?;
-                    if v < 8000 || v > 192000 {
+                    if !(8000..=192000).contains(&v) {
                         return Err(format!("working_sample_rate: value {} out of range [8000, 192000]", v));
                     }
                     Ok(())
@@ -339,7 +339,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: usize = s.parse()
                         .map_err(|_| "output_ringbuffer_size: invalid number format".to_string())?;
-                    if v < 2048 || v > 262144 {
+                    if !(2048..=262144).contains(&v) {
                         return Err(format!("output_ringbuffer_size: value {} out of range [2048, 262144]", v));
                     }
                     Ok(())
@@ -356,7 +356,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: usize = s.parse()
                         .map_err(|_| "maximum_decode_streams: invalid number format".to_string())?;
-                    if v < 1 || v > 32 {
+                    if !(1..=32).contains(&v) {
                         return Err(format!("maximum_decode_streams: value {} out of range [1, 32]", v));
                     }
                     Ok(())
@@ -373,7 +373,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: u64 = s.parse()
                         .map_err(|_| "decode_work_period: invalid number format".to_string())?;
-                    if v < 100 || v > 60000 {
+                    if !(100..=60000).contains(&v) {
                         return Err(format!("decode_work_period: value {} out of range [100, 60000]", v));
                     }
                     Ok(())
@@ -390,7 +390,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: u64 = s.parse()
                         .map_err(|_| "chunk_duration_ms: invalid number format".to_string())?;
-                    if v < 250 || v > 5000 {
+                    if !(250..=5000).contains(&v) {
                         return Err(format!("chunk_duration_ms: value {} out of range [250, 5000]", v));
                     }
                     Ok(())
@@ -407,7 +407,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: usize = s.parse()
                         .map_err(|_| "playout_ringbuffer_size: invalid number format".to_string())?;
-                    if v < 44100 || v > 10000000 {
+                    if !(44100..=10000000).contains(&v) {
                         return Err(format!("playout_ringbuffer_size: value {} out of range [44100, 10000000]", v));
                     }
                     Ok(())
@@ -424,7 +424,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: usize = s.parse()
                         .map_err(|_| "playout_ringbuffer_headroom: invalid number format".to_string())?;
-                    if v < 2205 || v > 88200 {
+                    if !(2205..=88200).contains(&v) {
                         return Err(format!("playout_ringbuffer_headroom: value {} out of range [2205, 88200]", v));
                     }
                     Ok(())
@@ -441,7 +441,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: u64 = s.parse()
                         .map_err(|_| "decoder_resume_hysteresis_samples: invalid number format".to_string())?;
-                    if v < 2205 || v > 441000 {
+                    if !(2205..=441000).contains(&v) {
                         return Err(format!("decoder_resume_hysteresis_samples: value {} out of range [2205, 441000]", v));
                     }
                     Ok(())
@@ -458,7 +458,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: usize = s.parse()
                         .map_err(|_| "mixer_min_start_level: invalid number format".to_string())?;
-                    if v < 2205 || v > 88200 {
+                    if !(2205..=88200).contains(&v) {
                         return Err(format!("mixer_min_start_level: value {} out of range [2205, 88200]", v));
                     }
                     Ok(())
@@ -475,7 +475,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: f64 = s.parse()
                         .map_err(|_| "pause_decay_factor: invalid number format".to_string())?;
-                    if v < 0.5 || v > 0.99 {
+                    if !(0.5..=0.99).contains(&v) {
                         return Err(format!("pause_decay_factor: value {} out of range [0.5, 0.99]", v));
                     }
                     Ok(())
@@ -492,7 +492,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: f64 = s.parse()
                         .map_err(|_| "pause_decay_floor: invalid number format".to_string())?;
-                    if v < 0.00001 || v > 0.001 {
+                    if !(0.00001..=0.001).contains(&v) {
                         return Err(format!("pause_decay_floor: value {} out of range [0.00001, 0.001]", v));
                     }
                     Ok(())
@@ -509,7 +509,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: u32 = s.parse()
                         .map_err(|_| "audio_buffer_size: invalid number format".to_string())?;
-                    if v < 512 || v > 8192 {
+                    if !(512..=8192).contains(&v) {
                         return Err(format!("audio_buffer_size: value {} out of range [512, 8192]", v));
                     }
                     Ok(())
@@ -526,7 +526,7 @@ impl GlobalParams {
                 validator: |s| {
                     let v: u64 = s.parse()
                         .map_err(|_| "mixer_check_interval_ms: invalid number format".to_string())?;
-                    if v < 5 || v > 100 {
+                    if !(5..=100).contains(&v) {
                         return Err(format!("mixer_check_interval_ms: value {} out of range [5, 100]", v));
                     }
                     Ok(())

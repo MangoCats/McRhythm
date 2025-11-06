@@ -136,7 +136,6 @@ impl ValidationService {
     /// Get validation history (most recent first)
     ///
     /// **Phase 4:** History API reserved for diagnostics UI (validation service not yet enabled)
-    #[allow(dead_code)]
     pub async fn get_history(&self) -> Vec<ValidationHistoryEntry> {
         let history = self.history.read().await;
         history.clone()
@@ -145,7 +144,6 @@ impl ValidationService {
     /// Get the most recent validation result
     ///
     /// **Phase 4:** Latest result API reserved for diagnostics UI (validation service not yet enabled)
-    #[allow(dead_code)]
     pub async fn get_latest(&self) -> Option<ValidationHistoryEntry> {
         let history = self.history.read().await;
         history.first().cloned()

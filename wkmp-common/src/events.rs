@@ -665,6 +665,22 @@ pub enum WkmpEvent {
         files_skipped: usize,
         timestamp: chrono::DateTime<chrono::Utc>,
     },
+
+    /// **[PLAN020 Phase 5]** Watchdog intervention occurred
+    ///
+    /// Emitted when watchdog safety net must intervene due to event system failure.
+    ///
+    /// Triggers:
+    /// - SSE: Update watchdog status indicator immediately
+    /// - Developer UI: Flash indicator to draw attention
+    /// - Monitoring: Track event system health
+    WatchdogIntervention {
+        /// Type of intervention: "decode" or "mixer"
+        intervention_type: String,
+        /// Total interventions since startup
+        interventions_total: u64,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    },
 }
 
 /// Queue entry information for SSE events
@@ -918,6 +934,8 @@ impl WkmpEvent {
             WkmpEvent::ImportSessionCompleted { .. } => "ImportSessionCompleted",
             WkmpEvent::ImportSessionFailed { .. } => "ImportSessionFailed",
             WkmpEvent::ImportSessionCancelled { .. } => "ImportSessionCancelled",
+            // **[PLAN020 Phase 5]** Watchdog monitoring event
+            WkmpEvent::WatchdogIntervention { .. } => "WatchdogIntervention",
         }
     }
 }
@@ -1544,6 +1562,150 @@ mod tests {
                 assert_eq!(deserialized_chains[1].slot_index, 1);
             }
             _ => panic!("Wrong event type deserialized"),
+        }
+    }
+
+    /// **[EVENTBUS-TEST-010]** Test EventBus::new() creates bus with correct capacity
+    #[test]
+    fn test_eventbus_new() {
+        let bus = EventBus::new(100);
+        assert_eq!(bus.capacity(), 100);
+        assert_eq!(bus.subscriber_count(), 0);
+    }
+
+    /// **[EVENTBUS-TEST-020]** Test EventBus::subscribe() creates working receiver
+    #[test]
+    fn test_eventbus_subscribe() {
+        let bus = EventBus::new(10);
+        let _rx = bus.subscribe();
+        assert_eq!(bus.subscriber_count(), 1);
+
+        let _rx2 = bus.subscribe();
+        assert_eq!(bus.subscriber_count(), 2);
+    }
+
+    /// **[EVENTBUS-TEST-030]** Test EventBus::emit() delivers events to subscribers
+    #[test]
+    fn test_eventbus_emit() {
+        use std::sync::Arc;
+        let bus = Arc::new(EventBus::new(10));
+        let mut rx = bus.subscribe();
+
+        let event = WkmpEvent::PlaybackStateChanged {
+            old_state: PlaybackState::Paused,
+            new_state: PlaybackState::Playing,
+            timestamp: chrono::Utc::now(),
+        };
+
+        bus.emit(event.clone()).expect("emit should succeed");
+
+        // Receive event
+        let received = rx.try_recv().expect("Should receive event");
+        assert_eq!(received.event_type(), "PlaybackStateChanged");
+    }
+
+    /// **[EVENTBUS-TEST-040]** Test EventBus::emit_lossy() does not panic on full channel
+    #[test]
+    fn test_eventbus_emit_lossy() {
+        use std::sync::Arc;
+        let bus = Arc::new(EventBus::new(2)); // Small capacity
+        let mut _rx = bus.subscribe(); // Subscribe but don't receive
+
+        // Fill the channel
+        for i in 0..10 {
+            let event = WkmpEvent::PlaybackProgress {
+                passage_id: Uuid::new_v4(),
+                position_ms: i * 1000,
+                duration_ms: 180000,
+                timestamp: chrono::Utc::now(),
+            };
+            bus.emit_lossy(event); // Should not panic even when full
+        }
+
+        // Function should complete without panic
+        assert_eq!(bus.capacity(), 2);
+    }
+
+    /// **[EVENTBUS-TEST-050]** Test multiple subscribers receive same event
+    #[test]
+    fn test_eventbus_multiple_subscribers() {
+        use std::sync::Arc;
+        let bus = Arc::new(EventBus::new(10));
+        let mut rx1 = bus.subscribe();
+        let mut rx2 = bus.subscribe();
+        let mut rx3 = bus.subscribe();
+
+        assert_eq!(bus.subscriber_count(), 3);
+
+        let event = WkmpEvent::QueueChanged {
+            queue: vec![Uuid::new_v4()],
+            trigger: QueueChangeTrigger::UserEnqueue,
+            timestamp: chrono::Utc::now(),
+        };
+
+        bus.emit(event.clone()).expect("emit should succeed");
+
+        // All three subscribers should receive the event
+        let r1 = rx1.try_recv().expect("rx1 should receive");
+        let r2 = rx2.try_recv().expect("rx2 should receive");
+        let r3 = rx3.try_recv().expect("rx3 should receive");
+
+        assert_eq!(r1.event_type(), "QueueChanged");
+        assert_eq!(r2.event_type(), "QueueChanged");
+        assert_eq!(r3.event_type(), "QueueChanged");
+    }
+
+    /// **[EVENTBUS-TEST-060]** Test WkmpEvent::event_type() for all major events
+    #[test]
+    fn test_event_type_method() {
+        let events = vec![
+            (
+                WkmpEvent::PlaybackStateChanged {
+                    old_state: PlaybackState::Paused,
+                    new_state: PlaybackState::Playing,
+                    timestamp: chrono::Utc::now(),
+                },
+                "PlaybackStateChanged"
+            ),
+            (
+                WkmpEvent::PassageStarted {
+                    passage_id: Uuid::new_v4(),
+                    album_uuids: vec![],
+                    timestamp: chrono::Utc::now(),
+                },
+                "PassageStarted"
+            ),
+            (
+                WkmpEvent::PassageCompleted {
+                    passage_id: Uuid::new_v4(),
+                    album_uuids: vec![],
+                    duration_played: 120.5,
+                    completed: true,
+                    timestamp: chrono::Utc::now(),
+                },
+                "PassageCompleted"
+            ),
+            (
+                WkmpEvent::QueueChanged {
+                    queue: vec![],
+                    trigger: QueueChangeTrigger::UserEnqueue,
+                    timestamp: chrono::Utc::now(),
+                },
+                "QueueChanged"
+            ),
+            (
+                WkmpEvent::PlaybackProgress {
+                    passage_id: Uuid::new_v4(),
+                    position_ms: 5000,
+                    duration_ms: 180000,
+                    timestamp: chrono::Utc::now(),
+                },
+                "PlaybackProgress"
+            ),
+        ];
+
+        for (event, expected_type) in events {
+            assert_eq!(event.event_type(), expected_type);
         }
     }
 }

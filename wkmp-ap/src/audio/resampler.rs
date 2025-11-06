@@ -16,7 +16,6 @@ use tracing::debug;
 /// **[DBD-PARAM-020]** Read working sample rate from GlobalParams (default: 44100 Hz per SPEC016)
 ///
 /// **Phase 4:** Target sample rate function provides dynamic access to GlobalParams
-#[allow(dead_code)]
 pub fn target_sample_rate() -> u32 {
     *wkmp_common::params::PARAMS.working_sample_rate.read().unwrap()
 }
@@ -36,7 +35,6 @@ pub enum StatefulResampler {
     ///
     /// **Phase 4:** Channels field reserved for future multi-channel support beyond stereo
     PassThrough {
-        #[allow(dead_code)]
         channels: u16
     },
 
@@ -47,12 +45,9 @@ pub enum StatefulResampler {
     /// **Phase 4:** Rate/channel/chunk fields reserved for future telemetry and diagnostics
     Active {
         resampler: FastFixedIn<f32>,
-        #[allow(dead_code)]
         input_rate: u32,
-        #[allow(dead_code)]
         output_rate: u32,
         channels: u16,
-        #[allow(dead_code)]
         chunk_size: usize,
     },
 }
@@ -185,7 +180,6 @@ impl StatefulResampler {
     /// Get the output rate for this resampler
     ///
     /// **Phase 4:** Output rate accessor reserved for future telemetry and diagnostics
-    #[allow(dead_code)]
     pub fn output_rate(&self) -> u32 {
         match self {
             Self::PassThrough { .. } => target_sample_rate(),
@@ -196,7 +190,6 @@ impl StatefulResampler {
     /// Get the input rate for this resampler
     ///
     /// **Phase 4:** Input rate accessor reserved for future telemetry and diagnostics
-    #[allow(dead_code)]
     pub fn input_rate(&self) -> u32 {
         match self {
             Self::PassThrough { .. } => target_sample_rate(),
@@ -228,7 +221,6 @@ impl Resampler {
     /// If input is already at 44.1kHz, returns a copy without resampling
     ///
     /// **Phase 4:** One-shot resampling reserved for future features (superseded by StatefulResampler)
-    #[allow(dead_code)]
     pub fn resample(input: &[f32], input_rate: u32, channels: u16) -> Result<Vec<f32>> {
         let output_rate = target_sample_rate();
 
@@ -303,7 +295,6 @@ impl Resampler {
     ///
     /// This provides the highest quality but is more CPU intensive.
     /// Currently not used, but available for future quality improvements.
-    #[allow(dead_code)]
     fn create_sinc_resampler(
         input_rate: u32,
         output_rate: u32,

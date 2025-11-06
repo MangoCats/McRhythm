@@ -15,6 +15,6 @@ pub use import_workflow::import_routes;
 pub use amplitude_analysis::amplitude_routes;
 pub use parameters::parameter_routes;
 pub use health::health_routes;
-pub use sse::import_event_stream;
+pub use sse::{event_stream, import_event_stream};
 pub use ui::ui_routes;
 pub use settings::settings_routes;

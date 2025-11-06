@@ -8,6 +8,7 @@
 //! - Configuration loading
 //! - Utility functions
 //! - Fade curve definitions and calculations
+//! - SSE (Server-Sent Events) utilities
 
 pub mod api;
 pub mod config;
@@ -17,6 +18,7 @@ pub mod events;
 pub mod fade_curves;
 pub mod human_time;
 pub mod params;
+pub mod sse;
 pub mod time;
 pub mod timing;
 pub mod uuid_utils;
