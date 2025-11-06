@@ -25,6 +25,21 @@ use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
+/// **[PLAN022]** Default assumed duration for ephemeral passages (ticks)
+///
+/// Ephemeral passages (files not in database) have unknown duration until EOF is reached.
+/// This constant defines the assumed maximum duration used for:
+/// - Position marker generation in mixer
+/// - EOF unreachable marker calculation
+///
+/// **Value:** 3 hours = 10,800 seconds = 304,819,200,000 ticks
+/// **Unit:** Ticks (1 tick = 1/28,224,000 second per SPEC023 SRC-TICK-020)
+/// **Calculation:** 10,800 seconds × 28,224,000 ticks/second
+///
+/// **Rationale:** Conservative upper bound for typical audio files while avoiding excessive
+/// marker generation (24-hour default created ~86,400 position markers for short passages).
+pub(super) const EPHEMERAL_PASSAGE_ASSUMED_DURATION_TICKS: i64 = 304_819_200_000; // 3 hours in ticks
+
 impl PlaybackEngine {
     pub async fn play(&self) -> Result<()> {
         info!("Play command received");
@@ -279,6 +294,8 @@ impl PlaybackEngine {
         };
 
         // Actually skip frames in the buffer by discarding them
+        // **[PLAN022]** Use pop_frame_skip() instead of pop_frame() to avoid inflating read counter
+        // Frames are discarded without being processed by mixer, so they shouldn't count as "read"
         debug!("Seeking: discarding {} frames from buffer ({}ms → {}ms)",
                frames_to_skip,
                (current_frames as f32 / sample_rate as f32 * 1000.0),
@@ -286,7 +303,7 @@ impl PlaybackEngine {
 
         let mut frames_skipped = 0;
         for _ in 0..frames_to_skip {
-            match buffer.pop_frame() {
+            match buffer.pop_frame_skip() {
                 Ok(_) => frames_skipped += 1,
                 Err(_) => {
                     // Buffer ran out before we could skip all frames
@@ -1144,8 +1161,8 @@ impl PlaybackEngine {
             let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
 
             // Calculate passage duration in ticks
-            // Default to 24 hours for ephemeral passages (safety fallback - EOF detection is primary mechanism)
-            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(86_400_000)))); // Default 24hr max
+            // **[PLAN022]** Use centralized constant for ephemeral passage assumed duration (already in ticks)
+            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + EPHEMERAL_PASSAGE_ASSUMED_DURATION_TICKS)));
             let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
 
             // Add position update markers

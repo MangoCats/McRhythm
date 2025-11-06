@@ -538,7 +538,16 @@ impl PlaybackEngine {
                             // Currently no action needed; reserved for future cooldown system integration
                         }
                         MarkerEvent::EndOfFile { unreachable_markers } => {
-                            warn!("EOF reached with {} unreachable markers", unreachable_markers.len());
+                            // **[PLAN022]** Improved EOF logging with ephemeral passage context
+                            if unreachable_markers.len() > 0 {
+                                warn!(
+                                    "EOF reached with {} unreachable markers (possibly due to ephemeral passage assumed duration of {} ticks = 3 hours)",
+                                    unreachable_markers.len(),
+                                    super::playback::EPHEMERAL_PASSAGE_ASSUMED_DURATION_TICKS
+                                );
+                            } else {
+                                debug!("EOF reached (duplicate detection, already processed)");
+                            }
                             // Treat EOF as passage complete - emit PassageComplete event
                             *is_crossfading = false;
                             if let Some(queue_entry_id) = *current_queue_entry_id {

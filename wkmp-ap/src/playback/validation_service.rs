@@ -228,10 +228,23 @@ impl ValidationService {
         for error in &validation.errors {
             if let Some(discrepancy) = error.discrepancy() {
                 if discrepancy > tolerance_threshold {
+                    let percentage = (discrepancy as f64 / self.config.tolerance_samples as f64 * 100.0) as u64;
+                    let error_type = match error {
+                        crate::playback::diagnostics::ValidationError::DecoderBufferMismatch { .. } => {
+                            "Decoder→Buffer mismatch"
+                        }
+                        crate::playback::diagnostics::ValidationError::MixerTotalMismatch { .. } => {
+                            "Buffer→Mixer mismatch"
+                        }
+                        _ => "Unknown validation error"
+                    };
                     warnings.push(format!(
-                        "Approaching tolerance threshold: {} samples ({}% of limit)",
+                        "{}: discrepancy={} samples ({}% of {}sample limit, threshold={}samples)",
+                        error_type,
                         discrepancy,
-                        (discrepancy as f64 / self.config.tolerance_samples as f64 * 100.0) as u64
+                        percentage,
+                        self.config.tolerance_samples,
+                        tolerance_threshold
                     ));
                 }
             }
@@ -287,10 +300,18 @@ impl ValidationService {
                     warnings.len()
                 );
             } else {
+                // Log each specific warning with details
+                for warning in &warnings {
+                    warn!(
+                        "ValidationService: WARNING - {}",
+                        warning
+                    );
+                }
                 warn!(
-                    "ValidationService: WARNING (passages: {}, warnings: {})",
+                    "ValidationService: WARNING summary (passages: {}, warnings: {}, tolerance: {} samples)",
                     passage_count,
-                    warnings.len()
+                    warnings.len(),
+                    self.config.tolerance_samples
                 );
             }
             WkmpEvent::ValidationWarning {
