@@ -21,6 +21,45 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-05 20:49:39 -0500
+
+**Archive PLAN021 Technical Debt Remediation**
+
+Archived completed PLAN021 technical debt remediation plan folder (17 files, 7,543 lines) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/PLAN021_technical_debt_remediation/ folder (git rm -r)
+  - 6 session summaries (SESSION1-6_SUMMARY.md)
+  - PROGRESS.md (master progress tracker)
+  - SPEC_technical_debt_remediation.md
+  - core_refactoring_roadmap.md
+  - test_baseline.md
+  - wkmp_common_test_coverage_report.md
+  - 6 planning documents (scope, requirements, acceptance tests, dependencies, gaps, recommendations)
+- Updated workflows/REG002_archive_index.md
+  - Added PLAN021 entry with retrieval commands
+  - Updated archived document count: 47 → 48
+  - Updated context reduction: 57,730 → 65,273 lines
+  - Updated last modified date to 2025-11-05
+
+**PLAN021 Summary:**
+- Status: 100% complete (all 7 increments)
+- Duration: 6 sessions (~7 hours total)
+- Commits: 12 (chains, playback, sessions, auth, config, clippy, uuid/time, events, IMPL003)
+- Code removed: 2,715 LOC (core.rs reduction: 3,156 → 1,801, 43%)
+- Tests added: 25 (uuid_utils: 10, time: 9, events: 6)
+- Documentation: IMPL003-project_structure.md updated with refactoring details
+
+**Archive Sync:**
+- Complete folder preserved in archive branch (commit c142bb2)
+- Retrieval: `git checkout archive -- wip/PLAN021_technical_debt_remediation/`
+
+**Context Window Optimization:**
+- 7,543 lines removed from wip/
+- Plan documentation preserved in archive for future reference
+
+---
+
 ### 2025-11-04 20:00:09 -0500
 **Commit:** 7f27830
 
