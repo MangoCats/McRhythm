@@ -262,13 +262,50 @@ impl PlaybackEngine {
         let max_frames = stats.total_written as usize;
         let clamped_position = position_frames.min(max_frames.saturating_sub(1));
 
-        // Update mixer position
+        // Calculate how many frames to skip forward from current position
+        let mixer = self.mixer.read().await;
+        let current_tick = mixer.get_current_tick();
+        drop(mixer);
+
+        // Convert ticks to frames using the proper conversion function
+        let current_frames = wkmp_common::timing::ticks_to_samples(current_tick, sample_rate);
+        let frames_to_skip = if clamped_position > current_frames {
+            clamped_position - current_frames
+        } else {
+            // Seeking backwards not supported - would require buffer rewind
+            warn!("Seek backwards not supported: current={}ms, requested={}ms",
+                  (current_frames as f32 / sample_rate as f32 * 1000.0), position_ms);
+            return Err(Error::Playback("Seek backwards not supported".to_string()));
+        };
+
+        // Actually skip frames in the buffer by discarding them
+        debug!("Seeking: discarding {} frames from buffer ({}ms → {}ms)",
+               frames_to_skip,
+               (current_frames as f32 / sample_rate as f32 * 1000.0),
+               (clamped_position as f32 / sample_rate as f32 * 1000.0));
+
+        let mut frames_skipped = 0;
+        for _ in 0..frames_to_skip {
+            match buffer.pop_frame() {
+                Ok(_) => frames_skipped += 1,
+                Err(_) => {
+                    // Buffer ran out before we could skip all frames
+                    warn!("Buffer exhausted during seek: skipped {}/{} frames",
+                          frames_skipped, frames_to_skip);
+                    break;
+                }
+            }
+        }
+
+        // Update mixer position to reflect the actual skip
         // [SUB-INC-4B] Replace set_position() with set_current_passage()
         // Note: Marker recalculation deferred to Phase 4 (currently just updates position)
         let mut mixer = self.mixer.write().await;
         if let Some(passage_id) = current.passage_id {
-            let seek_tick = clamped_position as i64; // Convert frames to ticks (1:1 for now)
-            mixer.set_current_passage(passage_id, current.queue_entry_id, seek_tick);
+            // Convert frames back to ticks for mixer
+            let new_frames = current_frames + frames_skipped;
+            let new_tick = wkmp_common::timing::samples_to_ticks(new_frames, sample_rate);
+            mixer.set_current_passage(passage_id, current.queue_entry_id, new_tick);
             // **[PLAN014]** Marker recalculation from seek deferred to future enhancement
             // Current implementation: markers calculate from passage start; seek invalidates markers
         }
