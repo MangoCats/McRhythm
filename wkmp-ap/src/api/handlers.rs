@@ -895,6 +895,59 @@ pub async fn seek(
     }
 }
 
+/// POST /playback/skip-forward - Skip forward 10 seconds
+///
+/// **Traceability:** [REQ-SF-010] through [REQ-SF-050]
+/// **Requirements:**
+/// - [REQ-SF-020] 10-second skip with sample accuracy
+/// - [REQ-SF-030] Buffer availability validation (≥11s required)
+/// - [REQ-SF-040] Works in Playing/Paused states
+/// - [REQ-SF-050] Emits PlaybackProgress event
+///
+/// # Safety
+/// This endpoint validates buffer availability BEFORE seeking to prevent underruns.
+/// The 11-second requirement (1 second margin beyond 10s skip) ensures audio pipeline
+/// has sufficient data during position transition.
+pub async fn skip_forward(
+    State(ctx): State<AppContext>,
+) -> Result<Json<SkipForwardResponse>, (StatusCode, Json<StatusResponse>)> {
+    info!("Skip forward request (10 seconds)");
+
+    match ctx.engine.skip_forward().await {
+        Ok(new_position_ms) => {
+            info!("Skip forward successful: new position={}ms", new_position_ms);
+            Ok(Json(SkipForwardResponse {
+                status: "skipped forward 10 seconds".to_string(),
+                new_position_ms,
+            }))
+        }
+        Err(e) => {
+            let error_msg = e.to_string();
+            warn!("Skip forward failed: {}", error_msg);
+
+            // Determine appropriate status code based on error type
+            let status_code = if error_msg.contains("no passage") || error_msg.contains("insufficient buffer") {
+                StatusCode::BAD_REQUEST
+            } else {
+                StatusCode::INTERNAL_SERVER_ERROR
+            };
+
+            Err((
+                status_code,
+                Json(StatusResponse {
+                    status: format!("error: {}", error_msg),
+                }),
+            ))
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct SkipForwardResponse {
+    status: String,
+    new_position_ms: u64,
+}
+
 /// POST /playback/queue/reorder - Reorder a queue entry
 ///
 /// **Traceability:** API Design - POST /playback/queue/reorder

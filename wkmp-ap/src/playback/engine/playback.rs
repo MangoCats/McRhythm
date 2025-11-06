@@ -149,6 +149,84 @@ impl PlaybackEngine {
         Ok(())
     }
 
+    /// Skip forward 10 seconds in current passage
+    ///
+    /// **Traceability:** [REQ-SF-010] through [REQ-SF-050]
+    /// **Requirements:**
+    /// - [REQ-SF-020] 10-second skip with sample accuracy
+    /// - [REQ-SF-030] Buffer availability validation (≥11s required)
+    /// - [REQ-SF-040] Works in Playing/Paused states
+    /// - [REQ-SF-050] Emits PlaybackProgress event
+    ///
+    /// [API] POST /playback/skip-forward
+    ///
+    /// # Returns
+    /// Ok(new_position_ms) on success, Err with descriptive message on failure
+    ///
+    /// # Safety
+    /// Validates that ≥11 seconds of audio are buffered before skipping to prevent underruns.
+    pub async fn skip_forward(&self) -> Result<u64> {
+        info!("Skip forward command received (10 seconds)");
+
+        // Step 1: Get current queue entry
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        drop(queue);
+
+        let current = match current {
+            Some(c) => c,
+            None => {
+                return Err(Error::Playback("no passage currently playing".to_string()));
+            }
+        };
+
+        // Step 2: Get buffer for current passage
+        let buffer_ref = self.buffer_manager.get_buffer(current.queue_entry_id).await;
+        let buffer = match buffer_ref {
+            Some(b) => b,
+            None => {
+                return Err(Error::Playback(format!(
+                    "buffer not available for queue_entry_id={}",
+                    current.queue_entry_id
+                )));
+            }
+        };
+
+        // Step 3: Validate buffer availability
+        // [REQ-SF-030] Require ≥11 seconds of buffered audio (10s skip + 1s safety margin)
+        let sample_rate = *self.working_sample_rate.read().unwrap();
+        let required_frames = ((11000 * sample_rate as u64) / 1000) as usize; // 11 seconds in frames
+        let available_frames = buffer.occupied();
+
+        if available_frames < required_frames {
+            let available_seconds = (available_frames as f64) / (sample_rate as f64);
+            return Err(Error::Playback(format!(
+                "insufficient buffer - only {:.1}s available (need 11s)",
+                available_seconds
+            )));
+        }
+
+        // Step 4: Get current playback position
+        let mixer = self.mixer.read().await;
+        let current_tick = mixer.get_current_tick();
+        drop(mixer);
+
+        // Step 5: Calculate new position (10 seconds forward)
+        // Convert ticks → ms → add 10s → pass to seek()
+        let current_position_ms = wkmp_common::timing::ticks_to_ms(current_tick) as u64;
+        let new_position_ms = current_position_ms + 10000; // Add 10 seconds
+
+        // Step 6: Call existing seek() logic (reuse validation, clamping, events)
+        self.seek(new_position_ms).await?;
+
+        info!(
+            "Skip forward complete: {}ms → {}ms",
+            current_position_ms, new_position_ms
+        );
+
+        Ok(new_position_ms)
+    }
+
     /// Seek to position in current passage
     ///
     /// [API] POST /playback/seek
