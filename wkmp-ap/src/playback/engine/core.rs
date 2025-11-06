@@ -132,6 +132,11 @@ pub struct PlaybackEngine {
     /// Shared with audio ring buffer consumer for context-aware logging
     pub(super) audio_expected: Arc<AtomicBool>,
 
+    /// Completed passages deduplication map (5-second window)
+    /// **[REQ-QUEUE-DEDUP-010, REQ-QUEUE-DEDUP-020, REQ-QUEUE-DEDUP-030]**
+    /// Tracks recently completed queue entries to prevent duplicate PassageComplete handling
+    pub(super) completed_passages: Arc<RwLock<std::collections::HashMap<uuid::Uuid, tokio::time::Instant>>>,
+
     /// Audio callback monitor (for gap/stutter detection)
     /// Created in audio thread, stored here for API access
     pub(super) callback_monitor: Arc<RwLock<Option<Arc<crate::playback::callback_monitor::CallbackMonitor>>>>,
@@ -319,6 +324,7 @@ impl PlaybackEngine {
             position_event_rx: Arc::new(RwLock::new(Some(position_event_rx))),
             current_song_timeline: Arc::new(RwLock::new(None)),
             audio_expected: Arc::new(AtomicBool::new(false)), // Initially no audio expected
+            completed_passages: Arc::new(RwLock::new(std::collections::HashMap::new())), // [REQ-QUEUE-DEDUP-010] Event deduplication
             callback_monitor: Arc::new(RwLock::new(None)), // Created later in audio thread
             buffer_event_rx: Arc::new(RwLock::new(Some(buffer_event_rx))), // [PERF-POLL-010] Buffer event channel
             maximum_decode_streams, // [DBD-PARAM-050] Configurable decode stream limit
@@ -1032,6 +1038,7 @@ impl PlaybackEngine {
             position_event_rx: Arc::clone(&self.position_event_rx), // **[REV002]** Clone receiver
             current_song_timeline: Arc::clone(&self.current_song_timeline), // **[REV002]** Clone timeline
             audio_expected: Arc::clone(&self.audio_expected), // Clone audio_expected flag for ring buffer
+            completed_passages: Arc::clone(&self.completed_passages), // [REQ-QUEUE-DEDUP-030] Clone deduplication map
             buffer_event_rx: Arc::clone(&self.buffer_event_rx), // **[PERF-POLL-010]** Clone buffer event receiver
             maximum_decode_streams: self.maximum_decode_streams, // [DBD-PARAM-050] Copy decode stream limit
             chain_assignments: Arc::clone(&self.chain_assignments), // [DBD-LIFECYCLE-040] Clone chain assignment tracking

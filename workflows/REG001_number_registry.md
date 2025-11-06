@@ -20,7 +20,7 @@
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 022 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 023 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 
@@ -132,6 +132,7 @@
 | PLAN019 | (reserved) | - | PLAN | - | - |
 | PLAN020 | (reserved) | - | PLAN | - | - |
 | PLAN021 | technical_debt_remediation | 2025-11-05 | PLAN | Auto | Technical debt remediation for wkmp-ap (8 debt items, 6 increments, core.rs refactoring) |
+| PLAN022 | queue_handling_resilience | 2025-11-06 | PLAN | Auto | Queue handling resilience improvements (idempotent operations, event deduplication, DRY cleanup refactoring) |
 
 <!-- /doc-name workflow will append entries below -->
 
@@ -151,7 +152,7 @@
 | RPT | 0 | New |
 | DWI | 0 | New |
 | TMPL | 0 | New |
-| PLAN | 14 | 2025-11-05 |
+| PLAN | 15 | 2025-11-06 |
 | LOG | 0 | New |
 | REG | 2 | 2025-10-25 |
 

@@ -810,11 +810,18 @@ impl PlaybackEngine {
                         queue: queue_info,
                     });
 
-                    // Remove completed passage from database to keep in sync
-                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
-                        warn!("Failed to remove completed passage from database: {}", e);
-                    } else {
-                        info!("Queue advanced (crossfade) and synced to database (removed {})", completed_id);
+                    // Remove completed passage from database to keep in sync (idempotent)
+                    match crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        Ok(was_removed) => {
+                            if was_removed {
+                                info!("Queue advanced (crossfade) and synced to database (removed {})", completed_id);
+                            } else {
+                                debug!("Queue entry {} already removed during crossfade", completed_id);
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to remove completed passage from database: {}", e);
+                        }
                     }
 
                     // Update audio_expected flag
@@ -937,13 +944,20 @@ impl PlaybackEngine {
                     queue: queue_info,
                 });
 
-                // Remove completed passage from database to keep in sync
+                // Remove completed passage from database to keep in sync (idempotent)
                 if let Some(completed_id) = completed_queue_entry_id {
-                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
-                        // Log error but don't fail - queue already advanced in memory
-                        warn!("Failed to remove completed passage from database queue: {} (continuing anyway)", e);
-                    } else {
-                        info!("Queue advanced and synced to database (removed {})", completed_id);
+                    match crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        Ok(was_removed) => {
+                            if was_removed {
+                                info!("Queue advanced and synced to database (removed {})", completed_id);
+                            } else {
+                                debug!("Queue entry {} already removed", completed_id);
+                            }
+                        }
+                        Err(e) => {
+                            // Log error but don't fail - queue already advanced in memory
+                            warn!("Failed to remove completed passage from database queue: {} (continuing anyway)", e);
+                        }
                     }
                 } else {
                     info!("Queue advanced to next passage");

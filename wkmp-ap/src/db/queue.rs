@@ -156,23 +156,20 @@ pub async fn enqueue(
     Ok(queue_entry_id)
 }
 
-/// Remove a queue entry by ID
+/// Remove a queue entry by ID (idempotent)
 ///
-/// **Traceability:** DB-QUEUE-060
-pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Result<()> {
+/// Returns `Ok(true)` if the entry was deleted, `Ok(false)` if it was already missing.
+/// This operation is idempotent - calling it multiple times with the same ID will not error.
+///
+/// **Traceability:** DB-QUEUE-060, REQ-QUEUE-IDEMP-010, REQ-QUEUE-IDEMP-020
+pub async fn remove_from_queue(db: &Pool<Sqlite>, queue_entry_id: Uuid) -> Result<bool> {
     let result = sqlx::query("DELETE FROM queue WHERE guid = ?")
         .bind(queue_entry_id.to_string())
         .execute(db)
         .await?;
 
-    if result.rows_affected() == 0 {
-        return Err(Error::Queue(format!(
-            "Queue entry not found: {}",
-            queue_entry_id
-        )));
-    }
-
-    Ok(())
+    // Idempotent: Return true if deleted, false if already missing
+    Ok(result.rows_affected() > 0)
 }
 
 /// Clear all entries from the queue
@@ -390,10 +387,94 @@ mod tests {
         .await
         .unwrap();
 
-        remove_from_queue(&db, id).await.unwrap();
+        let was_removed = remove_from_queue(&db, id).await.unwrap();
+        assert!(was_removed, "Entry should have been removed");
 
         let queue = get_queue(&db).await.unwrap();
         assert_eq!(queue.len(), 0);
+    }
+
+    // TC-U-IDEMP-001: First removal returns Ok(true)
+    #[tokio::test]
+    async fn test_remove_queue_entry_first_call_succeeds() {
+        let db = setup_test_db().await;
+
+        // Given: Queue entry exists in database
+        let id = enqueue(
+            &db,
+            "test.mp3".to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        // When: remove_from_queue() called
+        let result = remove_from_queue(&db, id).await.unwrap();
+
+        // Then: Returns true (entry was deleted)
+        assert!(result, "First call should return true indicating deletion");
+
+        // Verify entry actually deleted
+        let queue = get_queue(&db).await.unwrap();
+        assert_eq!(queue.len(), 0, "Queue should be empty after removal");
+    }
+
+    // TC-U-IDEMP-002: Second removal returns Ok(false) (idempotent)
+    #[tokio::test]
+    async fn test_remove_queue_entry_second_call_idempotent() {
+        let db = setup_test_db().await;
+
+        // Given: Entry already removed (first call succeeded)
+        let id = enqueue(
+            &db,
+            "test.mp3".to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        // First removal succeeds
+        let first_result = remove_from_queue(&db, id).await.unwrap();
+        assert!(first_result, "First call should return true");
+
+        // When: remove_from_queue() called again on same ID
+        let second_result = remove_from_queue(&db, id).await.unwrap();
+
+        // Then: Returns false (already deleted, no error)
+        assert!(!second_result, "Second call should return false (idempotent)");
+    }
+
+    // TC-U-IDEMP-003: Remove non-existent returns Ok(false)
+    #[tokio::test]
+    async fn test_remove_queue_entry_never_existed() {
+        let db = setup_test_db().await;
+
+        // Given: Entry never existed in database
+        let non_existent_id = Uuid::new_v4();
+
+        // When: remove_from_queue() called
+        let result = remove_from_queue(&db, non_existent_id).await.unwrap();
+
+        // Then: Returns false (entry never existed, no error)
+        assert!(!result, "Removing non-existent entry should return false");
     }
 
     #[tokio::test]

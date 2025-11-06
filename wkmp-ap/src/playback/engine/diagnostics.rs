@@ -575,6 +575,39 @@ impl PlaybackEngine {
                 Some(PlaybackEvent::PassageComplete { queue_entry_id }) => {
                     info!("PassageComplete event received for queue_entry_id: {}", queue_entry_id);
 
+                    // **[REQ-QUEUE-DEDUP-010, REQ-QUEUE-DEDUP-020]** Deduplication check (5-second window)
+                    let now = tokio::time::Instant::now();
+                    let dedup_window = std::time::Duration::from_secs(5);
+
+                    let is_duplicate = {
+                        let mut completed = self.completed_passages.write().await;
+
+                        // Clean up expired entries (>5 seconds old)
+                        completed.retain(|_, &mut timestamp| {
+                            now.duration_since(timestamp) < dedup_window
+                        });
+
+                        // Check if this is a duplicate
+                        if let Some(&previous_timestamp) = completed.get(&queue_entry_id) {
+                            let elapsed = now.duration_since(previous_timestamp);
+                            debug!(
+                                "Duplicate PassageComplete event for {} (previous event {:.1}ms ago) - skipping",
+                                queue_entry_id,
+                                elapsed.as_secs_f64() * 1000.0
+                            );
+                            true
+                        } else {
+                            // Record this completion
+                            completed.insert(queue_entry_id, now);
+                            false
+                        }
+                    };
+
+                    // Skip duplicate events
+                    if is_duplicate {
+                        continue;
+                    }
+
                     // Stop mixer and clear passage
                     {
                         let mut mixer = self.mixer.write().await;

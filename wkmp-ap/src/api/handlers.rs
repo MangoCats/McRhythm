@@ -563,10 +563,14 @@ pub async fn remove_from_queue(
 ) -> Result<StatusCode, (StatusCode, Json<StatusResponse>)> {
     info!("Remove from queue request: {}", queue_entry_id);
 
-    // Remove from database first
+    // Remove from database first (idempotent operation)
     match crate::db::queue::remove_from_queue(&ctx.db_pool, queue_entry_id).await {
-        Ok(_) => {
-            info!("Successfully removed queue entry from database: {}", queue_entry_id);
+        Ok(was_removed) => {
+            if was_removed {
+                info!("Successfully removed queue entry from database: {}", queue_entry_id);
+            } else {
+                info!("Queue entry {} already removed (idempotent)", queue_entry_id);
+            }
 
             // Remove from in-memory queue
             ctx.engine.remove_queue_entry(queue_entry_id).await;
