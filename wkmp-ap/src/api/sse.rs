@@ -16,7 +16,7 @@ use axum::{
 use futures::stream::Stream;
 use std::convert::Infallible;
 use std::time::Duration;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 use wkmp_common::events::{WkmpEvent, QueueEntryInfo, PlaybackPositionInfo};
 use chrono::Utc;
 
@@ -112,7 +112,7 @@ pub async fn event_stream(
 
                     match serde_json::to_string(&event) {
                         Ok(event_json) => {
-                            debug!("Broadcasting SSE event: {}", event_type);
+                            trace!("Broadcasting SSE event: {}", event_type);
                             yield Ok(Event::default()
                                 .event(event_type)
                                 .data(event_json));

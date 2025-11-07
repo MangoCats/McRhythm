@@ -19,7 +19,7 @@ use crate::state::CurrentPassage;
 use sqlx::{Pool, Sqlite};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, trace, error, info, warn};
 use uuid::Uuid;
 
 impl PlaybackEngine {
@@ -212,7 +212,7 @@ impl PlaybackEngine {
                         .and_then(|b| b.source_sample_rate)
                         .map(|src_rate| src_rate != sample_rate),
                     target_sample_rate: {
-                        debug!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
+                        trace!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
                         sample_rate // **[DBD-PARAM-020]** working_sample_rate (device native)
                     },
                     resampler_algorithm: Some("Septic polynomial".to_string()), // **[SPEC020-MONITOR-070]** rubato FastFixedIn with Septic degree
@@ -681,7 +681,7 @@ impl PlaybackEngine {
                     let current = {
                         let queue = self.queue.read().await;
                         if queue.current().map(|c| c.queue_entry_id) != Some(queue_entry_id) {
-                            debug!(
+                            trace!(
                                 "Buffer ready for {} but not current passage, ignoring",
                                 queue_entry_id
                             );

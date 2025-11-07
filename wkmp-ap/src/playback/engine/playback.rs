@@ -22,7 +22,7 @@ use crate::playback::types::DecodePriority;
 use crate::state::PlaybackState;
 use std::sync::atomic::Ordering;
 use tokio::time::{interval, Duration};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, trace, error, info, warn};
 use uuid::Uuid;
 
 /// **[PLAN022]** Default assumed duration for ephemeral passages (ticks)
@@ -664,7 +664,7 @@ impl PlaybackEngine {
                 .await;
 
             if buffer_has_minimum {
-                debug!("Watchdog: Buffer has minimum playback buffer for {}", current.queue_entry_id);
+                trace!("Watchdog: Buffer has minimum playback buffer for {}", current.queue_entry_id);
                 // Watchdog detection: Check if mixer should be playing but isn't
                 match self.start_mixer_for_current(current).await {
                     Ok(true) => {
@@ -683,7 +683,7 @@ impl PlaybackEngine {
                     }
                     Ok(false) => {
                         // No intervention needed - mixer already playing or buffer not ready
-                        debug!("Watchdog: No intervention needed for {} (mixer already playing or buffer not found)", current.queue_entry_id);
+                        trace!("Watchdog: No intervention needed for {} (mixer already playing or buffer not found)", current.queue_entry_id);
                     }
                     Err(e) => {
                         warn!("[WATCHDOG] Failed to start mixer for {}: {}", current.queue_entry_id, e);
@@ -1045,11 +1045,11 @@ impl PlaybackEngine {
         let mixer_passage_id = mixer.get_current_passage_id();
         drop(mixer);
 
-        debug!("start_mixer_for_current: mixer_idle={}, mixer_passage_id={:?}, queue_entry_id={}",
+        trace!("start_mixer_for_current: mixer_idle={}, mixer_passage_id={:?}, queue_entry_id={}",
                mixer_idle, mixer_passage_id, current.queue_entry_id);
 
         if !mixer_idle {
-            debug!("Mixer already playing passage {:?} - skipping start for {}", mixer_passage_id, current.queue_entry_id);
+            trace!("Mixer already playing passage {:?} - skipping start for {}", mixer_passage_id, current.queue_entry_id);
             return Ok(false); // Not an intervention - mixer already running
         }
 

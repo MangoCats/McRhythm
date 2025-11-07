@@ -40,7 +40,7 @@ use ringbuf::{traits::*, HeapRb, HeapProd, HeapCons};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use thiserror::Error;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
 /// **[DBD-PARAM-070]** Default playout ring buffer capacity (661941 samples = 15.01s @ 44.1kHz)
@@ -588,7 +588,7 @@ impl PlayoutRingBuffer {
         let resume_threshold = self.resume_hysteresis.saturating_add(self.headroom);
         let can_resume = free_space >= resume_threshold;
 
-        debug!(
+        trace!(
             "can_decoder_resume: occupied={}, free_space={}, capacity={}, resume_threshold={} (hysteresis={} + headroom={}), result={}",
             occupied, free_space, self.capacity, resume_threshold, self.resume_hysteresis, self.headroom, can_resume
         );
