@@ -6,6 +6,9 @@
 //! **Traceability:**
 //! - **[ARCH-AUTO-VAL-001]** Automatic validation and tuning architecture
 //! - **[PHASE1-INTEGRITY]** Pipeline integrity validation
+//! - **[DBD-PARAM-130]** `validation_enabled` - Master switch
+//! - **[DBD-PARAM-131]** `validation_interval_secs` - Check interval
+//! - **[DBD-PARAM-132]** `validation_tolerance_samples` - Tolerance threshold
 
 use crate::playback::engine::PlaybackEngine;
 use crate::state::{PlaybackState, SharedState};
@@ -17,15 +20,19 @@ use tracing::{debug, error, info, warn, trace};
 use wkmp_common::events::WkmpEvent;
 
 /// Validation service configuration
+///
+/// **[DBD-PARAM-130]** `validation_enabled` - Master switch
+/// **[DBD-PARAM-131]** `validation_interval_secs` - Check interval
+/// **[DBD-PARAM-132]** `validation_tolerance_samples` - Tolerance threshold
 #[derive(Debug, Clone)]
 pub struct ValidationConfig {
-    /// Validation interval in seconds (default: 10s)
+    /// **[DBD-PARAM-131]** Validation interval in seconds (default: 10s)
     pub interval_secs: u64,
 
-    /// Sample tolerance for validation (default: 8192 samples)
+    /// **[DBD-PARAM-132]** Sample tolerance for validation (default: 8192 samples)
     pub tolerance_samples: u64,
 
-    /// Enable automatic validation (default: true)
+    /// **[DBD-PARAM-130]** Enable automatic validation (default: true)
     pub enabled: bool,
 
     /// Maximum history entries to keep (default: 100)
@@ -47,6 +54,9 @@ impl ValidationConfig {
     /// Load validation configuration from database settings
     ///
     /// **[ARCH-AUTO-VAL-001]** Loads settings from database, falls back to defaults
+    /// **[DBD-PARAM-130]** `validation_enabled`
+    /// **[DBD-PARAM-131]** `validation_interval_secs`
+    /// **[DBD-PARAM-132]** `validation_tolerance_samples`
     ///
     /// # Arguments
     /// * `db_pool` - Database connection pool
@@ -56,7 +66,7 @@ impl ValidationConfig {
     pub async fn from_database(db_pool: &Pool<Sqlite>) -> Self {
         let mut config = Self::default();
 
-        // Load validation_enabled
+        // Load validation_enabled [DBD-PARAM-130]
         if let Ok(enabled_str) = sqlx::query_scalar::<_, String>(
             "SELECT value FROM settings WHERE key = 'validation_enabled'"
         )
@@ -66,7 +76,7 @@ impl ValidationConfig {
             config.enabled = enabled_str.to_lowercase() == "true";
         }
 
-        // Load validation_interval_secs
+        // Load validation_interval_secs [DBD-PARAM-131]
         if let Ok(interval_str) = sqlx::query_scalar::<_, String>(
             "SELECT value FROM settings WHERE key = 'validation_interval_secs'"
         )
@@ -78,7 +88,7 @@ impl ValidationConfig {
             }
         }
 
-        // Load validation_tolerance_samples
+        // Load validation_tolerance_samples [DBD-PARAM-132]
         if let Ok(tolerance_str) = sqlx::query_scalar::<_, String>(
             "SELECT value FROM settings WHERE key = 'validation_tolerance_samples'"
         )

@@ -176,6 +176,14 @@ All parameters in this section are **STRUCTURAL (RESTART REQUIRED)** unless expl
 - mixer_batch_size_low ([DBD-PARAM-112])
 - mixer_batch_size_optimal ([DBD-PARAM-113])
 
+**State Persistence Parameters:**
+- queue_current_id ([DBD-PARAM-125]) - Runtime state, not user-configurable
+
+**Diagnostic Service Parameters:**
+- validation_enabled ([DBD-PARAM-130]) - Service configuration, restart required
+- validation_interval_secs ([DBD-PARAM-131]) - Service configuration, restart required
+- validation_tolerance_samples ([DBD-PARAM-132]) - Service configuration, restart required
+
 **Runtime-Modifiable Parameters:**
 - volume_level (see [IMPL001 Settings Table](IMPL001-database_schema.md#settings))
 - audio_sink (see [IMPL001 Settings Table](IMPL001-database_schema.md#settings))
@@ -434,6 +442,119 @@ This calculated "decoder output actual maximum chunk size" is the maximum number
 - Systems experiencing underruns despite default settings: Increase batch sizes or decrease mixer_check_interval_ms
 - Systems with different audio_buffer_size values: Scale batch sizes proportionally (e.g., 4096-frame buffer → 1024/512 batch sizes)
 - Database settings allow runtime configuration without recompilation
+
+### queue_current_id
+
+**[DBD-PARAM-125]** **[STATE PERSISTENCE - RUNTIME MANAGED]** The UUID of the currently playing queue entry, persisted for queue state restoration across application restarts.
+
+- **Type:** UUID (stored as TEXT in database)
+- **Database setting:** `queue_current_id`
+- **Classification:** Runtime state persistence, not user-configurable
+- **Behavior:**
+  - Automatically set by PlaybackEngine when passage playback begins
+  - Updated on each passage transition (play start, skip, queue advance)
+  - Deleted from database when no passage is playing (stopped/idle state)
+  - Loaded on engine startup for potential queue state restoration
+- **Purpose:** Enables "resume where you left off" functionality after application restart
+- **Architecture Reference:** [ARCH-QP-020] Queue state persistence
+- **Implementation:**
+  - `save_queue_state(db, Some(uuid))` - Persist current playing passage
+  - `save_queue_state(db, None)` - Clear state (no longer playing)
+  - `load_queue_state(db)` - Restore state on startup
+- **API Access:** Read-only via settings browser, not modifiable by users
+- **Related:** This parameter tracks queue position independent of buffer/decode parameters
+
+**Note:** Unlike other parameters in this document (which are configuration settings), `queue_current_id` is runtime state data. It is documented here for completeness as it resides in the same `settings` table and shares the same persistence mechanisms as configuration parameters.
+
+### Validation Service Parameters
+
+The validation service provides automatic pipeline integrity checking during playback, verifying sample conservation laws across decoder → buffer → mixer stages.
+
+#### validation_enabled
+
+**[DBD-PARAM-130]** **[DIAGNOSTIC - RESTART REQUIRED]** Master switch for automatic validation service.
+
+- **Type:** Boolean (stored as "true"/"false" TEXT in database)
+- **Database setting:** `validation_enabled`
+- **Default value:** true
+- **Classification:** Diagnostic service configuration, requires restart to take effect
+- **Behavior:**
+  - When true: Validation service runs periodic integrity checks during playback
+  - When false: Validation service does not run (no overhead)
+- **Purpose:** Enable/disable automatic pipeline validation for diagnostics and testing
+- **Architecture Reference:** [ARCH-AUTO-VAL-001] Automatic validation and tuning architecture
+- **Implementation:** `ValidationConfig::from_database()` in `wkmp-ap/src/playback/validation_service.rs`
+- **Performance Impact:** Minimal when enabled (checks run in background task)
+- **Use Cases:**
+  - Production: Enable for monitoring and early detection of pipeline issues
+  - Testing: Enable to verify sample conservation during development
+  - Performance-critical: Disable to eliminate validation overhead
+
+#### validation_interval_secs
+
+**[DBD-PARAM-131]** **[DIAGNOSTIC - RESTART REQUIRED]** Time interval between validation checks.
+
+- **Type:** u64 (seconds)
+- **Database setting:** `validation_interval_secs`
+- **Default value:** 10 seconds
+- **Valid range:** 1-3600 seconds (recommended: 5-60)
+- **Classification:** Diagnostic service configuration, requires restart to take effect
+- **Behavior:**
+  - Validation service wakes every N seconds during playback
+  - Captures snapshot of decoder output, buffer writes/reads, mixer output
+  - Verifies sample counts match within tolerance
+- **Purpose:** Control validation frequency (trade-off between overhead and detection latency)
+- **Architecture Reference:** [ARCH-AUTO-VAL-001] Automatic validation and tuning architecture
+- **Implementation:** `ValidationConfig.interval_secs` field
+- **Tuning:**
+  - Shorter intervals: More frequent checks, higher overhead, faster issue detection
+  - Longer intervals: Lower overhead, delayed issue detection
+  - Default (10s): Good balance for production monitoring
+- **Related:** Works with `validation_tolerance_samples` for pass/fail determination
+
+#### validation_tolerance_samples
+
+**[DBD-PARAM-132]** **[DIAGNOSTIC - RESTART REQUIRED]** Allowable sample count discrepancy before flagging validation failure.
+
+- **Type:** u64 (samples)
+- **Database setting:** `validation_tolerance_samples`
+- **Default value:** 8192 samples (~186ms @ 44.1kHz)
+- **Valid range:** 0-88200 samples (recommended: 4096-16384)
+- **Units:** Stereo samples (at working_sample_rate)
+- **Classification:** Diagnostic service configuration, requires restart to take effect
+- **Behavior:**
+  - Compares total samples across pipeline stages: decoder_out = buffer_written = buffer_read = mixer_out
+  - If any discrepancy exceeds tolerance, validation fails and event is emitted
+  - Tolerance accounts for timing-related edge cases (buffer quantization, async sampling)
+- **Purpose:** Allow minor timing-related discrepancies without false-positive failures
+- **Architecture Reference:** [ARCH-AUTO-VAL-001] Automatic validation and tuning architecture
+- **Implementation:** `ValidationConfig.tolerance_samples` field
+- **Rationale:**
+  - Zero tolerance is too strict (async timing, buffer chunk boundaries)
+  - Default 8192 samples = ~186ms of audio drift tolerance
+  - Matches output_ringbuffer_size ([DBD-PARAM-030]) for consistency
+- **Tuning:**
+  - Stricter (lower): More sensitive to pipeline issues, higher false-positive risk
+  - Looser (higher): Less sensitive, may miss subtle problems
+  - Zero: Only use for testing when exact sample-perfect validation is required
+- **Related:** Used with `validation_interval_secs` for periodic validation checks
+
+**Service Architecture:**
+
+The validation service:
+1. Loads configuration from database on startup via `ValidationConfig::from_database()`
+2. Runs in background tokio task spawned by `PlaybackEngine::start_validation_service()`
+3. Captures pipeline metrics every `validation_interval_secs` during playback
+4. Compares sample counts across stages: decoder → buffer → mixer
+5. Emits `WkmpEvent::ValidationResult` with pass/fail status
+6. Maintains history of up to 100 validation results for diagnostics
+
+**Implementation Files:**
+- Service: `wkmp-ap/src/playback/validation_service.rs` (393 lines)
+- Startup: `wkmp-ap/src/playback/engine/diagnostics.rs` lines 401-414
+- Initialization: `wkmp-common/src/db/init.rs` lines 193-196
+
+**Note:** These are diagnostic infrastructure parameters, not core audio configuration. They affect monitoring/validation behavior but do not impact audio processing itself. Changes require application restart as service is initialized once at startup.
 
 ## Dataflow
 
@@ -905,14 +1026,33 @@ See [SPEC013 Decoding Flow - SSP-DEC-040](SPEC013-single_stream_playback.md#core
 
 ---
 
-**Document Version:** 1.8
+**Document Version:** 2.0
 **Created:** 2025-10-19
-**Last Updated:** 2025-11-02
+**Last Updated:** 2025-11-08
 **Status:** Current
 **Tier:** 2 - Design Specification
 **Document Code:** DBD (Decoder Buffer Design)
 
 **Change Log:**
+- v2.0 (2025-11-08): Added DBD-PARAM-130 through DBD-PARAM-132 (validation service parameters)
+  - Added [DBD-PARAM-130] validation_enabled - Master switch for automatic validation service
+  - Added [DBD-PARAM-131] validation_interval_secs - Time interval between validation checks
+  - Added [DBD-PARAM-132] validation_tolerance_samples - Allowable sample count discrepancy
+  - New "Validation Service Parameters" subsection (lines 469-557)
+  - Comprehensive documentation of diagnostic service configuration
+  - References [ARCH-AUTO-VAL-001] automatic validation architecture
+  - Added to parameter classification list (lines 182-185)
+  - Settings browser metadata added to wkmp-dr/src/api/settings.rs (lines 229-253)
+  - Code comments updated in wkmp-ap/src/playback/validation_service.rs with DBD-PARAM references
+  - Database initialization comments updated in wkmp-common/src/db/init.rs (lines 194-196)
+- v1.9 (2025-11-08): Added DBD-PARAM-125 (queue_current_id)
+  - Added [DBD-PARAM-125] queue_current_id parameter documentation (lines 441-462)
+  - Classification: State Persistence (runtime-managed, not user-configurable)
+  - Documents UUID of currently playing queue entry for resume-on-restart functionality
+  - References [ARCH-QP-020] queue state persistence architecture
+  - Added to parameter classification list (line 180)
+  - Settings browser metadata added to wkmp-dr/src/api/settings.rs (lines 220-227)
+  - Code comments updated in wkmp-ap/src/db/settings.rs with DBD-PARAM-125 references
 - v1.8 (2025-11-02): Removed redundant DBD-PARAM-040 (output_refill_period)
   - Removed [DBD-PARAM-040] output_refill_period parameter definition and documentation
   - Rationale: Redundant with mixer_check_interval_ms ([DBD-PARAM-111]) which is actively used

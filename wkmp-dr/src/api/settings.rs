@@ -114,11 +114,11 @@ fn get_parameter_metadata() -> Vec<ParamMetadata> {
             description: "Duration of audio decoded per chunk. STRUCTURAL. Used by wkmp-ap decoder to determine chunk size. Smaller values = lower latency/memory, higher CPU overhead. Larger = opposite. Default 1000ms balances memory, CPU, I/O efficiency.",
         },
         ParamMetadata {
-            key: "playout_ringbuffer_capacity",
+            key: "playout_ringbuffer_size",
             units: "stereo samples",
             default_value: "661941",
             spec_id: "DBD-PARAM-070",
-            aliases: &["playout_buffer_size", "decoded_buffer_size"],
+            aliases: &["playout_ringbuffer_capacity", "playout_buffer_size", "decoded_buffer_size"],
             description: "Decoded/resampled audio buffer capacity per passage. STRUCTURAL. Used by wkmp-ap PlayoutRingBuffer to store decoded PCM audio. Default 661941 samples = 15.01s @ 44.1kHz. Holds ready-to-play audio for mixer.",
         },
         ParamMetadata {
@@ -214,6 +214,42 @@ fn get_parameter_metadata() -> Vec<ParamMetadata> {
             spec_id: "DB-SET-220",
             aliases: &["ui_progress_interval", "sse_progress_interval"],
             description: "Interval for emitting PlaybackProgress SSE events to UI clients. Controls UI progress bar update frequency. Based on playback time not wall clock. See IMPL001 lines 892-998, SPEC011 lines 630-695. Range: 1000-10000ms.",
+        },
+
+        // Queue State Persistence
+        ParamMetadata {
+            key: "queue_current_id",
+            units: "UUID",
+            default_value: "(none)",
+            spec_id: "DBD-PARAM-125, ARCH-QP-020",
+            aliases: &[],
+            description: "UUID of currently playing queue entry. STATE PERSISTENCE (runtime-managed, not user-configurable). Automatically set by PlaybackEngine on play start, cleared on stop. Enables resume-where-you-left-off across restarts. Read-only. See SPEC016 lines 441-462.",
+        },
+
+        // Validation Service Configuration (Diagnostic)
+        ParamMetadata {
+            key: "validation_enabled",
+            units: "boolean",
+            default_value: "true",
+            spec_id: "DBD-PARAM-130, ARCH-AUTO-VAL-001",
+            aliases: &[],
+            description: "Master switch for automatic validation service. DIAGNOSTIC (restart required). Enables periodic pipeline integrity checks (decoder → buffer → mixer sample conservation). Minimal overhead when enabled. See SPEC016 lines 473-491.",
+        },
+        ParamMetadata {
+            key: "validation_interval_secs",
+            units: "seconds",
+            default_value: "10",
+            spec_id: "DBD-PARAM-131, ARCH-AUTO-VAL-001",
+            aliases: &[],
+            description: "Time interval between validation checks. DIAGNOSTIC (restart required). Controls validation frequency during playback. Range: 1-3600 seconds (recommended 5-60). Shorter = faster issue detection, higher overhead. See SPEC016 lines 493-513.",
+        },
+        ParamMetadata {
+            key: "validation_tolerance_samples",
+            units: "samples",
+            default_value: "8192",
+            spec_id: "DBD-PARAM-132, ARCH-AUTO-VAL-001",
+            aliases: &[],
+            description: "Allowable sample count discrepancy before validation failure. DIAGNOSTIC (restart required). Default 8192 samples (~186ms @ 44.1kHz) accounts for async timing edge cases. Range: 0-88200 samples (recommended 4096-16384). Lower = stricter validation. See SPEC016 lines 515-540.",
         },
 
         // Crossfade Settings

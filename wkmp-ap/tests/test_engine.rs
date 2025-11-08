@@ -132,7 +132,7 @@ impl TestEngine {
             ("mixer_check_interval_ms", "10".to_string()),
             ("mixer_min_start_level_frames", "44100".to_string()),
             ("audio_buffer_size", "2208".to_string()),
-            ("playout_ringbuffer_capacity", "661941".to_string()),
+            ("playout_ringbuffer_size", "661941".to_string()),
             ("playout_ringbuffer_headroom", "4410".to_string()),
         ];
 

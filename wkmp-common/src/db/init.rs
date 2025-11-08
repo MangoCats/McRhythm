@@ -191,9 +191,9 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
-    ensure_setting(pool, "validation_enabled", "true").await?;
-    ensure_setting(pool, "validation_interval_secs", "10").await?;
-    ensure_setting(pool, "validation_tolerance_samples", "8192").await?;
+    ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]
+    ensure_setting(pool, "validation_interval_secs", "10").await?;          // [DBD-PARAM-131]
+    ensure_setting(pool, "validation_tolerance_samples", "8192").await?;    // [DBD-PARAM-132]
 
     // GlobalParams defaults **[PLAN018]** - All 15 database-backed parameters
     // These match the defaults in wkmp-common/src/params.rs
