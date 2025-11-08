@@ -20,7 +20,7 @@
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 023 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 024 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 
@@ -134,6 +134,7 @@
 | PLAN020 | (reserved) | - | PLAN | - | - |
 | PLAN021 | technical_debt_remediation | 2025-11-05 | PLAN | Auto | Technical debt remediation for wkmp-ap (8 debt items, 6 increments, core.rs refactoring) |
 | PLAN022 | queue_handling_resilience | 2025-11-06 | PLAN | Auto | Queue handling resilience improvements (idempotent operations, event deduplication, DRY cleanup refactoring) |
+| PLAN023 | wkmp_ai_recode | 2025-01-08 | PLAN | Auto | WKMP-AI ground-up recode: 3-tier hybrid fusion, per-song processing, real-time SSE (46 requirements, 76 tests) |
 
 <!-- /doc-name workflow will append entries below -->
 
