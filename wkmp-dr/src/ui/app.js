@@ -300,10 +300,15 @@ async function loadData() {
     currentView = { type: viewType, params: {} };
 
     let url;
+    let isSettingsBrowser = false;
+
     if (viewType === 'table') {
         const table = document.getElementById('tableName').value;
         currentView.params.table = table;
         url = `/api/table/${table}?page=${currentPage}`;
+    } else if (viewType === 'settings') {
+        url = `/api/settings/browser`;
+        isSettingsBrowser = true;
     } else if (viewType === 'filter-passages') {
         url = `/api/filters/passages-without-mbid?page=${currentPage}`;
     } else if (viewType === 'filter-files') {
@@ -336,8 +341,13 @@ async function loadData() {
         }
 
         currentData = data;
-        renderTable(data);
-        updatePagination(data);
+
+        if (isSettingsBrowser) {
+            renderSettingsBrowser(data);
+        } else {
+            renderTable(data);
+            updatePagination(data);
+        }
     } catch (error) {
         showStatus('Failed to load data: ' + error.message, 'error');
     }
@@ -641,6 +651,77 @@ function renderTable(data) {
     container.innerHTML = html;
 }
 
+/**
+ * Render settings browser with rich parameter metadata
+ * Per requirement: 6 columns with yellow background for computed columns
+ */
+function renderSettingsBrowser(data) {
+    const container = document.getElementById('tableContainer');
+    const pagination = document.getElementById('pagination');
+
+    // Hide pagination for settings browser (single view, no pages)
+    pagination.classList.add('hidden');
+
+    // Update result info
+    document.getElementById('resultInfo').textContent =
+        `${data.total_settings} settings parameters`;
+
+    // Build table with 7 columns:
+    // 1. Database Key
+    // 2. Value
+    // 3. Units (computed - yellow)
+    // 4. Default Value (computed - yellow)
+    // 5. Spec ID (computed - yellow)
+    // 6. Aliases (computed - yellow)
+    // 7. Description (computed - yellow)
+    let html = '<table><thead><tr>';
+    html += '<th>Database Key</th>';
+    html += '<th>Value</th>';
+    html += '<th class="computed">Units</th>';
+    html += '<th class="computed">Default Value</th>';
+    html += '<th class="computed">Spec ID</th>';
+    html += '<th class="computed">Also Known As</th>';
+    html += '<th class="computed">Description</th>';
+    html += '</tr></thead><tbody>';
+
+    data.settings.forEach(setting => {
+        html += '<tr>';
+
+        // Column 1: Database key
+        html += `<td style="font-family: monospace; color: var(--primary-color);">${setting.key}</td>`;
+
+        // Column 2: Value
+        const displayValue = setting.value || '<em>NULL</em>';
+        html += `<td style="font-family: monospace;">${displayValue}</td>`;
+
+        // Column 3: Units (computed - yellow background)
+        const units = setting.units || '<em>-</em>';
+        html += `<td class="computed">${units}</td>`;
+
+        // Column 4: Default Value (computed - yellow background)
+        const defaultValue = setting.default_value || '<em>-</em>';
+        html += `<td class="computed" style="font-family: monospace;">${defaultValue}</td>`;
+
+        // Column 5: Spec ID (computed - yellow background)
+        const specId = setting.spec_id || '<em>-</em>';
+        html += `<td class="computed" style="font-family: monospace;">${specId}</td>`;
+
+        // Column 6: Aliases (computed - yellow background)
+        const aliases = setting.aliases.length > 0
+            ? setting.aliases.join(', ')
+            : '<em>none</em>';
+        html += `<td class="computed" style="font-family: monospace; font-size: 17px;">${aliases}</td>`;
+
+        // Column 7: Description (computed - yellow background)
+        html += `<td class="computed" style="line-height: 1.4; font-size: 17px;">${setting.description}</td>`;
+
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
 function updatePagination(data) {
     const pagination = document.getElementById('pagination');
     const pageInfo = document.getElementById('pageInfo');
@@ -776,6 +857,31 @@ let sseConnection = null;
 updateViewControls();
 renderFavorites();
 loadBuildInfo();
+
+// Auto-reload current view on page load to refresh database values
+if (currentView && currentView.type) {
+    // Restore saved view and reload data
+    document.getElementById('viewType').value = currentView.type;
+    updateViewControls();
+
+    // Restore view-specific parameters
+    if (currentView.type === 'table' && currentView.params.table) {
+        document.getElementById('tableName').value = currentView.params.table;
+    } else if (currentView.type === 'search-work' && currentView.params.workId) {
+        document.getElementById('workId').value = currentView.params.workId;
+    } else if (currentView.type === 'search-path' && currentView.params.pattern) {
+        document.getElementById('pathPattern').value = currentView.params.pattern;
+    }
+
+    // Reload data from database
+    loadData();
+} else {
+    // No saved view - default to Settings Browser
+    document.getElementById('viewType').value = 'settings';
+    updateViewControls();
+    // Auto-load settings data
+    loadData();
+}
 
 // Establish SSE connection
 sseConnection = new WkmpSSEConnection('/api/events', 'connection-status');

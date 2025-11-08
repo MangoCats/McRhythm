@@ -386,7 +386,7 @@ impl BufferManager {
                             buffer_duration_ms,
                         }).await;
 
-                        info!(
+                        debug!(
                             "⚡ Buffer ready for playback: {} ({}ms buffered)",
                             queue_entry_id, buffer_duration_ms
                         );

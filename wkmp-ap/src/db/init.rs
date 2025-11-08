@@ -48,7 +48,7 @@ pub async fn init_settings_defaults(pool: &Pool<Sqlite>) -> Result<()> {
         // Output ring buffer configuration
         // [DBD-PARAM-030] Output ring buffer capacity (mixer → audio callback)
         // Default: 8192 frames = 186ms @ 44.1kHz - Empirically tuned for stability
-        ("output_ringbuffer_capacity", "8192"),
+        ("output_ringbuffer_size", "8192"),
 
         // Mixer thread configuration
         // [DBD-PARAM-111] Mixer check interval in milliseconds

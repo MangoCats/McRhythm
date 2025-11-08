@@ -498,15 +498,15 @@ Consumer                           Producer
 
 ### Alternative: Output Ring Buffer (UNUSED Parameters)
 
-**SPEC016 Defined But Not Implemented:**
-- `output_ringbuffer_size` (88200 samples = 2.0s @ 44.1kHz)
-- `output_refill_period` (90ms)
+**SPEC016 Parameters (Now Implemented):**
+- `output_ringbuffer_size` (8192 frames = 186ms @ 44.1kHz) - **IMPLEMENTED**
+- `output_refill_period` (90ms) - DEPRECATED, replaced by mixer_check_interval_ms (10ms)
 
-**How It Would Work:**
+**How It Works:**
 ```
 Mixer Thread:
-├─ Wake every 90ms (output_refill_period)
-├─ Fill output ring buffer (88200 samples capacity)
+├─ Wake every 10ms (mixer_check_interval_ms)
+├─ Fill output ring buffer (8192 frames capacity)
 └─ Audio callback pulls from output ring buffer
 
 Benefits:

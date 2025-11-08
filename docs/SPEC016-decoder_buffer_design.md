@@ -201,7 +201,7 @@ Note: This section documents decode/buffer-related structural parameters only. I
 - **Valid range:** 2,048-262,144 frames (~46ms to 5.9s @ 44.1kHz)
 - **Units:** Stereo frames (one stereo frame = left sample + right sample)
 - **Architecture:** Lock-free SPSC ring buffer for real-time audio delivery
-- **Database setting:** `output_ringbuffer_capacity`
+- **Database setting:** `output_ringbuffer_size`
 - **Tuning:**
   - Smaller buffers: Lower latency, higher risk of underruns
   - Larger buffers: More stable, higher latency

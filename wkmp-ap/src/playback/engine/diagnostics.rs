@@ -671,7 +671,7 @@ impl PlaybackEngine {
                 Some(BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms, .. }) => {
                     let start_time = Instant::now();
 
-                    info!(
+                    debug!(
                         "🚀 Buffer ready event received: {} ({}ms available)",
                         queue_entry_id, buffer_duration_ms
                     );

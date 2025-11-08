@@ -290,6 +290,12 @@ tbody tr:hover {
     background: rgba(74, 158, 255, 0.1);
 }
 
+/* Computed/Dereferenced Column Styling */
+th.computed,
+td.computed {
+    background: rgba(251, 191, 36, 0.15); /* Yellow tint */
+}
+
 /* Utility Classes */
 .text-center {
     text-align: center;

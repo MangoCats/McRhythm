@@ -551,7 +551,7 @@ pub async fn load_playout_ringbuffer_headroom(db: &Pool<Sqlite>) -> Result<usize
 /// - Range: 2,048 to 262,144 frames (~46ms to 5.9s @ 44.1kHz)
 pub async fn load_output_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
     let default = *wkmp_common::params::PARAMS.output_ringbuffer_size.read().unwrap();
-    load_clamped_setting(db, "output_ringbuffer_capacity", 2_048, 262_144, default).await
+    load_clamped_setting(db, "output_ringbuffer_size", 2_048, 262_144, default).await
 }
 
 #[cfg(test)]

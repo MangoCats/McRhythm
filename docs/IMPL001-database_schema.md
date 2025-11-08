@@ -799,7 +799,7 @@ The database is initialized with default module configurations on first run:
 <a id="settings"></a>
 ### `settings`
 
-**Global** application settings (key-value store). All settings are system-wide, not per-user.
+**[DB-SET-010]** **Global** application settings (key-value store). All settings are system-wide, not per-user.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -807,17 +807,17 @@ The database is initialized with default module configurations on first run:
 | value | TEXT | NOT NULL | Setting value (JSON format for complex values) |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When setting was last modified |
 
-**Design Philosophy:**
+**[DB-SET-020] Design Philosophy:**
 - **WKMP functions like a shared hi-fi system**: Settings apply to the entire system, not individual users
 - **Multiple users may be listening simultaneously**: User-specific settings would be inappropriate
 - **System may run with zero users logged in**: Settings must be independent of authentication state
 - **User-specific data belongs elsewhere**: See `likes_dislikes` table for user-scoped preferences
 
-### Settings Keys Reference
+### **[DB-SET-030]** Settings Keys Reference
 
 All runtime configuration is stored in the `settings` table using a key-value pattern. Settings are typed in application code but stored as TEXT in the database.
 
-**Configuration Philosophy:**
+**[DB-SET-040] Configuration Philosophy:**
 - **Database-first**: All runtime settings in `settings` table (per architecture.md)
 - **TOML files**: Bootstrap only (root folder path, logging)
 - **NULL values**: When a setting is NULL or missing, the application initializes it with the built-in default value and writes that default to the database
@@ -825,36 +825,36 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 
 | Key | Type | Default | Purpose | Module | Version |
 |-----|------|---------|---------|--------|---------|
-| **Playback State** |
+| **[DB-SET-050] Playback State** |
 | `initial_play_state` | TEXT | `"playing"` | Playback state on app launch ("playing" or "paused") | wkmp-ap | All |
 | `currently_playing_passage_id` | TEXT (UUID) | NULL | UUID of passage currently playing | wkmp-ap | All |
 | `last_played_passage_id` | TEXT (UUID) | NULL | UUID of last played passage | wkmp-ap | All |
 | `last_played_position_ticks` | INTEGER | 0 | Position in ticks (audio timing, updated only on clean shutdown, reset to 0 on queue change) | wkmp-ap | All |
-| **Audio Configuration** |
+| **[DB-SET-060] Audio Configuration** |
 | `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (HTTP API also uses 0.0-1.0; UI displays 0-100 with conversion: `display = round(volume * 100.0)`) | wkmp-ap | All |
 | `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
 
 > See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for complete audio player operating parameter definitions ([DBD-PARAM-010] through [DBD-PARAM-100]).
-| **Event Timing Configuration** |
+| **[DB-SET-070] Event Timing Configuration** |
 | `position_event_interval_ms` | INTEGER | 1000 | **Internal event**: Interval for mixer to emit PositionUpdate internal events (milliseconds). Controls song boundary detection accuracy and CPU usage. Lower values = more frequent boundary checks but higher CPU. Range: 100-5000ms. | wkmp-ap | All |
 | `playback_progress_interval_ms` | INTEGER | 5000 | **External event**: Interval for emitting PlaybackProgress SSE events to UI clients (milliseconds). Controls UI progress bar update frequency. Based on playback time, not wall clock time. Range: 1000-10000ms. | wkmp-ap | All |
 
 > Note: These event intervals are distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms) which controls mixer-to-output buffer refills. See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters).
-| **Database Backup** |
+| **[DB-SET-080] Database Backup** |
 | `backup_location` | TEXT | (same folder as wkmp.db) | Path to backup directory | wkmp-ui | All |
 | `backup_interval_ms` | INTEGER | 7776000000 | Periodic backup interval (default: 90 days) | wkmp-ui | All |
 | `backup_minimum_interval_ms` | INTEGER | 1209600000 | Minimum time between startup backups (default: 14 days) | wkmp-ui | All |
 | `backup_retention_count` | INTEGER | 3 | Number of timestamped backups to keep | wkmp-ui | All |
 | `last_backup_timestamp_ms` | INTEGER | NULL | Unix milliseconds of last successful backup | wkmp-ui | All |
-| **Crossfade** |
+| **[DB-SET-090] Crossfade** |
 | `global_crossfade_time` | REAL | 2.0 | Global crossfade time in seconds | wkmp-ap | All |
 | `global_fade_curve` | TEXT | `"exponential_logarithmic"` | Fade curve pair (options: 'exponential_logarithmic', 'linear_linear', 'cosine_cosine') | wkmp-ap | All |
-| **Pause/Resume** |
+| **[DB-SET-100] Pause/Resume** |
 | `resume_from_pause_fade_in_duration` | REAL | 0.5 | Resume fade-in duration in seconds (range: 0.0-5.0) | wkmp-ap | All |
 | `resume_from_pause_fade_in_curve` | TEXT | `"exponential"` | Resume fade-in curve type (options: 'linear', 'exponential', 'cosine') | wkmp-ap | All |
-| **Volume Fade Updates** |
+| **[DB-SET-110] Volume Fade Updates** |
 | `volume_fade_update_period` | INTEGER | 10 | Volume fade update period in milliseconds (range: 1-100) | wkmp-ap | All |
-| **Queue Management** |
+| **[DB-SET-120] Queue Management** |
 | `queue_entry_timing_overrides` | TEXT (JSON) | `{}` | JSON object mapping queue entry guid → timing overrides (see schema below) | wkmp-ap | All |
 | `queue_refill_threshold_passages` | INTEGER | 2 | Min passages before refill | wkmp-ap | Full, Lite |
 | `queue_refill_threshold_seconds` | INTEGER | 900 | Min seconds before refill (15 minutes) | wkmp-ap | Full, Lite |
@@ -862,22 +862,22 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `queue_refill_acknowledgment_timeout_seconds` | INTEGER | 5 | Timeout for PD acknowledgment | wkmp-ap | Full, Lite |
 | `queue_max_size` | INTEGER | 100 | Maximum queue size in passages | wkmp-ap | All |
 | `queue_max_enqueue_batch` | INTEGER | 5 | Maximum passages to enqueue at once by Program Director | wkmp-pd | Full, Lite |
-| **Module Management** |
+| **[DB-SET-130] Module Management** |
 | `relaunch_delay` | INTEGER | 5 | Seconds between module relaunch attempts | wkmp-ui | All |
 | `relaunch_attempts` | INTEGER | 20 | Max relaunch attempts before giving up | wkmp-ui | All |
-| **Session Management** |
+| **[DB-SET-140] Session Management** |
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
-| **File Ingest** |
+| **[DB-SET-150] File Ingest** |
 | `ingest_max_concurrent_jobs` | INTEGER | 4 | Maximum concurrent file processing jobs | wkmp-ai | Full |
-| **Library** |
+| **[DB-SET-160] Library** |
 | `music_directories` | TEXT (JSON) | `[]` | JSON array of directories to scan | wkmp-ai | Full |
 | `temporary_flavor_override` | TEXT (JSON) | NULL | JSON with target flavor and expiration | wkmp-pd | Full, Lite |
-| **HTTP Server Configuration** |
+| **[DB-SET-170] HTTP Server Configuration** |
 | `http_base_ports` | TEXT (JSON) | `[5720, 15720, 25720, 17200, 23400]` | JSON array of base port numbers | All modules | All |
 | `http_request_timeout_ms` | INTEGER | 30000 | Request timeout in milliseconds | All modules | All |
 | `http_keepalive_timeout_ms` | INTEGER | 60000 | Keepalive timeout in milliseconds | All modules | All |
 | `http_max_body_size_bytes` | INTEGER | 1048576 | Maximum request body size (1 MB) | All modules | All |
-| **Program Director** |
+| **[DB-SET-180] Program Director** |
 | `playback_failure_threshold` | INTEGER | 3 | Failures before stopping automatic selection | wkmp-pd | Full, Lite |
 | `playback_failure_window_seconds` | INTEGER | 60 | Time window for failure counting | wkmp-pd | Full, Lite |
 
@@ -889,11 +889,11 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 - See [Crossfade Design](SPEC002-crossfade.md) for complete crossfade system specifications
 - See [Architecture](SPEC001-architecture.md) for module responsibilities and configuration patterns
 
-### Event Timing Intervals - Detailed Explanation
+### **[DB-SET-200]** Event Timing Intervals - Detailed Explanation
 
 WKMP uses an **event-driven architecture** for position tracking with two configurable time intervals that control different aspects of the system:
 
-#### 1. Position Event Interval (`position_event_interval_ms`)
+#### **[DB-SET-210]** Position Event Interval (`position_event_interval_ms`)
 
 **Purpose:** Controls how often the mixer emits **internal** `PositionUpdate` events
 
@@ -926,7 +926,7 @@ Mixer (every position_event_interval_ms of audio)
               └─> Checks song timeline for boundaries
 ```
 
-#### 2. PlaybackProgress Event Interval (`playback_progress_interval_ms`)
+#### **[DB-SET-220]** PlaybackProgress Event Interval (`playback_progress_interval_ms`)
 
 **Purpose:** Controls how often **external** `PlaybackProgress` SSE events are sent to UI clients
 
@@ -996,7 +996,7 @@ Time    Position Event (1000ms)    PlaybackProgress Event (5000ms)
 - When paused: No events emitted (no frame generation)
 - After seek: Immediate position event, then regular intervals resume
 
-**Queue Entry Timing Overrides JSON Schema:**
+**[DB-SET-300] Queue Entry Timing Overrides JSON Schema:**
 
 The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrides as a JSON object. Each key is a queue entry GUID, and each value is an object containing override fields. All fields are optional; only overridden values are included.
 
