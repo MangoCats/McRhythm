@@ -14,8 +14,7 @@ use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use symphonia::core::sample::Sample;
-use tracing::{debug, warn};
+use tracing::debug;
 use rubato::{Resampler, SincFixedIn, SincInterpolationType, SincInterpolationParameters, WindowFunction};
 
 /// SPEC017 tick rate: 28,224,000 Hz (1 tick ≈ 35.4 nanoseconds)
@@ -381,9 +380,9 @@ fn extract_stereo_f32(buf: &symphonia::core::audio::AudioBuffer<f32>) -> Vec<f32
         // Mono, duplicate to stereo
         let mono = buf.chan(0);
         let mut output = Vec::with_capacity(frames * 2);
-        for i in 0..frames {
-            output.push(mono[i]);
-            output.push(mono[i]);
+        for &sample in mono.iter().take(frames) {
+            output.push(sample);
+            output.push(sample);
         }
         output
     } else {

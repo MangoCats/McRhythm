@@ -11,7 +11,7 @@
 // - similarity < 0.80: CONFLICT (high risk of different content)
 
 use crate::import_v2::types::{
-    ConflictSeverity, FusedMetadata, ImportResult, MetadataField, ValidationResult,
+    ConflictSeverity, FusedMetadata, ValidationResult,
 };
 
 /// Consistency checker (Tier 3 validation concept)
@@ -44,7 +44,7 @@ impl ConsistencyChecker {
     /// Returns ValidationResult indicating pass/warning/conflict status.
     pub fn validate_title(&self, metadata: &FusedMetadata) -> ValidationResult {
         // If no title selected, nothing to validate
-        let Some(ref selected_title) = metadata.title else {
+        let Some(ref _selected_title) = metadata.title else {
             return ValidationResult::Pass;
         };
 
@@ -62,7 +62,7 @@ impl ConsistencyChecker {
 
     /// Validate artist consistency
     pub fn validate_artist(&self, metadata: &FusedMetadata) -> ValidationResult {
-        let Some(ref selected_artist) = metadata.artist else {
+        let Some(ref _selected_artist) = metadata.artist else {
             return ValidationResult::Pass;
         };
 
@@ -72,7 +72,7 @@ impl ConsistencyChecker {
 
     /// Validate album consistency
     pub fn validate_album(&self, metadata: &FusedMetadata) -> ValidationResult {
-        let Some(ref selected_album) = metadata.album else {
+        let Some(ref _selected_album) = metadata.album else {
             return ValidationResult::Pass;
         };
 
@@ -172,7 +172,7 @@ impl ConsistencyChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::import_v2::types::ExtractionSource;
+    use crate::import_v2::types::{ExtractionSource, MetadataField};
 
     #[test]
     fn test_identical_strings_pass() {
@@ -329,5 +329,178 @@ mod tests {
 
         let result = checker.validate_metadata(&metadata);
         assert!(matches!(result, ValidationResult::Pass)); // No data = no conflicts
+    }
+
+    // === Additional Threshold Tests (P2-6) ===
+
+    #[test]
+    fn test_threshold_exact_boundaries() {
+        let checker = ConsistencyChecker::default();
+
+        // Test exactly at 0.95 threshold (should WARNING, not PASS)
+        // "0123456789012345678" vs "012345678901234567X" = 1 char diff, length 19
+        // Levenshtein similarity = 1 - (1/19) ≈ 0.947 < 0.95
+        let values_just_below_pass = vec![
+            "0123456789012345678".to_string(),
+            "012345678901234567X".to_string(),
+        ];
+        let result = checker.validate_string_list("test", &values_just_below_pass);
+        assert!(
+            matches!(result, ValidationResult::Warning { .. }),
+            "Expected Warning for similarity ~0.947, got {:?}",
+            result
+        );
+
+        // Test exactly at 0.80 threshold (should CONFLICT)
+        // "01234567890" vs "012345XXX90" = 3 char diff, length 11
+        // Levenshtein similarity = 1 - (3/11) ≈ 0.727 < 0.80
+        let values_just_below_warning = vec![
+            "01234567890".to_string(),
+            "012345XXX90".to_string(),
+        ];
+        let result = checker.validate_string_list("test", &values_just_below_warning);
+        assert!(
+            matches!(result, ValidationResult::Conflict { .. }),
+            "Expected Conflict for similarity ~0.727, got {:?}",
+            result
+        );
+
+        // Test above 0.95 threshold (should PASS)
+        // "0123456789012345678901234567890123456789" vs "012345678901234567890123456789012345678X"
+        // = 1 char diff, length 40
+        // Levenshtein similarity = 1 - (1/40) = 0.975 > 0.95
+        let values_above_pass = vec![
+            "0123456789012345678901234567890123456789".to_string(),
+            "012345678901234567890123456789012345678X".to_string(),
+        ];
+        let result = checker.validate_string_list("test", &values_above_pass);
+        assert!(
+            matches!(result, ValidationResult::Pass),
+            "Expected Pass for similarity 0.975, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_threshold_severity_escalation() {
+        let checker = ConsistencyChecker::default();
+
+        // Very low similarity → High severity
+        let values_very_different = vec![
+            "The Beatles".to_string(),
+            "Led Zeppelin".to_string(),
+        ];
+        let result = checker.validate_string_list("artist", &values_very_different);
+        assert!(
+            matches!(result, ValidationResult::Conflict { severity: ConflictSeverity::High, .. }),
+            "Expected High severity conflict for very different strings"
+        );
+
+        // Moderate similarity (in warning range) → Low severity (via Warning)
+        let values_moderate = vec![
+            "Let It Be (Remastered 2009)".to_string(),
+            "Let It Be (Remastered 2015)".to_string(),
+        ];
+        let result = checker.validate_string_list("title", &values_moderate);
+        // This should be either Warning or Conflict depending on actual similarity
+        // Actual similarity ≈ 0.89, which is in WARNING range (0.80-0.95)
+        assert!(
+            matches!(result, ValidationResult::Warning { .. }),
+            "Expected Warning for moderate similarity, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_multiple_candidates_first_conflict_wins() {
+        let checker = ConsistencyChecker::default();
+
+        // Three values: first two conflict, third is similar to first
+        let values = vec![
+            "The Beatles".to_string(),
+            "Led Zeppelin".to_string(), // Very different → conflict
+            "The Beatles.".to_string(),  // Similar to first → warning
+        ];
+        let result = checker.validate_string_list("artist", &values);
+
+        // Should return FIRST conflict found (Beatles vs Led Zeppelin)
+        match result {
+            ValidationResult::Conflict { message, severity } => {
+                assert_eq!(severity, ConflictSeverity::High);
+                assert!(message.contains("The Beatles"));
+                assert!(message.contains("Led Zeppelin"));
+            }
+            other => panic!("Expected Conflict, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_custom_thresholds() {
+        // Test with more lenient thresholds
+        let lenient_checker = ConsistencyChecker {
+            pass_threshold: 0.85,    // More lenient than default 0.95
+            warning_threshold: 0.70, // More lenient than default 0.80
+        };
+
+        // Similarity ≈ 0.89 would be WARNING with default, but PASS with lenient
+        let values = vec![
+            "Let It Be (Remastered 2009)".to_string(),
+            "Let It Be (Remastered 2015)".to_string(),
+        ];
+        let result = lenient_checker.validate_string_list("title", &values);
+        assert!(
+            matches!(result, ValidationResult::Pass),
+            "Expected Pass with lenient thresholds, got {:?}",
+            result
+        );
+
+        // Test with stricter thresholds
+        let strict_checker = ConsistencyChecker {
+            pass_threshold: 0.99,    // Very strict
+            warning_threshold: 0.90, // Very strict
+        };
+
+        // Even minor differences trigger warning with strict checker
+        let values = vec![
+            "The Beatles".to_string(),
+            "The Beatles.".to_string(), // Extra period: similarity ≈ 0.91
+        ];
+        let result = strict_checker.validate_string_list("artist", &values);
+        assert!(
+            matches!(result, ValidationResult::Warning { .. }),
+            "Expected Warning with strict thresholds, got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_unicode_and_special_characters() {
+        let checker = ConsistencyChecker::default();
+
+        // Test with accented characters
+        let values_accented = vec![
+            "Beyoncé".to_string(),
+            "Beyonce".to_string(), // Missing accent
+        ];
+        let result = checker.validate_string_list("artist", &values_accented);
+        // Levenshtein treats 'é' and 'e' as different characters (1 difference, length 7)
+        // Similarity ≈ 0.857 → WARNING range
+        assert!(
+            matches!(result, ValidationResult::Warning { .. }),
+            "Expected Warning for accent difference, got {:?}",
+            result
+        );
+
+        // Test with emoji (rare but possible in metadata)
+        let values_emoji = vec![
+            "Happy 😊".to_string(),
+            "Happy".to_string(),
+        ];
+        let result = checker.validate_string_list("title", &values_emoji);
+        // Emoji counts as extra characters → similarity drops
+        assert!(
+            !matches!(result, ValidationResult::Pass),
+            "Expected non-Pass for emoji difference"
+        );
     }
 }

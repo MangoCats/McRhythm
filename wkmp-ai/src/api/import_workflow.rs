@@ -342,6 +342,7 @@ async fn execute_import_workflow(
 }
 
 /// Format bytes for human-readable display
+#[allow(dead_code)]
 fn format_bytes(bytes: u64) -> String {
     if bytes < 1024 {
         format!("{} B", bytes)

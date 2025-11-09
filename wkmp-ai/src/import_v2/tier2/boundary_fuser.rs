@@ -134,7 +134,7 @@ impl BoundaryFuser {
         }
 
         let mut clusters: Vec<Vec<PassageBoundary>> = Vec::new();
-        let mut current_cluster: Vec<PassageBoundary> = vec![boundaries[0].clone()];
+        let mut current_cluster: Vec<PassageBoundary> = vec![boundaries[0]];
 
         for boundary in boundaries.iter().skip(1) {
             let last_in_cluster = &current_cluster.last().unwrap();
@@ -144,11 +144,11 @@ impl BoundaryFuser {
 
             if start_diff <= self.clustering_tolerance_ticks {
                 // Add to current cluster
-                current_cluster.push(boundary.clone());
+                current_cluster.push(*boundary);
             } else {
                 // Start new cluster
                 clusters.push(current_cluster);
-                current_cluster = vec![boundary.clone()];
+                current_cluster = vec![*boundary];
             }
         }
 

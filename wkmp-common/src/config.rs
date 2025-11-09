@@ -72,6 +72,11 @@ pub struct TomlConfig {
     /// AcoustID API key for audio fingerprinting (optional)
     /// Used by: wkmp-ai (Audio Ingest) only
     pub acoustid_api_key: Option<String>,
+
+    /// MusicBrainz authentication token (optional)
+    /// Used by: wkmp-ai (Audio Ingest) only
+    /// Enables higher rate limits for authenticated requests
+    pub musicbrainz_token: Option<String>,
 }
 
 /// Logging configuration section
@@ -523,4 +528,21 @@ pub fn check_toml_permissions_loose(path: &Path) -> Result<bool> {
 pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
     // Windows: Cannot reliably check NTFS ACLs, return false
     Ok(false)
+}
+
+// ============================================================================
+// User-Agent Generation
+// ============================================================================
+
+/// Get standard WKMP User-Agent string for HTTP API requests
+///
+/// **Format:** `WKMP/{version} (https://github.com/wkmp/wkmp)`
+///
+/// **Required by:**
+/// - MusicBrainz API (user-agent policy enforcement)
+/// - AcoustID API (recommended for debugging)
+///
+/// **Traceability:** [APIK-UA-010] - Standard user-agent for all HTTP clients
+pub fn get_user_agent() -> String {
+    format!("WKMP/{} (https://github.com/wkmp/wkmp)", env!("CARGO_PKG_VERSION"))
 }

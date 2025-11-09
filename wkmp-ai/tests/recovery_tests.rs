@@ -115,6 +115,7 @@ async fn test_database_deletion_no_toml_fails() {
         logging: wkmp_common::config::LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: None,
+        musicbrainz_token: None,
     };
 
     // Attempt to resolve key should fail with helpful error

@@ -27,6 +27,7 @@ fn test_atomic_write_creates_temp_file() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("key123".to_string()),
+        musicbrainz_token: None,
     };
 
     // Verify temp file created during write (implementation detail test)
@@ -49,6 +50,7 @@ fn test_atomic_write_renames_to_target() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("key123".to_string()),
+        musicbrainz_token: None,
     };
 
     write_toml_config(&config, &target).unwrap();
@@ -74,6 +76,7 @@ fn test_atomic_write_preserves_existing_fields() {
         logging: LoggingConfig::default(),
         static_assets: Some(PathBuf::from("/static")),
         acoustid_api_key: Some("key123".to_string()),
+        musicbrainz_token: None,
     };
 
     write_toml_config(&config1, &target).unwrap();
@@ -101,6 +104,7 @@ fn test_atomic_write_sets_permissions_0600() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("key123".to_string()),
+        musicbrainz_token: None,
     };
 
     write_toml_config(&config, &target).unwrap();
@@ -123,6 +127,7 @@ fn test_atomic_write_graceful_on_windows() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("key123".to_string()),
+        musicbrainz_token: None,
     };
 
     // Should succeed on Windows (no permission setting)
@@ -141,6 +146,7 @@ fn test_roundtrip_serialization_preserves_data() {
         logging: LoggingConfig::default(),
         static_assets: Some(PathBuf::from("/static")),
         acoustid_api_key: Some("key123".to_string()),
+        musicbrainz_token: None,
     };
 
     write_toml_config(&config, &target).unwrap();
@@ -152,6 +158,7 @@ fn test_roundtrip_serialization_preserves_data() {
     assert_eq!(parsed.root_folder, config.root_folder);
     assert_eq!(parsed.static_assets, config.static_assets);
     assert_eq!(parsed.acoustid_api_key, config.acoustid_api_key);
+    assert_eq!(parsed.musicbrainz_token, config.musicbrainz_token);
 }
 
 #[test]

@@ -344,6 +344,7 @@ fn test_toml_roundtrip_with_acoustid_key() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("test-key-123".to_string()),
+        musicbrainz_token: None,
     };
 
     let toml_str = toml::to_string(&config).unwrap();

@@ -25,6 +25,7 @@ async fn test_concurrent_toml_reads_safe() {
         logging: wkmp_common::config::LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("concurrent-test-key".to_string()),
+        musicbrainz_token: None,
     };
 
     wkmp_common::config::write_toml_config(&config, &toml_path)

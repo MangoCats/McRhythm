@@ -42,18 +42,12 @@ impl Default for FieldWeights {
 /// - Explicit synchronization: Clear contract with Tier 2 fusers
 /// - Transparent behavior: Weighting formula is explicit
 /// - Integrity: Score always in [0.0, 1.0] range
+#[derive(Default)]
 pub struct CompletenessScorer {
     /// Field importance weights
     weights: FieldWeights,
 }
 
-impl Default for CompletenessScorer {
-    fn default() -> Self {
-        Self {
-            weights: FieldWeights::default(),
-        }
-    }
-}
 
 impl CompletenessScorer {
     /// Calculate completeness score for metadata

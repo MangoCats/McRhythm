@@ -26,6 +26,7 @@ pub struct FlavorSynthesizer {
     /// Minimum confidence threshold for considering a source
     min_confidence: f64,
     /// Normalization tolerance (for validation)
+    #[allow(dead_code)]
     normalization_tolerance: f64,
 }
 

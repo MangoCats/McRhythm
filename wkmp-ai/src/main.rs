@@ -67,6 +67,7 @@ async fn main() -> Result<()> {
             logging: wkmp_common::config::LoggingConfig::default(),
             static_assets: None,
             acoustid_api_key: None,
+            musicbrainz_token: None,
         }
     };
 
@@ -138,8 +139,12 @@ async fn main() -> Result<()> {
     let event_bus = EventBus::new(100); // 100 event capacity
     info!("Event bus initialized");
 
+    // Create import event channel for import_v2 workflow **[PLAN024]**
+    let (import_event_tx, _import_event_rx) = tokio::sync::broadcast::channel(100);
+    info!("Import event channel initialized");
+
     // Create application state
-    let state = AppState::new(db_pool, event_bus);
+    let state = AppState::new(db_pool, event_bus, import_event_tx);
 
     // Build router
     let app = wkmp_ai::build_router(state);

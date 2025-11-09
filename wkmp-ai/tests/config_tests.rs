@@ -41,6 +41,7 @@ async fn test_database_overrides_env_and_toml() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("toml-key".to_string()),
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await.unwrap();
@@ -71,6 +72,7 @@ async fn test_env_fallback_when_database_empty() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("toml-key".to_string()),
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await.unwrap();
@@ -102,6 +104,7 @@ async fn test_toml_fallback_when_db_and_env_empty() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("toml-key".to_string()),
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await.unwrap();
@@ -128,6 +131,7 @@ async fn test_error_when_no_key_found() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: None,
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await;
@@ -163,6 +167,7 @@ async fn test_database_ignores_env() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: None,
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await.unwrap();
@@ -195,6 +200,7 @@ async fn test_database_ignores_toml() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("toml-key".to_string()),
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await.unwrap();
@@ -222,6 +228,7 @@ async fn test_env_ignores_toml() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("toml-key".to_string()),
+        musicbrainz_token: None,
     };
 
     let result = resolve_acoustid_api_key(&pool, &toml_config).await.unwrap();
@@ -256,6 +263,7 @@ async fn test_multiple_sources_warning() {
         logging: LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: Some("toml-key".to_string()),
+        musicbrainz_token: None,
     };
 
     // Should still return database key (highest priority)
@@ -328,6 +336,7 @@ async fn test_sync_settings_preserves_existing_fields() {
         logging: wkmp_common::config::LoggingConfig::default(),
         static_assets: None,
         acoustid_api_key: None,
+        musicbrainz_token: None,
     };
     wkmp_common::config::write_toml_config(&initial_config, &toml_path).unwrap();
 

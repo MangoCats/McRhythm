@@ -31,6 +31,8 @@ pub struct AppState {
     pub db: SqlitePool,
     /// Event bus for SSE broadcasting **[AIA-MS-010]**
     pub event_bus: EventBus,
+    /// Import event channel for import_v2 workflow **[PLAN024]**
+    pub import_event_tx: tokio::sync::broadcast::Sender<import_v2::types::ImportEvent>,
     /// Cancellation tokens for active import sessions **[AIA-ASYNC-010]**
     pub cancellation_tokens: Arc<RwLock<HashMap<Uuid, CancellationToken>>>,
     /// Service startup timestamp for uptime tracking **[HIGH-005]**
@@ -40,10 +42,15 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(db: SqlitePool, event_bus: EventBus) -> Self {
+    pub fn new(
+        db: SqlitePool,
+        event_bus: EventBus,
+        import_event_tx: tokio::sync::broadcast::Sender<import_v2::types::ImportEvent>,
+    ) -> Self {
         Self {
             db,
             event_bus,
+            import_event_tx,
             cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
             startup_time: Utc::now(),
             last_error: Arc::new(RwLock::new(None)),

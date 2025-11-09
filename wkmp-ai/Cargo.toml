@@ -61,6 +61,7 @@ hyper = { version = "1.0", features = ["full"] }
 http-body-util = "0.1"
 tempfile = "3.8"
 serial_test = "3.0"
+hound = "3.5"  # WAV file creation for integration tests
 
 # Windows-specific: Enable static linking for chromaprint to avoid DLL dependencies
 [target.'cfg(windows)'.dependencies]

@@ -117,6 +117,7 @@ pub async fn sync_settings_to_toml(
             logging: Default::default(),
             static_assets: None,
             acoustid_api_key: None,
+            musicbrainz_token: None,
         }
     };
 

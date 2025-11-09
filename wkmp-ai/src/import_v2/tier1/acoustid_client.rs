@@ -12,8 +12,10 @@ use crate::import_v2::types::{
 };
 use reqwest::Client;
 use serde::Deserialize;
+use sqlx::{Pool, Sqlite};
 use std::time::Duration;
 use uuid::Uuid;
+use wkmp_common::config::TomlConfig;
 
 /// AcoustID API response structure
 #[derive(Debug, Deserialize)]
@@ -23,6 +25,7 @@ struct AcoustIDResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct AcoustIDResult {
     id: String, // AcoustID identifier
     score: f64, // Match score (0.0 to 1.0)
@@ -75,6 +78,27 @@ impl AcoustIDClient {
             base_url: "https://api.acoustid.org/v2/lookup".to_string(),
             confidence: ExtractionSource::AcoustID.default_confidence(),
         }
+    }
+
+    /// Create AcoustID client from configuration sources
+    ///
+    /// **Resolution Priority:** Database → ENV → TOML
+    ///
+    /// # Arguments
+    /// * `db` - Database connection pool
+    /// * `toml_config` - TOML configuration
+    ///
+    /// # Errors
+    /// Returns error if API key cannot be resolved from any source
+    ///
+    /// # Traceability
+    /// [APIK-RES-010] - Multi-tier configuration resolution
+    pub async fn from_config(
+        db: &Pool<Sqlite>,
+        toml_config: &TomlConfig,
+    ) -> wkmp_common::Result<Self> {
+        let api_key = crate::config::resolve_acoustid_api_key(db, toml_config).await?;
+        Ok(Self::new(api_key))
     }
 
     /// Query AcoustID API for MusicBrainz Recording IDs
@@ -205,6 +229,10 @@ mod tests {
         assert!(client.base_url.contains("acoustid.org"));
         assert!(client.base_url.contains("/v2/lookup"));
     }
+
+    // Note: Tests for from_config() are in tests/unit/db_settings_tests.rs
+    // where full database migrations can be run properly. Unit tests here
+    // focus on the new() constructor which doesn't require database setup.
 
     // Note: Integration tests with real API calls would require:
     // 1. Valid API key

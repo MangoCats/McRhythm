@@ -18,7 +18,7 @@
 use crate::import_v2::types::ImportEvent;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
-use tracing::{debug, warn};
+use tracing::debug;
 
 /// SSE event broadcaster with throttling
 ///

@@ -95,7 +95,7 @@ impl ImportRepository {
         // Flavor (REQ-AI-081)
         .bind(&musical_flavor_json)
         .bind(&flavor_source_blend_json)
-        .bind(&self.serialize_flavor_confidence(processed))
+        .bind(self.serialize_flavor_confidence(processed))
         // Validation (REQ-AI-084, REQ-AI-085)
         .bind(processed.validation.quality_score)
         .bind(self.calculate_metadata_completeness(processed))

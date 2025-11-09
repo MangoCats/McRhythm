@@ -12,11 +12,14 @@ use crate::import_v2::types::{
 };
 use reqwest::Client;
 use serde::Deserialize;
+use sqlx::{Pool, Sqlite};
 use std::time::Duration;
 use uuid::Uuid;
+use wkmp_common::config::TomlConfig;
 
 /// MusicBrainz API response for recording lookup
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MBRecording {
     id: String,
     title: String,
@@ -29,12 +32,14 @@ struct MBRecording {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MBArtistCredit {
     name: String,
     artist: MBArtist,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MBArtist {
     id: String,
     name: String,
@@ -43,6 +48,7 @@ struct MBArtist {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MBRelease {
     id: String,
     title: String,
@@ -91,6 +97,27 @@ impl MusicBrainzClient {
             user_agent,
             confidence: ExtractionSource::MusicBrainz.default_confidence(),
         }
+    }
+
+    /// Create MusicBrainz client from configuration sources
+    ///
+    /// Uses standard WKMP user-agent string from wkmp_common::config::get_user_agent()
+    ///
+    /// # Arguments
+    /// * `_db` - Database connection pool (unused, for API consistency)
+    /// * `_toml_config` - TOML configuration (unused, for API consistency)
+    ///
+    /// # Returns
+    /// MusicBrainz client configured with standard user-agent
+    ///
+    /// # Traceability
+    /// [APIK-UA-010] - Standard user-agent for HTTP clients
+    pub async fn from_config(
+        _db: &Pool<Sqlite>,
+        _toml_config: &TomlConfig,
+    ) -> wkmp_common::Result<Self> {
+        let user_agent = wkmp_common::config::get_user_agent();
+        Ok(Self::new(user_agent))
     }
 
     /// Lookup recording metadata by MusicBrainz Recording ID
@@ -266,6 +293,34 @@ mod tests {
         assert!(expected_url.contains("550e8400-e29b-41d4-a716-446655440000"));
         assert!(expected_url.contains("inc=artist-credits+releases"));
         assert!(expected_url.contains("fmt=json"));
+    }
+
+    #[tokio::test]
+    async fn test_from_config() {
+        // Test that from_config correctly uses wkmp_common::config::get_user_agent()
+        // Note: Full database migrations not needed for this test since MusicBrainz
+        // client doesn't require database configuration resolution.
+
+        let db = sqlx::SqlitePool::connect(":memory:").await.unwrap();
+
+        // Create empty TOML config (user-agent comes from wkmp_common)
+        let toml_config = wkmp_common::config::TomlConfig {
+            root_folder: None,
+            logging: Default::default(),
+            static_assets: None,
+            acoustid_api_key: None,
+            musicbrainz_token: None,
+        };
+
+        // Test from_config
+        let client = MusicBrainzClient::from_config(&db, &toml_config)
+            .await
+            .expect("Should create client from config");
+
+        // Verify user-agent follows standard format: WKMP/{version}
+        assert!(client.user_agent.starts_with("WKMP/"));
+        assert!(client.user_agent.contains("github.com/wkmp/wkmp"));
+        assert_eq!(client.confidence, 0.9);
     }
 
     // Note: Integration tests with real API calls would require:

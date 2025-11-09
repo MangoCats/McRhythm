@@ -11,7 +11,7 @@
 // 5. Detect conflicts (multiple high-confidence candidates)
 
 use crate::import_v2::types::{
-    ExtractorResult, ImportError, ImportResult, MBIDCandidate, ResolvedIdentity,
+    ExtractorResult, ImportResult, MBIDCandidate, ResolvedIdentity,
 };
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -47,12 +47,12 @@ impl IdentityResolver {
     ///
     /// # Algorithm: Bayesian Update
     /// For each MBID appearing in multiple sources:
-    /// ```
+    /// ```text
     /// P(MBID | evidence) = P(evidence | MBID) × P(MBID) / P(evidence)
     /// ```
     ///
     /// Simplified for multiple independent sources:
-    /// ```
+    /// ```text
     /// posterior ∝ prior × ∏(likelihood_i)
     /// likelihood_i = confidence_i from source i
     /// ```

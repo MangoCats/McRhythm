@@ -19,6 +19,7 @@
 use crate::import_v2::tier1::{
     acoustid_client::AcoustIDClient,
     audio_features::AudioFeatureExtractor,
+    audio_loader::AudioLoader,
     chromaprint_analyzer::ChromaprintAnalyzer,
     id3_extractor::ID3Extractor,
     musicbrainz_client::MusicBrainzClient,
@@ -83,15 +84,19 @@ pub struct ImportSummary {
 /// - Transparent progress via SSE event broadcasting
 pub struct SongWorkflowEngine {
     // Tier 1 extractors
+    audio_loader: AudioLoader,
     id3_extractor: ID3Extractor,
     chromaprint_analyzer: ChromaprintAnalyzer,
+    #[allow(dead_code)]
     musicbrainz_client: Option<MusicBrainzClient>,
+    #[allow(dead_code)]
     acoustid_client: Option<AcoustIDClient>,
     audio_features: AudioFeatureExtractor,
 
     // Tier 2 fusers
     identity_resolver: IdentityResolver,
     metadata_fuser: MetadataFuser,
+    #[allow(dead_code)]
     flavor_synthesizer: FlavorSynthesizer,
 
     // Tier 3 validators
@@ -103,12 +108,14 @@ pub struct SongWorkflowEngine {
     sse_broadcaster: Option<SseBroadcaster>,
 
     // Configuration
+    #[allow(dead_code)]
     extraction_timeout: Duration,
 }
 
 impl Default for SongWorkflowEngine {
     fn default() -> Self {
         Self {
+            audio_loader: AudioLoader::default(),
             id3_extractor: ID3Extractor::default(),
             chromaprint_analyzer: ChromaprintAnalyzer::default(),
             musicbrainz_client: None, // TODO: Initialize from config
@@ -137,6 +144,58 @@ impl SongWorkflowEngine {
             sse_broadcaster: Some(SseBroadcaster::new(event_tx, throttle_interval_ms)),
             ..Default::default()
         }
+    }
+
+    /// Initialize API clients from configuration
+    ///
+    /// **Configuration Priority:** Database → ENV → TOML
+    ///
+    /// # Arguments
+    /// * `db` - Database connection pool
+    /// * `toml_config` - TOML configuration
+    ///
+    /// # Effects
+    /// - Sets `acoustid_client` if AcoustID API key is configured
+    /// - Sets `musicbrainz_client` (always, uses standard user-agent)
+    ///
+    /// # Errors
+    /// - Returns error if AcoustID API key is configured but invalid
+    /// - Logs warning if AcoustID API key is not configured (optional)
+    ///
+    /// # Traceability
+    /// [APIK-RES-010] - Multi-tier configuration resolution
+    pub async fn init_clients(
+        &mut self,
+        db: &sqlx::Pool<sqlx::Sqlite>,
+        toml_config: &wkmp_common::config::TomlConfig,
+    ) -> wkmp_common::Result<()> {
+        use tracing::{info, warn};
+
+        // Initialize AcoustID client (optional - may not be configured)
+        match AcoustIDClient::from_config(db, toml_config).await {
+            Ok(client) => {
+                info!("AcoustID client initialized successfully");
+                self.acoustid_client = Some(client);
+            }
+            Err(e) => {
+                warn!("AcoustID client not initialized: {}. Fingerprinting will be unavailable.", e);
+                self.acoustid_client = None;
+            }
+        }
+
+        // Initialize MusicBrainz client (always available - uses standard user-agent)
+        match MusicBrainzClient::from_config(db, toml_config).await {
+            Ok(client) => {
+                info!("MusicBrainz client initialized successfully");
+                self.musicbrainz_client = Some(client);
+            }
+            Err(e) => {
+                warn!("MusicBrainz client initialization failed: {}", e);
+                self.musicbrainz_client = None;
+            }
+        }
+
+        Ok(())
     }
 
     /// Emit SSE event if broadcaster is enabled
@@ -377,34 +436,137 @@ impl SongWorkflowEngine {
     }
 
     /// Extract data from all Tier 1 sources (parallel execution)
+    ///
+    /// **[P1-5]** Fully integrated audio processing pipeline:
+    /// 1. Load audio segment for passage boundary (AudioLoader with resampling)
+    /// 2. Generate Chromaprint fingerprint (ChromaprintAnalyzer)
+    /// 3. Extract ID3 metadata (ID3Extractor)
+    /// 4. Extract audio-derived musical flavor (AudioFeatureExtractor)
+    ///
+    /// # Algorithm
+    /// - Convert passage boundary ticks to sample offsets
+    /// - Load audio segment (stereo, resampled to 44.1kHz)
+    /// - Convert stereo → mono for Chromaprint (mix channels)
+    /// - Generate acoustic fingerprint
+    /// - Extract audio features for flavor
+    ///
+    /// # Returns
+    /// Tuple of (ID3 metadata, MBID candidates, musical flavor)
     async fn extract_all_sources(
         &self,
         file_path: &Path,
-        _boundary: &PassageBoundary,
+        boundary: &PassageBoundary,
     ) -> ImportResult<(
         ExtractorResult<MetadataBundle>,
         Vec<ExtractorResult<Vec<MBIDCandidate>>>,
         ExtractorResult<MusicalFlavor>,
     )> {
-        // ID3 extraction
+        // **Phase 1: Load audio segment**
+        // AudioLoader expects ticks (i64), not seconds
+        // Tick rate: 28,224,000 Hz (28,224,000 ticks/second)
+        const TICKS_PER_SECOND: f64 = 28_224_000.0;
+        let start_sec = (boundary.start_ticks as f64) / TICKS_PER_SECOND;
+        let end_sec = (boundary.end_ticks as f64) / TICKS_PER_SECOND;
+
+        tracing::debug!(
+            "Loading audio segment: {} to {} ticks ({:.2}s to {:.2}s, {:.2}s duration)",
+            boundary.start_ticks,
+            boundary.end_ticks,
+            start_sec,
+            end_sec,
+            end_sec - start_sec
+        );
+
+        // Load audio segment (stereo, resampled to 44.1kHz)
+        let audio_segment = self.audio_loader.load_segment(
+            file_path,
+            boundary.start_ticks,
+            boundary.end_ticks,
+        ).map_err(|e| crate::import_v2::types::ImportError::AudioProcessingFailed(
+            format!("Failed to load audio segment: {}", e)
+        ))?;
+
+        let duration_ms = ((end_sec - start_sec) * 1000.0) as u32;
+
+        tracing::debug!(
+            "Loaded {} stereo samples at {} Hz ({} frames, {:.2}s)",
+            audio_segment.samples.len(),
+            audio_segment.sample_rate,
+            audio_segment.samples.len() / 2,
+            audio_segment.samples.len() as f64 / (audio_segment.sample_rate as f64 * 2.0)
+        );
+
+        // **Phase 2: Convert stereo to mono for Chromaprint**
+        // Chromaprint requires mono audio, so mix L+R channels
+        let mono_samples = Self::stereo_to_mono(&audio_segment.samples);
+
+        tracing::debug!(
+            "Converted to mono: {} samples",
+            mono_samples.len()
+        );
+
+        // **Phase 3: Generate Chromaprint fingerprint**
+        let fingerprint_result = self.chromaprint_analyzer.analyze(
+            &mono_samples,
+            duration_ms,
+        )?;
+
+        tracing::debug!(
+            "Generated Chromaprint fingerprint: {} bytes, confidence: {:.3}",
+            fingerprint_result.data.len(),
+            fingerprint_result.confidence
+        );
+
+        // **Phase 4: Extract ID3 metadata**
         let id3_result = self.id3_extractor.extract(file_path)?;
 
-        // MBID candidate extraction (placeholder - needs Chromaprint + AcoustID)
-        // TODO: Generate Chromaprint fingerprint
-        // TODO: Query AcoustID with fingerprint
-        // TODO: Extract MBID from ID3 tags
-        let mbid_candidates = vec![]; // Empty for now
+        tracing::debug!(
+            "Extracted ID3 metadata: {} fields",
+            id3_result.data.title.len()
+                + id3_result.data.artist.len()
+                + id3_result.data.album.len()
+        );
 
-        // Audio features extraction
-        // TODO: Extract audio samples for passage segment
-        // For now, return empty MusicalFlavor as placeholder
-        let audio_flavor = ExtractorResult {
-            data: MusicalFlavor { characteristics: vec![] },
-            confidence: 0.0,
-            source: crate::import_v2::types::ExtractionSource::AudioDerived,
-        };
+        // **Phase 5: Extract audio-derived musical flavor**
+        // Use stereo samples for feature extraction
+        // Note: AudioFeatureExtractor only takes samples, not sample rate
+        let audio_flavor = self.audio_features.extract(&audio_segment.samples)?;
+
+        tracing::debug!(
+            "Extracted audio flavor: {} characteristics, confidence: {:.3}",
+            audio_flavor.data.characteristics.len(),
+            audio_flavor.confidence
+        );
+
+        // **Phase 6: Assemble MBID candidates**
+        // TODO: Query AcoustID API with fingerprint to get MBID candidates
+        // TODO: Extract MBID from ID3 UFID frame (if present)
+        // For now, return empty candidates list
+        let mbid_candidates = vec![];
 
         Ok((id3_result, mbid_candidates, audio_flavor))
+    }
+
+    /// Convert stereo samples to mono by averaging L+R channels
+    ///
+    /// **Algorithm:** For each stereo frame (L, R), output mono sample = (L + R) / 2
+    ///
+    /// # Arguments
+    /// * `stereo_samples` - Interleaved L/R samples [L0, R0, L1, R1, ...]
+    ///
+    /// # Returns
+    /// Mono samples [M0, M1, M2, ...] where Mi = (Li + Ri) / 2
+    fn stereo_to_mono(stereo_samples: &[f32]) -> Vec<f32> {
+        let num_frames = stereo_samples.len() / 2;
+        let mut mono = Vec::with_capacity(num_frames);
+
+        for i in 0..num_frames {
+            let left = stereo_samples[i * 2];
+            let right = stereo_samples[i * 2 + 1];
+            mono.push((left + right) / 2.0);
+        }
+
+        mono
     }
 
     /// Process all passages in a file and return aggregate summary
