@@ -478,12 +478,14 @@ impl TestApp {
 - [ ] Flow tokens propagate through sync chains
 
 ### Developer Interface Routes
+- [ ] Database parameter `enable_dev_interface` added to settings table
 - [ ] `/dev/` dashboard implemented
 - [ ] `/dev/concepts/<name>` inspector available
 - [ ] `/dev/syncs/<name>` monitor available
 - [ ] `/dev/traces/<token>` viewer available
 - [ ] `/dev/events/stream` SSE endpoint available
-- [ ] All routes gated by `#[cfg(debug_assertions)]`
+- [ ] Routes conditionally constructed based on database parameter (not build-time gating)
+- [ ] Default value: `true` for dev builds, `false` for production builds
 
 ### Testing
 - [ ] Unit tests for all concept actions

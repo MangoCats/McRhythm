@@ -8,7 +8,7 @@
 
 **Purpose:** HTTP-based runtime introspection exposing module structure and activity
 
-**Access:** `http://localhost:<port>/dev/` (development builds only)
+**Access:** `http://localhost:<port>/dev/` (when enabled via database parameter)
 
 **Features:**
 - Dashboard showing module status and recent activity
@@ -17,10 +17,16 @@
 - Trace viewer visualizing provenance graphs
 - Event stream providing real-time monitoring
 
+**Activation Control:**
+- **Database Parameter:** `enable_dev_interface` (boolean, in `settings` table)
+- **Default Value:** `true` for development builds, `false` for production builds
+- **Runtime Control:** Toggle parameter in database and restart microservice
+- **Implementation:** When disabled, interface not constructed, not called, not available
+
 **Implementation Strategy:**
-- All dev interface routes gated by `#[cfg(debug_assertions)]`
 - Same port as main API (no additional configuration)
 - Read-only access (no state mutation via dev interface)
+- Zero overhead when disabled (conditional construction, not just gating)
 
 ---
 
@@ -593,9 +599,48 @@ data: {"sync_name": "EnforceAuthenticationOnPlayback", "triggered_by": "handle_p
 
 ## 6.7 Implementation in Axum
 
-**Router Setup:**
+**Database Parameter Schema:**
+```sql
+-- Add to settings table (via migration)
+INSERT INTO settings (key, value_type, value_text, description, default_value)
+VALUES (
+    'enable_dev_interface',
+    'boolean',
+    'true',  -- default for dev builds
+    'Enable developer interface at /dev/ (requires restart)',
+    CASE
+        WHEN build_type = 'debug' THEN 'true'
+        WHEN build_type = 'release' THEN 'false'
+    END
+);
+```
+
+**Conditional Construction Pattern:**
 ```rust
-#[cfg(debug_assertions)]
+use wkmp_common::config::GlobalParameters;
+
+pub async fn create_app(pool: &SqlitePool) -> Result<Router> {
+    // Load parameter from database
+    let params = GlobalParameters::load(pool).await?;
+    let dev_interface_enabled = params.get_bool("enable_dev_interface")?;
+
+    let mut app = Router::new()
+        .route("/api/play", post(handle_play))
+        .route("/api/pause", post(handle_pause));
+        // ... other API routes
+
+    // Conditionally construct dev interface (not just gate)
+    if dev_interface_enabled {
+        tracing::info!("Developer interface ENABLED at /dev/");
+        app = app.merge(dev_routes());
+    } else {
+        tracing::info!("Developer interface DISABLED");
+        // Routes not constructed - zero overhead
+    }
+
+    Ok(app)
+}
+
 fn dev_routes() -> Router {
     Router::new()
         .route("/dev/", get(dashboard))
@@ -608,21 +653,38 @@ fn dev_routes() -> Router {
         .route("/dev/traces/:flow_token", get(view_trace))
         .route("/dev/events/stream", get(event_stream))
 }
+```
 
-#[cfg(not(debug_assertions))]
-fn dev_routes() -> Router {
-    // No-op in release builds
-    Router::new()
-}
+**Build-Type Specific Defaults:**
+```rust
+// In migration or initialization code
+pub fn default_dev_interface_setting() -> bool {
+    #[cfg(debug_assertions)]
+    { true }  // Dev builds: ON by default
 
-pub fn create_app() -> Router {
-    Router::new()
-        .route("/api/play", post(handle_play))
-        .route("/api/pause", post(handle_pause))
-        // ... other API routes
-        .merge(dev_routes())  // Conditionally includes dev interface
+    #[cfg(not(debug_assertions))]
+    { false }  // Production builds: OFF by default
 }
 ```
+
+**Runtime Control:**
+```bash
+# Enable dev interface in production (troubleshooting)
+sqlite3 ~/Music/wkmp.db "UPDATE settings SET value_text = 'true' WHERE key = 'enable_dev_interface';"
+
+# Restart microservice
+systemctl restart wkmp-ap
+
+# Disable after troubleshooting
+sqlite3 ~/Music/wkmp.db "UPDATE settings SET value_text = 'false' WHERE key = 'enable_dev_interface';"
+systemctl restart wkmp-ap
+```
+
+**Security Considerations:**
+- Parameter checked at startup only (requires restart to apply)
+- No runtime toggle endpoint (prevents unauthorized activation)
+- Read-only access (no state mutation via dev interface)
+- Consider firewall rules for production deployments (restrict `:port/dev/` access)
 
 ---
 

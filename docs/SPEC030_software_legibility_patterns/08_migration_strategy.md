@@ -32,6 +32,7 @@
 - Action tracer with in-memory storage
 - Basic synchronization engine (pattern matching, execution)
 - Developer interface framework (Axum routes)
+- Database parameter for dev interface control
 
 **Implementation:**
 ```rust
@@ -43,6 +44,25 @@ pub mod dev_interface;
 
 // Available to all modules:
 use wkmp_common::legibility::*;
+```
+
+**Database Migration (add to wkmp-common migrations):**
+```sql
+-- Add developer interface control parameter
+INSERT INTO settings (key, value_type, value_text, description, default_value)
+VALUES (
+    'enable_dev_interface',
+    'boolean',
+    CASE
+        WHEN (SELECT value_text FROM build_info WHERE key = 'profile') = 'debug' THEN 'true'
+        ELSE 'false'
+    END,
+    'Enable developer interface at /dev/ (requires microservice restart)',
+    CASE
+        WHEN (SELECT value_text FROM build_info WHERE key = 'profile') = 'debug' THEN 'true'
+        ELSE 'false'
+    END
+);
 ```
 
 **No existing code changed** - infrastructure only
@@ -251,11 +271,35 @@ impl AudioPlayer {
 - HTTP endpoints for dev interface
 - Dashboard, concept inspector, sync monitor, trace viewer
 - Live event stream (SSE)
+- Database parameter-controlled activation
 - Documentation and user guide
 
 **Implementation:**
 ```rust
-#[cfg(debug_assertions)]
+use wkmp_common::config::GlobalParameters;
+
+pub async fn create_app(pool: &SqlitePool) -> Result<Router> {
+    // Load dev interface parameter
+    let params = GlobalParameters::load(pool).await?;
+    let dev_interface_enabled = params.get_bool("enable_dev_interface")?;
+
+    let mut app = Router::new()
+        .route("/api/play", post(handle_play))
+        .route("/api/pause", post(handle_pause));
+        // ... other API routes
+
+    // Conditionally construct dev interface (not just gate)
+    if dev_interface_enabled {
+        tracing::info!("Developer interface ENABLED at /dev/");
+        app = app.merge(dev_routes(state));
+    } else {
+        tracing::info!("Developer interface DISABLED");
+        // Routes not constructed - zero overhead
+    }
+
+    Ok(app)
+}
+
 fn dev_routes(state: AppState) -> Router {
     Router::new()
         .route("/dev/", get(dashboard))
@@ -265,6 +309,16 @@ fn dev_routes(state: AppState) -> Router {
         .route("/dev/events/stream", get(event_stream))
         .with_state(state)
 }
+```
+
+**Per-Microservice Configuration:**
+Each module can independently enable/disable the dev interface:
+```bash
+# Enable for wkmp-ap only (production troubleshooting)
+sqlite3 ~/Music/wkmp.db "UPDATE settings SET value_text = 'true' WHERE key = 'enable_dev_interface';"
+systemctl restart wkmp-ap
+
+# Other modules remain disabled (wkmp-ui, wkmp-pd, etc.)
 ```
 
 ---

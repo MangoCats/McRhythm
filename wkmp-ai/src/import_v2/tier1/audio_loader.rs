@@ -16,9 +16,7 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use symphonia::core::sample::Sample;
 use tracing::{debug, warn};
-use rubato::{
-    Resampler, SincFixedIn, InterpolationType, InterpolationParameters, WindowFunction,
-};
+use rubato::{Resampler, SincFixedIn, SincInterpolationType, SincInterpolationParameters, WindowFunction};
 
 /// SPEC017 tick rate: 28,224,000 Hz (1 tick ≈ 35.4 nanoseconds)
 pub const TICK_RATE: i64 = 28_224_000;
@@ -261,10 +259,10 @@ impl AudioLoader {
         }
 
         // Configure high-quality sinc interpolation
-        let params = InterpolationParameters {
+        let params = SincInterpolationParameters {
             sinc_len: 256,           // 256-tap filter for high quality
             f_cutoff: 0.95,          // 95% of Nyquist to prevent aliasing
-            interpolation: InterpolationType::Linear,
+            interpolation: SincInterpolationType::Linear,
             oversampling_factor: 256,
             window: WindowFunction::BlackmanHarris2,
         };
@@ -658,11 +656,12 @@ mod tests {
             resampled.len()
         );
 
-        // Verify samples are in valid range [-1.0, 1.0]
+        // Verify samples are in valid range [-1.0, 1.0] with small tolerance for ringing
+        // Sinc interpolation can produce slight overshoot due to Gibbs phenomenon
         for (i, &sample) in resampled.iter().enumerate() {
             assert!(
-                sample >= -1.0 && sample <= 1.0,
-                "Sample {} out of range: {}",
+                sample >= -1.01 && sample <= 1.01,
+                "Sample {} out of range: {} (expected [-1.01, 1.01])",
                 i,
                 sample
             );

@@ -36,7 +36,8 @@ This specification defines architectural patterns for achieving **software legib
 **Visible Developer Interface:** HTTP-based runtime introspection
 - Dashboard, concept inspector, sync monitor, trace viewer, live events
 - Real-time visualization of module structure and activity
-- Development builds only (`:port/dev/`)
+- Runtime-controlled via database parameter (per-microservice activation)
+- Available at `:port/dev/` when enabled (default: ON for dev builds, OFF for production)
 
 ### Target Application
 
@@ -184,12 +185,16 @@ Legible patterns apply **within each microservice:**
 - Synchronizations orchestrate intra-module concept interactions
 - Inter-module communication remains HTTP/SSE (unchanged)
 
-### Zero-Configuration Startup
+### Database-Controlled Developer Interface
 
-Developer interface integrates with existing infrastructure:
-- Same port as main API (`:port/dev/`)
-- Development builds only (`#[cfg(debug_assertions)]`)
-- No additional configuration required
+Developer interface activation controlled by database settings:
+- **Database Parameter:** `enable_dev_interface` (boolean, per-microservice)
+- **Default:** `true` for development builds, `false` for production builds
+- **Runtime Control:** Toggle parameter in database and restart microservice
+- **URL:** Available at `:port/dev/` when enabled
+- **Implementation:** When disabled, interface not constructed, not called, not available
+
+**Rationale:** Runtime control allows production troubleshooting when needed while maintaining security by default
 
 ### Documentation Hierarchy
 
@@ -255,11 +260,13 @@ Build HTTP-based introspection UI
 
 ### Developer Interface Requirements
 
+- [ ] Database parameter `enable_dev_interface` controls activation
 - [ ] Dashboard shows module status and recent activity
 - [ ] Concept inspector exposes current state
 - [ ] Sync monitor tracks rule activations
 - [ ] Trace viewer visualizes provenance graphs
 - [ ] Event stream provides real-time monitoring
+- [ ] Interface not constructed/called when disabled (zero overhead)
 
 ---
 
