@@ -1,6 +1,6 @@
 # PLAN007: Specification Issues Analysis
 
-**Source:** [SPEC024-audio_ingest_architecture.md](../../docs/SPEC024-audio_ingest_architecture.md)
+**Source:** [SPEC032-audio_ingest_architecture.md](../../docs/SPEC032-audio_ingest_architecture.md)
 **Requirements Analyzed:** 26 (19 P0, 6 P1, 1 P3)
 **Analysis Date:** 2025-10-28
 **Methodology:** Systematic review per /plan Phase 2 checklist

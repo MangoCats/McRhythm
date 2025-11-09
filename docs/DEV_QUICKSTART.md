@@ -134,7 +134,7 @@ cargo run -p wkmp-ui
 | Musical flavor algorithm | [SPEC003: Musical Flavor](SPEC003-musical_flavor.md) |
 | Program Director selection | [SPEC005: Program Director](SPEC005-program_director.md) |
 | Event system | [SPEC011: Event System](SPEC011-event_system.md) |
-| Audio file import | [SPEC024: Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) |
+| Audio file import | [SPEC032: Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) |
 
 ### When Debugging/Troubleshooting
 

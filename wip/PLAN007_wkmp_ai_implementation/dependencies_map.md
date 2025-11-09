@@ -323,7 +323,7 @@ essentia_streaming_extractor_music audio_file.mp3 output.json
 
 | Document | Status | Purpose | Dependencies on wkmp-ai |
 |----------|--------|---------|-------------------------|
-| **SPEC024-audio_ingest_architecture.md** | ✅ Exists (Updated PLAN006) | wkmp-ai architecture (this plan's source) | Primary specification |
+| **SPEC032-audio_ingest_architecture.md** | ✅ Exists (Updated PLAN006) | wkmp-ai architecture (this plan's source) | Primary specification |
 | **SPEC025-amplitude_analysis.md** | ✅ Created in PLAN004 | Amplitude-based lead-in/lead-out detection | AIA-COMP-010 (amplitude_analyzer) |
 | **SPEC008-library_management.md** | ✅ Exists (Updated PLAN006) | File discovery workflows | AIA-INT-010 |
 

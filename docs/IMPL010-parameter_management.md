@@ -2,9 +2,9 @@
 
 **⚙️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines parameter storage and management for audio import. Derived from [SPEC024](SPEC024-audio_ingest_architecture.md) and [SPEC025](SPEC025-amplitude_analysis.md).
+Defines parameter storage and management for audio import. Derived from [SPEC032](SPEC032-audio_ingest_architecture.md) and [SPEC025](SPEC025-amplitude_analysis.md).
 
-> **Related:** [Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) | [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Database Schema](IMPL001-database_schema.md)
+> **Related:** [Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) | [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Database Schema](IMPL001-database_schema.md)
 
 ---
 

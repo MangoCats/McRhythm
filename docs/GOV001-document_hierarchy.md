@@ -640,7 +640,7 @@ See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-pa
 
 **Maintained By:** Audio engineer, technical lead
 
-#### SPEC024-audio_ingest_architecture.md
+#### SPEC032-audio_ingest_architecture.md
 **Purpose:** Defines architecture for Audio Ingest module (wkmp-ai)
 
 **Contains:**

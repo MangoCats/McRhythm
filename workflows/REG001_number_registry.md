@@ -112,7 +112,7 @@
 | SPEC021 | SPEC021-error_handling.md | 2025-10-25 | SPEC | Manual | Comprehensive error handling strategy specification |
 | SPEC022 | SPEC022-performance_targets.md | 2025-10-25 | SPEC | Manual | Performance targets for wkmp-ap (Pi Zero 2W deployment) |
 | SPEC023 | SPEC023-timing_terminology.md | 2025-10-26 | SPEC | Manual | Timing terminology and conventions across WKMP |
-| SPEC024 | SPEC024-audio_ingest_architecture.md | 2025-10-26 | SPEC | Manual | Architecture for Audio Ingest module (wkmp-ai) |
+| SPEC032 | SPEC032-audio_ingest_architecture.md | 2025-11-09 | SPEC | Manual | Architecture for Audio Ingest module (wkmp-ai) with per-file pipeline processing |
 | SPEC025 | SPEC025-amplitude_analysis.md | 2025-10-26 | SPEC | Manual | Amplitude analysis for crossfade timing |
 | SPEC026 | SPEC026-api_key_configuration.md | 2025-10-30 | SPEC | Manual | Multi-tier API key configuration system (migrated from wip/) |
 | SPEC029 | SPEC029-queue_handling_resilience.md | 2025-11-06 | SPEC | Auto | Queue handling resilience specification (idempotency, deduplication, cleanup ordering) |

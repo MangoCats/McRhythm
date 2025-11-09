@@ -609,7 +609,7 @@ Committed comprehensive planning and analysis documents for two major initiative
 **Complete PLAN004 audio ingest implementation plan with full test specifications**
 
 **Overview:**
-Created comprehensive implementation plan for wkmp-ai Audio Ingest microservice following /plan workflow. Extracted 23 requirements from SPEC024, resolved 4 critical specification gaps, and completed all 95 acceptance tests across 10 test specification files achieving 100% P0/P1 requirement coverage.
+Created comprehensive implementation plan for wkmp-ai Audio Ingest microservice following /plan workflow. Extracted 23 requirements from SPEC032, resolved 4 critical specification gaps, and completed all 95 acceptance tests across 10 test specification files achieving 100% P0/P1 requirement coverage.
 
 **Phase 1 - Requirements Extraction:**
 - requirements_index.md: 23 requirements (17 P0, 5 P1, 1 P3)
@@ -636,7 +636,7 @@ Created comprehensive implementation plan for wkmp-ai Audio Ingest microservice 
 - traceability_matrix.md: Maps all 23 requirements to tests
 
 **New Specifications:**
-- SPEC024: Audio Ingest Architecture (475 lines) - 7-state workflow, component design
+- SPEC032: Audio Ingest Architecture (475 lines) - 7-state workflow, component design
 - SPEC025: Amplitude Analysis (520 lines) - RMS envelope, lead-in/out detection
 - IMPL008: Audio Ingest API (210 lines) - HTTP endpoints, SSE events
 - IMPL009: Amplitude Analyzer Implementation (407 lines) - A-weighting, RMS calculation

@@ -10,7 +10,7 @@
 
 ### What the Specs Say
 
-**SPEC024 (Audio Ingest Architecture) - Lines 37-43:**
+**SPEC032 (Audio Ingest Architecture) - Lines 37-43:**
 ```
 | Module | Port | wkmp-ai Integration | Communication |
 | wkmp-ui | 5720 | Import wizard UI, progress display | HTTP REST + SSE |
@@ -19,7 +19,7 @@
 ```
 **Interpretation:** Suggests wkmp-ui provides the UI
 
-**SPEC024 Line 332:**
+**SPEC032 Line 332:**
 ```
 **[AIA-INT-020]** wkmp-ai implements segmentation workflow from IMPL005:
 - User review and manual adjustment UI
@@ -184,7 +184,7 @@ Add clarification at beginning of document:
 - wkmp-ui does NOT embed or proxy this UI
 - Pattern: Standalone web application for specialized import tasks
 
-**See:** [Audio Ingest Architecture - UI Architecture](SPEC024-audio_ingest_architecture.md#ui-architecture)
+**See:** [Audio Ingest Architecture - UI Architecture](SPEC032-audio_ingest_architecture.md#ui-architecture)
 ```
 
 ---
@@ -368,7 +368,7 @@ async fn check_wkmp_ai_health() -> bool {
 #### 3. Update Documentation (High Priority)
 
 **Files to Update:**
-- `docs/SPEC024-audio_ingest_architecture.md` - Add UI Architecture section
+- `docs/SPEC032-audio_ingest_architecture.md` - Add UI Architecture section
 - `docs/IMPL005-audio_file_segmentation.md` - Clarify UI location
 - `docs/SPEC009-ui_specification.md` - Clarify Passage Editor ownership
 - `docs/REQ001-requirements.md` - Add microservice UI ownership table
@@ -382,7 +382,7 @@ async fn check_wkmp_ai_health() -> bool {
 
 ### Documentation Issues Identified
 
-1. **SPEC024** says "wkmp-ui orchestrates" but also mentions wkmp-ai has "User review and manual adjustment UI" (contradictory)
+1. **SPEC032** says "wkmp-ui orchestrates" but also mentions wkmp-ai has "User review and manual adjustment UI" (contradictory)
 2. **IMPL005** describes complex interactive UI workflow but doesn't say WHERE UI lives
 3. **SPEC009** describes Passage Editor as if it's in wkmp-ui, but IMPL005 workflow is clearly wkmp-ai territory
 4. **CLAUDE.md** describes wkmp-ai as "integration" (sounds like backend) not "interface" (like wkmp-le)

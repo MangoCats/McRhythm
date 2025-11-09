@@ -1,7 +1,7 @@
 # PLAN007: wkmp-ai Implementation Plan - SUMMARY
 
 **Project:** wkmp-ai (Audio Ingest Microservice) Implementation
-**Specification:** [SPEC024-audio_ingest_architecture.md](../../docs/SPEC024-audio_ingest_architecture.md)
+**Specification:** [SPEC032-audio_ingest_architecture.md](../../docs/SPEC032-audio_ingest_architecture.md)
 **Plan Date:** 2025-10-28
 **Status:** ✅ **Phases 1-3 Complete** (Week 1 Deliverable)
 **Next Steps:** Phases 4-8 (Approach Selection, Implementation Breakdown, Risk Assessment)
@@ -45,7 +45,7 @@ Complete wkmp-ai microservice to import user music collections with automatic Mu
 
 ### Requirements Extracted
 
-**Source:** SPEC024-audio_ingest_architecture.md (501 lines, updated in PLAN006)
+**Source:** SPEC032-audio_ingest_architecture.md (501 lines, updated in PLAN006)
 
 **Total:** 26 requirements
 - **P0 (Critical):** 19 requirements - Must have for MVP
@@ -501,7 +501,7 @@ Complete wkmp-ai microservice to import user music collections with automatic Mu
 
 **For specification questions:**
 - Review `01_specification_issues.md` (15 issues documented)
-- Check source: SPEC024-audio_ingest_architecture.md (lines referenced)
+- Check source: SPEC032-audio_ingest_architecture.md (lines referenced)
 
 **For dependency questions:**
 - Review `dependencies_map.md` (40 dependencies, status, mitigations)

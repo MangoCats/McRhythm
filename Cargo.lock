@@ -4560,6 +4560,8 @@ dependencies = [
  "hyper 1.7.0",
  "infer",
  "lofty",
+ "once_cell",
+ "rayon",
  "reqwest",
  "rubato",
  "serde",

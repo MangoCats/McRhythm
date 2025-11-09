@@ -2,9 +2,9 @@
 
 **⚙️ TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines Rust implementation for MusicBrainz API client. Derived from [SPEC024](SPEC024-audio_ingest_architecture.md) and [SPEC008](SPEC008-library_management.md).
+Defines Rust implementation for MusicBrainz API client. Derived from [SPEC032](SPEC032-audio_ingest_architecture.md) and [SPEC008](SPEC008-library_management.md).
 
-> **Related:** [Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) | [Library Management](SPEC008-library_management.md) | [Database Schema](IMPL001-database_schema.md)
+> **Related:** [Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) | [Library Management](SPEC008-library_management.md) | [Database Schema](IMPL001-database_schema.md)
 
 ---
 
