@@ -43,7 +43,7 @@ use tracing::{info, warn};
 /// Current schema version
 ///
 /// **IMPORTANT:** Increment this when adding new migrations
-const CURRENT_SCHEMA_VERSION: i32 = 2;
+const CURRENT_SCHEMA_VERSION: i32 = 3;
 
 /// Get current schema version from database
 ///
@@ -124,6 +124,12 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
         migrate_v2(pool).await?;
         set_schema_version(pool, 2).await?;
         info!("✓ Migration v2 completed");
+    }
+
+    if current_version < 3 {
+        migrate_v3(pool).await?;
+        set_schema_version(pool, 3).await?;
+        info!("✓ Migration v3 completed");
     }
 
     info!("All migrations completed successfully");
@@ -235,6 +241,150 @@ async fn migrate_v2(pool: &SqlitePool) -> Result<()> {
         }
         Err(e) => Err(e.into())
     }
+}
+
+/// Migration v3: PLAN023 - Add import provenance columns and table
+///
+/// **Background:** PLAN023 implements 3-tier hybrid fusion for audio import.
+/// This migration adds 21 columns to the passages table to store identity resolution,
+/// metadata provenance, musical flavor synthesis, and validation results.
+/// It also creates an import_provenance table for detailed per-field tracking.
+///
+/// **Requirements:** REQ-AI-081 through REQ-AI-087
+/// **Architecture:** 3-Tier Hybrid Fusion (PLAN023)
+///
+/// **[ARCH-DB-MIG-030]** Idempotent implementation
+async fn migrate_v3(pool: &SqlitePool) -> Result<()> {
+    info!("Running migration v3: PLAN023 Import Provenance (21 columns + import_provenance table)");
+
+    // Check if passages table exists
+    let table_exists: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='passages'
+        )
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    if !table_exists {
+        info!("  Passages table doesn't exist yet - skipping migration");
+        return Ok(());
+    }
+
+    // Define all 21 columns to add
+    let columns_to_add = vec![
+        // Identity Resolution (REQ-AI-083) [3 columns]
+        ("recording_mbid", "TEXT"),
+        ("identity_confidence", "REAL"),
+        ("identity_conflicts", "TEXT"),
+        // Metadata Provenance (REQ-AI-082) [6 columns]
+        ("title_source", "TEXT"),
+        ("title_confidence", "REAL"),
+        ("artist_source", "TEXT"),
+        ("artist_confidence", "REAL"),
+        ("album_source", "TEXT"),
+        ("album_confidence", "REAL"),
+        // Musical Flavor Synthesis (REQ-AI-081) [2 columns]
+        ("flavor_source_blend", "TEXT"),
+        ("flavor_confidence_map", "TEXT"),
+        // Quality Validation (REQ-AI-084, REQ-AI-085) [5 columns]
+        ("overall_quality_score", "REAL"),
+        ("metadata_completeness", "REAL"),
+        ("flavor_completeness", "REAL"),
+        ("validation_status", "TEXT"),
+        ("validation_report", "TEXT"),
+        // Import Metadata (REQ-AI-086) [5 columns]
+        ("import_session_id", "TEXT"),
+        ("import_timestamp", "INTEGER"),
+        ("import_strategy", "TEXT"),
+        ("import_duration_ms", "INTEGER"),
+        ("import_version", "TEXT"),
+    ];
+
+    // Add each column (idempotent - check if exists first)
+    let mut added_count = 0;
+    for (column_name, column_type) in columns_to_add {
+        let has_column: i64 = sqlx::query_scalar(
+            &format!("SELECT COUNT(*) FROM pragma_table_info('passages') WHERE name = '{}'", column_name)
+        )
+        .fetch_one(pool)
+        .await?;
+
+        if has_column == 0 {
+            match sqlx::query(&format!("ALTER TABLE passages ADD COLUMN {} {}", column_name, column_type))
+                .execute(pool)
+                .await
+            {
+                Ok(_) => {
+                    added_count += 1;
+                }
+                Err(sqlx::Error::Database(db_err)) if db_err.message().contains("duplicate column") => {
+                    // Another thread beat us to it - that's fine
+                    info!("  {} column added by concurrent thread - skipping", column_name);
+                }
+                Err(e) => return Err(e.into())
+            }
+        }
+    }
+
+    if added_count > 0 {
+        info!("  ✓ Added {} columns to passages table", added_count);
+    } else {
+        info!("  All 21 columns already exist in passages table - skipping column additions");
+    }
+
+    // Create import_provenance table (REQ-AI-087)
+    let provenance_table_exists: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='import_provenance'
+        )
+        "#
+    )
+    .fetch_one(pool)
+    .await?;
+
+    if !provenance_table_exists {
+        sqlx::query(
+            r#"
+            CREATE TABLE import_provenance (
+                id TEXT PRIMARY KEY,
+                passage_id TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                data_extracted TEXT,
+                confidence REAL,
+                timestamp INTEGER,
+                FOREIGN KEY (passage_id) REFERENCES passages(guid) ON DELETE CASCADE
+            )
+            "#
+        )
+        .execute(pool)
+        .await?;
+
+        // Create indexes
+        sqlx::query("CREATE INDEX idx_import_provenance_passage_id ON import_provenance(passage_id)")
+            .execute(pool)
+            .await?;
+
+        sqlx::query("CREATE INDEX idx_import_provenance_source_type ON import_provenance(source_type)")
+            .execute(pool)
+            .await?;
+
+        sqlx::query("CREATE INDEX idx_import_provenance_timestamp ON import_provenance(timestamp)")
+            .execute(pool)
+            .await?;
+
+        info!("  ✓ Created import_provenance table with 3 indexes");
+    } else {
+        info!("  import_provenance table already exists - skipping table creation");
+    }
+
+    info!("  ✓ Migration v3 complete: PLAN023 import provenance support added");
+    Ok(())
 }
 
 #[cfg(test)]

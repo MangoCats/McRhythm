@@ -9,6 +9,9 @@ pub mod error;
 pub mod models;
 pub mod services;
 
+// PLAN023: New import system with 3-tier hybrid fusion architecture
+pub mod import_v2;
+
 pub use crate::error::{ApiError, ApiResult};
 
 use axum::Router;

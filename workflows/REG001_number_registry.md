@@ -2,7 +2,7 @@
 
 **Purpose:** Track document number assignments and maintain next-available counters
 **Maintained by:** /doc-name workflow (automated)
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-09
 
 ---
 
@@ -12,7 +12,7 @@
 |----------|------|-------------|
 | GOV | 004 | Governance (document hierarchy, conventions, requirements enumeration) |
 | REQ | 003 | Requirements (authoritative requirements, entity definitions) |
-| SPEC | 029 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
+| SPEC | 031 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
 | IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
@@ -107,6 +107,7 @@
 
 | Number | Filename | Date | Category | Method | Notes |
 |--------|----------|------|----------|--------|-------|
+| SPEC030 | software_legibility_patterns/ | 2025-11-09 | SPEC | Auto | Software legibility patterns for WKMP modules (modular folder, 9 sections, ~2600 lines total) |
 | REG001 | number_registry.md | 2025-10-25 | REG | Manual | Initial registry creation |
 | REG002 | archive_index.md | 2025-10-25 | REG | Manual | Archive retrieval index |
 | SPEC021 | SPEC021-error_handling.md | 2025-10-25 | SPEC | Manual | Comprehensive error handling strategy specification |
@@ -146,7 +147,7 @@
 |----------|-------|--------------|
 | GOV | 3 | Existing |
 | REQ | 2 | Existing |
-| SPEC | 27 | 2025-11-06 |
+| SPEC | 29 | 2025-11-09 |
 | IMPL | 7 | Existing |
 | EXEC | 1 | Existing |
 | REV | 4 | Existing |
