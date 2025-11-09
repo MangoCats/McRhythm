@@ -2,8 +2,23 @@
 //!
 //! **[AIA-WF-010]** Coordinates import workflow through all states
 //!
-//! State progression:
+//! # State Progression
 //! SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
+//!
+//! # Architecture
+//! This orchestrator implements a state machine for the audio file import workflow.
+//! Each state is handled by a dedicated `phase_*` method:
+//!
+//! - **SCANNING** (line ~185): Scan filesystem for audio files
+//! - **EXTRACTING** (line ~390): Extract ID3 metadata from files
+//! - **FINGERPRINTING** (line ~533): Generate chromaprint fingerprints + AcoustID lookup
+//! - **SEGMENTING** (line ~907): Detect silence boundaries and segment passages
+//! - **ANALYZING** (line ~1059): Extract audio-derived features (RMS, spectral)
+//! - **FLAVORING** (line ~1157): Fetch AcousticBrainz/Essentia musical flavor vectors
+//!
+//! # Future Refactoring
+//! This 1,459-line file could be split into separate modules per state for better
+//! maintainability (see technical debt review for details).
 
 use crate::models::{ImportSession, ImportState};
 use crate::services::{
@@ -180,6 +195,10 @@ impl WorkflowOrchestrator {
         Ok(session)
     }
 
+    // ============================================================================
+    // PHASE 1: SCANNING
+    // ============================================================================
+
     /// Phase 1: SCANNING - File discovery and database persistence
     /// **[AIA-ASYNC-010]** Checks cancellation token during file processing
     async fn phase_scanning(
@@ -216,19 +235,23 @@ impl WorkflowOrchestrator {
 
         // Save discovered files to database
         let mut saved_count = 0;
-        for file_path in &scan_result.files {
+        let total_files = scan_result.files.len();
+        let scan_start_time = std::time::Instant::now();
+
+        for (file_index, file_path) in scan_result.files.iter().enumerate() {
             // **[AIA-ASYNC-010]** Check for cancellation every file
             if cancel_token.is_cancelled() {
+                let files_processed = file_index;
                 tracing::info!(
                     session_id = %session.session_id,
-                    files_processed = saved_count,
+                    files_processed = files_processed,
                     "Import cancelled during scanning phase"
                 );
                 session.transition_to(ImportState::Cancelled);
                 session.progress.current_file = None;
                 session.update_progress(
-                    saved_count,
-                    scan_result.files.len(),
+                    files_processed,
+                    total_files,
                     "Import cancelled by user".to_string(),
                 );
                 crate::db::sessions::save_session(&self.db, &session).await?;
@@ -262,10 +285,25 @@ impl WorkflowOrchestrator {
             // This ensures UI shows activity even during slow hash operations
             // **[REQ-AIA-UI-004]** Set current file being processed
             session.progress.current_file = Some(relative_path.clone());
+
+            // Calculate ETA based on files processed so far
+            let files_processed = file_index + 1;
+            let elapsed = scan_start_time.elapsed().as_secs_f64();
+            let eta_message = if files_processed > 5 && elapsed > 1.0 {
+                let avg_time_per_file = elapsed / files_processed as f64;
+                let files_remaining = total_files - files_processed;
+                let eta_seconds = (files_remaining as f64 * avg_time_per_file) as u64;
+                let eta_minutes = eta_seconds / 60;
+                let eta_secs = eta_seconds % 60;
+                format!(" (ETA: {}m {}s)", eta_minutes, eta_secs)
+            } else {
+                String::new()
+            };
+
             session.update_progress(
-                saved_count,
-                scan_result.files.len(),
-                format!("Checking file {} of {}: {}", saved_count + 1, scan_result.files.len(), relative_path),
+                files_processed,
+                total_files,
+                format!("Scanning file {} of {}: {}{}", files_processed, total_files, relative_path, eta_message),
             );
             crate::db::sessions::save_session(&self.db, &session).await?;
             self.broadcast_progress(&session, start_time);
@@ -385,6 +423,10 @@ impl WorkflowOrchestrator {
 
         Ok(session)
     }
+
+    // ============================================================================
+    // PHASE 2: EXTRACTING
+    // ============================================================================
 
     /// Phase 2: EXTRACTING - Metadata extraction and persistence
     async fn phase_extracting(
@@ -528,6 +570,10 @@ impl WorkflowOrchestrator {
 
         Ok(session)
     }
+
+    // ============================================================================
+    // PHASE 3: FINGERPRINTING
+    // ============================================================================
 
     /// Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
     async fn phase_fingerprinting(
@@ -903,6 +949,10 @@ impl WorkflowOrchestrator {
         Ok(session)
     }
 
+    // ============================================================================
+    // PHASE 4: SEGMENTING
+    // ============================================================================
+
     /// Phase 4: SEGMENTING - Passage creation
     async fn phase_segmenting(
         &self,
@@ -1055,6 +1105,10 @@ impl WorkflowOrchestrator {
         Ok(session)
     }
 
+    // ============================================================================
+    // PHASE 5: ANALYZING
+    // ============================================================================
+
     /// Phase 5: ANALYZING - Amplitude analysis (stub)
     async fn phase_analyzing(
         &self,
@@ -1152,6 +1206,10 @@ impl WorkflowOrchestrator {
 
         Ok(session)
     }
+
+    // ============================================================================
+    // PHASE 6: FLAVORING
+    // ============================================================================
 
     /// Phase 6: FLAVORING - Musical flavor extraction via AcousticBrainz
     async fn phase_flavoring(
@@ -1365,6 +1423,10 @@ impl WorkflowOrchestrator {
 
         Ok(session)
     }
+
+    // ============================================================================
+    // HELPER FUNCTIONS
+    // ============================================================================
 
     /// Get recording MBID for a passage via passage_songs linking table
     async fn get_passage_recording_mbid(&self, passage_id: &uuid::Uuid) -> Result<Option<String>> {

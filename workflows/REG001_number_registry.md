@@ -12,7 +12,7 @@
 |----------|------|-------------|
 | GOV | 004 | Governance (document hierarchy, conventions, requirements enumeration) |
 | REQ | 003 | Requirements (authoritative requirements, entity definitions) |
-| SPEC | 029 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
+| SPEC | 032 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
 | IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
@@ -116,6 +116,8 @@
 | SPEC025 | SPEC025-amplitude_analysis.md | 2025-10-26 | SPEC | Manual | Amplitude analysis for crossfade timing |
 | SPEC026 | SPEC026-api_key_configuration.md | 2025-10-30 | SPEC | Manual | Multi-tier API key configuration system (migrated from wip/) |
 | SPEC029 | SPEC029-queue_handling_resilience.md | 2025-11-06 | SPEC | Auto | Queue handling resilience specification (idempotency, deduplication, cleanup ordering) |
+| SPEC030 | (reserved) | - | SPEC | - | Reserved for document being developed on another branch |
+| SPEC031 | SPEC031-data_driven_schema_maintenance.md | 2025-11-09 | SPEC | Manual | Data-driven schema maintenance system (automatic column addition, zero manual migrations) |
 | GUIDE003 | audio_pipeline_diagrams.md | 2025-10-27 | GUIDE | Auto | Visual reference for audio processing pipeline with DBD-PARAM mapping |
 | PLAN006 | wkmp_ai_ui_spec_updates | 2025-10-28 | PLAN | Manual | Specification updates to define wkmp-ai's dedicated web UI and on-demand microservice pattern |
 | PLAN007 | wkmp_ai_implementation | 2025-10-28 | PLAN | Auto | Implementation plan for complete wkmp-ai microservice (import wizard, MusicBrainz ID, passage detection, Musical Flavor extraction) |
@@ -146,7 +148,7 @@
 |----------|-------|--------------|
 | GOV | 3 | Existing |
 | REQ | 2 | Existing |
-| SPEC | 27 | 2025-11-06 |
+| SPEC | 28 | 2025-11-09 |
 | IMPL | 7 | Existing |
 | EXEC | 1 | Existing |
 | REV | 4 | Existing |

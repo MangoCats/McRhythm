@@ -1252,27 +1252,60 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 
 ### Migration Strategy
 
-**Current Schema Version:** `0.1` (Development)
+**Current Schema Version:** `4` (Production)
 
-**Development Phase:**
-- During development, the database schema version is established as `0.1`
-- Any changes to the database schema during development are addressed by deletion of existing databases and rebuild from scratch with default values
-- No migration scripts are maintained during the development phase
+**Automatic Schema Maintenance:**
 
-**Post-Release Strategy:**
-1. Schema version is tracked in `schema_version` table
-2. Migration scripts are numbered sequentially (001_initial.sql, 002_add_works.sql, etc.)
-3. On startup, application checks current version and applies pending migrations
-4. Each migration is wrapped in a transaction
-5. Database is backed up before applying migrations
+WKMP implements a **data-driven schema maintenance system** that eliminates manual migrations for most schema changes. See [SPEC031-data_driven_schema_maintenance.md](SPEC031-data_driven_schema_maintenance.md) for complete specification.
 
-**Breaking Changes:**
-- After initial release, breaking changes are to be avoided
-- If a breaking change must be implemented for release, migration strategies shall be developed and implemented before release of the breaking change
+**Four-Phase Database Initialization:**
+
+1. **Phase 1: CREATE TABLE IF NOT EXISTS** - Create missing tables with current schema
+2. **Phase 2: Automatic Schema Synchronization** - Add missing columns via ALTER TABLE (NEW)
+3. **Phase 3: Manual Migrations** - Complex transformations (v1-v4 migrations)
+4. **Phase 4: Default Settings** - Initialize settings with defaults
+
+**What Happens Automatically:**
+- ✅ **Missing columns added** - System introspects database schema on startup
+- ✅ **Type mismatches detected** - Warns if column types differ from expected
+- ✅ **Concurrent-safe** - Handles duplicate column errors gracefully
+- ✅ **Comprehensive logging** - All changes documented
+
+**When Manual Migrations Still Required:**
+- Type changes (e.g., `duration REAL` → `duration_ticks INTEGER`)
+- Data transformations (populating new columns from existing data)
+- Column removal (SQLite limitation)
+- Constraint changes (PRIMARY KEY, UNIQUE, NOT NULL without DEFAULT)
+
+**Schema Version Tracking:**
+- Schema version tracked in `schema_version` table
+- Current version: 4
+- Migration v1: Add import_metadata column to passages
+- Migration v2: Add title column to songs
+- Migration v3: Add duration_ticks column to files
+- Migration v4: Add audio metadata columns (format, sample_rate, channels, file_size_bytes)
+
+**Development Workflow:**
+
+Adding a new column (automatic):
+```rust
+// Update schema definition in table_schemas.rs
+ColumnDefinition::new("new_column", "TEXT"),  // DONE!
+// System automatically adds column on next startup
+```
+
+Complex schema change (manual migration required):
+```rust
+// Write migration in migrations.rs
+async fn migrate_vN(pool: &SqlitePool) -> Result<()> {
+    // Complex transformation logic
+}
+```
 
 **Version Upgrade Paths (Minimal → Lite → Full):**
 - Minimal, Lite, and Full versions are implemented by launching different subsets of the modules (microservices)
 - Each module creates database tables it requires if they are missing
+- Automatic schema sync adds missing columns regardless of version
 - Each module initializes missing values it requires with default values encoded in the module
 - See [architecture.md#module-launching-process](SPEC001-architecture.md#module-launching-process) for module initialization details
 
@@ -1280,6 +1313,8 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 - **Important:** Databases cannot be downgraded
 - Once a schema migration is applied, reverting to an earlier version is not supported
 - Users must backup their database before upgrading if they need to preserve the ability to use an older version
+
+**Reference:** [SPEC031-data_driven_schema_maintenance.md](SPEC031-data_driven_schema_maintenance.md)
 
 ### Performance Considerations
 

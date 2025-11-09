@@ -880,8 +880,8 @@ async fn segment_editor_page() -> impl IntoResponse {
         // Waveform Visualization Implementation
         // Full interactive waveform editor with boundary markers
 
-        class WaveformRenderer {{
-            constructor(canvas) {{
+        class WaveformRenderer {
+            constructor(canvas) {
                 this.canvas = canvas;
                 this.ctx = canvas.getContext('2d');
                 this.rmsProfile = [];
@@ -889,27 +889,27 @@ async fn segment_editor_page() -> impl IntoResponse {
                 this.leadOutDuration = 0;
                 this.duration = 0;
                 this.peakRms = 1.0;
-            }}
+            }
 
-            async loadAudioData(filePath, startTime = 0, endTime = null) {{
-                try {{
-                    const response = await fetch('/analyze/amplitude', {{
+            async loadAudioData(filePath, startTime = 0, endTime = null) {
+                try {
+                    const response = await fetch('/analyze/amplitude', {
                         method: 'POST',
-                        headers: {{ 'Content-Type': 'application/json' }},
-                        body: JSON.stringify({{
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
                             file_path: filePath,
                             start_time: startTime,
                             end_time: endTime,
-                            parameters: {{
+                            parameters: {
                                 window_size_ms: 100,
                                 hop_size_ms: 50
-                            }}
-                        }})
-                    }});
+                            }
+                        })
+                    });
 
-                    if (!response.ok) {{
-                        throw new Error(`API error: ${{response.status}}`);
-                    }}
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
 
                     const data = await response.json();
                     this.rmsProfile = data.rms_profile;
@@ -919,66 +919,66 @@ async fn segment_editor_page() -> impl IntoResponse {
                     this.duration = this.rmsProfile.length * 0.05; // 50ms hop size
 
                     return data;
-                }} catch (error) {{
+                } catch (error) {
                     console.error('Failed to load amplitude data:', error);
                     throw error;
-                }}
-            }}
+                }
+            }
 
-            render() {{
-                const {{ width, height }} = this.canvas;
+            render() {
+                const { width, height } = this.canvas;
                 const ctx = this.ctx;
 
                 ctx.fillStyle = '#2d2d2d';
                 ctx.fillRect(0, 0, width, height);
 
-                if (this.rmsProfile.length === 0) {{
+                if (this.rmsProfile.length === 0) {
                     ctx.fillStyle = '#e0e0e0';
                     ctx.font = '14px system-ui';
                     ctx.fillText('Loading waveform...', 20, height / 2);
                     return;
-                }}
+                }
 
                 this.renderWaveform(ctx, width, height);
                 this.renderRegions(ctx, width, height);
                 this.renderTimeAxis(ctx, width, height);
-            }}
+            }
 
-            renderWaveform(ctx, width, height) {{
+            renderWaveform(ctx, width, height) {
                 const halfHeight = height / 2;
                 const barWidth = width / this.rmsProfile.length;
 
                 ctx.fillStyle = '#4a9eff';
-                for (let i = 0; i < this.rmsProfile.length; i++) {{
+                for (let i = 0; i < this.rmsProfile.length; i++) {
                     const x = i * barWidth;
                     const rms = this.rmsProfile[i];
                     const barHeight = (rms / this.peakRms) * (halfHeight * 0.9);
                     ctx.fillRect(x, halfHeight - barHeight, barWidth, barHeight * 2);
-                }}
-            }}
+                }
+            }
 
-            renderRegions(ctx, width, height) {{
-                if (this.leadInDuration > 0) {{
+            renderRegions(ctx, width, height) {
+                if (this.leadInDuration > 0) {
                     const leadInX = this.timeToX(this.leadInDuration);
                     ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
                     ctx.fillRect(0, 0, leadInX, height);
-                }}
+                }
 
-                if (this.leadOutDuration > 0) {{
+                if (this.leadOutDuration > 0) {
                     const leadOutStart = this.duration - this.leadOutDuration;
                     const leadOutX = this.timeToX(leadOutStart);
                     ctx.fillStyle = 'rgba(255, 140, 0, 0.2)';
                     ctx.fillRect(leadOutX, 0, width - leadOutX, height);
-                }}
-            }}
+                }
+            }
 
-            renderTimeAxis(ctx, width, height) {{
+            renderTimeAxis(ctx, width, height) {
                 ctx.strokeStyle = '#666';
                 ctx.fillStyle = '#e0e0e0';
                 ctx.font = '10px monospace';
 
                 const interval = 1.0;
-                for (let t = 0; t <= this.duration; t += interval) {{
+                for (let t = 0; t <= this.duration; t += interval) {
                     const x = this.timeToX(t);
                     ctx.beginPath();
                     ctx.moveTo(x, height - 20);
@@ -987,27 +987,27 @@ async fn segment_editor_page() -> impl IntoResponse {
 
                     const label = formatTime(t);
                     ctx.fillText(label, x - 15, height - 5);
-                }}
-            }}
+                }
+            }
 
-            timeToX(timeSeconds) {{
+            timeToX(timeSeconds) {
                 return (timeSeconds / this.duration) * this.canvas.width;
-            }}
+            }
 
-            xToTime(x) {{
+            xToTime(x) {
                 return (x / this.canvas.width) * this.duration;
-            }}
-        }}
+            }
+        }
 
-        class BoundaryMarker {{
-            constructor(time, type) {{
+        class BoundaryMarker {
+            constructor(time, type) {
                 this.time = time;
                 this.type = type;
                 this.isDragging = false;
                 this.color = type === 'start' ? '#00ff00' : '#ff0000';
-            }}
+            }
 
-            render(ctx, renderer) {{
+            render(ctx, renderer) {
                 const x = renderer.timeToX(this.time);
                 const height = renderer.canvas.height;
 
@@ -1026,89 +1026,89 @@ async fn segment_editor_page() -> impl IntoResponse {
                 const label = formatTime(this.time);
                 const textWidth = ctx.measureText(label).width;
                 ctx.fillText(label, x - textWidth / 2, height - 25);
-            }}
+            }
 
-            hitTest(x, y, renderer) {{
+            hitTest(x, y, renderer) {
                 const markerX = renderer.timeToX(this.time);
                 return Math.abs(x - markerX) < 10;
-            }}
+            }
 
-            updateTime(x, renderer) {{
+            updateTime(x, renderer) {
                 this.time = renderer.xToTime(x);
                 this.time = Math.round(this.time * 10) / 10;
-            }}
-        }}
+            }
+        }
 
-        function formatTime(seconds) {{
+        function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = Math.floor(seconds % 60);
-            return `${{mins}}:${{secs.toString().padStart(2, '0')}}`;
-        }}
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
 
         const canvas = document.getElementById('waveform');
         const ctx = canvas.getContext('2d');
         const waveformRenderer = new WaveformRenderer(canvas);
-        const markers = {{
+        const markers = {
             start: new BoundaryMarker(0, 'start'),
             end: new BoundaryMarker(10, 'end')
-        }};
+        };
 
         let draggedMarker = null;
 
-        canvas.addEventListener('mousedown', (e) => {{
+        canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            for (const marker of Object.values(markers)) {{
-                if (marker.hitTest(x, y, waveformRenderer)) {{
+            for (const marker of Object.values(markers)) {
+                if (marker.hitTest(x, y, waveformRenderer)) {
                     marker.isDragging = true;
                     draggedMarker = marker;
                     canvas.style.cursor = 'ew-resize';
                     break;
-                }}
-            }}
-        }});
+                }
+            }
+        });
 
-        canvas.addEventListener('mousemove', (e) => {{
+        canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            if (draggedMarker) {{
+            if (draggedMarker) {
                 draggedMarker.updateTime(x, waveformRenderer);
-                if (markers.start.time > markers.end.time) {{
+                if (markers.start.time > markers.end.time) {
                     markers.start.time = markers.end.time;
-                }}
+                }
                 waveformRenderer.render();
                 markers.start.render(ctx, waveformRenderer);
                 markers.end.render(ctx, waveformRenderer);
-            }} else {{
+            } else {
                 let overMarker = false;
-                for (const marker of Object.values(markers)) {{
-                    if (marker.hitTest(x, y, waveformRenderer)) {{
+                for (const marker of Object.values(markers)) {
+                    if (marker.hitTest(x, y, waveformRenderer)) {
                         overMarker = true;
                         break;
-                    }}
-                }}
+                    }
+                }
                 canvas.style.cursor = overMarker ? 'pointer' : 'default';
-            }}
-        }});
+            }
+        });
 
-        canvas.addEventListener('mouseup', () => {{
-            if (draggedMarker) {{
+        canvas.addEventListener('mouseup', () => {
+            if (draggedMarker) {
                 draggedMarker.isDragging = false;
                 draggedMarker = null;
                 canvas.style.cursor = 'default';
-                console.log('Boundaries updated:', {{
+                console.log('Boundaries updated:', {
                     start: markers.start.time,
                     end: markers.end.time
-                }});
-            }}
-        }});
+                });
+            }
+        });
 
-        async function loadDemo() {{
-            try {{
+        async function loadDemo() {
+            try {
                 // Get file path from URL parameters or use test fixture
                 const params = new URLSearchParams(window.location.search);
                 const filePath = params.get('file') || 'tests/fixtures/sine_440hz_5s.wav';
@@ -1122,14 +1122,14 @@ async fn segment_editor_page() -> impl IntoResponse {
                 markers.end.render(ctx, waveformRenderer);
 
                 console.log('Waveform editor loaded successfully');
-            }} catch (error) {{
+            } catch (error) {
                 console.error('Failed to load waveform:', error);
                 ctx.fillStyle = '#ff0000';
                 ctx.font = '14px system-ui';
                 ctx.fillText('Error loading waveform data', 20, 50);
                 ctx.fillText(error.message, 20, 70);
-            }}
-        }}
+            }
+        }
 
         loadDemo();
     </script>

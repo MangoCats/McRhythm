@@ -6,8 +6,10 @@ pub mod api;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod fusion;  // PLAN023: 3-tier hybrid fusion architecture
 pub mod models;
 pub mod services;
+pub mod workflow;  // PLAN023: Per-song workflow orchestration
 
 pub use crate::error::{ApiError, ApiResult};
 

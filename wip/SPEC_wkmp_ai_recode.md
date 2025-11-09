@@ -256,6 +256,113 @@ The system SHALL broadcast Server-Sent Events for real-time UI updates:
 - SHALL buffer events if emission rate exceeds limit
 - SHALL NOT drop events (buffering, not dropping)
 
+#### [REQ-AI-075] UI Progress Reporting and User Feedback
+
+The system SHALL provide timely, accurate, and clear progress feedback to users during import operations:
+
+**[REQ-AI-075-01]** Real-Time Progress Updates
+- SHALL update progress indicators within 1 second of starting any file operation
+- SHALL update progress counters immediately (not batched) as each file is processed
+- SHALL display current file being processed in real-time
+- SHALL NOT allow progress indicators to appear "stuck" or frozen during processing
+- **Rationale**: Users need immediate feedback that the system is working, especially during long-running imports
+
+**[REQ-AI-075-02]** Estimated Time Remaining (ETA)
+- SHALL calculate and display estimated time remaining after processing at least 5 files
+- SHALL update ETA dynamically as processing speed varies
+- SHALL use rolling average of actual processing time (not static estimate)
+- SHALL display ETA in human-readable format (minutes and seconds: "12m 34s")
+- **Rationale**: Users need to know how long the import will take to plan their workflow
+
+**[REQ-AI-075-03]** File-by-File Processing Workflow Clarity
+- SHALL clearly indicate that processing happens file-by-file, not in batch phases
+- SHALL display current processing stage for the current file (e.g., "Scanning file 123/5000")
+- SHALL NOT give the impression that all files are scanned first, then all extracted, etc.
+- SHALL show per-file workflow stages: Scan → Extract → Fingerprint → Segment → Analyze → Flavor
+- **Rationale**: The current UI gives false impression of batch processing (like legacy wkmp-ai), causing user confusion
+
+**[REQ-AI-075-04]** Multi-Phase Progress Visualization
+- SHALL display overall import progress (files processed / total files)
+- SHALL display per-file progress through workflow stages
+- SHALL indicate which stage each file is currently in:
+  - **Scanning**: File discovery and database deduplication check
+  - **Extracting**: ID3 metadata extraction
+  - **Fingerprinting**: Chromaprint generation + AcoustID/MusicBrainz lookup
+  - **Segmenting**: Passage boundary detection (silence/beat analysis)
+  - **Analyzing**: Audio-derived features (RMS, spectral analysis)
+  - **Flavoring**: Musical flavor synthesis (Essentia/genre mapping)
+  - **Fusing**: Information fusion across sources (Tier 2 hybrid fusion)
+  - **Validating**: Quality validation and consistency checks (Tier 3)
+- **Rationale**: Users need to understand the comprehensive nature of the import process
+
+**[REQ-AI-075-05]** Accurate Progress Counter Behavior
+- SHALL increment progress counter for EVERY file processed (not just files saved to database)
+- SHALL count files that are skipped (unchanged, duplicates) toward progress total
+- SHALL display: "Processing file X of Y" where X increments for each file encountered
+- SHALL NOT display: "Saved X of Y" which causes counter to appear stuck
+- **Example**: For 5000 files where 4000 are unchanged:
+  - ✅ Correct: "Scanning file 4523 of 5000 (ETA: 2m 15s)" [counter always increments]
+  - ❌ Incorrect: "Saved 523 of 5000" [counter stuck at 523 while 4000 files are skipped]
+- **Rationale**: Counter must reflect actual work being done, not just database writes
+
+**[REQ-AI-075-06]** Current Operation Clarity
+- SHALL display the specific operation being performed on the current file
+- SHALL differentiate between:
+  - "Checking file..." (hash calculation + database lookup)
+  - "Skipping unchanged file..." (modification time match, no rehash)
+  - "Skipping duplicate file..." (different path, same hash)
+  - "Importing new file..." (hash calculation + metadata extraction + database save)
+  - "Updating modified file..." (file changed since last import)
+- SHALL update "Currently Processing" field with actual file path being processed
+- **Rationale**: Users need to understand why some files process quickly (skipped) vs slowly (imported)
+
+**[REQ-AI-075-07]** Per-Song Granularity Feedback
+- SHALL emit progress events for each passage/song within multi-song files
+- SHALL display passage-level progress: "File 1/100: Song 2/5 - Extracting"
+- SHALL show per-song workflow stages (not just file-level)
+- SHALL indicate when information fusion is occurring per song
+- **Rationale**: Multi-song files require per-song feedback for user understanding
+
+**[REQ-AI-075-08]** Error and Warning Visibility
+- SHALL display errors and warnings in real-time as they occur
+- SHALL NOT hide errors until end of import
+- SHALL maintain error count visible throughout import
+- SHALL allow users to see which files failed without stopping import
+- **Rationale**: Users need to know about problems immediately, not after hours of processing
+
+#### [REQ-AI-078] Database Initialization and Self-Repair
+
+The system SHALL adhere to WKMP zero-configuration database initialization requirements:
+
+**[REQ-AI-078-01]** Zero-Configuration Startup
+- SHALL start without requiring manual database setup or configuration files
+- SHALL satisfy **[REQ-NF-036]** (automatic database creation with default schema)
+- SHALL satisfy **[REQ-NF-037]** (modules create missing tables/columns automatically)
+- **Reference:** [ADR-003-zero_configuration_strategy.md](../docs/ADR-003-zero_configuration_strategy.md)
+
+**[REQ-AI-078-02]** Self-Repair for Schema Changes
+- SHALL automatically add missing columns to existing tables on startup
+- SHALL handle schema version upgrades transparently via migration framework
+- SHALL NOT fail startup if database schema is older version
+- **Reference:** [IMPL001-database_schema.md](../docs/IMPL001-database_schema.md) lines 1273-1277
+
+**[REQ-AI-078-03]** Migration Framework Integration
+- SHALL use `wkmp_common::db::migrations` for schema version management
+- SHALL apply pending migrations on startup (idempotent, transaction-wrapped)
+- SHALL handle concurrent initialization race conditions safely
+- **Reference:** [IMPL001-database_schema.md](../docs/IMPL001-database_schema.md) lines 1255-1268
+
+**[REQ-AI-078-04]** Breaking Changes Handling
+- SHALL provide automated migration for `files.duration` → `files.duration_ticks` conversion
+- Conversion formula: `ticks = CAST(seconds * 28224000 AS INTEGER)`
+- 28224000 = 44100 Hz × 640 ticks/sample (WKMP tick rate per SPEC017)
+- **Reference:** [IMPL001-database_schema.md](../docs/IMPL001-database_schema.md) lines 145-148
+
+**Rationale:**
+- Per project charter, 95% of users should experience zero-configuration startup
+- Database schema evolution must be transparent to users (no manual SQL scripts)
+- Existing databases must be upgraded automatically without data loss
+
 #### [REQ-AI-080] Database Schema Extensions
 
 The system SHALL extend the passages table with source provenance tracking:
@@ -301,6 +408,52 @@ CREATE TABLE import_provenance (
     FOREIGN KEY (passage_id) REFERENCES passages(id) ON DELETE CASCADE
 );
 ```
+
+#### [REQ-AI-088] SPEC017 Time Representation Compliance
+
+**CRITICAL:** All passage timing fields SHALL comply with SPEC017 tick-based timing.
+
+**[REQ-AI-088-01]** Tick Definition (per SPEC017 [SRC-TICK-030])
+- One tick = 1/28,224,000 second (≈35.4 nanoseconds)
+- Tick rate = LCM of all supported audio sample rates
+- Ensures sample-accurate precision across all sample rates
+
+**[REQ-AI-088-02]** Database Storage (per SPEC017 [SRC-DB-010] through [SRC-DB-016])
+- `start_time INTEGER NOT NULL` - Passage start boundary (ticks from file start)
+- `end_time INTEGER NOT NULL` - Passage end boundary (ticks from file start)
+- `fade_in_point INTEGER` - Fade-in completion point (ticks from file start, NULL = use global default)
+- `fade_out_point INTEGER` - Fade-out start point (ticks from file start, NULL = use global default)
+- `lead_in_point INTEGER` - Lead-in end point (ticks from file start, NULL = use global default)
+- `lead_out_point INTEGER` - Lead-out start point (ticks from file start, NULL = use global default)
+
+**[REQ-AI-088-03]** Internal Representation (per SPEC017 [SRC-LAYER-011])
+- SHALL use `i64` (64-bit signed integer) ticks for all internal timing
+- SHALL use ticks in PassageBoundary structures
+- SHALL use ticks in API requests/responses
+- SHALL use ticks in database queries
+
+**[REQ-AI-088-04]** Conversion Rules (per SPEC017 [SRC-LAYER-030])
+- Samples to ticks: `ticks = samples × (28,224,000 ÷ sample_rate)`
+- Ticks to seconds (display only): `seconds = ticks ÷ 28,224,000`
+- SHALL convert to seconds ONLY for user-facing UI/SSE events
+- SHALL NEVER store seconds in database
+
+**[REQ-AI-088-05]** Boundary Detection
+- SHALL detect passage boundaries in sample counts
+- SHALL immediately convert sample counts to ticks
+- SHALL emit boundary events with ticks (convert to seconds for SSE display)
+- SHALL store ticks in PassageBoundary structures
+
+**Rationale:**
+- Database is "developer-facing layer" per SPEC017 [SRC-LAYER-011]
+- Ticks ensure sample-accurate precision (no rounding errors)
+- Enables exact crossfade point calculation in wkmp-ap
+- Ensures interoperability with other WKMP modules
+
+**Migration Note:**
+- If existing database has REAL seconds columns, migration required
+- Convert: `ticks = CAST(seconds * 28224000 AS INTEGER)`
+- Add new INTEGER columns, populate from REAL, drop REAL
 
 ### Non-Functional Requirements
 
