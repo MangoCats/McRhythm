@@ -16,6 +16,9 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use symphonia::core::sample::Sample;
 use tracing::{debug, warn};
+use rubato::{
+    Resampler, SincFixedIn, InterpolationType, InterpolationParameters, WindowFunction,
+};
 
 /// SPEC017 tick rate: 28,224,000 Hz (1 tick ≈ 35.4 nanoseconds)
 pub const TICK_RATE: i64 = 28_224_000;
@@ -202,20 +205,19 @@ impl AudioLoader {
 
         // Resample if needed
         let final_samples = if native_sample_rate != self.target_sample_rate {
-            warn!(
-                "Resampling from {} Hz to {} Hz (not yet implemented - using original rate)",
+            debug!(
+                "Resampling from {} Hz to {} Hz using rubato",
                 native_sample_rate, self.target_sample_rate
             );
-            // TODO: Implement resampling with rubato
-            // For now, return original samples
-            all_samples
+            self.resample_stereo(all_samples, native_sample_rate)
+                .context("Failed to resample audio")?
         } else {
             all_samples
         };
 
         Ok(AudioSegment {
             samples: final_samples,
-            sample_rate: native_sample_rate, // TODO: Use target_sample_rate after resampling
+            sample_rate: self.target_sample_rate,
             channels: 2,
         })
     }
@@ -224,6 +226,84 @@ impl AudioLoader {
     pub fn load_full<P: AsRef<Path>>(&self, file_path: P) -> Result<AudioSegment> {
         // Load from tick 0 to a very large tick value (effectively the whole file)
         self.load_segment(file_path, 0, i64::MAX)
+    }
+
+    /// Resample interleaved stereo PCM samples to target sample rate
+    ///
+    /// **[P1-2]** High-quality resampling using rubato SincFixedIn
+    ///
+    /// # Arguments
+    /// * `samples` - Interleaved stereo samples (L, R, L, R, ...)
+    /// * `source_rate` - Original sample rate in Hz
+    ///
+    /// # Returns
+    /// * Resampled interleaved stereo samples at target_sample_rate
+    ///
+    /// # Algorithm
+    /// - Uses sinc interpolation with BlackmanHarris2 window
+    /// - 256-tap filter for high-quality resampling
+    /// - 0.95 cutoff frequency to prevent aliasing
+    /// - Processes in chunks to handle arbitrary input lengths
+    fn resample_stereo(&self, samples: Vec<f32>, source_rate: u32) -> Result<Vec<f32>> {
+        if samples.is_empty() {
+            return Ok(samples);
+        }
+
+        let num_frames = samples.len() / 2;
+
+        // De-interleave stereo samples into separate channels
+        let mut left = Vec::with_capacity(num_frames);
+        let mut right = Vec::with_capacity(num_frames);
+
+        for i in 0..num_frames {
+            left.push(samples[i * 2]);
+            right.push(samples[i * 2 + 1]);
+        }
+
+        // Configure high-quality sinc interpolation
+        let params = InterpolationParameters {
+            sinc_len: 256,           // 256-tap filter for high quality
+            f_cutoff: 0.95,          // 95% of Nyquist to prevent aliasing
+            interpolation: InterpolationType::Linear,
+            oversampling_factor: 256,
+            window: WindowFunction::BlackmanHarris2,
+        };
+
+        let resample_ratio = self.target_sample_rate as f64 / source_rate as f64;
+
+        // Create resampler for stereo (2 channels)
+        // Use chunk size equal to input length for single-pass processing
+        let mut resampler = SincFixedIn::<f32>::new(
+            resample_ratio,
+            2.0,                     // Max resample ratio factor (allows 2x up/down)
+            params,
+            num_frames,              // Chunk size = input length
+            2,                       // 2 channels (stereo)
+        ).context("Failed to create rubato resampler")?;
+
+        // Prepare input as Vec<Vec<f32>> (per-channel)
+        let input_channels = vec![left, right];
+
+        // Process resampling
+        let output_channels = resampler
+            .process(&input_channels, None)
+            .context("Rubato resampling failed")?;
+
+        // Re-interleave output channels
+        let output_frames = output_channels[0].len();
+        let mut output = Vec::with_capacity(output_frames * 2);
+
+        for i in 0..output_frames {
+            output.push(output_channels[0][i]);
+            output.push(output_channels[1][i]);
+        }
+
+        debug!(
+            "Resampled {} frames ({} Hz) → {} frames ({} Hz)",
+            num_frames, source_rate, output_frames, self.target_sample_rate
+        );
+
+        Ok(output)
     }
 }
 
@@ -536,5 +616,137 @@ mod tests {
 
         assert_eq!(segment.duration_ticks(), TICK_RATE);
         assert!((segment.duration_seconds() - 1.0).abs() < 0.001);
+    }
+
+    // ============================================================================
+    // [P1-2] Resampling Tests
+    // ============================================================================
+
+    #[test]
+    fn test_resample_48khz_to_44khz() {
+        // Test downsampling from 48 kHz to 44.1 kHz
+        let loader = AudioLoader::new(44100);
+
+        // Create 1 second of 48 kHz stereo sine wave (440 Hz, A4 note)
+        let source_rate = 48000;
+        let duration_s = 1.0;
+        let frequency = 440.0;
+        let num_frames = (source_rate as f64 * duration_s) as usize;
+
+        let mut samples = Vec::with_capacity(num_frames * 2);
+        for i in 0..num_frames {
+            let t = i as f64 / source_rate as f64;
+            let sample = (2.0 * std::f64::consts::PI * frequency * t).sin() as f32;
+            samples.push(sample); // left
+            samples.push(sample); // right
+        }
+
+        // Resample
+        let resampled = loader.resample_stereo(samples, source_rate).unwrap();
+
+        // Expected output length: 44100 frames * 2 channels = 88,200 samples
+        let expected_frames = (44100.0 * duration_s) as usize;
+        let expected_samples = expected_frames * 2;
+
+        // Allow ±1% tolerance for frame count due to rounding
+        let tolerance = (expected_samples as f64 * 0.01) as usize;
+        assert!(
+            resampled.len() >= expected_samples - tolerance
+                && resampled.len() <= expected_samples + tolerance,
+            "Expected ~{} samples, got {}",
+            expected_samples,
+            resampled.len()
+        );
+
+        // Verify samples are in valid range [-1.0, 1.0]
+        for (i, &sample) in resampled.iter().enumerate() {
+            assert!(
+                sample >= -1.0 && sample <= 1.0,
+                "Sample {} out of range: {}",
+                i,
+                sample
+            );
+        }
+    }
+
+    #[test]
+    fn test_resample_96khz_to_44khz() {
+        // Test downsampling from 96 kHz to 44.1 kHz (larger ratio)
+        let loader = AudioLoader::new(44100);
+
+        // Create 0.5 seconds of 96 kHz stereo silence
+        let source_rate = 96000;
+        let duration_s = 0.5;
+        let num_frames = (source_rate as f64 * duration_s) as usize;
+
+        let samples = vec![0.0; num_frames * 2];
+
+        // Resample
+        let resampled = loader.resample_stereo(samples, source_rate).unwrap();
+
+        // Expected output: 22,050 frames * 2 channels = 44,100 samples
+        let expected_frames = (44100.0 * duration_s) as usize;
+        let expected_samples = expected_frames * 2;
+
+        // Allow ±1% tolerance
+        let tolerance = (expected_samples as f64 * 0.01) as usize;
+        assert!(
+            resampled.len() >= expected_samples - tolerance
+                && resampled.len() <= expected_samples + tolerance,
+            "Expected ~{} samples, got {}",
+            expected_samples,
+            resampled.len()
+        );
+
+        // All samples should remain 0.0
+        for &sample in &resampled {
+            assert_eq!(sample, 0.0, "Expected silence to remain silence");
+        }
+    }
+
+    #[test]
+    fn test_resample_empty_input() {
+        // Test edge case: empty input
+        let loader = AudioLoader::new(44100);
+        let empty = Vec::new();
+
+        let resampled = loader.resample_stereo(empty, 48000).unwrap();
+
+        assert_eq!(resampled.len(), 0, "Empty input should produce empty output");
+    }
+
+    #[test]
+    fn test_resample_preserves_stereo_separation() {
+        // Test that left/right channels remain distinct after resampling
+        let loader = AudioLoader::new(44100);
+        let source_rate = 48000;
+        let num_frames = 1000;
+
+        // Create stereo with different values on each channel
+        let mut samples = Vec::with_capacity(num_frames * 2);
+        for _ in 0..num_frames {
+            samples.push(0.5);  // left = 0.5
+            samples.push(-0.5); // right = -0.5
+        }
+
+        let resampled = loader.resample_stereo(samples, source_rate).unwrap();
+
+        // Check that left/right channels are still different
+        // (they should be approximately 0.5 and -0.5, allowing some error)
+        for i in 0..(resampled.len() / 2) {
+            let left = resampled[i * 2];
+            let right = resampled[i * 2 + 1];
+
+            assert!(
+                (left - 0.5).abs() < 0.1,
+                "Left channel should be ~0.5, got {}",
+                left
+            );
+            assert!(
+                (right - (-0.5)).abs() < 0.1,
+                "Right channel should be ~-0.5, got {}",
+                right
+            );
+        }
     }
 }
