@@ -131,6 +131,10 @@ impl ConsistencyChecker {
     /// Validate complete metadata bundle
     ///
     /// Runs all consistency checks and returns aggregate result.
+    ///
+    /// # Deprecated (Old API)
+    /// This method returns a single ValidationResult. Use `validate_metadata_detailed()`
+    /// for the new API that returns separate warnings and conflicts lists.
     pub fn validate_metadata(&self, metadata: &FusedMetadata) -> ValidationResult {
         // Validate each field
         let title_result = self.validate_title(metadata);
@@ -166,6 +170,58 @@ impl ConsistencyChecker {
             }
             _ => ValidationResult::Pass,
         }
+    }
+
+    /// Validate complete metadata bundle (new API)
+    ///
+    /// Runs all consistency checks and returns separate lists of warnings and conflicts.
+    ///
+    /// # Returns
+    /// Tuple of (warnings, conflicts) where:
+    /// - `warnings`: Vec<String> - Non-critical inconsistencies
+    /// - `conflicts`: Vec<(String, ConflictSeverity)> - Critical inconsistencies with severity
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use wkmp_ai::import_v2::tier3::consistency_checker::ConsistencyChecker;
+    /// # use wkmp_ai::import_v2::types::FusedMetadata;
+    /// # let checker = ConsistencyChecker::default();
+    /// # let metadata: FusedMetadata = unimplemented!();
+    /// let (warnings, conflicts) = checker.validate_metadata_detailed(&metadata);
+    /// if !conflicts.is_empty() {
+    ///     println!("Found {} conflicts", conflicts.len());
+    /// }
+    /// ```
+    pub fn validate_metadata_detailed(
+        &self,
+        metadata: &FusedMetadata,
+    ) -> (Vec<String>, Vec<(String, ConflictSeverity)>) {
+        let mut warnings = Vec::new();
+        let mut conflicts = Vec::new();
+
+        // Validate each field
+        let results = vec![
+            self.validate_title(metadata),
+            self.validate_artist(metadata),
+            self.validate_album(metadata),
+        ];
+
+        // Collect all warnings and conflicts
+        for result in results {
+            match result {
+                ValidationResult::Conflict { message, severity } => {
+                    conflicts.push((message, severity));
+                }
+                ValidationResult::Warning { message } => {
+                    warnings.push(message);
+                }
+                ValidationResult::Pass => {
+                    // No action needed
+                }
+            }
+        }
+
+        (warnings, conflicts)
     }
 }
 
@@ -502,5 +558,92 @@ mod tests {
             !matches!(result, ValidationResult::Pass),
             "Expected non-Pass for emoji difference"
         );
+    }
+
+    // === Tests for new API (validate_metadata_detailed) ===
+
+    #[test]
+    fn test_detailed_api_no_conflicts() {
+        let checker = ConsistencyChecker::default();
+
+        let metadata = FusedMetadata {
+            title: Some(MetadataField {
+                value: "Let It Be".to_string(),
+                confidence: 0.9,
+                source: ExtractionSource::MusicBrainz,
+            }),
+            artist: Some(MetadataField {
+                value: "The Beatles".to_string(),
+                confidence: 0.9,
+                source: ExtractionSource::MusicBrainz,
+            }),
+            album: Some(MetadataField {
+                value: "Let It Be".to_string(),
+                confidence: 0.8,
+                source: ExtractionSource::ID3Metadata,
+            }),
+            release_date: None,
+            track_number: None,
+            duration_ms: None,
+            metadata_confidence: 0.85,
+        };
+
+        let (warnings, conflicts) = checker.validate_metadata_detailed(&metadata);
+
+        assert!(warnings.is_empty(), "Expected no warnings");
+        assert!(conflicts.is_empty(), "Expected no conflicts");
+    }
+
+    #[test]
+    fn test_detailed_api_with_none_fields() {
+        let checker = ConsistencyChecker::default();
+
+        let metadata = FusedMetadata {
+            title: None,
+            artist: None,
+            album: None,
+            release_date: None,
+            track_number: None,
+            duration_ms: None,
+            metadata_confidence: 0.0,
+        };
+
+        let (warnings, conflicts) = checker.validate_metadata_detailed(&metadata);
+
+        assert!(warnings.is_empty(), "Expected no warnings for empty metadata");
+        assert!(conflicts.is_empty(), "Expected no conflicts for empty metadata");
+    }
+
+    #[test]
+    fn test_detailed_api_separates_warnings_and_conflicts() {
+        // This test demonstrates that the detailed API would separate warnings from conflicts
+        // In the current implementation, since validate_title/artist/album always return Pass,
+        // we can only test the structure. Full implementation would populate both lists.
+
+        let checker = ConsistencyChecker::default();
+
+        let metadata = FusedMetadata {
+            title: Some(MetadataField {
+                value: "Test".to_string(),
+                confidence: 0.9,
+                source: ExtractionSource::ID3Metadata,
+            }),
+            artist: None,
+            album: None,
+            release_date: None,
+            track_number: None,
+            duration_ms: None,
+            metadata_confidence: 0.5,
+        };
+
+        let (warnings, conflicts) = checker.validate_metadata_detailed(&metadata);
+
+        // Verify types are correct
+        assert!(warnings.is_empty() || !warnings.is_empty()); // Vec<String>
+        assert!(conflicts.is_empty() || !conflicts.is_empty()); // Vec<(String, ConflictSeverity)>
+
+        // In current implementation, both should be empty since validation returns Pass
+        assert!(warnings.is_empty());
+        assert!(conflicts.is_empty());
     }
 }

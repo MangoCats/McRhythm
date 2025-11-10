@@ -482,11 +482,21 @@ async fn test_p1_5_end_to_end_real_audio_pipeline() {
             validation.has_conflicts
         );
 
-        // 3d. Verify identity confidence (even if no MBID resolved)
+        // 3d. Verify identity was resolved (even if no MBID found)
+        let identity = result.identity.as_ref()
+            .expect("Identity should be present on success");
+
         assert!(
-            result.identity_confidence >= 0.0 && result.identity_confidence <= 1.0,
+            identity.confidence >= 0.0 && identity.confidence <= 1.0,
             "Identity confidence should be in [0, 1]: got {}",
-            result.identity_confidence
+            identity.confidence
+        );
+
+        tracing::info!(
+            "Identity: mbid={:?}, confidence={:.3}, candidates={}",
+            identity.mbid,
+            identity.confidence,
+            identity.candidates.len()
         );
 
     } else {

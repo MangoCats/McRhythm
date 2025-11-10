@@ -29,7 +29,8 @@ async fn test_app_state() -> AppState {
     .unwrap();
 
     let event_bus = EventBus::new(100);
-    AppState::new(db_pool, event_bus)
+    let (import_event_tx, _) = tokio::sync::broadcast::channel(100);
+    AppState::new(db_pool, event_bus, import_event_tx)
 }
 
 /// TC-HTTP-001: Verify wkmp-ai starts on port 5723

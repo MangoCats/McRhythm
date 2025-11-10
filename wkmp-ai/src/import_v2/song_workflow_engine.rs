@@ -42,7 +42,6 @@ use crate::import_v2::types::{
 use std::path::Path;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use uuid::Uuid;
 
 /// Per-song workflow result
 #[derive(Debug, Clone)]
@@ -53,9 +52,8 @@ pub struct SongWorkflowResult {
     pub success: bool,
     /// Fused metadata (if successful)
     pub metadata: Option<FusedMetadata>,
-    /// Resolved identity (if successful)
-    pub mbid: Option<Uuid>,
-    pub identity_confidence: f64,
+    /// Resolved identity (full structure with candidates)
+    pub identity: Option<crate::import_v2::types::ResolvedIdentity>,
     /// Musical flavor (if successful)
     pub flavor: Option<MusicalFlavor>,
     /// Validation report
@@ -87,9 +85,7 @@ pub struct SongWorkflowEngine {
     audio_loader: AudioLoader,
     id3_extractor: ID3Extractor,
     chromaprint_analyzer: ChromaprintAnalyzer,
-    #[allow(dead_code)]
     musicbrainz_client: Option<MusicBrainzClient>,
-    #[allow(dead_code)]
     acoustid_client: Option<AcoustIDClient>,
     audio_features: AudioFeatureExtractor,
 
@@ -118,8 +114,8 @@ impl Default for SongWorkflowEngine {
             audio_loader: AudioLoader::default(),
             id3_extractor: ID3Extractor::default(),
             chromaprint_analyzer: ChromaprintAnalyzer::default(),
-            musicbrainz_client: None, // TODO: Initialize from config
-            acoustid_client: None,     // TODO: Initialize from config
+            musicbrainz_client: None, // Call init_clients() after construction
+            acoustid_client: None,     // Call init_clients() after construction
             audio_features: AudioFeatureExtractor::default(),
             identity_resolver: IdentityResolver::default(),
             metadata_fuser: MetadataFuser::default(),
@@ -274,8 +270,7 @@ impl SongWorkflowEngine {
                     passage_index,
                     success: false,
                     metadata: None,
-                    mbid: None,
-                    identity_confidence: 0.0,
+                    identity: None,
                     flavor: None,
                     validation: None,
                     error: Some(error_msg),
@@ -285,9 +280,20 @@ impl SongWorkflowEngine {
         };
 
         // Emit ExtractionComplete event
+        // Collect all sources used (ID3 + AcoustID if candidates exist + audio features)
+        let mut sources = vec![id3_result.source, audio_flavor_result.source];
+
+        // Add AcoustID source if candidates were found
+        if !mbid_candidates.is_empty() {
+            // AcoustID source is recorded in the first candidate list
+            if let Some(first_candidate_list) = mbid_candidates.first() {
+                sources.push(first_candidate_list.source);
+            }
+        }
+
         self.emit_event(ImportEvent::ExtractionComplete {
             song_index: passage_index,
-            sources: vec![id3_result.source],  // TODO: Add all sources used
+            sources,
         });
 
         // Phase 3: Tier 2 - Identity resolution
@@ -299,8 +305,7 @@ impl SongWorkflowEngine {
                     passage_index,
                     success: false,
                     metadata: None,
-                    mbid: None,
-                    identity_confidence: 0.0,
+                    identity: None,
                     flavor: None,
                     validation: None,
                     error: Some(format!("Identity resolution failed: {}", e)),
@@ -318,7 +323,30 @@ impl SongWorkflowEngine {
         );
 
         // Phase 4: Tier 2 - Metadata fusion
-        let metadata_bundles = vec![id3_result]; // TODO: Add MusicBrainz metadata
+        let mut metadata_bundles = vec![id3_result];
+
+        // Query MusicBrainz API if client is available and MBID was resolved
+        if let (Some(ref mb_client), Some(mbid)) = (&self.musicbrainz_client, identity.mbid) {
+            match mb_client.lookup(mbid).await {
+                Ok(mb_result) => {
+                    tracing::debug!(
+                        "MusicBrainz returned metadata: title={} artist={} album={}",
+                        mb_result.data.title.first().map(|f| f.value.as_str()).unwrap_or("N/A"),
+                        mb_result.data.artist.first().map(|f| f.value.as_str()).unwrap_or("N/A"),
+                        mb_result.data.album.first().map(|f| f.value.as_str()).unwrap_or("N/A")
+                    );
+                    metadata_bundles.push(mb_result);
+                }
+                Err(e) => {
+                    // Non-fatal: continue with other sources
+                    tracing::warn!(
+                        "MusicBrainz lookup failed for mbid={} (non-fatal, continuing with other sources): {}",
+                        mbid,
+                        e
+                    );
+                }
+            }
+        }
 
         let fused_metadata = match self.metadata_fuser.fuse(metadata_bundles) {
             Ok(metadata) => metadata,
@@ -328,8 +356,7 @@ impl SongWorkflowEngine {
                     passage_index,
                     success: false,
                     metadata: None,
-                    mbid: identity.mbid,
-                    identity_confidence: identity.confidence,
+                    identity: Some(identity),
                     flavor: None,
                     validation: None,
                     error: Some(format!("Metadata fusion failed: {}", e)),
@@ -352,20 +379,8 @@ impl SongWorkflowEngine {
         });
 
         // Phase 6: Tier 3 - Consistency validation
-        // TODO: ConsistencyChecker API needs to be updated to return Vec<(String, ConflictSeverity)>
-        // For now, use simple validation
-        use crate::import_v2::types::{ConflictSeverity, ValidationResult};
-        let validation_result = self.consistency_checker.validate_metadata(&fused_metadata);
-
-        let consistency_conflicts = match validation_result {
-            ValidationResult::Conflict { message, severity } => {
-                vec![(message, severity)]
-            },
-            ValidationResult::Warning { message } => {
-                vec![(message, ConflictSeverity::Low)]
-            },
-            ValidationResult::Pass => vec![],
-        };
+        let (_consistency_warnings, consistency_conflicts) =
+            self.consistency_checker.validate_metadata_detailed(&fused_metadata);
 
         // Phase 7: Tier 3 - Completeness scoring
         let quality_score = self.completeness_scorer.score(&fused_metadata);
@@ -426,8 +441,7 @@ impl SongWorkflowEngine {
             passage_index,
             success: is_acceptable,
             metadata: Some(fused_metadata),
-            mbid: identity.mbid,
-            identity_confidence: identity.confidence,
+            identity: Some(identity),
             flavor: Some(musical_flavor),
             validation: Some(validation_report),
             error: error_msg,
@@ -539,10 +553,41 @@ impl SongWorkflowEngine {
         );
 
         // **Phase 6: Assemble MBID candidates**
-        // TODO: Query AcoustID API with fingerprint to get MBID candidates
-        // TODO: Extract MBID from ID3 UFID frame (if present)
-        // For now, return empty candidates list
-        let mbid_candidates = vec![];
+        let mut mbid_candidates = vec![];
+
+        // Query AcoustID API if client is available
+        if let Some(ref acoustid_client) = self.acoustid_client {
+            // Convert duration from ms to seconds for AcoustID API
+            let duration_secs = duration_ms / 1000;
+
+            match acoustid_client.lookup(&fingerprint_result.data, duration_secs).await {
+                Ok(acoustid_result) => {
+                    tracing::debug!(
+                        "AcoustID returned {} candidates",
+                        acoustid_result.data.len()
+                    );
+                    mbid_candidates.push(acoustid_result);
+                }
+                Err(e) => {
+                    // Non-fatal: continue with other sources
+                    tracing::warn!(
+                        "AcoustID lookup failed (non-fatal, continuing with other sources): {}",
+                        e
+                    );
+                }
+            }
+        }
+
+        // Extract MBID from ID3 UFID frame (if present)
+        // Note: Currently limited by lofty crate - UFID frames not exposed in public API
+        // When lofty adds UFID support, this will automatically enable ID3 MBID extraction
+        if let Ok(Some(id3_mbid_result)) = self.id3_extractor.extract_mbid(file_path) {
+            tracing::debug!(
+                "ID3 UFID returned {} MBID candidates",
+                id3_mbid_result.data.len()
+            );
+            mbid_candidates.push(id3_mbid_result);
+        }
 
         Ok((id3_result, mbid_candidates, audio_flavor))
     }

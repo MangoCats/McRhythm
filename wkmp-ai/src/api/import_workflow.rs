@@ -224,36 +224,39 @@ pub async fn cancel_import(
 ///
 /// **[AIA-WF-010]** Execute complete import workflow through all states
 /// **[AIA-ASYNC-010]** Respects cancellation token
+/// **[PLAN024]** Uses import_v2::SessionOrchestrator
 async fn execute_import_workflow(
     state: AppState,
     session: ImportSession,
     cancel_token: tokio_util::sync::CancellationToken,
 ) -> anyhow::Result<()> {
-    use crate::services::WorkflowOrchestrator;
+    use crate::import_v2::session_orchestrator::SessionOrchestrator;
 
     let session_id = session.session_id;
-    tracing::info!(session_id = %session_id, "Starting import workflow orchestration");
+    tracing::info!(session_id = %session_id, "Starting import workflow orchestration (import_v2)");
 
-    // Load AcoustID API key from database
-    let acoustid_api_key = match crate::db::settings::get_acoustid_api_key(&state.db).await {
-        Ok(key) => key,
-        Err(e) => {
-            tracing::warn!("Failed to load AcoustID API key from database: {}", e);
-            None
-        }
+    // Create default TOML config for API key fallback
+    // (Configuration resolution happens database-first in init_clients)
+    let toml_config = wkmp_common::config::TomlConfig {
+        root_folder: None,
+        logging: wkmp_common::config::LoggingConfig::default(),
+        static_assets: None,
+        acoustid_api_key: None,
+        musicbrainz_token: None,
     };
 
-    if acoustid_api_key.is_none() {
-        tracing::warn!("No AcoustID API key configured - fingerprinting will be disabled");
-        tracing::warn!("Configure key at: http://localhost:5723/settings");
-    }
-
-    // Create workflow orchestrator with event bus for SSE broadcasting
-    let orchestrator = WorkflowOrchestrator::new(
+    // Create session orchestrator with import event channel
+    let mut orchestrator = SessionOrchestrator::new(
         state.db.clone(),
-        state.event_bus.clone(),
-        acoustid_api_key,
+        state.import_event_tx.clone(),
+        1000, // 1000ms SSE throttle interval
     );
+
+    // Initialize API clients from configuration (database-first priority)
+    if let Err(e) = orchestrator.init_clients(&toml_config).await {
+        tracing::warn!("Failed to initialize API clients: {}", e);
+        tracing::warn!("Import workflow will continue with degraded functionality");
+    }
 
     // Execute workflow with error handling
     match orchestrator.execute_import(session, cancel_token).await {

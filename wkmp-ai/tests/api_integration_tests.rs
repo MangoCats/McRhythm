@@ -49,8 +49,11 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
     // Create event bus
     let event_bus = EventBus::new(100);
 
+    // Create import event channel
+    let (import_event_tx, _) = tokio::sync::broadcast::channel(100);
+
     // Create app state
-    let state = wkmp_ai::AppState::new(pool.clone(), event_bus);
+    let state = wkmp_ai::AppState::new(pool.clone(), event_bus, import_event_tx);
 
     // Build router (wkmp-ai needs to have a lib.rs for this to work, or use main module)
     // Since wkmp-ai is a binary, we need to expose AppState and build_router

@@ -46,6 +46,7 @@ pub mod tier1;  // Source extractors (7 independent concepts) - 6/7 complete ✅
 pub mod tier2;  // Fusion modules (4 concepts with explicit synchronizations) - 4/4 complete ✅
 pub mod tier3;  // Validation modules (3 concepts) - 3/3 complete ✅
 pub mod song_workflow_engine;  // Per-song sequential processing
+pub mod session_orchestrator;  // Session-level workflow orchestration (PLAN024)
 pub mod sse_broadcaster;  // SSE event broadcasting with throttling ✅
 pub mod db_repository;  // Database repository for ProcessedPassage ✅
 

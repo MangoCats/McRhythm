@@ -12,6 +12,9 @@ pub mod services;
 // PLAN023: New import system with 3-tier hybrid fusion architecture
 pub mod import_v2;
 
+// PLAN024: Event bridge for import_v2 → legacy WkmpEvent conversion
+pub mod event_bridge;
+
 pub use crate::error::{ApiError, ApiResult};
 
 use axum::Router;

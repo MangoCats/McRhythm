@@ -304,6 +304,18 @@ pub struct SongContext {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImportEvent {
+    /// Session started (PLAN024)
+    SessionStarted {
+        session_id: uuid::Uuid,
+        root_folder: String,
+    },
+
+    /// Session failed (PLAN024)
+    SessionFailed {
+        session_id: uuid::Uuid,
+        error: String,
+    },
+
     /// Phase 0: Passage boundaries discovered
     PassagesDiscovered {
         file_path: String,

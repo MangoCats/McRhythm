@@ -149,6 +149,69 @@ impl ID3Extractor {
         })
     }
 
+    /// Extract MusicBrainz Recording ID from ID3 UFID frame
+    ///
+    /// Searches for UFID (Unique File Identifier) frame with owner "http://musicbrainz.org"
+    /// and extracts the MBID if present.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to audio file
+    ///
+    /// # Returns
+    /// * `Ok(Some(ExtractorResult<Vec<MBIDCandidate>>>>` - MBID found and parsed successfully
+    /// * `Ok(None)` - No UFID frame found or MBID parsing failed
+    /// * `Err(ImportError)` - File not found or read error
+    ///
+    /// # Notes
+    /// - MusicBrainz UFID owner: "http://musicbrainz.org"
+    /// - MBID format: UUID string (e.g., "84614f2a-8768-46ca-93e0-d9a5ee001cce")
+    /// - Confidence: 0.85 (higher than regular ID3 fields - less user-editable)
+    pub fn extract_mbid(
+        &self,
+        file_path: &Path,
+    ) -> ImportResult<Option<ExtractorResult<Vec<crate::import_v2::types::MBIDCandidate>>>> {
+        
+        
+
+        debug!("Extracting MBID from UFID frame: {}", file_path.display());
+
+        // Probe file
+        let tagged_file = Probe::open(file_path)
+            .map_err(|e| {
+                ImportError::ExtractionFailed(format!("Failed to open file: {}", e))
+            })?
+            .read()
+            .map_err(|e| {
+                ImportError::ExtractionFailed(format!("Failed to read file tags: {}", e))
+            })?;
+
+        // Get primary tag
+        let tag = match tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+            Some(t) => t,
+            None => {
+                debug!("  No tags found, cannot extract UFID");
+                return Ok(None);
+            }
+        };
+
+        // lofty doesn't provide direct UFID access through Accessor trait
+        // We need to check if the tag is ID3v2 and access frames directly
+        use lofty::tag::TagType;
+        if tag.tag_type() != TagType::Id3v2 {
+            debug!("  Not an ID3v2 tag, skipping UFID extraction");
+            return Ok(None);
+        }
+
+        // Try to downcast to ID3v2 tag to access UFID frames
+        // Note: lofty's API doesn't expose UFID frames directly through the public API
+        // This is a limitation - we can only extract UFID if it's exposed via custom getters
+        // For now, return None until lofty provides UFID access
+        // TODO: When lofty exposes UFID frames, implement extraction here
+
+        debug!("  UFID frame access not yet supported by lofty crate");
+        Ok(None)
+    }
+
     /// Extract genre from audio file tags
     ///
     /// # Returns

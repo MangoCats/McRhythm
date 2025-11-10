@@ -10,9 +10,11 @@
 use crate::import_v2::types::{
     ExtractionSource, ExtractorResult, ImportError, ImportResult, MetadataBundle, MetadataField,
 };
+use governor::{Quota, RateLimiter};
 use reqwest::Client;
 use serde::Deserialize;
 use sqlx::{Pool, Sqlite};
+use std::num::NonZeroU32;
 use std::time::Duration;
 use uuid::Uuid;
 use wkmp_common::config::TomlConfig;
@@ -73,6 +75,12 @@ pub struct MusicBrainzClient {
     user_agent: String,
     /// Default confidence for MusicBrainz metadata
     confidence: f64,
+    /// Rate limiter: 1 request per second (MusicBrainz policy)
+    rate_limiter: RateLimiter<
+        governor::state::direct::NotKeyed,
+        governor::state::InMemoryState,
+        governor::clock::DefaultClock,
+    >,
 }
 
 impl MusicBrainzClient {
@@ -91,11 +99,18 @@ impl MusicBrainzClient {
             .build()
             .expect("Failed to build HTTP client");
 
+        // Create rate limiter: 1 request per second (MusicBrainz policy)
+        // Using Quota::per_second with NonZeroU32::new(1) for 1 req/sec
+        let rate_limiter = RateLimiter::direct(
+            Quota::per_second(NonZeroU32::new(1).expect("1 is non-zero")),
+        );
+
         Self {
             client,
             base_url: "https://musicbrainz.org/ws/2".to_string(),
             user_agent,
             confidence: ExtractionSource::MusicBrainz.default_confidence(),
+            rate_limiter,
         }
     }
 
@@ -135,12 +150,18 @@ impl MusicBrainzClient {
     /// - Response cannot be parsed
     ///
     /// # Rate Limiting
-    /// MusicBrainz requires ≤1 request/second. Caller is responsible for
-    /// rate limiting enforcement (via governor crate in workflow layer).
+    /// Enforces MusicBrainz policy of ≤1 request/second using token bucket algorithm.
+    /// This method will block (async wait) until a permit is available.
     pub async fn lookup(
         &self,
         mbid: Uuid,
     ) -> ImportResult<ExtractorResult<MetadataBundle>> {
+        // Wait for rate limiter permit (enforces 1 req/sec)
+        // This is a blocking async operation that will wait until a token is available
+        self.rate_limiter
+            .until_ready()
+            .await;
+
         // Build URL: /ws/2/recording/{mbid}?inc=artists+releases
         let url = format!(
             "{}/recording/{}?inc=artist-credits+releases&fmt=json",
@@ -321,6 +342,76 @@ mod tests {
         assert!(client.user_agent.starts_with("WKMP/"));
         assert!(client.user_agent.contains("github.com/wkmp/wkmp"));
         assert_eq!(client.confidence, 0.9);
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_enforces_one_per_second() {
+        use std::time::Instant;
+
+        // Create client with rate limiter
+        let client = MusicBrainzClient::new("TestApp/1.0".to_string());
+
+        // Verify rate limiter exists and is configured for 1 req/sec
+        // We can't directly inspect the quota, but we can test the behavior
+
+        // First request should be immediate (token available)
+        let start = Instant::now();
+        client.rate_limiter.until_ready().await;
+        let first_elapsed = start.elapsed();
+
+        // First request should take minimal time (<10ms typically)
+        assert!(
+            first_elapsed.as_millis() < 100,
+            "First request should be immediate, took {:?}",
+            first_elapsed
+        );
+
+        // Second request should block until ~1 second has passed
+        let start = Instant::now();
+        client.rate_limiter.until_ready().await;
+        let second_elapsed = start.elapsed();
+
+        // Second request should take ~1 second (allow 900ms-1100ms range for timing variance)
+        assert!(
+            second_elapsed.as_millis() >= 900,
+            "Second request should wait ~1 second, took {:?}",
+            second_elapsed
+        );
+        assert!(
+            second_elapsed.as_millis() <= 1100,
+            "Second request should wait ~1 second, took {:?}",
+            second_elapsed
+        );
+    }
+
+    #[tokio::test]
+    async fn test_rate_limiter_allows_concurrent_clients() {
+        // Create two separate clients (each with independent rate limiter)
+        let client1 = MusicBrainzClient::new("TestApp1/1.0".to_string());
+        let client2 = MusicBrainzClient::new("TestApp2/1.0".to_string());
+
+        // Both should be able to make requests immediately (independent rate limiters)
+        let start = std::time::Instant::now();
+
+        let handle1 = tokio::spawn(async move {
+            client1.rate_limiter.until_ready().await;
+        });
+
+        let handle2 = tokio::spawn(async move {
+            client2.rate_limiter.until_ready().await;
+        });
+
+        handle1.await.unwrap();
+        handle2.await.unwrap();
+
+        let elapsed = start.elapsed();
+
+        // Both should complete quickly since they have independent rate limiters
+        assert!(
+            elapsed.as_millis() < 100,
+            "Independent clients should not block each other, took {:?}",
+            elapsed
+        );
     }
 
     // Note: Integration tests with real API calls would require:

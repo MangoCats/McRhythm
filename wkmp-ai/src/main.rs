@@ -143,6 +143,15 @@ async fn main() -> Result<()> {
     let (import_event_tx, _import_event_rx) = tokio::sync::broadcast::channel(100);
     info!("Import event channel initialized");
 
+    // Spawn event bridge task **[PLAN024 Event Integration]**
+    // Converts import_v2 events (ImportEvent) to legacy events (WkmpEvent) for SSE
+    let bridge_rx = import_event_tx.subscribe();
+    let bridge_event_bus = event_bus.clone();
+    tokio::spawn(async move {
+        wkmp_ai::event_bridge::run_event_bridge(bridge_rx, bridge_event_bus).await;
+    });
+    info!("Event bridge initialized (ImportEvent → WkmpEvent)");
+
     // Create application state
     let state = AppState::new(db_pool, event_bus, import_event_tx);
 
