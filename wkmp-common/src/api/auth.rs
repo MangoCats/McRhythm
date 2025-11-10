@@ -184,7 +184,9 @@ pub async fn initialize_shared_secret(db: &SqlitePool) -> Result<i64, ApiAuthErr
 pub fn validate_timestamp(timestamp: i64) -> Result<(), ApiAuthError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .map_err(|e| ApiAuthError::DatabaseError(
+            format!("System clock before Unix epoch: {}", e)
+        ))?
         .as_millis() as i64;
 
     let diff = now - timestamp;
