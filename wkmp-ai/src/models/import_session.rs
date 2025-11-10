@@ -1,7 +1,8 @@
 //! Import workflow state machine
 //!
-//! **[AIA-WF-010]** Import session progresses through 7 defined states:
-//! SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
+//! **[AIA-WF-010]** Import session progresses through states:
+//! Legacy: SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
+//! PLAN024: SCANNING → PROCESSING → COMPLETED
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,15 +14,17 @@ use uuid::Uuid;
 pub enum ImportState {
     /// Directory traversal, file discovery
     Scanning,
-    /// Metadata extraction, hash calculation
+    /// PLAN024: 3-tier pipeline processing (extraction + fusion + validation)
+    Processing,
+    /// Legacy: Metadata extraction, hash calculation
     Extracting,
-    /// Chromaprint → AcoustID → MusicBrainz
+    /// Legacy: Chromaprint → AcoustID → MusicBrainz
     Fingerprinting,
-    /// Silence detection, passage boundaries
+    /// Legacy: Silence detection, passage boundaries
     Segmenting,
-    /// Amplitude analysis, lead-in/lead-out
+    /// Legacy: Amplitude analysis, lead-in/lead-out
     Analyzing,
-    /// AcousticBrainz or Essentia musical flavor
+    /// Legacy: AcousticBrainz or Essentia musical flavor
     Flavoring,
     /// Import finished successfully
     Completed,
@@ -36,6 +39,7 @@ impl ImportState {
     pub fn description(&self) -> &'static str {
         match self {
             ImportState::Scanning => "Finding audio files in folders",
+            ImportState::Processing => "Processing passages through hybrid fusion pipeline",
             ImportState::Extracting => "Reading ID3 tags and metadata",
             ImportState::Fingerprinting => "Generating audio fingerprints for identification",
             ImportState::Segmenting => "Detecting silence and passage boundaries",

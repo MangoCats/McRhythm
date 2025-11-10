@@ -6,9 +6,13 @@ pub mod api;
 pub mod config;
 pub mod db;
 pub mod error;
-pub mod fusion;  // PLAN023: 3-tier hybrid fusion architecture
+pub mod extractors;  // PLAN024 TASK-004: Tier 1 source extractors
+pub mod ffi;  // PLAN024: FFI bindings (Chromaprint)
+pub mod fusion;  // PLAN024: Tier 2 fusion layer
 pub mod models;
 pub mod services;
+pub mod types;  // PLAN024 TASK-004: Base traits and types
+pub mod validators;  // PLAN024: Tier 3 validation layer
 pub mod workflow;  // PLAN023: Per-song workflow orchestration
 
 pub use crate::error::{ApiError, ApiResult};

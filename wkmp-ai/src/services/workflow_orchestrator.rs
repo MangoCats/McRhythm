@@ -199,6 +199,76 @@ impl WorkflowOrchestrator {
         Ok(session)
     }
 
+    /// Execute import workflow using PLAN024 pipeline
+    ///
+    /// **[PLAN024]** Modern 3-tier hybrid fusion pipeline
+    /// **[AIA-ASYNC-010]** Respects cancellation token
+    ///
+    /// # Workflow
+    /// 1. SCANNING: File discovery (reuses legacy phase_scanning)
+    /// 2. PROCESSING: PLAN024 3-tier pipeline (replaces 5 legacy phases)
+    /// 3. COMPLETED: Import finished
+    pub async fn execute_import_plan024(
+        &self,
+        mut session: ImportSession,
+        cancel_token: tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
+        let start_time = std::time::Instant::now();
+
+        tracing::info!(
+            session_id = %session.session_id,
+            root_folder = %session.root_folder,
+            "Starting PLAN024 import workflow"
+        );
+
+        // Broadcast session started event
+        self.event_bus.emit_lossy(WkmpEvent::ImportSessionStarted {
+            session_id: session.session_id,
+            root_folder: session.root_folder.clone(),
+            timestamp: Utc::now(),
+        });
+
+        // Phase 1: SCANNING - Discover audio files (reuse legacy implementation)
+        session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session);
+        }
+
+        // Phase 2: PROCESSING - PLAN024 3-tier hybrid fusion pipeline
+        session = self.phase_processing_plan024(session, start_time, &cancel_token).await?;
+        if cancel_token.is_cancelled() {
+            return Ok(session);
+        }
+
+        // Phase 3: COMPLETED
+        session.transition_to(ImportState::Completed);
+        session.update_progress(
+            session.progress.total,
+            session.progress.total,
+            "Import completed successfully with PLAN024 pipeline".to_string(),
+        );
+
+        crate::db::sessions::save_session(&self.db, &session).await?;
+
+        let duration_seconds = start_time.elapsed().as_secs();
+
+        tracing::info!(
+            session_id = %session.session_id,
+            duration_seconds,
+            "PLAN024 import workflow completed successfully"
+        );
+
+        // Broadcast completion event
+        self.event_bus.emit_lossy(WkmpEvent::ImportSessionCompleted {
+            session_id: session.session_id,
+            files_processed: session.progress.total,
+            duration_seconds,
+            timestamp: Utc::now(),
+        });
+
+        Ok(session)
+    }
+
     // ============================================================================
     // PHASE 1: SCANNING
     // ============================================================================
@@ -1617,6 +1687,501 @@ impl WorkflowOrchestrator {
             }
             None => Ok(None),
         }
+    }
+
+    // ============================================================================
+    // PLAN024: Pipeline Integration
+    // ============================================================================
+
+    /// Phase 2 (PLAN024): PROCESSING - 3-tier hybrid fusion pipeline
+    ///
+    /// Replaces legacy EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING
+    /// with unified per-file pipeline processing.
+    ///
+    /// **Architecture:**
+    /// - Per file: Detect boundaries → process each passage through 3-tier pipeline
+    /// - Tier 1: Extraction (7 extractors in parallel)
+    /// - Tier 2: Fusion (3 fusers - identity, metadata, flavor)
+    /// - Tier 3: Validation (3 validators - consistency, completeness, quality)
+    async fn phase_processing_plan024(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
+        use crate::workflow::{Pipeline, PipelineConfig};
+        use tokio::sync::mpsc;
+
+        session.transition_to(ImportState::Processing);
+        session.update_progress(0, 0, "Initializing PLAN024 pipeline...".to_string());
+        crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
+
+        tracing::info!(
+            session_id = %session.session_id,
+            "Phase 2 (PLAN024): PROCESSING - 3-tier hybrid fusion pipeline"
+        );
+
+        // Load AcoustID API key from database (for pipeline configuration)
+        let acoustid_api_key = match crate::db::settings::get_acoustid_api_key(&self.db).await {
+            Ok(key) => key,
+            Err(e) => {
+                tracing::warn!("Failed to load AcoustID API key: {}", e);
+                None
+            }
+        };
+
+        // Create event channel for pipeline SSE broadcasting
+        let (event_tx, mut event_rx) = mpsc::channel(100);
+
+        // Configure PLAN024 pipeline
+        let pipeline_config = PipelineConfig {
+            acoustid_api_key: acoustid_api_key.clone(),
+            enable_musicbrainz: true,
+            enable_essentia: self.essentia_client.is_some(),
+            enable_audio_derived: true,
+            min_quality_threshold: 0.5, // Default minimum quality
+        };
+
+        let pipeline = Pipeline::with_events(pipeline_config, event_tx);
+
+        // Spawn task to bridge pipeline events to EventBus (SSE)
+        let _event_bus = self.event_bus.clone();
+        let session_id = session.session_id;
+        tokio::spawn(async move {
+            use crate::workflow::WorkflowEvent;
+
+            while let Some(event) = event_rx.recv().await {
+                // Convert workflow events to WkmpEvent for SSE broadcasting
+                match event {
+                    WorkflowEvent::FileStarted { file_path, timestamp: _ } => {
+                        tracing::debug!(session_id = %session_id, file = %file_path, "File processing started");
+                    }
+                    WorkflowEvent::PassageCompleted { passage_index, quality_score, validation_status } => {
+                        tracing::debug!(
+                            session_id = %session_id,
+                            passage_index,
+                            quality_score,
+                            validation_status,
+                            "Passage completed"
+                        );
+                    }
+                    WorkflowEvent::FileCompleted { file_path, passages_processed, timestamp: _ } => {
+                        tracing::info!(
+                            session_id = %session_id,
+                            file = %file_path,
+                            passages = passages_processed,
+                            "File processing completed"
+                        );
+                    }
+                    WorkflowEvent::Error { passage_index, message } => {
+                        tracing::warn!(
+                            session_id = %session_id,
+                            passage_index = ?passage_index,
+                            error = %message,
+                            "Pipeline error"
+                        );
+                    }
+                    _ => {
+                        // Other events (BoundaryDetected, ExtractionProgress, etc.)
+                        tracing::trace!(session_id = %session_id, event = ?event, "Pipeline event");
+                    }
+                }
+            }
+        });
+
+        // Load all files from database
+        let files = crate::db::files::load_all_files(&self.db).await?;
+        let total_files = files.len();
+
+        tracing::info!(
+            session_id = %session.session_id,
+            file_count = total_files,
+            "Processing files through PLAN024 pipeline"
+        );
+
+        session.update_progress(
+            0,
+            total_files,
+            format!("Processing {} files through hybrid fusion pipeline", total_files),
+        );
+        crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
+
+        let mut files_processed = 0;
+        let import_session_id = session.session_id.to_string();
+
+        for file in &files {
+            // Check cancellation
+            if cancel_token.is_cancelled() {
+                tracing::info!(
+                    session_id = %session.session_id,
+                    files_processed,
+                    "Import cancelled during processing phase"
+                );
+                session.transition_to(ImportState::Cancelled);
+                session.update_progress(
+                    files_processed,
+                    total_files,
+                    "Import cancelled by user".to_string(),
+                );
+                crate::db::sessions::save_session(&self.db, &session).await?;
+                return Ok(session);
+            }
+
+            let file_path_str = file.path.clone();
+            session.progress.current_file = Some(file_path_str.clone());
+            session.update_progress(
+                files_processed,
+                total_files,
+                format!("Processing file {} of {}: {}", files_processed + 1, total_files, file_path_str),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
+
+            // Process file through PLAN024 pipeline
+            let file_path = std::path::Path::new(&file_path_str);
+            match pipeline.process_file(file_path).await {
+                Ok(processed_passages) => {
+                    tracing::info!(
+                        session_id = %session.session_id,
+                        file = %file_path_str,
+                        passages = processed_passages.len(),
+                        "Pipeline processing completed successfully"
+                    );
+
+                    // Store all passages to database
+                    match crate::workflow::storage::store_passages_batch(
+                        &self.db,
+                        &file_path_str,
+                        &processed_passages,
+                        &import_session_id,
+                    )
+                    .await
+                    {
+                        Ok(passage_ids) => {
+                            tracing::info!(
+                                session_id = %session.session_id,
+                                file = %file_path_str,
+                                passages_stored = passage_ids.len(),
+                                "Passages stored to database successfully"
+                            );
+
+                            // Link passages to songs/artists/albums based on fused identity
+                            for (passage_id_str, processed_passage) in passage_ids.iter().zip(&processed_passages) {
+                                let passage_guid = match Uuid::parse_str(passage_id_str) {
+                                    Ok(guid) => guid,
+                                    Err(e) => {
+                                        tracing::error!(
+                                            session_id = %session.session_id,
+                                            passage_id = %passage_id_str,
+                                            error = %e,
+                                            "Invalid passage GUID, skipping linking"
+                                        );
+                                        continue;
+                                    }
+                                };
+
+                                // Extract recording MBID from fusion results
+                                let recording_mbid = if let Some(ref mbid_cv) = processed_passage.fusion.metadata.recording_mbid {
+                                    mbid_cv.value.clone()
+                                } else {
+                                    // No MBID - cannot link to song
+                                    tracing::debug!(
+                                        session_id = %session.session_id,
+                                        passage_id = %passage_id_str,
+                                        "No recording MBID found, skipping song linking"
+                                    );
+                                    continue;
+                                };
+
+                                // Look up or create song
+                                let song = match crate::db::songs::load_song_by_mbid(&self.db, &recording_mbid).await {
+                                    Ok(Some(existing_song)) => {
+                                        tracing::debug!(
+                                            session_id = %session.session_id,
+                                            song_id = %existing_song.guid,
+                                            recording_mbid = %recording_mbid,
+                                            "Found existing song"
+                                        );
+                                        existing_song
+                                    }
+                                    Ok(None) => {
+                                        // Create new song from fusion results
+                                        let title = processed_passage.fusion.metadata.title.as_ref().map(|cv| cv.value.clone());
+                                        let new_song = crate::db::songs::Song::new(recording_mbid.clone(), title.clone());
+
+                                        if let Err(e) = crate::db::songs::save_song(&self.db, &new_song).await {
+                                            tracing::error!(
+                                                session_id = %session.session_id,
+                                                recording_mbid = %recording_mbid,
+                                                error = %e,
+                                                "Failed to create new song, skipping"
+                                            );
+                                            continue;
+                                        }
+
+                                        tracing::info!(
+                                            session_id = %session.session_id,
+                                            song_id = %new_song.guid,
+                                            title = ?title,
+                                            recording_mbid = %recording_mbid,
+                                            "Created new song"
+                                        );
+
+                                        new_song
+                                    }
+                                    Err(e) => {
+                                        tracing::error!(
+                                            session_id = %session.session_id,
+                                            recording_mbid = %recording_mbid,
+                                            error = %e,
+                                            "Failed to query for existing song, skipping"
+                                        );
+                                        continue;
+                                    }
+                                };
+
+                                // Link passage to song
+                                if let Err(e) = crate::db::songs::link_passage_to_song(
+                                    &self.db,
+                                    passage_guid,
+                                    song.guid,
+                                    processed_passage.boundary.start_time,
+                                    processed_passage.boundary.end_time,
+                                )
+                                .await
+                                {
+                                    tracing::error!(
+                                        session_id = %session.session_id,
+                                        passage_id = %passage_id_str,
+                                        song_id = %song.guid,
+                                        error = %e,
+                                        "Failed to link passage to song"
+                                    );
+                                } else {
+                                    tracing::debug!(
+                                        session_id = %session.session_id,
+                                        passage_id = %passage_id_str,
+                                        song_id = %song.guid,
+                                        "Linked passage to song"
+                                    );
+                                }
+
+                                // Link to artist(s) if available
+                                if let Some(ref artist_cv) = processed_passage.fusion.metadata.artist {
+                                    let artist_name = &artist_cv.value;
+
+                                    // Extract artist MBID from fusion metadata (MusicBrainz extractor)
+                                    let artist_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("artist_mbid") {
+                                        // Single artist - use actual MBID from MusicBrainz
+                                        mbid_cv.value.clone()
+                                    } else if let Some(mbids_cv) = processed_passage.fusion.metadata.additional.get("artist_mbids") {
+                                        // Multiple artists - use first MBID (primary artist)
+                                        mbids_cv.value.split(',').next().unwrap_or("").to_string()
+                                    } else {
+                                        // No MusicBrainz MBID available - fall back to name-based ID
+                                        format!("name:{}", artist_name)
+                                    };
+
+                                    match crate::db::artists::load_artist_by_mbid(&self.db, &artist_mbid).await {
+                                        Ok(Some(existing_artist)) => {
+                                            // Link song to existing artist
+                                            if let Err(e) = crate::db::artists::link_song_to_artist(
+                                                &self.db,
+                                                song.guid,
+                                                existing_artist.guid,
+                                                1.0, // Full weight (single artist)
+                                            )
+                                            .await
+                                            {
+                                                tracing::error!(
+                                                    session_id = %session.session_id,
+                                                    song_id = %song.guid,
+                                                    artist_id = %existing_artist.guid,
+                                                    error = %e,
+                                                    "Failed to link song to artist"
+                                                );
+                                            }
+                                        }
+                                        Ok(None) => {
+                                            // Create new artist
+                                            let new_artist = crate::db::artists::Artist::new(artist_mbid.clone(), artist_name.clone());
+
+                                            if let Err(e) = crate::db::artists::save_artist(&self.db, &new_artist).await {
+                                                tracing::error!(
+                                                    session_id = %session.session_id,
+                                                    artist_name = %artist_name,
+                                                    error = %e,
+                                                    "Failed to create artist"
+                                                );
+                                            } else {
+                                                // Link song to new artist
+                                                if let Err(e) = crate::db::artists::link_song_to_artist(
+                                                    &self.db,
+                                                    song.guid,
+                                                    new_artist.guid,
+                                                    1.0,
+                                                )
+                                                .await
+                                                {
+                                                    tracing::error!(
+                                                        session_id = %session.session_id,
+                                                        song_id = %song.guid,
+                                                        artist_id = %new_artist.guid,
+                                                        error = %e,
+                                                        "Failed to link song to new artist"
+                                                    );
+                                                } else {
+                                                    tracing::debug!(
+                                                        session_id = %session.session_id,
+                                                        song_id = %song.guid,
+                                                        artist_name = %artist_name,
+                                                        "Created and linked new artist"
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tracing::error!(
+                                                session_id = %session.session_id,
+                                                artist_name = %artist_name,
+                                                error = %e,
+                                                "Failed to query for existing artist"
+                                            );
+                                        }
+                                    }
+                                }
+
+                                // Link to album if available
+                                if let Some(ref album_cv) = processed_passage.fusion.metadata.album {
+                                    let album_title = &album_cv.value;
+
+                                    // Extract release MBID from fusion metadata (MusicBrainz extractor)
+                                    let album_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("release_mbid") {
+                                        // Use actual release MBID from MusicBrainz
+                                        mbid_cv.value.clone()
+                                    } else {
+                                        // No MusicBrainz MBID available - fall back to title-based ID
+                                        format!("title:{}", album_title)
+                                    };
+
+                                    match crate::db::albums::load_album_by_mbid(&self.db, &album_mbid).await {
+                                        Ok(Some(existing_album)) => {
+                                            // Link passage to existing album
+                                            if let Err(e) = crate::db::albums::link_passage_to_album(
+                                                &self.db,
+                                                passage_guid,
+                                                existing_album.guid,
+                                            )
+                                            .await
+                                            {
+                                                tracing::error!(
+                                                    session_id = %session.session_id,
+                                                    passage_id = %passage_id_str,
+                                                    album_id = %existing_album.guid,
+                                                    error = %e,
+                                                    "Failed to link passage to album"
+                                                );
+                                            }
+                                        }
+                                        Ok(None) => {
+                                            // Create new album
+                                            let new_album = crate::db::albums::Album::new(album_mbid.clone(), album_title.clone());
+
+                                            if let Err(e) = crate::db::albums::save_album(&self.db, &new_album).await {
+                                                tracing::error!(
+                                                    session_id = %session.session_id,
+                                                    album_title = %album_title,
+                                                    error = %e,
+                                                    "Failed to create album"
+                                                );
+                                            } else {
+                                                // Link passage to new album
+                                                if let Err(e) = crate::db::albums::link_passage_to_album(
+                                                    &self.db,
+                                                    passage_guid,
+                                                    new_album.guid,
+                                                )
+                                                .await
+                                                {
+                                                    tracing::error!(
+                                                        session_id = %session.session_id,
+                                                        passage_id = %passage_id_str,
+                                                        album_id = %new_album.guid,
+                                                        error = %e,
+                                                        "Failed to link passage to new album"
+                                                    );
+                                                } else {
+                                                    tracing::debug!(
+                                                        session_id = %session.session_id,
+                                                        passage_id = %passage_id_str,
+                                                        album_title = %album_title,
+                                                        "Created and linked new album"
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tracing::error!(
+                                                session_id = %session.session_id,
+                                                album_title = %album_title,
+                                                error = %e,
+                                                "Failed to query for existing album"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+
+                            tracing::info!(
+                                session_id = %session.session_id,
+                                file = %file_path_str,
+                                passages = passage_ids.len(),
+                                "Completed passage-to-song/artist/album linking"
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                session_id = %session.session_id,
+                                file = %file_path_str,
+                                error = %e,
+                                "Failed to store passages to database"
+                            );
+                            // Continue processing other files (per-file error isolation)
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(
+                        session_id = %session.session_id,
+                        file = %file_path_str,
+                        error = %e,
+                        "Pipeline processing failed for file"
+                    );
+                    // Continue processing other files (per-file error isolation)
+                }
+            }
+
+            files_processed += 1;
+        }
+
+        // Final progress update
+        session.update_progress(
+            files_processed,
+            total_files,
+            format!("PLAN024 pipeline completed - {} files processed", files_processed),
+        );
+        crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
+
+        tracing::info!(
+            session_id = %session.session_id,
+            files_processed,
+            "PLAN024 processing phase completed"
+        );
+
+        Ok(session)
     }
 
     /// Handle workflow failure

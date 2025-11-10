@@ -7,6 +7,7 @@ pub mod acoustid_client;
 pub mod amplitude_analyzer;
 pub mod essentia_client;
 pub mod file_scanner;
+pub mod file_tracker;  // PLAN024 TASK-000: File-level import tracking
 pub mod fingerprinter;
 pub mod metadata_extractor;
 pub mod musicbrainz_client;
@@ -18,6 +19,9 @@ pub use acoustid_client::{AcoustIDClient, AcoustIDError, AcoustIDResponse};
 pub use amplitude_analyzer::{AmplitudeAnalysisResult, AmplitudeAnalyzer, AnalysisError};
 pub use essentia_client::{EssentiaClient, EssentiaError, EssentiaOutput};
 pub use file_scanner::{FileScanner, ScanError, ScanResult};
+pub use file_tracker::{
+    FileTracker, FileTrackerConfig, FileTrackingInfo, SkipDecision, SkipReason,
+};
 pub use fingerprinter::{Fingerprinter, FingerprintError};
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};

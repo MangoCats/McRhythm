@@ -256,7 +256,8 @@ async fn execute_import_workflow(
     );
 
     // Execute workflow with error handling
-    match orchestrator.execute_import(session, cancel_token).await {
+    // **[PLAN024]** Use new 3-tier hybrid fusion pipeline
+    match orchestrator.execute_import_plan024(session, cancel_token).await {
         Ok(final_session) => {
             tracing::info!(
                 session_id = %session_id,

@@ -10,6 +10,7 @@ pub mod artists;
 pub mod files;
 pub mod parameters;
 pub mod passages;
+pub mod schema;  // PLAN024 TASK-003: Schema synchronization
 pub mod sessions;
 pub mod settings;
 pub mod songs;
