@@ -2,6 +2,8 @@
 //!
 //! Exposes public APIs for integration testing
 
+#![warn(missing_docs)]
+
 pub mod api;
 pub mod config;
 pub mod db;
