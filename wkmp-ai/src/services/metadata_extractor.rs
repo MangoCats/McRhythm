@@ -77,6 +77,7 @@ pub struct AudioMetadata {
 pub struct MetadataExtractor {}
 
 impl MetadataExtractor {
+    /// Create new metadata extractor
     pub fn new() -> Self {
         Self {}
     }

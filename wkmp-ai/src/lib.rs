@@ -45,6 +45,11 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Create new application state
+    ///
+    /// # Arguments
+    /// * `db` - Database connection pool
+    /// * `event_bus` - Event bus for SSE broadcasting
     pub fn new(db: SqlitePool, event_bus: EventBus) -> Self {
         Self {
             db,

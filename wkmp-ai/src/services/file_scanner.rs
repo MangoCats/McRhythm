@@ -48,6 +48,9 @@ pub struct FileScanner {
 }
 
 impl FileScanner {
+    /// Create new file scanner with default ignore patterns
+    ///
+    /// Ignores system files like .DS_Store, Thumbs.db, .git, etc.
     pub fn new() -> Self {
         Self {
             ignore_patterns: vec![

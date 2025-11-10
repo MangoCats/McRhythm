@@ -56,6 +56,12 @@ pub struct WorkflowOrchestrator {
 }
 
 impl WorkflowOrchestrator {
+    /// Create new workflow orchestrator
+    ///
+    /// # Arguments
+    /// * `db` - Database connection pool
+    /// * `event_bus` - Event bus for progress updates
+    /// * `acoustid_api_key` - Optional AcoustID API key for fingerprinting
     pub fn new(db: SqlitePool, event_bus: EventBus, acoustid_api_key: Option<String>) -> Self {
         // Initialize API clients (can fail, so wrapped in Option)
         let mb_client = MusicBrainzClient::new().ok();

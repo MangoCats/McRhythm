@@ -54,6 +54,7 @@ pub struct AmplitudeAnalyzer {
 }
 
 impl AmplitudeAnalyzer {
+    /// Create new amplitude analyzer with specified parameters
     pub fn new(params: AmplitudeParameters) -> Self {
         Self { params }
     }

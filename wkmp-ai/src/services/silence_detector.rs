@@ -23,6 +23,11 @@ pub struct SilenceRegion {
 }
 
 impl SilenceRegion {
+    /// Create new silence region
+    ///
+    /// # Arguments
+    /// * `start_seconds` - Start time in seconds
+    /// * `end_seconds` - End time in seconds
     pub fn new(start_seconds: f32, end_seconds: f32) -> Self {
         Self {
             start_seconds,
