@@ -2,7 +2,8 @@
 
 **Plan:** PLAN024
 **Created:** 2025-11-09
-**Purpose:** Define Given/When/Then acceptance tests for all 77 requirements (72 original + 5 amendments)
+**Updated:** 2025-11-09 (Amendment 9)
+**Purpose:** Define Given/When/Then acceptance tests for all 93 requirements (72 original + 21 from amendments)
 
 **Test Coverage:** 100% requirement coverage verified via traceability matrix
 
@@ -27,9 +28,11 @@
 9. [Database Initialization](#database-initialization) (REQ-AI-078 series)
 10. [Database Schema](#database-schema) (REQ-AI-080 series)
 11. [Time Representation](#time-representation) (REQ-AI-088 series)
-12. [Non-Functional Requirements](#non-functional-requirements) (REQ-AI-NF series)
-13. [Traceability Matrix](#traceability-matrix)
-14. [Test Data Specifications](#test-data-specifications)
+12. [File-Level Import Tracking](#file-level-import-tracking) (REQ-AI-009 series - Amendment 8)
+13. [Pre-Import File Discovery](#pre-import-file-discovery) (REQ-AI-076 series - Amendment 9)
+14. [Non-Functional Requirements](#non-functional-requirements) (REQ-AI-NF series)
+15. [Traceability Matrix](#traceability-matrix)
+16. [Test Data Specifications](#test-data-specifications)
 
 ---
 
@@ -853,6 +856,602 @@
 
 ---
 
+## File-Level Import Tracking
+
+**Amendment 8 Requirements:** REQ-AI-009-01 through REQ-AI-009-11
+**Reference:** [02_specification_amendments.md - Amendment 8](02_specification_amendments.md#amendment-8-file-level-import-tracking-and-user-approval)
+
+### TEST-AI-009-01: File-Level Import Completion Tracking
+
+**Requirement:** REQ-AI-009-01
+**Reference:** [02_specification_amendments.md lines 685-699](02_specification_amendments.md)
+
+**Given:** Audio file `/test/data/single_track.mp3` with 1 passage
+**When:** Import completes successfully (all phases 0-6)
+**Then:**
+- `files.import_completed_at` = unix epoch milliseconds timestamp (i64)
+- `files.import_success_confidence` = MIN(passage_composite_scores) (f32 0.0-1.0)
+- Timestamp matches completion time (within 1 second tolerance)
+
+**Pass Criteria:**
+- Database query: `SELECT import_completed_at, import_success_confidence FROM files WHERE hash = ?`
+- import_completed_at IS NOT NULL
+- import_success_confidence between 0.0 and 1.0
+- Confidence = MIN of all passage composite scores
+
+**Test Data:** Single-passage MP3 with high-confidence metadata (expected confidence > 0.8)
+
+---
+
+### TEST-AI-009-02: File-Level Metadata Collection Tracking
+
+**Requirement:** REQ-AI-009-02
+**Reference:** [02_specification_amendments.md lines 701-716](02_specification_amendments.md)
+
+**Given:** Audio file with 2 passages imported
+**When:** Metadata fusion (Phase 5) completes for all passages
+**Then:**
+- `files.metadata_import_completed_at` = unix epoch milliseconds (i64)
+- `files.metadata_confidence` = (avg_metadata_completeness + avg_field_confidence) / 2.0
+
+**Pass Criteria:**
+- metadata_import_completed_at IS NOT NULL
+- metadata_confidence between 0.0 and 1.0
+- Timestamp >= import_completed_at (metadata collected after or during import)
+
+**Test Data:** 2-passage file with partial ID3 tags (50% completeness expected)
+
+---
+
+### TEST-AI-009-03: User Approval Timestamp
+
+**Requirement:** REQ-AI-009-03
+**Reference:** [02_specification_amendments.md lines 718-729](02_specification_amendments.md)
+
+**Given:** File imported with `user_approved_at = NULL`
+**When:** User calls `POST /import/files/{id}/approve`
+**Then:**
+- `files.user_approved_at` = unix epoch milliseconds (i64)
+- Future imports skip this file (absolute protection)
+
+**Pass Criteria:**
+- user_approved_at IS NOT NULL after API call
+- user_approved_at >= metadata_import_completed_at
+- Timestamp within 1 second of API call time
+
+**Test Data:** Any successfully imported file
+
+---
+
+### TEST-AI-009-04: Skip Logic - User Approval Priority
+
+**Requirement:** REQ-AI-009-04
+**Reference:** [02_specification_amendments.md lines 731-741](02_specification_amendments.md)
+
+**Given:** File with `user_approved_at = 1699564800000` (user has approved)
+**When:** Re-import initiated (file modification time changed)
+**Then:**
+- Phase -1 skip logic triggers
+- SSE event emitted: `FileSkipped` with reason "UserApproved"
+- Phases 0-6 DO NOT execute
+- No passage metadata modified
+
+**Pass Criteria:**
+- Log shows "File skipped: user approval (absolute priority)"
+- Database metadata unchanged (verify title, artist, album timestamps)
+- Import counter increments (file counted as processed)
+
+**Test Data:** Previously approved file with modified modification_time
+
+---
+
+### TEST-AI-009-05: Skip Logic - Modification Time Check
+
+**Requirement:** REQ-AI-009-05
+**Reference:** [02_specification_amendments.md lines 743-756](02_specification_amendments.md)
+
+**Given:** File imported on 2025-11-01 with `files.modification_time = 1698796800000`
+**When:** Re-import initiated, file modification time still `1698796800000` (unchanged)
+**Then:**
+- Phase -1 compares database modification_time with current file
+- Skip condition triggers (times match)
+- SSE event: `FileSkipped` with reason "FileUnchanged"
+
+**Pass Criteria:**
+- No hash computation (early exit before I/O)
+- Phases 0-6 DO NOT execute
+- Database query logged: `SELECT modification_time FROM files WHERE hash = ?`
+
+**Test Data:** Previously imported file with unchanged modification time
+
+---
+
+### TEST-AI-009-06: Skip Logic - Import Success Confidence Threshold
+
+**Requirement:** REQ-AI-009-06
+**Reference:** [02_specification_amendments.md lines 758-772](02_specification_amendments.md)
+
+**Given:**
+- File imported with `import_success_confidence = 0.85`
+- Settings: `import_success_confidence_threshold = 0.75` (PARAM-AI-005)
+**When:** Re-import triggered (modification time changed)
+**Then:**
+- Skip logic evaluates confidence: 0.85 >= 0.75 → SKIP
+- SSE event: `FileSkipped` with reason "HighConfidence"
+- Phases 0-6 DO NOT execute
+
+**Pass Criteria:**
+- Log shows "File confidence 0.85 >= threshold 0.75, skipping import"
+- Database confidence unchanged
+- File counted as processed
+
+**Test Data:** High-confidence file (> 0.75), modified modification_time
+
+---
+
+### TEST-AI-009-07: Skip Logic - Metadata Confidence Partial Skip
+
+**Requirement:** REQ-AI-009-07
+**Reference:** [02_specification_amendments.md lines 774-788](02_specification_amendments.md)
+
+**Given:**
+- File with `metadata_confidence = 0.70`
+- Settings: `metadata_confidence_threshold = 0.66` (PARAM-AI-006)
+**When:** Re-import triggered
+**Then:**
+- Skip logic: 0.70 >= 0.66 → Skip metadata collection ONLY
+- Phases 0-4 execute (identity resolution, flavor synthesis)
+- Phase 5 (metadata fusion) SKIPPED
+- Phase 6 executes (quality validation)
+
+**Pass Criteria:**
+- Log shows "Metadata confidence sufficient, skipping Phase 5"
+- Database: musical flavor updated, metadata unchanged
+- SSE event: `PartialImportComplete`
+
+**Test Data:** Medium-confidence metadata file (0.66 - 0.74 range)
+
+---
+
+### TEST-AI-009-08: Re-Import Attempt Limiting
+
+**Requirement:** REQ-AI-009-08
+**Reference:** [02_specification_amendments.md lines 790-810](02_specification_amendments.md)
+
+**Given:**
+- File with `reimport_attempt_count = 3`
+- Settings: `max_reimport_attempts = 3` (PARAM-AI-007)
+**When:** Automatic re-import triggered (low confidence, modification time changed)
+**Then:**
+- Skip logic: 3 >= 3 → Flag for manual review, DO NOT re-import
+- SSE event: `FileRequiresManualReview` with reason "MaxReimportAttemptsReached"
+- Phases 0-6 DO NOT execute
+- `last_reimport_attempt_at` updated
+
+**Pass Criteria:**
+- Database: `reimport_attempt_count = 3` (unchanged)
+- File added to pending_review list
+- Log shows "Max re-import attempts reached (3/3), flagging for review"
+
+**Test Data:** Low-confidence file with 3 previous re-import attempts
+
+---
+
+### TEST-AI-009-09: Low-Confidence Flagging
+
+**Requirement:** REQ-AI-009-09
+**Reference:** [02_specification_amendments.md lines 812-830](02_specification_amendments.md)
+
+**Given:** Import completes with `import_success_confidence = 0.60`
+**When:** Phase 7 (post-import finalization) executes
+**Then:**
+- System compares 0.60 < 0.75 (PARAM-AI-005 threshold)
+- File flagged for user review
+- SSE event: `FileFlaggedForReview` with confidence = 0.60
+- File appears in `GET /import/files/pending-review` response
+
+**Pass Criteria:**
+- Database: file marked as `requires_review = true` (or equivalent flag)
+- API response includes file in pending review list
+- Log shows "File confidence below threshold, flagging for review"
+
+**Test Data:** Ambiguous fingerprint file (expected confidence 0.5-0.7)
+
+---
+
+### TEST-AI-009-10: Metadata Merging on Re-Import
+
+**Requirement:** REQ-AI-009-10
+**Reference:** [02_specification_amendments.md lines 832-865](02_specification_amendments.md)
+
+**Given:**
+- Existing file: title = "Song Title" (confidence 0.8)
+- Re-import yields: title = "Song Title (Radio Edit)" (confidence 0.9)
+**When:** Metadata merge executes
+**Then:**
+- New confidence (0.9) > existing confidence (0.8) → Use new title
+- Database updated: title = "Song Title (Radio Edit)", title_confidence = 0.9
+
+**Pass Criteria:**
+- Higher-confidence metadata overwrites lower-confidence
+- NULL new values DO NOT overwrite existing values
+- Lower-confidence new values preserved (existing kept)
+
+**Test Cases:**
+1. New higher confidence → Use new value ✅
+2. New lower confidence → Keep existing ✅
+3. New NULL value → Keep existing (no NULL overwrite) ✅
+4. Existing NULL, new NOT NULL → Use new ✅
+
+**Test Data:** File with partial metadata, re-import with different metadata quality
+
+---
+
+### TEST-AI-009-11: Hash-Based Duplicate Detection
+
+**Requirement:** REQ-AI-009-11
+**Reference:** [02_specification_amendments.md lines 867-888](02_specification_amendments.md)
+
+**Given:**
+- File `/music/song.mp3` imported with hash `abc123...`
+- Same file copied to `/music/backup/song.mp3` (identical content)
+**When:** Import `/music/backup/song.mp3`
+**Then:**
+- Phase -1 computes SHA-256 hash
+- Hash matches existing database entry (hash = `abc123...`)
+- Skip logic: Duplicate detected → Skip import
+- SSE event: `FileSkipped` with reason "DuplicateHash"
+
+**Pass Criteria:**
+- Database: Only 1 file entry (original path)
+- Log shows "Duplicate file detected (hash abc123...), skipping"
+- No new passages created
+
+**Test Data:** Identical file with different path/filename
+
+---
+
+### TEST-AI-009-API-01: User Approval API Endpoint
+
+**Requirement:** REQ-AI-009-11 (API endpoints)
+**Reference:** [02_specification_amendments.md lines 980-1004](02_specification_amendments.md)
+
+**Given:** File ID `uuid-123` with `user_approved_at = NULL`
+**When:** `POST /import/files/uuid-123/approve` with body:
+```json
+{
+  "approval_comment": "Metadata verified correct"
+}
+```
+**Then:**
+- Response 200 OK:
+```json
+{
+  "file_id": "uuid-123",
+  "user_approved_at": 1699564800000,
+  "passages_protected": 3
+}
+```
+- Database: `files.user_approved_at = 1699564800000`
+- SSE event: `FileMetadataApproved`
+
+**Pass Criteria:**
+- user_approved_at IS NOT NULL after API call
+- passages_protected count matches passages in file
+- Future imports skip this file
+
+**Test Data:** Any successfully imported file
+
+---
+
+### TEST-AI-009-API-02: User Rejection API Endpoint
+
+**Requirement:** REQ-AI-009-11 (API endpoints)
+**Reference:** [02_specification_amendments.md lines 1006-1031](02_specification_amendments.md)
+
+**Given:** File ID `uuid-456` with `user_approved_at = 1699564800000`
+**When:** `POST /import/files/uuid-456/reject` with body:
+```json
+{
+  "rejection_reason": "Artist name incorrect",
+  "force_reimport": true
+}
+```
+**Then:**
+- Response 200 OK:
+```json
+{
+  "file_id": "uuid-456",
+  "reimport_scheduled": true,
+  "passages_affected": 2
+}
+```
+- Database: `user_approved_at = NULL`, `metadata_confidence = 0.0`, `reimport_attempt_count = 0`
+- SSE event: `FileRejected`
+
+**Pass Criteria:**
+- Approval cleared (user_approved_at = NULL)
+- Metadata confidence reset to 0.0
+- Re-import counter reset if force_reimport = true
+- Next import run re-processes this file
+
+**Test Data:** Previously approved file with incorrect metadata
+
+---
+
+### TEST-AI-009-API-03: Pending Review Query Endpoint
+
+**Requirement:** REQ-AI-009-11 (API endpoints)
+**Reference:** [02_specification_amendments.md lines 1033-1062](02_specification_amendments.md)
+
+**Given:**
+- File 1: `import_success_confidence = 0.60` (< 0.75 threshold)
+- File 2: `import_success_confidence = 0.85` (>= 0.75 threshold)
+- File 3: `metadata_confidence = 0.50` (< 0.66 threshold)
+**When:** `GET /import/files/pending-review`
+**Then:**
+- Response 200 OK with array:
+```json
+{
+  "files": [
+    {
+      "file_id": "uuid-1",
+      "file_path": "/music/file1.mp3",
+      "import_success_confidence": 0.60,
+      "metadata_confidence": 0.75,
+      "flagged_reason": "LowImportConfidence",
+      "passage_count": 1
+    },
+    {
+      "file_id": "uuid-3",
+      "file_path": "/music/file3.mp3",
+      "import_success_confidence": 0.80,
+      "metadata_confidence": 0.50,
+      "flagged_reason": "LowMetadataConfidence",
+      "passage_count": 2
+    }
+  ],
+  "total_count": 2
+}
+```
+
+**Pass Criteria:**
+- Only files below thresholds returned (File 2 excluded)
+- flagged_reason indicates which threshold failed
+- passage_count accurate
+
+**Test Data:** Mix of high/low confidence files
+
+---
+
+## Pre-Import File Discovery
+
+**Amendment 9 Requirements:** REQ-AI-076-01 through REQ-AI-076-05
+**Reference:** [02_specification_amendments.md - Amendment 9](02_specification_amendments.md#amendment-9-pre-import-file-discovery)
+
+### TEST-AI-076-01: Import Request Format
+
+**Requirement:** REQ-AI-076-01
+**Reference:** [02_specification_amendments.md lines 1152-1179](02_specification_amendments.md)
+
+**Given:** User wants to import files from `/home/user/Music/NewAlbums` and `/home/user/Downloads`
+**When:** User calls `POST /import/start` with body:
+```json
+{
+  "root_paths": ["/home/user/Music/NewAlbums", "/home/user/Downloads"],
+  "recursive": true,
+  "file_extensions": ["mp3", "flac", "m4a", "ogg", "wav"],
+  "session_id": "uuid-optional"
+}
+```
+**Then:**
+- Response 200 OK with session_id returned
+- Discovery Phase initiates (folders scanned)
+- SSE event: `DiscoveryStarted` emitted with session_id and root_paths
+
+**Pass Criteria:**
+- API accepts `root_paths` as array of strings
+- API accepts `recursive` as boolean (default: true)
+- API accepts `file_extensions` as array of strings (default: ["mp3", "flac", "m4a", "ogg", "wav"])
+- API accepts optional `session_id` (generates UUID if not provided)
+- Discovery Phase begins before Phase -1
+
+**Test Data:** Folders with known file counts for verification
+
+---
+
+### TEST-AI-076-02: Discovery Phase Execution
+
+**Requirement:** REQ-AI-076-02
+**Reference:** [02_specification_amendments.md lines 1181-1234](02_specification_amendments.md)
+
+**Given:**
+- Folder `/test/data/music` contains:
+  - 5 MP3 files (valid)
+  - 2 FLAC files (valid)
+  - 3 TXT files (invalid extension)
+  - 1 subdirectory with 10 more MP3 files
+- Request: `root_paths=["/test/data/music"], recursive=true, file_extensions=["mp3", "flac"]`
+
+**When:** Discovery Phase executes
+**Then:**
+- Scan recursively through `/test/data/music`
+- Filter by extensions: include only `.mp3` and `.flac`
+- Collect absolute file paths (not relative)
+- Count total files discovered: 15 MP3 + 2 FLAC = 17 files
+- Emit `DiscoveryComplete` with `files_discovered=17`
+- Begin Phase -1 (pre-import skip logic)
+
+**Pass Criteria:**
+- Exactly 17 files discovered (TXT files excluded)
+- All file paths are absolute (start with `/`)
+- Subdirectory files included (recursive=true)
+- Discovery completes before any file processing starts
+- DiscoveryComplete event includes accurate file count
+
+**Test Data:** Test directory with mixed file types and nested subdirectories
+
+---
+
+### TEST-AI-076-03: Discovery Progress SSE Events
+
+**Requirement:** REQ-AI-076-03
+**Reference:** [02_specification_amendments.md lines 1236-1297](02_specification_amendments.md)
+
+**Given:** Import initiated with 100 files to discover (large directory)
+**When:** Discovery Phase executes
+**Then:** SSE events emitted in order:
+1. `DiscoveryStarted` (immediate):
+```json
+{
+  "event": "DiscoveryStarted",
+  "session_id": "uuid-123",
+  "root_paths": ["/home/user/Music"],
+  "recursive": true,
+  "file_extensions": ["mp3", "flac"],
+  "timestamp": 1699564800000
+}
+```
+
+2. `DiscoveryProgress` (throttled to 1/second):
+```json
+{
+  "event": "DiscoveryProgress",
+  "session_id": "uuid-123",
+  "files_discovered": 42,
+  "current_directory": "/home/user/Music/Subfolder",
+  "timestamp": 1699564801000
+}
+```
+
+3. `DiscoveryComplete` (at end):
+```json
+{
+  "event": "DiscoveryComplete",
+  "session_id": "uuid-123",
+  "files_discovered": 100,
+  "discovery_duration_ms": 2500,
+  "timestamp": 1699564802500
+}
+```
+
+**Pass Criteria:**
+- DiscoveryStarted emitted immediately (< 100ms from API call)
+- DiscoveryProgress throttled to max 1 event/second
+- DiscoveryComplete includes total file count and duration
+- Events arrive in correct chronological order
+- All events include session_id for correlation
+
+**Test Data:** Large directory tree (100+ files, multiple subdirectories)
+
+---
+
+### TEST-AI-076-04: Percentage-Based Progress Calculation
+
+**Requirement:** REQ-AI-076-04
+**Reference:** [02_specification_amendments.md lines 1299-1383](02_specification_amendments.md)
+
+**Given:**
+- Discovery Phase completes: `files_discovered=50`
+- Import processing begins
+- 10 files completed, 40 remaining
+
+**When:** File 11 starts processing
+**Then:**
+- Progress calculation: (10 / 50) × 100 = 20%
+- SSE event: `ImportProgress` with updated format:
+```json
+{
+  "event": "ImportProgress",
+  "session_id": "uuid-123",
+  "files_completed": 10,
+  "files_total": 50,
+  "progress_percentage": 20.0,
+  "current_file": "/home/user/Music/file11.mp3",
+  "current_operation": "Fingerprinting passage 1/2",
+  "timestamp": 1699564810000
+}
+```
+
+**Pass Criteria:**
+- Formula verified: progress_percentage = (files_completed / files_total) × 100
+- files_total matches DiscoveryComplete.files_discovered
+- Progress starts at 0%, ends at 100%
+- Progress monotonically increasing (never decreases)
+- Percentage accurate to 1 decimal place
+
+**Test Data:** Import with known file count (e.g., 50 files)
+
+---
+
+### TEST-AI-076-05: Discovery Error Handling
+
+**Requirement:** REQ-AI-076-05
+**Reference:** [02_specification_amendments.md lines 1385-1472](02_specification_amendments.md)
+
+**Test Case 1: Permission Denied**
+
+**Given:** Folder `/test/data/no_access` exists but user lacks read permission
+**When:** Discovery Phase attempts to scan folder
+**Then:**
+- SSE event: `DiscoveryWarning` emitted:
+```json
+{
+  "event": "DiscoveryWarning",
+  "session_id": "uuid-123",
+  "warning_type": "PermissionDenied",
+  "directory": "/test/data/no_access",
+  "message": "Permission denied: /test/data/no_access",
+  "timestamp": 1699564800500
+}
+```
+- Discovery continues with accessible directories
+- Import proceeds with files from accessible folders only
+
+**Pass Criteria:**
+- Error logged but discovery not aborted
+- DiscoveryComplete reports files from accessible folders
+- Import completes successfully with reduced file count
+
+---
+
+**Test Case 2: Symlink Loop Detection**
+
+**Given:** Directory structure with circular symlink (A → B → C → A)
+**When:** Discovery Phase encounters symlink loop
+**Then:**
+- Loop detected (track visited directories)
+- SSE event: `DiscoveryWarning` with warning_type="SymlinkLoop"
+- Loop skipped, discovery continues
+
+**Pass Criteria:**
+- No infinite loop (discovery completes within 10 seconds)
+- Warning event emitted for loop
+- Other directories still processed
+
+---
+
+**Test Case 3: Empty Discovery Result**
+
+**Given:** All root_paths exist but contain no files matching file_extensions
+**When:** Discovery Phase completes
+**Then:**
+- `DiscoveryComplete` emitted with `files_discovered=0`
+- Import workflow terminates gracefully (no files to process)
+- SSE event: `ImportComplete` with status="NoFilesFound"
+
+**Pass Criteria:**
+- No error thrown (empty result valid)
+- User notified via UI that no matching files found
+- Import session closed cleanly
+
+**Test Data:**
+- Test Case 1: Directory with restricted permissions
+- Test Case 2: Directory tree with symlink loop
+- Test Case 3: Empty directory or directory with no matching extensions
+
+---
+
 ## Traceability Matrix
 
 **Purpose:** Verify 100% requirement → test coverage
@@ -937,10 +1536,31 @@
 | REQ-AI-NF-040 | (parent requirement) | ✅ Covered |
 | REQ-AI-NF-041 | (architectural requirement, verified via modular design) | ✅ Covered |
 | REQ-AI-NF-042 | (future optimization, documented as out-of-scope) | ✅ Covered |
+| REQ-AI-009-01 | TEST-AI-009-01 | ✅ Covered |
+| REQ-AI-009-02 | TEST-AI-009-02 | ✅ Covered |
+| REQ-AI-009-03 | TEST-AI-009-03 | ✅ Covered |
+| REQ-AI-009-04 | TEST-AI-009-04 | ✅ Covered |
+| REQ-AI-009-05 | TEST-AI-009-05 | ✅ Covered |
+| REQ-AI-009-06 | TEST-AI-009-06 | ✅ Covered |
+| REQ-AI-009-07 | TEST-AI-009-07 | ✅ Covered |
+| REQ-AI-009-08 | TEST-AI-009-08 | ✅ Covered |
+| REQ-AI-009-09 | TEST-AI-009-09 | ✅ Covered |
+| REQ-AI-009-10 | TEST-AI-009-10 | ✅ Covered |
+| REQ-AI-009-11 | TEST-AI-009-11, TEST-AI-009-API-01, TEST-AI-009-API-02, TEST-AI-009-API-03 | ✅ Covered |
+| REQ-AI-076-01 | TEST-AI-076-01 | ✅ Covered |
+| REQ-AI-076-02 | TEST-AI-076-02 | ✅ Covered |
+| REQ-AI-076-03 | TEST-AI-076-03 | ✅ Covered |
+| REQ-AI-076-04 | TEST-AI-076-04 | ✅ Covered |
+| REQ-AI-076-05 | TEST-AI-076-05 | ✅ Covered |
 
 **Coverage Summary:**
-- Total Requirements: 77 (72 original + 5 amendments)
-- Requirements with Tests: 77
+- Total Requirements: 93 (72 original + 21 from amendments)
+  - Original: 72 requirements
+  - Amendments 1-7: 5 requirements
+  - Amendment 8: 11 requirements (REQ-AI-009-01 through REQ-AI-009-11)
+  - Amendment 9: 5 requirements (REQ-AI-076-01 through REQ-AI-076-05)
+- Requirements with Tests: 93
+- Test Count: 19 new tests from amendments (14 from Amendment 8, 5 from Amendment 9)
 - Coverage Percentage: 100%
 
 **Verification:** All requirements traced to at least one acceptance test
@@ -993,6 +1613,44 @@
 - MBID: Confirmed in AcousticBrainz dataset
 - Purpose: AcousticBrainz positive test
 
+**File 9: high_confidence_import.mp3** (Amendment 8)
+- Duration: 3:00
+- ID3 tags: Complete and accurate
+- Fingerprint: Strong match (expected confidence > 0.85)
+- Purpose: Skip logic confidence threshold test (TEST-AI-009-06)
+
+**File 10: low_confidence_import.mp3** (Amendment 8)
+- Duration: 3:30
+- ID3 tags: Partial (50% complete)
+- Fingerprint: Weak match (expected confidence 0.5-0.7)
+- Purpose: Low-confidence flagging test (TEST-AI-009-09)
+
+**File 11: previously_imported.mp3** (Amendment 8)
+- File hash: `abc123def456...` (known in database)
+- Import status: Previously imported with user_approved_at timestamp
+- Purpose: User approval skip logic test (TEST-AI-009-04)
+
+**File 12: unchanged_file.mp3** (Amendment 8)
+- Modification time: 2025-11-01 12:00:00 (unchanged since last import)
+- Database: modification_time = 1730462400000
+- Purpose: Modification time skip logic test (TEST-AI-009-05)
+
+**File 13: duplicate_content.mp3** (Amendment 8)
+- Content: Identical to File 1 (same SHA-256 hash)
+- Path: Different (e.g., `/music/backup/single_track.mp3`)
+- Purpose: Hash-based duplicate detection test (TEST-AI-009-11)
+
+**File 14: partial_metadata.mp3** (Amendment 8)
+- Duration: 4:00
+- ID3 tags: Title only (no artist, album)
+- Metadata confidence: Expected 0.3-0.5
+- Purpose: Metadata confidence threshold test (TEST-AI-009-07), metadata merging test (TEST-AI-009-10)
+
+**File 15: reimport_attempts_maxed.mp3** (Amendment 8)
+- Database state: reimport_attempt_count = 3
+- Confidence: 0.55 (below threshold, would normally re-import)
+- Purpose: Re-import attempt limiting test (TEST-AI-009-08)
+
 ---
 
 ### Database Test Fixtures
@@ -1004,14 +1662,24 @@
 
 **Fixture 2: Old Schema Database**
 - File: `test_old_schema.db`
-- State: Passages table missing 5 new columns
+- State: Passages table missing 17 new columns, files table missing 7 new columns (Amendment 8)
 - Passages: 100 existing rows
-- Purpose: Schema migration test
+- Purpose: Schema migration test (SPEC031 SchemaSync)
 
 **Fixture 3: Populated Database**
 - File: `test_populated.db`
 - Passages: 1000 existing passages
 - Purpose: Integration test with existing data
+
+**Fixture 4: Amendment 8 Tracking Data** (Amendment 8)
+- File: `test_file_tracking.db`
+- Files: 50 files with various import states:
+  - 10 files with user_approved_at timestamps (skip logic test)
+  - 15 files with high import_success_confidence (> 0.75)
+  - 10 files with low import_success_confidence (< 0.75)
+  - 5 files with reimport_attempt_count = 3 (max attempts)
+  - 10 files with various metadata_confidence values
+- Purpose: File-level import tracking tests (TEST-AI-009 series)
 
 ---
 
@@ -1085,5 +1753,21 @@
 **Test Coverage Target:** >90% (per REQ-AI-NF-032)
 **Traceability:** 100% requirement coverage verified via traceability matrix
 
-**Document Version:** 1.0
+---
+
+**Document Version:** 3.0 (Updated for Amendment 9)
 **Last Updated:** 2025-11-09
+**Status:** ✅ COMPLETE - 100% coverage (93/93 requirements)
+
+**Amendment 9 Updates:**
+- Added 5 new acceptance tests (TEST-AI-076-01 through TEST-AI-076-05)
+- Added test data requirements for file discovery (large directory tree, permission-restricted folders, symlink loops)
+- Updated traceability matrix with REQ-AI-076-01 through REQ-AI-076-05
+- Updated coverage summary: 88 → 93 requirements
+
+**Amendment 8 Updates:**
+- Added 14 new acceptance tests (TEST-AI-009-01 through TEST-AI-009-11, plus 3 API endpoint tests)
+- Added 7 new test data files (File 9-15 for skip logic, confidence, and tracking tests)
+- Added 1 new database fixture (Fixture 4 for file-level tracking data)
+- Updated traceability matrix with REQ-AI-009-01 through REQ-AI-009-11
+- Updated coverage summary: 77 → 88 requirements

@@ -1123,6 +1123,275 @@ Insert after Phase 6 (Quality Validation):
 
 ---
 
+## Amendment 9: Pre-Import File Discovery and Progress Calculation
+
+**Date:** 2025-11-09
+**Phase:** Post-Phase 8 (specification gap identified during plan review)
+**Rationale:** REQ-AI-075 requires percentage-based progress ("0% to 100%"), but no specification exists for how total file count is determined
+
+### Problem Statement
+
+**Specification Gap:**
+- REQ-AI-075-01 requires "real-time progress updates (percentage complete)"
+- Acceptance test TEST-AI-075 shows "Fingerprinting passage 3/10" (implies total known)
+- No requirement specifies how to determine total file count before processing
+- No specification for POST /import/start request format (folder path? file list?)
+
+**User Experience Impact:**
+- Cannot show "X of Y files (Z%)" without knowing Y upfront
+- Poor UX if progress shows "N files processed" without total
+
+**Solution:**
+Add pre-import file discovery phase that scans folders recursively before processing begins.
+
+---
+
+### Requirements
+
+#### [REQ-AI-076-01] Import Request Format
+
+The import API SHALL accept folder paths for batch import:
+
+**POST /import/start request body:**
+```json
+{
+  "root_paths": ["/home/user/Music/NewAlbums", "/home/user/Downloads"],
+  "recursive": true,
+  "file_extensions": ["mp3", "flac", "m4a", "ogg", "wav"],
+  "session_id": "uuid-optional"
+}
+```
+
+**Fields:**
+- `root_paths` (REQUIRED): Array of absolute folder paths to scan
+- `recursive` (OPTIONAL, default true): Recursively scan subdirectories
+- `file_extensions` (OPTIONAL, default ["mp3", "flac", "m4a", "ogg", "wav"]): File extensions to include
+- `session_id` (OPTIONAL): Client-provided UUID for session tracking (generated if omitted)
+
+**Response:**
+```json
+{
+  "session_id": "uuid-123",
+  "discovery_started": true
+}
+```
+
+---
+
+#### [REQ-AI-076-02] Pre-Import File Discovery Phase
+
+The system SHALL perform filesystem discovery before processing:
+
+**Discovery Phase (Pre-Phase -1):**
+1. Recursively scan all `root_paths`
+2. Filter by `file_extensions`
+3. Collect absolute file paths
+4. Count total files discovered
+5. Emit SSE event: `DiscoveryComplete` with `files_discovered` count
+6. Begin import processing (Phase -1 through Phase 7)
+
+**Discovery SHALL:**
+- Complete before any file processing begins (Phase -1)
+- Use async I/O for directory traversal (non-blocking)
+- Handle permission errors gracefully (skip inaccessible folders, emit warning)
+- Follow symlinks up to 1 level (prevent infinite loops)
+- Skip hidden files/folders (names starting with `.`)
+
+**Discovery SHALL NOT:**
+- Open or read file contents (stat metadata only)
+- Validate file formats (format validation happens in Phase 0)
+- Filter by database presence (skip logic happens in Phase -1)
+
+---
+
+#### [REQ-AI-076-03] Discovery Progress Reporting
+
+The system SHALL report discovery progress via SSE:
+
+**SSE Events During Discovery:**
+```json
+{
+  "event": "DiscoveryStarted",
+  "session_id": "uuid-123",
+  "root_paths": ["/home/user/Music"],
+  "timestamp": 1699564800000
+}
+```
+
+```json
+{
+  "event": "DiscoveryProgress",
+  "session_id": "uuid-123",
+  "folders_scanned": 42,
+  "files_discovered": 150,
+  "timestamp": 1699564801500
+}
+```
+
+```json
+{
+  "event": "DiscoveryComplete",
+  "session_id": "uuid-123",
+  "files_discovered": 237,
+  "folders_scanned": 58,
+  "discovery_duration_ms": 2150,
+  "timestamp": 1699564802150
+}
+```
+
+**Throttling:**
+- `DiscoveryProgress` emitted at most once per second (avoid flooding SSE channel)
+- `DiscoveryComplete` emitted immediately when scan finishes
+
+---
+
+#### [REQ-AI-076-04] Percentage-Based Progress Calculation
+
+The system SHALL calculate import progress as percentage of total files:
+
+**Formula:**
+```
+progress_percentage = (files_completed / files_total) * 100
+```
+
+**Where:**
+- `files_total` = files discovered in discovery phase
+- `files_completed` = files that completed processing (success, error, or skipped)
+
+**SSE Event (Updated Format):**
+```json
+{
+  "event": "ImportProgress",
+  "session_id": "uuid-123",
+  "files_completed": 42,
+  "files_total": 237,
+  "progress_percentage": 17.7,
+  "current_file": "/home/user/Music/song.mp3",
+  "current_operation": "Fingerprinting passage 1/3",
+  "timestamp": 1699564850000
+}
+```
+
+**Progress Characteristics:**
+- SHALL be monotonically increasing (never decrease)
+- SHALL reach 100% when all files processed (including skipped files)
+- SHALL count skipped files as "completed" (Phase -1 skip logic increments counter)
+
+---
+
+#### [REQ-AI-076-05] Discovery Error Handling
+
+The system SHALL handle discovery errors gracefully:
+
+**Permission Errors:**
+```json
+{
+  "event": "DiscoveryWarning",
+  "session_id": "uuid-123",
+  "warning_type": "PermissionDenied",
+  "path": "/home/user/Music/ProtectedFolder",
+  "message": "Permission denied, skipping folder",
+  "timestamp": 1699564801000
+}
+```
+
+**Behavior:**
+- Log warning, continue scanning remaining paths
+- DO NOT abort discovery
+- Emit `DiscoveryWarning` event for each inaccessible path
+
+**Symlink Loop Detection:**
+```json
+{
+  "event": "DiscoveryWarning",
+  "session_id": "uuid-123",
+  "warning_type": "SymlinkDepthExceeded",
+  "path": "/home/user/Music/link1",
+  "message": "Symlink depth exceeded (max 1 level), skipping",
+  "timestamp": 1699564801500
+}
+```
+
+**Empty Result:**
+- If zero files discovered, emit `DiscoveryComplete` with `files_discovered: 0`
+- Emit SSE event: `ImportComplete` immediately (no work to do)
+
+---
+
+### Database Changes
+
+**None required** - Discovery phase uses in-memory state only (no database persistence).
+
+---
+
+### API Endpoint Changes
+
+#### POST /import/start (Modified)
+
+**Before Amendment 9:**
+- Unspecified request format (implementation gap)
+
+**After Amendment 9:**
+- Request body: `{ root_paths: [...], recursive: bool, file_extensions: [...] }`
+- Response: `{ session_id: "uuid", discovery_started: true }`
+- Initiates discovery phase immediately
+
+---
+
+### SSE Event Changes
+
+**New Events Added:**
+1. `DiscoveryStarted` - Discovery phase begins
+2. `DiscoveryProgress` - Periodic discovery updates (max 1/sec)
+3. `DiscoveryComplete` - Discovery finished, import processing begins
+4. `DiscoveryWarning` - Non-fatal discovery errors
+
+**Modified Events:**
+5. `ImportProgress` - Now includes `files_total`, `files_completed`, `progress_percentage`
+
+**Total SSE Events:** 10 (original) + 4 (new) = 14 event types
+
+---
+
+### Workflow Changes
+
+**New Phase: Discovery (before Phase -1)**
+
+**Complete Workflow:**
+1. **Discovery Phase** - Scan folders, count files (NEW)
+2. **Phase -1** - Pre-import skip logic (Amendment 8)
+3. **Phase 0** - Passage boundary detection
+4. **Phases 1-6** - Per-passage processing
+5. **Phase 7** - Post-import finalization (Amendment 8)
+
+**Discovery Phase Duration:**
+- Fast: ~1-2 seconds for 1000 files on SSD
+- Slow: ~5-10 seconds for 10,000 files on HDD
+- Negligible impact on overall import time (< 1% for typical use cases)
+
+---
+
+### Traceability
+
+**Resolves:** Specification gap identified during plan review (2025-11-09)
+
+**Requirements Affected:**
+- REQ-AI-075-01: "Real-time progress updates (percentage complete)" - NOW IMPLEMENTABLE
+- REQ-AI-075-03: "File-by-file workflow clarity" - Enhanced with discovery phase
+- REQ-AI-075-05: "Accurate progress counter behavior" - Formula specified
+
+**Dependencies:**
+- None (discovery phase is independent, uses filesystem only)
+
+**Impact:**
+- +1 API endpoint modification (POST /import/start request format)
+- +4 SSE event types (DiscoveryStarted, DiscoveryProgress, DiscoveryComplete, DiscoveryWarning)
+- +1 SSE event modification (ImportProgress format)
+- +1 workflow phase (Discovery, before Phase -1)
+- +1 day implementation effort (TASK-019 modification, discovery phase integration)
+
+---
+
 ## Execution Checklist
 
 **After plan approval, execute amendments in this order:**

@@ -12,23 +12,23 @@
 
 **Project:** WKMP-AI Audio Import System - Ground-Up Recode
 **Objective:** Implement 3-tier hybrid fusion architecture for audio import with per-song sequential processing workflow
-**Duration:** 14 weeks (58.5 developer-days + 20% buffer)
+**Duration:** 14 weeks (59.5 developer-days + 20% buffer)
 **Team:** 1 developer (ground-up recode per SPEC030)
-**Requirements:** 88 total (72 original + 16 from amendments)
-**Test Coverage:** 100% (88/88 requirements)
+**Requirements:** 93 total (72 original + 21 from amendments)
+**Test Coverage:** 100% (93/93 requirements)
 
 **Deliverables:**
-- 5,800 LOC production code (26 implementation tasks)
-- 1,800 LOC test code (>90% coverage target)
+- 6,000 LOC production code (26 implementation tasks)
+- 1,900 LOC test code (>90% coverage target)
 - 2 new IMPL documents (IMPL012, IMPL013)
-- 8 amendments to SPEC_wkmp_ai_recode.md (Amendment 8 adds file-level import tracking)
+- 9 amendments to SPEC_wkmp_ai_recode.md (Amendment 8: file-level import tracking, Amendment 9: file discovery)
 - 7 new database parameters (IMPL010 updates, PARAM-AI-005/006/007 added in Amendment 8)
 
 **Risk Profile:** MEDIUM-HIGH (mitigable to MEDIUM)
 - 2 CRITICAL risks (Bayesian correctness, SPEC031 dependency)
 - 5 HIGH risks (external APIs, FFI safety, Essentia, algorithms, schedule)
 - Mitigation strategies defined for all risks
-- 15.5 days total contingency (11-day buffer + 4.5-day scope reduction)
+- 16.4 days total contingency (11.9-day buffer + 4.5-day scope reduction)
 
 **Recommendation:** ✅ **APPROVE** - Proceed to implementation with conditions below
 
@@ -39,13 +39,13 @@
 ### Phase 1: Input Validation and Scope Definition ✅
 
 **Deliverables:**
-- [requirements_index.md](requirements_index.md) - 88 requirements cataloged (72 original + 16 from amendments)
+- [requirements_index.md](requirements_index.md) - 93 requirements cataloged (72 original + 21 from amendments)
 - [scope_statement.md](scope_statement.md) - In/out scope, constraints, success metrics
 - [dependencies_map.md](dependencies_map.md) - Dependencies and integration points
 
 **Key Findings:**
 - 72 original requirements (61 functional, 11 non-functional)
-- 16 additional requirements from amendments (5 from Amendments 1-7, 11 from Amendment 8)
+- 21 additional requirements from amendments (5 from Amendments 1-7, 11 from Amendment 8, 5 from Amendment 9)
 - 91.7% high priority requirements
 - 3-tier hybrid fusion architecture (7 Tier 1 extractors, 4 Tier 2 fusers, 3 Tier 3 validators)
 - Per-song sequential processing workflow
@@ -79,7 +79,7 @@
 - [00_PLAN_SUMMARY.md](00_PLAN_SUMMARY.md) - Phase 1-3 executive summary
 
 **Test Coverage:**
-- 88/88 requirements (100%, includes Amendment 8 requirements)
+- 93/93 requirements (100%, includes Amendments 8 and 9)
 - Traceability matrix verified
 - 8 audio test files specified
 - 3 database fixtures defined
@@ -96,6 +96,8 @@
 - Database Initialization (2 tests)
 - Database Schema (2 tests)
 - Time Representation (1 test)
+- File-Level Import Tracking (14 tests) - Amendment 8
+- Pre-Import File Discovery (5 tests) - Amendment 9
 - Non-Functional Requirements (6 tests)
 
 ---
@@ -156,10 +158,10 @@ Tier 3 Validation (Weeks 9-10): TASK-016 to TASK-018 (5.5 days)
 ├─ TASK-017: Completeness Scorer (1.5 days)
 └─ TASK-018: Quality Scorer (1.5 days)
 
-Orchestration (Weeks 11-12): TASK-019 to TASK-021 (11 days) [+1.5 days from Amendment 8]
-├─ TASK-019: Workflow Orchestrator (6 days) [+1 day for Phase -1/7]
-├─ TASK-020: SSE Event System (2.5 days)
-└─ TASK-021: HTTP API Endpoints (2.5 days) [+0.5 day for approval endpoints]
+Orchestration (Weeks 11-12): TASK-019 to TASK-021 (12 days) [+1.5 days Amendment 8, +1 day Amendment 9]
+├─ TASK-019: Workflow Orchestrator (7 days) [+1d Phase -1/7 (Amendment 8), +1d Discovery Phase (Amendment 9)]
+├─ TASK-020: SSE Event System (2.5 days) [Discovery events added]
+└─ TASK-021: HTTP API Endpoints (2.5 days) [+0.5d approval endpoints, Discovery request format]
 
 Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 ├─ TASK-022: Integration Tests (3 days)
@@ -168,7 +170,7 @@ Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 └─ TASK-025: Documentation (2 days)
 ```
 
-**LOC Estimate:** 7,600 total (5,800 production + 1,800 test) [+950 LOC from Amendment 8]
+**LOC Estimate:** 7,900 total (6,000 production + 1,900 test) [+950 LOC Amendment 8, +300 LOC Amendment 9]
 
 **Critical Path:** TASK-001 → TASK-003 → TASK-004 → Tier 1 → Tier 2 → Tier 3 → TASK-019 → TASK-020 → TASK-021 → Testing
 
@@ -180,9 +182,9 @@ Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 - [06_effort_and_schedule.md](06_effort_and_schedule.md) - Timeline and milestones
 
 **Effort Summary:**
-- Base Effort: 58.5 developer-days (+3.5 days from Amendment 8)
-- Buffer (20%): 11.7 days
-- Total Schedule: 14 weeks (at 5 days/week = 70 days calendar, buffer absorbs Amendment 8 increase)
+- Base Effort: 59.5 developer-days (+3.5 days Amendment 8, +1 day Amendment 9)
+- Buffer (20%): 11.9 days
+- Total Schedule: 14 weeks (at 5 days/week = 71.4 days calendar, buffer absorbs Amendments 8 and 9)
 - Team: 1 full-time developer
 
 **Milestones:**
@@ -192,7 +194,7 @@ Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 | M2: Tier 1 Extractors Complete | Week 5 | All 7 extractors implemented | Unit tests >90% coverage per module |
 | M3: Tier 2 Fusion Complete | Week 8 | Identity, metadata, flavor fusion working | Integration tests passing |
 | M4: Tier 3 Validation Complete | Week 10 | Quality scoring working | Quality scores computed correctly |
-| M5: Orchestration Complete | Week 12 | Full pipeline working (Phase -1 through Phase 7) | End-to-end import with skip logic and user approval works |
+| M5: Orchestration Complete | Week 12 | Full pipeline working (Discovery Phase through Phase 7) | End-to-end import with file discovery, skip logic, and user approval works |
 | M6: Testing Complete | Week 14 | All acceptance tests passing | >90% total coverage, performance met |
 
 **Decision Gates:**
@@ -331,7 +333,7 @@ Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 ## Success Criteria
 
 **Technical Success:**
-- ✅ All 77 requirements implemented (100% coverage)
+- ✅ All 93 requirements implemented (100% coverage)
 - ✅ All acceptance tests passing (per 03_acceptance_tests.md)
 - ✅ >90% code coverage (unit + integration tests)
 - ✅ Zero CRITICAL bugs (Bayesian correctness, FFI safety)
@@ -340,7 +342,7 @@ Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 **Schedule Success:**
 - ✅ Completion within 14-16 weeks (14-week target, 16-week acceptable)
 - ✅ All milestones met (M1-M6)
-- ✅ Buffer consumption <20% (11 days available)
+- ✅ Buffer consumption <20% (11.9 days available)
 
 **Quality Success:**
 - ✅ Zero-configuration startup working (SPEC031 compliance)
@@ -396,7 +398,7 @@ Integration & Testing (Weeks 13-14): TASK-022 to TASK-025 (9 days)
 ## Approval Checklist
 
 **Phase 1-3 (Week 1) - Planning Foundation:**
-- [x] Requirements cataloged (77 requirements)
+- [x] Requirements cataloged (93 requirements)
 - [x] Scope defined (in/out, constraints, assumptions)
 - [x] Dependencies mapped (external crates, SPEC031, SPEC017)
 - [x] Specification issues identified (37 issues)
@@ -493,7 +495,7 @@ User/Stakeholder: _______________________ Date: _________
 - If on-track → Continue as planned
 
 **Week 14 Completion:**
-- All 77 requirements implemented
+- All 93 requirements implemented
 - All acceptance tests passing
 - Documentation complete
 - Ready for deployment
@@ -564,14 +566,14 @@ User/Stakeholder: _______________________ Date: _________
 **PLAN024 Deliverables (10 documents):**
 
 1. **[00_PLAN_SUMMARY.md](00_PLAN_SUMMARY.md)** - Phase 1-3 executive summary
-2. **[requirements_index.md](requirements_index.md)** - 77 requirements cataloged
+2. **[requirements_index.md](requirements_index.md)** - 93 requirements cataloged
 3. **[scope_statement.md](scope_statement.md)** - In/out scope, constraints, assumptions
 4. **[dependencies_map.md](dependencies_map.md)** - Dependencies and integration points
 5. **[01_specification_issues.md](01_specification_issues.md)** - 37 issues identified, 7 CRITICAL resolved
 6. **[02_specification_amendments.md](02_specification_amendments.md)** - ✅ SSOT for all resolutions
 7. **[03_acceptance_tests.md](03_acceptance_tests.md)** - Given/When/Then tests (100% coverage)
 8. **[04_approach_selection.md](04_approach_selection.md)** - Architecture and technology decisions
-9. **[05_implementation_breakdown.md](05_implementation_breakdown.md)** - 25 tasks with dependencies
+9. **[05_implementation_breakdown.md](05_implementation_breakdown.md)** - 26 tasks with dependencies
 10. **[06_effort_and_schedule.md](06_effort_and_schedule.md)** - Timeline, milestones, effort estimates
 11. **[07_risk_assessment.md](07_risk_assessment.md)** - 18 risks, mitigation strategies, contingency
 12. **[08_final_plan_approval.md](08_final_plan_approval.md)** - This document (consolidated plan)
@@ -592,7 +594,7 @@ User/Stakeholder: _______________________ Date: _________
 5. ✅ Weekly milestone reviews conducted (M1-M6)
 
 **Expected Outcome:**
-- 77 requirements implemented (100% coverage)
+- 93 requirements implemented (100% coverage)
 - >90% test coverage
 - 14-16 week completion (14-week target, up to 16 acceptable)
 - Zero CRITICAL bugs at launch
@@ -608,11 +610,11 @@ User/Stakeholder: _______________________ Date: _________
 
 ---
 
-**Document Version:** 2.0 (Updated for Amendment 8)
+**Document Version:** 3.0 (Updated for Amendment 9)
 **Last Updated:** 2025-11-09
-**Phase 8 Status:** ✅ COMPLETE (Updated with Amendment 8: File-Level Import Tracking)
+**Phase 8 Status:** ✅ COMPLETE (Updated with Amendments 8 and 9)
 
-**All 8 Planning Phases COMPLETE (including Amendment 8) - Ready for Implementation**
+**All 8 Planning Phases COMPLETE (including Amendments 8 and 9) - Ready for Implementation**
 
 ---
 
@@ -636,4 +638,26 @@ User/Stakeholder: _______________________ Date: _________
 - Tasks: 25 → 26 (+1)
 - LOC: 6,650 → 7,600 (+950)
 - Critical path: 55 days → 56.5 days (+1.5 days)
+
+---
+
+## Amendment 9: Pre-Import File Discovery (Post-Phase 8)
+
+**Added:** 2025-11-09
+**Rationale:** User requirement for percentage-based progress reporting (requires total file count before processing)
+
+**Changes:**
+- Added 5 new requirements (REQ-AI-076-01 through REQ-AI-076-05)
+- Updated TASK-019: Workflow Orchestrator now includes Discovery Phase (pre-scan folders before Phase -1)
+- Updated TASK-020: SSE Event System now includes 4 Discovery events (DiscoveryStarted, DiscoveryProgress, DiscoveryComplete, DiscoveryWarning)
+- Updated TASK-021: HTTP API POST /import/start now accepts root_paths array, recursive flag, file_extensions array
+- Updated TASK-022: Integration tests now include file discovery tests
+- Total effort increase: +1 day (59.5 days total, absorbed by 20% buffer)
+- Schedule unchanged: 14 weeks
+
+**Impact:**
+- Requirements: 88 → 93 (+5)
+- Tasks: 26 (unchanged)
+- LOC: 7,600 → 7,900 (+300)
+- Critical path: 56.5 days → 57.5 days (+1 day)
 

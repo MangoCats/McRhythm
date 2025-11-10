@@ -76,9 +76,9 @@
 #### TASK-000: File-Level Import Tracking
 
 - **Objective:** Implement file-level import tracking, user approval, and intelligent skip logic
-- **Deliverable:** `wkmp-ai/src/services/file_tracker.rs` (350 LOC)
-- **Effort:** 2 days
-- **Dependencies:** None (can parallelize with TASK-001)
+- **Deliverable:** `wkmp-ai/src/services/file_tracker.rs` (350 LOC production + 300 LOC unit tests)
+- **Effort:** 2 days (includes unit test development)
+- **Dependencies:** None for coding (can parallelize with TASK-001); TASK-003 required for integration testing
 - **Risk:** LOW-MEDIUM (new pre-import workflow, skip logic decision tree)
 - **Acceptance:**
   - Hash-based duplicate detection works
@@ -96,7 +96,7 @@
 - Re-import attempt tracking
 
 **Unit Tests:**
-- Skip decision tree (9 skip conditions)
+- Skip decision tree (7 skip conditions + 2 supporting algorithms)
 - Confidence aggregation (various passage score combinations)
 - Metadata merge (conflict resolution, confidence-based overwrite)
 - Re-import loop prevention
@@ -268,62 +268,65 @@
 ### Orchestration Tasks (Weeks 11-12)
 
 #### TASK-019: Workflow Orchestrator
-- **Objective:** Complete import pipeline (Phase -1 through Phase 7), per-song sequential processing
-- **Deliverable:** `wkmp-ai/src/services/workflow_orchestrator.rs` (700 LOC)
-- **Effort:** 6 days (was 5 days, +1 day for Phase -1 and Phase 7)
+- **Objective:** Complete import pipeline (Discovery Phase through Phase 7), per-song sequential processing
+- **Deliverable:** `wkmp-ai/src/services/workflow_orchestrator.rs` (800 LOC)
+- **Effort:** 7 days (was 5 days originally, +1 day for Phase -1/7 in Amendment 8, +1 day for Discovery Phase in Amendment 9)
 - **Dependencies:** All Tier 1, 2, 3 tasks complete, TASK-000 (file tracker)
-- **Risk:** MEDIUM (complex orchestration, error handling, skip logic integration)
+- **Risk:** MEDIUM (complex orchestration, error handling, skip logic integration, file discovery)
 - **Acceptance:**
-  - Phase -1 (pre-import skip logic) works correctly (9 skip conditions)
+  - Discovery Phase: Recursively scans folders, filters by extensions, counts files, emits SSE events
+  - Phase -1 (pre-import skip logic) works correctly (7 skip conditions evaluated)
   - Phase 0-6 sequence correct (existing spec)
   - Phase 7 (post-import finalization) updates files table
   - Error isolation works (per-passage failures don't abort file)
   - Parallel extraction works (Tier 1)
   - Skip logic respects user approval (absolute protection)
   - Confidence thresholds loaded from database parameters
-- **Implementation:** Per Amendment 7 (Phase 0-6), Amendment 8 (Phase -1, Phase 7)
+  - Discovery error handling works (permission denied, symlink loops, empty results)
+- **Implementation:** Per Amendment 7 (Phase 0-6), Amendment 8 (Phase -1, Phase 7), Amendment 9 (Discovery Phase)
 
 **Phases:**
+- Discovery Phase: Pre-scan folders, count files, emit DiscoveryStarted/Progress/Complete SSE events
 - Phase -1: Pre-import skip logic (file tracker integration)
 - Phase 0: Passage boundary detection
 - Phase 1-6: Per-passage processing (existing spec)
 - Phase 7: Post-import finalization (confidence aggregation, flagging)
 
 #### TASK-020: SSE Event System
-- **Objective:** Real-time event streaming for UI progress
-- **Deliverable:** `wkmp-ai/src/events/sse_broadcaster.rs` (250 LOC)
-- **Effort:** 2.5 days
+- **Objective:** Real-time event streaming for UI progress (including Discovery Phase events)
+- **Deliverable:** `wkmp-ai/src/events/sse_broadcaster.rs` (300 LOC)
+- **Effort:** 2.5 days (no change, +50 LOC for Discovery events within existing estimate)
 - **Dependencies:** TASK-019 (workflow emits events)
 - **Risk:** LOW
-- **Acceptance:** 10 event types emitted, throttling works (30/sec max), no event loss
+- **Acceptance:** 14 event types emitted (10 original + 4 Discovery events), throttling works (30/sec max for ImportProgress, 1/sec for DiscoveryProgress), no event loss
 
 #### TASK-021: HTTP API Endpoints
-- **Objective:** Import control + user approval endpoints
-- **Deliverable:** `wkmp-ai/src/api/import_routes.rs` (250 LOC)
-- **Effort:** 2.5 days (was 2 days, +0.5 day for approval endpoints)
+- **Objective:** Import control + user approval endpoints + file discovery request format
+- **Deliverable:** `wkmp-ai/src/api/import_routes.rs` (300 LOC)
+- **Effort:** 2.5 days (was 2 days, +0.5 day for approval endpoints in Amendment 8, Discovery Phase request format within existing estimate)
 - **Dependencies:** TASK-019 (orchestrator), TASK-020 (SSE), TASK-000 (file tracker)
 - **Risk:** LOW
 - **Acceptance:**
-  - POST /import/start works
-  - GET /import/events (SSE connection stable)
+  - POST /import/start accepts new request format (root_paths array, recursive boolean, file_extensions array)
+  - GET /import/events (SSE connection stable, includes Discovery events)
   - GET /import/status (status queries accurate)
   - POST /import/files/{id}/approve (user approval recorded)
   - POST /import/files/{id}/reject (triggers re-import)
   - GET /import/files/pending-review (lists flagged files)
   - All endpoints emit appropriate SSE events
-- **Implementation:** Per Amendment 8 (user approval API endpoints)
+- **Implementation:** Per Amendment 8 (user approval API endpoints), Amendment 9 (POST /import/start request format)
 
 ---
 
 ### Integration & Testing Tasks (Weeks 13-14)
 
 #### TASK-022: Integration Tests
-- **Objective:** End-to-end passage processing tests
-- **Deliverable:** `wkmp-ai/tests/integration/` (800 LOC)
-- **Effort:** 3 days
+- **Objective:** End-to-end passage processing tests + file discovery tests
+- **Deliverable:** `wkmp-ai/tests/integration/` (900 LOC: 700 original + 100 Amendment 8 + 100 Amendment 9)
+- **Effort:** 3 days (no change, Amendment 9 tests within existing estimate)
 - **Dependencies:** All implementation tasks complete
 - **Risk:** LOW
-- **Acceptance:** All acceptance tests from 03_acceptance_tests.md passing
+- **Acceptance:** All acceptance tests from 03_acceptance_tests.md passing (93/93 requirements including Amendments 8 and 9)
 
 #### TASK-023: System Tests
 - **Objective:** Full import scenarios with real audio files
@@ -372,19 +375,35 @@
 | Tier 1 Extractors (TASK-005 to TASK-011) | 1,650 |
 | Tier 2 Fusion (TASK-012 to TASK-015) | 1,100 |
 | Tier 3 Validation (TASK-016 to TASK-018) | 550 |
-| Orchestration (TASK-019 to TASK-021) | 1,200 |
-| Tests (TASK-022 to TASK-024) | 1,800 |
-| **Total Production Code** | **5,800 LOC** |
-| **Total Test Code** | **1,800 LOC** |
-| **Grand Total** | **7,600 LOC** |
+| Orchestration (TASK-019 to TASK-021) | 1,400 |
+| Tests (TASK-022 to TASK-024) | 1,900 |
+| **Total Production Code** | **6,000 LOC** |
+| **Total Test Code** | **1,900 LOC** |
+| **Grand Total** | **7,900 LOC** |
 
-**Changes from original estimate (+950 LOC total):**
-- Infrastructure: +400 LOC (TASK-000: 350 LOC, TASK-003: +50 LOC for files table)
-- Orchestration: +150 LOC (TASK-019: +100 LOC Phase -1/7, TASK-021: +50 LOC approval endpoints)
-- Tests: +400 LOC (TASK-000 tests, approval endpoint tests, skip logic tests)
+**Changes from original estimate (+1,250 LOC total):**
+- Infrastructure: +400 LOC (TASK-000: 350 LOC production code, TASK-003: +50 LOC for files table schema)
+- Orchestration: +350 LOC total:
+  - Amendment 8: +150 LOC (TASK-019: +100 LOC Phase -1/7, TASK-021: +50 LOC approval endpoints)
+  - Amendment 9: +200 LOC (TASK-019: +100 LOC Discovery Phase, TASK-020: +50 LOC Discovery events, TASK-021: +50 LOC request format)
+- Tests: +500 LOC distributed across test tasks:
+  - TASK-000 unit tests: 300 LOC (skip logic, confidence aggregation, metadata merge)
+  - TASK-022 integration tests: +200 LOC (Amendment 8: +100 LOC, Amendment 9: +100 LOC)
+  - Note: All 300 LOC TASK-000 unit tests included in TASK-000's 2-day effort estimate
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 3.0 (Updated for Amendment 9)
 **Last Updated:** 2025-11-09
-**Phase 5 Status:** ✅ COMPLETE (Updated with Amendment 8 - TASK-000, modified TASK-019, TASK-021)
+**Phase 5 Status:** ✅ COMPLETE (Updated with Amendments 8 and 9)
+
+**Amendment 9 Updates:**
+- TASK-019: Added Discovery Phase (+1 day effort, +100 LOC, now 7 days total)
+- TASK-020: Added Discovery SSE events (+50 LOC, effort unchanged)
+- TASK-021: Updated POST /import/start request format (+50 LOC, effort unchanged)
+- TASK-022: Added file discovery integration tests (+100 LOC, effort unchanged)
+- LOC totals: Production 6,000 (+200), Tests 1,900 (+100), Grand Total 7,900 (+300)
+
+**MED Clarifications Applied (Amendment 8):**
+- MED-002: Clarified test LOC attribution (TASK-000: 300 LOC unit tests, TASK-022: +100 LOC integration tests)
+- MED-001: Clarified TASK-000 dependency (coding parallelizes, integration testing requires TASK-003)

@@ -50,7 +50,7 @@ Amendment 8 adds intelligent file-level import tracking, user approval workflow,
 
 ### Skip Logic Decision Tree (REQ-AI-009-04 through REQ-AI-009-09)
 
-**9 conditions evaluated in priority order:**
+**7 skip conditions evaluated in priority order:**
 
 1. **User Approval (Absolute Priority)** - If user_approved_at IS NOT NULL, skip entire import
 2. **Hash-Based Duplicate Detection** - If file hash unchanged since last import, skip import
@@ -59,8 +59,11 @@ Amendment 8 adds intelligent file-level import tracking, user approval workflow,
 5. **Metadata Confidence Threshold** - If metadata_confidence ≥ threshold (0.66), skip metadata collection only
 6. **Re-import Attempt Limiting** - If reimport_attempt_count ≥ max_attempts (3), flag for manual review
 7. **Low-Confidence Flagging** - If import_success_confidence < threshold, flag for user review
-8. **Confidence Aggregation** - File import_success_confidence = MIN(passage_composite_scores)
-9. **Metadata Merge Algorithm** - Higher confidence metadata overwrites lower confidence metadata
+
+**Supporting algorithms (not skip conditions):**
+
+8. **Confidence Aggregation Formula** - File import_success_confidence = MIN(passage_composite_scores)
+9. **Metadata Merge Algorithm** - Higher confidence metadata overwrites lower confidence metadata (applied during re-import)
 
 ### User Approval Workflow (REQ-AI-009-10)
 
@@ -342,6 +345,12 @@ FOR each metadata field (title, artist, album, genre):
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 1.1 (HIGH-001 fix applied)
 **Created:** 2025-11-09
+**Updated:** 2025-11-09
 **Purpose:** Consolidated summary of Amendment 8 changes for stakeholder review and implementation reference
+
+**HIGH-001 Fix Applied:**
+- Clarified skip logic section: 7 skip conditions (not 9)
+- Separated confidence aggregation and metadata merge as "Supporting algorithms" (not skip conditions)
+- Improved accuracy of skip logic documentation

@@ -10,17 +10,20 @@
 
 ## Summary
 
-**Total Effort:** 58.5 developer-days (11.7 weeks at 5 days/week)
+**Total Effort:** 59.5 developer-days (11.9 weeks at 5 days/week)
 **Schedule:** 14 weeks (includes testing, buffer, documentation)
 **Team Size:** 1 developer (ground-up recode per SPEC030)
 **Start Date:** TBD (after plan approval)
 **Target Completion:** 14 weeks from start
 
 **Changes from original estimate:**
-- Added TASK-000 (File-Level Import Tracking): +2 days
-- Updated TASK-019 (Workflow Orchestrator Phase -1/7): +1 day
-- Updated TASK-021 (User Approval API Endpoints): +0.5 days
-- **Total additional effort:** +3.5 days (6% increase)
+- Amendment 8: +3.5 days
+  - Added TASK-000 (File-Level Import Tracking): +2 days
+  - Updated TASK-019 (Workflow Orchestrator Phase -1/7): +1 day
+  - Updated TASK-021 (User Approval API Endpoints): +0.5 days
+- Amendment 9: +1 day
+  - Updated TASK-019 (Workflow Orchestrator Discovery Phase): +1 day
+- **Total additional effort:** +4.5 days (8% increase)
 - **Schedule unchanged:** 14 weeks (buffer absorbs additional effort)
 
 ---
@@ -31,13 +34,47 @@
 |-------|-------|------|------------|
 | Infrastructure (Weeks 1-2) | TASK-000 to TASK-004 | 10.5 | 18% |
 | Tier 1 Extractors (Weeks 3-5) | TASK-005 to TASK-011 | 17 | 29% |
-| Tier 2 Fusion (Weeks 6-8) | TASK-012 to TASK-015 | 11.5 | 20% |
+| Tier 2 Fusion (Weeks 6-8) | TASK-012 to TASK-015 | 11.5 | 19% |
 | Tier 3 Validation (Weeks 9-10) | TASK-016 to TASK-018 | 5.5 | 9% |
-| Orchestration (Weeks 11-12) | TASK-019 to TASK-021 | 11 | 19% |
+| Orchestration (Weeks 11-12) | TASK-019 to TASK-021 | 12 | 20% |
 | Integration & Testing (Weeks 13-14) | TASK-022 to TASK-025 | 9 | 15% |
-| **Total** | **26 tasks** | **58.5 days** | **100%** |
-| **Buffer (20%)** | - | **11.7 days** | - |
-| **Contingency Total** | - | **70.2 days** | **~14 weeks** |
+| **Total** | **26 tasks** | **59.5 days** | **100%** |
+| **Buffer (20%)** | - | **11.9 days** | - |
+| **Contingency Total** | - | **71.4 days** | **~14 weeks** |
+
+---
+
+## Buffer Structure and Allocation
+
+**Single-Level Buffer (20% overall, distributed by phase):**
+
+The plan uses a **single 20% buffer** (11.9 days) distributed across phases based on risk level. There are NOT two separate buffers (phase-level + overall).
+
+**How Buffer Works:**
+- **Base Effort (tasks only):** 59.5 days
+- **Overall Buffer (20% of base):** 11.9 days
+- **Total Schedule with Buffer:** 71.4 days (~14 weeks at 5 days/week)
+
+**Phase Buffer Allocation (portions of the 11.9-day total):**
+- Infrastructure: 1 day (10% of phase - lower risk, established patterns)
+- Tier 1 Extractors: 2.5 days (15% of phase - API integration risk)
+- Tier 2 Fusion: 1.5 days (15% of phase - mathematical correctness critical)
+- Tier 3 Validation: 0.5 days (10% of phase - low complexity)
+- Orchestration: 2 days (20% of phase - highest integration complexity)
+- Integration & Testing: 1 day (10% of phase - typically predictable)
+- **Total Allocated:** ~8.5 days (remaining 3.2 days as general contingency)
+
+**Important Clarifications:**
+- The "Buffer" rows in detailed phase tables (below) show **portions of the overall 11.9-day buffer**, NOT additional buffers
+- The "Days" column in the breakdown table (above) shows **task effort only** (no buffer included)
+- The "Subtotal" rows in detailed tables show **tasks + allocated buffer portion**
+
+**Example - Infrastructure Phase:**
+- Tasks: 10.5 days (TASK-000 through TASK-004)
+- Buffer allocation: 1 day (part of overall 11.9-day buffer)
+- Subtotal: 11.5 days
+
+This 1 day is NOT on top of the 11.9-day overall buffer—it's part of it, allocated to Infrastructure based on 10% risk buffer.
 
 ---
 
@@ -90,15 +127,15 @@
 | Buffer (10%) | 0.5 days | Low complexity, low risk |
 | **Subtotal** | **6 days** | **~1.5 weeks** |
 
-### Orchestration (11 days)
+### Orchestration (12 days)
 
 | Task | Effort | Assumptions |
 |------|--------|-------------|
-| TASK-019: Workflow Orchestrator | 6 days | Phase -1 and Phase 7 added (was 5 days) |
-| TASK-020: SSE Event System | 2.5 days | Axum SSE support exists |
-| TASK-021: HTTP API Endpoints | 2.5 days | Standard routes + user approval endpoints (was 2 days) |
-| Buffer (20%) | 2 days | Integration complexity |
-| **Subtotal** | **13 days** | **~2.5 weeks** |
+| TASK-019: Workflow Orchestrator | 7 days | Discovery Phase + Phase -1 + Phase 0-7 (was 5 days originally, +1d Amendment 8, +1d Amendment 9) |
+| TASK-020: SSE Event System | 2.5 days | Axum SSE support exists, Discovery events added |
+| TASK-021: HTTP API Endpoints | 2.5 days | Standard routes + user approval endpoints + Discovery request format (was 2 days) |
+| Buffer (20%) | 2.4 days | Integration complexity (20% of 12 days) |
+| **Subtotal** | **14.4 days** | **~3 weeks** |
 
 ### Integration & Testing (9 days)
 
@@ -136,8 +173,8 @@
 - Week 10: Quality Scorer complete (0.5d), buffer (4d)
 
 **Weeks 11-12: Orchestration**
-- Week 11: Workflow Orchestrator with Phase -1/7 (6d)
-- Week 12: SSE Event System (2.5d), HTTP API with approval endpoints (2.5d)
+- Week 11: Workflow Orchestrator with Discovery Phase + Phase -1/7 (7d)
+- Week 12: SSE Event System with Discovery events (2.5d), HTTP API with approval + Discovery endpoints (2.5d), buffer (2d)
 
 **Weeks 13-14: Integration & Testing**
 - Week 13: Integration Tests (3d), System Tests (2d)
@@ -147,7 +184,7 @@
 
 ## Critical Path Analysis
 
-**Critical Path:** 56.5 days (sequential dependencies, +1.5 days from Amendment 8)
+**Critical Path:** 57.5 days (sequential dependencies, +1.5 days from Amendment 8, +1 day from Amendment 9)
 
 **Tasks on Critical Path:**
 1. SPEC031 Verification (TASK-001) - blocks schema sync
@@ -155,19 +192,19 @@
 3. Base Traits (TASK-004) - blocks all extractors
 4. Chromaprint FFI (TASK-002) → Chromaprint Analyzer (TASK-006) → AcoustID (TASK-007) - sequential chain
 5. All Tier 1 → Identity Resolver (TASK-012) - needs all sources
-6. All Tier 2 → Workflow Orchestrator (TASK-019, 6d) - needs all fusion
+6. All Tier 2 → Workflow Orchestrator (TASK-019, 7d) - needs all fusion, includes Discovery Phase
 7. Workflow → SSE → HTTP API (TASK-021, 2.5d) - sequential
 8. All Implementation → Integration Tests - sequential
 
-**Note:** TASK-000 (File-Level Import Tracking) parallelizes with TASK-001, so does not extend critical path
+**Note:** TASK-000 (File-Level Import Tracking) coding parallelizes with TASK-001, but integration testing requires TASK-003 complete (database schema with 7 new file columns). Does not extend critical path.
 
 **Parallelization Gains:**
 - Tier 1 extractors: 7 tasks, but some sequential (Chromaprint chain) = ~15% time savings vs pure sequential
 - Tier 3 validators: 3 tasks, fully parallel = ~30% time savings
 
-**Without Parallelization:** 68.5 days (+3.5 days from Amendment 8)
-**With Parallelization:** 56.5 days (+1.5 days on critical path from Amendment 8)
-**Efficiency Gain:** 17.5%
+**Without Parallelization:** 69.5 days (+3.5 days from Amendment 8, +1 day from Amendment 9)
+**With Parallelization:** 57.5 days (+1.5 days on critical path from Amendment 8, +1 day from Amendment 9)
+**Efficiency Gain:** 17.6%
 
 ---
 
@@ -229,7 +266,7 @@
 - Test data acquisition delays (+0.5 days)
 
 **Mitigation:**
-- 20% buffer included (11 days) covers most risks
+- 20% buffer included (11.9 days) covers most risks
 - Early verification of SPEC031 (Week 1) minimizes discovery delay
 - Mathematical unit tests for Bayesian algorithm (catch bugs early)
 
@@ -243,7 +280,7 @@
 | M2: Tier 1 Extractors Complete | Week 5 | All 7 extractors implemented | Unit tests >90% coverage per module |
 | M3: Tier 2 Fusion Complete | Week 8 | Identity, metadata, flavor fusion working | Integration tests passing |
 | M4: Tier 3 Validation Complete | Week 10 | Quality scoring working | Quality scores computed correctly |
-| M5: Orchestration Complete | Week 12 | Full pipeline working (Phase -1 through Phase 7) | End-to-end import with skip logic and user approval works |
+| M5: Orchestration Complete | Week 12 | Full pipeline working (Discovery Phase through Phase 7) | End-to-end import with file discovery, skip logic, and user approval works |
 | M6: Testing Complete | Week 14 | All acceptance tests passing | >90% total coverage, performance met |
 
 ---
@@ -263,6 +300,18 @@
 
 ---
 
-**Document Version:** 2.0 (Updated for Amendment 8)
+**Document Version:** 3.0 (Updated for Amendment 9)
 **Last Updated:** 2025-11-09
-**Phase 6 Status:** ✅ COMPLETE (Updated with Amendment 8: File-Level Import Tracking)
+**Phase 6 Status:** ✅ COMPLETE (Updated with Amendments 8 and 9)
+
+**Amendment 9 Updates:**
+- Base Effort: 58.5 days → 59.5 days (+1 day)
+- Buffer: 11.7 days → 11.9 days (20% of base)
+- Total Schedule: 70.2 days → 71.4 days (~14 weeks, unchanged)
+- Critical Path: 56.5 days → 57.5 days (+1 day on critical path)
+- Orchestration Phase: 11 days → 12 days (TASK-019: 6d → 7d for Discovery Phase)
+- Milestone M5 updated to include Discovery Phase
+
+**MED Clarifications Applied (Amendment 8):**
+- MED-003: Added buffer structure clarification (single 20% buffer distributed by phase)
+- MED-001: Clarified TASK-000 dependency (coding parallelizes, integration testing requires TASK-003)
