@@ -63,6 +63,9 @@ mod ffi {
 // Error Types
 // ============================================================================
 
+/// Errors that can occur during Chromaprint audio fingerprinting
+///
+/// Wraps errors from the Chromaprint C library FFI calls.
 #[derive(Debug, Error)]
 pub enum ChromaprintError {
     #[error("Failed to create Chromaprint context")]

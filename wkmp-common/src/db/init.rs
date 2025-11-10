@@ -128,6 +128,9 @@ async fn create_users_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the settings table
+///
+/// Stores application configuration key-value pairs.
 pub async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -315,6 +318,11 @@ async fn create_module_config_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the files table
+///
+/// Stores audio file metadata including duration in ticks (SPEC017).
+///
+/// **[REQ-F-003]** File duration uses tick-based representation for consistency.
 pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     // REQ-F-003: File duration migration to ticks (BREAKING CHANGE)
     // Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
@@ -354,6 +362,10 @@ pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the passages table
+///
+/// Stores passage metadata including timing, crossfade points, and musical flavor.
+/// All timing values use tick-based representation (SPEC017).
 pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -495,6 +507,9 @@ async fn create_songs_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the artists table
+///
+/// Stores artist metadata including cooldown periods and selection probabilities.
 pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -527,6 +542,9 @@ pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the works table
+///
+/// Stores musical work metadata including cooldown periods for automatic selection.
 pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -559,6 +577,9 @@ pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the albums table
+///
+/// Stores album metadata from MusicBrainz.
 pub async fn create_albums_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
