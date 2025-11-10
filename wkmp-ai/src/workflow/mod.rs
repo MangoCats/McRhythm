@@ -6,10 +6,13 @@
 
 pub mod boundary_detector;
 pub mod event_bridge;
-pub mod song_processor;
-pub mod storage;
+pub mod pipeline;  // PLAN024: 3-tier pipeline orchestrator
+pub mod storage;   // PLAN024: Database storage for processed passages
 
-use crate::fusion::{ExtractionResult, FusionResult, ValidationResult};
+use crate::types::{ExtractionResult, ValidationResult};
+
+// Re-exports for convenience
+pub use pipeline::{Pipeline, PipelineConfig};
 
 /// Passage boundary (start/end times in SPEC017 ticks)
 ///
@@ -28,12 +31,20 @@ pub struct PassageBoundary {
 /// SPEC017 tick rate constant
 pub const TICK_RATE: i64 = 28_224_000;
 
+/// Complete fused passage data (all fusers combined)
+#[derive(Debug, Clone)]
+pub struct FusedPassage {
+    pub metadata: crate::types::FusedMetadata,
+    pub identity: crate::types::FusedIdentity,
+    pub flavor: crate::types::FusedFlavor,
+}
+
 /// Complete passage result after fusion and validation
 #[derive(Debug, Clone)]
 pub struct ProcessedPassage {
     pub boundary: PassageBoundary,
     pub extractions: Vec<ExtractionResult>,
-    pub fusion: FusionResult,
+    pub fusion: FusedPassage,
     pub validation: ValidationResult,
 }
 
