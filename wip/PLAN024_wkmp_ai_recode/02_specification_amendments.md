@@ -664,6 +664,465 @@ fn generate_fingerprint(
 
 ---
 
+## Amendment 8: File-Level Import Tracking and User Approval
+
+**Issue Addressed:** User requirement for file-level import tracking, confidence scoring, user approval workflow, and intelligent skip logic
+
+**Source:** User request 2025-11-09 (post-Phase 8)
+
+**Location:** New requirement section (REQ-AI-009 series), files table schema, settings table
+
+**Type:** New functionality (scope expansion)
+
+**Specification:**
+
+Add comprehensive file-level import tracking to enable intelligent skip logic, user approval workflows, and metadata protection:
+
+### REQ-AI-009: File-Level Import Tracking and User Approval
+
+The system SHALL track file-level import status, confidence scores, and user approval to enable intelligent skip logic and protect user-approved metadata from automatic changes.
+
+#### [REQ-AI-009-01] File-Level Import Completion Tracking
+
+The system SHALL track when file import completes and aggregate passage-level confidence into file-level metrics:
+
+- **files.import_completed_at** (INTEGER, i64 unix epoch milliseconds)
+  - Timestamp when all passages within file successfully processed (Phase 0-6 complete)
+  - NULL = not yet imported or import failed
+
+- **files.import_success_confidence** (REAL, f32 0.0-1.0)
+  - Aggregate quality score across all passages within file
+  - Formula: `MIN(passage_composite_scores)` (conservative, minimum passage score)
+  - Passage composite score: `(identity_confidence * 0.4) + (metadata_completeness / 100.0 * 0.3) + (overall_quality_score / 100.0 * 0.3)`
+  - NULL = not yet computed
+
+**Rationale:** Renamed from user's "identity_confidence" to avoid conflict with existing per-passage identity_confidence (Bayesian MBID resolution). File-level score aggregates all quality signals.
+
+#### [REQ-AI-009-02] File-Level Metadata Collection Tracking
+
+The system SHALL track metadata collection completion and quality:
+
+- **files.metadata_import_completed_at** (INTEGER, i64 unix epoch milliseconds)
+  - Timestamp when metadata fusion (Phase 5) completed for all passages
+  - NULL = metadata not yet collected
+
+- **files.metadata_confidence** (REAL, f32 0.0-1.0)
+  - Quality of metadata fusion across all passages
+  - Formula: `(avg_metadata_completeness + avg_field_confidence) / 2.0`
+  - `avg_metadata_completeness = AVG(passages.metadata_completeness) / 100.0`
+  - `avg_field_confidence = AVG((title_confidence + artist_confidence) / 2.0)`
+  - NULL = not yet computed
+
+**Rationale:** Distinct from metadata_completeness (quantity of fields) - this measures quality of fusion process.
+
+#### [REQ-AI-009-03] User Approval Timestamp
+
+The system SHALL provide user approval tracking:
+
+- **files.user_approved_at** (INTEGER, i64 unix epoch milliseconds)
+  - Timestamp when user explicitly approved file metadata via API
+  - NULL = not yet approved by user
+
+**Behavior:**
+- User approval SHALL protect ALL passages within file from future automatic metadata changes
+- Re-import SHALL skip files with user_approved_at IS NOT NULL (absolute protection)
+- User approval implies acceptance of all passage metadata as correct
+
+#### [REQ-AI-009-04] Skip Logic - User Approval (Absolute Priority)
+
+The system SHALL enforce user approval as absolute protection:
+
+**IF** `files.user_approved_at IS NOT NULL`:
+- SHALL skip entire import process (Phases 0-6)
+- SHALL NOT modify any passage metadata (title, artist, album, identity, flavor, etc.)
+- SHALL emit SSE event: `FileSkipped` with reason: "UserApproved"
+- SHALL increment progress counter (file counted as processed)
+
+**Rationale:** User approval is highest-priority signal - overrides all confidence thresholds and re-import triggers.
+
+#### [REQ-AI-009-05] Skip Logic - Modification Time Check
+
+The system SHALL detect unchanged files before processing:
+
+**Before Phase 0:**
+- SHALL query: `SELECT modification_time FROM files WHERE hash = ?`
+- SHALL compare database modification_time with current file modification_time
+
+**IF** modification times match (file unchanged since last import):
+- SHALL skip import (Phases 0-6)
+- SHALL emit SSE event: `FileSkipped` with reason: "FileUnchanged"
+- SHALL NOT re-compute hash or re-scan file
+
+**Rationale:** Fast early-exit for unchanged files (no I/O beyond modification time check).
+
+#### [REQ-AI-009-06] Skip Logic - Import Success Confidence
+
+The system SHALL skip re-import for high-confidence files:
+
+**Before Phase 0:**
+- SHALL query: `SELECT import_success_confidence FROM files WHERE hash = ?`
+- SHALL retrieve PARAM-AI-005 threshold from settings (default 0.75)
+
+**IF** `import_success_confidence >= threshold` AND `user_approved_at IS NULL`:
+- SHALL skip Phases 2-4 (fingerprinting, identity resolution, metadata fusion)
+- SHALL run Phase 0 (boundary detection, check for new passages)
+- SHALL run Phases 5-6 (flavor synthesis, validation, may have new data)
+- SHALL emit SSE event: `PartialImport` with phases_skipped: "2-4"
+
+**Rationale:** High-confidence identification means Recording MBID already correct - skip expensive API calls, but re-compute flavor (may have new sources).
+
+#### [REQ-AI-009-07] Skip Logic - Metadata Confidence
+
+The system SHALL skip metadata re-collection for sufficient-quality metadata:
+
+**Before Phase 5:**
+- SHALL query: `SELECT metadata_confidence FROM files WHERE hash = ?`
+- SHALL retrieve PARAM-AI-006 threshold from settings (default 0.66)
+
+**IF** `metadata_confidence >= threshold` AND `user_approved_at IS NULL`:
+- SHALL skip Phase 5 (metadata fusion re-collection)
+- SHALL run Phases 2-4 (identity resolution, may update MBID)
+- SHALL run Phase 6 (validation, may flag new issues)
+- SHALL emit SSE event: `PartialImport` with phases_skipped: "5"
+
+**Rationale:** Metadata quality sufficient - avoid re-querying MusicBrainz, but allow identity updates if new fingerprint data available.
+
+#### [REQ-AI-009-08] Re-Import Attempt Limiting
+
+The system SHALL prevent infinite re-import loops:
+
+- **files.reimport_attempt_count** (INTEGER, default 0)
+  - Increments each time file is imported (initial import + re-imports)
+
+- **files.last_reimport_attempt_at** (INTEGER, i64 unix epoch milliseconds)
+  - Timestamp of most recent import attempt
+
+**Before Phase 0:**
+- SHALL query: `SELECT reimport_attempt_count FROM files WHERE hash = ?`
+- SHALL retrieve PARAM-AI-007 from settings (default max_reimport_attempts = 3)
+
+**IF** `reimport_attempt_count >= max_reimport_attempts` AND `user_approved_at IS NULL`:
+- SHALL skip automatic re-import
+- SHALL set `passages.validation_status = "ManualReviewRequired"` for all passages
+- SHALL emit SSE event: `FileRequiresReview` with reason: "MaxReimportAttemptsExceeded"
+- SHALL log file path for user review
+
+**Rationale:** If confidence doesn't improve after 3 attempts, automatic processing cannot resolve issue - flag for manual intervention.
+
+#### [REQ-AI-009-09] Low-Confidence Flagging
+
+The system SHALL flag files requiring manual review:
+
+**After Phase 6 (Quality Validation):**
+- SHALL compare `import_success_confidence` against PARAM-AI-005 threshold
+- SHALL compare `metadata_confidence` against PARAM-AI-006 threshold
+
+**IF** `import_success_confidence < PARAM-AI-005` (default 0.75):
+- SHALL set `passages.validation_status = "LowImportConfidence"` for all passages
+- SHALL emit SSE event: `FileRequiresReview` with reason: "LowImportConfidence"
+- SHALL continue processing (non-fatal, flag for post-import review)
+
+**IF** `metadata_confidence < PARAM-AI-006` (default 0.66):
+- SHALL set `passages.validation_status = "LowMetadataConfidence"` for all passages
+- SHALL emit SSE event: `FileRequiresReview` with reason: "LowMetadataConfidence"
+- SHALL trigger re-import on next import run (unless max attempts exceeded)
+
+**Rationale:** Deferred user approval model - flag during import, user reviews after batch completes (preserves automatic workflow).
+
+#### [REQ-AI-009-10] Metadata Merging on Re-Import
+
+The system SHALL merge new metadata with existing when re-import triggered:
+
+**Trigger Conditions:**
+- File modification time changed (content updated)
+- metadata_confidence < PARAM-AI-006 (quality insufficient)
+- user_approved_at IS NULL (not user-protected)
+- reimport_attempt_count < PARAM-AI-007 (not max attempts)
+
+**Merge Algorithm (per passage, per field):**
+
+```
+FOR each metadata field (title, artist, album, genre):
+    IF new_field IS NOT NULL AND new_field_confidence > existing_field_confidence:
+        Use new_field value
+        Update field_confidence = new_field_confidence
+        Update field_source = "Reimport-{session_id}"
+    ELSE IF new_field IS NULL AND existing_field IS NOT NULL:
+        Preserve existing_field value (no overwrite with NULL)
+        Keep existing_field_confidence
+        Keep existing_field_source
+    ELSE IF new_field IS NOT NULL AND new_field_confidence <= existing_field_confidence:
+        Preserve existing_field value (higher confidence wins)
+        Keep existing_field_confidence
+        Keep existing_field_source
+```
+
+**Provenance Tracking:**
+- SHALL update `{field}_source` to indicate which import session provided value
+- Format: `"Reimport-{import_session_id}"` vs `"Initial-{import_session_id}"`
+- SHALL preserve provenance history in `import_provenance` table
+
+**Rationale:** Confidence-based merge preserves highest-quality metadata, prevents regression from low-quality re-import.
+
+#### [REQ-AI-009-11] Hash-Based Duplicate Detection
+
+The system SHALL detect duplicate files before import:
+
+**Before Phase 0:**
+- SHALL compute SHA-256 hash of file contents
+- SHALL query: `SELECT guid, path FROM files WHERE hash = ? AND path != ?`
+
+**IF** duplicate found (same hash, different path):
+- SHALL emit SSE event: `FileSkipped` with reason: "DuplicateContent"
+- SHALL log both paths for user review (original: {existing_path}, duplicate: {new_path})
+- SHALL NOT create new file record
+- SHALL NOT process passages
+- SHALL increment progress counter (file counted as processed)
+
+**Rationale:** Avoid duplicate processing of same audio content at different paths (e.g., original + backup copy).
+
+---
+
+### Database Schema Extensions (files table)
+
+**Add to `files` table:**
+
+```sql
+-- Import Tracking
+import_completed_at INTEGER,           -- i64 unix epoch milliseconds, NULL = not imported
+import_success_confidence REAL,        -- f32 0.0-1.0, aggregate passage quality
+metadata_import_completed_at INTEGER,  -- i64 unix epoch milliseconds, NULL = not collected
+metadata_confidence REAL,              -- f32 0.0-1.0, metadata fusion quality
+
+-- User Approval
+user_approved_at INTEGER,              -- i64 unix epoch milliseconds, NULL = not approved
+
+-- Re-Import Control
+reimport_attempt_count INTEGER DEFAULT 0,       -- Increments each import
+last_reimport_attempt_at INTEGER                -- i64 unix epoch milliseconds
+```
+
+**Indexes:**
+```sql
+CREATE INDEX idx_files_user_approved ON files(user_approved_at) WHERE user_approved_at IS NOT NULL;
+CREATE INDEX idx_files_import_confidence ON files(import_success_confidence);
+CREATE INDEX idx_files_hash ON files(hash);  -- For duplicate detection
+```
+
+---
+
+### New Database Parameters
+
+#### [PARAM-AI-005] import_success_confidence_threshold
+
+```sql
+INSERT INTO settings (key, value, description, unit, default_value, source_url) VALUES (
+    'import_success_confidence_threshold',
+    '0.75',
+    'Minimum file-level import success confidence to skip re-import. File import success confidence aggregates passage identity, metadata completeness, and overall quality scores. Lower values trigger more re-imports (higher thoroughness). Higher values skip more re-imports (higher efficiency).',
+    'probability',
+    '0.75',
+    'PLAN024 Amendment 8, REQ-AI-009-06'
+);
+```
+
+**Valid Range:** 0.0-1.0 (probability)
+**Default:** 0.75 (75% confidence required to skip re-import)
+**Tuning Guidance:**
+- 0.90: Very conservative (only skip highest-confidence imports)
+- 0.75: Balanced (default, skip good imports, re-process uncertain)
+- 0.50: Aggressive (skip most imports, only re-process failures)
+
+#### [PARAM-AI-006] metadata_confidence_threshold
+
+```sql
+INSERT INTO settings (key, value, description, unit, default_value, source_url) VALUES (
+    'metadata_confidence_threshold',
+    '0.66',
+    'Minimum file-level metadata fusion confidence to skip metadata re-collection. Metadata confidence combines completeness (field presence) and field-level confidence scores. Lower values trigger more metadata re-collection (higher thoroughness). Higher values skip more re-collection (trust existing metadata).',
+    'probability',
+    '0.66',
+    'PLAN024 Amendment 8, REQ-AI-009-07'
+);
+```
+
+**Valid Range:** 0.0-1.0 (probability)
+**Default:** 0.66 (66% confidence required to skip metadata re-collection)
+**Tuning Guidance:**
+- 0.80: Conservative (re-collect unless high confidence)
+- 0.66: Balanced (default, re-collect if quality concerns)
+- 0.40: Permissive (accept most metadata, rare re-collection)
+
+#### [PARAM-AI-007] max_reimport_attempts
+
+```sql
+INSERT INTO settings (key, value, description, unit, default_value, source_url) VALUES (
+    'max_reimport_attempts',
+    '3',
+    'Maximum automatic re-import attempts before flagging file for manual review. Prevents infinite re-import loops when confidence cannot be improved automatically. After max attempts, file flagged with validation_status = "ManualReviewRequired".',
+    'count',
+    '3',
+    'PLAN024 Amendment 8, REQ-AI-009-08'
+);
+```
+
+**Valid Range:** 1-10 (integer count)
+**Default:** 3 (three automatic attempts before manual review)
+**Tuning Guidance:**
+- 1: Immediate manual review if first import low confidence
+- 3: Balanced (default, allow 2 re-attempts before escalation)
+- 5: Permissive (allow more automatic attempts, delay manual review)
+
+---
+
+### New API Endpoints
+
+#### POST /import/files/{file_id}/approve
+
+**Purpose:** User approves file metadata, protecting from future automatic changes
+
+**Request:**
+```json
+{
+  "approval_comment": "Metadata verified correct" // Optional
+}
+```
+
+**Response:**
+```json
+{
+  "file_id": "uuid-123",
+  "user_approved_at": 1699564800000,
+  "passages_protected": 3
+}
+```
+
+**Behavior:**
+- Sets `files.user_approved_at = current_timestamp_millis()`
+- Emits SSE event: `FileMetadataApproved`
+- All passages within file protected from automatic metadata changes
+- Future imports skip this file (REQ-AI-009-04)
+
+#### POST /import/files/{file_id}/reject
+
+**Purpose:** User rejects automatic metadata, triggers re-import
+
+**Request:**
+```json
+{
+  "rejection_reason": "Artist name incorrect", // Optional
+  "force_reimport": true
+}
+```
+
+**Response:**
+```json
+{
+  "file_id": "uuid-123",
+  "reimport_scheduled": true,
+  "passages_affected": 3
+}
+```
+
+**Behavior:**
+- Clears `files.user_approved_at = NULL`
+- Sets `files.metadata_confidence = 0.0` (force re-collection)
+- Resets `files.reimport_attempt_count = 0` if `force_reimport = true`
+- Emits SSE event: `FileRejected`, triggers re-import on next import run
+
+#### GET /import/files/pending-review
+
+**Purpose:** List files flagged for manual review
+
+**Response:**
+```json
+{
+  "files": [
+    {
+      "file_id": "uuid-123",
+      "path": "music/album/track.mp3",
+      "import_success_confidence": 0.45,
+      "metadata_confidence": 0.52,
+      "validation_status": "LowImportConfidence",
+      "reimport_attempt_count": 3,
+      "passages": [
+        {
+          "passage_id": "uuid-456",
+          "title": "Song Title",
+          "identity_confidence": 0.45,
+          "flags": ["low_confidence", "manual_review_recommended"]
+        }
+      ]
+    }
+  ],
+  "total_count": 15
+}
+```
+
+**Behavior:**
+- Returns files where `validation_status IN ('LowImportConfidence', 'LowMetadataConfidence', 'ManualReviewRequired')`
+- Ordered by `import_success_confidence ASC` (lowest confidence first)
+- Paginated (default 50 files per page)
+
+---
+
+### Workflow Integration
+
+**New Phase -1: Pre-Import Skip Logic (before Phase 0)**
+
+Insert before Phase 0 (Passage Boundary Detection):
+
+1. Compute file SHA-256 hash
+2. Query database for existing file (hash match)
+3. Check user approval (if approved, SKIP all phases)
+4. Check modification time (if unchanged, SKIP)
+5. Check duplicate content (if duplicate path, SKIP)
+6. Check import confidence (if high, SKIP Phases 2-4)
+7. Check metadata confidence (if high, SKIP Phase 5)
+8. Check re-import attempt count (if exceeded, FLAG and SKIP)
+9. Proceed to Phase 0 (if no skip conditions met)
+
+**New Phase 7: Post-Import Finalization (after Phase 6)**
+
+Insert after Phase 6 (Quality Validation):
+
+1. Compute file-level `import_success_confidence` (aggregate passage scores)
+2. Compute file-level `metadata_confidence` (aggregate metadata quality)
+3. Update `files` table with completion timestamps and confidence scores
+4. Increment `reimport_attempt_count`
+5. Check confidence thresholds, flag if below (REQ-AI-009-09)
+6. Emit SSE events for manual review if needed
+
+---
+
+### Traceability
+
+**Resolves:** User requirement 2025-11-09 (file-level tracking, user approval, skip logic)
+
+**Conflicts Resolved:**
+- File-level vs passage-level identity: Renamed to `import_success_confidence` (aggregate)
+- Metadata confidence vs completeness: Separate concepts (quality vs quantity)
+- Interactive vs automatic: Deferred approval model (post-import review)
+
+**Ambiguities Resolved:**
+- "File identification" = aggregate passage identities
+- User approval protects entire file (all passages)
+- Merge uses higher-confidence value
+
+**Dependencies:**
+- SPEC031 SchemaSync (handles automatic column addition)
+- PARAM-AI-001 through PARAM-AI-004 (existing parameters)
+- REQ-AI-080-086 (existing passages table schema)
+
+**Impact:**
+- +7 columns to `files` table
+- +3 database parameters (PARAM-AI-005, 006, 007)
+- +3 API endpoints
+- +2 workflow phases (Phase -1, Phase 7)
+- +3.5 days implementation effort (TASK-000, TASK-019 modification)
+
+---
+
 ## Execution Checklist
 
 **After plan approval, execute amendments in this order:**
@@ -676,13 +1135,15 @@ fn generate_fingerprint(
   - [ ] Amendment 5: Add REQ-AI-045-01 (expected characteristics)
   - [ ] Amendment 6: Add REQ-AI-021-01 (Chromaprint spec)
   - [ ] Amendment 7: Revise REQ-AI-010 workflow (entity-precise)
+  - [ ] Amendment 8: Add REQ-AI-009-01 through REQ-AI-009-11 (file-level tracking, user approval)
 
 - [ ] **Step 2:** Create new IMPL documents
   - [ ] Create docs/IMPL012-acoustid_client.md
   - [ ] Create docs/IMPL013-chromaprint_integration.md
 
 - [ ] **Step 3:** Update existing IMPL documents
-  - [ ] Update docs/IMPL010-parameter_management.md (add 4 parameters)
+  - [ ] Update docs/IMPL010-parameter_management.md (add PARAM-AI-001 through PARAM-AI-007)
+  - [ ] Update docs/IMPL001-database_schema.md (add 7 columns to files table, 3 indexes)
 
 - [ ] **Step 4:** Update wkmp-dr to recognize new parameters
   - [ ] PARAM-AI-001 through PARAM-AI-004 descriptions
@@ -707,11 +1168,14 @@ fn generate_fingerprint(
 - **Chromaprint specs:** See Amendment 6, REQ-AI-021-01, IMPL013
 - **API rate limits:** See PARAM-AI-001, PARAM-AI-002 in IMPL010 updates
 - **Workflow sequence:** See Amendment 7 (entity-precise Phase 0-6)
+- **File-level tracking:** See Amendment 8, REQ-AI-009-01 through REQ-AI-009-11
+- **User approval workflow:** See Amendment 8, API endpoints, skip logic
+- **Import confidence thresholds:** See PARAM-AI-005, PARAM-AI-006, PARAM-AI-007
 
 **This document is SSOT for all resolutions. Plan documents reference this file.**
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 2.0
 **Last Updated:** 2025-11-09
-**Status:** APPROVED - Pending execution after plan approval
+**Status:** APPROVED - Amendment 8 added (file-level tracking, user approval)

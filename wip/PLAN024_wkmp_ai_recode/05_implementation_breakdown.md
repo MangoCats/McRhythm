@@ -69,9 +69,37 @@
 
 ---
 
-## Task Breakdown (25 Tasks)
+## Task Breakdown (26 Tasks)
 
 ### Infrastructure Tasks (Weeks 1-2)
+
+#### TASK-000: File-Level Import Tracking
+
+- **Objective:** Implement file-level import tracking, user approval, and intelligent skip logic
+- **Deliverable:** `wkmp-ai/src/services/file_tracker.rs` (350 LOC)
+- **Effort:** 2 days
+- **Dependencies:** None (can parallelize with TASK-001)
+- **Risk:** LOW-MEDIUM (new pre-import workflow, skip logic decision tree)
+- **Acceptance:**
+  - Hash-based duplicate detection works
+  - Skip logic decision tree correct (user approval > modification time > confidence thresholds)
+  - File-level confidence aggregation correct (MIN of passage composite scores)
+  - Metadata merging preserves higher-confidence values
+  - Re-import attempt limiting prevents infinite loops
+- **Implementation:** Per Amendment 8 (REQ-AI-009-01 through REQ-AI-009-11)
+
+**Components:**
+- Pre-import skip logic (Phase -1)
+- File hash computation (SHA-256)
+- Confidence aggregation formulas
+- Metadata merge algorithm
+- Re-import attempt tracking
+
+**Unit Tests:**
+- Skip decision tree (9 skip conditions)
+- Confidence aggregation (various passage score combinations)
+- Metadata merge (conflict resolution, confidence-based overwrite)
+- Re-import loop prevention
 
 #### TASK-001: SPEC031 Verification
 - **Objective:** Verify SPEC031 SchemaSync exists in wkmp-common
@@ -91,12 +119,17 @@
 - **Implementation:** Per IMPL013-chromaprint_integration.md
 
 #### TASK-003: Database Schema Sync
-- **Objective:** Implement SchemaSync for passages table (17 new columns)
-- **Deliverable:** `wkmp-ai/src/database/schema.rs` (200 LOC)
+- **Objective:** Implement SchemaSync for passages table (17 new columns) + files table (7 new columns)
+- **Deliverable:** `wkmp-ai/src/database/schema.rs` (250 LOC)
 - **Effort:** 2 days
 - **Dependencies:** TASK-001 complete
 - **Risk:** LOW
-- **Acceptance:** Fresh DB auto-creates columns, old DB auto-migrates, no data loss
+- **Acceptance:**
+  - Fresh DB auto-creates all columns (passages + files)
+  - Old DB auto-migrates without data loss
+  - Files table columns: import_completed_at, import_success_confidence, user_approved_at, metadata_import_completed_at, metadata_confidence, reimport_attempt_count, last_reimport_attempt_at
+  - Passages table columns: 17 per existing spec
+- **Implementation:** Per REQ-AI-080-086 (passages), REQ-AI-009 (files)
 
 #### TASK-004: Base Traits & Types
 - **Objective:** Define core traits (SourceExtractor, Fusion, Validation)
@@ -235,12 +268,26 @@
 ### Orchestration Tasks (Weeks 11-12)
 
 #### TASK-019: Workflow Orchestrator
-- **Objective:** Phase 0-6 pipeline, per-song sequential processing
-- **Deliverable:** `wkmp-ai/src/services/workflow_orchestrator.rs` (600 LOC)
-- **Effort:** 5 days
-- **Dependencies:** All Tier 1, 2, 3 tasks complete
-- **Risk:** MEDIUM (complex orchestration, error handling)
-- **Acceptance:** Phase sequence correct, error isolation works, parallel extraction works
+- **Objective:** Complete import pipeline (Phase -1 through Phase 7), per-song sequential processing
+- **Deliverable:** `wkmp-ai/src/services/workflow_orchestrator.rs` (700 LOC)
+- **Effort:** 6 days (was 5 days, +1 day for Phase -1 and Phase 7)
+- **Dependencies:** All Tier 1, 2, 3 tasks complete, TASK-000 (file tracker)
+- **Risk:** MEDIUM (complex orchestration, error handling, skip logic integration)
+- **Acceptance:**
+  - Phase -1 (pre-import skip logic) works correctly (9 skip conditions)
+  - Phase 0-6 sequence correct (existing spec)
+  - Phase 7 (post-import finalization) updates files table
+  - Error isolation works (per-passage failures don't abort file)
+  - Parallel extraction works (Tier 1)
+  - Skip logic respects user approval (absolute protection)
+  - Confidence thresholds loaded from database parameters
+- **Implementation:** Per Amendment 7 (Phase 0-6), Amendment 8 (Phase -1, Phase 7)
+
+**Phases:**
+- Phase -1: Pre-import skip logic (file tracker integration)
+- Phase 0: Passage boundary detection
+- Phase 1-6: Per-passage processing (existing spec)
+- Phase 7: Post-import finalization (confidence aggregation, flagging)
 
 #### TASK-020: SSE Event System
 - **Objective:** Real-time event streaming for UI progress
@@ -251,12 +298,20 @@
 - **Acceptance:** 10 event types emitted, throttling works (30/sec max), no event loss
 
 #### TASK-021: HTTP API Endpoints
-- **Objective:** POST /import/start, GET /import/events, GET /import/status
-- **Deliverable:** `wkmp-ai/src/api/import_routes.rs` (200 LOC)
-- **Effort:** 2 days
-- **Dependencies:** TASK-019 (orchestrator), TASK-020 (SSE)
+- **Objective:** Import control + user approval endpoints
+- **Deliverable:** `wkmp-ai/src/api/import_routes.rs` (250 LOC)
+- **Effort:** 2.5 days (was 2 days, +0.5 day for approval endpoints)
+- **Dependencies:** TASK-019 (orchestrator), TASK-020 (SSE), TASK-000 (file tracker)
 - **Risk:** LOW
-- **Acceptance:** Endpoints work, SSE connection stable, status queries accurate
+- **Acceptance:**
+  - POST /import/start works
+  - GET /import/events (SSE connection stable)
+  - GET /import/status (status queries accurate)
+  - POST /import/files/{id}/approve (user approval recorded)
+  - POST /import/files/{id}/reject (triggers re-import)
+  - GET /import/files/pending-review (lists flagged files)
+  - All endpoints emit appropriate SSE events
+- **Implementation:** Per Amendment 8 (user approval API endpoints)
 
 ---
 
@@ -301,9 +356,11 @@
 **Critical Path:** TASK-001 → TASK-003 → TASK-004 → Tier 1 → Tier 2 → Tier 3 → TASK-019 → TASK-020 → TASK-021 → Testing
 
 **Parallelization Opportunities:**
-- Week 1: TASK-001 and TASK-002 in parallel
+- Week 1: TASK-000, TASK-001, and TASK-002 in parallel (3 concurrent tasks)
 - Weeks 3-5: Tier 1 extractors (TASK-005 through TASK-011) can be parallelized (7 concurrent tasks)
 - Weeks 9-10: Tier 3 validators (TASK-016, TASK-017, TASK-018) can be parallelized
+
+**Note:** TASK-000 (File-Level Tracking) can run in parallel with TASK-001 and TASK-002 during Week 1
 
 ---
 
@@ -311,18 +368,23 @@
 
 | Category | LOC Estimate |
 |----------|--------------|
-| Infrastructure (TASK-001 to TASK-004) | 900 |
+| Infrastructure (TASK-000 to TASK-004) | 1,300 |
 | Tier 1 Extractors (TASK-005 to TASK-011) | 1,650 |
 | Tier 2 Fusion (TASK-012 to TASK-015) | 1,100 |
 | Tier 3 Validation (TASK-016 to TASK-018) | 550 |
-| Orchestration (TASK-019 to TASK-021) | 1,050 |
-| Tests (TASK-022 to TASK-024) | 1,400 |
-| **Total Production Code** | **5,250 LOC** |
-| **Total Test Code** | **1,400 LOC** |
-| **Grand Total** | **6,650 LOC** |
+| Orchestration (TASK-019 to TASK-021) | 1,200 |
+| Tests (TASK-022 to TASK-024) | 1,800 |
+| **Total Production Code** | **5,800 LOC** |
+| **Total Test Code** | **1,800 LOC** |
+| **Grand Total** | **7,600 LOC** |
+
+**Changes from original estimate (+950 LOC total):**
+- Infrastructure: +400 LOC (TASK-000: 350 LOC, TASK-003: +50 LOC for files table)
+- Orchestration: +150 LOC (TASK-019: +100 LOC Phase -1/7, TASK-021: +50 LOC approval endpoints)
+- Tests: +400 LOC (TASK-000 tests, approval endpoint tests, skip logic tests)
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 2.0
 **Last Updated:** 2025-11-09
-**Phase 5 Status:** ✅ COMPLETE
+**Phase 5 Status:** ✅ COMPLETE (Updated with Amendment 8 - TASK-000, modified TASK-019, TASK-021)

@@ -10,11 +10,18 @@
 
 ## Summary
 
-**Total Effort:** 55 developer-days (11 weeks at 5 days/week)
+**Total Effort:** 58.5 developer-days (11.7 weeks at 5 days/week)
 **Schedule:** 14 weeks (includes testing, buffer, documentation)
 **Team Size:** 1 developer (ground-up recode per SPEC030)
 **Start Date:** TBD (after plan approval)
 **Target Completion:** 14 weeks from start
+
+**Changes from original estimate:**
+- Added TASK-000 (File-Level Import Tracking): +2 days
+- Updated TASK-019 (Workflow Orchestrator Phase -1/7): +1 day
+- Updated TASK-021 (User Approval API Endpoints): +0.5 days
+- **Total additional effort:** +3.5 days (6% increase)
+- **Schedule unchanged:** 14 weeks (buffer absorbs additional effort)
 
 ---
 
@@ -22,30 +29,31 @@
 
 | Phase | Tasks | Days | % of Total |
 |-------|-------|------|------------|
-| Infrastructure (Weeks 1-2) | TASK-001 to TASK-004 | 8.5 | 15% |
-| Tier 1 Extractors (Weeks 3-5) | TASK-005 to TASK-011 | 17 | 31% |
-| Tier 2 Fusion (Weeks 6-8) | TASK-012 to TASK-015 | 11.5 | 21% |
-| Tier 3 Validation (Weeks 9-10) | TASK-016 to TASK-018 | 5.5 | 10% |
-| Orchestration (Weeks 11-12) | TASK-019 to TASK-021 | 9.5 | 17% |
-| Integration & Testing (Weeks 13-14) | TASK-022 to TASK-025 | 9 | 16% |
-| **Total** | 25 tasks | **55 days** | **100%** |
-| **Buffer (20%)** | - | **11 days** | - |
-| **Contingency Total** | - | **66 days** | - |
+| Infrastructure (Weeks 1-2) | TASK-000 to TASK-004 | 10.5 | 18% |
+| Tier 1 Extractors (Weeks 3-5) | TASK-005 to TASK-011 | 17 | 29% |
+| Tier 2 Fusion (Weeks 6-8) | TASK-012 to TASK-015 | 11.5 | 20% |
+| Tier 3 Validation (Weeks 9-10) | TASK-016 to TASK-018 | 5.5 | 9% |
+| Orchestration (Weeks 11-12) | TASK-019 to TASK-021 | 11 | 19% |
+| Integration & Testing (Weeks 13-14) | TASK-022 to TASK-025 | 9 | 15% |
+| **Total** | **26 tasks** | **58.5 days** | **100%** |
+| **Buffer (20%)** | - | **11.7 days** | - |
+| **Contingency Total** | - | **70.2 days** | **~14 weeks** |
 
 ---
 
 ## Detailed Task Estimates
 
-### Infrastructure (8.5 days)
+### Infrastructure (10.5 days)
 
 | Task | Effort | Assumptions |
 |------|--------|-------------|
+| TASK-000: File-Level Import Tracking | 2 days | Skip logic decision tree, confidence aggregation, metadata merge |
 | TASK-001: SPEC031 Verification | 2 days | If missing: 2 days implement; if exists: 0.5 days |
 | TASK-002: Chromaprint FFI | 3 days | C library well-documented, FFI patterns known |
-| TASK-003: Schema Sync | 2 days | 17 columns straightforward |
+| TASK-003: Schema Sync | 2 days | 24 columns (17 passages + 7 files) |
 | TASK-004: Base Traits | 2 days | Trait design clear from spec |
-| Buffer (10%) | 0.5 days | - |
-| **Subtotal** | **9 days** | **~2 weeks** |
+| Buffer (10%) | 1 day | Increased from 0.5 days due to additional complexity |
+| **Subtotal** | **11.5 days** | **~2.5 weeks** |
 
 ### Tier 1 Extractors (17 days)
 
@@ -82,15 +90,15 @@
 | Buffer (10%) | 0.5 days | Low complexity, low risk |
 | **Subtotal** | **6 days** | **~1.5 weeks** |
 
-### Orchestration (9.5 days)
+### Orchestration (11 days)
 
 | Task | Effort | Assumptions |
 |------|--------|-------------|
-| TASK-019: Workflow Orchestrator | 5 days | Complex but well-specified |
+| TASK-019: Workflow Orchestrator | 6 days | Phase -1 and Phase 7 added (was 5 days) |
 | TASK-020: SSE Event System | 2.5 days | Axum SSE support exists |
-| TASK-021: HTTP API Endpoints | 2 days | Standard axum routes |
+| TASK-021: HTTP API Endpoints | 2.5 days | Standard routes + user approval endpoints (was 2 days) |
 | Buffer (20%) | 2 days | Integration complexity |
-| **Subtotal** | **11.5 days** | **~2.5 weeks** |
+| **Subtotal** | **13 days** | **~2.5 weeks** |
 
 ### Integration & Testing (9 days)
 
@@ -110,8 +118,8 @@
 ### Week-by-Week Breakdown
 
 **Weeks 1-2: Infrastructure**
-- Week 1: SPEC031 verification, Chromaprint FFI start
-- Week 2: Chromaprint FFI complete, Schema sync, Base traits
+- Week 1: File-Level Import Tracking (TASK-000, 2d), SPEC031 verification, Chromaprint FFI start (1d/3d)
+- Week 2: Chromaprint FFI complete (2d), Schema sync with 24 columns (2d), Base traits (1d)
 
 **Weeks 3-5: Tier 1 Extractors**
 - Week 3: ID3 (1.5d), Chromaprint Analyzer (2d), AudioDerived start (1.5d/4d)
@@ -128,8 +136,8 @@
 - Week 10: Quality Scorer complete (0.5d), buffer (4d)
 
 **Weeks 11-12: Orchestration**
-- Week 11: Workflow Orchestrator (5d)
-- Week 12: SSE Event System (2.5d), HTTP API (2d), buffer (0.5d)
+- Week 11: Workflow Orchestrator with Phase -1/7 (6d)
+- Week 12: SSE Event System (2.5d), HTTP API with approval endpoints (2.5d)
 
 **Weeks 13-14: Integration & Testing**
 - Week 13: Integration Tests (3d), System Tests (2d)
@@ -139,7 +147,7 @@
 
 ## Critical Path Analysis
 
-**Critical Path:** 55 days (sequential dependencies)
+**Critical Path:** 56.5 days (sequential dependencies, +1.5 days from Amendment 8)
 
 **Tasks on Critical Path:**
 1. SPEC031 Verification (TASK-001) - blocks schema sync
@@ -147,17 +155,19 @@
 3. Base Traits (TASK-004) - blocks all extractors
 4. Chromaprint FFI (TASK-002) → Chromaprint Analyzer (TASK-006) → AcoustID (TASK-007) - sequential chain
 5. All Tier 1 → Identity Resolver (TASK-012) - needs all sources
-6. All Tier 2 → Workflow Orchestrator (TASK-019) - needs all fusion
-7. Workflow → SSE → HTTP API - sequential
+6. All Tier 2 → Workflow Orchestrator (TASK-019, 6d) - needs all fusion
+7. Workflow → SSE → HTTP API (TASK-021, 2.5d) - sequential
 8. All Implementation → Integration Tests - sequential
+
+**Note:** TASK-000 (File-Level Import Tracking) parallelizes with TASK-001, so does not extend critical path
 
 **Parallelization Gains:**
 - Tier 1 extractors: 7 tasks, but some sequential (Chromaprint chain) = ~15% time savings vs pure sequential
 - Tier 3 validators: 3 tasks, fully parallel = ~30% time savings
 
-**Without Parallelization:** 65 days
-**With Parallelization:** 55 days
-**Efficiency Gain:** 15%
+**Without Parallelization:** 68.5 days (+3.5 days from Amendment 8)
+**With Parallelization:** 56.5 days (+1.5 days on critical path from Amendment 8)
+**Efficiency Gain:** 17.5%
 
 ---
 
@@ -229,11 +239,11 @@
 
 | Milestone | Week | Deliverable | Success Criteria |
 |-----------|------|-------------|------------------|
-| M1: Infrastructure Complete | Week 2 | SPEC031 verified, FFI wrapper working | Chromaprint generates fingerprints |
+| M1: Infrastructure Complete | Week 2 | SPEC031 verified, FFI wrapper working, file tracking implemented | Chromaprint generates fingerprints, skip logic works |
 | M2: Tier 1 Extractors Complete | Week 5 | All 7 extractors implemented | Unit tests >90% coverage per module |
 | M3: Tier 2 Fusion Complete | Week 8 | Identity, metadata, flavor fusion working | Integration tests passing |
 | M4: Tier 3 Validation Complete | Week 10 | Quality scoring working | Quality scores computed correctly |
-| M5: Orchestration Complete | Week 12 | Full pipeline working | End-to-end import works |
+| M5: Orchestration Complete | Week 12 | Full pipeline working (Phase -1 through Phase 7) | End-to-end import with skip logic and user approval works |
 | M6: Testing Complete | Week 14 | All acceptance tests passing | >90% total coverage, performance met |
 
 ---
@@ -253,6 +263,6 @@
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 2.0 (Updated for Amendment 8)
 **Last Updated:** 2025-11-09
-**Phase 6 Status:** ✅ COMPLETE
+**Phase 6 Status:** ✅ COMPLETE (Updated with Amendment 8: File-Level Import Tracking)
