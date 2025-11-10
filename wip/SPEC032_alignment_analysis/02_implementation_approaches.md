@@ -6,6 +6,47 @@
 
 ---
 
+## CRITICAL CLARIFICATION: Specification vs. Implementation
+
+**This document analyzes SPECIFICATION WRITING approaches, NOT code implementation approaches.**
+
+### Two Separate Activities
+
+**Activity 1: Specification Writing (This Document)**
+- **What:** Writing/updating SPEC032 document text
+- **Timeline:** 4 weeks (5 staged increments)
+- **Approaches Compared:** All-at-once vs. Incremental vs. Modular
+- **Output:** Updated SPEC032-audio_ingest_architecture.md document
+
+**Activity 2: Code Implementation (After Specification Approved)**
+- **What:** Writing wkmp-ai Rust code following approved SPEC032
+- **Timeline:** 12-14 weeks (phased build)
+- **Approach:** Complete rewrite (no legacy code reuse) with phased implementation
+- **Output:** New wkmp-ai codebase following SPEC030 patterns
+
+### "Complete Rewrite" Definition
+
+**For Code Implementation:**
+- "Complete rewrite" = NO legacy code reuse from existing wkmp-ai
+- Does NOT mean "big bang deployment" (everything at once)
+- Implementation is phased over 12-14 weeks starting with SPEC030 infrastructure
+- See 01_changes_required.md [AIA-ARCH-060] for detailed implementation timeline
+
+**For Specification Writing:**
+- Can use incremental approach (Approach 2) for writing specification
+- "Incremental integration" refers to specification content, not code reuse
+
+### Why This Matters
+
+Confusion between "specification writing strategy" and "code implementation strategy" can lead to:
+- Misunderstanding of timeline (4 weeks to write spec ≠ 14 weeks to implement code)
+- Incorrect risk assessment (specification risks ≠ implementation risks)
+- Wrong resource planning (writer hours ≠ developer hours)
+
+**This document focuses exclusively on specification writing approaches.**
+
+---
+
 ## Approach 1: All-At-Once Integration
 
 ### Description
@@ -100,13 +141,28 @@ Write all 10 change categories into SPEC032 simultaneously as a single large upd
 
 Write SPEC032 updates in 5 staged increments with validation between stages.
 
+**Important Context:** This is the specification writing strategy, not the implementation strategy.
+
+**Specification Writing:** Incremental (5 stages over 4 weeks)
+- Stage 1: Write architecture sections
+- Stage 2: Write fusion algorithm sections
+- Stage 3: Write quality framework sections
+- Stage 4: Write database/integration sections
+- Stage 5: Write standards compliance sections
+
+**Implementation (After Specification Approved):** Complete rewrite, phased over 12-14 weeks
+- "Complete rewrite" = NO legacy code reuse
+- "Phased" = systematic build starting with SPEC030 infrastructure (weeks 1-2)
+- See 01_changes_required.md [AIA-ARCH-060] for detailed 14-week implementation timeline
+
 **Stage Structure:**
 
-**Stage 1: Architecture Foundation** (500 lines)
+**Stage 1: Architecture Foundation** (700 lines)
 - 3-tier fusion engine overview ([AIA-ARCH-010] through [AIA-ARCH-050])
 - Hybrid processing model ([AIA-PROC-010] through [AIA-PROC-040])
 - Component responsibilities
-- **Deliverable:** SPEC032 section "Audio Ingest Architecture"
+- **SPEC030 infrastructure** ([AIA-ARCH-060]) - 7 concepts, 5 synchronizations, action traces (P0 critical for complete rewrite)
+- **Deliverable:** SPEC032 section "Audio Ingest Architecture" with SPEC030 compliance
 
 **Stage 2: Fusion Algorithms** (600 lines)
 - Identity resolution - Bayesian MBID fusion ([AIA-FUSION-010])
@@ -130,12 +186,13 @@ Write SPEC032 updates in 5 staged increments with validation between stages.
 - Granular SSE events (10 event types) ([AIA-SSE-010] through [AIA-SSE-100])
 - **Deliverable:** SPEC032 sections "Database Schema" and "SSE Event Specification"
 
-**Stage 5: Standards & Polish** (300 lines)
-- GOV002 compliance (formalize AIA document code)
-- SPEC017 visibility (tick-based timing prominence)
+**Stage 5: Standards & Polish** (200 lines)
+- GOV002 compliance (formalize AIA document code, category codes)
+- SPEC017 visibility enhancements (cross-references to tick-based timing throughout)
 - /plan workflow structure (per-requirement acceptance criteria)
-- Cross-reference validation
-- **Deliverable:** SPEC032 compliance and traceability sections
+- Cross-reference validation (all requirement IDs, document links)
+- **Deliverable:** SPEC032 standards compliance and traceability sections
+- **Note:** SPEC030 compliance completed in Stage 1 (complete rewrite approach)
 
 ### Risk Assessment
 
@@ -184,22 +241,22 @@ Write SPEC032 updates in 5 staged increments with validation between stages.
 ### Effort Estimate
 
 **Specification Writing:** 18-22 hours
-- Stage 1: 3-4 hours
+- Stage 1: 4-5 hours (includes SPEC030 infrastructure for complete rewrite)
 - Stage 2: 4-5 hours
 - Stage 3: 3 hours
 - Stage 4: 4-5 hours
-- Stage 5: 2-3 hours
+- Stage 5: 1-2 hours (SPEC030 moved to Stage 1)
 - Inter-stage validation: 2 hours
 
 **Review Cycles:** 5 stages × 1-2 cycles each
-- Stage 1 review: 2-3 hours
+- Stage 1 review: 3-4 hours (includes SPEC030 compliance review)
 - Stage 2 review: 3-4 hours
 - Stage 3 review: 2 hours
 - Stage 4 review: 3-4 hours
-- Stage 5 review: 1-2 hours
-- Total review effort: 11-17 hours
+- Stage 5 review: 1 hour (reduced scope)
+- Total review effort: 12-15 hours
 
-**Total Effort:** 29-39 hours
+**Total Effort:** 30-37 hours
 
 **Effort vs. Approach 1:** Equivalent (±2 hours)
 
@@ -382,10 +439,10 @@ Not applicable - no approaches have equivalent risk.
 - Set up automated GOV002 identifier checking
 
 **Stage 1: Architecture Foundation** (Week 1)
-- Write: 3-tier fusion engine, hybrid processing model, component responsibilities
-- Review: Architecture validation
-- Validate: Cross-references, GOV002 identifiers
-- **Checkpoint:** Architecture approved before proceeding
+- Write: 3-tier fusion engine, hybrid processing model, component responsibilities, SPEC030 infrastructure (7 concepts, 5 syncs, action traces)
+- Review: Architecture validation, SPEC030 compliance (complete rewrite approach)
+- Validate: Cross-references, GOV002 identifiers, concept definitions complete
+- **Checkpoint:** Architecture and SPEC030 infrastructure approved before proceeding
 
 **Stage 2: Fusion Algorithms** (Week 2)
 - Write: Bayesian identity resolution, metadata fusion, flavor synthesis, boundary fusion
@@ -406,10 +463,11 @@ Not applicable - no approaches have equivalent risk.
 - **Checkpoint:** Database schema approved before proceeding
 
 **Stage 5: Standards & Polish** (Week 4)
-- Write: GOV002 compliance, SPEC017 visibility, /plan structure
-- Review: Full-document consistency, traceability
-- Validate: All cross-references valid, no duplicate IDs
+- Write: GOV002 compliance, SPEC017 visibility enhancements, /plan structure, traceability verification
+- Review: Full-document consistency, cross-references, requirement coverage
+- Validate: All cross-references valid, no duplicate IDs, complete traceability matrix
 - **Final Checkpoint:** SPEC032 ready for /plan workflow
+- **Note:** SPEC030 compliance completed in Stage 1
 
 ### Success Criteria
 
@@ -421,6 +479,7 @@ Not applicable - no approaches have equivalent risk.
 **Overall:**
 - 100% alignment with SPEC_wkmp_ai_recode requirements
 - SPEC017 tick-based timing used for all database timing fields
+- SPEC030 software legibility patterns documented (7 concepts, 5 synchronizations)
 - SPEC031 zero-conf schema maintenance integrated for all database changes
 - Granular SSE events specified for all per-song operations
 - /plan workflow can parse and generate traceability matrix

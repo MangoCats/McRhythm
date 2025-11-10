@@ -59,6 +59,19 @@ SPEC032 (Audio Ingest Architecture) currently specifies a simpler architecture t
 - Required: Comprehensive quality framework (validation checks, confidence scores, conflict resolution)
 - Impact: Essential for production-quality system
 
+**6. SPEC030 Architecture Compliance (Complete Rewrite)**
+- Current: Traditional monolithic workflow orchestrator
+- Required: SPEC030 software legibility patterns (concept-based architecture, event-driven synchronizations, action traces)
+- Impact: 7 identified concepts, 5 synchronization rules, developer interface for runtime introspection
+- **Complete Rewrite Definition:** NO legacy code reuse - all code written from scratch following SPEC030
+- **Implementation Timeline:** Phased over 12-14 weeks (NOT "big bang" deployment)
+  - Weeks 1-2: SPEC030 infrastructure (concepts, sync engine, action traces)
+  - Weeks 3-10: Concept implementations
+  - Weeks 11-12: Developer interface, SSE events
+  - Weeks 13-14: Integration testing
+- **Priority:** P0 (Critical) - SPEC030 compliance from day one, not retrofitted
+- **Benefit:** Improved maintainability, AI-assisted development, production debugging via action traces
+
 ### Changes Required (10 Categories)
 
 **Category 1: Hybrid Architecture Integration** (NEW - 5 sections)
@@ -76,7 +89,7 @@ SPEC032 (Audio Ingest Architecture) currently specifies a simpler architecture t
 
 **Category 4: Confidence & Quality Framework** (NEW - 3 sections)
 - Confidence scoring (0.0-1.0 for all sources)
-- Quality validation (title/duration/genre-flavor consistency)
+- Quality validation (title/duration consistency; genre-flavor deferred to future)
 - Conflict detection and flagging
 
 **Category 5: Essentia Integration** (NEW - 1 section)
@@ -93,9 +106,9 @@ SPEC032 (Audio Ingest Architecture) currently specifies a simpler architecture t
 - 10 per-song event types (vs. generic file-based)
 - File-level AND song-level progress tracking
 
-**Category 8: GOV002 Compliance** (DOCUMENT - 1 amendment)
-- Formalize AIA document code
-- Define 18 category codes (4 new)
+**Category 8: Standards Compliance** (DOCUMENT - 2 standards)
+- **GOV002:** Formalize AIA document code, define 18 category codes (4 new)
+- **SPEC030:** Software legibility patterns (P0 critical - 7 concepts, 5 synchronizations, action traces, developer interface - complete rewrite approach)
 
 **Category 9: SPEC017 Visibility** (ENHANCE - 2 sections)
 - Tick-based timing prominence
@@ -131,18 +144,29 @@ SPEC032 (Audio Ingest Architecture) currently specifies a simpler architecture t
 
 **Choose Approach 2: Incremental Integration**
 
-**Rationale:**
+**IMPORTANT:** This refers to **specification writing** strategy, not code implementation.
+
+**Specification Writing Strategy:**
+- Write SPEC032 in 5 incremental stages over 4 weeks
+- Validate each stage before proceeding to next
 - Lowest failure risk (**Low** residual risk after mitigation)
 - Enables parallel review (architecture reviewed while algorithms being written)
 - Produces single final SPEC032 document (not fragmented across multiple specs)
-- Aligns with user directive: ALL features included, quality prioritized over implementation speed
 
-**Staged Specification Increments:**
+**Code Implementation Strategy (After Spec Approved):**
+- Complete rewrite (NO legacy code reuse) phased over 12-14 weeks
+- Weeks 1-2: SPEC030 infrastructure (concepts, sync engine, action traces)
+- Weeks 3-12: Concept implementations
+- Weeks 13-14: Integration testing
+- See 01_changes_required.md [AIA-ARCH-060] for detailed timeline
+
+**Staged Specification Writing Increments:**
 ```
 Stage 1: Architecture Foundation
   - 3-tier fusion engine overview
   - Hybrid processing model
   - Component responsibilities
+  - SPEC030 infrastructure (7 concepts, 5 synchronizations, action traces - P0 critical for complete rewrite)
 
 Stage 2: Fusion Algorithms
   - Identity resolution (Bayesian)
@@ -163,9 +187,10 @@ Stage 4: Database & Integration
   - Granular SSE events
 
 Stage 5: Standards & Polish
-  - GOV002 compliance
-  - SPEC017 visibility
+  - GOV002 compliance (AIA document code)
+  - SPEC017 visibility (cross-references)
   - /plan workflow structure
+  - Traceability verification
 ```
 
 ---

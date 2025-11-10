@@ -16,6 +16,10 @@ This specification defines architectural patterns for achieving **software legib
 - **Integrity:** Preserve existing functionality when extending systems
 - **Transparency:** Trace behavioral changes to specific code modifications
 
+**IMPORTANT: This is a PATTERNS document (HOW), not an implementation specification (WHAT).**
+
+SPEC030 provides guidance on HOW to design concepts and synchronizations, not WHICH concepts/syncs any specific module must implement. Module-specific specifications (e.g., SPEC032 for wkmp-ai) synthesize requirements (WHAT) with these patterns (HOW) to produce concrete implementations.
+
 ### Key Patterns
 
 **Concepts:** Self-contained functional units with private state and well-defined actions
@@ -277,7 +281,7 @@ Build HTTP-based introspection UI
 **See Also:**
 - [02_core_patterns.md](02_core_patterns.md) - Structural patterns (concepts, syncs, traces)
 - [06_dev_interface.md](06_dev_interface.md) - Visible developer interface specification
-- [07_wkmp_examples.md](07_wkmp_examples.md) - Module-specific examples
+- [07_wkmp_examples.md](07_wkmp_examples.md) - Module-specific examples (**illustrative only, not prescriptive**)
 - [08_migration_strategy.md](08_migration_strategy.md) - Adoption roadmap
 
 ---

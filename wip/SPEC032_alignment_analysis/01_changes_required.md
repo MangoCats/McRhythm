@@ -70,7 +70,7 @@ Workflow:
 
 **Content:**
 ```markdown
-**[AIA-ARCH-020]** Tier 1 consists of 7 independent source extractors:
+**[AIA-ARCH-020]** Tier 1 consists of 6 independent source extractors (ID3GenreMapper deferred to future):
 
 1. **ID3MetadataExtractor**
    - Extracts: Title, artist, album, genre, MBID, year, track number
@@ -108,11 +108,15 @@ Workflow:
    - Output: Basic characteristics map
    - Confidence: 0.6 (medium quality)
 
-7. **ID3GenreMapper** (NEW)
+**FUTURE ENHANCEMENT (Not in current implementation):**
+
+7. **ID3GenreMapper** (FUTURE)
    - Maps: ID3 genre string → musical characteristics
    - Input: Genre string from ID3
    - Output: Coarse characteristics map
    - Confidence: 0.3 (low quality, rough mapping)
+   - Status: Deferred to future release (requires comprehensive genre taxonomy and validation)
+   - Rationale: Genre-to-characteristics mapping is complex and subjective; focus on Essentia/AudioDerived for initial release
 
 Execution:
   - All extractors run in parallel via tokio::join!
@@ -143,8 +147,9 @@ Execution:
 3. **FlavorSynthesizer**
    - Purpose: Synthesize musical flavor from multiple sources
    - Algorithm: Characteristic-wise weighted averaging
-   - Inputs: AcousticBrainz, Essentia, AudioDerived, ID3Genre with confidences
+   - Inputs: AcousticBrainz, Essentia, AudioDerived with confidences
    - Outputs: Fused characteristics, source blend, completeness
+   - Future: ID3 genre mapping (deferred to future release)
    - See: [AIA-FUSION-030]
 
 4. **BoundaryFuser** (Future)
@@ -520,8 +525,9 @@ Sources (Tier 1 Parallel Extraction):
   3. Audio-derived features (basic spectral/temporal analysis)
      Confidence: 0.6 (medium quality, coarse features)
 
-  4. ID3 genre mapping (genre string → characteristics)
+  **FUTURE ENHANCEMENT:** ID3 genre mapping (deferred to future release)
      Confidence: 0.3 (low quality, rough mapping)
+     Status: Requires comprehensive genre taxonomy and validation
 
 Characteristic-Wise Weighted Averaging:
 
@@ -529,18 +535,17 @@ Characteristic-Wise Weighted Averaging:
     fused_value = Σ(confidence_i × value_i) / Σ(confidence_i)
 
   Example: "danceability.danceable" characteristic
-    Sources:
+    Sources (current implementation):
       - AcousticBrainz: 0.65 (conf: 1.0)
       - Essentia: 0.70 (conf: 0.9)
       - AudioDerived: 0.55 (conf: 0.6)
-      - ID3Genre: 0.80 (conf: 0.3)
 
     Calculation:
-      fused = (1.0×0.65 + 0.9×0.70 + 0.6×0.55 + 0.3×0.80) / (1.0 + 0.9 + 0.6 + 0.3)
-      fused = (0.65 + 0.63 + 0.33 + 0.24) / 2.8
-      fused = 1.85 / 2.8 = 0.661
+      fused = (1.0×0.65 + 0.9×0.70 + 0.6×0.55) / (1.0 + 0.9 + 0.6)
+      fused = (0.65 + 0.63 + 0.33) / 2.5
+      fused = 1.61 / 2.5 = 0.644
 
-    Characteristic confidence = max(1.0, 0.9, 0.6, 0.3) = 1.0
+    Characteristic confidence = max(1.0, 0.9, 0.6) = 1.0
 
 Normalization (per MFL-DEF-030):
   - Binary characteristics: sum to 1.0 ± 0.0001
@@ -549,13 +554,12 @@ Normalization (per MFL-DEF-030):
 
 Source Blend Tracking:
   flavor_source_blend = {
-    "AcousticBrainz": 1.0 / 2.8 = 0.357,
-    "Essentia": 0.9 / 2.8 = 0.321,
-    "AudioDerived": 0.6 / 2.8 = 0.214,
-    "ID3Genre": 0.3 / 2.8 = 0.107
+    "AcousticBrainz": 1.0 / 2.5 = 0.400,
+    "Essentia": 0.9 / 2.5 = 0.360,
+    "AudioDerived": 0.6 / 2.5 = 0.240
   }
 
-  Interpretation: 35.7% AcousticBrainz, 32.1% Essentia, 21.4% AudioDerived, 10.7% ID3
+  Interpretation: 40.0% AcousticBrainz, 36.0% Essentia, 24.0% AudioDerived
 
 Completeness Scoring:
   flavor_completeness = (present_characteristics / expected_characteristics) × 100%
@@ -669,7 +673,7 @@ Source Confidences (predefined):
   - AcousticBrainz flavor: 1.0 (highest quality, if available)
   - Essentia flavor: 0.9 (high quality local computation)
   - Audio-derived flavor: 0.6 (medium quality)
-  - ID3 genre flavor: 0.3 (low quality, coarse mapping)
+  - ID3 genre flavor: 0.3 (FUTURE - deferred to future release)
 
 Computed Confidences (via fusion algorithms):
   - identity_confidence: Bayesian posterior (0.0-1.0)
@@ -745,11 +749,13 @@ Validation Checks:
     ID3 tags may have inaccurate duration
     Audio file duration is ground truth
 
-**Check 3: Genre-Flavor Alignment**
+**Check 3: Genre-Flavor Alignment (FUTURE ENHANCEMENT)**
+
+  Status: Deferred to future release (requires ID3GenreMapper implementation)
 
   Purpose: Verify ID3 genre aligns with synthesized musical flavor
 
-  Algorithm:
+  Algorithm (when implemented):
     1. Map ID3 genre → expected characteristics
        Example: "Rock" → high energy, high aggressive, guitar-heavy
     2. Compare expected vs actual synthesized characteristics
@@ -766,10 +772,14 @@ Validation Checks:
 
 **Overall Quality Score:**
 
-  Formula:
+  Formula (current implementation - 2 checks):
     overall_quality = (passed_checks / total_checks) × 100%
 
-  Example:
+  Example (current implementation):
+    2 checks: Title (Pass), Duration (Pass)
+    overall_quality = (2 / 2) × 100% = 100%
+
+  Future (with genre-flavor check):
     3 checks: Title (Pass), Duration (Pass), Genre-Flavor (Warning)
     overall_quality = (2 / 3) × 100% = 66.7%
 
@@ -840,17 +850,19 @@ Conflict Types:
     Similarity: 0.83 < 0.85
     Conflict: "Title mismatch: ID3 (Dark Side of the Moon) vs MusicBrainz (The Dark Side of the Moon)"
 
-**3. Flavor Conflicts (Genre-Analysis Mismatch)**
+**3. Flavor Conflicts (Genre-Analysis Mismatch) - FUTURE ENHANCEMENT**
 
-  Detection:
+  Status: Deferred to future release (requires ID3GenreMapper implementation)
+
+  Detection (when implemented):
     Genre-flavor alignment < 0.5 (per [AIA-QUAL-020])
 
-  Action:
+  Action (when implemented):
     - Flag: "Genre-flavor mismatch: Genre suggests X, analysis shows Y"
     - Proceed with synthesized flavor (higher confidence than genre mapping)
     - User review recommended
 
-  Example:
+  Example (when implemented):
     ID3 genre: "Classical"
     Synthesized flavor: High energy, high aggressive, electronic
     Alignment: 0.32
@@ -868,11 +880,13 @@ Conflict Types:
 
 **Conflict Flagging for Manual Review:**
 
-  Criteria:
+  Criteria (current implementation):
     - Identity conflict with final confidence < 0.85
     - Metadata conflict (any)
-    - Flavor conflict with alignment < 0.5
     - Overall quality score < 70%
+
+  Future criteria (when ID3GenreMapper implemented):
+    - Flavor conflict with alignment < 0.5
 
   Action:
     - Set validation_status = "Fail" (if conflict severe)
@@ -895,7 +909,7 @@ Conflict Types:
 
 - **Essentia local computation** as primary flavor source
 - AcousticBrainz as fallback (if data exists for pre-2022 recordings)
-- Multi-source flavor synthesis (Essentia + AcousticBrainz + AudioDerived + GenreMap)
+- Multi-source flavor synthesis (Essentia + AcousticBrainz + AudioDerived; ID3GenreMapper deferred to future)
 
 ### New Section Needed
 
@@ -970,10 +984,10 @@ Output:
 Error Handling:
   - If Essentia not installed: Log warning, continue without (use other sources)
   - If Essentia analysis fails: Log error for specific passage, mark as failed extractor
-  - Fusion continues with remaining sources (AcousticBrainz, AudioDerived, GenreMap)
+  - Fusion continues with remaining sources (AcousticBrainz, AudioDerived)
 
 Integration Points:
-  - Tier 1 Source Extractor (parallel with AcousticBrainz, AudioDerived, GenreMap)
+  - Tier 1 Source Extractor (parallel with AcousticBrainz, AudioDerived)
   - Input: Audio segment PCM from Phase 1
   - Output: Passed to FlavorSynthesizer (Tier 2) for weighted averaging
 
@@ -1058,8 +1072,8 @@ Field Descriptions:
 
   **flavor_source_blend:**
     - JSON object mapping source name → weight contribution
-    - Example: {"AcousticBrainz": 0.357, "Essentia": 0.321, "AudioDerived": 0.214, "ID3Genre": 0.107}
-    - Interpretation: 35.7% from AcousticBrainz, 32.1% from Essentia, etc.
+    - Example: {"AcousticBrainz": 0.400, "Essentia": 0.360, "AudioDerived": 0.240}
+    - Interpretation: 40.0% from AcousticBrainz, 36.0% from Essentia, 24.0% from AudioDerived
     - Computed per [AIA-FUSION-030]
 
   **flavor_confidence_map:**
@@ -1139,7 +1153,7 @@ Schema:
 CREATE TABLE IF NOT EXISTS import_provenance (
     id TEXT PRIMARY KEY,                -- UUID for provenance record
     passage_id TEXT NOT NULL,           -- Foreign key to passages(id)
-    source_type TEXT NOT NULL,          -- "ID3" | "AcoustID" | "MusicBrainz" | "Essentia" | "AudioDerived" | "GenreMap"
+    source_type TEXT NOT NULL,          -- "ID3" | "AcoustID" | "MusicBrainz" | "Essentia" | "AudioDerived" (GenreMap future)
     data_extracted TEXT,                -- JSON: Complete data extracted from this source
     confidence REAL,                    -- Source confidence (0.0-1.0)
     timestamp INTEGER,                  -- Unix timestamp (ms) when extraction occurred
@@ -1168,8 +1182,8 @@ Field Descriptions:
       - "MusicBrainz" - MusicBrainzClient
       - "Essentia" - EssentiaAnalyzer
       - "AudioDerived" - AudioDerivedExtractor
-      - "GenreMap" - ID3GenreMapper
       - "AcousticBrainz" - AcousticBrainzClient (if used)
+      - "GenreMap" - ID3GenreMapper (FUTURE - deferred to future release)
 
   **data_extracted:**
     - JSON blob of complete extracted data from this source
@@ -1365,6 +1379,41 @@ Validation:
 
 Purpose: Leverage SPEC031 data-driven schema maintenance to make extensive database changes transparent to users.
 
+**CRITICAL: Startup Initialization Pattern**
+
+SPEC031 applies at **microservice startup** (before any database accesses):
+- **Before first query:** Verify all tables and columns exist
+- **Missing tables:** CREATE TABLE automatically
+- **Missing columns:** ALTER TABLE ADD COLUMN automatically
+- **Missing settings:** INSERT default values from code
+- **Guarantee:** No aspect of wkmp-ai shall ever fail due to missing database elements
+
+**Startup Sequence (MANDATORY):**
+```rust
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Step 1: Initialize tracing
+    init_tracing();
+
+    // Step 2: Log build info
+    info!("Starting wkmp-ai v{}", env!("CARGO_PKG_VERSION"));
+
+    // Step 3: Resolve database path
+    let db_path = resolve_database_path()?;
+
+    // Step 4: SPEC031 - Verify/create schema BEFORE any queries
+    schema_sync::ensure_schema_current(&db_path).await?;
+    //   - Creates missing tables
+    //   - Adds missing columns
+    //   - Inserts missing settings with defaults
+
+    // Step 5: Now safe to query database (schema guaranteed current)
+    let db = Database::connect(&db_path).await?;
+
+    // ...rest of initialization
+}
+```
+
 **Critical Context:**
 
 CHANGE 6 adds **15+ new fields** to the passages table and introduces a **new import_provenance table**. Without automatic schema maintenance, this would require:
@@ -1381,6 +1430,7 @@ SPEC031 (Data-Driven Schema Maintenance) provides zero-configuration database ev
 - ALTER TABLE statements generated and applied automatically
 - No manual migrations required for column additions
 - Users never see database maintenance prompts
+- **Required settings inserted with defaults from code** (no NULL settings)
 
 **Integration Requirements for SPEC032:**
 
@@ -1679,10 +1729,9 @@ Event Catalog (10 event types):
         "passage_index": 2,
         "completeness": 87.5,
         "source_blend": {
-          "AcousticBrainz": 0.357,
-          "Essentia": 0.321,
-          "AudioDerived": 0.214,
-          "ID3Genre": 0.107
+          "AcousticBrainz": 0.400,
+          "Essentia": 0.360,
+          "AudioDerived": 0.240
         },
         "characteristic_count": 43,
         "timestamp": "2025-11-09T20:30:15Z"
@@ -1972,23 +2021,37 @@ Rate Calculation (files/second or songs/second):
 
 ---
 
-## CHANGE 8: GOV002 Compliance
+## CHANGE 8: Standards Compliance (GOV002 + SPEC030)
 
 ### Current State
 
+**GOV002 (Requirements Enumeration):**
 - SPEC032 uses AIA prefix (Audio Ingest Architecture)
 - AIA not formally registered in GOV002
 - Category codes defined ad-hoc in SPEC032
 
+**SPEC030 (Software Legibility Patterns):**
+- SPEC032 does not reference architectural patterns
+- No concept-based architecture guidance
+- No synchronization patterns for event-driven orchestration
+- No action trace requirements for debugging/auditing
+
 ### Required State
 
+**GOV002:**
 - Formalize AIA document code in GOV002
 - Define all category codes
 - Add 4 new categories for hybrid fusion architecture
 
-### Amendment Needed
+**SPEC030:**
+- Reference SPEC030 as implementation architecture guide
+- Identify concepts for wkmp-ai module
+- Define synchronizations for workflow orchestration
+- Specify action trace integration for provenance tracking
 
-#### GOV002 Document Code Registration
+### Amendments Needed
+
+#### Section 1: GOV002 Document Code Registration
 
 **Add to GOV002 document codes table (around line 80):**
 ```markdown
@@ -2021,6 +2084,304 @@ Rate Calculation (files/second or songs/second):
 | PERF     | Performance                | Performance targets and optimizations      |
 | SEC      | Security                   | Security considerations                    |
 | TEST     | Testing                    | Testing strategy                           |
+```
+
+#### Section 2: SPEC030 Software Legibility Patterns Integration
+
+**Add new section to SPEC032 Architecture chapter:**
+
+```markdown
+**[AIA-ARCH-060]** SPEC030 Software Legibility Patterns Compliance
+
+Purpose: Ensure wkmp-ai implementation follows SPEC030 architectural patterns for maintainability and AI-assisted development.
+
+**Background:**
+
+SPEC030 defines software legibility patterns based on MIT research (Meng & Jackson, 2024):
+- **Concepts:** Self-contained functional units with private state and well-defined actions
+- **Synchronizations:** Declarative event-driven orchestration (WHEN → WHERE → THEN)
+- **Action Traces:** Causal chains of operations with full provenance tracking
+- **Developer Interface:** HTTP-based runtime introspection for debugging
+
+Reference: SPEC030_software_legibility_patterns/00_SUMMARY.md
+
+**wkmp-ai Concepts (Per SPEC030 Section 03):**
+
+Identified concepts for audio ingest module:
+
+1. **FileScanner**
+   - Purpose: Discover audio files in directory trees
+   - State: Scanned paths, file list, progress counters
+   - Actions: scan_directory(), add_file(), filter_by_extension()
+   - Queries: get_file_count(), get_scanned_files(), is_scanning()
+
+2. **PassageDetector**
+   - Purpose: Detect passage boundaries within audio files
+   - State: Current file, detected boundaries, confidence scores
+   - Actions: detect_boundaries(), analyze_silence(), validate_boundaries()
+   - Queries: get_boundaries(), get_passage_count()
+
+3. **SourceExtractor** (7 independent extractors)
+   - Purpose: Extract data from specific sources
+   - State: Extracted data, extraction status, error state
+   - Actions: extract_id3(), extract_acoustid(), query_musicbrainz(), analyze_essentia()
+   - Queries: get_data(), get_confidence(), has_error()
+
+4. **DataFusion**
+   - Purpose: Fuse multi-source data into unified passage records
+   - State: Source data, fusion results, conflicts
+   - Actions: resolve_identity(), fuse_metadata(), synthesize_flavor()
+   - Queries: get_fused_data(), get_conflicts(), get_confidence()
+
+5. **QualityValidator**
+   - Purpose: Validate fused data quality and detect conflicts
+   - State: Validation results, quality scores, failure flags
+   - Actions: validate_consistency(), score_quality(), detect_conflicts()
+   - Queries: get_validation_status(), get_quality_score(), get_failures()
+
+6. **PassagePersistence**
+   - Purpose: Store validated passages to database
+   - State: Pending passages, saved passage IDs, error state
+   - Actions: save_passage(), save_provenance(), update_counters()
+   - Queries: get_saved_count(), get_errors()
+
+7. **ImportSession**
+   - Purpose: Coordinate overall import workflow
+   - State: Session ID, current phase, file queue, progress counters
+   - Actions: start_session(), process_file(), complete_session()
+   - Queries: get_session_id(), get_progress(), get_phase()
+
+**Synchronizations (Per SPEC030 Section 04):**
+
+Event-driven orchestration rules:
+
+**Sync 1: AutoProcessFiles**
+```
+WHEN: FileScanner.ScanComplete
+WHERE: ImportSession.is_active()
+THEN:
+  - PassageDetector.detect_boundaries(file)
+  - SourceExtractor[*].extract(file)  // Parallel extraction
+PROVENANCE: "AutoProcessFiles"
+```
+
+**Sync 2: FuseAfterExtraction**
+```
+WHEN: SourceExtractor.AllExtractorsComplete
+WHERE: PassageDetector.has_boundaries()
+THEN:
+  - DataFusion.resolve_identity(sources)
+  - DataFusion.fuse_metadata(sources)
+  - DataFusion.synthesize_flavor(sources)
+PROVENANCE: "FuseAfterExtraction"
+```
+
+**Sync 3: ValidateAfterFusion**
+```
+WHEN: DataFusion.FusionComplete
+WHERE: true
+THEN:
+  - QualityValidator.validate_consistency(data)
+  - QualityValidator.score_quality(data)
+  - QualityValidator.detect_conflicts(data)
+PROVENANCE: "ValidateAfterFusion"
+```
+
+**Sync 4: PersistAfterValidation**
+```
+WHEN: QualityValidator.ValidationComplete
+WHERE: QualityValidator.status() != "Fail"
+THEN:
+  - PassagePersistence.save_passage(data)
+  - PassagePersistence.save_provenance(sources)
+  - ImportSession.increment_completed()
+PROVENANCE: "PersistAfterValidation"
+```
+
+**Sync 5: EmitProgress**
+```
+WHEN: [PassageDetector.BoundariesDetected, SourceExtractor.ExtractionComplete,
+       DataFusion.FusionComplete, QualityValidator.ValidationComplete,
+       PassagePersistence.SaveComplete]
+WHERE: true
+THEN:
+  - SSEBroadcaster.emit_event(event)
+PROVENANCE: "EmitProgress"
+```
+
+**Action Traces (Per SPEC030 Section 05):**
+
+Requirements for provenance tracking:
+
+1. **Flow Tokens:**
+   - Each import session generates UUID flow token
+   - All actions within session share flow token
+   - Enables "show all actions for import session X" queries
+
+2. **Provenance Edges:**
+   - Record which synchronization triggered each action
+   - Example: Action "DataFusion.resolve_identity" → Provenance "FuseAfterExtraction"
+   - Enables "what caused this action?" queries
+
+3. **Input/Output Capture:**
+   - Record inputs to each action (e.g., source data passed to fusion)
+   - Record outputs from each action (e.g., fused MBID with confidence)
+   - Enables debugging: "Why did fusion select this MBID?"
+
+4. **Persistent Storage:**
+   - Action traces stored in SQLite table (per SPEC030 Section 05)
+   - Queryable via developer interface
+   - Retention: 30 days (configurable via database parameter)
+
+**Developer Interface (Per SPEC030 Section 06):**
+
+HTTP-based runtime introspection at http://localhost:5723/dev/
+
+**Dashboard:**
+- Current import session status
+- Concept states (FileScanner: scanning, PassageDetector: idle, etc.)
+- Recent synchronization activations
+- Action trace summary (last 100 actions)
+
+**Concept Inspector:**
+- View current state of each concept
+- Query concept state (e.g., FileScanner.get_file_count())
+- Inspect private state (for debugging)
+
+**Sync Monitor:**
+- Active synchronization rules
+- Recent activations (WHEN event → THEN actions)
+- Activation frequency and timing
+
+**Trace Viewer:**
+- Visualize action traces as directed graphs
+- Filter by flow token (show all actions for session)
+- Filter by provenance (show all actions from sync "FuseAfterExtraction")
+
+**Event Stream:**
+- Live SSE feed of all concept events
+- Real-time monitoring during import
+
+**Activation Control:**
+- Database parameter: `enable_dev_interface` (boolean)
+- Default: true for dev builds, false for production
+- When disabled: Interface not constructed, zero overhead
+
+**Implementation Requirements:**
+
+1. **Refactor wkmp-ai to concept-based architecture** (per SPEC030 Section 08)
+   - Extract concepts from workflow_orchestrator.rs
+   - Implement concept trait with actions and queries
+   - Move state from orchestrator to concept modules
+
+2. **Implement synchronization engine** (per SPEC030 Section 04)
+   - Event bus for concept-to-concept communication
+   - Sync rule evaluation (WHEN → WHERE → THEN)
+   - Named provenance for action traces
+
+3. **Add action trace recorder** (per SPEC030 Section 05)
+   - Intercept all concept actions
+   - Record inputs, outputs, flow tokens, provenance
+   - Store in SQLite action_traces table
+
+4. **Build developer interface** (per SPEC030 Section 06)
+   - HTTP endpoints at :5723/dev/*
+   - Dashboard, concept inspector, sync monitor, trace viewer
+   - Database-controlled activation
+
+**Benefits:**
+
+- **Incrementality:** Add new extractors or fusion algorithms without refactoring workflow
+- **Integrity:** Concept independence prevents accidental coupling
+- **Transparency:** Action traces show exactly what happened during import
+- **Debuggability:** Developer interface exposes runtime state without instrumentation
+- **AI-Compatible:** Declarative synchronizations match LLM code generation patterns
+
+**Testing Requirements:**
+
+- Unit tests per concept (isolated from other concepts)
+- Synchronization tests (verify WHEN → WHERE → THEN logic)
+- Action trace tests (verify provenance recording)
+- Developer interface tests (verify dashboard, inspector, trace viewer)
+
+**Acceptance Criteria:**
+
+- AC-1: All concepts implement Concept trait with actions and queries
+- AC-2: No direct concept-to-concept dependencies (all via synchronizations)
+- AC-3: Action traces record provenance for 100% of concept actions
+- AC-4: Developer interface accessible at :5723/dev/ when enabled
+- AC-5: Database parameter controls interface activation (zero overhead when disabled)
+
+**Priority:** P0 (Critical - Required for initial implementation)
+
+**Rationale:**
+
+Per SPEC030 clarification, this is a **complete rewrite**, not an incremental migration. SPEC030 distinguishes between:
+- **Maintenance/Improvement Migrations:** Incremental refactoring of existing code (12-week migration strategy in SPEC030 Section 08)
+- **Complete Rewrites:** New implementations starting from scratch (SPEC030 compliance from day one)
+
+**"Complete Rewrite" Definition:**
+
+"Complete rewrite" means **NO LEGACY CODE REUSE** from existing wkmp-ai implementation:
+- Existing workflow_orchestrator.rs code is NOT refactored or migrated
+- Existing file_scanner.rs code is NOT adapted or modified
+- All code written from scratch following SPEC030 patterns
+- No technical debt or legacy design constraints carried forward
+
+**IMPORTANT CLARIFICATION:** "Complete rewrite" refers to **code reuse**, not **implementation timeline**.
+
+The implementation itself is **phased over 12-14 weeks**:
+- Not "big bang" deployment (everything at once)
+- Systematic build in phases, starting with SPEC030 infrastructure
+- Each phase produces working, testable code
+- Incremental integration and validation
+
+**Phased Implementation Timeline:**
+
+**Weeks 1-2: SPEC030 Infrastructure (Stage 1 of SPEC032 specification writing)**
+1. Define Concept trait and 7 concept interfaces
+2. Implement synchronization engine (event bus, WHEN→WHERE→THEN evaluation)
+3. Build action trace recorder (flow tokens, provenance edges, SQLite storage)
+4. Create developer interface skeleton (HTTP endpoints, database activation control)
+
+**Weeks 3-4: Core Concepts Implementation**
+5. Implement FileScanner concept (scan_directory, filter_by_extension)
+6. Implement PassageDetector concept (silence detection, boundary validation)
+7. Implement ImportSession concept (session coordination, progress tracking)
+
+**Weeks 5-8: Source Extractor Concepts**
+8. Implement ID3Extractor concept
+9. Implement ChromaprintExtractor concept
+10. Implement AcoustIDClient concept (with rate limiting)
+11. Implement MusicBrainzClient concept (with rate limiting)
+12. Implement EssentiaExtractor concept (spawn_blocking for CPU work)
+13. Implement AudioDerivedExtractor concept
+**FUTURE:** ID3GenreMapper concept (deferred - requires comprehensive genre taxonomy)
+
+**Weeks 9-10: Fusion and Quality Concepts**
+15. Implement DataFusion concept (Bayesian identity, metadata fusion, flavor synthesis)
+16. Implement QualityValidator concept (consistency checks, conflict detection)
+17. Implement PassagePersistence concept (database writes, provenance storage)
+
+**Weeks 11-12: Developer Interface and SSE**
+18. Complete developer interface (dashboard, concept inspector, sync monitor, trace viewer)
+19. Implement granular SSE events (10 event types per specification)
+20. Wire synchronizations (5 sync rules connecting concepts)
+
+**Weeks 13-14: Integration Testing and Validation**
+21. End-to-end import workflow testing
+22. Action trace verification (provenance correctness)
+23. Performance validation (rate limits, memory usage)
+24. SPEC030 compliance verification (all acceptance criteria)
+
+**Why This Approach:**
+
+- **SPEC030 Infrastructure First:** Weeks 1-2 establish foundation (concepts, syncs, traces)
+- **Concept Independence:** Each concept implemented and tested independently
+- **Systematic Integration:** Synchronizations wire concepts together incrementally
+- **Continuous Validation:** Each phase produces testable, working code
+
+**Not Applicable:** Incremental migration strategy (SPEC030 Section 08) - only applies to refactoring existing code, not new implementations.
 ```
 
 ---

@@ -10,6 +10,8 @@
 
 ### Migration Philosophy
 
+FOR MODIFICATION, UPDATES AND IMPROVEMENTS OF EXISTING MICROSERVICES ONLY:
+
 **Strangler Fig Pattern:**
 - New legible concepts coexist with existing code
 - Gradually migrate features from old to new structure
@@ -20,6 +22,8 @@
 - Legacy code continues functioning during migration
 - Synchronization engine bridges old and new concepts
 - Module-by-module rollout (not feature-by-feature)
+
+FOR GROUND-UP REWRITES OF MICROSERVICES, IMPLEMENT FULL FEATURES FROM THE OUTSET.
 
 ---
 

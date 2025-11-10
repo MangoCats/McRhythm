@@ -4,6 +4,29 @@
 
 ---
 
+## IMPORTANT: Examples are Illustrative Only
+
+**These examples are NOT prescriptive.** They illustrate how SPEC030 patterns could be applied to WKMP modules, but do not specify any actual implementation of any part of the WKMP system.
+
+**Purpose of this document:**
+- Demonstrate HOW to apply concept/synchronization patterns
+- Provide reference implementations for learning
+- Show what "good" concept design looks like
+
+**What this document does NOT specify:**
+- Which concepts any module must implement
+- Exact actions/queries required for any concept
+- Specific synchronization rules for production code
+- Implementation details for any WKMP module
+
+**Actual concept/synchronization specifications are determined during module-specific specification writing (e.g., SPEC032 for wkmp-ai) by synthesizing:**
+- WHAT to build (requirements, feature specifications)
+- HOW to build it (SPEC030 patterns guidance)
+
+**These examples may evolve or diverge from actual implementations as designs are refined.**
+
+---
+
 ## 7.1 wkmp-ap (Audio Player) Concepts
 
 ### AudioPlayer Concept
