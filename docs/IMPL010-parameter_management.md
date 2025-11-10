@@ -36,7 +36,14 @@ VALUES ('import_parameters', 'json', '{
   "apply_a_weighting": true,
   "silence_threshold_db": -60.0,
   "min_silence_duration_ms": 500,
-  "import_parallelism": 4
+  "import_parallelism": 4,
+  "acoustid_rate_limit_ms": 400,
+  "musicbrainz_rate_limit_ms": 1200,
+  "chromaprint_fingerprint_duration_seconds": 120,
+  "expected_musical_flavor_characteristics": 50,
+  "import_success_confidence_threshold": 0.75,
+  "metadata_confidence_threshold": 0.66,
+  "max_reimport_attempts": 3
 }');
 ```
 
@@ -97,13 +104,35 @@ pub struct ImportParameters {
     pub max_lead_in_duration_s: f32,
     pub max_lead_out_duration_s: f32,
     pub apply_a_weighting: bool,
-    
+
     // Silence detection
     pub silence_threshold_db: f32,
     pub min_silence_duration_ms: u32,
-    
+
     // Import workflow
     pub import_parallelism: u32,
+
+    // Audio Import (PLAN024 - Ground-up recode)
+    // [PARAM-AI-001] AcoustID API rate limiting
+    pub acoustid_rate_limit_ms: u32,
+
+    // [PARAM-AI-002] MusicBrainz API rate limiting
+    pub musicbrainz_rate_limit_ms: u32,
+
+    // [PARAM-AI-003] Chromaprint fingerprint duration
+    pub chromaprint_fingerprint_duration_seconds: u32,
+
+    // [PARAM-AI-004] Expected musical flavor characteristics count
+    pub expected_musical_flavor_characteristics: u32,
+
+    // [PARAM-AI-005] Import success confidence threshold (Amendment 8)
+    pub import_success_confidence_threshold: f32,
+
+    // [PARAM-AI-006] Metadata confidence threshold (Amendment 8)
+    pub metadata_confidence_threshold: f32,
+
+    // [PARAM-AI-007] Maximum reimport attempts (Amendment 8)
+    pub max_reimport_attempts: u32,
 }
 
 impl Default for ImportParameters {
@@ -120,6 +149,13 @@ impl Default for ImportParameters {
             silence_threshold_db: -60.0,
             min_silence_duration_ms: 500,
             import_parallelism: 4,
+            acoustid_rate_limit_ms: 400,
+            musicbrainz_rate_limit_ms: 1200,
+            chromaprint_fingerprint_duration_seconds: 120,
+            expected_musical_flavor_characteristics: 50,
+            import_success_confidence_threshold: 0.75,
+            metadata_confidence_threshold: 0.66,
+            max_reimport_attempts: 3,
         }
     }
 }
@@ -195,19 +231,70 @@ impl ImportParameters {
         if self.rms_window_ms < 10 || self.rms_window_ms > 1000 {
             return Err(ParameterError::OutOfRange("rms_window_ms", 10, 1000));
         }
-        
+
         if self.lead_in_threshold_db < -60.0 || self.lead_in_threshold_db > 0.0 {
             return Err(ParameterError::OutOfRange("lead_in_threshold_db", -60.0, 0.0));
         }
-        
+
         if self.quick_ramp_threshold < 0.0 || self.quick_ramp_threshold > 1.0 {
             return Err(ParameterError::OutOfRange("quick_ramp_threshold", 0.0, 1.0));
         }
-        
+
         if self.import_parallelism < 1 || self.import_parallelism > 16 {
             return Err(ParameterError::OutOfRange("import_parallelism", 1, 16));
         }
-        
+
+        // PLAN024 Audio Import parameters
+        if self.acoustid_rate_limit_ms < 100 || self.acoustid_rate_limit_ms > 10000 {
+            return Err(ParameterError::OutOfRange("acoustid_rate_limit_ms", 100, 10000));
+        }
+
+        if self.musicbrainz_rate_limit_ms < 500 || self.musicbrainz_rate_limit_ms > 10000 {
+            return Err(ParameterError::OutOfRange("musicbrainz_rate_limit_ms", 500, 10000));
+        }
+
+        if self.chromaprint_fingerprint_duration_seconds < 10
+            || self.chromaprint_fingerprint_duration_seconds > 300
+        {
+            return Err(ParameterError::OutOfRange(
+                "chromaprint_fingerprint_duration_seconds",
+                10,
+                300,
+            ));
+        }
+
+        if self.expected_musical_flavor_characteristics < 1
+            || self.expected_musical_flavor_characteristics > 200
+        {
+            return Err(ParameterError::OutOfRange(
+                "expected_musical_flavor_characteristics",
+                1,
+                200,
+            ));
+        }
+
+        if self.import_success_confidence_threshold < 0.0
+            || self.import_success_confidence_threshold > 1.0
+        {
+            return Err(ParameterError::OutOfRange(
+                "import_success_confidence_threshold",
+                0.0,
+                1.0,
+            ));
+        }
+
+        if self.metadata_confidence_threshold < 0.0 || self.metadata_confidence_threshold > 1.0 {
+            return Err(ParameterError::OutOfRange(
+                "metadata_confidence_threshold",
+                0.0,
+                1.0,
+            ));
+        }
+
+        if self.max_reimport_attempts < 1 || self.max_reimport_attempts > 10 {
+            return Err(ParameterError::OutOfRange("max_reimport_attempts", 1, 10));
+        }
+
         Ok(())
     }
 }
@@ -271,5 +358,71 @@ impl ImportParameters {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-27
+## Audio Import Parameters (PLAN024)
+
+The following parameters support the ground-up WKMP-AI recode per PLAN024:
+
+### [PARAM-AI-001] acoustid_rate_limit_ms
+- **Type:** `u32` (milliseconds)
+- **Default:** 400
+- **Valid Range:** 100-10000
+- **Purpose:** Rate limit for AcoustID API requests
+- **Rationale:** AcoustID allows 3 requests/second (333ms). Default 400ms includes 20% safety margin to prevent API throttling.
+- **Implementation:** `wkmp-ai/src/extractors/acoustid_client.rs`
+
+### [PARAM-AI-002] musicbrainz_rate_limit_ms
+- **Type:** `u32` (milliseconds)
+- **Default:** 1200
+- **Valid Range:** 500-10000
+- **Purpose:** Rate limit for MusicBrainz API requests
+- **Rationale:** MusicBrainz allows 1 request/second (1000ms). Default 1200ms includes 20% safety margin. Server returns HTTP 503 if exceeded.
+- **Implementation:** `wkmp-ai/src/extractors/musicbrainz_client.rs`
+
+### [PARAM-AI-003] chromaprint_fingerprint_duration_seconds
+- **Type:** `u32` (seconds)
+- **Default:** 120
+- **Valid Range:** 10-300
+- **Purpose:** Duration of audio to fingerprint with Chromaprint for AcoustID lookup
+- **Rationale:** AcoustID recommends 30-120 seconds for optimal accuracy. Use full passage if shorter than this value. Minimum 10 seconds (reduced accuracy).
+- **Implementation:** IMPL015-chromaprint_integration.md
+
+### [PARAM-AI-004] expected_musical_flavor_characteristics
+- **Type:** `u32` (count)
+- **Default:** 50
+- **Valid Range:** 1-200
+- **Purpose:** Expected count of musical flavor characteristics for completeness scoring
+- **Formula:** `completeness = (present_characteristics / expected_characteristics) × 100%`
+- **Update Mechanism:** Manual database UPDATE during early implementation testing based on actual feature counts
+- **Implementation:** Completeness scoring in FlavorSynthesizer (Tier 2)
+
+### [PARAM-AI-005] import_success_confidence_threshold
+- **Type:** `f32` (0.0-1.0)
+- **Default:** 0.75
+- **Valid Range:** 0.0-1.0
+- **Purpose:** Minimum confidence threshold for file import success (Amendment 8)
+- **Behavior:** Files with `import_success_confidence < 0.75` trigger low-confidence flagging
+- **Implementation:** File-level import tracking, skip logic (Phase -1)
+
+### [PARAM-AI-006] metadata_confidence_threshold
+- **Type:** `f32` (0.0-1.0)
+- **Default:** 0.66
+- **Valid Range:** 0.0-1.0
+- **Purpose:** Minimum confidence threshold for metadata acceptance (Amendment 8)
+- **Behavior:** Files with `metadata_confidence < 0.66` may be reimported if threshold increased
+- **Implementation:** Metadata merge algorithm, skip logic (Phase -1)
+
+### [PARAM-AI-007] max_reimport_attempts
+- **Type:** `u32` (count)
+- **Default:** 3
+- **Valid Range:** 1-10
+- **Purpose:** Maximum reimport attempts per file (Amendment 8)
+- **Behavior:** Prevents infinite reimport loops. Files with `reimport_attempt_count >= 3` skip reimport.
+- **Implementation:** Skip logic (Phase -1), `files.reimport_attempt_count` tracking
+
+---
+
+**Document Version:** 2.0
+**Last Updated:** 2025-11-09
+**Changes:**
+- v2.0: Added 7 Audio Import parameters (PARAM-AI-001 through PARAM-AI-007) for PLAN024
+- v1.0: Initial version with amplitude analysis parameters
