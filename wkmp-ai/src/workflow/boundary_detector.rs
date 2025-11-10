@@ -1,9 +1,22 @@
-// Passage Boundary Detector
-//
-// PLAN023: Phase 0 - Simple silence-based boundary detection
-// Uses RMS energy analysis to find passage boundaries
-//
-// SPEC017 Compliance: Converts sample counts to ticks for sample-accurate precision
+//! Passage boundary detection using silence analysis
+//!
+//! Detects passage boundaries within audio files by analyzing RMS energy levels.
+//! Identifies silent regions that likely represent boundaries between passages.
+//!
+//! **[PLAN023]** Phase 0 - Simple silence-based boundary detection
+//!
+//! # Algorithm
+//!
+//! 1. Calculate RMS energy for each audio frame
+//! 2. Identify regions below silence threshold
+//! 3. Find silence regions longer than minimum duration
+//! 4. Mark boundaries at silence midpoints
+//! 5. Filter out passages shorter than minimum duration
+//!
+//! # SPEC017 Compliance
+//!
+//! Converts sample counts to ticks (1 tick = 1/28,224,000 second) for
+//! sample-accurate precision as required by [REQ-AI-088-04].
 
 use super::{PassageBoundary, TICK_RATE};
 use anyhow::Result;

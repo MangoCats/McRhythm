@@ -1,8 +1,21 @@
-// Per-Song Workflow Engine
-//
-// PLAN023: REQ-AI-010 series - Sequential per-song processing (not file-level atomic)
-// Phase 0: Passage boundary detection
-// Phases 1-6: Per-passage hybrid fusion pipeline
+//! Per-song workflow engine for audio import processing
+//!
+//! Implements the sequential per-song processing pipeline:
+//! - **Phase 0**: Passage boundary detection (silence-based segmentation)
+//! - **Phases 1-6**: Per-passage hybrid fusion pipeline
+//!
+//! **[PLAN023]** [REQ-AI-010] Sequential per-song processing (not file-level atomic)
+//!
+//! # Architecture
+//!
+//! The workflow processes each audio file in stages:
+//! 1. Detect passage boundaries using silence detection
+//! 2. Extract metadata from each passage (ID3, Chromaprint, etc.)
+//! 3. Fuse metadata from multiple sources
+//! 4. Validate and score quality
+//! 5. Store results in database
+//!
+//! Uses the 3-tier pipeline architecture (extractors → fusers → validators).
 
 pub mod boundary_detector;
 pub mod event_bridge;

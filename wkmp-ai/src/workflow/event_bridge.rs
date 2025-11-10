@@ -1,7 +1,19 @@
-// Workflow Event Bridge - Convert WorkflowEvents to WkmpEvents for SSE Broadcasting
-//
-// PLAN023: REQ-AI-090 series - SSE event broadcasting integration
-// SPEC017 Compliance: Converts ticks to seconds for user-facing SSE events
+//! Workflow event bridge for SSE broadcasting
+//!
+//! Converts internal `WorkflowEvent`s to public `WkmpEvent`s for Server-Sent Events.
+//!
+//! **[PLAN023]** [REQ-AI-090] SSE event broadcasting integration
+//!
+//! # Purpose
+//!
+//! The workflow engine emits detailed internal events during import processing.
+//! This bridge converts those events to the standardized `WkmpEvent` format
+//! that the EventBus broadcasts to connected UI clients via SSE.
+//!
+//! # SPEC017 Compliance
+//!
+//! Converts internal tick-based timestamps to user-facing seconds for SSE events,
+//! as ticks are an internal precision representation not exposed to clients.
 
 use super::{WorkflowEvent, TICK_RATE};
 use chrono::Utc;
