@@ -789,7 +789,7 @@ impl WorkflowOrchestrator {
         });
 
         // Move blocking Rayon work to separate thread pool to avoid blocking tokio runtime
-        let fingerprinter = self.fingerprinter.clone();
+        let fingerprinter = self.fingerprinter;
         let files_for_processing = files.clone();
         let root_path_owned = root_path.to_path_buf();
         let processed_counter = processed_count.clone();

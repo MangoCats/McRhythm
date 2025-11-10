@@ -241,7 +241,6 @@ impl FlavorSynthesizer {
         } else {
             source_weights
                 .into_iter()
-                .map(|(source, weight)| (source, weight))
                 .collect()
         };
 

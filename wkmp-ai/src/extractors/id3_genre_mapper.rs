@@ -222,7 +222,7 @@ impl ID3GenreMapper {
     fn extract_genre(&self, file_path: &Path) -> Result<String, ExtractionError> {
         // Probe file to determine format
         let tagged_file = Probe::open(file_path)
-            .map_err(|e| ExtractionError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?
+            .map_err(|e| ExtractionError::Io(std::io::Error::other(e)))?
             .read()
             .map_err(|e| {
                 ExtractionError::Parse(format!("Failed to read audio file tags: {}", e))

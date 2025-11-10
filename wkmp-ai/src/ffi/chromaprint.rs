@@ -185,12 +185,12 @@ impl ChromaprintContext {
 
     fn validate_parameters(&self, sample_rate: u32, num_channels: u8) -> Result<()> {
         // Chromaprint supports 8kHz - 192kHz
-        if sample_rate < 8000 || sample_rate > 192000 {
+        if !(8000..=192000).contains(&sample_rate) {
             return Err(ChromaprintError::InvalidSampleRate(sample_rate));
         }
 
         // Only mono or stereo
-        if num_channels < 1 || num_channels > 2 {
+        if !(1..=2).contains(&num_channels) {
             return Err(ChromaprintError::InvalidChannelCount(num_channels));
         }
 

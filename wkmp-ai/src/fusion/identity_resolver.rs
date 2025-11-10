@@ -127,7 +127,7 @@ impl IdentityResolver {
         for identity in &valid_identities {
             mbid_groups
                 .entry(identity.recording_mbid.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(identity);
         }
 

@@ -231,7 +231,7 @@ impl ConsistencyValidator {
 
         // Check flavor characteristic confidences
         for (char_name, &char_confidence) in &passage.flavor.confidence_map {
-            if char_confidence < 0.0 || char_confidence > 1.0 {
+            if !(0.0..=1.0).contains(&char_confidence) {
                 *score -= 0.05;
                 *minor_issues += 1;
                 issues.push(format!(
@@ -379,7 +379,7 @@ impl ConsistencyValidator {
                 .round() as usize;
 
             // Sanity check: expected total should be reasonable (e.g., 10-20 for AcousticBrainz)
-            if expected_flavor_total < 5 || expected_flavor_total > 50 {
+            if !(5..=50).contains(&expected_flavor_total) {
                 *score -= 0.05;
                 *minor_issues += 1;
                 issues.push(format!(
