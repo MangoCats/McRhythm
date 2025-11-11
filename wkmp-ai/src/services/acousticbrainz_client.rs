@@ -1,8 +1,19 @@
 //! AcousticBrainz API client
 //!
-//! **[AIA-INT-030]** AcousticBrainz musical flavor integration
+//! **[AIA-INT-030]** AcousticBrainz HIGH-LEVEL musical flavor integration
 //!
-//! Queries AcousticBrainz API for pre-computed musical flavor vectors.
+//! **DATA CAPTURED:** HIGH-LEVEL musical characteristics for passage selection:
+//! - Musical descriptors: key, scale, tempo (BPM)
+//! - Perceptual qualities: danceability
+//! - Spectral summaries: brightness (spectral centroid mean), energy
+//! - Harmonic features: dissonance (harmonic complexity mean)
+//! - Dynamic properties: amplitude variation
+//!
+//! **DATA NOT CAPTURED:** Raw audio, frame-level data, full spectral details
+//!
+//! These are AGGREGATED features computed by Essentia, suitable for
+//! Program Director's automatic passage selection based on musical similarity.
+//!
 //! Note: AcousticBrainz ceased accepting new submissions in 2022, so data
 //! is only available for recordings analyzed before that date.
 
@@ -135,9 +146,18 @@ pub struct ABStatistics {
     pub max: Option<f64>,
 }
 
-/// Musical flavor vector
+/// Musical flavor vector - HIGH-LEVEL musical characteristics
 ///
-/// Simplified representation of musical characteristics for passage selection
+/// **IMPORTANT:** This captures HIGH-LEVEL musical features, NOT raw audio data.
+///
+/// These are aggregated/computed features from Essentia analysis:
+/// - Musical descriptors (key, scale, tempo)
+/// - Perceptual qualities (danceability)
+/// - Spectral summaries (brightness, energy)
+/// - Harmonic characteristics (dissonance)
+/// - Dynamic properties (amplitude variation)
+///
+/// Used by Program Director for automatic passage selection based on musical similarity.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MusicalFlavorVector {
     /// Musical key (e.g., "C", "A")
@@ -179,7 +199,17 @@ impl MusicalFlavorVector {
             .map_err(|e| ABError::ParseError(format!("Failed to parse flavor vector: {}", e)))
     }
 
-    /// Extract flavor vector from AcousticBrainz low-level data
+    /// Extract HIGH-LEVEL musical flavor vector from AcousticBrainz data
+    ///
+    /// **Data Source:** AcousticBrainz "low-level" endpoint (misleading name)
+    /// **What We Extract:** HIGH-LEVEL aggregated musical features:
+    /// - Tonal: Musical key, scale, key strength (confidence)
+    /// - Rhythm: BPM, danceability score
+    /// - Spectral: Brightness (centroid mean), energy (mean), rolloff
+    /// - Harmonic: Dissonance (mean harmonic complexity)
+    /// - Dynamic: Amplitude variation complexity
+    ///
+    /// **What We DON'T Extract:** Raw audio samples, frame-level data, full spectrum
     pub fn from_acousticbrainz(data: &ABLowLevel) -> Self {
         Self {
             key: data.tonal.as_ref().and_then(|t| t.key_key.clone()),
@@ -259,9 +289,16 @@ impl AcousticBrainzClient {
         })
     }
 
-    /// Lookup low-level musical features by recording MBID
+    /// Lookup musical features by recording MBID
     ///
-    /// **[AIA-INT-030]** Query AcousticBrainz for musical flavor
+    /// **[AIA-INT-030]** Query AcousticBrainz for HIGH-LEVEL musical flavor
+    ///
+    /// **Note on Naming:** This queries the AcousticBrainz "low-level" endpoint,
+    /// but extracts HIGH-LEVEL aggregated musical features (key, BPM, danceability, etc.),
+    /// NOT raw audio data. The endpoint name is historical/misleading.
+    ///
+    /// **What We Get:** Essentia-computed summaries suitable for music selection
+    /// **What We DON'T Get:** Raw waveform data, frame-level spectrograms, detailed MFCC arrays
     pub async fn lookup_lowlevel(&self, recording_mbid: &str) -> Result<ABLowLevel, ABError> {
         // Rate limit
         self.rate_limiter.wait().await;

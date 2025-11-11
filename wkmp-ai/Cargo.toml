@@ -40,6 +40,8 @@ futures = "0.3"
 # Platform-specific: static linking on Windows, dynamic on Linux/macOS
 chromaprint-sys-next = { version = "1.6" }
 base64 = "0.22"
+# URL encoding for MusicBrainz queries
+urlencoding = "2.1"
 # File hashing for deduplication
 sha2 = "0.10"
 # String similarity (Levenshtein distance)

@@ -110,6 +110,61 @@ pub struct MBWork {
     pub title: String,
 }
 
+/// MusicBrainz recording search response
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MBRecordingSearchResponse {
+    /// Number of results returned
+    pub count: usize,
+    /// List of recording search results
+    pub recordings: Vec<MBRecordingSearchResult>,
+}
+
+/// MusicBrainz recording search result
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MBRecordingSearchResult {
+    /// Recording MBID (MusicBrainz ID)
+    pub id: String,
+    /// Recording title
+    pub title: String,
+    /// Match score (0-100) from MusicBrainz search
+    pub score: u32,
+    /// Recording length in milliseconds
+    pub length: Option<u64>,
+    /// Artist credits for this recording
+    #[serde(rename = "artist-credit")]
+    pub artist_credit: Option<Vec<MBArtistCredit>>,
+    /// Releases containing this recording
+    pub releases: Option<Vec<MBRelease>>,
+}
+
+/// MusicBrainz release search response
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MBReleaseSearchResponse {
+    /// Number of results returned
+    pub count: usize,
+    /// List of release search results
+    pub releases: Vec<MBReleaseSearchResult>,
+}
+
+/// MusicBrainz release search result
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MBReleaseSearchResult {
+    /// Release MBID (MusicBrainz ID)
+    pub id: String,
+    /// Release title
+    pub title: String,
+    /// Match score (0-100) from MusicBrainz search
+    pub score: u32,
+    /// Release date in YYYY-MM-DD format
+    pub date: Option<String>,
+    /// Artist credits for this release
+    #[serde(rename = "artist-credit")]
+    pub artist_credit: Option<Vec<MBArtistCredit>>,
+    /// Track count (if available)
+    #[serde(rename = "track-count")]
+    pub track_count: Option<u32>,
+}
+
 /// Rate limiter enforcing 1 request/second
 struct RateLimiter {
     last_request: Mutex<Option<Instant>>,
@@ -225,6 +280,132 @@ impl MusicBrainzClient {
         }
 
         results
+    }
+
+    /// Search recordings using Lucene query syntax
+    ///
+    /// **[REQ-CTXM-020]** Search by artist + title
+    ///
+    /// # Arguments
+    /// * `query` - Lucene query string (e.g., `artist:"Beatles" AND recording:"Help!"`)
+    /// * `limit` - Maximum number of results (default 25, max 100)
+    ///
+    /// # Returns
+    /// List of recording search results sorted by relevance score
+    pub async fn search_recordings(
+        &self,
+        query: &str,
+        limit: Option<u32>,
+    ) -> Result<MBRecordingSearchResponse, MBError> {
+        // Rate limit
+        self.rate_limiter.wait().await;
+
+        let limit = limit.unwrap_or(25).min(100);
+
+        // Query API
+        let url = format!(
+            "{}/recording/?query={}&limit={}&fmt=json",
+            MUSICBRAINZ_BASE_URL,
+            urlencoding::encode(query),
+            limit
+        );
+
+        tracing::debug!(query = %query, limit, url = %url, "Searching MusicBrainz recordings");
+
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+
+        let status = response.status();
+
+        if status == 503 {
+            return Err(MBError::RateLimitExceeded);
+        }
+
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(MBError::ApiError(status.as_u16(), error_text));
+        }
+
+        let search_response: MBRecordingSearchResponse = response
+            .json()
+            .await
+            .map_err(|e| MBError::ParseError(e.to_string()))?;
+
+        tracing::info!(
+            query = %query,
+            count = search_response.count,
+            results = search_response.recordings.len(),
+            "Recording search completed"
+        );
+
+        Ok(search_response)
+    }
+
+    /// Search releases using Lucene query syntax
+    ///
+    /// **[REQ-CTXM-030]** Search by artist + album + track count
+    ///
+    /// # Arguments
+    /// * `query` - Lucene query string (e.g., `artist:"Beatles" AND release:"Abbey Road" AND tracks:17`)
+    /// * `limit` - Maximum number of results (default 25, max 100)
+    ///
+    /// # Returns
+    /// List of release search results sorted by relevance score
+    pub async fn search_releases(
+        &self,
+        query: &str,
+        limit: Option<u32>,
+    ) -> Result<MBReleaseSearchResponse, MBError> {
+        // Rate limit
+        self.rate_limiter.wait().await;
+
+        let limit = limit.unwrap_or(25).min(100);
+
+        // Query API
+        let url = format!(
+            "{}/release/?query={}&limit={}&fmt=json",
+            MUSICBRAINZ_BASE_URL,
+            urlencoding::encode(query),
+            limit
+        );
+
+        tracing::debug!(query = %query, limit, url = %url, "Searching MusicBrainz releases");
+
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+
+        let status = response.status();
+
+        if status == 503 {
+            return Err(MBError::RateLimitExceeded);
+        }
+
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(MBError::ApiError(status.as_u16(), error_text));
+        }
+
+        let search_response: MBReleaseSearchResponse = response
+            .json()
+            .await
+            .map_err(|e| MBError::ParseError(e.to_string()))?;
+
+        tracing::info!(
+            query = %query,
+            count = search_response.count,
+            results = search_response.releases.len(),
+            "Release search completed"
+        );
+
+        Ok(search_response)
     }
 }
 
