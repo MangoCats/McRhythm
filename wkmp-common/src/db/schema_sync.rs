@@ -45,11 +45,17 @@ use tracing::{info, warn};
 /// Column definition with SQL constraints
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColumnDefinition {
+    /// Column name
     pub name: String,
-    pub sql_type: String,  // "TEXT", "INTEGER", "REAL", "TIMESTAMP"
+    /// SQL type (e.g., "TEXT", "INTEGER", "REAL", "TIMESTAMP")
+    pub sql_type: String,
+    /// NOT NULL constraint
     pub not_null: bool,
+    /// PRIMARY KEY constraint
     pub primary_key: bool,
+    /// UNIQUE constraint
     pub unique: bool,
+    /// DEFAULT value
     pub default_value: Option<String>,
 }
 
@@ -94,12 +100,18 @@ impl ColumnDefinition {
 /// Actual column from database introspection (PRAGMA table_info result)
 #[derive(Debug, Clone)]
 pub struct ActualColumn {
-    pub cid: i32,           // Column ID (position in table)
-    pub name: String,       // Column name
-    pub type_name: String,  // SQL type from PRAGMA table_info
-    pub not_null: bool,     // NOT NULL constraint
-    pub default_value: Option<String>,  // DEFAULT value
-    pub pk: bool,           // PRIMARY KEY flag (1 = yes, 0 = no)
+    /// Column ID (position in table)
+    pub cid: i32,
+    /// Column name
+    pub name: String,
+    /// SQL type from PRAGMA table_info
+    pub type_name: String,
+    /// NOT NULL constraint
+    pub not_null: bool,
+    /// DEFAULT value
+    pub default_value: Option<String>,
+    /// PRIMARY KEY flag (1 = yes, 0 = no)
+    pub pk: bool,
 }
 
 /// Schema drift detected between expected and actual schema

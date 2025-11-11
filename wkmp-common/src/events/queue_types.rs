@@ -8,15 +8,25 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum UserActionType {
+    /// User skipped current passage
     Skip,
+    /// User started playback
     Play,
+    /// User paused playback
     Pause,
+    /// User seeked to different position
     Seek,
+    /// User changed volume
     VolumeChange,
+    /// User added passage to queue
     QueueAdd,
+    /// User removed passage from queue
     QueueRemove,
+    /// User liked current passage
     Like,
+    /// User disliked current passage
     Dislike,
+    /// User applied temporary override
     TemporaryOverride,
 }
 
@@ -41,10 +51,15 @@ impl std::fmt::Display for UserActionType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum QueueChangeTrigger {
+    /// Automatic passage selection replenished queue
     AutomaticReplenishment,
+    /// User manually added passage
     UserEnqueue,
+    /// User manually removed passage
     UserDequeue,
+    /// Passage finished playing
     PassageCompletion,
+    /// User applied temporary override
     TemporaryOverride,
 }
 
@@ -64,7 +79,9 @@ impl std::fmt::Display for QueueChangeTrigger {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum EnqueueSource {
+    /// Automatically selected by program director
     Automatic,
+    /// Manually added by user
     Manual,
 }
 

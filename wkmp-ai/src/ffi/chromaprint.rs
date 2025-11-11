@@ -68,31 +68,40 @@ mod ffi {
 /// Wraps errors from the Chromaprint C library FFI calls.
 #[derive(Debug, Error)]
 pub enum ChromaprintError {
+    /// Failed to create Chromaprint context from FFI
     #[error("Failed to create Chromaprint context")]
     ContextCreationFailed,
 
+    /// Sample rate outside valid range (8000-192000 Hz)
     #[error("Invalid sample rate: {0} Hz (must be 8000-192000 Hz)")]
     InvalidSampleRate(u32),
 
+    /// Channel count not supported (must be 1 or 2)
     #[error("Invalid channel count: {0} (must be 1 or 2)")]
     InvalidChannelCount(u8),
 
+    /// Failed to start fingerprinting session
     #[error("Failed to start fingerprinting")]
     StartFailed,
 
+    /// Failed to feed audio data to fingerprinter
     #[error("Failed to feed audio data")]
     FeedFailed,
 
+    /// Failed to finalize fingerprinting
     #[error("Failed to finish fingerprinting")]
     FinishFailed,
 
+    /// Failed to generate fingerprint string
     #[error("Failed to generate fingerprint")]
     FingerprintGenerationFailed,
 
+    /// FFI function returned null pointer
     #[error("FFI returned null pointer")]
     NullPointerReturned,
 }
 
+/// Result type for Chromaprint operations
 pub type Result<T> = std::result::Result<T, ChromaprintError>;
 
 // ============================================================================

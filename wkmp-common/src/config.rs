@@ -50,9 +50,13 @@ use tracing::{info, warn};
 /// Module configuration from database
 #[derive(Debug, Clone)]
 pub struct ModuleConfig {
+    /// Module name (e.g., "wkmp-ap", "wkmp-ui", "wkmp-pd")
     pub module_name: String,
+    /// Host address (e.g., "127.0.0.1", "localhost")
     pub host: String,
+    /// Port number (e.g., 5720, 5721, 5722)
     pub port: u16,
+    /// Whether the module is enabled
     pub enabled: bool,
 }
 

@@ -59,7 +59,9 @@ impl std::fmt::Display for FadeStage {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum PlaybackState {
+    /// Audio is actively playing
     Playing,
+    /// Playback is paused
     Paused,
 }
 
