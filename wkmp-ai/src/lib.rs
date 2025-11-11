@@ -75,7 +75,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(api::import_routes())
         .route("/events", get(api::event_stream))
         .route("/import/events", get(api::import_event_stream))
-        .merge(api::amplitude_routes())
+        // REQ-TD-003: Amplitude analysis endpoint removed (deferred to future release)
         .merge(api::parameter_routes())
         .merge(api::settings_routes())
         .merge(api::health_routes())

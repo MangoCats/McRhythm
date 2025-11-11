@@ -40,10 +40,11 @@ async fn test_complete_per_song_workflow() {
     // Note: This test will use placeholder implementations for Tier 1 extractors
     // In the current state, they return empty/default data
     let file_path = PathBuf::from("test.mp3");
+    let test_session_id = uuid::Uuid::new_v4();
     let boundary = create_test_boundary(0, 180);  // 0-180 seconds
 
     let result = engine
-        .process_passage(&file_path, 0, 1, &boundary)
+        .process_passage(test_session_id, &file_path, 0, 1, &boundary)
         .await;
 
     // Workflow should complete (even with empty data)
@@ -73,6 +74,7 @@ async fn test_error_isolation_multi_passage() {
     let mut engine = SongWorkflowEngine::default();
 
     let file_path = PathBuf::from("test.mp3");
+    let test_session_id = uuid::Uuid::new_v4();
 
     // Create 3 passage boundaries
     let boundaries = vec![
@@ -81,7 +83,7 @@ async fn test_error_isolation_multi_passage() {
         create_test_boundary(120, 180),   // Passage 3: 120-180s
     ];
 
-    let summary = engine.process_file(&file_path, &boundaries).await;
+    let summary = engine.process_file(test_session_id, &file_path, &boundaries).await;
 
     // All 3 passages should be processed
     assert_eq!(summary.total_passages, 3);
@@ -110,13 +112,14 @@ async fn test_sse_event_types() {
     let mut engine = SongWorkflowEngine::with_sse(tx, 1000);
 
     let file_path = PathBuf::from("test.mp3");
+    let test_session_id = uuid::Uuid::new_v4();
     let boundaries = vec![create_test_boundary(0, 180)];
 
     // Process file in background
     let file_path_clone = file_path.clone();
     let boundaries_clone = boundaries.clone();
     tokio::spawn(async move {
-        engine.process_file(&file_path_clone, &boundaries_clone).await;
+        engine.process_file(test_session_id, &file_path_clone, &boundaries_clone).await;
     });
 
     // Collect events
@@ -174,6 +177,7 @@ async fn test_sse_event_throttling_multi_passage() {
     let mut engine = SongWorkflowEngine::with_sse(tx, 100);  // 100ms throttle for faster test
 
     let file_path = PathBuf::from("test.mp3");
+    let test_session_id = uuid::Uuid::new_v4();
 
     // Create 5 passages to process quickly
     let boundaries: Vec<PassageBoundary> = (0..5)
@@ -184,7 +188,7 @@ async fn test_sse_event_throttling_multi_passage() {
     let file_path_clone = file_path.clone();
     let boundaries_clone = boundaries.clone();
     tokio::spawn(async move {
-        engine.process_file(&file_path_clone, &boundaries_clone).await;
+        engine.process_file(test_session_id, &file_path_clone, &boundaries_clone).await;
     });
 
     // Collect events with timestamps
@@ -250,10 +254,11 @@ async fn test_error_isolation_no_cascade() {
 
     let mut engine = SongWorkflowEngine::default();
     let file_path = PathBuf::from("nonexistent.mp3");  // File doesn't exist
+    let test_session_id = uuid::Uuid::new_v4();
     let boundary = create_test_boundary(0, 180);
 
     let result = engine
-        .process_passage(&file_path, 0, 1, &boundary)
+        .process_passage(test_session_id, &file_path, 0, 1, &boundary)
         .await;
 
     // Result should be returned (not panic/abort)
@@ -275,10 +280,11 @@ async fn test_graceful_degradation_partial_sources() {
 
     let mut engine = SongWorkflowEngine::default();
     let file_path = PathBuf::from("test.mp3");
+    let test_session_id = uuid::Uuid::new_v4();
     let boundary = create_test_boundary(0, 180);
 
     let result = engine
-        .process_passage(&file_path, 0, 1, &boundary)
+        .process_passage(test_session_id, &file_path, 0, 1, &boundary)
         .await;
 
     // Workflow should complete
@@ -396,11 +402,12 @@ async fn test_p1_5_end_to_end_real_audio_pipeline() {
     let mut engine = SongWorkflowEngine::default();
 
     // Create passage boundary for full 5-second audio file
+    let test_session_id = uuid::Uuid::new_v4();
     let boundary = create_test_boundary(0, 5);  // 0-5 seconds
 
     // Process passage through complete pipeline
     let result = engine
-        .process_passage(&audio_file_path, 0, 1, &boundary)
+        .process_passage(test_session_id, &audio_file_path, 0, 1, &boundary)
         .await;
 
     // **Verification Phase**
@@ -564,10 +571,11 @@ async fn test_p1_5_audio_loader_resampling_integration() {
 
     // Process through workflow engine
     let mut engine = SongWorkflowEngine::default();
+    let test_session_id = uuid::Uuid::new_v4();
     let boundary = create_test_boundary(0, 5);
 
     let result = engine
-        .process_passage(&audio_file_path, 0, 1, &boundary)
+        .process_passage(test_session_id, &audio_file_path, 0, 1, &boundary)
         .await;
 
     // Verify workflow completed (resampling should have occurred internally)
@@ -623,10 +631,11 @@ async fn test_p1_5_stereo_to_mono_conversion() {
 
     // Process through workflow engine
     let mut engine = SongWorkflowEngine::default();
+    let test_session_id = uuid::Uuid::new_v4();
     let boundary = create_test_boundary(0, 5);
 
     let result = engine
-        .process_passage(&audio_file_path, 0, 1, &boundary)
+        .process_passage(test_session_id, &audio_file_path, 0, 1, &boundary)
         .await;
 
     // Verify workflow completed

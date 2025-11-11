@@ -152,27 +152,34 @@ mod tests {
         let mut broadcaster = SseBroadcaster::new(tx, 1000);
 
         // Send multiple immediate events in quick succession
+        let test_session_id = uuid::Uuid::new_v4();
+
         assert!(broadcaster.emit(ImportEvent::PassagesDiscovered {
+            session_id: test_session_id,
             file_path: "test.mp3".to_string(),
             count: 5,
         }));
 
         assert!(broadcaster.emit(ImportEvent::SongStarted {
+            session_id: test_session_id,
             song_index: 0,
             total_songs: 5,
         }));
 
         assert!(broadcaster.emit(ImportEvent::SongComplete {
+            session_id: test_session_id,
             song_index: 0,
             duration_ms: 1000,
         }));
 
         assert!(broadcaster.emit(ImportEvent::SongFailed {
+            session_id: test_session_id,
             song_index: 1,
             error: "Test error".to_string(),
         }));
 
         assert!(broadcaster.emit(ImportEvent::FileComplete {
+            session_id: test_session_id,
             file_path: "test.mp3".to_string(),
             successes: 4,
             warnings: 1,
@@ -187,15 +194,18 @@ mod tests {
     fn test_throttled_events_respect_interval() {
         let (tx, _rx) = broadcast::channel(100);
         let mut broadcaster = SseBroadcaster::new(tx, 100); // 100ms throttle
+        let test_session_id = uuid::Uuid::new_v4();
 
         // First throttled event should succeed
         assert!(broadcaster.emit(ImportEvent::ExtractionComplete {
+            session_id: test_session_id,
             song_index: 0,
             sources: vec![ExtractionSource::ID3Metadata],
         }));
 
         // Immediate second event should be throttled
         assert!(!broadcaster.emit(ImportEvent::FusionComplete {
+            session_id: test_session_id,
             song_index: 0,
             identity_confidence: 0.9,
             metadata_confidence: 0.85,
@@ -207,6 +217,7 @@ mod tests {
 
         // Third event should succeed after interval
         assert!(broadcaster.emit(ImportEvent::ValidationComplete {
+            session_id: test_session_id,
             song_index: 0,
             quality_score: 0.9,
             has_conflicts: false,
@@ -217,15 +228,18 @@ mod tests {
     fn test_emit_immediate_bypasses_throttle() {
         let (tx, _rx) = broadcast::channel(100);
         let mut broadcaster = SseBroadcaster::new(tx, 1000);
+        let test_session_id = uuid::Uuid::new_v4();
 
         // Send throttled event
         assert!(broadcaster.emit(ImportEvent::ExtractionComplete {
+            session_id: test_session_id,
             song_index: 0,
             sources: vec![ExtractionSource::ID3Metadata],
         }));
 
         // Immediate send should bypass throttle
         assert!(broadcaster.emit_immediate(ImportEvent::FusionComplete {
+            session_id: test_session_id,
             song_index: 0,
             identity_confidence: 0.9,
             metadata_confidence: 0.85,
@@ -237,12 +251,14 @@ mod tests {
     fn test_no_receivers_returns_false() {
         let (tx, rx) = broadcast::channel(100);
         let mut broadcaster = SseBroadcaster::new(tx, 1000);
+        let test_session_id = uuid::Uuid::new_v4();
 
         // Drop the receiver
         drop(rx);
 
         // Sending should return false (no receivers)
         let result = broadcaster.emit(ImportEvent::SongStarted {
+            session_id: test_session_id,
             song_index: 0,
             total_songs: 5,
         });
@@ -256,9 +272,11 @@ mod tests {
     fn test_throttle_resets_after_interval() {
         let (tx, _rx) = broadcast::channel(100);
         let mut broadcaster = SseBroadcaster::new(tx, 50); // 50ms throttle
+        let test_session_id = uuid::Uuid::new_v4();
 
         // Send first throttled event
         broadcaster.emit(ImportEvent::ExtractionComplete {
+            session_id: test_session_id,
             song_index: 0,
             sources: vec![ExtractionSource::ID3Metadata],
         });
@@ -268,6 +286,7 @@ mod tests {
 
         // Second event should succeed
         assert!(broadcaster.emit(ImportEvent::ExtractionComplete {
+            session_id: test_session_id,
             song_index: 1,
             sources: vec![ExtractionSource::MusicBrainz],
         }));

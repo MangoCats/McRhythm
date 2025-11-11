@@ -229,14 +229,148 @@ impl SessionOrchestrator {
 
             let duration_secs = duration_ms / 1000.0;
 
-            // Strategy 1: Silence-based detection
-            // For now, create single passage per file spanning entire duration
-            let file_boundaries = vec![PassageBoundary {
-                start_ticks: 0,
-                end_ticks: (duration_secs * 28_224_000.0) as i64, // Convert to ticks
-                confidence: 0.8,
-                detection_method: BoundaryDetectionMethod::SilenceDetection,
-            }];
+            // Strategy 1: Silence-based detection using actual SilenceDetector
+            // REQ-TD-001: Replace stub with functional boundary detection
+            tracing::debug!(
+                session_id = %session.session_id,
+                file = %file_path.display(),
+                "Loading audio for silence detection"
+            );
+
+            // Load full audio file for boundary detection
+            use crate::import_v2::tier1::audio_loader::AudioLoader;
+            let audio_loader = AudioLoader::default();
+
+            let file_boundaries = match audio_loader.load_full(&file_path) {
+                Ok(audio_segment) => {
+                    // Convert stereo to mono by averaging channels (SilenceDetector expects mono)
+                    let mono_samples: Vec<f32> = audio_segment
+                        .samples
+                        .chunks_exact(2)
+                        .map(|stereo| (stereo[0] + stereo[1]) / 2.0)
+                        .collect();
+
+                    tracing::debug!(
+                        session_id = %session.session_id,
+                        file = %file_path.display(),
+                        samples = mono_samples.len(),
+                        sample_rate = audio_segment.sample_rate,
+                        "Audio loaded, running silence detection"
+                    );
+
+                    // Get silence detection configuration from database (with defaults)
+                    let silence_threshold_db = sqlx::query_scalar::<_, String>(
+                        "SELECT value FROM settings WHERE key = 'import.boundary_detection.silence_threshold_db'"
+                    )
+                    .fetch_optional(&self.db)
+                    .await?
+                    .and_then(|v| v.parse::<f64>().ok())
+                    .unwrap_or(-60.0);
+
+                    let min_silence_duration_sec = sqlx::query_scalar::<_, String>(
+                        "SELECT value FROM settings WHERE key = 'import.boundary_detection.min_silence_duration_sec'"
+                    )
+                    .fetch_optional(&self.db)
+                    .await?
+                    .and_then(|v| v.parse::<f64>().ok())
+                    .unwrap_or(0.5);
+
+                    tracing::debug!(
+                        session_id = %session.session_id,
+                        threshold_db = silence_threshold_db,
+                        min_duration_sec = min_silence_duration_sec,
+                        "Silence detection configuration"
+                    );
+
+                    // Initialize silence detector with configuration
+                    use crate::services::silence_detector::SilenceDetector;
+                    let silence_detector = SilenceDetector::new()
+                        .with_threshold_db(silence_threshold_db as f32)
+                        .and_then(|d| d.with_min_duration(min_silence_duration_sec as f32))
+                        .map_err(|e| anyhow::anyhow!("Failed to create silence detector: {}", e))?;
+
+                    // Detect silence regions
+                    let silence_regions = silence_detector
+                        .detect(&mono_samples, audio_segment.sample_rate as usize)
+                        .map_err(|e| anyhow::anyhow!("Silence detection failed: {}", e))?;
+
+                    tracing::debug!(
+                        session_id = %session.session_id,
+                        file = %file_path.display(),
+                        silence_regions = silence_regions.len(),
+                        "Silence detection complete"
+                    );
+
+                    // Convert silence regions to passage boundaries
+                    if silence_regions.is_empty() {
+                        // No silence detected - entire file is one passage
+                        vec![PassageBoundary {
+                            start_ticks: 0,
+                            end_ticks: (duration_secs * 28_224_000.0) as i64,
+                            confidence: 0.8,
+                            detection_method: BoundaryDetectionMethod::SilenceDetection,
+                        }]
+                    } else {
+                        // Create passages between silence regions
+                        let mut boundaries = Vec::new();
+                        let mut last_end_sec = 0.0f32;
+
+                        for silence in &silence_regions {
+                            // Passage before this silence
+                            if silence.start_seconds > last_end_sec {
+                                let start_ticks = (last_end_sec as f64 * 28_224_000.0) as i64;
+                                let end_ticks = (silence.start_seconds as f64 * 28_224_000.0) as i64;
+
+                                boundaries.push(PassageBoundary {
+                                    start_ticks,
+                                    end_ticks,
+                                    confidence: 0.8,
+                                    detection_method: BoundaryDetectionMethod::SilenceDetection,
+                                });
+                            }
+                            last_end_sec = silence.end_seconds;
+                        }
+
+                        // Final passage after last silence
+                        if (last_end_sec as f64) < duration_secs {
+                            let start_ticks = (last_end_sec as f64 * 28_224_000.0) as i64;
+                            let end_ticks = (duration_secs * 28_224_000.0) as i64;
+
+                            boundaries.push(PassageBoundary {
+                                start_ticks,
+                                end_ticks,
+                                confidence: 0.8,
+                                detection_method: BoundaryDetectionMethod::SilenceDetection,
+                            });
+                        }
+
+                        boundaries
+                    }
+                }
+                Err(e) => {
+                    // Audio loading failed - fallback to single passage spanning duration
+                    tracing::warn!(
+                        session_id = %session.session_id,
+                        file = %file_path.display(),
+                        error = %e,
+                        "Failed to load audio for boundary detection, using fallback (single passage)"
+                    );
+
+                    vec![PassageBoundary {
+                        start_ticks: 0,
+                        end_ticks: (duration_secs * 28_224_000.0) as i64,
+                        confidence: 0.5, // Lower confidence for fallback
+                        detection_method: BoundaryDetectionMethod::SilenceDetection,
+                    }]
+                }
+            };
+
+            tracing::info!(
+                session_id = %session.session_id,
+                file = %file_path.display(),
+                passages = file_boundaries.len(),
+                "Boundary detection complete"
+            );
 
             // Wrap in ExtractorResult
             let extractor_result = ExtractorResult {
@@ -257,6 +391,7 @@ impl SessionOrchestrator {
 
             // Emit PassagesDiscovered event
             let _ = self.event_tx.send(ImportEvent::PassagesDiscovered {
+                session_id: session.session_id,
                 file_path: file_path.display().to_string(),
                 count: fused_boundaries.len(),
             });
@@ -320,6 +455,7 @@ impl SessionOrchestrator {
 
                 // Emit SongStarted event
                 let _ = self.event_tx.send(ImportEvent::SongStarted {
+                    session_id: session.session_id,
                     song_index: passage_idx,
                     total_songs: total_passages,
                 });
@@ -337,6 +473,7 @@ impl SessionOrchestrator {
                 // Process passage through workflow
                 let start_time = std::time::Instant::now();
                 let result = self.engine.process_passage(
+                    session.session_id,
                     &file_path,
                     passage_idx,
                     total_passages,
@@ -365,6 +502,7 @@ impl SessionOrchestrator {
 
                     // Emit SongComplete event
                     let _ = self.event_tx.send(ImportEvent::SongComplete {
+                        session_id: session.session_id,
                         song_index: passage_idx,
                         duration_ms,
                     });
@@ -413,6 +551,7 @@ impl SessionOrchestrator {
 
                     // Emit SongFailed event
                     let _ = self.event_tx.send(ImportEvent::SongFailed {
+                        session_id: session.session_id,
                         song_index: passage_idx,
                         error: error_msg.to_string(),
                     });
@@ -423,6 +562,7 @@ impl SessionOrchestrator {
 
             // Emit FileComplete event after processing all passages in a file
             let _ = self.event_tx.send(ImportEvent::FileComplete {
+                session_id: session.session_id,
                 file_path: file_path.display().to_string(),
                 successes,
                 warnings,
@@ -514,7 +654,7 @@ impl SessionOrchestrator {
         let metadata = result.metadata.expect("Metadata must exist on successful workflow result");
 
         // Construct SynthesizedFlavor from raw MusicalFlavor
-        // TODO: When workflow uses FlavorSynthesizer, replace with direct result
+        // Note: FlavorSynthesizer integrated in song_workflow_engine.rs (REQ-TD-007)
         let flavor = result.flavor.map(|musical_flavor| {
             SynthesizedFlavor {
                 flavor: musical_flavor,

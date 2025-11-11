@@ -214,6 +214,7 @@ impl SongWorkflowEngine {
     /// Caller continues processing remaining passages.
     ///
     /// # Arguments
+    /// * `session_id` - Import session ID for event correlation (REQ-TD-006)
     /// * `file_path` - Audio file path
     /// * `passage_index` - Passage index (0-based)
     /// * `boundary` - Passage boundary (start/end times)
@@ -222,6 +223,7 @@ impl SongWorkflowEngine {
     /// SongWorkflowResult with metadata, identity, flavor, validation, or error
     pub async fn process_passage(
         &mut self,
+        session_id: uuid::Uuid,
         file_path: &Path,
         passage_index: usize,
         total_songs: usize,
@@ -245,12 +247,13 @@ impl SongWorkflowEngine {
 
         // Emit SongStarted event
         self.emit_event(ImportEvent::SongStarted {
+            session_id,
             song_index: passage_index,
             total_songs,
         });
 
-        // Phase 1: Extract audio segment (placeholder - actual implementation TBD)
-        // TODO: Implement audio segment extraction using symphonia
+        // Phase 1: Audio segment extraction already implemented via AudioLoader::load_segment()
+        // REQ-TD-002: Audio segment extraction is functional (see extract_all_sources)
 
         // Phase 2: Tier 1 - Parallel extraction
         let extraction_result = self.extract_all_sources(file_path, boundary).await;
@@ -262,6 +265,7 @@ impl SongWorkflowEngine {
 
                 let error_msg = format!("Extraction failed: {}", e);
                 self.emit_event(ImportEvent::SongFailed {
+                    session_id,
                     song_index: passage_index,
                     error: error_msg.clone(),
                 });
@@ -292,6 +296,7 @@ impl SongWorkflowEngine {
         }
 
         self.emit_event(ImportEvent::ExtractionComplete {
+            session_id,
             song_index: passage_index,
             sources,
         });
@@ -366,16 +371,64 @@ impl SongWorkflowEngine {
         };
 
         // Phase 5: Tier 2 - Musical flavor synthesis
-        // TODO: Implement FlavorExtraction conversion from ExtractorResult<MusicalFlavor>
-        // For now, use the audio-derived flavor directly (skip synthesis)
-        let musical_flavor = audio_flavor_result.data;
+        // REQ-TD-007: Combine multiple flavor sources for robust analysis
+        tracing::debug!("Phase 5: Synthesizing musical flavor from all sources");
+
+        use crate::import_v2::types::FlavorExtraction;
+        let mut flavor_sources = Vec::new();
+
+        // Add audio-derived flavor (always available from Phase 3)
+        flavor_sources.push(FlavorExtraction {
+            flavor: audio_flavor_result.data.clone(),
+            confidence: audio_flavor_result.confidence,
+            source: audio_flavor_result.source,
+        });
+
+        // Future: Add AcousticBrainz flavor here when implemented
+        // if let Some(acousticbrainz_flavor) = acousticbrainz_flavor_result {
+        //     flavor_sources.push(FlavorExtraction {
+        //         flavor: acousticbrainz_flavor.data,
+        //         confidence: acousticbrainz_flavor.confidence,
+        //         source: acousticbrainz_flavor.source,
+        //     });
+        // }
+
+        // Synthesize combined flavor
+        let synthesized = match self.flavor_synthesizer.synthesize(flavor_sources) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Flavor synthesis failed: {}", e);
+                // Return error result
+                return SongWorkflowResult {
+                    passage_index,
+                    success: false,
+                    metadata: None,
+                    identity: Some(identity),
+                    flavor: None,
+                    validation: None,
+                    error: Some(format!("Flavor synthesis failed: {}", e)),
+                    duration_ms: start_time.elapsed().as_millis() as u64,
+                };
+            }
+        };
+
+        let musical_flavor = synthesized.flavor;
+        let flavor_confidence = synthesized.flavor_confidence;
+
+        tracing::info!(
+            "Flavor synthesis complete: confidence={:.2}, completeness={:.2}, sources={}",
+            flavor_confidence,
+            synthesized.flavor_completeness,
+            synthesized.sources_used.len()
+        );
 
         // Emit FusionComplete event
         self.emit_event(ImportEvent::FusionComplete {
+            session_id,
             song_index: passage_index,
             identity_confidence: identity.confidence,
             metadata_confidence: fused_metadata.metadata_confidence,
-            flavor_confidence: audio_flavor_result.confidence,
+            flavor_confidence, // REQ-TD-007: Use synthesized confidence
         });
 
         // Phase 6: Tier 3 - Consistency validation
@@ -397,6 +450,7 @@ impl SongWorkflowEngine {
 
         // Emit ValidationComplete event
         self.emit_event(ImportEvent::ValidationComplete {
+            session_id,
             song_index: passage_index,
             quality_score: validation_report.quality_score,
             has_conflicts: validation_report.has_conflicts,
@@ -427,11 +481,13 @@ impl SongWorkflowEngine {
         // Emit SongComplete or SongFailed event based on acceptance
         if is_acceptable {
             self.emit_event(ImportEvent::SongComplete {
+                session_id,
                 song_index: passage_index,
                 duration_ms,
             });
         } else {
             self.emit_event(ImportEvent::SongFailed {
+                session_id,
                 song_index: passage_index,
                 error: error_msg.clone().unwrap_or_else(|| "Unknown failure".to_string()),
             });
@@ -619,6 +675,7 @@ impl SongWorkflowEngine {
     /// **Error Isolation:** Continues processing after individual passage failures.
     ///
     /// # Arguments
+    /// * `session_id` - Import session ID for event correlation (REQ-TD-006)
     /// * `file_path` - Audio file path
     /// * `boundaries` - Detected passage boundaries
     ///
@@ -626,6 +683,7 @@ impl SongWorkflowEngine {
     /// ImportSummary with aggregate statistics and per-passage results
     pub async fn process_file(
         &mut self,
+        session_id: uuid::Uuid,
         file_path: &Path,
         boundaries: &[PassageBoundary],
     ) -> ImportSummary {
@@ -641,12 +699,13 @@ impl SongWorkflowEngine {
 
         // Emit PassagesDiscovered event
         self.emit_event(ImportEvent::PassagesDiscovered {
+            session_id,
             file_path: file_path.display().to_string(),
             count: total_passages,
         });
 
         for (index, boundary) in boundaries.iter().enumerate() {
-            let result = self.process_passage(file_path, index, total_passages, boundary).await;
+            let result = self.process_passage(session_id, file_path, index, total_passages, boundary).await;
 
             tracing::info!(
                 passage_index = index,
@@ -685,6 +744,7 @@ impl SongWorkflowEngine {
 
         // Emit FileComplete event
         self.emit_event(ImportEvent::FileComplete {
+            session_id,
             file_path: file_path.display().to_string(),
             successes,
             warnings,

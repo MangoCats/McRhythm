@@ -31,6 +31,7 @@ infer = "0.16"
 reqwest = { version = "0.11", features = ["json"] }
 governor = "0.7"  # Updated for API rate limiting (HIGH-004)
 lofty = "0.19"
+id3 = "1.14"  # REQ-TD-004: MBID extraction from MP3 UFID frames
 async-stream = "0.3"
 futures = "0.3"
 # Audio fingerprinting - PLAN023 resolution

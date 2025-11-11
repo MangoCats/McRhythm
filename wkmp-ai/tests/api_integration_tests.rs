@@ -235,8 +235,9 @@ async fn test_sse_endpoint_connection() {
     );
 }
 
+/// REQ-TD-003: Verify amplitude analysis endpoint has been removed (deferred to future release)
 #[tokio::test]
-async fn test_amplitude_analysis_endpoint() {
+async fn test_amplitude_analysis_endpoint_removed() {
     let (app, _pool) = create_test_app().await;
     let temp_dir = create_test_audio_files();
     let file_path = temp_dir.path().join("test.mp3");
@@ -259,15 +260,8 @@ async fn test_amplitude_analysis_endpoint() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    // Stub implementation returns default values
-    assert!(json["peak_rms"].is_number());
-    assert!(json["lead_in_duration"].is_number());
-    assert!(json["lead_out_duration"].is_number());
+    // REQ-TD-003: Endpoint should return 404 (removed, not implemented)
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

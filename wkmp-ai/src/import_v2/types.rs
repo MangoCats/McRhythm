@@ -318,24 +318,28 @@ pub enum ImportEvent {
 
     /// Phase 0: Passage boundaries discovered
     PassagesDiscovered {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         file_path: String,
         count: usize,
     },
 
     /// Phase 1: Starting song processing
     SongStarted {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         song_index: usize,
         total_songs: usize,
     },
 
     /// Phase 2: Tier 1 extraction complete
     ExtractionComplete {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         song_index: usize,
         sources: Vec<ExtractionSource>,
     },
 
     /// Phase 3: Tier 2 fusion complete
     FusionComplete {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         song_index: usize,
         identity_confidence: f64,
         metadata_confidence: f64,
@@ -344,6 +348,7 @@ pub enum ImportEvent {
 
     /// Phase 4: Tier 3 validation complete
     ValidationComplete {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         song_index: usize,
         quality_score: f64,
         has_conflicts: bool,
@@ -351,18 +356,21 @@ pub enum ImportEvent {
 
     /// Phase 5: Song processing complete
     SongComplete {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         song_index: usize,
         duration_ms: u64,
     },
 
     /// Song processing failed
     SongFailed {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         song_index: usize,
         error: String,
     },
 
     /// File import complete
     FileComplete {
+        session_id: uuid::Uuid,  // REQ-TD-006: Added for event correlation
         file_path: String,
         successes: usize,
         warnings: usize,

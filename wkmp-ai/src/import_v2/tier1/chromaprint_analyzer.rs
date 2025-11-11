@@ -89,24 +89,13 @@ impl ChromaprintAnalyzer {
         ctx.finish()
             .map_err(|e| ImportError::AudioProcessingFailed(format!("Failed to finish Chromaprint: {}", e)))?;
 
-        // Get compressed fingerprint string (base64-encoded)
-        // Use get_fingerprint_raw() and hash the result for now
-        // TODO: Once chromaprint-rust provides a proper compression API,
-        // use that instead of this workaround
+        // REQ-TD-008: Get raw fingerprint and compress to AcoustID-compatible format
         let raw_fingerprint = ctx.get_fingerprint_raw()
             .map_err(|e| ImportError::AudioProcessingFailed(format!("Failed to get fingerprint: {}", e)))?;
 
-        // Hash the fingerprint data to get a deterministic ID
-        // This is a workaround until chromaprint-rust provides better serialization
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        format!("{:?}", raw_fingerprint).hash(&mut hasher);
-        let hash_value = hasher.finish();
-
-        // Encode hash as base64 for consistency
-        let fingerprint_b64 = base64::engine::general_purpose::STANDARD.encode(hash_value.to_le_bytes());
+        // Compress fingerprint to base64 (AcoustID-compatible format)
+        // Fingerprint<Raw>.get() returns &[u32] slice (see chromaprint-rust lib.rs:101-106)
+        let fingerprint_b64 = Self::compress_fingerprint(raw_fingerprint.get());
 
         tracing::debug!(
             "Generated Chromaprint fingerprint: {} bytes base64, duration: {}ms",
@@ -124,6 +113,30 @@ impl ChromaprintAnalyzer {
     /// Get expected fingerprint duration (for validation)
     pub fn expected_duration(&self, samples: &[f32]) -> u32 {
         (samples.len() as f64 / self.sample_rate as f64 * 1000.0) as u32
+    }
+
+    /// REQ-TD-008: Compress fingerprint to AcoustID-compatible base64 format
+    ///
+    /// Converts raw u32 fingerprint array to little-endian bytes and encodes as base64.
+    /// This format is compatible with AcoustID API submissions.
+    ///
+    /// # Arguments
+    /// * `raw` - Raw fingerprint data (array of u32 values from chromaprint)
+    ///
+    /// # Returns
+    /// Base64-encoded compressed fingerprint string
+    fn compress_fingerprint(raw: &[u32]) -> String {
+        use base64::engine::general_purpose;
+        use base64::Engine;
+
+        // Convert u32 array to little-endian bytes
+        let bytes: Vec<u8> = raw
+            .iter()
+            .flat_map(|&val| val.to_le_bytes())
+            .collect();
+
+        // Encode as base64 (standard encoding for AcoustID)
+        general_purpose::STANDARD.encode(bytes)
     }
 }
 

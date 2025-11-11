@@ -14,6 +14,7 @@ use lofty::probe::Probe;
 use lofty::tag::Accessor;
 use std::path::Path;
 use tracing::{debug, warn};
+use uuid::Uuid;  // REQ-TD-004: For MBID parsing
 
 /// ID3 metadata extractor using lofty
 ///
@@ -202,14 +203,93 @@ impl ID3Extractor {
             return Ok(None);
         }
 
-        // Try to downcast to ID3v2 tag to access UFID frames
-        // Note: lofty's API doesn't expose UFID frames directly through the public API
-        // This is a limitation - we can only extract UFID if it's exposed via custom getters
-        // For now, return None until lofty provides UFID access
-        // TODO: When lofty exposes UFID frames, implement extraction here
+        // REQ-TD-004: Extract MBID from UFID frame using id3 crate
+        // lofty doesn't expose UFID frames, so we use id3 crate for MP3 files
 
-        debug!("  UFID frame access not yet supported by lofty crate");
-        Ok(None)
+        // Check if this is an MP3 file (UFID frames only in MP3)
+        if file_path.extension().and_then(|s| s.to_str()) != Some("mp3") {
+            debug!("  Not an MP3 file, UFID extraction only supported for MP3");
+            return Ok(None);
+        }
+
+        // Use id3 crate to access UFID frames
+        match self.extract_mbid_from_ufid_mp3(file_path) {
+            Some(mbid) => {
+                debug!("  Successfully extracted MBID from UFID: {}", mbid);
+
+                // Create MBIDCandidate with high confidence (0.95 - less user-editable than regular ID3)
+                use crate::import_v2::types::MBIDCandidate;
+                let candidate = MBIDCandidate {
+                    mbid,
+                    confidence: 0.95,  // High confidence for UFID frames
+                    sources: vec![ExtractionSource::ID3Metadata],
+                };
+
+                Ok(Some(ExtractorResult {
+                    data: vec![candidate],
+                    source: ExtractionSource::ID3Metadata,
+                    confidence: 0.95,
+                }))
+            }
+            None => {
+                debug!("  No MusicBrainz UFID frame found");
+                Ok(None)
+            }
+        }
+    }
+
+    /// Extract MBID from MP3 UFID frame using id3 crate
+    ///
+    /// REQ-TD-004: MusicBrainz Recording ID extraction
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to MP3 file
+    ///
+    /// # Returns
+    /// * `Some(Uuid)` - MBID if valid UFID frame found
+    /// * `None` - No UFID frame or invalid MBID format
+    fn extract_mbid_from_ufid_mp3(&self, file_path: &Path) -> Option<Uuid> {
+        use id3::Tag;
+
+        // Read ID3 tags using id3 crate
+        let tag = match Tag::read_from_path(file_path) {
+            Ok(t) => t,
+            Err(e) => {
+                debug!("  Failed to read ID3 tags: {}", e);
+                return None;
+            }
+        };
+
+        // Search for MusicBrainz UFID frame
+        // Note: id3 crate uses different frame ID naming
+        for frame in tag.frames() {
+            // UFID frames have ID "UFID"
+            if frame.id() == "UFID" {
+                if let id3::Content::Unknown(data) = frame.content() {
+                    // UFID frame structure: owner\0identifier
+                    // Find the null byte that separates owner from identifier
+                    if let Some(null_pos) = data.data.iter().position(|&b| b == 0) {
+                        let owner = String::from_utf8_lossy(&data.data[..null_pos]);
+
+                        // Check if this is a MusicBrainz UFID
+                        if owner == "http://musicbrainz.org" {
+                            // Extract identifier (after null byte)
+                            let identifier = &data.data[null_pos + 1..];
+                            let mbid_str = String::from_utf8_lossy(identifier);
+
+                            if let Ok(uuid) = Uuid::parse_str(&mbid_str) {
+                                debug!("  Extracted MBID from UFID: {}", uuid);
+                                return Some(uuid);
+                            } else {
+                                debug!("  Invalid MBID format in UFID: {}", mbid_str);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     /// Extract genre from audio file tags

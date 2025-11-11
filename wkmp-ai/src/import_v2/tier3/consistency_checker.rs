@@ -5,13 +5,13 @@
 //
 // Resolution: CRITICAL-003 - Uses strsim crate for normalized Levenshtein similarity
 //
-// Thresholds (per critical_issues_resolution.md):
+// Thresholds (REQ-TD-005):
 // - similarity ≥ 0.95: PASS (identical or minor differences)
-// - 0.80 ≤ similarity < 0.95: WARNING (likely same, spelling variant)
-// - similarity < 0.80: CONFLICT (high risk of different content)
+// - 0.85 ≤ similarity < 0.95: WARNING (likely same, spelling variant)
+// - similarity < 0.85: CONFLICT (high risk of different content)
 
 use crate::import_v2::types::{
-    ConflictSeverity, FusedMetadata, ValidationResult,
+    ConflictSeverity, FusedMetadata, MetadataBundle, MetadataField, ValidationResult,
 };
 
 /// Consistency checker (Tier 3 validation concept)
@@ -31,8 +31,8 @@ pub struct ConsistencyChecker {
 impl Default for ConsistencyChecker {
     fn default() -> Self {
         Self {
-            pass_threshold: 0.95,    // CRITICAL-003
-            warning_threshold: 0.80, // CRITICAL-003
+            pass_threshold: 0.95,    // REQ-TD-005
+            warning_threshold: 0.85, // REQ-TD-005 (updated from 0.80)
         }
     }
 }
@@ -77,6 +77,76 @@ impl ConsistencyChecker {
         };
 
         ValidationResult::Pass
+    }
+
+    /// REQ-TD-005: Validate title consistency using all candidates
+    ///
+    /// Compares all title candidates from different sources.
+    /// Returns ValidationResult indicating pass/warning/conflict status.
+    pub fn validate_title_candidates(&self, candidates: &MetadataBundle) -> ValidationResult {
+        if candidates.title.is_empty() {
+            return ValidationResult::Pass;
+        }
+
+        // Extract string values from MetadataField
+        let values: Vec<String> = candidates.title.iter().map(|f| f.value.clone()).collect();
+        self.validate_string_list("title", &values)
+    }
+
+    /// REQ-TD-005: Validate artist consistency using all candidates
+    pub fn validate_artist_candidates(&self, candidates: &MetadataBundle) -> ValidationResult {
+        if candidates.artist.is_empty() {
+            return ValidationResult::Pass;
+        }
+
+        let values: Vec<String> = candidates.artist.iter().map(|f| f.value.clone()).collect();
+        self.validate_string_list("artist", &values)
+    }
+
+    /// REQ-TD-005: Validate album consistency using all candidates
+    pub fn validate_album_candidates(&self, candidates: &MetadataBundle) -> ValidationResult {
+        if candidates.album.is_empty() {
+            return ValidationResult::Pass;
+        }
+
+        let values: Vec<String> = candidates.album.iter().map(|f| f.value.clone()).collect();
+        self.validate_string_list("album", &values)
+    }
+
+    /// REQ-TD-005: Validate all metadata fields using candidates
+    ///
+    /// New API that accepts MetadataBundle with all extraction candidates.
+    /// Returns separate lists of warnings and conflicts.
+    pub fn validate_all_candidates(
+        &self,
+        candidates: &MetadataBundle,
+    ) -> (Vec<String>, Vec<(String, ConflictSeverity)>) {
+        let mut warnings = Vec::new();
+        let mut conflicts = Vec::new();
+
+        // Validate each field
+        let results = vec![
+            self.validate_title_candidates(candidates),
+            self.validate_artist_candidates(candidates),
+            self.validate_album_candidates(candidates),
+        ];
+
+        // Collect all warnings and conflicts
+        for result in results {
+            match result {
+                ValidationResult::Conflict { message, severity } => {
+                    conflicts.push((message, severity));
+                }
+                ValidationResult::Warning { message } => {
+                    warnings.push(message);
+                }
+                ValidationResult::Pass => {
+                    // No action needed
+                }
+            }
+        }
+
+        (warnings, conflicts)
     }
 
     /// Validate consistency across a list of string values

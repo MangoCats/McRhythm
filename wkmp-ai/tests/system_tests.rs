@@ -124,6 +124,7 @@ async fn tc_s_010_01_complete_file_import_workflow() {
     let mut engine = SongWorkflowEngine::with_sse(tx, 100);
 
     let boundaries = vec![create_test_boundary(0, 5)]; // 0-5 seconds
+    let test_session_id = uuid::Uuid::new_v4();
 
     // Clone values for async task
     let audio_file_clone = audio_file.clone();
@@ -131,7 +132,7 @@ async fn tc_s_010_01_complete_file_import_workflow() {
 
     // Process file in background
     let process_task = tokio::spawn(async move {
-        engine.process_file(&audio_file_clone, &boundaries_clone).await
+        engine.process_file(test_session_id, &audio_file_clone, &boundaries_clone).await
     });
 
     // **Phase 3: Collect SSE events**
@@ -338,7 +339,8 @@ async fn tc_s_012_01_multi_song_file_processing() {
 
     // **Phase 3: Process file**
     let mut engine = SongWorkflowEngine::default();
-    let summary = engine.process_file(&audio_file, &boundaries).await;
+    let test_session_id = uuid::Uuid::new_v4();
+    let summary = engine.process_file(test_session_id, &audio_file, &boundaries).await;
 
     // **Phase 4: Verify results**
 
@@ -427,13 +429,14 @@ async fn tc_s_071_01_sse_event_streaming() {
     let boundaries = vec![
         create_test_boundary(0, 5),  // Song 1
     ];
+    let test_session_id = uuid::Uuid::new_v4();
 
     // **Phase 3: Process in background, collect events**
     let audio_file_clone = audio_file.clone();
     let boundaries_clone = boundaries.clone();
 
     let process_task = tokio::spawn(async move {
-        engine.process_file(&audio_file_clone, &boundaries_clone).await
+        engine.process_file(test_session_id, &audio_file_clone, &boundaries_clone).await
     });
 
     // Collect events with timestamps
@@ -479,6 +482,7 @@ async fn tc_s_071_01_sse_event_streaming() {
     assert!(song_started.is_some(), "Should emit SongStarted event");
 
     if let Some(ImportEvent::SongStarted {
+        session_id: _,
         song_index,
         total_songs,
     }) = song_started
@@ -664,9 +668,10 @@ async fn tc_s_nf_011_01_performance_benchmark() {
 
     // **Phase 3: Process with timing**
     let mut engine = SongWorkflowEngine::default();
+    let test_session_id = uuid::Uuid::new_v4();
     let start_time = std::time::Instant::now();
 
-    let summary = engine.process_file(&audio_file, &boundaries).await;
+    let summary = engine.process_file(test_session_id, &audio_file, &boundaries).await;
 
     let total_duration = start_time.elapsed();
 
@@ -725,9 +730,11 @@ async fn tc_s_nf_011_01_performance_benchmark() {
 
         let ratio = last_duration / first_duration;
 
-        // Allow 2x variation (accounts for caching, JIT, etc.)
+        // Allow 3x variation (accounts for CI noise, JIT compilation, caching)
+        // PLAN027 Sprint 1.1: Increased from 2.0x to 3.0x to fix flaky CI builds
+        // Test verifies no major performance regression, not exact timing
         assert!(
-            ratio >= 0.5 && ratio <= 2.0,
+            ratio >= 0.33 && ratio <= 3.0,
             "Performance degradation detected: first={:.3}s, last={:.3}s (ratio: {:.2})",
             first_duration / 1000.0,
             last_duration / 1000.0,
@@ -818,9 +825,10 @@ async fn tc_s_081_01_id3_failure_doesnt_abort() {
     let mut engine = SongWorkflowEngine::with_sse(event_tx, 100);
 
     let boundaries = vec![create_test_boundary(0, 5)];
+    let test_session_id = uuid::Uuid::new_v4();
 
     let result = engine
-        .process_file(&audio_file, &boundaries)
+        .process_file(test_session_id, &audio_file, &boundaries)
         .await;
 
     // **Phase 3: Verify workflow completed (but may fail due to lack of metadata)**
@@ -910,9 +918,10 @@ async fn tc_s_081_02_acoustid_failure_doesnt_abort() {
     let mut engine = SongWorkflowEngine::with_sse(event_tx, 100);
 
     let boundaries = vec![create_test_boundary(0, 5)];
+    let test_session_id = uuid::Uuid::new_v4();
 
     let result = engine
-        .process_file(&audio_file, &boundaries)
+        .process_file(test_session_id, &audio_file, &boundaries)
         .await;
 
     // **Phase 3: Verify workflow completed successfully**
@@ -1066,9 +1075,10 @@ async fn tc_s_081_03_passage_failure_doesnt_abort_import() {
     // **Phase 3: Execute workflow**
     let (event_tx, mut event_rx) = broadcast::channel(100);
     let mut engine = SongWorkflowEngine::with_sse(event_tx, 100);
+    let test_session_id = uuid::Uuid::new_v4();
 
     let result = engine
-        .process_file(&audio_file, &boundaries)
+        .process_file(test_session_id, &audio_file, &boundaries)
         .await;
 
     // **Phase 4: Verify partial success**

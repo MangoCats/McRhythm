@@ -104,10 +104,10 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
             })
         }
 
-        ImportEvent::PassagesDiscovered { file_path, count } => {
+        ImportEvent::PassagesDiscovered { session_id, file_path, count } => {
             // Convert to progress update
             Some(WkmpEvent::ImportProgressUpdate {
-                session_id: uuid::Uuid::nil(), // TODO: Add session_id to PassagesDiscovered event
+                session_id, // REQ-TD-006: Added session_id for event correlation
                 state: "BOUNDARY_DETECTION".to_string(),
                 current: count,
                 total: count, // Approximate - actual total unknown at this point
@@ -122,10 +122,11 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         }
 
         ImportEvent::SongStarted {
+            session_id,
             song_index,
             total_songs,
         } => Some(WkmpEvent::ImportProgressUpdate {
-            session_id: uuid::Uuid::nil(), // TODO: Add session_id to SongStarted event
+            session_id, // REQ-TD-006: Added session_id for event correlation
             state: "PROCESSING".to_string(),
             current: song_index,
             total: total_songs,
@@ -139,12 +140,13 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         }),
 
         ImportEvent::ExtractionComplete {
+            session_id,
             song_index,
             sources,
         } => {
             // Granular progress update
             Some(WkmpEvent::ImportProgressUpdate {
-                session_id: uuid::Uuid::nil(), // TODO: Add session_id
+                session_id, // REQ-TD-006: Added session_id for event correlation
                 state: format!("EXTRACTING ({} sources)", sources.len()),
                 current: song_index,
                 total: song_index + 1, // Approximate
@@ -159,6 +161,7 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         }
 
         ImportEvent::FusionComplete {
+            session_id,
             song_index,
             identity_confidence,
             metadata_confidence,
@@ -166,7 +169,7 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         } => {
             // Detailed fusion progress
             Some(WkmpEvent::ImportProgressUpdate {
-                session_id: uuid::Uuid::nil(), // TODO: Add session_id
+                session_id, // REQ-TD-006: Added session_id for event correlation
                 state: format!(
                     "FUSING (ID:{:.0}% MD:{:.0}% FL:{:.0}%)",
                     identity_confidence * 100.0,
@@ -191,11 +194,12 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         }
 
         ImportEvent::ValidationComplete {
+            session_id,
             song_index,
             quality_score,
             has_conflicts,
         } => Some(WkmpEvent::ImportProgressUpdate {
-            session_id: uuid::Uuid::nil(), // TODO: Add session_id
+            session_id, // REQ-TD-006: Added session_id for event correlation
             state: if has_conflicts {
                 format!("VALIDATING (quality:{:.0}% CONFLICTS)", quality_score * 100.0)
             } else {
@@ -217,10 +221,11 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         }),
 
         ImportEvent::SongComplete {
+            session_id,
             song_index,
             duration_ms,
         } => Some(WkmpEvent::ImportProgressUpdate {
-            session_id: uuid::Uuid::nil(), // TODO: Add session_id
+            session_id, // REQ-TD-006: Added session_id for event correlation
             state: format!("COMPLETED ({}ms)", duration_ms),
             current: song_index + 1, // Move to next
             total: song_index + 1,   // Approximate
@@ -233,9 +238,9 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
             timestamp: now,
         }),
 
-        ImportEvent::SongFailed { song_index, error } => {
+        ImportEvent::SongFailed { session_id, song_index, error } => {
             Some(WkmpEvent::ImportProgressUpdate {
-                session_id: uuid::Uuid::nil(), // TODO: Add session_id
+                session_id, // REQ-TD-006: Added session_id for event correlation
                 state: format!("FAILED: {}", error),
                 current: song_index,
                 total: song_index + 1, // Approximate
@@ -250,13 +255,14 @@ fn convert_import_event(event: ImportEvent) -> Option<WkmpEvent> {
         }
 
         ImportEvent::FileComplete {
+            session_id,
             file_path,
             successes,
             warnings,
             failures,
             total_duration_ms,
         } => Some(WkmpEvent::ImportProgressUpdate {
-            session_id: uuid::Uuid::nil(), // TODO: Add session_id
+            session_id, // REQ-TD-006: Added session_id for event correlation
             state: format!(
                 "FILE_COMPLETE (✓{} ⚠{} ✗{} {}ms)",
                 successes, warnings, failures, total_duration_ms
@@ -340,7 +346,9 @@ mod tests {
 
     #[test]
     fn test_convert_song_started() {
+        let test_session_id = uuid::Uuid::new_v4();
         let import_event = ImportEvent::SongStarted {
+            session_id: test_session_id,
             song_index: 5,
             total_songs: 10,
         };
@@ -366,7 +374,9 @@ mod tests {
 
     #[test]
     fn test_convert_passages_discovered() {
+        let test_session_id = uuid::Uuid::new_v4();
         let import_event = ImportEvent::PassagesDiscovered {
+            session_id: test_session_id,
             file_path: "/music/test.mp3".to_string(),
             count: 3,
         };
@@ -388,7 +398,9 @@ mod tests {
 
     #[test]
     fn test_convert_file_complete() {
+        let test_session_id = uuid::Uuid::new_v4();
         let import_event = ImportEvent::FileComplete {
+            session_id: test_session_id,
             file_path: "/music/album.flac".to_string(),
             successes: 10,
             warnings: 2,
