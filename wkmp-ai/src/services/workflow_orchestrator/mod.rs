@@ -28,8 +28,7 @@ use crate::services::{
 };
 use anyhow::Result;
 use chrono::Utc;
-use sqlx::{Row, SqlitePool};
-use std::path::Path;
+use sqlx::SqlitePool;
 use uuid::Uuid;
 use wkmp_common::events::{EventBus, WkmpEvent};
 
