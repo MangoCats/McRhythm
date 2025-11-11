@@ -125,25 +125,35 @@ pub enum WkmpEvent {
     /// - SSE: Update queue display
     /// - Auto-replenishment: Check if refill needed
     QueueChanged {
+        /// Queue passage UUIDs
         queue: Vec<Uuid>,
+        /// Why queue changed
         trigger: QueueChangeTrigger,
+        /// When queue changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Queue state update (full queue contents for SSE)
     /// [SSE-UI-020] Queue Updates
     QueueStateUpdate {
+        /// Update timestamp
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Full queue with entry details
         queue: Vec<QueueEntryInfo>,
     },
 
     /// Playback position update (sent every 1s during playback)
     /// [SSE-UI-030] Playback Position Updates
     PlaybackPosition {
+        /// Update timestamp
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Currently playing passage UUID
         passage_id: Uuid,
+        /// Current position in milliseconds
         position_ms: u64,
+        /// Total duration in milliseconds
         duration_ms: u64,
+        /// Whether currently playing (vs paused)
         playing: bool,
     },
 
@@ -153,9 +163,13 @@ pub enum WkmpEvent {
     /// - SSE: Animate new queue entry
     /// - Analytics: Track auto vs manual enqueue
     PassageEnqueued {
+        /// Passage UUID that was enqueued
         passage_id: Uuid,
+        /// Position in queue (0-based)
         position: usize,
+        /// How passage was enqueued (automatic vs manual)
         source: EnqueueSource,
+        /// When passage was enqueued
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -164,8 +178,11 @@ pub enum WkmpEvent {
     /// Triggers:
     /// - SSE: Update queue display
     PassageDequeued {
+        /// Passage UUID that was dequeued
         passage_id: Uuid,
+        /// Whether passage was currently playing when removed
         was_playing: bool,
+        /// When passage was dequeued
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -178,7 +195,9 @@ pub enum WkmpEvent {
     /// - UI: May show "Queue Empty" message
     /// - Automatic selector: Already stopped (no valid candidates)
     QueueEmpty {
-        playback_state: PlaybackState, // Current Play/Pause state (unchanged)
+        /// Current playback state (unchanged)
+        playback_state: PlaybackState,
+        /// When queue became empty
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -188,8 +207,11 @@ pub enum WkmpEvent {
     /// - SSE: Update volume slider
     /// - State Persistence: Save volume preference
     VolumeChanged {
-        old_volume: f32, // 0.0-1.0 (system-level scale for precision)
-        new_volume: f32, // 0.0-1.0 (system-level scale for precision)
+        /// Previous volume (0.0-1.0)
+        old_volume: f32,
+        /// New volume (0.0-1.0)
+        new_volume: f32,
+        /// When volume changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -203,10 +225,15 @@ pub enum WkmpEvent {
     /// - Performance monitoring: Track decode speed vs. playback speed
     /// - UI display: Show decode progress for large files
     BufferStateChanged {
+        /// Passage UUID
         passage_id: Uuid,
+        /// Previous buffer state
         old_state: BufferStatus,
+        /// New buffer state
         new_state: BufferStatus,
-        decode_progress_percent: Option<f32>, // Only for Decoding state
+        /// Decode progress percentage (only for Decoding state)
+        decode_progress_percent: Option<f32>,
+        /// When state changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -221,8 +248,11 @@ pub enum WkmpEvent {
     /// - Skip Throttle: Track recent skip actions
     /// - Analytics: User interaction tracking
     UserAction {
+        /// Type of user action
         action: UserActionType,
-        user_id: String, // User's persistent UUID
+        /// User's persistent UUID
+        user_id: String,
+        /// When action occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -233,8 +263,11 @@ pub enum WkmpEvent {
     /// - Taste Manager: Update user's taste profile
     /// - SSE: Update like button state for all connected clients
     PassageLiked {
+        /// Passage UUID that was liked
         passage_id: Uuid,
-        user_id: Uuid, // UUID of user who liked (may be Anonymous UUID)
+        /// User UUID who liked (may be Anonymous UUID)
+        user_id: Uuid,
+        /// When like occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -246,8 +279,11 @@ pub enum WkmpEvent {
     /// - SSE: Update dislike button state for all connected clients
     /// - Program Director: Adjust selection probability (Phase 2)
     PassageDisliked {
+        /// Passage UUID that was disliked
         passage_id: Uuid,
-        user_id: Uuid, // UUID of user who disliked (may be Anonymous UUID)
+        /// User UUID who disliked (may be Anonymous UUID)
+        user_id: Uuid,
+        /// When dislike occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -261,9 +297,13 @@ pub enum WkmpEvent {
     /// - Program Director: Use new target for selection
     /// - SSE: Show override indicator in UI
     TemporaryFlavorOverride {
-        target_flavor: Vec<f64>, // FlavorVector: 8-dimensional AcousticBrainz vector
+        /// Target musical flavor (8-dimensional AcousticBrainz vector)
+        target_flavor: Vec<f64>,
+        /// When override expires
         expiration: chrono::DateTime<chrono::Utc>,
+        /// Override duration in seconds
         duration_seconds: u64,
+        /// When override was set
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -273,6 +313,7 @@ pub enum WkmpEvent {
     /// - Program Director: Revert to timeslot-based target
     /// - SSE: Remove override indicator
     TemporaryFlavorOverrideExpired {
+        /// When override expired
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -284,9 +325,13 @@ pub enum WkmpEvent {
     /// - Program Director: Update target flavor for new selections
     /// - SSE: Update current timeslot indicator
     TimeslotChanged {
+        /// Previous timeslot UUID
         old_timeslot_id: Uuid,
+        /// New timeslot UUID
         new_timeslot_id: Uuid,
-        new_target_flavor: Vec<f64>, // FlavorVector
+        /// New target flavor vector
+        new_target_flavor: Vec<f64>,
+        /// When timeslot changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -298,8 +343,11 @@ pub enum WkmpEvent {
     /// - External API clients: Pause/resume requests
     /// - SSE: Show offline indicator
     NetworkStatusChanged {
+        /// Whether network is available
         available: bool,
+        /// Number of reconnection retries
         retry_count: u32,
+        /// When status changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -309,10 +357,15 @@ pub enum WkmpEvent {
     /// - SSE: Update library stats
     /// - Program Director: Refresh available passages
     LibraryScanCompleted {
+        /// Number of files added to library
         files_added: usize,
+        /// Number of files updated in library
         files_updated: usize,
+        /// Number of files removed from library
         files_removed: usize,
+        /// Scan duration in seconds
         duration_seconds: u64,
+        /// When scan completed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -323,32 +376,45 @@ pub enum WkmpEvent {
     /// - SSE: Show error notification
     /// - Retry logic: Attempt recovery
     DatabaseError {
+        /// Database operation that failed
         operation: String,
+        /// Error message
         error: String,
+        /// Whether retry was attempted
         retry_attempted: bool,
+        /// When error occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Initial state sent on SSE connection
     /// [SSE-UI-050] Initial State on Connection
     InitialState {
+        /// When initial state was sent
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Full queue with entry details
         queue: Vec<QueueEntryInfo>,
+        /// Current playback position (if any)
         position: Option<PlaybackPositionInfo>,
+        /// Current volume (0.0-1.0)
         volume: f32,
     },
 
     /// Crossfade started
     CrossfadeStarted {
+        /// Passage UUID fading out
         from_passage_id: Uuid,
+        /// Passage UUID fading in
         to_passage_id: Uuid,
+        /// When crossfade started
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Buffer chain status update (sent every 1s when data changes)
     /// Shows decoder-resampler-fade-buffer chains for monitoring
     BufferChainStatus {
+        /// When status was captured
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Buffer chain information for all slots
         chains: Vec<BufferChainInfo>,
     },
 
@@ -356,43 +422,66 @@ pub enum WkmpEvent {
     /// **[DBD-DEC-095]** Emitted when decoder discovers actual file duration for undefined endpoints
     /// Sent by decoder → buffer manager when passage has NULL end_time_ticks
     EndpointDiscovered {
+        /// Queue entry UUID
         queue_entry_id: Uuid,
+        /// Actual end time in ticks
         actual_end_ticks: i64,
+        /// When endpoint was discovered
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Pipeline validation succeeded (periodic check)
     /// **[ARCH-AUTO-VAL-001]** Automatic validation service - success result
     ValidationSuccess {
+        /// When validation occurred
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Number of passages validated
         passage_count: usize,
+        /// Total samples decoded
         total_decoder_samples: u64,
+        /// Total samples written to buffers
         total_buffer_written: u64,
+        /// Total samples read from buffers
         total_buffer_read: u64,
+        /// Total frames mixed to output
         total_mixer_frames: u64,
     },
 
     /// Pipeline validation failed (conservation law violated)
     /// **[ARCH-AUTO-VAL-001]** Automatic validation service - failure result
     ValidationFailure {
+        /// When validation occurred
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Number of passages validated
         passage_count: usize,
+        /// Total samples decoded
         total_decoder_samples: u64,
+        /// Total samples written to buffers
         total_buffer_written: u64,
+        /// Total samples read from buffers
         total_buffer_read: u64,
+        /// Total frames mixed to output
         total_mixer_frames: u64,
+        /// Validation error messages
         errors: Vec<String>,
     },
 
     /// Pipeline validation warning (approaching tolerance threshold)
     /// **[ARCH-AUTO-VAL-001]** Automatic validation service - warning result (>80% of tolerance)
     ValidationWarning {
+        /// When validation occurred
         timestamp: chrono::DateTime<chrono::Utc>,
+        /// Number of passages validated
         passage_count: usize,
+        /// Total samples decoded
         total_decoder_samples: u64,
+        /// Total samples written to buffers
         total_buffer_written: u64,
+        /// Total samples read from buffers
         total_buffer_read: u64,
+        /// Total frames mixed to output
         total_mixer_frames: u64,
+        /// Validation warning messages
         warnings: Vec<String>,
     },
 
@@ -404,55 +493,80 @@ pub enum WkmpEvent {
     /// Passage decode failed (file read error)
     /// **[REQ-AP-ERR-010]** Decode errors skip passage, continue with next
     PassageDecodeFailed {
+        /// Passage UUID (if known)
         passage_id: Option<Uuid>,
+        /// Error type classification
         error_type: String,
+        /// Error message details
         error_message: String,
+        /// File path that failed to decode
         file_path: String,
+        /// When decode failed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Passage has unsupported codec
     /// **[REQ-AP-ERR-011]** Unsupported codecs marked to prevent re-queue
     PassageUnsupportedCodec {
+        /// Passage UUID (if known)
         passage_id: Option<Uuid>,
+        /// File path with unsupported codec
         file_path: String,
+        /// Codec hint (if detected)
         codec_hint: Option<String>,
+        /// When codec issue detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Passage partially decoded (truncated file)
     /// **[REQ-AP-ERR-012]** Partial decode ≥50% allows playback
     PassagePartialDecode {
+        /// Passage UUID (if known)
         passage_id: Option<Uuid>,
+        /// File path that was partially decoded
         file_path: String,
+        /// Expected duration in milliseconds
         expected_duration_ms: u64,
+        /// Actual decoded duration in milliseconds
         actual_duration_ms: u64,
+        /// Percentage successfully decoded
         percentage: f64,
+        /// When partial decode detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Decoder panicked during decode
     /// **[REQ-AP-ERR-013]** Decoder panics caught and recovered
     PassageDecoderPanic {
+        /// Passage UUID (if known)
         passage_id: Option<Uuid>,
+        /// File path being decoded when panic occurred
         file_path: String,
+        /// Panic message details
         panic_message: String,
+        /// When panic occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Buffer underrun detected
     /// **[REQ-AP-ERR-020]** Buffer underrun emergency refill with timeout
     BufferUnderrun {
+        /// Passage UUID experiencing underrun
         passage_id: Uuid,
+        /// Buffer fill percentage when underrun detected
         buffer_fill_percent: f32,
+        /// When underrun detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Buffer underrun recovered
     /// **[REQ-AP-ERR-020]** Underrun recovery successful
     BufferUnderrunRecovered {
+        /// Passage UUID that recovered
         passage_id: Uuid,
+        /// Recovery time in milliseconds
         recovery_time_ms: u64,
+        /// When recovery completed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -460,7 +574,9 @@ pub enum WkmpEvent {
     /// Emitted EVERY time the audio callback finds the ring buffer empty
     /// This provides immediate detection of gaps/stutters
     AudioCallbackUnderrun {
+        /// Total underrun count since startup
         underrun_count: u64,
+        /// When underrun occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -468,151 +584,207 @@ pub enum WkmpEvent {
     /// Emitted when callback timing deviates significantly from expected
     /// (throttled to avoid spam - max once per 5 seconds)
     AudioCallbackIrregular {
+        /// Actual interval measured in milliseconds
         actual_interval_ms: u64,
+        /// Expected interval in milliseconds
         expected_interval_ms: u64,
+        /// Deviation from expected in milliseconds
         deviation_ms: u64,
+        /// Total irregular intervals since startup
         total_irregular_count: u64,
+        /// When irregular interval detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device lost (disconnected)
     /// **[REQ-AP-ERR-030]** Device disconnect retry 30s before fallback
     AudioDeviceLost {
+        /// Human-readable device name
         device_name: String,
+        /// Device identifier
         device_id: String,
+        /// When device was lost
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device restored after disconnection
     /// **[REQ-AP-ERR-030]** Device reconnected successfully
     AudioDeviceRestored {
+        /// Human-readable device name
         device_name: String,
+        /// When device was restored
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device fallback (original device unavailable)
     /// **[REQ-AP-ERR-030]** Fallback to system default device
     AudioDeviceFallback {
+        /// Original device name that was unavailable
         original_device: String,
+        /// Fallback device name being used
         fallback_device: String,
+        /// When fallback occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device unavailable (all attempts failed)
     /// **[REQ-AP-ERR-030]** No audio device available
     AudioDeviceUnavailable {
+        /// When unavailability determined
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device configuration error
     /// **[REQ-AP-ERR-031]** Device config errors attempt 4 fallback configs
     AudioDeviceConfigError {
+        /// Device name with config error
         device_name: String,
+        /// Configuration that was requested
         requested_config: String,
+        /// Error message details
         error_message: String,
+        /// When config error occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device configuration fallback succeeded
     /// **[REQ-AP-ERR-031]** Fallback configuration successful
     AudioDeviceConfigFallback {
+        /// Device name using fallback config
         device_name: String,
+        /// Fallback configuration being used
         fallback_config: String,
+        /// When fallback succeeded
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Audio device incompatible (all configs failed)
     /// **[REQ-AP-ERR-031]** Device incompatible with all configurations
     AudioDeviceIncompatible {
+        /// Incompatible device name
         device_name: String,
+        /// When incompatibility determined
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Queue validation error (invalid entry)
     /// **[REQ-AP-ERR-040]** Invalid queue entries auto-removed with logging
     QueueValidationError {
+        /// Queue entry UUID with validation error
         queue_entry_id: Uuid,
+        /// Passage UUID (if known)
         passage_id: Option<Uuid>,
+        /// Validation error message
         validation_error: String,
+        /// When validation error detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Queue depth warning (all chains busy)
     /// **[REQ-AP-ERR-040]** Queue depth exceeds available chains
     QueueDepthWarning {
+        /// Current queue depth
         queue_depth: usize,
+        /// Number of available chains
         available_chains: usize,
+        /// When warning occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Resampling failed (initialization)
     /// **[REQ-AP-ERR-050]** Resampling init fails, skip passage or bypass
     ResamplingFailed {
+        /// Passage UUID with resampling failure
         passage_id: Uuid,
+        /// Source sample rate in Hz
         source_rate: u32,
+        /// Target sample rate in Hz
         target_rate: u32,
+        /// Error message details
         error_message: String,
+        /// When resampling failed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Resampling runtime error
     /// **[REQ-AP-ERR-051]** Resampling runtime errors skip passage
     ResamplingRuntimeError {
+        /// Passage UUID with runtime error
         passage_id: Uuid,
+        /// Position in passage when error occurred (milliseconds)
         position_ms: u64,
+        /// Error message details
         error_message: String,
+        /// When runtime error occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Timing system failure (fatal)
     /// **[SPEC021 ERH-TIME-010]** Tick overflow or timing corruption
     TimingSystemFailure {
+        /// Error type classification
         error_type: String,
+        /// When timing failure occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// Position drift warning
     /// **[REQ-AP-ERR-060]** Position drift <100 samples auto-corrected
     PositionDriftWarning {
+        /// Passage UUID experiencing drift
         passage_id: Uuid,
+        /// Expected position in milliseconds
         expected_position_ms: u64,
+        /// Actual position in milliseconds
         actual_position_ms: u64,
+        /// Position delta in milliseconds (signed)
         delta_ms: i64,
+        /// When drift detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// System resource exhausted
     /// **[REQ-AP-ERR-070]** Resource exhaustion cleanup and retry
     SystemResourceExhausted {
+        /// Type of resource exhausted
         resource_type: String,
+        /// When exhaustion detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// System resource recovered
     /// **[REQ-AP-ERR-070]** Resource exhaustion resolved
     SystemResourceRecovered {
+        /// Type of resource recovered
         resource_type: String,
+        /// When recovery occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// File handle exhaustion
     /// **[REQ-AP-ERR-071]** File handle exhaustion, reduce chain count
     FileHandleExhaustion {
+        /// File path that failed to open
         attempted_file: String,
+        /// When exhaustion detected
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// System degraded mode activated
     /// **[REQ-AP-DEGRADE-010/020/030]** Graceful degradation
     SystemDegradedMode {
+        /// Reason for degraded mode
         reason: String,
+        /// When degraded mode activated
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
     /// System shutdown required (fatal error)
     /// **[SPEC021 ERH-TAX-010]** FATAL error requires shutdown
     SystemShutdownRequired {
+        /// Reason for shutdown requirement
         reason: String,
+        /// When shutdown required
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -627,8 +799,11 @@ pub enum WkmpEvent {
     /// - SSE: Show import progress UI
     /// - Database: Session record created
     ImportSessionStarted {
+        /// Import session UUID
         session_id: Uuid,
+        /// Root folder being scanned
         root_folder: String,
+        /// When session started
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -641,21 +816,29 @@ pub enum WkmpEvent {
     ///
     /// **[REQ-AIA-UI-001, REQ-AIA-UI-004]** Extended with phase tracking and current file
     ImportProgressUpdate {
+        /// Import session UUID
         session_id: Uuid,
-        state: String, // "SCANNING", "EXTRACTING", "FINGERPRINTING", etc.
+        /// Current workflow state
+        state: String,
+        /// Current item count
         current: usize,
+        /// Total item count
         total: usize,
+        /// Progress percentage (0.0-100.0)
         percentage: f32,
+        /// Current operation description
         current_operation: String,
+        /// Elapsed time in seconds
         elapsed_seconds: u64,
+        /// Estimated remaining time in seconds (if available)
         estimated_remaining_seconds: Option<u64>,
-        /// **[REQ-AIA-UI-001]** Phase-level progress (6 phases: SCANNING through FLAVORING)
-        /// Empty for backward compatibility with old events
+        /// Phase-level progress (6 phases: SCANNING through FLAVORING)
         #[serde(default)]
         phases: Vec<PhaseProgressData>,
-        /// **[REQ-AIA-UI-004]** Current file being processed
+        /// Current file being processed
         #[serde(default)]
         current_file: Option<String>,
+        /// When progress updated
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -666,9 +849,13 @@ pub enum WkmpEvent {
     /// - Database: Mark session as completed
     /// - Program Director: Refresh available passages
     ImportSessionCompleted {
+        /// Import session UUID
         session_id: Uuid,
+        /// Number of files processed
         files_processed: usize,
+        /// Session duration in seconds
         duration_seconds: u64,
+        /// When session completed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -678,9 +865,13 @@ pub enum WkmpEvent {
     /// - SSE: Show error notification
     /// - Database: Mark session as failed
     ImportSessionFailed {
+        /// Import session UUID
         session_id: Uuid,
+        /// Error message details
         error_message: String,
+        /// Number of files processed before failure
         files_processed: usize,
+        /// When session failed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -690,9 +881,13 @@ pub enum WkmpEvent {
     /// - SSE: Show cancellation notification
     /// - Database: Mark session as cancelled
     ImportSessionCancelled {
+        /// Import session UUID
         session_id: Uuid,
+        /// Number of files processed before cancellation
         files_processed: usize,
+        /// Number of files skipped due to cancellation
         files_skipped: usize,
+        /// When session cancelled
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -705,10 +900,11 @@ pub enum WkmpEvent {
     /// - Developer UI: Flash indicator to draw attention
     /// - Monitoring: Track event system health
     WatchdogIntervention {
-        /// Type of intervention: "decode" or "mixer"
+        /// Type of intervention ("decode" or "mixer")
         intervention_type: String,
         /// Total interventions since startup
         interventions_total: u64,
+        /// When intervention occurred
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 }
