@@ -69,12 +69,15 @@ impl AudioDerivedExtractor {
         }
     }
 
-    /// Extract features from audio samples
+    /// Extract features from audio samples (synchronous, runs on blocking pool)
+    ///
+    /// **[AIA-PERF-048]** Static method for spawn_blocking compatibility
     ///
     /// # Arguments
     /// * `samples` - Audio samples in f32 format (interleaved if stereo)
     /// * `sample_rate` - Sample rate in Hz
     /// * `num_channels` - Number of channels (1=mono, 2=stereo)
+    /// * `base_confidence` - Base confidence value to return
     ///
     /// # Returns
     /// Musical flavor characteristics extracted from audio
@@ -83,11 +86,11 @@ impl AudioDerivedExtractor {
     /// Returns error if:
     /// - No audio samples provided
     /// - Invalid parameters
-    fn extract_features(
-        &self,
+    fn extract_features_sync(
         samples: &[f32],
         sample_rate: u32,
         num_channels: u8,
+        base_confidence: f32,
     ) -> Result<FlavorExtraction, ExtractionError> {
         if samples.is_empty() {
             return Err(ExtractionError::Internal(
@@ -115,27 +118,27 @@ impl AudioDerivedExtractor {
         let mut characteristics = HashMap::new();
 
         // 1. Energy (RMS)
-        let energy = self.compute_rms_energy(&mono_samples);
+        let energy = Self::compute_rms_energy(&mono_samples);
         characteristics.insert("energy".to_string(), energy);
 
         // 2. Dynamic Range
-        let dynamic_range = self.compute_dynamic_range(&mono_samples);
+        let dynamic_range = Self::compute_dynamic_range(&mono_samples);
         characteristics.insert("dynamic_range".to_string(), dynamic_range);
 
         // 3. Zero-Crossing Rate (normalized)
-        let zcr = self.compute_zero_crossing_rate(&mono_samples);
+        let zcr = Self::compute_zero_crossing_rate(&mono_samples);
         characteristics.insert("zero_crossing_rate".to_string(), zcr);
 
         // 4. Spectral Centroid (requires FFT - simplified version)
-        let spectral_centroid = self.compute_spectral_centroid(&mono_samples, sample_rate);
+        let spectral_centroid = Self::compute_spectral_centroid(&mono_samples, sample_rate);
         characteristics.insert("spectral_centroid".to_string(), spectral_centroid);
 
         // 5. Spectral Flatness
-        let spectral_flatness = self.compute_spectral_flatness(&mono_samples);
+        let spectral_flatness = Self::compute_spectral_flatness(&mono_samples);
         characteristics.insert("spectral_flatness".to_string(), spectral_flatness);
 
         // 6. Peak Level
-        let peak_level = self.compute_peak_level(&mono_samples);
+        let peak_level = Self::compute_peak_level(&mono_samples);
         characteristics.insert("peak_level".to_string(), peak_level);
 
         debug!(
@@ -147,7 +150,7 @@ impl AudioDerivedExtractor {
 
         Ok(FlavorExtraction {
             characteristics,
-            confidence: self.base_confidence,
+            confidence: base_confidence,
             source: "AudioDerived".to_string(),
         })
     }
@@ -155,7 +158,7 @@ impl AudioDerivedExtractor {
     /// Compute RMS (Root Mean Square) energy
     ///
     /// Returns normalized energy level (0.0-1.0)
-    fn compute_rms_energy(&self, samples: &[f32]) -> f32 {
+    fn compute_rms_energy(samples: &[f32]) -> f32 {
         if samples.is_empty() {
             return 0.0;
         }
@@ -171,7 +174,7 @@ impl AudioDerivedExtractor {
     ///
     /// Returns normalized dynamic range (0.0-1.0)
     /// Based on difference between peak and RMS levels
-    fn compute_dynamic_range(&self, samples: &[f32]) -> f32 {
+    fn compute_dynamic_range(samples: &[f32]) -> f32 {
         if samples.is_empty() {
             return 0.0;
         }
@@ -194,7 +197,7 @@ impl AudioDerivedExtractor {
     ///
     /// Returns normalized ZCR (0.0-1.0)
     /// High ZCR indicates noisy/percussive content
-    fn compute_zero_crossing_rate(&self, samples: &[f32]) -> f32 {
+    fn compute_zero_crossing_rate(samples: &[f32]) -> f32 {
         if samples.len() < 2 {
             return 0.0;
         }
@@ -221,7 +224,7 @@ impl AudioDerivedExtractor {
     ///
     /// Note: This is a simplified version without full FFT.
     /// Uses high-frequency energy approximation.
-    fn compute_spectral_centroid(&self, samples: &[f32], _sample_rate: u32) -> f32 {
+    fn compute_spectral_centroid(samples: &[f32], _sample_rate: u32) -> f32 {
         if samples.is_empty() {
             return 0.0;
         }
@@ -254,7 +257,7 @@ impl AudioDerivedExtractor {
     /// 0.0 = tonal (harmonic), 1.0 = noise-like
     ///
     /// Note: Simplified version using statistical measures
-    fn compute_spectral_flatness(&self, samples: &[f32]) -> f32 {
+    fn compute_spectral_flatness(samples: &[f32]) -> f32 {
         if samples.is_empty() {
             return 0.0;
         }
@@ -288,7 +291,7 @@ impl AudioDerivedExtractor {
     /// Compute peak level
     ///
     /// Returns normalized peak level (0.0-1.0)
-    fn compute_peak_level(&self, samples: &[f32]) -> f32 {
+    fn compute_peak_level(samples: &[f32]) -> f32 {
         if samples.is_empty() {
             return 0.0;
         }
@@ -343,7 +346,15 @@ impl SourceExtractor for AudioDerivedExtractor {
             ));
         };
 
-        let flavor = self.extract_features(samples, sample_rate, num_channels)?;
+        // Extract features on blocking thread pool
+        // **[AIA-PERF-048]** CPU-intensive DSP analysis runs on blocking pool
+        let samples_clone = samples.clone();
+        let base_confidence = self.base_confidence;
+        let flavor = tokio::task::spawn_blocking(move || {
+            Self::extract_features_sync(&samples_clone, sample_rate, num_channels, base_confidence)
+        })
+        .await
+        .map_err(|e| ExtractionError::Internal(format!("Feature extraction task panicked: {}", e)))??;
 
         debug!(
             passage_id = %ctx.passage_id,
@@ -391,7 +402,7 @@ mod tests {
     fn test_compute_rms_energy_silence() {
         let extractor = AudioDerivedExtractor::new();
         let samples = vec![0.0f32; 1000];
-        let energy = extractor.compute_rms_energy(&samples);
+        let energy = AudioDerivedExtractor::compute_rms_energy(&samples);
         assert_eq!(energy, 0.0, "Silence should have zero energy");
     }
 
@@ -402,7 +413,7 @@ mod tests {
         let samples: Vec<f32> = (0..44100)
             .map(|i| (2.0 * std::f32::consts::PI * 440.0 * i as f32 / 44100.0).sin() * 0.5)
             .collect();
-        let energy = extractor.compute_rms_energy(&samples);
+        let energy = AudioDerivedExtractor::compute_rms_energy(&samples);
         assert!(energy > 0.5 && energy < 0.9, "Sine wave should have moderate energy");
     }
 
@@ -414,13 +425,13 @@ mod tests {
         let low_freq: Vec<f32> = (0..1000)
             .map(|i| (2.0 * std::f32::consts::PI * 10.0 * i as f32 / 1000.0).sin())
             .collect();
-        let low_zcr = extractor.compute_zero_crossing_rate(&low_freq);
+        let low_zcr = AudioDerivedExtractor::compute_zero_crossing_rate(&low_freq);
 
         // High-frequency signal (many crossings)
         let high_freq: Vec<f32> = (0..1000)
             .map(|i| (2.0 * std::f32::consts::PI * 100.0 * i as f32 / 1000.0).sin())
             .collect();
-        let high_zcr = extractor.compute_zero_crossing_rate(&high_freq);
+        let high_zcr = AudioDerivedExtractor::compute_zero_crossing_rate(&high_freq);
 
         assert!(high_zcr > low_zcr, "High frequency should have higher ZCR");
     }
@@ -430,7 +441,7 @@ mod tests {
         let extractor = AudioDerivedExtractor::new();
 
         let samples = vec![0.1, -0.5, 0.3, -0.8, 0.2];
-        let peak = extractor.compute_peak_level(&samples);
+        let peak = AudioDerivedExtractor::compute_peak_level(&samples);
         assert_eq!(peak, 0.8, "Peak should be 0.8");
     }
 
@@ -440,11 +451,11 @@ mod tests {
 
         // High dynamic range (quiet with peaks)
         let high_dynamic: Vec<f32> = vec![0.01, 0.01, 0.9, 0.01, 0.01];
-        let high_dr = extractor.compute_dynamic_range(&high_dynamic);
+        let high_dr = AudioDerivedExtractor::compute_dynamic_range(&high_dynamic);
 
         // Low dynamic range (consistent level)
         let low_dynamic: Vec<f32> = vec![0.5, 0.5, 0.5, 0.5, 0.5];
-        let low_dr = extractor.compute_dynamic_range(&low_dynamic);
+        let low_dr = AudioDerivedExtractor::compute_dynamic_range(&low_dynamic);
 
         assert!(high_dr > low_dr, "High dynamic range should be greater");
     }

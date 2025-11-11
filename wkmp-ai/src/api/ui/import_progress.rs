@@ -330,6 +330,94 @@ pub async fn import_progress_page() -> impl IntoResponse {
                 gap: 10px;
             }}
         }}
+
+        /* **[AIA-SEC-030]** AcoustID API Key Modal */
+        .modal {{
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+        }}
+        .modal-content {{
+            background-color: #2a2a2a;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid #4a9eff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }}
+        .modal-header {{
+            color: #4a9eff;
+            font-size: 22px;
+            margin-bottom: 15px;
+        }}
+        .modal-body {{
+            margin-bottom: 20px;
+        }}
+        .modal-error {{
+            background: #3a2a2a;
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid #5a3a3a;
+        }}
+        .modal-input {{
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }}
+        .modal-input:focus {{
+            outline: none;
+            border-color: #4a9eff;
+        }}
+        .modal-buttons {{
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }}
+        .modal-button {{
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }}
+        .modal-button-primary {{
+            background: #4a9eff;
+            color: #fff;
+        }}
+        .modal-button-primary:hover {{
+            background: #3a8eef;
+        }}
+        .modal-button-primary:disabled {{
+            background: #2a5a8f;
+            cursor: not-allowed;
+        }}
+        .modal-button-secondary {{
+            background: #3a3a3a;
+            color: #e0e0e0;
+        }}
+        .modal-button-secondary:hover {{
+            background: #4a4a4a;
+        }}
+        .modal-button-secondary:disabled {{
+            background: #2a2a2a;
+            cursor: not-allowed;
+        }}
     </style>
 </head>
 <body>
@@ -403,6 +491,41 @@ pub async fn import_progress_page() -> impl IntoResponse {
     </div>
 
     <p><a href="/">← Back to Home</a></p>
+
+    <!-- **[AIA-SEC-030]** AcoustID API Key Validation Modal -->
+    <div id="acoustid-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">AcoustID API Key Required</div>
+            <div class="modal-body">
+                <div class="modal-error" id="acoustid-error-message"></div>
+                <p>The import process requires a valid AcoustID API key for music identification. You can:</p>
+                <ol>
+                    <li><strong>Enter a valid API key</strong> - Get one free at <a href="https://acoustid.org/new-application" target="_blank" style="color: #4a9eff;">acoustid.org/new-application</a></li>
+                    <li><strong>Skip AcoustID</strong> - Continue import without fingerprint-based identification (reduced accuracy)</li>
+                </ol>
+                <input
+                    type="text"
+                    id="acoustid-api-key"
+                    class="modal-input"
+                    placeholder="Enter AcoustID API key..."
+                    onkeypress="if(event.key==='Enter') submitAcoustIDKey()"
+                />
+                <div class="modal-error" id="acoustid-modal-error" style="display: none;"></div>
+            </div>
+            <div class="modal-buttons">
+                <button
+                    id="acoustid-skip-btn"
+                    class="modal-button modal-button-secondary"
+                    onclick="skipAcoustID()"
+                >Skip AcoustID</button>
+                <button
+                    id="acoustid-submit-btn"
+                    class="modal-button modal-button-primary"
+                    onclick="submitAcoustIDKey()"
+                >Submit Key</button>
+            </div>
+        </div>
+    </div>
 
     <script src="/static/wkmp-sse.js"></script>
     <script src="/static/import-progress.js"></script>

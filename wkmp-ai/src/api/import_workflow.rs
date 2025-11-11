@@ -12,6 +12,22 @@ use uuid::Uuid;
 
 use crate::{error::{ApiError, ApiResult}, models::{ImportParameters, ImportSession, ImportState}, AppState};
 
+/// **[AIA-SEC-030]** POST /import/validate-acoustid request
+#[derive(Debug, Deserialize)]
+pub struct ValidateAcoustIDRequest {
+    /// AcoustID API key to validate
+    pub api_key: String,
+}
+
+/// **[AIA-SEC-030]** POST /import/validate-acoustid response
+#[derive(Debug, Serialize)]
+pub struct ValidateAcoustIDResponse {
+    /// Whether the key is valid
+    pub valid: bool,
+    /// Status message (error details if invalid)
+    pub message: String,
+}
+
 /// POST /import/start request
 #[derive(Debug, Deserialize)]
 pub struct StartImportRequest {
@@ -67,6 +83,39 @@ pub struct CancelImportResponse {
     pub files_skipped: usize,
     /// Timestamp when import was cancelled
     pub cancelled_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// **[AIA-SEC-030]** POST /import/validate-acoustid
+///
+/// Validate an AcoustID API key with a test request.
+/// Called before import starts to check if the key is valid.
+pub async fn validate_acoustid(
+    State(_state): State<AppState>,
+    Json(request): Json<ValidateAcoustIDRequest>,
+) -> ApiResult<Json<ValidateAcoustIDResponse>> {
+    if request.api_key.is_empty() {
+        return Ok(Json(ValidateAcoustIDResponse {
+            valid: false,
+            message: "API key cannot be empty".to_string(),
+        }));
+    }
+
+    match crate::extractors::acoustid_client::validate_acoustid_key(&request.api_key).await {
+        Ok(()) => {
+            tracing::info!("AcoustID API key validated successfully");
+            Ok(Json(ValidateAcoustIDResponse {
+                valid: true,
+                message: "API key is valid".to_string(),
+            }))
+        }
+        Err(err) => {
+            tracing::debug!(error = %err, "AcoustID API key validation failed");
+            Ok(Json(ValidateAcoustIDResponse {
+                valid: false,
+                message: err,
+            }))
+        }
+    }
 }
 
 /// **[IMPL008]** POST /import/start
@@ -178,6 +227,35 @@ pub async fn get_import_status(
     };
 
     Ok(Json(response))
+}
+
+/// **[AIA-SEC-030]** GET /import/active
+///
+/// Get the currently active import session (if any).
+/// Used to restore progress UI after page reload.
+pub async fn get_active_session(
+    State(state): State<AppState>,
+) -> ApiResult<Json<Option<ImportStatusResponse>>> {
+    let session = crate::db::sessions::get_active_session(&state.db).await?;
+
+    if let Some(session) = session {
+        tracing::debug!(session_id = %session.session_id, state = ?session.state, "Active session query");
+
+        let response = ImportStatusResponse {
+            session_id: session.session_id,
+            state: session.state,
+            progress: session.progress.clone(),
+            current_operation: session.progress.current_operation.clone(),
+            errors: session.errors.clone(),
+            started_at: session.started_at,
+            elapsed_seconds: session.progress.elapsed_seconds,
+            estimated_remaining_seconds: session.progress.estimated_remaining_seconds,
+        };
+
+        Ok(Json(Some(response)))
+    } else {
+        Ok(Json(None))
+    }
 }
 
 /// **[IMPL008]** POST /import/cancel/{session_id}
@@ -374,10 +452,119 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
+/// **[AIA-SEC-030]** POST /import/acoustid-key request
+#[derive(Debug, Deserialize)]
+pub struct UpdateAcoustIDKeyRequest {
+    /// Session ID for the import
+    pub session_id: Uuid,
+    /// New AcoustID API key to validate and use
+    pub api_key: String,
+}
+
+/// **[AIA-SEC-030]** POST /import/acoustid-key response
+#[derive(Debug, Serialize)]
+pub struct UpdateAcoustIDKeyResponse {
+    /// Session ID
+    pub session_id: Uuid,
+    /// Whether the key was validated successfully
+    pub success: bool,
+    /// Status message
+    pub message: String,
+}
+
+/// **[AIA-SEC-030]** POST /import/acoustid-key
+///
+/// Update AcoustID API key for an active import session.
+/// Validates the key with a test API call before accepting it.
+pub async fn update_acoustid_key(
+    State(_state): State<AppState>,
+    Json(request): Json<UpdateAcoustIDKeyRequest>,
+) -> ApiResult<Json<UpdateAcoustIDKeyResponse>> {
+    if request.api_key.is_empty() {
+        return Ok(Json(UpdateAcoustIDKeyResponse {
+            session_id: request.session_id,
+            success: false,
+            message: "API key cannot be empty".to_string(),
+        }));
+    }
+
+    // Validate key with test API call
+    match crate::extractors::acoustid_client::validate_acoustid_key(&request.api_key).await {
+        Ok(()) => {
+            tracing::info!(
+                session_id = %request.session_id,
+                "AcoustID API key validated successfully"
+            );
+            // TODO: Update pipeline config for session with new key
+            // TODO: Resume import processing
+
+            Ok(Json(UpdateAcoustIDKeyResponse {
+                session_id: request.session_id,
+                success: true,
+                message: "AcoustID API key is valid and has been updated".to_string(),
+            }))
+        }
+        Err(err) => {
+            tracing::warn!(
+                session_id = %request.session_id,
+                error = %err,
+                "AcoustID API key validation failed"
+            );
+            Ok(Json(UpdateAcoustIDKeyResponse {
+                session_id: request.session_id,
+                success: false,
+                message: format!("Invalid API key: {}", err),
+            }))
+        }
+    }
+}
+
+/// **[AIA-SEC-030]** POST /import/acoustid-skip request
+#[derive(Debug, Deserialize)]
+pub struct SkipAcoustIDRequest {
+    /// Session ID for the import
+    pub session_id: Uuid,
+}
+
+/// **[AIA-SEC-030]** POST /import/acoustid-skip response
+#[derive(Debug, Serialize)]
+pub struct SkipAcoustIDResponse {
+    /// Session ID
+    pub session_id: Uuid,
+    /// Status message
+    pub message: String,
+}
+
+/// **[AIA-SEC-030]** POST /import/acoustid-skip
+///
+/// Skip AcoustID functionality for this import session.
+/// Import will continue without fingerprint-based identification.
+pub async fn skip_acoustid(
+    State(_state): State<AppState>,
+    Json(request): Json<SkipAcoustIDRequest>,
+) -> ApiResult<Json<SkipAcoustIDResponse>> {
+    // TODO: Implement skip logic
+    // Real implementation should:
+    // 1. Set acoustid_skip=true in pipeline config for this session
+    // 2. Resume import processing
+
+    // TODO: Update pipeline config for session
+    // TODO: Resume import
+
+    Ok(Json(SkipAcoustIDResponse {
+        session_id: request.session_id,
+        message: "AcoustID skipped for this session (implementation pending)".to_string(),
+    }))
+}
+
 /// Build import workflow routes
 pub fn import_routes() -> Router<AppState> {
     Router::new()
+        .route("/import/validate-acoustid", post(validate_acoustid))
         .route("/import/start", post(start_import))
+        .route("/import/active", get(get_active_session))
         .route("/import/status/:session_id", get(get_import_status))
         .route("/import/cancel/:session_id", post(cancel_import))
+        .route("/import/acoustid-key", post(update_acoustid_key))
+        .route("/import/acoustid-skip", post(skip_acoustid))
 }

@@ -147,6 +147,80 @@ pub async fn has_running_session(pool: &SqlitePool) -> Result<bool> {
     Ok(count > 0)
 }
 
+/// **[AIA-SEC-030]** Get the currently active import session (if any)
+///
+/// Returns the most recently started session that is not in a terminal state.
+/// Used to restore progress UI after page reload.
+pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSession>> {
+    let row = sqlx::query(
+        r#"
+        SELECT session_id, state, root_folder, parameters,
+               progress_current, progress_total, progress_percentage,
+               current_operation, errors, started_at, ended_at
+        FROM import_sessions
+        WHERE state NOT IN ('"COMPLETED"', '"CANCELLED"', '"FAILED"')
+        ORDER BY started_at DESC
+        LIMIT 1
+        "#,
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    match row {
+        Some(row) => {
+            let session_id_str: String = row.get("session_id");
+            let session_id = Uuid::parse_str(&session_id_str)?;
+
+            let state: String = row.get("state");
+            let state: ImportState = serde_json::from_str(&state)?;
+
+            let parameters: String = row.get("parameters");
+            let parameters: ImportParameters = serde_json::from_str(&parameters)?;
+
+            let errors: String = row.get("errors");
+            let errors: Vec<ImportError> = serde_json::from_str(&errors)?;
+
+            let started_at: String = row.get("started_at");
+            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)?
+                .with_timezone(&chrono::Utc);
+
+            let ended_at: Option<String> = row.get("ended_at");
+            let ended_at = ended_at
+                .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
+                .transpose()?
+                .map(|dt| dt.with_timezone(&chrono::Utc));
+
+            let progress = ImportProgress {
+                current: row.get::<i64, _>("progress_current") as usize,
+                total: row.get::<i64, _>("progress_total") as usize,
+                percentage: row.get("progress_percentage"),
+                current_operation: row.get("current_operation"),
+                elapsed_seconds: if let Some(end) = ended_at {
+                    (end - started_at).num_seconds() as u64
+                } else {
+                    (chrono::Utc::now() - started_at).num_seconds() as u64
+                },
+                estimated_remaining_seconds: None, // Recalculated on demand
+                // **[REQ-AIA-UI-001, REQ-AIA-UI-004]** Phase tracking not persisted to DB (runtime only)
+                phases: Vec::new(),
+                current_file: None,
+            };
+
+            Ok(Some(ImportSession {
+                session_id,
+                state,
+                root_folder: row.get("root_folder"),
+                parameters,
+                progress,
+                errors,
+                started_at,
+                ended_at,
+            }))
+        }
+        None => Ok(None),
+    }
+}
+
 /// Cleanup stale import sessions on startup
 ///
 /// **[AIA-INIT-010]** Any session not in a terminal state when wkmp-ai starts

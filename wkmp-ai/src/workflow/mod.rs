@@ -41,6 +41,22 @@ pub struct PassageBoundary {
     pub confidence: f64,
 }
 
+/// Decoded audio file with detected passage boundaries
+///
+/// **[AIA-PERF-046]** Cache decoded audio to avoid re-decoding for each passage.
+/// Boundary detection decodes entire file; this struct allows passages to reuse that audio.
+#[derive(Debug, Clone)]
+pub struct FileAudioData {
+    /// Detected passage boundaries
+    pub boundaries: Vec<PassageBoundary>,
+    /// Decoded audio samples (interleaved if stereo, mono if 1 channel)
+    pub samples: Vec<f32>,
+    /// Sample rate in Hz
+    pub sample_rate: u32,
+    /// Number of channels (1=mono, 2=stereo)
+    pub num_channels: u8,
+}
+
 /// SPEC017 tick rate constant
 pub const TICK_RATE: i64 = 28_224_000;
 
@@ -150,5 +166,16 @@ pub enum WorkflowEvent {
         passage_index: Option<usize>,
         /// Error message
         message: String,
+    },
+
+    /// **[AIA-SEC-030]** AcoustID API key invalid - user prompt required
+    ///
+    /// Emitted when AcoustID returns 400 error with "invalid API key".
+    /// UI should prompt user to either:
+    /// 1. Provide valid API key (will be validated before resuming)
+    /// 2. Skip AcoustID functionality for this session
+    AcoustIDKeyInvalid {
+        /// Error message from AcoustID API
+        error_message: String,
     },
 }

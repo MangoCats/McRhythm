@@ -12,19 +12,19 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ImportState {
-    /// Directory traversal, file discovery
+    /// Phase 1A: Directory traversal, finding audio files
     Scanning,
-    /// PLAN024: 3-tier pipeline processing (extraction + fusion + validation)
-    Processing,
-    /// Legacy: Metadata extraction, hash calculation
+    /// Phase 1B: Hash calculation and basic metadata extraction
     Extracting,
-    /// Legacy: Chromaprint → AcoustID → MusicBrainz
-    Fingerprinting,
-    /// Legacy: Silence detection, passage boundaries
+    /// Phase 2A: Detecting silence and passage boundaries per file
     Segmenting,
-    /// Legacy: Amplitude analysis, lead-in/lead-out
+    /// Phase 2B: Fingerprinting passages (Chromaprint → AcoustID)
+    Fingerprinting,
+    /// Phase 2C: Identifying music (MusicBrainz metadata resolution)
+    Identifying,
+    /// Phase 2D: Analyzing amplitude for crossfade timing
     Analyzing,
-    /// Legacy: AcousticBrainz or Essentia musical flavor
+    /// Phase 2E: Extracting musical characteristics (Essentia/AcousticBrainz)
     Flavoring,
     /// Import finished successfully
     Completed,
@@ -32,19 +32,24 @@ pub enum ImportState {
     Cancelled,
     /// Import failed with critical error
     Failed,
+
+    /// Legacy: Coarse-grained processing state (deprecated, use specific states)
+    #[serde(rename = "PROCESSING")]
+    Processing,
 }
 
 impl ImportState {
     /// **[REQ-AIA-UI-001]** Get brief description of what this phase does (8 words max)
     pub fn description(&self) -> &'static str {
         match self {
-            ImportState::Scanning => "Finding audio files in folders",
-            ImportState::Processing => "Processing passages through hybrid fusion pipeline",
-            ImportState::Extracting => "Reading ID3 tags and metadata",
-            ImportState::Fingerprinting => "Generating audio fingerprints for identification",
+            ImportState::Scanning => "Finding audio files in directories",
+            ImportState::Extracting => "Calculating hashes and extracting basic metadata",
             ImportState::Segmenting => "Detecting silence and passage boundaries",
+            ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",
+            ImportState::Identifying => "Resolving music identity via MusicBrainz",
             ImportState::Analyzing => "Analyzing amplitude for crossfade timing",
             ImportState::Flavoring => "Extracting musical characteristics via Essentia",
+            ImportState::Processing => "Processing passages through hybrid fusion pipeline",
             ImportState::Completed => "Import completed successfully",
             ImportState::Cancelled => "Import cancelled by user",
             ImportState::Failed => "Import failed with errors",
@@ -198,11 +203,12 @@ impl PhaseProgress {
 
         Some(match self.phase {
             ImportState::Scanning => format!("{} files found", self.progress_total),
-            ImportState::Extracting => format!("{}/{} processed", self.progress_current, self.progress_total),
+            ImportState::Extracting => format!("{}/{} extracted", self.progress_current, self.progress_total),
+            ImportState::Segmenting => format!("{} passages detected", self.progress_total),
             ImportState::Fingerprinting => format!("{}/{} fingerprinted", self.progress_current, self.progress_total),
-            ImportState::Segmenting => format!("{}/{} segmented", self.progress_current, self.progress_total),
+            ImportState::Identifying => format!("{}/{} identified", self.progress_current, self.progress_total),
             ImportState::Analyzing => format!("{}/{} analyzed", self.progress_current, self.progress_total),
-            ImportState::Flavoring => format!("{}/{} flavored", self.progress_current, self.progress_total),
+            ImportState::Flavoring => format!("{}/{} characterized", self.progress_current, self.progress_total),
             _ => format!("{}/{} processed", self.progress_current, self.progress_total),
         })
     }
@@ -361,13 +367,14 @@ impl Default for ImportProgress {
 }
 
 impl ImportProgress {
-    /// **[REQ-AIA-UI-001]** Initialize phase tracking for all 6 workflow phases
+    /// **[REQ-AIA-UI-001]** Initialize phase tracking for all 7 workflow phases
     pub fn initialize_phases(&mut self) {
         self.phases = vec![
             PhaseProgress::new(ImportState::Scanning),
             PhaseProgress::new(ImportState::Extracting),
-            PhaseProgress::new(ImportState::Fingerprinting),
             PhaseProgress::new(ImportState::Segmenting),
+            PhaseProgress::new(ImportState::Fingerprinting),
+            PhaseProgress::new(ImportState::Identifying),
             PhaseProgress::new(ImportState::Analyzing),
             PhaseProgress::new(ImportState::Flavoring),
         ];

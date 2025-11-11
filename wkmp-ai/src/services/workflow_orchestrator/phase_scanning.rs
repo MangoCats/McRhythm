@@ -31,35 +31,19 @@ impl WorkflowOrchestrator {
         tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING");
 
         // Scan with progress updates during file discovery
-        let db = self.db.clone();
-        let session_id = session.session_id.clone();
+        // We need to collect file counts and update session after scan completes
+        // because the callback runs synchronously during directory traversal
         let scan_result = self
             .file_scanner
             .scan_with_stats_and_progress(
                 Path::new(&session.root_folder),
                 |file_count| {
-                    // Update progress during file discovery (0/0 → N/0 → N/N)
-                    let mut session_update = session.clone();
-                    session_update.update_progress(
-                        0,
-                        0,
-                        format!("Discovering audio files... ({} found)", file_count),
+                    // Just log progress during scan - we'll update session state after
+                    tracing::debug!(
+                        session_id = %session.session_id,
+                        files_found = file_count,
+                        "File discovery progress"
                     );
-
-                    // Save and broadcast progress asynchronously
-                    let db_clone = db.clone();
-                    let session_clone = session_update.clone();
-                    let start_time_clone = start_time;
-                    tokio::spawn(async move {
-                        if let Err(e) = crate::db::sessions::save_session(&db_clone, &session_clone).await {
-                            tracing::warn!(
-                                session_id = %session_id,
-                                error = %e,
-                                "Failed to save session during file discovery"
-                            );
-                        }
-                        // Note: Can't call broadcast_progress here as it requires &self
-                    });
                 },
             )?;
 
@@ -70,13 +54,30 @@ impl WorkflowOrchestrator {
             "File scan completed"
         );
 
+        // Update progress with final scan count
+        let files_found = scan_result.files.len();
         session.update_progress(
-            0,
-            scan_result.files.len(),
-            format!("Found {} audio files, saving to database...", scan_result.files.len()),
+            files_found,
+            files_found,
+            format!("{} audio files found", files_found),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
+
+        // Transition to EXTRACTING phase
+        session.transition_to(ImportState::Extracting);
+        session.update_progress(
+            0,
+            scan_result.files.len(),
+            format!("Extracting metadata from {} audio files...", scan_result.files.len()),
+        );
+        crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
+
+        tracing::info!(
+            session_id = %session.session_id,
+            "Phase 1B: EXTRACTING - Hash calculation and metadata extraction"
+        );
 
         // **[AIA-PERF-040]** Parallel file processing with batch database writes
         let total_files = scan_result.files.len();
@@ -93,8 +94,18 @@ impl WorkflowOrchestrator {
         let session_id = session.session_id.clone();
 
         // Process files in parallel batches
-        const BATCH_SIZE: usize = 25;
+        // **[AIA-PERF-041]** Increased batch size for better CPU utilization
+        // Larger batches keep more CPU cores busy during hash calculation and metadata extraction
+        let cpu_count = num_cpus::get();
+        const BATCH_SIZE: usize = 100;  // Increased from 25 to keep more cores busy
         const PROGRESS_UPDATE_INTERVAL: usize = 1;
+
+        tracing::info!(
+            session_id = %session.session_id,
+            cpu_count,
+            batch_size = BATCH_SIZE,
+            "Starting parallel extraction with optimized batch size"
+        );
 
         let mut all_new_files = Vec::new();
 
@@ -190,31 +201,50 @@ impl WorkflowOrchestrator {
             // Filter out None results and collect valid files
             let batch_files: Vec<_> = batch_results.into_iter().flatten().collect();
 
-            // Check for duplicates against database (sequential, but batched)
-            let mut new_files = Vec::new();
-            for audio_file in batch_files {
-                // Check if file exists and is unchanged
-                if let Ok(Some(existing)) = crate::db::files::load_file_by_path(&self.db, &audio_file.path).await {
-                    if existing.modification_time == audio_file.modification_time {
-                        // File unchanged - skip
-                        skipped_count.fetch_add(1, Ordering::SeqCst);
-                        continue;
+            // **[AIA-PERF-042]** Parallel database duplicate checking
+            // Process duplicate checks concurrently (I/O-bound database queries)
+            use futures::stream::{self, StreamExt};
+
+            let db_pool = self.db.clone();
+            let duplicate_checks = stream::iter(batch_files)
+                .map(|audio_file| {
+                    let db = db_pool.clone();
+                    let session_id_clone = session.session_id.clone();
+                    async move {
+                        // Check if file exists and is unchanged
+                        if let Ok(Some(existing)) = crate::db::files::load_file_by_path(&db, &audio_file.path).await {
+                            if existing.modification_time == audio_file.modification_time {
+                                // File unchanged - skip
+                                return (audio_file, false, true); // (file, is_new, is_unchanged)
+                            }
+                        }
+
+                        // Check for duplicate by hash
+                        if let Ok(Some(existing)) = crate::db::files::load_file_by_hash(&db, &audio_file.hash).await {
+                            tracing::debug!(
+                                session_id = %session_id_clone,
+                                new_path = %audio_file.path,
+                                existing_path = %existing.path,
+                                "Duplicate file detected (different path, same hash)"
+                            );
+                            return (audio_file, false, false); // (file, is_new, is_unchanged)
+                        }
+
+                        (audio_file, true, false) // (file, is_new, is_unchanged)
                     }
-                }
+                })
+                .buffer_unordered(cpu_count * 2) // 2x CPU count for I/O-bound operations
+                .collect::<Vec<_>>()
+                .await;
 
-                // Check for duplicate by hash
-                if let Ok(Some(existing)) = crate::db::files::load_file_by_hash(&self.db, &audio_file.hash).await {
-                    tracing::debug!(
-                        session_id = %session.session_id,
-                        new_path = %audio_file.path,
-                        existing_path = %existing.path,
-                        "Duplicate file detected (different path, same hash)"
-                    );
+            // Separate new files from skipped
+            let mut new_files = Vec::new();
+            for (file, is_new, is_unchanged) in duplicate_checks {
+                if is_unchanged || !is_new {
                     skipped_count.fetch_add(1, Ordering::SeqCst);
-                    continue;
+                } else {
+                    new_files.push(file);
                 }
-
-                new_files.push(audio_file);
             }
 
             // Batch save to database

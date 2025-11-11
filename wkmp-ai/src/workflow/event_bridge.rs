@@ -18,7 +18,7 @@
 use super::{WorkflowEvent, TICK_RATE};
 use chrono::Utc;
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 use wkmp_common::events::WkmpEvent;
 
@@ -286,6 +286,29 @@ pub async fn bridge_workflow_events(
                         "Error{}: {}",
                         passage_index.map(|i| format!(" in passage {}", i + 1)).unwrap_or_default(),
                         message
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: None,
+                    timestamp: Utc::now(),
+                })
+            }
+
+            // **[AIA-SEC-030]** AcoustID API key invalid - prompt user
+            WorkflowEvent::AcoustIDKeyInvalid { error_message } => {
+                warn!("Bridge: AcoustID API key invalid: {}", error_message);
+                // TODO: Emit a special event type for UI to prompt user
+                // For now, emit as error so user sees it in the UI
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "PAUSED".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: (processed_passages as f32 / total_passages.max(1) as f32) * 100.0,
+                    current_operation: format!(
+                        "AcoustID API key invalid. Please provide a valid key or skip AcoustID. Error: {}",
+                        error_message
                     ),
                     elapsed_seconds: start_time.elapsed().as_secs(),
                     estimated_remaining_seconds: None,

@@ -105,6 +105,85 @@ impl AcoustIDClient {
         self
     }
 
+    /// **[AIA-SEC-030]** Validate AcoustID API key with a test request
+    ///
+    /// Makes a minimal API call to check if the key is valid.
+    /// Returns Ok(()) if valid, Err if invalid or network error.
+    ///
+    /// **Strategy:** Send a request with intentionally invalid fingerprint.
+    /// - If API key is invalid: AcoustID returns error code 5 or 6
+    /// - If API key is valid: AcoustID returns error code 3 (invalid fingerprint)
+    /// We consider error code 3 as SUCCESS because it proves the API key was accepted.
+    pub async fn validate_api_key(&self) -> Result<(), ExtractionError> {
+        debug!("Validating AcoustID API key");
+
+        // Make a test request with intentionally invalid fingerprint
+        // Valid API key → Error 3 (invalid fingerprint) = API key accepted
+        // Invalid API key → Error 5 (invalid API key) or Error 6 (invalid format)
+        let response = self
+            .http_client
+            .post(ACOUSTID_API_URL)
+            .form(&[
+                ("client", self.api_key.as_str()),
+                ("duration", "1"),
+                ("fingerprint", "INVALID"), // Intentionally invalid to test API key
+            ])
+            .send()
+            .await
+            .map_err(|e| ExtractionError::Network(format!("API key validation request failed: {}", e)))?;
+
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+
+        // Parse JSON response
+        let json_response: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| ExtractionError::Api(format!("Failed to parse AcoustID response: {}", e)))?;
+
+        // Check error code
+        if let Some(error_code) = json_response.get("error").and_then(|e| e.get("code")).and_then(|c| c.as_i64()) {
+            match error_code {
+                3 => {
+                    // Error 3 = "invalid fingerprint"
+                    // This means the API key was ACCEPTED (validated before fingerprint check)
+                    debug!("AcoustID API key is valid (error code 3 = fingerprint rejected, key accepted)");
+                    return Ok(());
+                }
+                5 => {
+                    // Error 5 = "invalid API key"
+                    return Err(ExtractionError::Api(
+                        "AcoustID API key is invalid (error code 5)".to_string()
+                    ));
+                }
+                6 => {
+                    // Error 6 = "invalid format" (could be API key format issue)
+                    return Err(ExtractionError::Api(
+                        "AcoustID API key has invalid format (error code 6)".to_string()
+                    ));
+                }
+                _ => {
+                    // Other error codes - treat as validation failure
+                    return Err(ExtractionError::Api(format!(
+                        "AcoustID validation failed with error code {}: {}",
+                        error_code,
+                        json_response.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str()).unwrap_or("unknown error")
+                    )));
+                }
+            }
+        }
+
+        // No error in response - should not happen with invalid fingerprint, but accept it
+        if status.is_success() {
+            debug!("AcoustID API key is valid (success response)");
+            return Ok(());
+        }
+
+        // Unexpected response format
+        Err(ExtractionError::Api(format!(
+            "Unexpected AcoustID response (status {}): {}",
+            status, body
+        )))
+    }
+
     /// Query AcoustID API with fingerprint
     ///
     /// # Arguments
@@ -350,6 +429,30 @@ struct AcoustIDError {
 // ============================================================================
 // Utility Functions
 // ============================================================================
+
+/// **[AIA-SEC-030]** Check if error is "invalid API key" from AcoustID
+///
+/// Used to detect when user needs to be prompted for valid API key.
+pub fn is_invalid_api_key_error(error: &ExtractionError) -> bool {
+    match error {
+        ExtractionError::Api(msg) => {
+            msg.contains("400 Bad Request") && msg.contains("invalid API key")
+        }
+        _ => false,
+    }
+}
+
+/// **[AIA-SEC-030]** Validate an AcoustID API key with a test request
+///
+/// Makes a minimal API call to check if the key is valid.
+/// Returns Ok(()) if valid, Err with description if invalid.
+pub async fn validate_acoustid_key(api_key: &str) -> Result<(), String> {
+    let client = AcoustIDClient::new(api_key.to_string());
+    match client.validate_api_key().await {
+        Ok(()) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
 
 /// Map AcoustID score to confidence value
 ///

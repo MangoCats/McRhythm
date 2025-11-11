@@ -28,6 +28,7 @@ use crate::services::{
 };
 use anyhow::Result;
 use chrono::Utc;
+use futures::stream::{FuturesUnordered, StreamExt};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -40,6 +41,22 @@ mod phase_fingerprinting;
 mod phase_segmenting;
 mod phase_analyzing;
 mod phase_flavoring;
+
+/// Command for state transitions (event task → main task communication)
+#[derive(Debug, Clone)]
+enum StateCommand {
+    /// Transition to new import state
+    TransitionTo(ImportState),
+    /// Update passage-level progress
+    UpdatePassageProgress {
+        total_passages: usize,
+        processed: usize,
+        high_conf: usize,
+        medium_conf: usize,
+        low_conf: usize,
+        unidentified: usize,
+    },
+}
 
 /// Segment boundary (for PLAN025 pipeline)
 ///
@@ -408,38 +425,133 @@ impl WorkflowOrchestrator {
         // Create event channel for pipeline SSE broadcasting
         let (event_tx, mut event_rx) = mpsc::channel(100);
 
+        // Create command channel for state transitions (event task → main task)
+        let (state_tx, mut state_rx) = mpsc::channel::<StateCommand>(10);
+
         // Configure PLAN024 pipeline
         let pipeline_config = PipelineConfig {
             acoustid_api_key: acoustid_api_key.clone(),
+            acoustid_skip: false, // **[AIA-SEC-030]** Start with AcoustID enabled
             enable_musicbrainz: true,
             enable_essentia: self.essentia_client.is_some(),
             enable_audio_derived: true,
             min_quality_threshold: 0.5, // Default minimum quality
         };
 
-        let pipeline = Pipeline::with_events(pipeline_config, event_tx);
+        let pipeline = Arc::new(Pipeline::with_events(pipeline_config, event_tx));
 
-        // Spawn task to bridge pipeline events to EventBus (SSE)
+        // Spawn task to bridge pipeline events to EventBus (SSE) and track progress
         let _event_bus = self.event_bus.clone();
         let session_id = session.session_id;
         tokio::spawn(async move {
             use crate::workflow::WorkflowEvent;
 
+            // Track which phases have started (to avoid duplicate transitions)
+            let mut segmenting_started = false;
+            let mut fingerprinting_started = false;
+            let mut identifying_started = false;
+            let mut analyzing_started = false;
+            let mut flavoring_started = false;
+
+            // Passage counters
+            let mut total_passages_detected = 0;
+            let mut passages_processed = 0;
+
+            // Confidence breakdown
+            let mut high_confidence = 0;    // quality_score > 0.8
+            let mut medium_confidence = 0;  // 0.5 < quality_score ≤ 0.8
+            let mut low_confidence = 0;     // 0.2 < quality_score ≤ 0.5
+            let mut unidentified = 0;       // quality_score ≤ 0.2
+
             while let Some(event) = event_rx.recv().await {
-                // Convert workflow events to WkmpEvent for SSE broadcasting
                 match event {
-                    WorkflowEvent::FileStarted { file_path, timestamp: _ } => {
-                        tracing::debug!(session_id = %session_id, file = %file_path, "File processing started");
+                    // Transition to SEGMENTING on first boundary detection
+                    WorkflowEvent::BoundaryDetected { .. } => {
+                        total_passages_detected += 1;
+
+                        if !segmenting_started {
+                            segmenting_started = true;
+                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Segmenting)).await {
+                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Segmenting state transition");
+                            }
+                            tracing::info!(session_id = %session_id, "Phase 2A: SEGMENTING - Boundary detection started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:463");
+                        }
                     }
+
+                    // Transition to FINGERPRINTING/IDENTIFYING based on extractor
+                    WorkflowEvent::ExtractionProgress { extractor, .. } => {
+                        if extractor == "chromaprint" && !fingerprinting_started {
+                            fingerprinting_started = true;
+                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Fingerprinting)).await {
+                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Fingerprinting state transition");
+                            }
+                            tracing::info!(session_id = %session_id, "Phase 2B: FINGERPRINTING - Chromaprint extraction started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:474");
+                        }
+                        if extractor == "acoustid" && !identifying_started {
+                            identifying_started = true;
+                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Identifying)).await {
+                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Identifying state transition");
+                            }
+                            tracing::info!(session_id = %session_id, "Phase 2C: IDENTIFYING - MusicBrainz resolution started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:481");
+                        }
+                        if extractor == "audio_derived" && !analyzing_started {
+                            analyzing_started = true;
+                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Analyzing)).await {
+                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Analyzing state transition");
+                            }
+                            tracing::info!(session_id = %session_id, "Phase 2D: ANALYZING - Amplitude analysis started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:488");
+                        }
+                        if extractor == "essentia" && !flavoring_started {
+                            flavoring_started = true;
+                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Flavoring)).await {
+                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Flavoring state transition");
+                            }
+                            tracing::info!(session_id = %session_id, "Phase 2E: FLAVORING - Musical characteristics extraction started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:495");
+                        }
+                    }
+
+                    // Track passage completion and confidence
                     WorkflowEvent::PassageCompleted { passage_index, quality_score, validation_status } => {
+                        passages_processed += 1;
+
+                        // Classify by confidence level
+                        if quality_score > 0.8 {
+                            high_confidence += 1;
+                        } else if quality_score > 0.5 {
+                            medium_confidence += 1;
+                        } else if quality_score > 0.2 {
+                            low_confidence += 1;
+                        } else {
+                            unidentified += 1;
+                        }
+
+                        // Send progress update command
+                        if let Err(e) = state_tx.send(StateCommand::UpdatePassageProgress {
+                            total_passages: total_passages_detected,
+                            processed: passages_processed,
+                            high_conf: high_confidence,
+                            medium_conf: medium_confidence,
+                            low_conf: low_confidence,
+                            unidentified: unidentified,
+                        }).await {
+                            tracing::warn!(session_id = %session_id, error = %e, "Failed to send passage progress update");
+                        }
+
                         tracing::debug!(
                             session_id = %session_id,
                             passage_index,
                             quality_score,
                             validation_status,
+                            total_passages = total_passages_detected,
+                            processed = passages_processed,
                             "Passage completed"
                         );
                     }
+
+                    WorkflowEvent::FileStarted { file_path, timestamp: _ } => {
+                        tracing::debug!(session_id = %session_id, file = %file_path, "File processing started");
+                    }
+
                     WorkflowEvent::FileCompleted { file_path, passages_processed, timestamp: _ } => {
                         tracing::info!(
                             session_id = %session_id,
@@ -448,6 +560,7 @@ impl WorkflowOrchestrator {
                             "File processing completed"
                         );
                     }
+
                     WorkflowEvent::Error { passage_index, message } => {
                         tracing::warn!(
                             session_id = %session_id,
@@ -456,8 +569,22 @@ impl WorkflowOrchestrator {
                             "Pipeline error"
                         );
                     }
+
+                    // **[AIA-SEC-030]** Handle invalid AcoustID API key
+                    WorkflowEvent::AcoustIDKeyInvalid { error_message } => {
+                        tracing::warn!(
+                            session_id = %session_id,
+                            error = %error_message,
+                            "AcoustID API key invalid - user prompt required"
+                        );
+                        // Event will be forwarded to UI via SSE for user prompting
+                        // UI should display prompt with two options:
+                        // 1. Enter valid API key (validate before resuming)
+                        // 2. Skip AcoustID functionality for this session
+                    }
+
                     _ => {
-                        // Other events (BoundaryDetected, ExtractionProgress, etc.)
+                        // Other events
                         tracing::trace!(session_id = %session_id, event = ?event, "Pipeline event");
                     }
                 }
@@ -485,7 +612,162 @@ impl WorkflowOrchestrator {
         let mut files_processed = 0;
         let import_session_id = session.session_id.to_string();
 
-        for file in &files {
+        // Track passage progress across all files
+        let mut total_passages_tracked = 0;
+        let mut passages_processed_tracked = 0;
+        let mut high_conf_tracked = 0;
+        let mut medium_conf_tracked = 0;
+        let mut low_conf_tracked = 0;
+        let mut unidentified_tracked = 0;
+
+        // Track when segmenting phase starts for accurate ETA calculation
+        let mut segmenting_start_time: Option<std::time::Instant> = None;
+        let mut files_at_segmenting_start = 0;
+
+        // **[ARCH-PARALLEL-010]** Process files in parallel (N files in flight simultaneously)
+        // **[AIA-PERF-043]** Parallelism set to CPU count for boundary detection bottleneck
+        // Boundary detection is CPU-bound and first phase - excessive parallelism causes thread contention
+        // Low CPU observed with high parallelism (42 tasks, 5% CPU) suggests tasks blocking on sync operations
+        let cpu_count = num_cpus::get();
+        let parallelism_level = cpu_count.clamp(4, 16); // 1x CPU count, min 4, max 16
+        tracing::info!(
+            session_id = %session.session_id,
+            cpu_count,
+            parallelism_level,
+            "Starting parallel file processing (parallelism = CPU count for boundary detection)"
+        );
+
+        // **[AIA-PERF-044]** Create interval for periodic progress broadcasts
+        // This ensures smooth UI updates even when files take time to complete
+        let mut broadcast_interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+        broadcast_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+        // Helper function to spawn file processing task
+        let spawn_file_task = |idx: usize, file_path_str: String, root_folder: String, pipeline_ref: Arc<Pipeline>| {
+            let absolute_path = std::path::PathBuf::from(&root_folder).join(&file_path_str);
+            async move {
+                let result = pipeline_ref.process_file(&absolute_path).await;
+                (idx, file_path_str, result)
+            }
+        };
+
+        // Create iterator over files with their indices
+        let mut file_iter = files.iter().enumerate();
+        let mut tasks = FuturesUnordered::new();
+
+        // Seed initial batch of tasks
+        for _ in 0..parallelism_level {
+            if let Some((idx, file)) = file_iter.next() {
+                let task = spawn_file_task(idx, file.path.clone(), session.root_folder.clone(), Arc::clone(&pipeline));
+                tasks.push(task);
+            }
+        }
+
+        // Process completed tasks and spawn new ones, with periodic progress broadcasts
+        loop {
+            tokio::select! {
+                // Handle file completion
+                Some((_file_idx, file_path_str, pipeline_result)) = tasks.next() => {
+                    // Process any pending state commands from event task
+                    while let Ok(command) = state_rx.try_recv() {
+                match command {
+                    StateCommand::TransitionTo(new_state) => {
+                        // Capture start time when entering Segmenting phase
+                        if new_state == ImportState::Segmenting && segmenting_start_time.is_none() {
+                            segmenting_start_time = Some(std::time::Instant::now());
+                            files_at_segmenting_start = files_processed;
+                        }
+
+                        session.transition_to(new_state);
+                        crate::db::sessions::save_session(&self.db, &session).await?;
+                        self.broadcast_progress(&session, start_time);
+                    }
+                    StateCommand::UpdatePassageProgress {
+                        total_passages,
+                        processed,
+                        high_conf,
+                        medium_conf,
+                        low_conf,
+                        unidentified,
+                    } => {
+                        // Update tracked values
+                        total_passages_tracked = total_passages;
+                        passages_processed_tracked = processed;
+                        high_conf_tracked = high_conf;
+                        medium_conf_tracked = medium_conf;
+                        low_conf_tracked = low_conf;
+                        unidentified_tracked = unidentified;
+
+                        use crate::models::import_session::SubTaskStatus;
+
+                        // Update SEGMENTING phase progress
+                        if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+                            segmenting_phase.progress_current = total_passages;
+                            segmenting_phase.progress_total = total_passages;
+                            segmenting_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                        }
+
+                        // Update FINGERPRINTING phase progress
+                        if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+                            fingerprinting_phase.progress_current = processed;
+                            fingerprinting_phase.progress_total = total_passages;
+                            fingerprinting_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                        }
+
+                        // Update IDENTIFYING phase progress with confidence breakdown
+                        if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+                            identifying_phase.progress_current = processed;
+                            identifying_phase.progress_total = total_passages;
+                            identifying_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                            identifying_phase.subtasks = vec![
+                                SubTaskStatus {
+                                    name: "High Confidence".into(),
+                                    success_count: high_conf,
+                                    failure_count: 0,
+                                    skip_count: 0,
+                                },
+                                SubTaskStatus {
+                                    name: "Medium Confidence".into(),
+                                    success_count: medium_conf,
+                                    failure_count: 0,
+                                    skip_count: 0,
+                                },
+                                SubTaskStatus {
+                                    name: "Low Confidence".into(),
+                                    success_count: low_conf,
+                                    failure_count: 0,
+                                    skip_count: 0,
+                                },
+                                SubTaskStatus {
+                                    name: "Unidentified".into(),
+                                    success_count: unidentified,
+                                    failure_count: 0,
+                                    skip_count: 0,
+                                },
+                            ];
+                        }
+
+                        // Update ANALYZING phase progress
+                        if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+                            analyzing_phase.progress_current = processed;
+                            analyzing_phase.progress_total = total_passages;
+                            analyzing_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                        }
+
+                        // Update FLAVORING phase progress
+                        if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+                            flavoring_phase.progress_current = processed;
+                            flavoring_phase.progress_total = total_passages;
+                            flavoring_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                        }
+
+                        // Broadcast updated phase progress to UI
+                        crate::db::sessions::save_session(&self.db, &session).await?;
+                        self.broadcast_progress(&session, start_time);
+                    }
+                }
+            }
+
             // Check cancellation
             if cancel_token.is_cancelled() {
                 tracing::info!(
@@ -503,20 +785,56 @@ impl WorkflowOrchestrator {
                 return Ok(session);
             }
 
-            let file_path_str = file.path.clone();
             session.progress.current_file = Some(file_path_str.clone());
+
+            // Update progress message with passage counts and confidence breakdown
+            let progress_msg = if total_passages_tracked > 0 {
+                // Calculate ETA based on segmenting phase time only
+                let eta_msg = if let Some(seg_start) = segmenting_start_time {
+                    let elapsed = seg_start.elapsed().as_secs_f64();
+                    let files_segmented = files_processed - files_at_segmenting_start;
+
+                    // Show "estimating..." for first 5 files
+                    if files_segmented < 5 {
+                        " (estimating...)".to_string()
+                    } else {
+                        let avg_time_per_file = elapsed / files_segmented as f64;
+                        let files_remaining = total_files.saturating_sub(files_processed);
+                        let eta_seconds = (files_remaining as f64 * avg_time_per_file) as u64;
+                        let eta_minutes = eta_seconds / 60;
+                        let eta_secs = eta_seconds % 60;
+                        format!(" (ETA: {}m {}s)", eta_minutes, eta_secs)
+                    }
+                } else {
+                    String::new()
+                };
+
+                format!(
+                    "Processing file {} of {} | {} passages detected, {} processed ({} high, {} medium, {} low, {} unidentified){}",
+                    files_processed + 1,
+                    total_files,
+                    total_passages_tracked,
+                    passages_processed_tracked,
+                    high_conf_tracked,
+                    medium_conf_tracked,
+                    low_conf_tracked,
+                    unidentified_tracked,
+                    eta_msg
+                )
+            } else {
+                format!("Processing file {} of {}: {}", files_processed + 1, total_files, file_path_str)
+            };
+
             session.update_progress(
                 files_processed,
                 total_files,
-                format!("Processing file {} of {}: {}", files_processed + 1, total_files, file_path_str),
+                progress_msg,
             );
             crate::db::sessions::save_session(&self.db, &session).await?;
             self.broadcast_progress(&session, start_time);
 
-            // Process file through PLAN024 pipeline
-            // **[FIX]** Reconstruct absolute path from root_folder + relative path
-            let absolute_path = std::path::PathBuf::from(&session.root_folder).join(&file_path_str);
-            match pipeline.process_file(&absolute_path).await {
+            // Process pipeline result
+            match pipeline_result {
                 Ok(processed_passages) => {
                     tracing::info!(
                         session_id = %session.session_id,
@@ -839,6 +1157,90 @@ impl WorkflowOrchestrator {
             }
 
             files_processed += 1;
+
+                    // Spawn next file task to maintain parallelism level
+                    if let Some((idx, file)) = file_iter.next() {
+                        let task = spawn_file_task(idx, file.path.clone(), session.root_folder.clone(), Arc::clone(&pipeline));
+                        tasks.push(task);
+                    }
+                }
+
+                // Handle periodic progress broadcasts
+                _ = broadcast_interval.tick() => {
+                    // Process any pending state commands
+                    while let Ok(command) = state_rx.try_recv() {
+                        match command {
+                            StateCommand::TransitionTo(new_state) => {
+                                session.transition_to(new_state);
+                                crate::db::sessions::save_session(&self.db, &session).await?;
+                                self.broadcast_progress(&session, start_time);
+                            }
+                            StateCommand::UpdatePassageProgress {
+                                total_passages,
+                                processed,
+                                high_conf,
+                                medium_conf,
+                                low_conf,
+                                unidentified,
+                            } => {
+                                // Update tracked values
+                                total_passages_tracked = total_passages;
+                                passages_processed_tracked = processed;
+                                high_conf_tracked = high_conf;
+                                medium_conf_tracked = medium_conf;
+                                low_conf_tracked = low_conf;
+                                unidentified_tracked = unidentified;
+
+                                use crate::models::import_session::SubTaskStatus;
+
+                                // Update all phase progress structures
+                                if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+                                    segmenting_phase.progress_current = total_passages;
+                                    segmenting_phase.progress_total = total_passages;
+                                    segmenting_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                                }
+
+                                if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+                                    fingerprinting_phase.progress_current = processed;
+                                    fingerprinting_phase.progress_total = total_passages;
+                                    fingerprinting_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                                }
+
+                                if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+                                    identifying_phase.progress_current = processed;
+                                    identifying_phase.progress_total = total_passages;
+                                    identifying_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                                    identifying_phase.subtasks = vec![
+                                        SubTaskStatus { name: "High Confidence".into(), success_count: high_conf, failure_count: 0, skip_count: 0 },
+                                        SubTaskStatus { name: "Medium Confidence".into(), success_count: medium_conf, failure_count: 0, skip_count: 0 },
+                                        SubTaskStatus { name: "Low Confidence".into(), success_count: low_conf, failure_count: 0, skip_count: 0 },
+                                        SubTaskStatus { name: "Unidentified".into(), success_count: unidentified, failure_count: 0, skip_count: 0 },
+                                    ];
+                                }
+
+                                if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+                                    analyzing_phase.progress_current = processed;
+                                    analyzing_phase.progress_total = total_passages;
+                                    analyzing_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                                }
+
+                                if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+                                    flavoring_phase.progress_current = processed;
+                                    flavoring_phase.progress_total = total_passages;
+                                    flavoring_phase.status = crate::models::import_session::PhaseStatus::InProgress;
+                                }
+
+                                // Broadcast updated phase progress to UI
+                                crate::db::sessions::save_session(&self.db, &session).await?;
+                                self.broadcast_progress(&session, start_time);
+                            }
+                        }
+                    }
+                }
+
+                // Exit loop when all tasks complete
+                else => break,
+            }
         }
 
         // Final progress update

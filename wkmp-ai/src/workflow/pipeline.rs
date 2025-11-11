@@ -44,6 +44,8 @@ use uuid::Uuid;
 pub struct PipelineConfig {
     /// AcoustID API key for fingerprint lookups
     pub acoustid_api_key: Option<String>,
+    /// **[AIA-SEC-030]** Skip AcoustID for this session (set when user chooses to skip)
+    pub acoustid_skip: bool,
     /// Enable MusicBrainz lookups (requires network access)
     pub enable_musicbrainz: bool,
     /// Enable Essentia audio analysis (requires Essentia library)
@@ -58,6 +60,7 @@ impl Default for PipelineConfig {
     fn default() -> Self {
         Self {
             acoustid_api_key: None,
+            acoustid_skip: false,
             enable_musicbrainz: true,
             enable_essentia: true,
             enable_audio_derived: true,
@@ -106,15 +109,16 @@ impl Pipeline {
         })
         .await;
 
-        // Phase 0: Detect passage boundaries
-        let boundaries = super::boundary_detector::detect_boundaries(file_path)
+        // Phase 0: Detect passage boundaries with audio caching
+        // **[AIA-PERF-046]** Decode once, reuse audio for all passage extractors
+        let file_audio = super::boundary_detector::detect_boundaries_with_audio(file_path)
             .await
             .context("Failed to detect passage boundaries")?;
 
-        info!("Detected {} passages", boundaries.len());
+        info!("Detected {} passages", file_audio.boundaries.len());
 
         // Emit boundary events
-        for (i, boundary) in boundaries.iter().enumerate() {
+        for (i, boundary) in file_audio.boundaries.iter().enumerate() {
             self.emit_event(WorkflowEvent::BoundaryDetected {
                 passage_index: i,
                 start_time: boundary.start_time,
@@ -124,18 +128,18 @@ impl Pipeline {
             .await;
         }
 
-        // Process each passage sequentially
+        // Process each passage sequentially with cached audio
         let mut processed_passages = Vec::new();
-        let total_passages = boundaries.len();
+        let total_passages = file_audio.boundaries.len();
 
-        for (i, boundary) in boundaries.into_iter().enumerate() {
+        for (i, boundary) in file_audio.boundaries.iter().enumerate() {
             self.emit_event(WorkflowEvent::PassageStarted {
                 passage_index: i,
                 total_passages,
             })
             .await;
 
-            match self.process_passage(file_path, &boundary, i).await {
+            match self.process_passage_with_audio(file_path, boundary, i, &file_audio).await {
                 Ok(passage) => {
                     self.emit_event(WorkflowEvent::PassageCompleted {
                         passage_index: i,
@@ -174,7 +178,138 @@ impl Pipeline {
         Ok(processed_passages)
     }
 
-    /// Process single passage through 3-tier pipeline
+    /// Process single passage with cached audio
+    ///
+    /// **[AIA-PERF-046]** Uses pre-decoded audio to eliminate re-decoding for extractors
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to audio file
+    /// * `boundary` - Passage boundary (start/end times)
+    /// * `passage_index` - Index for progress reporting
+    /// * `file_audio` - Cached decoded audio from boundary detection
+    ///
+    /// # Returns
+    /// * Processed passage with fusion and validation results
+    async fn process_passage_with_audio(
+        &self,
+        file_path: &Path,
+        boundary: &PassageBoundary,
+        passage_index: usize,
+        file_audio: &super::FileAudioData,
+    ) -> Result<ProcessedPassage> {
+        debug!(
+            "Processing passage {} ({} - {} ticks) with cached audio",
+            passage_index, boundary.start_time, boundary.end_time
+        );
+
+        // Extract passage-specific audio samples from cached file audio
+        let passage_samples = super::boundary_detector::extract_passage_samples(file_audio, boundary);
+
+        debug!(
+            "Extracted {} samples for passage {} ({:.1} MB)",
+            passage_samples.len(),
+            passage_index,
+            (passage_samples.len() * std::mem::size_of::<f32>()) as f64 / 1_048_576.0
+        );
+
+        // **[PLAN024 Option 3]** Two-Pass Pipeline for MusicBrainz Integration
+        //
+        // Pass 1: Parallel extraction (all extractors, MusicBrainz returns NotAvailable)
+        // Fusion: Bayesian confidence selection of Recording MBID
+        // Pass 2: MusicBrainz extraction with fused MBID (if available)
+        // Re-fusion: Merge MusicBrainz metadata into final result
+
+        // PASS 1: Extraction (Tier 1) with audio samples
+        debug!("Pass 1: Running all extractors with cached audio");
+        let mut extraction_results = self.extract_with_audio(
+            file_path,
+            boundary,
+            passage_index,
+            &passage_samples,
+            file_audio.sample_rate,
+            file_audio.num_channels,
+        ).await?;
+
+        // PASS 1 FUSION: Fuse to obtain Recording MBID
+        debug!("Pass 1 Fusion: Fusing extraction results to obtain MBID");
+        let pass1_fusion = self.fuse(&extraction_results, passage_index).await?;
+
+        // PASS 2: MusicBrainz with fused MBID (if available and enabled)
+        if self.config.enable_musicbrainz {
+            if let Some(ref mbid_cv) = pass1_fusion.metadata.recording_mbid {
+                let mbid = &mbid_cv.value;
+
+                info!(
+                    passage_index = passage_index,
+                    mbid = %mbid,
+                    confidence = mbid_cv.confidence,
+                    source = %mbid_cv.source,
+                    "Pass 2: Running MusicBrainz with fused MBID"
+                );
+
+                // Create passage context for MusicBrainz
+                let ctx = PassageContext {
+                    passage_id: Uuid::new_v4(),
+                    file_id: Uuid::new_v4(),
+                    file_path: PathBuf::from(file_path),
+                    start_time_ticks: boundary.start_time,
+                    end_time_ticks: boundary.end_time,
+                    audio_samples: None,
+                    sample_rate: None,
+                    num_channels: None,
+                    import_session_id: Uuid::new_v4(),
+                };
+
+                self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "running")
+                    .await;
+
+                match MusicBrainzClient::new().extract_with_mbid(mbid, &ctx).await {
+                    Ok(musicbrainz_result) => {
+                        info!(
+                            passage_index = passage_index,
+                            "Pass 2: MusicBrainz extraction successful"
+                        );
+
+                        // Add MusicBrainz result to extraction results
+                        extraction_results.push(musicbrainz_result);
+
+                        self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "completed")
+                            .await;
+                    }
+                    Err(e) => {
+                        warn!(
+                            passage_index = passage_index,
+                            error = ?e,
+                            "Pass 2: MusicBrainz extraction failed (non-fatal)"
+                        );
+                        self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "failed")
+                            .await;
+                    }
+                }
+            } else {
+                debug!(
+                    passage_index = passage_index,
+                    "Pass 2: Skipping MusicBrainz (no MBID from Pass 1 fusion)"
+                );
+            }
+        }
+
+        // PASS 2 FUSION: Re-fuse with MusicBrainz data (if Pass 2 ran)
+        debug!("Pass 2 Fusion: Re-fusing with all extraction results");
+        let final_fusion = self.fuse(&extraction_results, passage_index).await?;
+
+        // Phase 3: Validation (Tier 3)
+        let validation_result = self.validate(&final_fusion, passage_index).await?;
+
+        Ok(ProcessedPassage {
+            boundary: boundary.clone(),
+            extractions: extraction_results,
+            fusion: final_fusion,
+            validation: validation_result,
+        })
+    }
+
+    /// Process single passage through 3-tier pipeline (deprecated)
     ///
     /// # Arguments
     /// * `file_path` - Path to audio file
@@ -183,6 +318,7 @@ impl Pipeline {
     ///
     /// # Returns
     /// * Processed passage with fusion and validation results
+    #[deprecated(note = "Use process_passage_with_audio() to avoid re-decoding audio")]
     async fn process_passage(
         &self,
         file_path: &Path,
@@ -284,7 +420,38 @@ impl Pipeline {
         })
     }
 
-    /// Phase 1: Run all enabled extractors
+    /// Phase 1: Run all enabled extractors with cached audio
+    ///
+    /// **[AIA-PERF-046]** Provides pre-decoded audio to Chromaprint/AudioDerived extractors
+    async fn extract_with_audio(
+        &self,
+        file_path: &Path,
+        boundary: &PassageBoundary,
+        passage_index: usize,
+        audio_samples: &[f32],
+        sample_rate: u32,
+        num_channels: u8,
+    ) -> Result<Vec<ExtractionResult>> {
+        debug!("Phase 1: Extraction for passage {} with cached audio", passage_index);
+
+        // Create passage context with cached audio samples
+        let ctx = PassageContext {
+            passage_id: Uuid::new_v4(),
+            file_id: Uuid::new_v4(), // In production, this would come from database
+            file_path: PathBuf::from(file_path),
+            start_time_ticks: boundary.start_time,
+            end_time_ticks: boundary.end_time,
+            audio_samples: Some(audio_samples.to_vec()),
+            sample_rate: Some(sample_rate),
+            num_channels: Some(num_channels),
+            import_session_id: Uuid::new_v4(),
+        };
+
+        self.extract_common(&ctx, passage_index).await
+    }
+
+    /// Phase 1: Run all enabled extractors (deprecated)
+    #[deprecated(note = "Use extract_with_audio() to avoid re-decoding audio")]
     async fn extract(
         &self,
         file_path: &Path,
@@ -306,6 +473,16 @@ impl Pipeline {
             num_channels: None,
             import_session_id: Uuid::new_v4(),
         };
+
+        self.extract_common(&ctx, passage_index).await
+    }
+
+    /// Common extractor logic (called by both extract methods)
+    async fn extract_common(
+        &self,
+        ctx: &PassageContext,
+        passage_index: usize,
+    ) -> Result<Vec<ExtractionResult>> {
 
         let mut results = Vec::new();
 
@@ -341,22 +518,50 @@ impl Pipeline {
             }
         }
 
-        // Extractor 3: AcoustID (if API key provided)
+        // Extractor 3: AcoustID (if API key provided and not skipped)
+        // **[AIA-SEC-030]** Skip if user has chosen to skip AcoustID for this session
         if let Some(ref api_key) = self.config.acoustid_api_key {
-            self.emit_extraction_progress(passage_index, "AcoustID", "running")
-                .await;
-            match AcoustIDClient::new(api_key.clone()).extract(&ctx).await {
-                Ok(extraction) => {
-                    results.push(extraction);
-                    self.emit_extraction_progress(passage_index, "AcoustID", "completed")
-                        .await;
+            if !self.config.acoustid_skip {
+                self.emit_extraction_progress(passage_index, "AcoustID", "running")
+                    .await;
+                match AcoustIDClient::new(api_key.clone()).extract(&ctx).await {
+                    Ok(extraction) => {
+                        results.push(extraction);
+                        self.emit_extraction_progress(passage_index, "AcoustID", "completed")
+                            .await;
+                    }
+                    Err(e) => {
+                        // **[AIA-SEC-030]** Check if error is invalid API key
+                        if crate::extractors::acoustid_client::is_invalid_api_key_error(&e) {
+                            // Emit event to prompt user for API key
+                            self.emit_event(WorkflowEvent::AcoustIDKeyInvalid {
+                                error_message: e.to_string(),
+                            })
+                            .await;
+                            warn!(
+                                "AcoustID API key invalid: {}. User will be prompted for valid key or to skip.",
+                                e
+                            );
+                        } else {
+                            warn!("AcoustID extraction failed: {}", e);
+                        }
+                        self.emit_extraction_progress(passage_index, "AcoustID", "failed")
+                            .await;
+                    }
                 }
-                Err(e) => {
-                    warn!("AcoustID extraction failed: {}", e);
-                    self.emit_extraction_progress(passage_index, "AcoustID", "failed")
-                        .await;
-                }
+            } else {
+                // **[AIA-SEC-030]** User has chosen to skip AcoustID
+                debug!(
+                    passage_index = passage_index,
+                    "AcoustID extraction skipped (user chose to skip AcoustID functionality)"
+                );
             }
+        } else {
+            // No API key configured - skip AcoustID
+            debug!(
+                passage_index = passage_index,
+                "AcoustID extraction skipped (no API key configured)"
+            );
         }
 
         // Extractor 4: MusicBrainz

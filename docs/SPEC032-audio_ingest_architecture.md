@@ -433,55 +433,72 @@ async fn start_import(root_folder: PathBuf, params: ImportParameters) -> ImportS
 
 **[AIA-ASYNC-020]** Parallel per-file processing architecture:
 
-**Strategy:** Process each file sequentially through all pipeline stages with multiple concurrent workers
+**Strategy:** Process multiple files concurrently through PLAN024 pipeline (N files in flight simultaneously)
 
 **Architecture:**
 ```
-Phase 1: SCANNING (Batch)
+Phase 1: SCANNING + EXTRACTING (Batch)
   └─ Discover all audio files (parallel magic byte verification)
-     Output: Vec<PathBuf> of discovered files
+  └─ Extract metadata and calculate hashes (parallel with Rayon)
+     Output: Vec<AudioFile> of processed files
 
-Phase 2: Per-File Pipeline (Parallel Workers)
-  ├─ Worker 1: File_001 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
-  ├─ Worker 2: File_002 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
-  ├─ Worker 3: File_003 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
-  └─ Worker 4: File_004 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
+Phase 2: PLAN024 Pipeline (Parallel File Processing)
+  ├─ File 1: SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
+  ├─ File 2:   SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
+  ├─ File 3:     SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
+  └─ File N:       SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
 
-  Pipeline Stage Abbreviations:
-    Verify:      Audio format verification
-    Extract:     Metadata extraction (ID3, filename, folder context)
-    Segment:     Silence detection, pattern analysis
-    Match:       Contextual MusicBrainz search (metadata + pattern)
-    Fingerprint: Per-segment Chromaprint fingerprinting
-    Identify:    MBID confidence assessment (combine all evidence)
-    Amplitude:   Lead-in/lead-out detection per passage
-    Flavor:      AcousticBrainz data retrieval
-    DB:          Database write (atomic transaction)
+  Pipeline Phase Abbreviations:
+    SEGMENTING:     Boundary detection (silence-based segmentation)
+    FINGERPRINTING: Chromaprint → AcoustID extraction per passage
+    IDENTIFYING:    MusicBrainz resolution (metadata fusion)
+    ANALYZING:      Amplitude analysis for crossfade timing
+    FLAVORING:      Musical characteristics extraction (Essentia)
 
-  When Worker 1 completes File_001:
-    └─ Pick next unprocessed file (File_005) and repeat pipeline
+  Parallelism Pattern:
+    - N files in flight simultaneously (N = CPU count, clamped 2-8)
+    - FuturesUnordered maintains constant parallelism level
+    - Each file processes through all phases sequentially
+    - Files complete in any order (non-deterministic)
 ```
 
 **Key Characteristics:**
-- **Hybrid approach:** Batch scanning (Phase 1) + sequential per-file processing (Phases 2-6)
-- **Parallel workers:** 4 concurrent files processing through full pipeline
-- **Heterogeneous work:** Different workers may be in different pipeline stages simultaneously
-- **Better resource utilization:** CPU-intensive operations (fingerprinting, analysis) happen concurrently with I/O-bound operations (API calls, database writes)
+- **Hybrid approach:** Batch scanning/extracting (Phase 1) + parallel per-file processing (Phase 2)
+- **Adaptive parallelism:** N = num_cpus::get().clamp(2, 8)
+- **Constant in-flight tasks:** FuturesUnordered spawns next file when current completes
+- **Better resource utilization:** CPU-intensive operations (boundary detection, fingerprinting) happen concurrently with I/O-bound operations (MusicBrainz API calls)
+- **Smooth phase progress:** Multiple files advancing through different phases simultaneously
 
 **Implementation:**
 ```rust
-// Conceptual design
-futures::stream::iter(discovered_files)
-    .map(|file| process_file_through_pipeline(file))  // Full pipeline per file
-    .buffer_unordered(4)  // 4 concurrent workers
-    .collect()
-    .await
+// Actual implementation (mod.rs:613-1107)
+let parallelism_level = num_cpus::get().clamp(2, 8);
+let mut file_iter = files.iter().enumerate();
+let mut tasks = FuturesUnordered::new();
+
+// Seed initial batch
+for _ in 0..parallelism_level {
+    if let Some((idx, file)) = file_iter.next() {
+        tasks.push(spawn_file_task(idx, file.path, pipeline_ref));
+    }
+}
+
+// Process completions and spawn next file
+while let Some((idx, path, result)) = tasks.next().await {
+    // ... handle result ...
+
+    // Maintain parallelism level
+    if let Some((idx, file)) = file_iter.next() {
+        tasks.push(spawn_file_task(idx, file.path, pipeline_ref));
+    }
+}
 ```
 
-**Default Parallelism:** 4 concurrent file operations
-- Balances CPU, I/O, and network utilization
-- User-configurable via `import_parallelism` parameter
-- Worker count should not exceed CPU core count for optimal performance
+**Default Parallelism:** CPU-adaptive (2-8 concurrent file operations)
+- Low-end systems (2 cores): parallelism_level=2
+- Mid-range systems (4-6 cores): parallelism_level=4-6
+- High-end systems (8+ cores): parallelism_level=8 (capped)
+- Automatically adjusts to system capabilities
 
 ### Per-File Pipeline Benefits
 
@@ -1038,6 +1055,17 @@ Example progression:
 - AcoustID API key: Environment variable or config file
 - Not hardcoded in source
 - Not exposed in API responses or logs
+
+**[AIA-SEC-030]** AcoustID API key validation with user prompting:
+- When AcoustID returns 400 error with "invalid API key" message:
+  - Pause import processing
+  - Prompt user via UI with two options:
+    1. Enter valid AcoustID API key (validate before resuming)
+    2. Skip AcoustID functionality for this session
+- If user skips: Import continues without fingerprint-based identification
+- If user provides key: Validate with test API call before resuming
+- Store user's skip preference for session (don't re-prompt)
+- Log warning when AcoustID is skipped (reduced identification accuracy)
 
 ---
 
