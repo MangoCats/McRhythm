@@ -4,7 +4,7 @@
 
 Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users through music library import. Derived from [Requirements](REQ001-requirements.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Library Management](SPEC008-library_management.md) | [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Audio File Segmentation](IMPL005-audio_file_segmentation.md) | [Database Schema](IMPL001-database_schema.md) | [API Design](IMPL008-audio_ingest_api.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Library Management](SPEC008-library_management.md) | [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Audio File Segmentation](IMPL005-audio_file_segmentation.md) | [Sample Rate Conversion](SPEC017-sample_rate_conversion.md) | [Data-Driven Schema Maintenance](SPEC031-data_driven_schema_maintenance.md) | [Database Schema](IMPL001-database_schema.md) | [API Design](IMPL008-audio_ingest_api.md)
 
 ---
 
@@ -18,12 +18,17 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 - **Version:** Full only (not in Lite/Minimal)
 - **Technology:** Rust, Tokio (async), Axum (HTTP + SSE)
 
-**Purpose:** Guide new users through:
-1. File discovery and metadata extraction
-2. Audio fingerprinting and MusicBrainz identification
-3. Passage boundary detection (silence-based or manual)
-4. Amplitude-based lead-in/lead-out detection
-5. AcousticBrainz musical flavor data retrieval
+**Purpose:** Guide new users through intelligent audio import workflow:
+1. File discovery and audio format verification
+2. Metadata extraction (ID3 tags, filename, folder context)
+3. **Passage boundary detection first** (silence-based segmentation provides structural clues)
+4. **Contextual MusicBrainz matching** (metadata + segment patterns narrow candidate list)
+5. **Per-segment audio fingerprinting** (Chromaprint for each segment individually)
+6. **Evidence-based MBID identification** (combine metadata, patterns, and fingerprints)
+7. Amplitude-based lead-in/lead-out detection (optimize crossfade points)
+8. AcousticBrainz musical flavor data retrieval (only for confirmed MBIDs)
+
+**Key Innovation:** Segmentation-first approach leverages structural patterns (track count, gap timing) combined with metadata context to narrow MusicBrainz search space before expensive fingerprinting, resulting in higher accuracy and confidence.
 
 ---
 
@@ -84,6 +89,26 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 
 **Concurrency:** Single-user import workflow (no concurrent import sessions from different users)
 
+**[AIA-DB-020]** Zero-configuration database initialization per [SPEC031 Data-Driven Schema Maintenance](SPEC031-data_driven_schema_maintenance.md):
+
+**Automatic Startup Behavior:**
+1. **Database Creation:** If `wkmp.db` does not exist, create it automatically
+2. **Table Creation:** Execute `CREATE TABLE IF NOT EXISTS` for all required tables
+3. **Schema Sync:** Automatically detect and repair schema drift
+   - Introspect actual database schema via `PRAGMA table_info`
+   - Compare to expected schema from code definitions
+   - Apply `ALTER TABLE` statements for missing columns
+   - Log all schema changes comprehensively
+4. **Migration Framework:** Run complex data migrations if schema version < current
+
+**Zero-Configuration Guarantees ([SPEC031:REQ-NF-036, REQ-NF-037](SPEC031-data_driven_schema_maintenance.md#requirements-analysis)):**
+- No manual database setup required
+- No manual schema migrations for column additions
+- Automatic recovery from schema drift
+- Development-production parity (same schema maintenance in both)
+
+**Implementation:** Uses `wkmp_common::db::schema_sync` module for automatic schema maintenance. See [SPEC031](SPEC031-data_driven_schema_maintenance.md) for complete specification.
+
 ---
 
 ## Component Architecture
@@ -94,6 +119,7 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 wkmp-ai/
 ├── src/
 │   ├── main.rs                    # HTTP server (Axum), port 5723
+│   │                              # Zero-config DB initialization (SPEC031)
 │   ├── api/                       # HTTP route handlers
 │   │   ├── import_workflow.rs     # /import/* endpoints
 │   │   ├── amplitude_analysis.rs  # /analyze/* endpoints
@@ -101,14 +127,18 @@ wkmp-ai/
 │   │   └── metadata.rs            # /metadata/* endpoints
 │   ├── services/                  # Business logic
 │   │   ├── file_scanner.rs        # Directory traversal, file discovery
-│   │   ├── metadata_extractor.rs  # Tag parsing (lofty crate)
-│   │   ├── fingerprinter.rs       # Chromaprint integration
-│   │   ├── musicbrainz_client.rs  # MusicBrainz API client
-│   │   ├── acousticbrainz_client.rs # AcousticBrainz API client
-│   │   ├── amplitude_analyzer.rs  # RMS analysis, lead-in/lead-out detection (NEW)
+│   │   ├── metadata_extractor.rs  # Tag parsing (lofty) + filename/folder context
 │   │   ├── silence_detector.rs    # Silence-based boundary detection
-│   │   ├── essentia_runner.rs     # Essentia subprocess integration
-│   │   └── parameter_manager.rs   # Parameter loading/saving (NEW)
+│   │   ├── pattern_analyzer.rs    # Segment pattern analysis (NEW)
+│   │   ├── contextual_matcher.rs  # MusicBrainz search with metadata+pattern (NEW)
+│   │   ├── fingerprinter.rs       # Per-segment Chromaprint fingerprinting
+│   │   ├── acoustid_client.rs     # AcoustID API client (NEW)
+│   │   ├── confidence_assessor.rs # Evidence combination for MBID confidence (NEW)
+│   │   ├── musicbrainz_client.rs  # MusicBrainz API client (recording details)
+│   │   ├── acousticbrainz_client.rs # AcousticBrainz API client (musical flavor)
+│   │   ├── amplitude_analyzer.rs  # RMS analysis, lead-in/lead-out detection
+│   │   ├── essentia_runner.rs     # Essentia subprocess integration (fallback)
+│   │   └── parameter_manager.rs   # Parameter loading/saving
 │   ├── models/                    # Data structures
 │   │   ├── import_session.rs      # Import workflow state machine
 │   │   ├── amplitude_profile.rs   # Amplitude envelope data structure
@@ -125,14 +155,196 @@ wkmp-ai/
 | Component | Responsibility | Input | Output |
 |-----------|---------------|-------|--------|
 | **file_scanner** | Discover audio files in directory tree | Root folder path | List of file paths |
-| **metadata_extractor** | Parse ID3/Vorbis/MP4 tags | File path | Title, artist, album, duration |
-| **fingerprinter** | Generate Chromaprint fingerprints | Audio PCM data | Base64 fingerprint string |
-| **musicbrainz_client** | Query MusicBrainz API | Recording MBID | Recording, artist, work, album metadata |
-| **acousticbrainz_client** | Query AcousticBrainz API | Recording MBID | Musical flavor vector (JSON) |
-| **amplitude_analyzer** | Detect lead-in/lead-out points | Audio PCM data, parameters | Lead-in duration, lead-out duration |
-| **silence_detector** | Detect passage boundaries | Audio PCM data, threshold | List of (start, end) time pairs |
+| **metadata_extractor** | Parse ID3/Vorbis/MP4 tags + extract filename/folder context | File path | Title, artist, album, duration, folder structure |
+| **silence_detector** | Detect passage boundaries via silence analysis | Audio PCM data, threshold | List of (start, end) time pairs (sample-accurate, converted to ticks per SPEC017) |
+| **pattern_analyzer** | Analyze segment structural patterns | Segment list (count, durations, gaps) | Pattern metadata (likely source type, track count) |
+| **contextual_matcher** | Search MusicBrainz using metadata + pattern | Metadata + segment pattern | Candidate releases/recordings with match scores |
+| **fingerprinter** | Generate Chromaprint fingerprints per segment | Audio PCM data (per segment) | Base64 fingerprint string per segment |
+| **acoustid_client** | Query AcoustID API for MBID candidates | Fingerprint string | List of (MBID, confidence score) per segment |
+| **confidence_assessor** | Combine evidence for high-confidence MBID match | Metadata match + pattern match + fingerprint scores | Final MBID with confidence level per passage |
+| **musicbrainz_client** | Query MusicBrainz API for recording details | Recording MBID | Recording, artist, work, album metadata |
+| **acousticbrainz_client** | Query AcousticBrainz API for musical flavor | Recording MBID | Musical flavor vector (JSON) |
+| **amplitude_analyzer** | Detect lead-in/lead-out points | Audio PCM data, parameters | Lead-in duration, lead-out duration (sample-accurate, converted to ticks per SPEC017) |
 | **essentia_runner** | Run Essentia analysis (fallback) | Audio file path | Musical flavor vector (JSON) |
 | **parameter_manager** | Load/save import parameters | Parameter name | Parameter value |
+
+### Intelligence-Gathering Components (NEW)
+
+**[AIA-COMP-020]** The improved pipeline uses an evidence-based approach to MBID identification with three new logical components:
+
+#### Pattern Analyzer
+
+**Purpose:** Analyze structural patterns in segmented audio to provide contextual clues for identification
+
+**Inputs:**
+- List of detected segments (count, start times, end times, gap durations)
+- Audio file metadata (total duration, format)
+
+**Analysis Performed:**
+- **Track count:** Number of segments detected (e.g., 12 segments suggests album)
+- **Gap patterns:** Consistent 2-3 second gaps suggest CD rips; longer/variable gaps suggest vinyl/cassette
+- **Segment durations:** Statistical analysis (mean, variance) to classify content type
+- **Likely source media:** CD (consistent gaps, precise timing) vs. Vinyl (variable gaps, side markers) vs. Cassette (noise floor changes)
+
+**Outputs:**
+- Pattern metadata structure:
+  - `track_count: usize`
+  - `likely_source_media: SourceMedia` (CD/Vinyl/Cassette/Unknown)
+  - `gap_pattern: GapPattern` (Consistent/Variable/None)
+  - `segment_durations: Vec<f64>`
+  - `confidence: f64` (0.0-1.0)
+
+**Example:**
+```
+Input: 12 segments, 2.1s gaps (±0.3s), durations 180-360s
+Output: {
+  track_count: 12,
+  likely_source_media: CD,
+  gap_pattern: Consistent,
+  confidence: 0.92
+}
+```
+
+#### Contextual Matcher
+
+**Purpose:** Search MusicBrainz database using combined metadata and structural pattern clues to narrow candidate list before fingerprinting
+
+**Inputs:**
+- Extracted metadata (ID3 tags, filename, folder structure)
+- Pattern analysis results (track count, source media type)
+- Audio file characteristics (total duration, format)
+
+**Matching Strategy:**
+
+**Single-Segment Files:**
+```
+1. Parse metadata: artist, title, album from ID3 tags
+2. Search MusicBrainz:
+   - Query: artist + title (exact and fuzzy match)
+   - Filter by duration (±10% tolerance)
+3. Return ranked candidate recordings with match scores
+```
+
+**Multi-Segment Files:**
+```
+1. Parse metadata: album artist, album title, folder structure
+2. Identify likely album structure:
+   - If 12 tracks + CD pattern → likely full album CD rip
+   - If 6-8 tracks + vinyl pattern → likely vinyl side rip
+3. Search MusicBrainz releases:
+   - Query: artist + album (exact and fuzzy match)
+   - Filter by track count (exact match or ±1 tolerance)
+   - Filter by total duration (±5% tolerance)
+4. For each candidate release:
+   - Fetch track list (track count, track durations)
+   - Calculate alignment score:
+     * Track count match: 40% weight
+     * Duration alignment: 30% weight (sum of per-track duration differences)
+     * Metadata quality: 30% weight (artist/album name similarity)
+5. Return ranked candidate releases with match scores (0.0-1.0)
+```
+
+**Outputs:**
+- For single-segment files: `Vec<(RecordingMBID, MatchScore)>`
+- For multi-segment files: `Vec<(ReleaseMBID, TrackList, MatchScore)>`
+
+**Example:**
+```
+Input: {
+  metadata: { artist: "Pink Floyd", album: "Dark Side of the Moon" },
+  pattern: { track_count: 10, total_duration: 2580s }
+}
+
+Output: [
+  (ReleaseMBID("abc123"), TrackList[10 tracks], MatchScore(0.95)),
+  (ReleaseMBID("def456"), TrackList[10 tracks], MatchScore(0.87)),
+  ...
+]
+```
+
+#### Confidence Assessor
+
+**Purpose:** Combine evidence from multiple sources (metadata, pattern, fingerprints) to make high-confidence MBID identification decisions
+
+**Inputs:**
+- Metadata match scores (from contextual matcher)
+- Pattern match scores (from pattern analyzer)
+- Fingerprint match scores (from AcoustID API, per segment)
+- User preference parameters (confidence thresholds)
+
+**Evidence Combination Algorithm:**
+
+**For Single-Segment Files:**
+```
+1. Collect evidence:
+   - Metadata score: 0.0-1.0 (from contextual matcher)
+   - Fingerprint score: 0.0-1.0 (from AcoustID API)
+   - Duration match: 0.0-1.0 (actual vs. expected duration difference)
+
+2. Weighted combination:
+   confidence = (0.3 * metadata_score) + (0.6 * fingerprint_score) + (0.1 * duration_match)
+
+3. Decision:
+   - confidence >= 0.85: ACCEPT (high confidence)
+   - 0.60 <= confidence < 0.85: REVIEW (manual verification recommended)
+   - confidence < 0.60: REJECT (insufficient confidence, mark as zero-song passage)
+```
+
+**For Multi-Segment Files:**
+```
+1. Collect evidence per segment:
+   - Contextual match: Release-level match score (0.0-1.0)
+   - Pattern alignment: Track count + duration alignment (0.0-1.0)
+   - Per-segment fingerprints: Individual AcoustID scores (0.0-1.0 per segment)
+
+2. Per-segment scoring:
+   For each segment i:
+     segment_confidence[i] = (0.2 * contextual_score) +
+                            (0.2 * pattern_score) +
+                            (0.6 * fingerprint_score[i])
+
+3. Overall confidence:
+   overall_confidence = mean(segment_confidence) * consistency_bonus
+   where consistency_bonus = 1.0 if all segments match same release, 0.8 otherwise
+
+4. Decision:
+   - overall_confidence >= 0.85 AND min(segment_confidence) >= 0.70: ACCEPT
+   - 0.65 <= overall_confidence < 0.85: REVIEW
+   - overall_confidence < 0.65: REJECT (mark segments as zero-song passages)
+```
+
+**Outputs:**
+- Per-passage identification result:
+  - `mbid: Option<RecordingMBID>` (Some if accepted, None if rejected)
+  - `confidence: f64` (0.0-1.0)
+  - `decision: Decision` (Accept/Review/Reject)
+  - `evidence_summary: EvidenceSummary` (breakdown of contributing factors)
+
+**Example:**
+```
+Input: {
+  contextual_match: 0.92,
+  pattern_match: 0.88,
+  fingerprint_scores: [0.95, 0.91, 0.93, 0.89, ...] (per segment)
+}
+
+Output: {
+  decision: ACCEPT,
+  confidence: 0.91,
+  evidence_summary: {
+    contextual: 0.92,
+    pattern: 0.88,
+    fingerprint_mean: 0.92,
+    fingerprint_min: 0.89
+  }
+}
+```
+
+**Benefits of Evidence-Based Approach:**
+- **Higher accuracy:** Multi-factor evidence reduces false positives
+- **Confidence transparency:** User can see why identification succeeded/failed
+- **Flexible thresholds:** Configurable confidence levels per user preference
+- **Graceful degradation:** Falls back to zero-song passages when confidence insufficient
 
 ---
 
@@ -152,8 +364,8 @@ wkmp-ai/
                            │
                            ▼
                    ┌───────────────┐
-                   │  PROCESSING   │  (Per-file pipeline: Extract → Fingerprint →
-                   │               │   Segment → Analyze → Flavor)
+                   │  PROCESSING   │  (Per-file pipeline: Verify → Extract → Segment →
+                   │               │   Match → Fingerprint → Identify → Amplitude → Flavor → DB)
                    │               │  (4 parallel workers, files processed to completion)
                    └───────┬───────┘
                            │
@@ -169,7 +381,7 @@ wkmp-ai/
 **State Semantics:**
 - **SCANNING:** Batch file discovery (parallel magic byte verification)
 - **PROCESSING:** Per-file pipeline with 4 concurrent workers
-  - Each worker processes one file through entire pipeline: Extract → Fingerprint → Segment → Analyze → Flavor
+  - Each worker processes one file through entire pipeline: Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB
   - Progress reported as files completed (e.g., "2,581 / 5,736 files")
   - Workers pick next unprocessed file upon completion
 - **COMPLETED:** All files successfully processed
@@ -229,11 +441,22 @@ Phase 1: SCANNING (Batch)
   └─ Discover all audio files (parallel magic byte verification)
      Output: Vec<PathBuf> of discovered files
 
-Phase 2-6: Per-File Pipeline (Parallel Workers)
-  ├─ Worker 1: File_001 → [Extract → Fingerprint → Segment → Analyze → Flavor]
-  ├─ Worker 2: File_002 → [Extract → Fingerprint → Segment → Analyze → Flavor]
-  ├─ Worker 3: File_003 → [Extract → Fingerprint → Segment → Analyze → Flavor]
-  └─ Worker 4: File_004 → [Extract → Fingerprint → Segment → Analyze → Flavor]
+Phase 2: Per-File Pipeline (Parallel Workers)
+  ├─ Worker 1: File_001 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
+  ├─ Worker 2: File_002 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
+  ├─ Worker 3: File_003 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
+  └─ Worker 4: File_004 → [Verify → Extract → Segment → Match → Fingerprint → Identify → Amplitude → Flavor → DB]
+
+  Pipeline Stage Abbreviations:
+    Verify:      Audio format verification
+    Extract:     Metadata extraction (ID3, filename, folder context)
+    Segment:     Silence detection, pattern analysis
+    Match:       Contextual MusicBrainz search (metadata + pattern)
+    Fingerprint: Per-segment Chromaprint fingerprinting
+    Identify:    MBID confidence assessment (combine all evidence)
+    Amplitude:   Lead-in/lead-out detection per passage
+    Flavor:      AcousticBrainz data retrieval
+    DB:          Database write (atomic transaction)
 
   When Worker 1 completes File_001:
     └─ Pick next unprocessed file (File_005) and repeat pipeline
@@ -344,17 +567,37 @@ async fn process_file_complete(
 **2. Pipeline Stages (Sequential per File)**
 ```
 For each file, execute in order:
-  1. Extract metadata (Lofty, ID3 tags)
-  2. Calculate file hash (SHA-256)
-  3. Generate Chromaprint fingerprint (tokio::task::spawn_blocking for CPU work)
-  4. Lookup AcoustID API (rate-limited, async)
-  5. Lookup MusicBrainz API (rate-limited, async)
-  6. Detect passage boundaries (silence detection or manual)
-  7. Analyze amplitude for each passage (lead-in/lead-out detection)
-  8. Fetch AcousticBrainz musical flavor data (rate-limited, async)
-  9. Write all data to database (atomic transaction)
-  10. Increment completion counter
+  1. Verify audio format (magic bytes, decodability check)
+  2. Extract metadata (Lofty: ID3/Vorbis/MP4 tags, plus filename/folder context)
+  3. Calculate file hash (SHA-256)
+  4. Detect passage boundaries via silence detection (gives structural clues)
+     └─ Analyze segment pattern (count, gap durations, segment lengths)
+  5. Contextual MusicBrainz search (metadata + segment pattern)
+     ├─ Single-segment files: Search by artist+title from metadata
+     └─ Multi-segment files: Match segment pattern to album/release track lists
+  6. Per-segment Chromaprint fingerprinting (tokio::task::spawn_blocking for CPU work)
+     └─ Generate fingerprint for EACH segment individually (not whole file)
+  7. Per-segment AcoustID API lookup (rate-limited, async)
+     └─ Get MBID candidates for each segment
+  8. MBID confidence assessment (combine evidence)
+     ├─ Metadata match strength (artist, album, track names)
+     ├─ Pattern match strength (track count, durations align with release)
+     └─ Fingerprint match strength (AcoustID scores per segment)
+  9. Analyze amplitude for each passage (lead-in/lead-out detection)
+  10. Fetch AcousticBrainz musical flavor data (rate-limited, async)
+      └─ Only for recordings with confirmed MBIDs
+  11. Convert all timing points to ticks and write to database (atomic transaction)
+      └─ Convert seconds → INTEGER ticks per SPEC017 (ticks = seconds * 28,224,000)
+      └─ Write: file, passages (with tick-based timing), songs, relationships
+  12. Increment completion counter
 ```
+
+**Rationale for Sequence:**
+- **Segmentation before fingerprinting** provides structural clues (track count, gap patterns)
+- **Contextual search** (metadata + pattern) narrows MusicBrainz candidates efficiently
+- **Per-segment fingerprints** more accurate than whole-file fingerprints for multi-track files
+- **Evidence combination** (metadata + pattern + fingerprints) achieves high-confidence MBID matches
+- **Flavor retrieval last** occurs only after confident identification (avoids wasted API calls)
 
 **3. Parallel Execution**
 ```rust
@@ -394,6 +637,8 @@ Option B (Batched - RECOMMENDED): Per-worker batching
   └─ Pros: Reduced transaction overhead (10x fewer commits)
   └─ Cons: Slightly more complex state management
 ```
+
+**Note:** Schema maintenance handled automatically per [SPEC031](SPEC031-data_driven_schema_maintenance.md). Workers write data only; database creation, table creation, and schema drift repair occur automatically at startup. No manual `CREATE TABLE` or `ALTER TABLE` statements required in import pipeline.
 
 **6. Progress Tracking**
 ```rust
@@ -550,10 +795,31 @@ if cancel_token.is_cancelled() {
 
 ### IMPL001 Integration (Database Schema)
 
-**[AIA-INT-030]** wkmp-ai writes passages with tick-based timing:
-- Convert detected times (seconds) → ticks (INTEGER)
-- Formula: `ticks = seconds * 28_224_000`
-- Store in `start_time_ticks`, `lead_in_start_ticks`, etc.
+**[AIA-INT-030]** wkmp-ai writes passages with tick-based timing per [SPEC017 Sample Rate Conversion](SPEC017-sample_rate_conversion.md):
+
+**Tick-Based Time Representation:**
+- All passage timing points stored as INTEGER ticks (not floating-point seconds)
+- **1 tick = 1/28,224,000 second** ≈ 35.4 nanoseconds ([SPEC017:SRC-TICK-030](SPEC017-sample_rate_conversion.md#tick-rate-calculation))
+- Tick rate is LCM of all supported sample rates (8kHz-192kHz)
+- **Sample-accurate precision:** Any sample boundary from any supported sample rate exactly representable as integer ticks
+- **Zero rounding errors:** Integer arithmetic eliminates cumulative floating-point errors
+
+**Conversion Formula:**
+```rust
+// Convert detected times (floating-point seconds) → INTEGER ticks
+let ticks: i64 = (seconds * 28_224_000.0).round() as i64;
+```
+
+**Database Fields (all INTEGER):**
+- `start_time_ticks` - Passage start point
+- `lead_in_start_ticks` - Lead-in fade start
+- `fade_in_start_ticks` - Fade-in start
+- `fade_in_end_ticks` - Fade-in end (music at full volume)
+- `fade_out_start_ticks` - Fade-out start (begin crossfade)
+- `lead_out_start_ticks` - Lead-out start
+- `end_time_ticks` - Passage end point
+
+**Rationale:** Tick-based timing ensures sample-accurate crossfade points across all source sample rates, satisfying [REQ-CF-050] precision requirements. See [SPEC017](SPEC017-sample_rate_conversion.md) for complete tick system specification.
 
 ---
 
@@ -654,42 +920,55 @@ Phase 2 (Parallel): Magic byte verification
 
 **Implementation:** Use `rayon::prelude::*` for parallel iterator in Phase 2
 
-**[AIA-PERF-040]** Fingerprinting within per-file pipeline:
+**[AIA-PERF-040]** Per-segment fingerprinting within per-file pipeline:
 
-**Strategy:** Chromaprint fingerprinting as part of per-file sequential pipeline with parallel workers
+**Strategy:** Per-segment Chromaprint fingerprinting after segmentation, with parallel workers processing different files
 
 ```
-Per-File Fingerprinting Pipeline (within each worker):
-  1. Decode audio to PCM (I/O + CPU bound)
-  2. Resample to 44.1kHz if needed (CPU bound)
-  3. Generate Chromaprint fingerprint via FFI (CPU bound)
-     └─ CHROMAPRINT_LOCK mutex serializes chromaprint_new()/chromaprint_free()
-        (required for FFTW backend thread safety, negligible overhead ~1-2ms)
-  4. Rate-limited AcoustID API lookup (network I/O bound)
-  5. Rate-limited MusicBrainz API lookup (network I/O bound)
-  6. Write results to database
+Per-File Pipeline (within each worker):
+  1. Decode audio file to PCM (I/O + CPU bound)
+  2. Silence detection → identify segments (CPU bound)
+  3. Extract metadata for contextual matching (I/O bound)
+  4. Contextual MusicBrainz search (network I/O bound)
+  5. For each segment:
+     a. Extract segment PCM data (memory operation)
+     b. Resample to 44.1kHz if needed (CPU bound)
+     c. Generate Chromaprint fingerprint via FFI (CPU bound)
+        └─ CHROMAPRINT_LOCK mutex serializes chromaprint_new()/chromaprint_free()
+           (required for FFTW backend thread safety, negligible overhead ~1-2ms)
+     d. Rate-limited AcoustID API lookup per segment (network I/O bound)
+  6. Confidence assessment (combine metadata + pattern + fingerprint scores)
+  7. Rate-limited MusicBrainz API lookup for confirmed MBIDs (network I/O bound)
+  8. Amplitude analysis per passage (CPU bound)
+  9. Rate-limited AcousticBrainz API lookup (network I/O bound)
+  10. Convert timing to ticks and write to database
+      └─ Convert all passage timing points (seconds → INTEGER ticks per SPEC017)
 
 Parallel Execution (4 workers):
-  Worker 1: File_001 → [Decode → Resample → Fingerprint → API → DB]
-  Worker 2: File_002 → [Decode → Resample → Fingerprint → API → DB]
-  Worker 3: File_003 → [Decode → Resample → Fingerprint → API → DB]
-  Worker 4: File_004 → [Decode → Resample → Fingerprint → API → DB]
+  Worker 1: File_001 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
+  Worker 2: File_002 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
+  Worker 3: File_003 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
+  Worker 4: File_004 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
 ```
 
 **Performance Characteristics:**
-- **CPU-bound operations** (decode, resample, fingerprint) overlap with **network-bound operations** (API calls) across workers
-- While Worker 1 waits for MusicBrainz API (1 second), Workers 2-4 perform CPU-intensive fingerprinting
+- **Per-segment fingerprints** are more accurate than whole-file fingerprints for multi-track files
+- **Segmentation first** provides structural clues before expensive fingerprinting operations
+- **Contextual matching** (metadata + pattern) narrows MusicBrainz candidates before fingerprinting
+- **CPU-bound operations** (decode, segment, fingerprint) overlap with **network-bound operations** (API calls) across workers
+- While Worker 1 waits for AcoustID API, Workers 2-4 perform CPU-intensive fingerprinting
 - Better resource utilization than batch phase approach (avoids idle CPU during API-heavy phases)
 
 **Thread Safety:**
 - Mutex-protected chromaprint context creation (safe for all FFT backends)
-- Per-worker fingerprinting (no shared mutable state between workers)
+- Per-worker per-segment fingerprinting (no shared mutable state between workers)
 - Deterministic results (order-independent processing)
 
 **Implementation:**
-- Use `tokio::task::spawn_blocking()` for CPU-intensive fingerprinting within async pipeline
+- Use `tokio::task::spawn_blocking()` for CPU-intensive per-segment fingerprinting within async pipeline
 - Use `once_cell::Lazy<Mutex<()>>` for CHROMAPRINT_LOCK
 - Coordinate rate-limited API calls via `governor` crate (shared rate limiter across workers)
+- Cache per-segment fingerprints and AcoustID results to avoid reprocessing on retry
 
 **[AIA-PERF-050]** Progress reporting during per-file pipeline processing:
 
