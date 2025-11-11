@@ -15,12 +15,15 @@ use crate::models::AmplitudeParameters;
 /// Amplitude analysis errors
 #[derive(Debug, Error)]
 pub enum AnalysisError {
+    /// Failed to read audio file with Symphonia
     #[error("Failed to read audio file: {0}")]
     ReadError(String),
 
+    /// Unsupported audio format
     #[error("Unsupported audio format: {0}")]
     UnsupportedFormat(String),
 
+    /// RMS amplitude analysis failed
     #[error("Analysis failed: {0}")]
     AnalysisFailed(String),
 }

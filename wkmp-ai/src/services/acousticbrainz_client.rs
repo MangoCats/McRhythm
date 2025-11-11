@@ -19,15 +19,19 @@ const RATE_LIMIT_MS: u64 = 1000; // 1 request per second (conservative)
 /// AcousticBrainz client errors
 #[derive(Debug, Error)]
 pub enum ABError {
+    /// Network communication error
     #[error("Network error: {0}")]
     NetworkError(String),
 
+    /// Recording not found in AcousticBrainz database
     #[error("Recording not found in AcousticBrainz: {0}")]
     RecordingNotFound(String),
 
+    /// AcousticBrainz API returned error response
     #[error("API error {0}: {1}")]
     ApiError(u16, String),
 
+    /// Failed to parse API response JSON
     #[error("Parse error: {0}")]
     ParseError(String),
 }

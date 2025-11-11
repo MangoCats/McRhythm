@@ -17,15 +17,19 @@ use thiserror::Error;
 /// Metadata extraction errors
 #[derive(Debug, Error)]
 pub enum MetadataError {
+    /// Failed to read audio file with Symphonia
     #[error("Failed to read file: {0}")]
     ReadError(String),
 
+    /// Unsupported audio format
     #[error("Unsupported format: {0}")]
     UnsupportedFormat(String),
 
+    /// No ID3 or other metadata tags found in file
     #[error("No metadata found")]
     NoMetadata,
 
+    /// I/O error (file read)
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 }

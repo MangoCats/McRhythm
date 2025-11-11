@@ -9,9 +9,13 @@ use uuid::Uuid;
 /// Album record (MusicBrainz release)
 #[derive(Debug, Clone)]
 pub struct Album {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// MusicBrainz Release MBID
     pub album_mbid: String,
+    /// Album title
     pub title: String,
+    /// Release date in YYYY-MM-DD format
     pub release_date: Option<String>,
 }
 

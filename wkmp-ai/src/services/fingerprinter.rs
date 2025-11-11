@@ -15,18 +15,23 @@ use thiserror::Error;
 /// Fingerprinting errors
 #[derive(Debug, Error)]
 pub enum FingerprintError {
+    /// Failed to decode audio file with Symphonia
     #[error("Failed to decode audio: {0}")]
     DecodeError(String),
 
+    /// Chromaprint library error
     #[error("Chromaprint error: {0}")]
     ChromaprintError(String),
 
+    /// Audio file too short (minimum 10 seconds required)
     #[error("Audio too short (minimum 10 seconds required)")]
     AudioTooShort,
 
+    /// I/O error (file read)
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
+    /// Audio resampling error
     #[error("Resample error: {0}")]
     ResampleError(String),
 }

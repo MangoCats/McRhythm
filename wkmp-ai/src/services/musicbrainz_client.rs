@@ -17,18 +17,23 @@ const RATE_LIMIT_MS: u64 = 1000; // 1 request per second
 /// MusicBrainz client errors
 #[derive(Debug, Error)]
 pub enum MBError {
+    /// Network communication error
     #[error("Network error: {0}")]
     NetworkError(String),
 
+    /// Recording not found in MusicBrainz database
     #[error("Recording not found: {0}")]
     RecordingNotFound(String),
 
+    /// Rate limit exceeded (1 request/second)
     #[error("Rate limit exceeded")]
     RateLimitExceeded,
 
+    /// MusicBrainz API returned error response
     #[error("API error {0}: {1}")]
     ApiError(u16, String),
 
+    /// Failed to parse API response JSON
     #[error("Parse error: {0}")]
     ParseError(String),
 }

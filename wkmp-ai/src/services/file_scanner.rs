@@ -16,18 +16,23 @@ use walkdir::{DirEntry, WalkDir};
 /// Audio file scanner errors
 #[derive(Debug, Error)]
 pub enum ScanError {
+    /// Specified path does not exist
     #[error("Path not found: {0}")]
     PathNotFound(PathBuf),
 
+    /// Path exists but is not a directory
     #[error("Not a directory: {0}")]
     NotADirectory(PathBuf),
 
+    /// Cannot access file
     #[error("File access error {0}: {1}")]
     FileAccessError(PathBuf, String),
 
+    /// Permission denied when accessing path
     #[error("Permission denied: {0}")]
     PermissionDenied(PathBuf),
 
+    /// General I/O error
     #[error("I/O error: {0}")]
     IoError(String),
 }

@@ -21,18 +21,23 @@ const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between request
 /// AcoustID client errors
 #[derive(Debug, Error)]
 pub enum AcoustIDError {
+    /// Network communication error
     #[error("Network error: {0}")]
     NetworkError(String),
 
+    /// No matching recordings found for fingerprint
     #[error("No matches found for fingerprint")]
     NoMatches,
 
+    /// AcoustID API returned error response
     #[error("API error {0}: {1}")]
     ApiError(u16, String),
 
+    /// Failed to parse API response JSON
     #[error("Parse error: {0}")]
     ParseError(String),
 
+    /// Invalid or missing API key
     #[error("Invalid API key")]
     InvalidApiKey,
 }

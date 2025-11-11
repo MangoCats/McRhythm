@@ -14,6 +14,7 @@ use crate::{error::ApiResult, models::AmplitudeParameters, AppState};
 /// GET /parameters/global response
 #[derive(Debug, Serialize)]
 pub struct GlobalParametersResponse {
+    /// Amplitude analysis parameters (flattened into response)
     #[serde(flatten)]
     pub parameters: AmplitudeParameters,
 }

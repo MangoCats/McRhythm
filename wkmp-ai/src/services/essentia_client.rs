@@ -14,21 +14,27 @@ use thiserror::Error;
 /// Essentia client errors
 #[derive(Debug, Error)]
 pub enum EssentiaError {
+    /// Essentia binary not found in PATH
     #[error("Essentia binary not found in PATH")]
     BinaryNotFound,
 
+    /// Failed to execute Essentia command
     #[error("Failed to execute Essentia: {0}")]
     ExecutionError(String),
 
+    /// Essentia analysis failed with error
     #[error("Essentia analysis failed: {0}")]
     AnalysisFailed(String),
 
+    /// Failed to parse Essentia JSON output
     #[error("Failed to parse Essentia output: {0}")]
     ParseError(String),
 
+    /// I/O error (file read/write)
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
+    /// Audio file not found at path
     #[error("Audio file not found: {0}")]
     FileNotFound(String),
 }
