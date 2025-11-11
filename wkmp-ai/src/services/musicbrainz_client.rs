@@ -36,48 +36,72 @@ pub enum MBError {
 /// MusicBrainz Recording response
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MBRecording {
-    pub id: String, // MBID
+    /// Recording MBID (MusicBrainz ID)
+    pub id: String,
+    /// Recording title
     pub title: String,
-    pub length: Option<u64>, // Milliseconds
+    /// Recording length in milliseconds
+    pub length: Option<u64>,
+    /// Artist credits for this recording
     #[serde(rename = "artist-credit")]
     pub artist_credit: Vec<MBArtistCredit>,
+    /// Releases containing this recording
     pub releases: Option<Vec<MBRelease>>,
+    /// Relations to other entities (e.g., works)
     pub relations: Option<Vec<MBRelation>>,
 }
 
+/// MusicBrainz artist credit
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MBArtistCredit {
-    pub name: String, // Display name (may differ from artist.name)
+    /// Display name (may differ from artist.name for collaborations)
+    pub name: String,
+    /// Artist information
     pub artist: MBArtist,
 }
 
+/// MusicBrainz artist
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MBArtist {
-    pub id: String, // MBID
+    /// Artist MBID (MusicBrainz ID)
+    pub id: String,
+    /// Artist name
     pub name: String,
+    /// Artist sort name (for alphabetical sorting)
     #[serde(rename = "sort-name")]
     pub sort_name: String,
 }
 
+/// MusicBrainz release
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MBRelease {
-    pub id: String, // MBID
+    /// Release MBID (MusicBrainz ID)
+    pub id: String,
+    /// Release title
     pub title: String,
-    pub date: Option<String>, // YYYY-MM-DD format
+    /// Release date in YYYY-MM-DD format
+    pub date: Option<String>,
 }
 
+/// MusicBrainz relation to another entity
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MBRelation {
+    /// Relation type (e.g., "performance")
     #[serde(rename = "type")]
     pub relation_type: String,
+    /// Relation type UUID
     #[serde(rename = "type-id")]
     pub type_id: String,
+    /// Related work (if relation is to a work)
     pub work: Option<MBWork>,
 }
 
+/// MusicBrainz work (musical composition)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MBWork {
-    pub id: String, // MBID
+    /// Work MBID (MusicBrainz ID)
+    pub id: String,
+    /// Work title
     pub title: String,
 }
 

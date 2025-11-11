@@ -40,28 +40,42 @@ pub enum AcoustIDError {
 /// AcoustID lookup response
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDResponse {
+    /// API response status (e.g., "ok", "error")
     pub status: String,
+    /// List of matching results
     pub results: Vec<AcoustIDResult>,
 }
 
+/// AcoustID match result
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDResult {
-    pub id: String, // AcoustID
-    pub score: f64, // Match confidence (0.0 to 1.0)
+    /// AcoustID fingerprint identifier
+    pub id: String,
+    /// Match confidence score (0.0 to 1.0)
+    pub score: f64,
+    /// Matching MusicBrainz recordings
     pub recordings: Option<Vec<AcoustIDRecording>>,
 }
 
+/// AcoustID recording information
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDRecording {
-    pub id: String, // MusicBrainz Recording MBID
+    /// MusicBrainz Recording MBID
+    pub id: String,
+    /// Recording title
     pub title: Option<String>,
+    /// Artist credits
     pub artists: Option<Vec<AcoustIDArtist>>,
-    pub duration: Option<u64>, // Seconds
+    /// Recording duration in seconds
+    pub duration: Option<u64>,
 }
 
+/// AcoustID artist information
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDArtist {
-    pub id: String, // MusicBrainz Artist MBID
+    /// MusicBrainz Artist MBID
+    pub id: String,
+    /// Artist name
     pub name: String,
 }
 

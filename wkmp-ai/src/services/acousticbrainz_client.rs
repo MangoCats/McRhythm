@@ -38,64 +38,96 @@ pub enum ABError {
 /// the most relevant ones for musical flavor characterization.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABLowLevel {
+    /// Analysis metadata (version, audio properties)
     pub metadata: ABMetadata,
+    /// Tonal features (key, scale, chords)
     pub tonal: Option<ABTonal>,
+    /// Rhythm features (BPM, danceability)
     pub rhythm: Option<ABRhythm>,
+    /// Low-level audio features (spectral, dynamic)
     pub lowlevel: Option<ABLowLevelFeatures>,
 }
 
+/// AcousticBrainz metadata section
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABMetadata {
+    /// Essentia version information
     pub version: Option<ABVersion>,
+    /// Audio file properties
     pub audio_properties: Option<ABAudioProperties>,
 }
 
+/// Essentia version information
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABVersion {
+    /// Essentia library version string
     pub essentia: Option<String>,
 }
 
+/// Audio file properties
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABAudioProperties {
+    /// Track duration in seconds
     pub length: Option<f64>,
+    /// Sample rate in Hz
     pub sample_rate: Option<i32>,
+    /// Bit rate in kbps
     pub bit_rate: Option<i32>,
 }
 
 /// Tonal features (key, scale, chords)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABTonal {
-    pub key_key: Option<String>,         // Key (e.g., "C", "A")
-    pub key_scale: Option<String>,       // Scale (e.g., "major", "minor")
-    pub key_strength: Option<f64>,       // Confidence
-    pub chords_key: Option<String>,      // Predominant chord
-    pub chords_scale: Option<String>,    // Predominant chord scale
+    /// Musical key (e.g., "C", "A")
+    pub key_key: Option<String>,
+    /// Musical scale (e.g., "major", "minor")
+    pub key_scale: Option<String>,
+    /// Key detection confidence (0.0-1.0)
+    pub key_strength: Option<f64>,
+    /// Predominant chord key
+    pub chords_key: Option<String>,
+    /// Predominant chord scale
+    pub chords_scale: Option<String>,
 }
 
 /// Rhythm features (BPM, beats)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABRhythm {
+    /// Beats per minute
     pub bpm: Option<f64>,
+    /// Note onset rate (onsets per second)
     pub onset_rate: Option<f64>,
+    /// Danceability score (0.0-1.0)
     pub danceability: Option<f64>,
 }
 
 /// Low-level audio features
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABLowLevelFeatures {
+    /// Spectral centroid statistics (brightness)
     pub spectral_centroid: Option<ABStatistics>,
+    /// Spectral energy statistics
     pub spectral_energy: Option<ABStatistics>,
+    /// Spectral rolloff statistics
     pub spectral_rolloff: Option<ABStatistics>,
+    /// Dissonance statistics (harmonic complexity)
     pub dissonance: Option<ABStatistics>,
+    /// Dynamic complexity (amplitude variation)
     pub dynamic_complexity: Option<f64>,
 }
 
+/// Statistical summary of audio feature
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ABStatistics {
+    /// Mean value
     pub mean: Option<f64>,
+    /// Median value
     pub median: Option<f64>,
+    /// Variance
     pub var: Option<f64>,
+    /// Minimum value
     pub min: Option<f64>,
+    /// Maximum value
     pub max: Option<f64>,
 }
 
@@ -104,25 +136,30 @@ pub struct ABStatistics {
 /// Simplified representation of musical characteristics for passage selection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MusicalFlavorVector {
-    // Tonal characteristics
+    /// Musical key (e.g., "C", "A")
     pub key: Option<String>,
+    /// Musical scale (e.g., "major", "minor")
     pub scale: Option<String>,
+    /// Key detection confidence (0.0-1.0)
     pub key_strength: Option<f64>,
 
-    // Rhythmic characteristics
+    /// Beats per minute
     pub bpm: Option<f64>,
+    /// Danceability score (0.0-1.0)
     pub danceability: Option<f64>,
 
-    // Spectral characteristics
-    pub spectral_centroid: Option<f64>,  // Brightness
-    pub spectral_energy: Option<f64>,     // Energy
-    pub dissonance: Option<f64>,          // Harmonic complexity
+    /// Spectral centroid (brightness)
+    pub spectral_centroid: Option<f64>,
+    /// Spectral energy (overall energy level)
+    pub spectral_energy: Option<f64>,
+    /// Dissonance (harmonic complexity)
+    pub dissonance: Option<f64>,
 
-    // Dynamic characteristics
+    /// Dynamic complexity (amplitude variation)
     pub dynamic_complexity: Option<f64>,
 
-    // Metadata
-    pub source: String,  // "acousticbrainz" or "essentia"
+    /// Data source ("acousticbrainz" or "essentia")
+    pub source: String,
 }
 
 impl MusicalFlavorVector {

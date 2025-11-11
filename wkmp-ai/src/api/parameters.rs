@@ -21,20 +21,30 @@ pub struct GlobalParametersResponse {
 /// POST /parameters/global request (partial updates)
 #[derive(Debug, Deserialize)]
 pub struct UpdateParametersRequest {
+    /// RMS window size in milliseconds
     pub rms_window_ms: Option<u32>,
+    /// Lead-in threshold in decibels
     pub lead_in_threshold_db: Option<f64>,
+    /// Lead-out threshold in decibels
     pub lead_out_threshold_db: Option<f64>,
+    /// Quick ramp detection threshold
     pub quick_ramp_threshold: Option<f64>,
+    /// Quick ramp duration in seconds
     pub quick_ramp_duration_s: Option<f64>,
+    /// Maximum lead-in duration in seconds
     pub max_lead_in_duration_s: Option<f64>,
+    /// Maximum lead-out duration in seconds
     pub max_lead_out_duration_s: Option<f64>,
+    /// Whether to apply A-weighting to audio analysis
     pub apply_a_weighting: Option<bool>,
 }
 
 /// POST /parameters/global response
 #[derive(Debug, Serialize)]
 pub struct UpdateParametersResponse {
+    /// Status message (e.g., "updated")
     pub status: String,
+    /// Updated parameter values after applying changes
     pub parameters: AmplitudeParameters,
 }
 

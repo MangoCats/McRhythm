@@ -27,15 +27,25 @@ use tracing::{debug, info, warn};
 /// File import tracking information from database
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileTrackingInfo {
+    /// File UUID (foreign key to files table)
     pub file_id: uuid::Uuid,
+    /// SHA-256 hash of file contents
     pub file_hash: Option<String>,
+    /// File modification timestamp (Unix epoch seconds)
     pub modification_time: Option<i64>,
+    /// When initial import completed (Unix epoch seconds)
     pub import_completed_at: Option<i64>,
+    /// Import success confidence score (0.0-1.0)
     pub import_success_confidence: Option<f32>,
+    /// When metadata collection completed (Unix epoch seconds)
     pub metadata_import_completed_at: Option<i64>,
+    /// Metadata confidence score (0.0-1.0)
     pub metadata_confidence: Option<f32>,
+    /// When user manually approved file (Unix epoch seconds)
     pub user_approved_at: Option<i64>,
+    /// Number of re-import attempts since last success
     pub reimport_attempt_count: i32,
+    /// When last re-import attempt occurred (Unix epoch seconds)
     pub last_reimport_attempt_at: Option<i64>,
 }
 

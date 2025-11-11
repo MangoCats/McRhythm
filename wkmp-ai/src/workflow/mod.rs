@@ -47,17 +47,24 @@ pub const TICK_RATE: i64 = 28_224_000;
 /// Complete fused passage data (all fusers combined)
 #[derive(Debug, Clone)]
 pub struct FusedPassage {
+    /// Fused metadata (title, artist, album)
     pub metadata: crate::types::FusedMetadata,
+    /// Fused identity (recording MBID, work MBID)
     pub identity: crate::types::FusedIdentity,
+    /// Fused musical flavor vector
     pub flavor: crate::types::FusedFlavor,
 }
 
 /// Complete passage result after fusion and validation
 #[derive(Debug, Clone)]
 pub struct ProcessedPassage {
+    /// Passage boundary (start/end times in ticks)
     pub boundary: PassageBoundary,
+    /// Individual extraction results from all extractors
     pub extractions: Vec<ExtractionResult>,
+    /// Fused data from all fusers
     pub fusion: FusedPassage,
+    /// Validation result (quality score, confidence)
     pub validation: ValidationResult,
 }
 
@@ -67,7 +74,9 @@ pub struct ProcessedPassage {
 pub enum WorkflowEvent {
     /// File processing started
     FileStarted {
+        /// Path to audio file being processed
         file_path: String,
+        /// Unix timestamp (seconds since epoch)
         timestamp: i64,
     },
 
@@ -75,52 +84,71 @@ pub enum WorkflowEvent {
     ///
     /// Note: Times stored in ticks internally, converted to seconds for SSE display
     BoundaryDetected {
+        /// Passage index (0-based)
         passage_index: usize,
-        start_time: i64,  // SPEC017 ticks
-        end_time: i64,    // SPEC017 ticks
+        /// Start time in ticks (SPEC017)
+        start_time: i64,
+        /// End time in ticks (SPEC017)
+        end_time: i64,
+        /// Boundary detection confidence (0.0-1.0)
         confidence: f64,
     },
 
     /// Passage processing started
     PassageStarted {
+        /// Passage index (0-based)
         passage_index: usize,
+        /// Total passages detected in file
         total_passages: usize,
     },
 
     /// Extraction phase progress
     ExtractionProgress {
+        /// Passage index (0-based)
         passage_index: usize,
+        /// Extractor name (e.g., "id3", "chromaprint")
         extractor: String,
+        /// Status message (e.g., "extracting", "complete", "failed")
         status: String,
     },
 
     /// Fusion phase started
     FusionStarted {
+        /// Passage index (0-based)
         passage_index: usize,
     },
 
     /// Validation phase started
     ValidationStarted {
+        /// Passage index (0-based)
         passage_index: usize,
     },
 
     /// Passage processing completed
     PassageCompleted {
+        /// Passage index (0-based)
         passage_index: usize,
+        /// Quality score (0.0-1.0)
         quality_score: f64,
+        /// Validation status (e.g., "accepted", "rejected")
         validation_status: String,
     },
 
     /// File processing completed
     FileCompleted {
+        /// Path to audio file
         file_path: String,
+        /// Number of passages successfully processed
         passages_processed: usize,
+        /// Unix timestamp (seconds since epoch)
         timestamp: i64,
     },
 
     /// Error occurred
     Error {
+        /// Passage index if error relates to specific passage
         passage_index: Option<usize>,
+        /// Error message
         message: String,
     },
 }

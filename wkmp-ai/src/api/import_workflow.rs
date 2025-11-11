@@ -15,7 +15,9 @@ use crate::{error::{ApiError, ApiResult}, models::{ImportParameters, ImportSessi
 /// POST /import/start request
 #[derive(Debug, Deserialize)]
 pub struct StartImportRequest {
+    /// Root folder path to scan for audio files
     pub root_folder: String,
+    /// Import parameters (optional, uses defaults if not provided)
     #[serde(default)]
     pub parameters: ImportParameters,
 }
@@ -23,31 +25,47 @@ pub struct StartImportRequest {
 /// POST /import/start response
 #[derive(Debug, Serialize)]
 pub struct StartImportResponse {
+    /// Unique session identifier for this import
     pub session_id: Uuid,
+    /// Current import state
     pub state: ImportState,
+    /// Timestamp when import started
     pub started_at: chrono::DateTime<chrono::Utc>,
 }
 
 /// GET /import/status response
 #[derive(Debug, Serialize)]
 pub struct ImportStatusResponse {
+    /// Import session identifier
     pub session_id: Uuid,
+    /// Current import state
     pub state: ImportState,
+    /// Progress information (files processed, percentage complete)
     pub progress: crate::models::ImportProgress,
+    /// Description of current operation
     pub current_operation: String,
+    /// List of errors encountered during import
     pub errors: Vec<crate::models::ImportError>,
+    /// Timestamp when import started
     pub started_at: chrono::DateTime<chrono::Utc>,
+    /// Seconds elapsed since import started
     pub elapsed_seconds: u64,
+    /// Estimated seconds remaining (None if unknown)
     pub estimated_remaining_seconds: Option<u64>,
 }
 
 /// POST /import/cancel response
 #[derive(Debug, Serialize)]
 pub struct CancelImportResponse {
+    /// Import session identifier
     pub session_id: Uuid,
+    /// Final import state after cancellation
     pub state: ImportState,
+    /// Number of files successfully processed before cancellation
     pub files_processed: usize,
+    /// Number of files skipped
     pub files_skipped: usize,
+    /// Timestamp when import was cancelled
     pub cancelled_at: chrono::DateTime<chrono::Utc>,
 }
 

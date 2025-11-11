@@ -8,24 +8,44 @@ use uuid::Uuid;
 use wkmp_common::timing::{seconds_to_ticks, ticks_to_seconds};
 
 /// Passage record
+///
+/// Represents a playable segment within an audio file with timing and metadata.
+/// **[SPEC017]** All timing values use tick-based representation (1 tick = 1/28,224,000 second).
 #[derive(Debug, Clone)]
 pub struct Passage {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// Parent file identifier (foreign key to files table)
     pub file_id: Uuid,
+    /// Passage start time in ticks (SPEC017)
     pub start_time_ticks: i64,
+    /// Fade-in start point in ticks (None = no fade-in)
     pub fade_in_start_ticks: Option<i64>,
+    /// Lead-in point in ticks (crossfade overlap start)
     pub lead_in_start_ticks: Option<i64>,
+    /// Lead-out point in ticks (crossfade overlap start)
     pub lead_out_start_ticks: Option<i64>,
+    /// Fade-out start point in ticks (None = no fade-out)
     pub fade_out_start_ticks: Option<i64>,
+    /// Passage end time in ticks (SPEC017)
     pub end_time_ticks: i64,
+    /// Fade-in curve type identifier (e.g., "linear", "ease-in")
     pub fade_in_curve: Option<String>,
+    /// Fade-out curve type identifier (e.g., "linear", "ease-out")
     pub fade_out_curve: Option<String>,
+    /// Passage title from metadata extraction
     pub title: Option<String>,
+    /// User-overridden title (takes precedence over title)
     pub user_title: Option<String>,
+    /// Artist name from metadata extraction
     pub artist: Option<String>,
+    /// Album name from metadata extraction
     pub album: Option<String>,
+    /// Musical flavor vector as JSON array (from AcousticBrainz)
     pub musical_flavor_vector: Option<String>,
+    /// Import metadata as JSON (extraction sources, confidence scores)
     pub import_metadata: Option<String>,
+    /// Additional metadata as JSON (extensibility field)
     pub additional_metadata: Option<String>,
 }
 

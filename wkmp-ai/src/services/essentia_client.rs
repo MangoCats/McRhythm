@@ -39,42 +39,67 @@ pub enum EssentiaError {
 /// We extract the same subset as AcousticBrainz for compatibility.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EssentiaOutput {
+    /// Low-level audio features
     pub lowlevel: Option<EssentiaLowLevel>,
+    /// Rhythm features (BPM, danceability)
     pub rhythm: Option<EssentiaRhythm>,
+    /// Tonal features (key, scale)
     pub tonal: Option<EssentiaTonal>,
 }
 
+/// Essentia low-level audio features
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EssentiaLowLevel {
+    /// Average loudness in dB
     pub average_loudness: Option<f64>,
+    /// Dynamic complexity (amplitude variation)
     pub dynamic_complexity: Option<f64>,
+    /// Spectral centroid statistics (brightness)
     pub spectral_centroid: Option<EssentiaStats>,
+    /// Spectral energy statistics
     pub spectral_energy: Option<EssentiaStats>,
+    /// Dissonance statistics (harmonic complexity)
     pub dissonance: Option<EssentiaStats>,
 }
 
+/// Statistical summary of Essentia feature
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EssentiaStats {
+    /// Mean value
     pub mean: Option<f64>,
+    /// Median value
     pub median: Option<f64>,
+    /// Variance
     pub var: Option<f64>,
+    /// Minimum value
     pub min: Option<f64>,
+    /// Maximum value
     pub max: Option<f64>,
 }
 
+/// Essentia rhythm features
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EssentiaRhythm {
+    /// Beats per minute
     pub bpm: Option<f64>,
+    /// Danceability score (0.0-1.0)
     pub danceability: Option<f64>,
+    /// Note onset rate (onsets per second)
     pub onset_rate: Option<f64>,
 }
 
+/// Essentia tonal features
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EssentiaTonal {
+    /// Musical key (e.g., "C", "A")
     pub key_key: Option<String>,
+    /// Musical scale (e.g., "major", "minor")
     pub key_scale: Option<String>,
+    /// Key detection confidence (0.0-1.0)
     pub key_strength: Option<f64>,
+    /// Predominant chord key
     pub chords_key: Option<String>,
+    /// Predominant chord scale
     pub chords_scale: Option<String>,
 }
 
