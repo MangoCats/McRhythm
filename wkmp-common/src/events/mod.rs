@@ -34,8 +34,11 @@ pub enum WkmpEvent {
     /// - State Persistence: Save current state
     /// - Platform Integration: Update MPRIS/media keys
     PlaybackStateChanged {
+        /// Playback state before change
         old_state: PlaybackState,
+        /// Playback state after change
         new_state: PlaybackState,
+        /// When state changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -46,9 +49,11 @@ pub enum WkmpEvent {
     /// - SSE: Update all connected UIs
     /// - Lyrics Display: Show passage lyrics
     PassageStarted {
+        /// Passage UUID that started playing
         passage_id: Uuid,
         /// **[REQ-DEBT-FUNC-003]** All albums for this passage, for cooldown/stats
         album_uuids: Vec<Uuid>,
+        /// When passage started
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -59,11 +64,15 @@ pub enum WkmpEvent {
     /// - Queue Manager: Advance queue
     /// - SSE: Update UI playback state
     PassageCompleted {
+        /// Passage UUID that completed
         passage_id: Uuid,
         /// **[REQ-DEBT-FUNC-003]** All albums for this passage, for cooldown/stats
         album_uuids: Vec<Uuid>,
+        /// Duration played in seconds
         duration_played: f64,
-        completed: bool, // false if skipped
+        /// Whether passage was completed (false if skipped)
+        completed: bool,
+        /// When passage completed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -77,10 +86,15 @@ pub enum WkmpEvent {
     /// - UI: Reset album rotation timer if song has multiple albums
     /// - UI: Update now playing song information
     CurrentSongChanged {
+        /// Passage UUID currently playing
         passage_id: Uuid,
+        /// Song UUID (None if passage has no song association)
         song_id: Option<Uuid>,
-        song_albums: Vec<Uuid>, // All albums for this song, ordered by release date (newest first)
+        /// All albums for this song, ordered by release date (newest first)
+        song_albums: Vec<Uuid>,
+        /// Current position in passage (milliseconds)
         position_ms: u64,
+        /// When song changed
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 
@@ -95,9 +109,13 @@ pub enum WkmpEvent {
     /// Triggers:
     /// - SSE: Update progress bar
     PlaybackProgress {
+        /// Currently playing passage UUID
         passage_id: Uuid,
+        /// Current playback position (milliseconds)
         position_ms: u64,
+        /// Total passage duration (milliseconds)
         duration_ms: u64,
+        /// Progress update timestamp
         timestamp: chrono::DateTime<chrono::Utc>,
     },
 

@@ -10,17 +10,24 @@ use super::playback_types::{DecoderState, FadeStage};
 /// Queue entry information for SSE events
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueEntryInfo {
+    /// Queue entry UUID
     pub queue_entry_id: Uuid,
+    /// Passage UUID if entry references a specific passage
     pub passage_id: Option<Uuid>,
+    /// Audio file path
     pub file_path: String,
 }
 
 /// Playback position information for SSE events
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaybackPositionInfo {
+    /// Currently playing passage UUID
     pub passage_id: Uuid,
+    /// Current playback position in milliseconds
     pub position_ms: u64,
+    /// Total passage duration in milliseconds
     pub duration_ms: u64,
+    /// Whether passage is currently playing (vs. paused)
     pub playing: bool,
 }
 
@@ -30,9 +37,13 @@ pub struct PlaybackPositionInfo {
 /// **[DBD-OV-080]** Passage-based chain association (not position-based)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BufferChainInfo {
+    /// Buffer slot index (0-based)
     pub slot_index: usize,
+    /// Queue entry UUID if slot is active
     pub queue_entry_id: Option<Uuid>,
+    /// Passage UUID if slot is active
     pub passage_id: Option<Uuid>,
+    /// Audio file name (without path) for display
     pub file_name: Option<String>,
 
     // Queue position tracking **[DBD-OV-060]** [DBD-OV-070]**
@@ -71,18 +82,27 @@ pub struct BufferChainInfo {
     // Buffer stage visibility **[DBD-BUF-020]** through **[DBD-BUF-060]**
     /// Buffer state: Empty, Filling, Ready, Playing, Finished
     pub buffer_state: Option<String>,
+    /// Buffer fill percentage (0.0-100.0)
     pub buffer_fill_percent: f32,
+    /// Number of samples currently in buffer
     pub buffer_fill_samples: usize,
+    /// Total buffer capacity in samples
     pub buffer_capacity_samples: usize,
     /// Total frames written to buffer (cumulative, for decode progress tracking)
     pub total_decoded_frames: usize,
 
     // Mixer stage visibility
+    /// Current playback position in frames
     pub playback_position_frames: usize,
+    /// Current playback position in milliseconds
     pub playback_position_ms: u64,
+    /// Passage duration in milliseconds
     pub duration_ms: Option<u64>,
+    /// Whether this chain is actively being read by mixer
     pub is_active_in_mixer: bool,
-    pub mixer_role: String, // "Idle", "Current", "Next", "Crossfading"
+    /// Mixer role: "Idle", "Current", "Next", "Crossfading"
+    pub mixer_role: String,
+    /// ISO 8601 timestamp when playback started
     pub started_at: Option<String>,
 }
 
