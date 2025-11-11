@@ -62,6 +62,7 @@ pub struct ConfidenceValue<T> {
 }
 
 impl<T> ConfidenceValue<T> {
+    /// Create new confidence value with clamped confidence (0.0-1.0)
     pub fn new(value: T, confidence: f32, source: impl Into<String>) -> Self {
         Self {
             value,
@@ -152,19 +153,27 @@ pub struct ExtractionResult {
 /// Metadata extraction result
 #[derive(Debug, Clone, Default)]
 pub struct MetadataExtraction {
+    /// Track title with confidence
     pub title: Option<ConfidenceValue<String>>,
+    /// Artist name with confidence
     pub artist: Option<ConfidenceValue<String>>,
+    /// Album title with confidence
     pub album: Option<ConfidenceValue<String>>,
+    /// MusicBrainz Recording MBID with confidence
     pub recording_mbid: Option<ConfidenceValue<String>>,
+    /// Additional metadata fields (e.g., "year", "genre")
     pub additional: HashMap<String, ConfidenceValue<String>>,
 }
 
 /// Identity resolution result (MusicBrainz Recording MBID)
 #[derive(Debug, Clone)]
 pub struct IdentityExtraction {
+    /// MusicBrainz Recording MBID
     pub recording_mbid: String,
+    /// Confidence score (0.0-1.0)
     pub confidence: f32,
-    pub source: String,  // "AcoustID", "ID3", etc.
+    /// Source of identification ("AcoustID", "ID3", etc.)
+    pub source: String,
 }
 
 /// Musical flavor extraction result
@@ -181,27 +190,35 @@ pub struct FlavorExtraction {
 /// Extraction error
 #[derive(Debug, Error)]
 pub enum ExtractionError {
+    /// I/O error (file read/write)
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// Audio decoding failed
     #[error("Audio decoding error: {0}")]
     AudioDecode(String),
 
+    /// Network communication error
     #[error("Network error: {0}")]
     Network(String),
 
+    /// External API error
     #[error("API error: {0}")]
     Api(String),
 
+    /// Failed to parse response or data
     #[error("Parse error: {0}")]
     Parse(String),
 
+    /// Unsupported audio format
     #[error("Unsupported format: {0}")]
     UnsupportedFormat(String),
 
+    /// Required extractor not available
     #[error("Extractor not available: {0}")]
     NotAvailable(String),
 
+    /// Internal processing error
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -282,44 +299,62 @@ pub struct FusionResult<T> {
 /// Fused metadata result (Tier 2 output)
 #[derive(Debug, Clone)]
 pub struct FusedMetadata {
+    /// Fused track title with confidence
     pub title: Option<ConfidenceValue<String>>,
+    /// Fused artist name with confidence
     pub artist: Option<ConfidenceValue<String>>,
+    /// Fused album title with confidence
     pub album: Option<ConfidenceValue<String>>,
+    /// Fused MusicBrainz Recording MBID with confidence
     pub recording_mbid: Option<ConfidenceValue<String>>,
-    pub additional: HashMap<String, ConfidenceValue<String>>,  // artist_mbid, release_mbid, etc.
-    pub metadata_completeness: f32,  // 0.0-1.0
+    /// Additional fused metadata (artist_mbid, release_mbid, etc.)
+    pub additional: HashMap<String, ConfidenceValue<String>>,
+    /// Metadata completeness score (0.0-1.0)
+    pub metadata_completeness: f32,
 }
 
 /// Fused identity result (Tier 2 output)
 #[derive(Debug, Clone)]
 pub struct FusedIdentity {
-    pub recording_mbid: Option<String>,  // None if no valid MBID found
+    /// Fused MusicBrainz Recording MBID (None if no valid MBID found)
+    pub recording_mbid: Option<String>,
+    /// Overall confidence score (0.0-1.0)
     pub confidence: f32,
-    pub posterior_probability: f32,  // Bayesian update
+    /// Bayesian posterior probability
+    pub posterior_probability: f32,
+    /// List of conflicting identifications
     pub conflicts: Vec<String>,
 }
 
 /// Fused musical flavor result (Tier 2 output)
 #[derive(Debug, Clone)]
 pub struct FusedFlavor {
+    /// Fused musical characteristics (e.g., "danceability": 0.7)
     pub characteristics: HashMap<String, f32>,
+    /// Confidence for each characteristic
     pub confidence_map: HashMap<String, f32>,
+    /// Source blend weights (source, weight)
     pub source_blend: Vec<(String, f32)>,
-    pub completeness: f32,  // 0.0-1.0
+    /// Flavor completeness score (0.0-1.0)
+    pub completeness: f32,
 }
 
 /// Fusion error
 #[derive(Debug, Error)]
 pub enum FusionError {
+    /// Insufficient data to perform fusion
     #[error("Insufficient data: {0}")]
     InsufficientData(String),
 
+    /// Failed to resolve conflicting values
     #[error("Conflict resolution failed: {0}")]
     ConflictResolution(String),
 
+    /// Invalid or inconsistent confidence scores
     #[error("Invalid confidence scores: {0}")]
     InvalidConfidence(String),
 
+    /// Internal processing error
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -413,12 +448,15 @@ pub enum ValidationStatus {
 /// Validation error
 #[derive(Debug, Error)]
 pub enum ValidationError {
+    /// Invalid input data
     #[error("Invalid input: {0}")]
     InvalidInput(String),
 
+    /// Validation check failed
     #[error("Validation check failed: {0}")]
     CheckFailed(String),
 
+    /// Internal processing error
     #[error("Internal error: {0}")]
     Internal(String),
 }

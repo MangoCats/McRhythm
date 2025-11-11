@@ -245,6 +245,7 @@ pub struct AcousticBrainzClient {
 }
 
 impl AcousticBrainzClient {
+    /// Create new AcousticBrainz client
     pub fn new() -> Result<Self, ABError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)

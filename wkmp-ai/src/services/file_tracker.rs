@@ -106,12 +106,14 @@ impl Default for FileTrackerConfig {
 // File Tracker
 // ============================================================================
 
+/// File tracking service for import workflow (Phase -1)
 pub struct FileTracker {
     db: SqlitePool,
     config: FileTrackerConfig,
 }
 
 impl FileTracker {
+    /// Create new file tracker with database pool and configuration
     pub fn new(db: SqlitePool, config: FileTrackerConfig) -> Self {
         Self { db, config }
     }

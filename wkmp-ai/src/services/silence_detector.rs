@@ -39,6 +39,7 @@ impl SilenceRegion {
         }
     }
 
+    /// Calculate duration of silence region in seconds
     pub fn duration(&self) -> f32 {
         self.end_seconds - self.start_seconds
     }

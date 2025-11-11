@@ -123,6 +123,7 @@ pub struct AcoustIDClient {
 }
 
 impl AcoustIDClient {
+    /// Create new AcoustID client with API key and database pool
     pub fn new(api_key: String, db: sqlx::SqlitePool) -> Result<Self, AcoustIDError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)

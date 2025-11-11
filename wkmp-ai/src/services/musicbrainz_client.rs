@@ -148,6 +148,7 @@ pub struct MusicBrainzClient {
 }
 
 impl MusicBrainzClient {
+    /// Create new MusicBrainz client
     pub fn new() -> Result<Self, MBError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
