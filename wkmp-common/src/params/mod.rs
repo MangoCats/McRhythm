@@ -269,10 +269,16 @@ impl Default for GlobalParams {
 /// assert!(meta.validator("2.0").is_err());
 /// ```
 pub struct ParamMetadata {
+    /// Parameter key (e.g., "amplitude.quick_ramp_up_min_rms")
     pub key: &'static str,
+    /// Data type ("float", "int", "bool")
     pub data_type: &'static str,
+    /// Default value as string
     pub default_value: &'static str,
+    /// Human-readable description
     pub description: &'static str,
+    /// Validation range description (e.g., "0.0-1.0")
     pub validation_range: &'static str,
+    /// Validation function
     pub validator: fn(&str) -> Result<(), String>,
 }

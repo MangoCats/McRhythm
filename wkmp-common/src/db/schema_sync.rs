@@ -119,21 +119,30 @@ pub struct ActualColumn {
 pub enum SchemaDrift {
     /// Column missing from database
     MissingColumn {
+        /// Table name
         table: String,
+        /// Column definition
         column: ColumnDefinition,
     },
     /// Column type mismatch (cannot auto-fix - requires manual migration)
     TypeMismatch {
+        /// Table name
         table: String,
+        /// Column name
         column: String,
+        /// Expected column type
         expected: String,
+        /// Actual column type
         actual: String,
     },
     /// Constraint mismatch (cannot auto-fix - requires manual migration)
     ConstraintMismatch {
+        /// Table name
         table: String,
+        /// Column name
         column: String,
-        constraint: String,  // "NOT NULL", "UNIQUE", "PRIMARY KEY"
+        /// Constraint type ("NOT NULL", "UNIQUE", "PRIMARY KEY")
+        constraint: String,
     },
 }
 
