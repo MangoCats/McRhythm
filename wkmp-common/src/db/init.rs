@@ -47,6 +47,7 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_module_config_table(&pool).await?;
     create_files_table(&pool).await?;
     create_passages_table(&pool).await?;
+    create_import_provenance_table(&pool).await?;
     create_queue_table(&pool).await?;
     create_acoustid_cache_table(&pool).await?;
 
@@ -437,6 +438,35 @@ pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
 
     // Create index for decode_status queries (REQ-AP-ERR-011)
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_decode_status ON passages(decode_status)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+/// Create the import_provenance table
+///
+/// Tracks the origin and confidence of data extracted during passage import.
+/// Used for debugging import quality and providing audit trails.
+pub async fn create_import_provenance_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS import_provenance (
+            id TEXT PRIMARY KEY,
+            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
+            source_type TEXT NOT NULL,
+            data_extracted TEXT,
+            confidence REAL,
+            timestamp INTEGER,
+            FOREIGN KEY (passage_id) REFERENCES passages(guid) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index for querying all extractions for a passage
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_import_provenance_passage_id ON import_provenance(passage_id)")
         .execute(pool)
         .await?;
 

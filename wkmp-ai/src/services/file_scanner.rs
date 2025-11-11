@@ -73,12 +73,22 @@ impl FileScanner {
         }
     }
 
-    /// Scan directory for audio files
+    /// Scan directory for audio files with progress callback
     ///
     /// **[AIA-PERF-030]** Two-phase parallel implementation:
     /// - Phase 1: Sequential directory traversal with symlink detection
     /// - Phase 2: Parallel magic byte verification (3-6x speedup on SSD)
-    pub fn scan(&self, root_path: &Path) -> Result<Vec<PathBuf>, ScanError> {
+    ///
+    /// **Progress Callback:** Called periodically during Phase 1 with current count.
+    /// Called at least once per 100 files discovered.
+    pub fn scan_with_progress<F>(
+        &self,
+        root_path: &Path,
+        progress_callback: &mut F,
+    ) -> Result<Vec<PathBuf>, ScanError>
+    where
+        F: FnMut(usize),
+    {
         if !root_path.exists() {
             return Err(ScanError::PathNotFound(root_path.to_path_buf()));
         }
@@ -91,6 +101,7 @@ impl FileScanner {
         // This must be sequential because symlink_visited is mutable
         let mut candidate_files = Vec::new();
         let mut symlink_visited = HashSet::new();
+        const PROGRESS_INTERVAL: usize = 100;
 
         let walker = WalkDir::new(root_path)
             .follow_links(false) // Don't follow symlinks automatically
@@ -103,6 +114,11 @@ impl FileScanner {
                 Ok(entry) => {
                     if entry.file_type().is_file() {
                         candidate_files.push(entry.path().to_path_buf());
+
+                        // Call progress callback every 100 files
+                        if candidate_files.len() % PROGRESS_INTERVAL == 0 {
+                            progress_callback(candidate_files.len());
+                        }
                     }
                 }
                 Err(e) => {
@@ -111,6 +127,9 @@ impl FileScanner {
                 }
             }
         }
+
+        // Final progress update with total count
+        progress_callback(candidate_files.len());
 
         tracing::debug!(
             "Phase 1 complete: {} candidate files discovered",
@@ -142,9 +161,28 @@ impl FileScanner {
         Ok(audio_files)
     }
 
-    /// Scan with statistics
-    pub fn scan_with_stats(&self, root_path: &Path) -> Result<ScanResult, ScanError> {
-        let files = self.scan(root_path)?;
+    /// Scan directory for audio files (legacy - no progress callback)
+    ///
+    /// **[AIA-PERF-030]** Two-phase parallel implementation:
+    /// - Phase 1: Sequential directory traversal with symlink detection
+    /// - Phase 2: Parallel magic byte verification (3-6x speedup on SSD)
+    pub fn scan(&self, root_path: &Path) -> Result<Vec<PathBuf>, ScanError> {
+        self.scan_with_progress(root_path, &mut |_| {})
+    }
+
+    /// Scan with statistics and progress callback
+    ///
+    /// **Progress Callback:** Called periodically during Phase 1 (file discovery)
+    /// with current file count. Called at least once per 100 files discovered.
+    pub fn scan_with_stats_and_progress<F>(
+        &self,
+        root_path: &Path,
+        mut progress_callback: F,
+    ) -> Result<ScanResult, ScanError>
+    where
+        F: FnMut(usize),
+    {
+        let files = self.scan_with_progress(root_path, &mut progress_callback)?;
 
         let mut total_size = 0u64;
         let mut by_format = HashMap::new();
@@ -170,6 +208,11 @@ impl FileScanner {
             by_format,
             errors,
         })
+    }
+
+    /// Scan with statistics (legacy - no progress callback)
+    pub fn scan_with_stats(&self, root_path: &Path) -> Result<ScanResult, ScanError> {
+        self.scan_with_stats_and_progress(root_path, |_| {})
     }
 
     /// Check if entry should be processed

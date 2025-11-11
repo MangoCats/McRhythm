@@ -30,9 +30,38 @@ impl WorkflowOrchestrator {
 
         tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING");
 
+        // Scan with progress updates during file discovery
+        let db = self.db.clone();
+        let session_id = session.session_id.clone();
         let scan_result = self
             .file_scanner
-            .scan_with_stats(Path::new(&session.root_folder))?;
+            .scan_with_stats_and_progress(
+                Path::new(&session.root_folder),
+                |file_count| {
+                    // Update progress during file discovery (0/0 → N/0 → N/N)
+                    let mut session_update = session.clone();
+                    session_update.update_progress(
+                        0,
+                        0,
+                        format!("Discovering audio files... ({} found)", file_count),
+                    );
+
+                    // Save and broadcast progress asynchronously
+                    let db_clone = db.clone();
+                    let session_clone = session_update.clone();
+                    let start_time_clone = start_time;
+                    tokio::spawn(async move {
+                        if let Err(e) = crate::db::sessions::save_session(&db_clone, &session_clone).await {
+                            tracing::warn!(
+                                session_id = %session_id,
+                                error = %e,
+                                "Failed to save session during file discovery"
+                            );
+                        }
+                        // Note: Can't call broadcast_progress here as it requires &self
+                    });
+                },
+            )?;
 
         tracing::info!(
             session_id = %session.session_id,

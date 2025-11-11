@@ -288,6 +288,28 @@ Stores extensible metadata parameters (JSON). Schema-less design allows arbitrar
 - New parameters can be added without schema changes
 - NULL column value = no additional metadata defined
 
+### `import_provenance`
+
+Tracks the origin and confidence of data extracted during passage import. Used for debugging import quality and providing audit trails.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | TEXT | PRIMARY KEY | Unique log entry identifier (UUID) |
+| passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage this data was extracted for |
+| source_type | TEXT | NOT NULL | Extractor type (e.g., "metadata_extractor", "identity_extractor", "flavor_extractor") |
+| data_extracted | TEXT | | JSON blob of extracted data |
+| confidence | REAL | | Confidence score for this extraction (0.0-1.0) |
+| timestamp | INTEGER | | Unix timestamp when extraction occurred |
+
+**Purpose:**
+- Audit trail for multi-source data fusion
+- Debugging import quality issues
+- Understanding which extractors contributed to final passage data
+- Populated by wkmp-ai's PLAN024 hybrid fusion pipeline
+
+**Indexes:**
+- `idx_import_provenance_passage_id` on `passage_id` (for querying all extractions for a passage)
+
 ### `songs`
 
 Songs are unique combinations of a recording and a weighted set of artists. Each Song has exactly one Recording, but may be closely related to other Songs of the same Work (either by the same artist or other artists).
