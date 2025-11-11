@@ -9,12 +9,19 @@ use uuid::Uuid;
 /// Work record (MusicBrainz musical work / composition)
 #[derive(Debug, Clone)]
 pub struct Work {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// MusicBrainz Work MBID
     pub work_mbid: String,
+    /// Work title (composition name)
     pub title: String,
+    /// Base selection probability (0.0-1.0+, default 1.0)
     pub base_probability: f64,
+    /// Minimum cooldown period in seconds
     pub min_cooldown: i64,
+    /// Ramping cooldown period in seconds
     pub ramping_cooldown: i64,
+    /// ISO 8601 timestamp when last played
     pub last_played_at: Option<String>,
 }
 

@@ -35,9 +35,13 @@ pub enum ScanError {
 /// Scan result with statistics
 #[derive(Debug, Clone)]
 pub struct ScanResult {
+    /// List of audio file paths found
     pub files: Vec<PathBuf>,
+    /// Total size of all files in bytes
     pub total_size: u64,
+    /// Count of files by audio format (extension)
     pub by_format: HashMap<String, usize>,
+    /// Scan errors encountered
     pub errors: Vec<String>,
 }
 

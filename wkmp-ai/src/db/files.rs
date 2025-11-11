@@ -16,8 +16,11 @@ use uuid::Uuid;
 /// Per SPEC017: All timing uses tick-based representation for consistency with passage timing.
 #[derive(Debug, Clone)]
 pub struct AudioFile {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// File path (absolute or relative to root folder)
     pub path: String,
+    /// SHA-256 hash of file contents (for deduplication)
     pub hash: String,
 
     /// File duration in ticks (SPEC017 tick-based timing).
@@ -37,6 +40,7 @@ pub struct AudioFile {
     /// File size in bytes
     pub file_size_bytes: Option<i64>,
 
+    /// File modification timestamp
     pub modification_time: DateTime<Utc>,
 }
 

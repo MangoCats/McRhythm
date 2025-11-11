@@ -11,10 +11,15 @@ use crate::AppState;
 /// Health check response
 #[derive(Debug, Serialize)]
 pub struct HealthResponse {
+    /// Service status (e.g., "ok", "degraded", "error")
     pub status: String,
+    /// Module name ("wkmp-ai")
     pub module: String,
+    /// Crate version from Cargo.toml
     pub version: String,
+    /// Seconds since service started
     pub uptime_seconds: u64,
+    /// Last error message if any (for diagnostics)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
 }

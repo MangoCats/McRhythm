@@ -9,15 +9,25 @@ use uuid::Uuid;
 /// Song record (MusicBrainz recording)
 #[derive(Debug, Clone)]
 pub struct Song {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// MusicBrainz Recording MBID
     pub recording_mbid: String,
+    /// Song title
     pub title: Option<String>,
+    /// Associated work UUID (foreign key to works table)
     pub work_id: Option<Uuid>,
+    /// Related songs as JSON array of UUIDs
     pub related_songs: Option<String>,
+    /// Song lyrics text
     pub lyrics: Option<String>,
+    /// Base selection probability (0.0-1.0+, default 1.0)
     pub base_probability: f64,
+    /// Minimum cooldown period in seconds
     pub min_cooldown: i64,
+    /// Ramping cooldown period in seconds
     pub ramping_cooldown: i64,
+    /// ISO 8601 timestamp when last played
     pub last_played_at: Option<String>,
 }
 

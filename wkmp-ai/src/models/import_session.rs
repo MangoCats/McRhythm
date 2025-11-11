@@ -55,9 +55,13 @@ impl ImportState {
 /// **[AIA-WF-010]** State transition event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateTransition {
+    /// Import session identifier
     pub session_id: Uuid,
+    /// State before transition
     pub old_state: ImportState,
+    /// State after transition
     pub new_state: ImportState,
+    /// When transition occurred
     pub transitioned_at: DateTime<Utc>,
 }
 
