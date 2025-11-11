@@ -287,7 +287,7 @@ impl WorkflowOrchestrator {
                                                     song_id = %song.guid,
                                                     recording_mbid = %recording.id,
                                                     file_path = %file.path,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "FK constraint failed when saving song"
                                                 );
                                                 return Err(e);
@@ -317,7 +317,7 @@ impl WorkflowOrchestrator {
                                                         artist_id = %artist.guid,
                                                         artist_mbid = %artist_credit.artist.id,
                                                         file_path = %file.path,
-                                                        error = %e,
+                                                        error = ?e,
                                                         "FK constraint failed when saving artist"
                                                     );
                                                     return Err(e);
@@ -343,7 +343,7 @@ impl WorkflowOrchestrator {
                                                         song_id = %song.guid,
                                                         artist_id = %artist.guid,
                                                         file_path = %file.path,
-                                                        error = %e,
+                                                        error = ?e,
                                                         "FK constraint failed when linking song to artist"
                                                     );
                                                     return Err(e);
@@ -362,7 +362,7 @@ impl WorkflowOrchestrator {
                                                             album_id = %album.guid,
                                                             album_mbid = %release.id,
                                                             file_path = %file.path,
-                                                            error = %e,
+                                                            error = ?e,
                                                             "FK constraint failed when saving album"
                                                         );
                                                         return Err(e);
@@ -396,7 +396,7 @@ impl WorkflowOrchestrator {
                                                             file_id = %file.guid,
                                                             album_id = %album.guid,
                                                             file_path = %file.path,
-                                                            error = %e,
+                                                            error = ?e,
                                                             "FK constraint failed when inserting into temp_file_albums"
                                                         );
                                                         return Err(e.into());
@@ -418,7 +418,7 @@ impl WorkflowOrchestrator {
                                                                     work_id = %db_work.guid,
                                                                     work_mbid = %work.id,
                                                                     file_path = %file.path,
-                                                                    error = %e,
+                                                                    error = ?e,
                                                                     "FK constraint failed when saving work"
                                                                 );
                                                                 return Err(e);
@@ -443,7 +443,7 @@ impl WorkflowOrchestrator {
                                                                     song_id = %song.guid,
                                                                     work_id = %db_work.guid,
                                                                     file_path = %file.path,
-                                                                    error = %e,
+                                                                    error = ?e,
                                                                     "FK constraint failed when linking song to work"
                                                                 );
                                                                 return Err(e);
@@ -468,7 +468,7 @@ impl WorkflowOrchestrator {
                                                     file_id = %file.guid,
                                                     song_id = %song.guid,
                                                     file_path = %file.path,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "FK constraint failed when inserting into temp_file_songs"
                                                 );
                                                 return Err(e.into());

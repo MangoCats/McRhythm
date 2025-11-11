@@ -78,7 +78,7 @@ impl WorkflowOrchestrator {
                             Some(client)
                         }
                         Err(e) => {
-                            tracing::error!("Failed to initialize AcoustID client: {}", e);
+                            tracing::error!("Failed to initialize AcoustID client: {:?}", e);
                             None
                         }
                     }
@@ -465,7 +465,7 @@ impl WorkflowOrchestrator {
                                         tracing::error!(
                                             session_id = %session.session_id,
                                             passage_id = %passage_id_str,
-                                            error = %e,
+                                            error = ?e,
                                             "Invalid passage GUID, skipping linking"
                                         );
                                         continue;
@@ -505,7 +505,7 @@ impl WorkflowOrchestrator {
                                             tracing::error!(
                                                 session_id = %session.session_id,
                                                 recording_mbid = %recording_mbid,
-                                                error = %e,
+                                                error = ?e,
                                                 "Failed to create new song, skipping"
                                             );
                                             continue;
@@ -525,7 +525,7 @@ impl WorkflowOrchestrator {
                                         tracing::error!(
                                             session_id = %session.session_id,
                                             recording_mbid = %recording_mbid,
-                                            error = %e,
+                                            error = ?e,
                                             "Failed to query for existing song, skipping"
                                         );
                                         continue;
@@ -546,7 +546,7 @@ impl WorkflowOrchestrator {
                                         session_id = %session.session_id,
                                         passage_id = %passage_id_str,
                                         song_id = %song.guid,
-                                        error = %e,
+                                        error = ?e,
                                         "Failed to link passage to song"
                                     );
                                 } else {
@@ -589,7 +589,7 @@ impl WorkflowOrchestrator {
                                                     session_id = %session.session_id,
                                                     song_id = %song.guid,
                                                     artist_id = %existing_artist.guid,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "Failed to link song to artist"
                                                 );
                                             }
@@ -602,7 +602,7 @@ impl WorkflowOrchestrator {
                                                 tracing::error!(
                                                     session_id = %session.session_id,
                                                     artist_name = %artist_name,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "Failed to create artist"
                                                 );
                                             } else {
@@ -619,7 +619,7 @@ impl WorkflowOrchestrator {
                                                         session_id = %session.session_id,
                                                         song_id = %song.guid,
                                                         artist_id = %new_artist.guid,
-                                                        error = %e,
+                                                        error = ?e,
                                                         "Failed to link song to new artist"
                                                     );
                                                 } else {
@@ -636,7 +636,7 @@ impl WorkflowOrchestrator {
                                             tracing::error!(
                                                 session_id = %session.session_id,
                                                 artist_name = %artist_name,
-                                                error = %e,
+                                                error = ?e,
                                                 "Failed to query for existing artist"
                                             );
                                         }
@@ -670,7 +670,7 @@ impl WorkflowOrchestrator {
                                                     session_id = %session.session_id,
                                                     passage_id = %passage_id_str,
                                                     album_id = %existing_album.guid,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "Failed to link passage to album"
                                                 );
                                             }
@@ -683,7 +683,7 @@ impl WorkflowOrchestrator {
                                                 tracing::error!(
                                                     session_id = %session.session_id,
                                                     album_title = %album_title,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "Failed to create album"
                                                 );
                                             } else {
@@ -699,7 +699,7 @@ impl WorkflowOrchestrator {
                                                         session_id = %session.session_id,
                                                         passage_id = %passage_id_str,
                                                         album_id = %new_album.guid,
-                                                        error = %e,
+                                                        error = ?e,
                                                         "Failed to link passage to new album"
                                                     );
                                                 } else {
@@ -716,7 +716,7 @@ impl WorkflowOrchestrator {
                                             tracing::error!(
                                                 session_id = %session.session_id,
                                                 album_title = %album_title,
-                                                error = %e,
+                                                error = ?e,
                                                 "Failed to query for existing album"
                                             );
                                         }
@@ -735,7 +735,7 @@ impl WorkflowOrchestrator {
                             tracing::error!(
                                 session_id = %session.session_id,
                                 file = %file_path_str,
-                                error = %e,
+                                error = ?e,
                                 "Failed to store passages to database"
                             );
                             // Continue processing other files (per-file error isolation)
@@ -782,7 +782,7 @@ impl WorkflowOrchestrator {
     ) -> Result<ImportSession> {
         tracing::error!(
             session_id = %session.session_id,
-            error = %error,
+            error = ?error,
             "Import workflow failed"
         );
 

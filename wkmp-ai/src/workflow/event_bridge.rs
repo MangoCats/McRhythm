@@ -303,7 +303,7 @@ pub async fn bridge_workflow_events(
                     debug!("Bridge: Event broadcast to {} receivers", receiver_count);
                 }
                 Err(e) => {
-                    error!("Bridge: Failed to broadcast event: {}", e);
+                    error!("Bridge: Failed to broadcast event: {:?}", e);
                 }
             }
         }

@@ -147,10 +147,10 @@ impl Pipeline {
                     processed_passages.push(passage);
                 }
                 Err(e) => {
-                    error!("Failed to process passage {}: {}", i, e);
+                    error!("Failed to process passage {}: {:?}", i, e);
                     self.emit_event(WorkflowEvent::Error {
                         passage_index: Some(i),
-                        message: format!("Passage processing failed: {}", e),
+                        message: format!("Passage processing failed: {:?}", e),
                     })
                     .await;
                     // Continue with next passage (per-passage error isolation)
@@ -254,7 +254,7 @@ impl Pipeline {
                     Err(e) => {
                         warn!(
                             passage_index = passage_index,
-                            error = %e,
+                            error = ?e,
                             "Pass 2: MusicBrainz extraction failed (non-fatal)"
                         );
                         self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "failed")

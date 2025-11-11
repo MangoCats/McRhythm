@@ -136,7 +136,7 @@ pub async fn start_import(
         if let Err(e) = execute_import_workflow(state_clone, session_clone, cancel_token_clone).await {
             tracing::error!(
                 session_id = %session_id_for_logging,
-                error = %e,
+                error = ?e,
                 "Import workflow background task failed"
             );
         } else {
@@ -292,7 +292,7 @@ async fn execute_import_workflow(
         Err(e) => {
             tracing::error!(
                 session_id = %session_id,
-                error = %e,
+                error = ?e,
                 "Import workflow failed"
             );
 
@@ -303,7 +303,7 @@ async fn execute_import_workflow(
                     if let Err(failure_error) = orchestrator.handle_failure(session, &e).await {
                         tracing::error!(
                             session_id = %session_id,
-                            error = %failure_error,
+                            error = ?failure_error,
                             "Failed to mark session as failed - attempting direct database update"
                         );
 
@@ -331,7 +331,7 @@ async fn execute_import_workflow(
                 Err(db_error) => {
                     tracing::error!(
                         session_id = %session_id,
-                        error = %db_error,
+                        error = ?db_error,
                         "Failed to load session from database - attempting direct database update"
                     );
 

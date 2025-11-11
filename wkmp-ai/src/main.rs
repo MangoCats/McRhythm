@@ -93,7 +93,7 @@ async fn main() -> Result<()> {
             key
         }
         Err(e) => {
-            error!("Failed to resolve AcoustID API key: {}", e);
+            error!("Failed to resolve AcoustID API key: {:?}", e);
             warn!("AcoustID fingerprinting will not be available");
             warn!("Import workflow will be limited to file metadata only");
             // Don't fail startup - allow wkmp-ai to run in degraded mode
