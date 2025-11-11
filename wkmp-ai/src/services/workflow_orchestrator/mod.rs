@@ -746,7 +746,7 @@ impl WorkflowOrchestrator {
                     tracing::error!(
                         session_id = %session.session_id,
                         file = %file_path_str,
-                        error = %e,
+                        error = ?e,  // Debug format shows full error chain
                         "Pipeline processing failed for file"
                     );
                     // Continue processing other files (per-file error isolation)
