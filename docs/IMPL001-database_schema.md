@@ -183,6 +183,36 @@ Audio passages (playable segments) extracted from files.
 | musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values (see Musical Flavor Vector Storage) |
 | import_metadata | TEXT | | JSON blob of import analysis data (RMS profile, parameters used, timestamps) |
 | additional_metadata | TEXT | | JSON blob for extensible metadata (seasonal_holiday, profanity_level, etc.) |
+| decode_status | TEXT | DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')) | Audio decode status (used by wkmp-ap for error handling) |
+
+**Extended Import Provenance Columns (wkmp-ai):**
+
+These columns track the quality and confidence of data fusion during import. Populated by wkmp-ai's 3-tier hybrid fusion pipeline.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| flavor_source_blend | TEXT | | JSON array of flavor data sources used (e.g., `["AcousticBrainz", "Essentia"]`) |
+| flavor_confidence_map | TEXT | | JSON map of confidence scores per flavor component |
+| flavor_completeness | REAL | | Completeness score for flavor data (0.0-1.0) |
+| title_source | TEXT | | Data source for title (e.g., "ID3", "MusicBrainz", "AcoustID") |
+| title_confidence | REAL | | Confidence score for title (0.0-1.0) |
+| artist_source | TEXT | | Data source for artist |
+| artist_confidence | REAL | | Confidence score for artist (0.0-1.0) |
+| album_source | TEXT | | Data source for album |
+| album_confidence | REAL | | Confidence score for album (0.0-1.0) |
+| mbid_source | TEXT | | Data source for MusicBrainz recording ID |
+| mbid_confidence | REAL | | Confidence score for MBID (0.0-1.0) |
+| identity_confidence | REAL | | Overall identity resolution confidence (0.0-1.0) |
+| identity_posterior_probability | REAL | | Bayesian posterior probability for identity match (0.0-1.0) |
+| identity_conflicts | TEXT | | JSON array of conflicting identity candidates |
+| overall_quality_score | REAL | | Overall quality score from validation tier (0.0-1.0) |
+| metadata_completeness | REAL | | Metadata completeness score (0.0-1.0) |
+| validation_status | TEXT | | Validation result: "passed", "warning", "failed" |
+| validation_report | TEXT | | JSON validation report with detailed findings |
+| validation_issues | TEXT | | JSON array of validation issues detected |
+| import_session_id | TEXT | | UUID of import session that created this passage |
+| import_timestamp | TIMESTAMP | | When this passage was imported |
+| import_strategy | TEXT | | Import strategy used: "PLAN024" (hybrid fusion) or "PLAN025" (segmentation-first) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 

@@ -514,8 +514,9 @@ impl WorkflowOrchestrator {
             self.broadcast_progress(&session, start_time);
 
             // Process file through PLAN024 pipeline
-            let file_path = std::path::Path::new(&file_path_str);
-            match pipeline.process_file(file_path).await {
+            // **[FIX]** Reconstruct absolute path from root_folder + relative path
+            let absolute_path = std::path::PathBuf::from(&session.root_folder).join(&file_path_str);
+            match pipeline.process_file(&absolute_path).await {
                 Ok(processed_passages) => {
                     tracing::info!(
                         session_id = %session.session_id,

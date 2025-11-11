@@ -11,8 +11,8 @@
 //! **[AIA-MS-010]** Integrates with wkmp-ui via HTTP REST + SSE
 
 use anyhow::Result;
-use tracing::{info, warn, error, Level};
-use tracing_subscriber::FmtSubscriber;
+use tracing::{info, warn, error};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use wkmp_common::events::EventBus;
 
 // Use library definitions
@@ -20,16 +20,23 @@ use wkmp_ai::AppState;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .finish();
-    tracing::subscriber::set_global_default(subscriber)?;
+    // Initialize tracing with file and line number information
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "wkmp_ai=debug,wkmp_common=info".into()),
+        )
+        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
+        .init();
 
-    info!("Starting wkmp-ai (Audio Ingest) microservice");
-    info!("Port: 5723");
-    info!("Version: {}", env!("CARGO_PKG_VERSION"));
-    info!("Built: {}", env!("BUILD_TIMESTAMP"));
+    // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init
+    info!(
+        "Starting WKMP Audio Ingest (wkmp-ai) v{} [{}] built {} ({})",
+        env!("CARGO_PKG_VERSION"),
+        env!("GIT_HASH"),
+        env!("BUILD_TIMESTAMP"),
+        env!("BUILD_PROFILE")
+    );
 
     // Step 1: Resolve root folder [ARCH-INIT-005, REQ-NF-035]
     let resolver = wkmp_common::config::RootFolderResolver::new("audio-ingest");

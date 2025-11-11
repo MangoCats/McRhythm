@@ -9,6 +9,24 @@ use sqlx::SqlitePool;
 use tracing::{debug, info};
 use uuid::Uuid;
 
+/// Look up file GUID by file path
+///
+/// # Arguments
+/// * `db` - Database connection pool
+/// * `file_path` - Relative file path
+///
+/// # Returns
+/// * File GUID if found
+async fn get_file_id_by_path(db: &SqlitePool, file_path: &str) -> Result<String> {
+    let row: (String,) = sqlx::query_as("SELECT guid FROM files WHERE path = ?")
+        .bind(file_path)
+        .fetch_one(db)
+        .await
+        .context(format!("File not found in database: {}", file_path))?;
+
+    Ok(row.0)
+}
+
 /// Store a processed passage in the database
 ///
 /// # Arguments
@@ -26,7 +44,10 @@ pub async fn store_passage(
     import_session_id: &str,
 ) -> Result<String> {
     let passage_id = Uuid::new_v4().to_string();
-    let timestamp = chrono::Utc::now().timestamp();
+    let timestamp = chrono::Utc::now();
+
+    // **[FIX]** Look up file_id from file_path (per IMPL001 schema)
+    let file_id = get_file_id_by_path(db, file_path).await?;
 
     // Extract fusion result data
     let fusion = &passage.fusion;
@@ -90,14 +111,14 @@ pub async fn store_passage(
     let query = r#"
         INSERT INTO passages (
             guid,
-            file_path,
-            start_time,
-            end_time,
+            file_id,
+            start_time_ticks,
+            end_time_ticks,
             title,
             artist,
             album,
             recording_mbid,
-            musical_flavor,
+            musical_flavor_vector,
             flavor_source_blend,
             flavor_confidence_map,
             flavor_completeness,
@@ -136,7 +157,7 @@ pub async fn store_passage(
 
     sqlx::query(query)
         .bind(&passage_id)
-        .bind(file_path)
+        .bind(&file_id)
         .bind(passage.boundary.start_time)
         .bind(passage.boundary.end_time)
         .bind(&title)
@@ -299,12 +320,15 @@ pub async fn store_passages_batch(
     passages: &[ProcessedPassage],
     import_session_id: &str,
 ) -> Result<Vec<String>> {
+    // **[FIX]** Look up file_id from file_path BEFORE starting transaction (per IMPL001 schema)
+    let file_id = get_file_id_by_path(db, file_path).await?;
+
     let mut tx = db.begin().await.context("Failed to begin transaction")?;
     let mut passage_ids = Vec::new();
 
     for passage in passages {
         let passage_id = Uuid::new_v4().to_string();
-        let timestamp = chrono::Utc::now().timestamp();
+        let timestamp = chrono::Utc::now();
 
         // Extract fusion result data
         let fusion = &passage.fusion;
@@ -358,8 +382,8 @@ pub async fn store_passages_batch(
         // Insert passage (SPEC017: times as INTEGER ticks)
         let query = r#"
             INSERT INTO passages (
-                guid, file_path, start_time, end_time,
-                title, artist, album, recording_mbid, musical_flavor,
+                guid, file_id, start_time_ticks, end_time_ticks,
+                title, artist, album, recording_mbid, musical_flavor_vector,
                 flavor_source_blend, flavor_confidence_map, flavor_completeness,
                 title_source, title_confidence, artist_source, artist_confidence,
                 album_source, album_confidence, mbid_source, mbid_confidence,
@@ -382,7 +406,7 @@ pub async fn store_passages_batch(
 
         sqlx::query(query)
             .bind(&passage_id)
-            .bind(file_path)
+            .bind(&file_id)
             .bind(passage.boundary.start_time)
             .bind(passage.boundary.end_time)
             .bind(&title)
@@ -522,7 +546,7 @@ mod tests {
         assert_eq!(parts.len(), 5);
     }
 
-    /// Create test database with passages and import_provenance tables
+    /// Create test database with production schema
     async fn setup_test_db() -> SqlitePool {
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
@@ -530,47 +554,20 @@ mod tests {
             .await
             .expect("Failed to create test database");
 
-        // Create passages table (SPEC017 compliant schema)
-        sqlx::query(
-            r#"
-            CREATE TABLE passages (
-                guid TEXT PRIMARY KEY,
-                file_path TEXT NOT NULL,
-                start_time INTEGER NOT NULL,
-                end_time INTEGER NOT NULL,
-                title TEXT,
-                artist TEXT,
-                album TEXT,
-                recording_mbid TEXT,
-                musical_flavor TEXT,
-                flavor_source_blend TEXT,
-                flavor_confidence_map TEXT,
-                flavor_completeness REAL,
-                title_source TEXT,
-                title_confidence REAL,
-                artist_source TEXT,
-                artist_confidence REAL,
-                album_source TEXT,
-                album_confidence REAL,
-                mbid_source TEXT,
-                mbid_confidence REAL,
-                identity_confidence REAL,
-                identity_posterior_probability REAL,
-                identity_conflicts TEXT,
-                overall_quality_score REAL,
-                metadata_completeness REAL,
-                validation_status TEXT,
-                validation_report TEXT,
-                validation_issues TEXT,
-                import_session_id TEXT,
-                import_timestamp INTEGER,
-                import_strategy TEXT
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .expect("Failed to create passages table");
+        // Enable foreign keys
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .expect("Failed to enable foreign keys");
+
+        // Use production schema from wkmp-common
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .expect("Failed to create files table");
+
+        wkmp_common::db::init::create_passages_table(&pool)
+            .await
+            .expect("Failed to create passages table");
 
         // Create import_provenance table
         sqlx::query(
@@ -719,6 +716,18 @@ mod tests {
         let import_session_id = Uuid::new_v4().to_string();
         let file_path = "/test/audio/song.mp3";
 
+        // Create file record first (required by foreign key)
+        let file_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO files (guid, path, hash, modification_time) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        )
+        .bind(&file_id)
+        .bind(file_path)
+        .bind("test_hash_123")
+        .execute(&db)
+        .await
+        .expect("Failed to create file");
+
         // Create mock passage (0.0s - 180.0s)
         let start_ticks = 0;
         let end_ticks = 180 * TICK_RATE; // 180 seconds
@@ -729,9 +738,9 @@ mod tests {
             .await
             .expect("Failed to store passage");
 
-        // Verify passage was stored
+        // Verify passage was stored with correct schema
         let row: (String, String, i64, i64) = sqlx::query_as(
-            "SELECT guid, file_path, start_time, end_time FROM passages WHERE guid = ?",
+            "SELECT guid, file_id, start_time_ticks, end_time_ticks FROM passages WHERE guid = ?",
         )
         .bind(&passage_id)
         .fetch_one(&db)
@@ -739,7 +748,7 @@ mod tests {
         .expect("Failed to fetch stored passage");
 
         assert_eq!(row.0, passage_id);
-        assert_eq!(row.1, file_path);
+        assert_eq!(row.1, file_id);
         assert_eq!(row.2, start_ticks);
         assert_eq!(row.3, end_ticks);
 
@@ -811,6 +820,18 @@ mod tests {
         let import_session_id = Uuid::new_v4().to_string();
         let file_path = "/test/audio/album.mp3";
 
+        // Create file record first (required by foreign key)
+        let file_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO files (guid, path, hash, modification_time) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        )
+        .bind(&file_id)
+        .bind(file_path)
+        .bind("test_hash_album")
+        .execute(&db)
+        .await
+        .expect("Failed to create file");
+
         // Create 3 mock passages
         let passages = vec![
             create_mock_passage(0, 180 * TICK_RATE),
@@ -836,7 +857,7 @@ mod tests {
 
         // Verify correct time boundaries
         let times: Vec<(i64, i64)> =
-            sqlx::query_as("SELECT start_time, end_time FROM passages ORDER BY start_time")
+            sqlx::query_as("SELECT start_time_ticks, end_time_ticks FROM passages ORDER BY start_time_ticks")
                 .fetch_all(&db)
                 .await
                 .expect("Failed to fetch times");
@@ -860,6 +881,18 @@ mod tests {
         let db = setup_test_db().await;
         let import_session_id = Uuid::new_v4().to_string();
         let file_path = "/test/audio/test.mp3";
+
+        // Create file record first (required by foreign key)
+        let file_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO files (guid, path, hash, modification_time) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        )
+        .bind(&file_id)
+        .bind(file_path)
+        .bind("test_hash_prov")
+        .execute(&db)
+        .await
+        .expect("Failed to create file");
 
         let passage = create_mock_passage(0, 180 * TICK_RATE);
         let passage_id = store_passage(&db, file_path, &passage, &import_session_id)
@@ -898,13 +931,26 @@ mod tests {
     async fn test_empty_optional_fields() {
         let db = setup_test_db().await;
         let import_session_id = Uuid::new_v4().to_string();
+        let file_path = "/test/minimal.mp3";
+
+        // Create file record first (required by foreign key)
+        let file_id = Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO files (guid, path, hash, modification_time) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        )
+        .bind(&file_id)
+        .bind(file_path)
+        .bind("test_hash_min")
+        .execute(&db)
+        .await
+        .expect("Failed to create file");
 
         // Create passage with minimal data (no conflicts, no issues)
         let mut passage = create_mock_passage(0, 180 * TICK_RATE);
         passage.fusion.identity.conflicts = vec![]; // Empty conflicts
         passage.validation.issues = vec![]; // Empty issues
 
-        let passage_id = store_passage(&db, "/test/minimal.mp3", &passage, &import_session_id)
+        let passage_id = store_passage(&db, file_path, &passage, &import_session_id)
             .await
             .expect("Failed to store minimal passage");
 
