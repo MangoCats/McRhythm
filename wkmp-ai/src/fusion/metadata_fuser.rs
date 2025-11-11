@@ -318,6 +318,7 @@ impl Fusion for MetadataFuser {
 ///
 /// Returns minimum number of single-character edits needed to transform s1 into s2
 #[allow(dead_code)] // Reserved for future conflict detection logic
+#[allow(clippy::needless_range_loop)] // Matrix initialization is clearer with explicit indices
 fn levenshtein_distance(s1: &str, s2: &str) -> usize {
     let chars1: Vec<char> = s1.chars().collect();
     let chars2: Vec<char> = s2.chars().collect();

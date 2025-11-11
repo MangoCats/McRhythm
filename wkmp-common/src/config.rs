@@ -209,19 +209,19 @@ impl RootFolderResolver {
     /// 4. Compiled default (platform-specific)
     pub fn resolve(&self) -> PathBuf {
         // Priority 1: Command-line argument
-        if let Some(path) = self.from_cli_args() {
+        if let Some(path) = self.try_cli_args() {
             info!("Root folder: {} (from command-line argument)", path.display());
             return path;
         }
 
         // Priority 2: Environment variable
-        if let Some(path) = self.from_env_var() {
+        if let Some(path) = self.try_env_var() {
             info!("Root folder: {} (from environment variable)", path.display());
             return path;
         }
 
         // Priority 3: TOML config file
-        match self.from_toml_file() {
+        match self.try_toml_file() {
             Ok(Some(path)) => {
                 info!("Root folder: {} (from config file)", path.display());
                 return path;
@@ -250,7 +250,7 @@ impl RootFolderResolver {
     }
 
     /// Try to get root folder from --root-folder or --root CLI argument
-    fn from_cli_args(&self) -> Option<PathBuf> {
+    fn try_cli_args(&self) -> Option<PathBuf> {
         let args: Vec<String> = std::env::args().collect();
 
         for i in 0..args.len() {
@@ -273,7 +273,7 @@ impl RootFolderResolver {
     }
 
     /// Try to get root folder from WKMP_ROOT_FOLDER or WKMP_ROOT env var
-    fn from_env_var(&self) -> Option<PathBuf> {
+    fn try_env_var(&self) -> Option<PathBuf> {
         if let Ok(path) = std::env::var("WKMP_ROOT_FOLDER") {
             return Some(PathBuf::from(path));
         }
@@ -287,7 +287,7 @@ impl RootFolderResolver {
 
     /// Try to get root folder from TOML config file
     /// Returns None if file doesn't exist (not an error per [REQ-NF-031])
-    fn from_toml_file(&self) -> Result<Option<PathBuf>> {
+    fn try_toml_file(&self) -> Result<Option<PathBuf>> {
         let config_path = self.config_file_path();
 
         if !config_path.exists() {

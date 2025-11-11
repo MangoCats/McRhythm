@@ -259,8 +259,7 @@ impl FileTracker {
             .iter()
             .copied()
             .fold(f32::INFINITY, f32::min)
-            .max(0.0)
-            .min(1.0)
+            .clamp(0.0, 1.0)
     }
 
     /// Merge metadata with confidence-based overwrite

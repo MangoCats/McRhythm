@@ -1115,6 +1115,7 @@ impl EventBus {
     ///     eprintln!("Warning: No subscribers for critical event");
     /// }
     /// ```
+    #[allow(clippy::result_large_err)]
     pub fn emit(
         &self,
         event: WkmpEvent,
