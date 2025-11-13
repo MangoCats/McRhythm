@@ -51,6 +51,13 @@ impl TableSchema for FilesTableSchema {
             ColumnDefinition::new("modification_time", "TIMESTAMP")
                 .not_null(),
 
+            // Import processing status (REQ-SPEC032-008, REQ-SPEC032-009)
+            ColumnDefinition::new("status", "TEXT")
+                .default("'PENDING'"),
+
+            // JSON array of file UUIDs with matching hash (REQ-SPEC032-009)
+            ColumnDefinition::new("matching_hashes", "TEXT"),
+
             ColumnDefinition::new("created_at", "TIMESTAMP")
                 .not_null()
                 .default("CURRENT_TIMESTAMP"),
@@ -197,6 +204,6 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(column_count, 11); // 11 columns total
+        assert_eq!(column_count, 13); // 13 columns total (includes status, matching_hashes)
     }
 }

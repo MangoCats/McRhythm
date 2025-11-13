@@ -11,8 +11,10 @@ pub mod contextual_matcher;  // PLAN025 Phase 2: Contextual MusicBrainz matching
 pub mod essentia_client;
 pub mod file_scanner;
 pub mod file_tracker;  // PLAN024 TASK-000: File-level import tracking
+pub mod filename_matcher;  // PLAN024 Increment 6-7: Filename matching (Phase 1)
 pub mod fingerprinter;
 pub mod folder_selector;  // PLAN024 Increment 5: Folder selection (Step 2)
+pub mod hash_deduplicator;  // PLAN024 Increment 6-7: Hash deduplication (Phase 2)
 pub mod metadata_extractor;
 pub mod musicbrainz_client;
 pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
@@ -30,8 +32,10 @@ pub use file_scanner::{FileScanner, ScanError, ScanResult};
 pub use file_tracker::{
     FileTracker, FileTrackerConfig, FileTrackingInfo, SkipDecision, SkipReason,
 };
+pub use filename_matcher::{FilenameMatcher, MatchResult};
 pub use fingerprinter::{Fingerprinter, FingerprintError};
 pub use folder_selector::{FolderSelector, SelectionResult};
+pub use hash_deduplicator::{HashDeduplicator, HashResult};
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};
 pub use pattern_analyzer::{
