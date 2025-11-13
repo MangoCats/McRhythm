@@ -20,6 +20,7 @@ pub mod metadata_merger;  // PLAN024 Increment 8-9: Metadata extraction & mergin
 pub mod musicbrainz_client;
 pub mod passage_fingerprinter;  // PLAN024 Increment 12-13: Per-passage fingerprinting (Phase 5)
 pub mod passage_segmenter;  // PLAN024 Increment 10-11: Passage segmentation (Phase 4)
+pub mod passage_song_matcher;  // PLAN024 Increment 14-15: Song matching (Phase 6)
 pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
 pub mod silence_detector;
 pub mod workflow_orchestrator;
@@ -46,6 +47,9 @@ pub use passage_fingerprinter::{
     FingerprintResult, MBIDCandidate, PassageFingerprint, PassageFingerprinter,
 };
 pub use passage_segmenter::{PassageBoundary, PassageSegmenter, SegmentResult};
+pub use passage_song_matcher::{
+    ConfidenceLevel, PassageSongMatch, PassageSongMatcher, SongMatchResult, SongMatchStats,
+};
 pub use pattern_analyzer::{
     GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,
 };
