@@ -166,34 +166,15 @@ impl WorkflowOrchestrator {
             return Ok(session); // Return early with Cancelled state
         }
 
-        // Phase 2: EXTRACTING - Extract metadata
-        session = self.phase_extracting(session, start_time, &cancel_token).await?;
+        // Phase 2: PROCESSING - Per-file pipeline (PLAN024)
+        // **[AIA-ASYNC-020]** Per-file pipeline architecture with N workers
+        // Each file goes through all 10 phases sequentially before moving to next file
+        session = self.phase_processing_per_file(session, start_time, &cancel_token).await?;
         if cancel_token.is_cancelled() {
             return Ok(session); // Return early with Cancelled state
         }
 
-        // Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
-        session = self.phase_fingerprinting(session, start_time, &cancel_token).await?;
-        if cancel_token.is_cancelled() {
-            return Ok(session); // Return early with Cancelled state
-        }
-
-        // Phase 4: SEGMENTING - Passage detection (stub)
-        session = self.phase_segmenting(session, start_time, &cancel_token).await?;
-        if cancel_token.is_cancelled() {
-            return Ok(session); // Return early with Cancelled state
-        }
-
-        // Phase 5: ANALYZING - Amplitude analysis (stub)
-        session = self.phase_analyzing(session, start_time, &cancel_token).await?;
-        if cancel_token.is_cancelled() {
-            return Ok(session); // Return early with Cancelled state
-        }
-
-        // Phase 6: FLAVORING - Musical flavor extraction (stub)
-        session = self.phase_flavoring(session, start_time, &cancel_token).await?;
-
-        // Phase 7: COMPLETED
+        // Phase 3: COMPLETED
         session.transition_to(ImportState::Completed);
         session.update_progress(
             session.progress.total,
@@ -2435,6 +2416,198 @@ impl WorkflowOrchestrator {
             decoded.sample_rate as usize,
         )
         .await
+    }
+
+    /// Process files through per-file pipeline with parallel workers
+    ///
+    /// **[AIA-ASYNC-020]** Per-file pipeline architecture with N parallel workers
+    ///
+    /// **Architecture:**
+    /// - N workers process files concurrently (N from ai_processing_thread_count)
+    /// - Each worker processes ONE file through ALL 10 phases sequentially
+    /// - Workers pick next file from queue upon completion
+    /// - File-level progress reporting and checkpointing
+    ///
+    /// # Arguments
+    /// * `session` - Import session with file list and progress tracking
+    /// * `start_time` - Session start time for elapsed time calculation
+    /// * `cancel_token` - Cancellation token for graceful shutdown
+    ///
+    /// # Returns
+    /// * Updated import session with file-level progress
+    ///
+    /// **Traceability:** [AIA-ASYNC-020] Per-File Pipeline
+    async fn phase_processing_per_file(
+        &self,
+        mut session: ImportSession,
+        start_time: std::time::Instant,
+        cancel_token: &tokio_util::sync::CancellationToken,
+    ) -> Result<ImportSession> {
+        session.transition_to(ImportState::Processing);
+        session.update_progress(0, 0, "Starting per-file processing".to_string());
+        crate::db::sessions::save_session(&self.db, &session).await?;
+        self.broadcast_progress(&session, start_time);
+
+        // Get parallelism level from settings (auto-initialized if NULL)
+        let parallelism: usize = sqlx::query_scalar::<_, String>(
+            "SELECT COALESCE((SELECT value FROM settings WHERE key = 'ai_processing_thread_count'), '4')"
+        )
+        .fetch_one(&self.db)
+        .await?
+        .parse()
+        .unwrap_or(4);
+
+        tracing::info!(
+            session_id = %session.session_id,
+            parallelism,
+            "Starting per-file processing with {} workers",
+            parallelism
+        );
+
+        // Get list of audio files from SCANNING phase
+        let files: Vec<(String, String)> = sqlx::query_as(
+            "SELECT guid, path FROM files WHERE session_id = ? ORDER BY path"
+        )
+        .bind(session.session_id.to_string())
+        .fetch_all(&self.db)
+        .await?;
+
+        let total_files = files.len();
+        tracing::info!(
+            session_id = %session.session_id,
+            total_files,
+            "Processing {} files through per-file pipeline",
+            total_files
+        );
+
+        // Create worker pool using FuturesUnordered
+        use futures::stream::{FuturesUnordered, StreamExt};
+
+        let mut tasks = FuturesUnordered::new();
+        let mut file_iter = files.into_iter().enumerate();
+        let mut completed = 0;
+        let mut failed = 0;
+
+        // Seed initial workers
+        for _ in 0..parallelism {
+            if let Some((idx, (file_id, file_path))) = file_iter.next() {
+                let task = self.process_single_file_with_context(
+                    idx,
+                    file_id,
+                    file_path,
+                    session.root_folder.clone(),
+                    cancel_token.clone(),
+                );
+                tasks.push(task);
+            }
+        }
+
+        // Process completions and spawn next file
+        while let Some((idx, file_path, result)) = tasks.next().await {
+            match result {
+                Ok(_) => {
+                    completed += 1;
+                    tracing::debug!(
+                        session_id = %session.session_id,
+                        file_index = idx,
+                        file = %file_path,
+                        "File processing complete"
+                    );
+                }
+                Err(e) => {
+                    failed += 1;
+                    tracing::error!(
+                        session_id = %session.session_id,
+                        file_index = idx,
+                        file = %file_path,
+                        error = %e,
+                        "File processing failed"
+                    );
+                }
+            }
+
+            // Update progress
+            let processed = completed + failed;
+            session.update_progress(
+                completed,
+                total_files,
+                format!("{} of {} files complete ({} failed)", completed, total_files, failed),
+            );
+            crate::db::sessions::save_session(&self.db, &session).await?;
+            self.broadcast_progress(&session, start_time);
+
+            // Maintain parallelism level - spawn next file
+            if let Some((idx, (file_id, file_path))) = file_iter.next() {
+                let task = self.process_single_file_with_context(
+                    idx,
+                    file_id,
+                    file_path,
+                    session.root_folder.clone(),
+                    cancel_token.clone(),
+                );
+                tasks.push(task);
+            }
+
+            // Check cancellation
+            if cancel_token.is_cancelled() {
+                tracing::info!(
+                    session_id = %session.session_id,
+                    completed,
+                    total = total_files,
+                    "Import cancelled during per-file processing"
+                );
+                session.transition_to(ImportState::Cancelled);
+                session.update_progress(
+                    completed,
+                    total_files,
+                    "Import cancelled by user".to_string(),
+                );
+                crate::db::sessions::save_session(&self.db, &session).await?;
+                return Ok(session);
+            }
+        }
+
+        tracing::info!(
+            session_id = %session.session_id,
+            completed,
+            failed,
+            total = total_files,
+            "Per-file processing complete"
+        );
+
+        Ok(session)
+    }
+
+    /// Process single file through complete pipeline (worker function)
+    ///
+    /// **Returns:** (file_index, file_path, result) for progress tracking
+    async fn process_single_file_with_context(
+        &self,
+        idx: usize,
+        file_id: String,
+        file_path: String,
+        root_folder: String,
+        cancel_token: tokio_util::sync::CancellationToken,
+    ) -> (usize, String, Result<()>) {
+        if cancel_token.is_cancelled() {
+            return (idx, file_path, Ok(()));
+        }
+
+        tracing::debug!(
+            file_index = idx,
+            file_id = %file_id,
+            file = %file_path,
+            "Starting per-file pipeline"
+        );
+
+        let result = self
+            .process_file_plan024_with_decoding(
+                std::path::Path::new(&file_path),
+                std::path::Path::new(&root_folder),
+            )
+            .await;
+
+        (idx, file_path, result)
     }
 }
 

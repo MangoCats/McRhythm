@@ -1,6 +1,10 @@
-//! Phase 6: FLAVORING
+//! Phase 6: FLAVORING (DEPRECATED)
 //!
-//! Musical flavor extraction via AcousticBrainz and Essentia
+//! **[AIA-WF-020]** DEPRECATED: Batch-phase musical flavor extraction
+//!
+//! Replaced by PLAN024 per-file pipeline architecture where each file
+//! goes through flavor extraction as part of its individual pipeline
+//! (Phase 9 in the 10-phase per-file sequence)
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
@@ -11,6 +15,11 @@ use uuid::Uuid;
 
 impl WorkflowOrchestrator {
     /// Phase 6: FLAVORING - Musical flavor extraction via AcousticBrainz
+    ///
+    /// **DEPRECATED:** Use `phase_processing_per_file()` instead
+    ///
+    /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
+    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
     pub(super) async fn phase_flavoring(
         &self,
         mut session: ImportSession,

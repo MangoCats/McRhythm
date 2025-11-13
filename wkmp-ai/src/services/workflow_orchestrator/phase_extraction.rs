@@ -1,6 +1,10 @@
-//! Phase 2: EXTRACTING
+//! Phase 2: EXTRACTING (DEPRECATED)
 //!
-//! ID3 metadata extraction and database persistence
+//! **[AIA-WF-020]** DEPRECATED: Batch-phase metadata extraction
+//!
+//! Replaced by PLAN024 per-file pipeline architecture where each file
+//! goes through metadata extraction as part of its individual pipeline
+//! (Phase 3 in the 10-phase per-file sequence)
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
@@ -9,6 +13,11 @@ use std::path::Path;
 
 impl WorkflowOrchestrator {
     /// Phase 2: EXTRACTING - Metadata extraction and persistence
+    ///
+    /// **DEPRECATED:** Use `phase_processing_per_file()` instead
+    ///
+    /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
+    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
     pub(super) async fn phase_extracting(
         &self,
         mut session: ImportSession,

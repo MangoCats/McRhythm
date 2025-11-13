@@ -1,6 +1,10 @@
-//! Phase 4: SEGMENTING
+//! Phase 4: SEGMENTING (DEPRECATED)
 //!
-//! Passage creation and entity linking
+//! **[AIA-WF-020]** DEPRECATED: Batch-phase passage creation
+//!
+//! Replaced by PLAN024 per-file pipeline architecture where each file
+//! goes through segmentation as part of its individual pipeline
+//! (Phase 4 in the 10-phase per-file sequence)
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
@@ -9,6 +13,11 @@ use uuid::Uuid;
 
 impl WorkflowOrchestrator {
     /// Phase 4: SEGMENTING - Passage creation
+    ///
+    /// **DEPRECATED:** Use `phase_processing_per_file()` instead
+    ///
+    /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
+    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
     pub(super) async fn phase_segmenting(
         &self,
         mut session: ImportSession,

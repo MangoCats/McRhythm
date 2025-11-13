@@ -1,31 +1,33 @@
 //! Import workflow state machine
 //!
 //! **[AIA-WF-010]** Import session progresses through states:
-//! Legacy: SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
-//! PLAN024: SCANNING → PROCESSING → COMPLETED
+//!
+//! **Current (PLAN024):** SCANNING → PROCESSING → COMPLETED
+//!
+//! **Deprecated (Legacy):** SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// **[AIA-WF-010]** Import workflow state
+///
+/// **PLAN024 Architecture (Current):**
+/// - SCANNING → PROCESSING → COMPLETED
+///
+/// **Legacy Architecture (Deprecated):**
+/// - SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ImportState {
-    /// Phase 1A: Directory traversal, finding audio files
+    /// Phase 1: Directory traversal, finding audio files
     Scanning,
-    /// Phase 1B: Hash calculation and basic metadata extraction
-    Extracting,
-    /// Phase 2A: Detecting silence and passage boundaries per file
-    Segmenting,
-    /// Phase 2B: Fingerprinting passages (Chromaprint → AcoustID)
-    Fingerprinting,
-    /// Phase 2C: Identifying music (MusicBrainz metadata resolution)
-    Identifying,
-    /// Phase 2D: Analyzing amplitude for crossfade timing
-    Analyzing,
-    /// Phase 2E: Extracting musical characteristics (Essentia/AcousticBrainz)
-    Flavoring,
+
+    /// Phase 2: Per-file pipeline (PLAN024) - Each file goes through 10 sub-phases
+    /// **[AIA-ASYNC-020]** N workers process files concurrently
+    #[serde(rename = "PROCESSING")]
+    Processing,
+
     /// Import finished successfully
     Completed,
     /// Import cancelled by user
@@ -33,9 +35,35 @@ pub enum ImportState {
     /// Import failed with critical error
     Failed,
 
-    /// Legacy: Coarse-grained processing state (deprecated, use specific states)
-    #[serde(rename = "PROCESSING")]
-    Processing,
+    // ========================================
+    // DEPRECATED BATCH-PHASE STATES
+    // Preserved for backward compatibility with existing database sessions
+    // **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
+    // ========================================
+
+    /// **DEPRECATED:** Batch metadata extraction phase (replaced by Processing)
+    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
+    Extracting,
+
+    /// **DEPRECATED:** Batch passage boundary detection phase (replaced by Processing)
+    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
+    Segmenting,
+
+    /// **DEPRECATED:** Batch fingerprinting phase (replaced by Processing)
+    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
+    Fingerprinting,
+
+    /// **DEPRECATED:** Batch music identification phase (replaced by Processing)
+    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
+    Identifying,
+
+    /// **DEPRECATED:** Batch amplitude analysis phase (replaced by Processing)
+    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
+    Analyzing,
+
+    /// **DEPRECATED:** Batch musical flavor extraction phase (replaced by Processing)
+    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
+    Flavoring,
 }
 
 impl ImportState {
@@ -367,16 +395,18 @@ impl Default for ImportProgress {
 }
 
 impl ImportProgress {
-    /// **[REQ-AIA-UI-001]** Initialize phase tracking for all 7 workflow phases
+    /// **[REQ-AIA-UI-001]** Initialize phase tracking for PLAN024 workflow
+    ///
+    /// **Current Architecture:** SCANNING → PROCESSING → COMPLETED
+    ///
+    /// Processing phase contains 10 internal sub-phases per file:
+    /// 1. Filename Matching, 2. Hashing, 3. Metadata Extraction,
+    /// 4. Segmentation, 5. Fingerprinting, 6. Song Matching,
+    /// 7. Recording, 8. Amplitude Analysis, 9. Flavoring, 10. Finalization
     pub fn initialize_phases(&mut self) {
         self.phases = vec![
             PhaseProgress::new(ImportState::Scanning),
-            PhaseProgress::new(ImportState::Extracting),
-            PhaseProgress::new(ImportState::Segmenting),
-            PhaseProgress::new(ImportState::Fingerprinting),
-            PhaseProgress::new(ImportState::Identifying),
-            PhaseProgress::new(ImportState::Analyzing),
-            PhaseProgress::new(ImportState::Flavoring),
+            PhaseProgress::new(ImportState::Processing),
         ];
     }
 

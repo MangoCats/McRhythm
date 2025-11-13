@@ -1,6 +1,10 @@
-//! Phase 3: FINGERPRINTING
+//! Phase 3: FINGERPRINTING (DEPRECATED)
 //!
-//! Audio fingerprinting with parallel Chromaprint generation and sequential API lookups
+//! **[AIA-WF-020]** DEPRECATED: Batch-phase audio fingerprinting
+//!
+//! Replaced by PLAN024 per-file pipeline architecture where each file
+//! goes through fingerprinting as part of its individual pipeline
+//! (Phase 5 in the 10-phase per-file sequence)
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
@@ -12,7 +16,12 @@ use std::sync::Arc;
 use wkmp_common::events::WkmpEvent;
 
 impl WorkflowOrchestrator {
-    /// Phase 3: FINGERPRINTING - Audio fingerprinting (stub)
+    /// Phase 3: FINGERPRINTING - Audio fingerprinting
+    ///
+    /// **DEPRECATED:** Use `phase_processing_per_file()` instead
+    ///
+    /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
+    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
     pub(super) async fn phase_fingerprinting(
         &self,
         mut session: ImportSession,

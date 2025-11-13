@@ -1,6 +1,10 @@
-//! Phase 5: ANALYZING
+//! Phase 5: ANALYZING (DEPRECATED)
 //!
-//! Amplitude analysis for lead-in/lead-out timing
+//! **[AIA-WF-020]** DEPRECATED: Batch-phase amplitude analysis
+//!
+//! Replaced by PLAN024 per-file pipeline architecture where each file
+//! goes through amplitude analysis as part of its individual pipeline
+//! (Phase 8 in the 10-phase per-file sequence)
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
@@ -8,7 +12,12 @@ use anyhow::Result;
 use std::path::Path;
 
 impl WorkflowOrchestrator {
-    /// Phase 5: ANALYZING - Amplitude analysis (stub)
+    /// Phase 5: ANALYZING - Amplitude analysis
+    ///
+    /// **DEPRECATED:** Use `phase_processing_per_file()` instead
+    ///
+    /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
+    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
     pub(super) async fn phase_analyzing(
         &self,
         mut session: ImportSession,
