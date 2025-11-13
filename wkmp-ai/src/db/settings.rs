@@ -26,6 +26,76 @@ pub async fn set_acoustid_api_key(db: &Pool<Sqlite>, key: String) -> Result<()> 
     set_setting(db, "acoustid_api_key", key).await
 }
 
+// ============================================================================
+// PLAN024 Import Parameter Settings
+// ============================================================================
+
+/// Get silence detection threshold (Phase 4)
+///
+/// **Default:** 35.0 dB
+/// **Traceability:** REQ-SPEC032-010 (Phase 4 SEGMENTING)
+pub async fn get_silence_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
+    get_setting(db, "silence_threshold_dB").await.map(|opt| opt.unwrap_or(35.0))
+}
+
+/// Get minimum silence duration in ticks (Phase 4)
+///
+/// **Default:** 8467200 ticks (300ms)
+/// **Traceability:** REQ-SPEC032-010 (Phase 4 SEGMENTING)
+pub async fn get_silence_min_duration_ticks(db: &Pool<Sqlite>) -> Result<i64> {
+    get_setting(db, "silence_min_duration_ticks").await.map(|opt| opt.unwrap_or(8467200))
+}
+
+/// Get minimum passage audio duration in ticks (Phase 4)
+///
+/// **Default:** 2822400 ticks (100ms)
+/// **Traceability:** REQ-SPEC032-010 (Phase 4 NO AUDIO detection)
+pub async fn get_minimum_passage_audio_duration_ticks(db: &Pool<Sqlite>) -> Result<i64> {
+    get_setting(db, "minimum_passage_audio_duration_ticks").await.map(|opt| opt.unwrap_or(2822400))
+}
+
+/// Get lead-in detection threshold (Phase 8)
+///
+/// **Default:** 45.0 dB
+/// **Traceability:** REQ-SPEC032-014 (Phase 8 AMPLITUDE)
+pub async fn get_lead_in_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
+    get_setting(db, "lead_in_threshold_dB").await.map(|opt| opt.unwrap_or(45.0))
+}
+
+/// Get lead-out detection threshold (Phase 8)
+///
+/// **Default:** 40.0 dB
+/// **Traceability:** REQ-SPEC032-014 (Phase 8 AMPLITUDE)
+pub async fn get_lead_out_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
+    get_setting(db, "lead_out_threshold_dB").await.map(|opt| opt.unwrap_or(40.0))
+}
+
+/// Get or auto-initialize processing thread count
+///
+/// **Algorithm:** If NULL, compute `CPU_core_count + 1` and persist
+/// **Traceability:** REQ-SPEC032-019 (Thread Count Auto-Initialization)
+pub async fn get_or_init_processing_thread_count(db: &Pool<Sqlite>) -> Result<usize> {
+    match get_setting::<usize>(db, "ai_processing_thread_count").await? {
+        Some(count) => Ok(count),
+        None => {
+            // Auto-initialize: CPU_core_count + 1
+            let cpu_count = num_cpus::get();
+            let thread_count = cpu_count + 1;
+
+            // Persist computed value
+            set_setting(db, "ai_processing_thread_count", thread_count).await?;
+
+            tracing::debug!(
+                cpu_count,
+                thread_count,
+                "Auto-initialized ai_processing_thread_count = CPU_count + 1"
+            );
+
+            Ok(thread_count)
+        }
+    }
+}
+
 /// Generic setting getter (internal)
 async fn get_setting<T>(db: &Pool<Sqlite>, key: &str) -> Result<Option<T>>
 where

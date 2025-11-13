@@ -133,8 +133,23 @@ Audio files discovered by the library scanner.
 | channels | INTEGER | | Number of audio channels (1=mono, 2=stereo, 6=5.1, etc.) |
 | file_size_bytes | INTEGER | | File size in bytes |
 | modification_time | TIMESTAMP | NOT NULL | File last modified timestamp |
+| status | TEXT | DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'INGEST COMPLETE', 'DUPLICATE HASH', 'NO AUDIO')) | Import processing status (Phase 1-10 tracking) |
+| matching_hashes | TEXT | | JSON array of file UUIDs with matching content hash (bidirectional duplicate links) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Status Field Enumeration:**
+- `'PENDING'` - File discovered, not yet processed
+- `'PROCESSING'` - File currently in 10-phase pipeline
+- `'INGEST COMPLETE'` - All passages and songs complete (Phase 10)
+- `'DUPLICATE HASH'` - Duplicate content detected via hash matching (Phase 2)
+- `'NO AUDIO'` - File has <100ms non-silence (Phase 4)
+
+**Matching Hashes Field:**
+- JSON array format: `["uuid1", "uuid2", ...]`
+- Contains UUIDs of other files with identical content hash
+- Bidirectional: If A links to B, then B links to A
+- Used for duplicate detection and file reorganization tracking
 
 **Constraints:**
 - CHECK: `duration_ticks IS NULL OR duration_ticks > 0`
@@ -213,8 +228,15 @@ These columns track the quality and confidence of data fusion during import. Pop
 | import_session_id | TEXT | | UUID of import session that created this passage |
 | import_timestamp | TIMESTAMP | | When this passage was imported |
 | import_strategy | TEXT | | Import strategy used: "PLAN024" (hybrid fusion) or "PLAN025" (segmentation-first) |
+| status | TEXT | DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'INGEST COMPLETE')) | Import processing status (Phase 7-8 tracking) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Status Field Enumeration:**
+- `'PENDING'` - Passage detected/created, amplitude analysis not yet complete
+- `'INGEST COMPLETE'` - Amplitude analysis complete (Phase 8), passage ready for playback
+
+**Note:** fade_in and fade_out timing fields remain NULL after import (future wkmp-pe microservice responsibility)
 
 **Constraints:**
 - CHECK: `start_time_ticks >= 0`
@@ -325,8 +347,14 @@ Songs are unique combinations of a recording and a weighted set of artists. Each
 | min_cooldown | INTEGER | NOT NULL DEFAULT 604800 | Minimum cooldown in seconds (default 7 days). **SPEC024:** Display as `7d-0:00:00` in wkmp-dr |
 | ramping_cooldown | INTEGER | NOT NULL DEFAULT 1209600 | Ramping cooldown in seconds (default 14 days). **SPEC024:** Display as `14d-0:00:00` in wkmp-dr |
 | last_played_at | TIMESTAMP | | Last time any passage with this song was played |
+| status | TEXT | DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'FLAVOR READY', 'FLAVORING FAILED')) | Musical flavor retrieval status (Phase 9 tracking) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
+
+**Status Field Enumeration:**
+- `'PENDING'` - Song created, musical flavor data not yet retrieved
+- `'FLAVOR READY'` - Musical flavor data successfully retrieved from AcousticBrainz or Essentia (Phase 9)
+- `'FLAVORING FAILED'` - Flavor retrieval failed from both AcousticBrainz and Essentia fallback
 
 **Constraints:**
 - CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
@@ -920,7 +948,14 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | **[DB-SET-140] Session Management** |
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
 | **[DB-SET-150] File Ingest** |
-| `ingest_max_concurrent_jobs` | INTEGER | 4 | Maximum concurrent file processing jobs | wkmp-ai | Full |
+| `ingest_max_concurrent_jobs` | INTEGER | 4 | **DEPRECATED** - Use `ai_processing_thread_count` | wkmp-ai | Full |
+| `silence_threshold_dB` | REAL | 35.0 | Silence detection threshold for passage segmentation (Phase 4) | wkmp-ai | Full |
+| `silence_min_duration_ticks` | INTEGER | 8467200 | Minimum silence duration to detect passage boundary (300ms = 8,467,200 ticks) | wkmp-ai | Full |
+| `minimum_passage_audio_duration_ticks` | INTEGER | 2822400 | Minimum non-silence duration for valid audio (100ms = 2,822,400 ticks, <100ms = NO AUDIO) | wkmp-ai | Full |
+| `lead_in_threshold_dB` | REAL | 45.0 | Amplitude threshold for lead-in detection (Phase 8) | wkmp-ai | Full |
+| `lead_out_threshold_dB` | REAL | 40.0 | Amplitude threshold for lead-out detection (Phase 8) | wkmp-ai | Full |
+| `acoustid_api_key` | TEXT | NULL | AcoustID API key for fingerprinting (Phase 5), validated at workflow start | wkmp-ai | Full |
+| `ai_processing_thread_count` | INTEGER | NULL | Parallel processing thread count (auto-initialized: CPU_core_count + 1) | wkmp-ai | Full |
 | **[DB-SET-160] Library** |
 | `music_directories` | TEXT (JSON) | `[]` | JSON array of directories to scan | wkmp-ai | Full |
 | `temporary_flavor_override` | TEXT (JSON) | NULL | JSON with target flavor and expiration | wkmp-pd | Full, Lite |
