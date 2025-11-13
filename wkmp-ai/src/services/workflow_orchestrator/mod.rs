@@ -2528,11 +2528,21 @@ impl WorkflowOrchestrator {
 
             // Update progress
             let processed = completed + failed;
+            let in_progress = tasks.len();  // Number of active workers
+
+            // **[wkmp-ai_refinement.md line 80]** Format: "Processing X to Y of Z"
+            // X = completed, Y = started (completed + in_progress), Z = total
             session.update_progress(
                 completed,
                 total_files,
-                format!("{} of {} files complete ({} failed)", completed, total_files, failed),
+                format!("Processing {} to {} of {}", completed, processed, total_files),
             );
+
+            // Update current_file to show one of the in-progress files (for UI display)
+            if !file_path.is_empty() {
+                session.progress.current_file = Some(file_path.clone());
+            }
+
             crate::db::sessions::save_session(&self.db, &session).await?;
             self.broadcast_progress(&session, start_time);
 
