@@ -48,6 +48,13 @@ impl TableSchema for FilesTableSchema {
             ColumnDefinition::new("channels", "INTEGER"),
             ColumnDefinition::new("file_size_bytes", "INTEGER"),
 
+            // Extracted tag metadata (REQ-SPEC032-010)
+            ColumnDefinition::new("artist", "TEXT"),
+            ColumnDefinition::new("title", "TEXT"),
+            ColumnDefinition::new("album", "TEXT"),
+            ColumnDefinition::new("track_number", "INTEGER"),
+            ColumnDefinition::new("year", "INTEGER"),
+
             ColumnDefinition::new("modification_time", "TIMESTAMP")
                 .not_null(),
 
@@ -204,6 +211,6 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(column_count, 13); // 13 columns total (includes status, matching_hashes)
+        assert_eq!(column_count, 18); // 18 columns total (includes artist, title, album, track_number, year, status, matching_hashes)
     }
 }

@@ -16,6 +16,7 @@ pub mod fingerprinter;
 pub mod folder_selector;  // PLAN024 Increment 5: Folder selection (Step 2)
 pub mod hash_deduplicator;  // PLAN024 Increment 6-7: Hash deduplication (Phase 2)
 pub mod metadata_extractor;
+pub mod metadata_merger;  // PLAN024 Increment 8-9: Metadata extraction & merging (Phase 3)
 pub mod musicbrainz_client;
 pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
 pub mod silence_detector;
@@ -37,6 +38,7 @@ pub use fingerprinter::{Fingerprinter, FingerprintError};
 pub use folder_selector::{FolderSelector, SelectionResult};
 pub use hash_deduplicator::{HashDeduplicator, HashResult};
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
+pub use metadata_merger::{MergedMetadata, MetadataMerger};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};
 pub use pattern_analyzer::{
     GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,
