@@ -558,72 +558,78 @@ async fn start_import(root_folder: PathBuf, params: ImportParameters) -> ImportS
 
 **[AIA-ASYNC-020]** Parallel per-file processing architecture:
 
-**Strategy:** Process multiple files concurrently through PLAN024 pipeline (N files in flight simultaneously)
+**Strategy:** Process multiple files concurrently through 10-phase per-file pipeline (N workers processing different files simultaneously)
 
 **Architecture:**
 ```
-Phase 1: SCANNING + EXTRACTING (Batch)
-  └─ Discover all audio files (parallel magic byte verification)
-  └─ Extract metadata and calculate hashes (parallel with Rayon)
-     Output: Vec<AudioFile> of processed files
+Step 3: SCANNING (Batch File Discovery)
+  └─ Directory traversal, parallel magic byte verification
+  └─ Skip symlinks/junctions
+     Output: List of valid audio file paths
 
-Phase 2: PLAN024 Pipeline (Parallel File Processing)
-  ├─ File 1: SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
-  ├─ File 2:   SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
-  ├─ File 3:     SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
-  └─ File N:       SEGMENTING → FINGERPRINTING → IDENTIFYING → ANALYZING → FLAVORING → Complete
+Step 4: PROCESSING (Parallel Worker Pool)
+  ├─ Worker 1: File A → 10-Phase Pipeline → Complete
+  ├─ Worker 2: File B → 10-Phase Pipeline → Complete
+  ├─ Worker 3: File C → 10-Phase Pipeline → Complete
+  └─ Worker N: File D → 10-Phase Pipeline → Complete
 
-  Pipeline Phase Abbreviations:
-    SEGMENTING:     Boundary detection (silence-based segmentation)
-    FINGERPRINTING: Chromaprint → AcoustID extraction per passage
-    IDENTIFYING:    MusicBrainz resolution (metadata fusion)
-    ANALYZING:      Amplitude analysis for crossfade timing
-    FLAVORING:      Musical characteristics extraction (Essentia)
+  Each Worker Processes One File Sequentially Through 10 Phases:
+    Phase 1: FILENAME MATCHING  - Check if file exists (reuse fileId)
+    Phase 2: HASHING            - Calculate hash, detect duplicates
+    Phase 3: EXTRACTING         - Parse metadata tags (ID3/Vorbis/MP4)
+    Phase 4: SEGMENTING         - Detect passage boundaries via silence
+    Phase 5: FINGERPRINTING     - Generate Chromaprint per passage
+    Phase 6: SONG MATCHING      - Combine metadata + fingerprint evidence
+    Phase 7: RECORDING          - Write passages to database
+    Phase 8: AMPLITUDE          - Detect lead-in/lead-out points
+    Phase 9: FLAVORING          - Retrieve musical flavor (AcousticBrainz/Essentia)
+    Phase 10: PASSAGES COMPLETE - Mark file as INGEST COMPLETE
 
   Parallelism Pattern:
-    - N files in flight simultaneously (N = CPU count, clamped 2-8)
-    - FuturesUnordered maintains constant parallelism level
-    - Each file processes through all phases sequentially
+    - N workers operate concurrently (N from ai_processing_thread_count setting)
+    - Each worker processes one file through all 10 phases sequentially
+    - Workers pick next unprocessed file upon completion
     - Files complete in any order (non-deterministic)
 ```
 
 **Key Characteristics:**
-- **Hybrid approach:** Batch scanning/extracting (Phase 1) + parallel per-file processing (Phase 2)
-- **Adaptive parallelism:** N = num_cpus::get().clamp(2, 8)
-- **Constant in-flight tasks:** FuturesUnordered spawns next file when current completes
-- **Better resource utilization:** CPU-intensive operations (boundary detection, fingerprinting) happen concurrently with I/O-bound operations (MusicBrainz API calls)
-- **Smooth phase progress:** Multiple files advancing through different phases simultaneously
+- **Per-file sequential pipeline:** Each file goes through all 10 phases before next file starts in same worker
+- **Adaptive parallelism:** N from `ai_processing_thread_count` setting (auto-initialized: `CPU_core_count + 1`)
+- **Constant worker utilization:** FuturesUnordered maintains constant parallelism level
+- **Balanced resource usage:** CPU-intensive (FINGERPRINTING), I/O-bound (EXTRACTING), and network-bound (SONG MATCHING) operations happen concurrently across workers
+- **Fine-grained progress:** Report files completed (e.g., "2,581 / 5,736 files")
 
 **Implementation:**
 ```rust
-// Actual implementation (mod.rs:613-1107)
-let parallelism_level = num_cpus::get().clamp(2, 8);
-let mut file_iter = files.iter().enumerate();
+// Get thread count from settings (auto-initializes if NULL)
+let parallelism_level = db::settings::get_or_init_processing_thread_count(&db).await?;
+
+let mut file_iter = discovered_files.iter().enumerate();
 let mut tasks = FuturesUnordered::new();
 
-// Seed initial batch
+// Seed initial worker pool
 for _ in 0..parallelism_level {
-    if let Some((idx, file)) = file_iter.next() {
-        tasks.push(spawn_file_task(idx, file.path, pipeline_ref));
+    if let Some((idx, file_path)) = file_iter.next() {
+        tasks.push(process_file_through_10_phases(idx, file_path, db.clone()));
     }
 }
 
 // Process completions and spawn next file
 while let Some((idx, path, result)) = tasks.next().await {
-    // ... handle result ...
+    // ... handle result, update progress ...
 
     // Maintain parallelism level
-    if let Some((idx, file)) = file_iter.next() {
-        tasks.push(spawn_file_task(idx, file.path, pipeline_ref));
+    if let Some((idx, file_path)) = file_iter.next() {
+        tasks.push(process_file_through_10_phases(idx, file_path, db.clone()));
     }
 }
 ```
 
-**Default Parallelism:** CPU-adaptive (2-8 concurrent file operations)
-- Low-end systems (2 cores): parallelism_level=2
-- Mid-range systems (4-6 cores): parallelism_level=4-6
-- High-end systems (8+ cores): parallelism_level=8 (capped)
-- Automatically adjusts to system capabilities
+**Default Parallelism:** CPU-adaptive via auto-initialization
+- Algorithm: `CPU_core_count + 1` (persisted to database on first run)
+- Example: 4-core system → 5 concurrent workers
+- Example: 8-core system → 9 concurrent workers
+- User-configurable via `settings.ai_processing_thread_count`
 
 ### Per-File Pipeline Benefits
 
@@ -642,12 +648,12 @@ Cancellation:
 
 **2. Better Resource Utilization**
 ```
-Batch Phase Processing (Current):
+Batch Phase Processing (Deprecated):
   Phase 3 (Fingerprinting): [CPU: 95%] [I/O: 5%] [Network: 0%]
   Phase 6 (Flavoring):      [CPU: 5%]  [I/O: 5%] [Network: 90%]
   → Resources underutilized during different phases
 
-Per-File Pipeline (Proposed):
+Per-File Pipeline (Current Architecture):
   Worker 1: Fingerprinting   [CPU: 95%] [I/O: 5%] [Network: 0%]
   Worker 2: API call waiting [CPU: 5%]  [I/O: 5%] [Network: 90%]
   Worker 3: Analyzing        [CPU: 95%] [I/O: 5%] [Network: 0%]
@@ -708,47 +714,84 @@ async fn process_file_complete(
 
 **2. Pipeline Stages (Sequential per File)**
 ```
-For each file, execute in order:
-  1. Verify audio format (magic bytes, decodability check)
-  2. Extract metadata (Lofty: ID3/Vorbis/MP4 tags, plus filename/folder context)
-  3. Calculate file hash (SHA-256)
-  4. Detect passage boundaries via silence detection (gives structural clues)
-     └─ Analyze segment pattern (count, gap durations, segment lengths)
-  5. Contextual MusicBrainz search (metadata + segment pattern)
-     ├─ Single-segment files: Search by artist+title from metadata
-     └─ Multi-segment files: Match segment pattern to album/release track lists
-  6. Per-segment Chromaprint fingerprinting (tokio::task::spawn_blocking for CPU work)
-     └─ Generate fingerprint for EACH segment individually (not whole file)
-  7. Per-segment AcoustID API lookup (rate-limited, async)
-     └─ Get MBID candidates for each segment
-  8. MBID confidence assessment (combine evidence)
-     ├─ Metadata match strength (artist, album, track names)
-     ├─ Pattern match strength (track count, durations align with release)
-     └─ Fingerprint match strength (AcoustID scores per segment)
-  9. Analyze amplitude for each passage (lead-in/lead-out detection)
-  10. Fetch AcousticBrainz musical flavor data (rate-limited, async)
-      └─ Only for recordings with confirmed MBIDs
-  11. Convert all timing points to ticks and write to database (atomic transaction)
-      └─ Convert seconds → INTEGER ticks per SPEC017 (ticks = seconds * 28,224,000)
-      └─ Write: file, passages (with tick-based timing), songs, relationships
-  12. Increment completion counter
+For each file, execute in order (10-phase pipeline):
+
+  Phase 1: FILENAME MATCHING
+    └─ Check if file path/name already exists in database
+    └─ Output: Skip (already processed), Reuse (update metadata), or New (create fileId)
+
+  Phase 2: HASHING
+    └─ Calculate SHA-256 hash of file content
+    └─ Check for duplicate hash in database
+    └─ If duplicate: Create bidirectional link via matching_hashes JSON field, mark DUPLICATE HASH, stop
+    └─ Output: Unique hash (continue) or DUPLICATE HASH (stop)
+
+  Phase 3: EXTRACTING
+    └─ Parse metadata tags (Lofty: ID3/Vorbis/MP4)
+    └─ Merge with existing metadata (new values overwrite, old values preserved if new is NULL)
+    └─ Output: Title, artist, album, duration, merged metadata
+
+  Phase 4: SEGMENTING
+    └─ Decode audio PCM, detect silence using thresholds from settings table
+    └─ Check minimum_passage_audio_duration_ticks (if <100ms non-silence → NO AUDIO, stop)
+    └─ Output: Passage time ranges (ticks) or NO AUDIO (stop)
+
+  Phase 5: FINGERPRINTING
+    └─ Generate Chromaprint fingerprint PER PASSAGE (tokio::task::spawn_blocking for CPU work)
+    └─ Query AcoustID API per passage (rate-limited, async)
+    └─ Output: List of (MBID, confidence score) per passage
+
+  Phase 6: SONG MATCHING
+    └─ Combine metadata + fingerprint evidence per passage
+    └─ Support zero-song passages (None confidence)
+    └─ Adjacent zero-song passages merged into single passage
+    └─ Output: MBID with confidence (High/Medium/Low/None) per passage
+
+  Phase 7: RECORDING
+    └─ Write passages to database (atomic transaction)
+    └─ Convert all timing points to ticks per SPEC017 (ticks = seconds * 28,224,000)
+    └─ Create songs, artists, works, albums, passage_songs relationships
+    └─ Output: Persisted passages with passageId
+
+  Phase 8: AMPLITUDE
+    └─ Analyze amplitude using thresholds from settings table
+    └─ Detect lead-in/lead-out durations (ticks)
+    └─ Leave fade_in, fade_out fields NULL (manual definition deferred to wkmp-pe)
+    └─ Mark passages.status = 'INGEST COMPLETE'
+    └─ Output: Lead-in/lead-out durations persisted
+
+  Phase 9: FLAVORING
+    └─ Query AcousticBrainz API for musical flavor (rate-limited, async)
+    └─ Fallback to Essentia if AcousticBrainz fails
+    └─ Mark songs.status = 'FLAVOR READY' or 'FLAVORING FAILED'
+    └─ Output: Musical flavor vector (JSON) or failure status
+
+  Phase 10: PASSAGES COMPLETE
+    └─ Mark files.status = 'INGEST COMPLETE'
+    └─ Increment completion counter
+    └─ Broadcast progress event via SSE
 ```
 
 **Rationale for Sequence:**
-- **Segmentation before fingerprinting** provides structural clues (track count, gap patterns)
-- **Contextual search** (metadata + pattern) narrows MusicBrainz candidates efficiently
-- **Per-segment fingerprints** more accurate than whole-file fingerprints for multi-track files
-- **Evidence combination** (metadata + pattern + fingerprints) achieves high-confidence MBID matches
+- **Filename matching first** avoids redundant processing of existing files
+- **Hashing before extraction** catches duplicate content early (skip expensive operations)
+- **Segmentation before fingerprinting** provides passage boundaries for per-passage fingerprints
+- **Per-passage fingerprints** more accurate than whole-file fingerprints for multi-track files
+- **Evidence combination** (metadata + fingerprints) achieves high-confidence MBID matches
+- **Recording before amplitude** ensures passages exist in database for amplitude updates
 - **Flavor retrieval last** occurs only after confident identification (avoids wasted API calls)
 
 **3. Parallel Execution**
 ```rust
 use futures::stream::{self, StreamExt};
 
+// Get thread count from settings (auto-initialized: CPU_core_count + 1)
+let worker_count = db::settings::get_or_init_processing_thread_count(&db).await?;
+
 let results: Vec<Result<ProcessedFileResult, ImportError>> =
     stream::iter(discovered_files)
-        .map(|file| process_file_complete(file, db, fingerprinter, rate_limiter))
-        .buffer_unordered(4)  // 4 concurrent workers
+        .map(|file_path| process_file_through_10_phases(file_path, db.clone()))
+        .buffer_unordered(worker_count)  // N concurrent workers
         .collect()
         .await;
 ```
@@ -885,13 +928,13 @@ if cancel_token.is_cancelled() {
 ```json
 {
   "session_id": "uuid",
-  "state": "ANALYZING",
+  "state": "PROCESSING",
   "progress": {
     "current": 250,
     "total": 1000,
     "percentage": 25.0
   },
-  "current_operation": "Amplitude analysis: track_05.flac",
+  "current_operation": "Processing file 250/1000: track_05.flac (Phase 8: AMPLITUDE)",
   "errors": [
     {
       "file_path": "corrupt_file.mp3",
@@ -1043,7 +1086,7 @@ ALTER TABLE songs ADD COLUMN status TEXT DEFAULT 'PENDING';
 
 | Library Size | Expected Duration | Assumptions |
 |--------------|-------------------|-------------|
-| 100 files | 2-4 minutes | Average 3-minute songs, per-file pipeline with 4 workers |
+| 100 files | 2-4 minutes | Average 3-minute songs, per-file pipeline with N workers (N from ai_processing_thread_count) |
 | 1,000 files | 15-30 minutes | Per-file pipeline, overlapping CPU/network operations |
 | 5,736 files | 90-120 minutes | Real-world library (1.5-2 hours, ~1.46x faster than batch phases) |
 | 10,000 files | 2.5-4 hours | Rate limiting (MusicBrainz, AcoustID), improved from 3-6 hours |
@@ -1066,7 +1109,7 @@ Per-File Pipeline Architecture (Required):
 - **Amplitude analysis:** CPU-bound (~2-5s per 3-minute passage, parallelized across workers)
 
 **Why Per-File Pipeline is Faster:**
-- While Worker 1 waits for MusicBrainz API (1 second), Workers 2-4 perform CPU-intensive fingerprinting
+- While Worker 1 waits for MusicBrainz API (1 second), other workers perform CPU-intensive fingerprinting
 - Heterogeneous workload balanced across workers (CPU + I/O + network concurrency)
 - No idle phases waiting for entire batch to complete
 
@@ -1076,7 +1119,7 @@ Per-File Pipeline Architecture (Required):
 
 1. **Caching:** Check `acoustid_cache`, `musicbrainz_cache`, `acousticbrainz_cache` before API queries
 2. **Per-Worker Database Batching:** Each worker commits every 10 files (reduces transaction overhead)
-3. **Parallel Per-File Processing:** 4 concurrent workers through full pipeline (CPU/network overlap)
+3. **Parallel Per-File Processing:** N concurrent workers through full pipeline (CPU/network overlap, N from ai_processing_thread_count setting)
 4. **Rate Limiter Coordination:** Shared rate limiter across workers (via `governor` crate)
 5. **Natural Resumability:** Query database for files without passages, process only incomplete files
 
@@ -1110,38 +1153,38 @@ Phase 2 (Parallel): Magic byte verification
 **Strategy:** Per-segment Chromaprint fingerprinting after segmentation, with parallel workers processing different files
 
 ```
-Per-File Pipeline (within each worker):
-  1. Decode audio file to PCM (I/O + CPU bound)
-  2. Silence detection → identify segments (CPU bound)
-  3. Extract metadata for contextual matching (I/O bound)
-  4. Contextual MusicBrainz search (network I/O bound)
-  5. For each segment:
-     a. Extract segment PCM data (memory operation)
+Per-File Pipeline (within each worker, 10 phases sequentially):
+  Phase 1: FILENAME MATCHING     - Check database for existing file (DB query)
+  Phase 2: HASHING               - Calculate SHA-256 hash (CPU + I/O bound)
+  Phase 3: EXTRACTING            - Parse metadata tags (I/O bound)
+  Phase 4: SEGMENTING            - Decode PCM, silence detection (CPU + I/O bound)
+  Phase 5: FINGERPRINTING        - For each passage:
+     a. Extract passage PCM data (memory operation)
      b. Resample to 44.1kHz if needed (CPU bound)
      c. Generate Chromaprint fingerprint via FFI (CPU bound)
         └─ CHROMAPRINT_LOCK mutex serializes chromaprint_new()/chromaprint_free()
            (required for FFTW backend thread safety, negligible overhead ~1-2ms)
-     d. Rate-limited AcoustID API lookup per segment (network I/O bound)
-  6. Confidence assessment (combine metadata + pattern + fingerprint scores)
-  7. Rate-limited MusicBrainz API lookup for confirmed MBIDs (network I/O bound)
-  8. Amplitude analysis per passage (CPU bound)
-  9. Rate-limited AcousticBrainz API lookup (network I/O bound)
-  10. Convert timing to ticks and write to database
-      └─ Convert all passage timing points (seconds → INTEGER ticks per SPEC017)
+     d. Rate-limited AcoustID API lookup per passage (network I/O bound)
+  Phase 6: SONG MATCHING         - Combine metadata + fingerprint scores (CPU bound)
+  Phase 7: RECORDING             - Write passages to database (DB transaction)
+     └─ Convert all passage timing points (seconds → INTEGER ticks per SPEC017)
+  Phase 8: AMPLITUDE             - Detect lead-in/lead-out points (CPU bound)
+  Phase 9: FLAVORING             - Rate-limited AcousticBrainz/Essentia lookup (network I/O bound)
+  Phase 10: PASSAGES COMPLETE    - Mark file INGEST COMPLETE (DB update)
 
-Parallel Execution (4 workers):
-  Worker 1: File_001 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
-  Worker 2: File_002 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
-  Worker 3: File_003 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
-  Worker 4: File_004 → [Segment → Extract → Match → Fingerprint_per_segment → Identify → DB]
+Parallel Execution (N workers, N from ai_processing_thread_count setting):
+  Worker 1: File_001 → [10-Phase Pipeline] → Complete
+  Worker 2: File_002 → [10-Phase Pipeline] → Complete
+  Worker 3: File_003 → [10-Phase Pipeline] → Complete
+  Worker N: File_004 → [10-Phase Pipeline] → Complete
 ```
 
 **Performance Characteristics:**
-- **Per-segment fingerprints** are more accurate than whole-file fingerprints for multi-track files
-- **Segmentation first** provides structural clues before expensive fingerprinting operations
-- **Contextual matching** (metadata + pattern) narrows MusicBrainz candidates before fingerprinting
-- **CPU-bound operations** (decode, segment, fingerprint) overlap with **network-bound operations** (API calls) across workers
-- While Worker 1 waits for AcoustID API, Workers 2-4 perform CPU-intensive fingerprinting
+- **Per-passage fingerprints** more accurate than whole-file fingerprints for multi-track files
+- **Early exit on duplicates** (Phase 2 hashing) avoids expensive operations for duplicate content
+- **Segmentation before fingerprinting** provides passage boundaries for per-passage fingerprints
+- **CPU-bound operations** (Phase 4-5: SEGMENTING, FINGERPRINTING) overlap with **network-bound operations** (Phase 6, 9: SONG MATCHING, FLAVORING) across workers
+- While Worker 1 waits for AcoustID API (Phase 5), Workers 2-N perform CPU-intensive operations
 - Better resource utilization than batch phase approach (avoids idle CPU during API-heavy phases)
 
 **Thread Safety:**
