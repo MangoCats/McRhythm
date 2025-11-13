@@ -20,6 +20,7 @@ pub mod metadata_merger;  // PLAN024 Increment 8-9: Metadata extraction & mergin
 pub mod musicbrainz_client;
 pub mod passage_amplitude_analyzer;  // PLAN024 Increment 17: Amplitude analysis (Phase 8)
 pub mod passage_fingerprinter;  // PLAN024 Increment 12-13: Per-passage fingerprinting (Phase 5)
+pub mod passage_flavor_fetcher;  // PLAN024 Increment 18: Flavoring (Phase 9)
 pub mod passage_recorder;  // PLAN024 Increment 16: Recording (Phase 7)
 pub mod passage_segmenter;  // PLAN024 Increment 10-11: Passage segmentation (Phase 4)
 pub mod passage_song_matcher;  // PLAN024 Increment 14-15: Song matching (Phase 6)
@@ -50,6 +51,9 @@ pub use passage_amplitude_analyzer::{
 };
 pub use passage_fingerprinter::{
     FingerprintResult, MBIDCandidate, PassageFingerprint, PassageFingerprinter,
+};
+pub use passage_flavor_fetcher::{
+    FlavorResult, FlavorSource, FlavorStats, PassageFlavorFetcher, SongFlavorResult,
 };
 pub use passage_recorder::{PassageRecord, PassageRecorder, RecordingResult, RecordingStats};
 pub use passage_segmenter::{PassageBoundary, PassageSegmenter, SegmentResult};
