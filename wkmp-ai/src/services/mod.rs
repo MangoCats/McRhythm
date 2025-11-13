@@ -5,21 +5,33 @@
 pub mod acousticbrainz_client;
 pub mod acoustid_client;
 pub mod amplitude_analyzer;
+pub mod confidence_assessor;  // PLAN025 Phase 2: Evidence-based confidence assessment
+pub mod contextual_matcher;  // PLAN025 Phase 2: Contextual MusicBrainz matching
 pub mod essentia_client;
 pub mod file_scanner;
+pub mod file_tracker;  // PLAN024 TASK-000: File-level import tracking
 pub mod fingerprinter;
 pub mod metadata_extractor;
 pub mod musicbrainz_client;
+pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
 pub mod silence_detector;
 pub mod workflow_orchestrator;
 
 pub use acousticbrainz_client::{ABError, ABLowLevel, AcousticBrainzClient, MusicalFlavorVector};
 pub use acoustid_client::{AcoustIDClient, AcoustIDError, AcoustIDResponse};
 pub use amplitude_analyzer::{AmplitudeAnalysisResult, AmplitudeAnalyzer, AnalysisError};
+pub use confidence_assessor::{ConfidenceAssessor, ConfidenceError, ConfidenceResult, Decision, Evidence};
+pub use contextual_matcher::{ContextualMatcher, ContextualMatcherError, MatchCandidate};
 pub use essentia_client::{EssentiaClient, EssentiaError, EssentiaOutput};
 pub use file_scanner::{FileScanner, ScanError, ScanResult};
+pub use file_tracker::{
+    FileTracker, FileTrackerConfig, FileTrackingInfo, SkipDecision, SkipReason,
+};
 pub use fingerprinter::{Fingerprinter, FingerprintError};
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};
+pub use pattern_analyzer::{
+    GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,
+};
 pub use silence_detector::{SilenceDetector, SilenceRegion};
 pub use workflow_orchestrator::WorkflowOrchestrator;

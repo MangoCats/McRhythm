@@ -14,6 +14,21 @@
 
 use serde::{Deserialize, Serialize};
 use std::f32::consts::FRAC_PI_2;
+use std::str::FromStr;
+
+/// Error parsing fade curve from string
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseFadeCurveError {
+    input: String,
+}
+
+impl std::fmt::Display for ParseFadeCurveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid fade curve: '{}'", self.input)
+    }
+}
+
+impl std::error::Error for ParseFadeCurveError {}
 
 /// Fade curve types for crossfading
 ///
@@ -153,15 +168,12 @@ impl FadeCurve {
     /// - 'cosine' (maps to SCurve)
     /// - 's_curve', 'scurve', 's-curve' (aliases for SCurve)
     /// - 'equal_power', 'equalpower' (aliases)
+    ///
+    /// **Deprecated:** Use `.parse::<FadeCurve>()` or `str::parse()` instead (implements FromStr trait)
+    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_lowercase().as_str() {
-            "linear" => Some(FadeCurve::Linear),
-            "exponential" => Some(FadeCurve::Exponential),
-            "logarithmic" => Some(FadeCurve::Logarithmic),
-            "cosine" | "scurve" | "s-curve" | "s_curve" => Some(FadeCurve::SCurve),
-            "equal_power" | "equalpower" => Some(FadeCurve::EqualPower),
-            _ => None,
-        }
+        s.parse().ok()
     }
 
     /// Convert to database string representation
@@ -208,6 +220,34 @@ impl Default for FadeCurve {
     /// **[XFD-DEF-071]** Global default is exponential/logarithmic pair
     fn default() -> Self {
         FadeCurve::Exponential
+    }
+}
+
+impl FromStr for FadeCurve {
+    type Err = ParseFadeCurveError;
+
+    /// Parse fade curve from string
+    ///
+    /// Supports database values from [XFD-DB-010]:
+    /// - 'linear'
+    /// - 'exponential'
+    /// - 'logarithmic'
+    /// - 'cosine' (maps to SCurve)
+    /// - 's_curve', 'scurve', 's-curve' (aliases for SCurve)
+    /// - 'equal_power', 'equalpower' (aliases)
+    ///
+    /// Case-insensitive.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "linear" => Ok(FadeCurve::Linear),
+            "exponential" => Ok(FadeCurve::Exponential),
+            "logarithmic" => Ok(FadeCurve::Logarithmic),
+            "cosine" | "scurve" | "s-curve" | "s_curve" => Ok(FadeCurve::SCurve),
+            "equal_power" | "equalpower" => Ok(FadeCurve::EqualPower),
+            _ => Err(ParseFadeCurveError {
+                input: s.to_string(),
+            }),
+        }
     }
 }
 

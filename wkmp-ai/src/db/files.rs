@@ -16,8 +16,11 @@ use uuid::Uuid;
 /// Per SPEC017: All timing uses tick-based representation for consistency with passage timing.
 #[derive(Debug, Clone)]
 pub struct AudioFile {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// File path (absolute or relative to root folder)
     pub path: String,
+    /// SHA-256 hash of file contents (for deduplication)
     pub hash: String,
 
     /// File duration in ticks (SPEC017 tick-based timing).
@@ -37,6 +40,7 @@ pub struct AudioFile {
     /// File size in bytes
     pub file_size_bytes: Option<i64>,
 
+    /// File modification timestamp
     pub modification_time: DateTime<Utc>,
 }
 
@@ -97,6 +101,62 @@ pub async fn save_file(pool: &SqlitePool, file: &AudioFile) -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+/// Save multiple audio files to database in a single transaction
+///
+/// **[AIA-PERF-035]** Batch database writes for improved throughput
+/// REQ-F-003: Updated to use duration_ticks (i64) instead of duration (f64)
+pub async fn save_files_batch(pool: &SqlitePool, files: &[AudioFile]) -> Result<usize> {
+    if files.is_empty() {
+        return Ok(0);
+    }
+
+    let mut tx = pool.begin().await?;
+    let mut saved_count = 0;
+
+    for file in files {
+        let result = sqlx::query(
+            r#"
+            INSERT INTO files (guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(path) DO UPDATE SET
+                hash = excluded.hash,
+                duration_ticks = excluded.duration_ticks,
+                format = excluded.format,
+                sample_rate = excluded.sample_rate,
+                channels = excluded.channels,
+                file_size_bytes = excluded.file_size_bytes,
+                modification_time = excluded.modification_time,
+                updated_at = CURRENT_TIMESTAMP
+            "#,
+        )
+        .bind(file.guid.to_string())
+        .bind(&file.path)
+        .bind(&file.hash)
+        .bind(file.duration_ticks)
+        .bind(&file.format)
+        .bind(file.sample_rate)
+        .bind(file.channels)
+        .bind(file.file_size_bytes)
+        .bind(file.modification_time.to_rfc3339())
+        .execute(&mut *tx)
+        .await;
+
+        match result {
+            Ok(_) => saved_count += 1,
+            Err(e) => {
+                tracing::warn!(
+                    file = %file.path,
+                    error = %e,
+                    "Failed to save file in batch, continuing with remaining files"
+                );
+            }
+        }
+    }
+
+    tx.commit().await?;
+    Ok(saved_count)
 }
 
 /// Load audio file by path

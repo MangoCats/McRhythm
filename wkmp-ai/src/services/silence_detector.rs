@@ -8,9 +8,11 @@ use thiserror::Error;
 /// Silence detection errors
 #[derive(Debug, Error)]
 pub enum SilenceError {
+    /// Invalid silence threshold value
     #[error("Invalid threshold: {0}")]
     InvalidThreshold(String),
 
+    /// Invalid detection parameters
     #[error("Invalid parameters: {0}")]
     InvalidParameters(String),
 }
@@ -18,11 +20,18 @@ pub enum SilenceError {
 /// Silence region (start_sec, end_sec)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SilenceRegion {
+    /// Start time of silence region in seconds
     pub start_seconds: f32,
+    /// End time of silence region in seconds
     pub end_seconds: f32,
 }
 
 impl SilenceRegion {
+    /// Create new silence region
+    ///
+    /// # Arguments
+    /// * `start_seconds` - Start time in seconds
+    /// * `end_seconds` - End time in seconds
     pub fn new(start_seconds: f32, end_seconds: f32) -> Self {
         Self {
             start_seconds,
@@ -30,6 +39,7 @@ impl SilenceRegion {
         }
     }
 
+    /// Calculate duration of silence region in seconds
     pub fn duration(&self) -> f32 {
         self.end_seconds - self.start_seconds
     }

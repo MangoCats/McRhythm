@@ -174,7 +174,8 @@ pub async fn load_last_passage_id(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
 
 /// Save queue state (current passage being played)
 ///
-/// [ARCH-QP-020] Queue state persistence
+/// **[ARCH-QP-020]** Queue state persistence
+/// **[DBD-PARAM-125]** `queue_current_id` database setting
 pub async fn save_queue_state(db: &Pool<Sqlite>, current_id: Option<Uuid>) -> Result<()> {
     match current_id {
         Some(id) => set_setting(db, "queue_current_id", id.to_string()).await,
@@ -190,7 +191,8 @@ pub async fn save_queue_state(db: &Pool<Sqlite>, current_id: Option<Uuid>) -> Re
 
 /// Load queue state
 ///
-/// [ARCH-QP-020] Queue state restoration
+/// **[ARCH-QP-020]** Queue state restoration
+/// **[DBD-PARAM-125]** `queue_current_id` database setting
 ///
 /// **Phase 4:** Queue state restore reserved for persistence feature (not yet implemented in engine)
 pub async fn load_queue_state(db: &Pool<Sqlite>) -> Result<Option<Uuid>> {
@@ -531,7 +533,7 @@ pub async fn load_audio_buffer_size(db: &Pool<Sqlite>) -> Result<u32> {
 /// - Range: 88,200 to 2,646,000 frames (2-60 seconds @ 44.1kHz)
 pub async fn load_playout_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
     let default = *wkmp_common::params::PARAMS.playout_ringbuffer_size.read().unwrap();
-    load_clamped_setting(db, "playout_ringbuffer_capacity", 88_200, 2_646_000, default).await
+    load_clamped_setting(db, "playout_ringbuffer_size", 88_200, 2_646_000, default).await
 }
 
 /// Load playout ring buffer headroom threshold from database
@@ -551,7 +553,7 @@ pub async fn load_playout_ringbuffer_headroom(db: &Pool<Sqlite>) -> Result<usize
 /// - Range: 2,048 to 262,144 frames (~46ms to 5.9s @ 44.1kHz)
 pub async fn load_output_ringbuffer_capacity(db: &Pool<Sqlite>) -> Result<usize> {
     let default = *wkmp_common::params::PARAMS.output_ringbuffer_size.read().unwrap();
-    load_clamped_setting(db, "output_ringbuffer_capacity", 2_048, 262_144, default).await
+    load_clamped_setting(db, "output_ringbuffer_size", 2_048, 262_144, default).await
 }
 
 #[cfg(test)]

@@ -16,7 +16,7 @@ use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 
 /// Result from decoding a passage
 ///
@@ -974,7 +974,7 @@ impl StreamingDecoder {
 
         let trimmed_chunk = chunk_samples[trimmed_start..trimmed_end].to_vec();
 
-        debug!(
+        trace!(
             "Decoded chunk: {} samples (trimmed from {} to {}), position {}/{}",
             trimmed_chunk.len(),
             chunk_samples.len(),

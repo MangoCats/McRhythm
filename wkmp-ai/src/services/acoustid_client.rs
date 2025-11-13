@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 const ACOUSTID_BASE_URL: &str = "https://api.acoustid.org/v2/lookup";
 /// Placeholder API key for Default impl (tests only)
 /// Production code MUST load API key via config (PLAN012: database → ENV → TOML)
+#[allow(dead_code)]
 const ACOUSTID_API_KEY: &str = "YOUR_API_KEY";
 const USER_AGENT: &str = "WKMP/0.1.0 (https://github.com/wkmp/wkmp)";
 const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between requests)
@@ -20,18 +21,23 @@ const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between request
 /// AcoustID client errors
 #[derive(Debug, Error)]
 pub enum AcoustIDError {
+    /// Network communication error
     #[error("Network error: {0}")]
     NetworkError(String),
 
+    /// No matching recordings found for fingerprint
     #[error("No matches found for fingerprint")]
     NoMatches,
 
+    /// AcoustID API returned error response
     #[error("API error {0}: {1}")]
     ApiError(u16, String),
 
+    /// Failed to parse API response JSON
     #[error("Parse error: {0}")]
     ParseError(String),
 
+    /// Invalid or missing API key
     #[error("Invalid API key")]
     InvalidApiKey,
 }
@@ -39,28 +45,42 @@ pub enum AcoustIDError {
 /// AcoustID lookup response
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDResponse {
+    /// API response status (e.g., "ok", "error")
     pub status: String,
+    /// List of matching results
     pub results: Vec<AcoustIDResult>,
 }
 
+/// AcoustID match result
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDResult {
-    pub id: String, // AcoustID
-    pub score: f64, // Match confidence (0.0 to 1.0)
+    /// AcoustID fingerprint identifier
+    pub id: String,
+    /// Match confidence score (0.0 to 1.0)
+    pub score: f64,
+    /// Matching MusicBrainz recordings
     pub recordings: Option<Vec<AcoustIDRecording>>,
 }
 
+/// AcoustID recording information
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDRecording {
-    pub id: String, // MusicBrainz Recording MBID
+    /// MusicBrainz Recording MBID
+    pub id: String,
+    /// Recording title
     pub title: Option<String>,
+    /// Artist credits
     pub artists: Option<Vec<AcoustIDArtist>>,
-    pub duration: Option<u64>, // Seconds
+    /// Recording duration in seconds
+    pub duration: Option<u64>,
 }
 
+/// AcoustID artist information
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AcoustIDArtist {
-    pub id: String, // MusicBrainz Artist MBID
+    /// MusicBrainz Artist MBID
+    pub id: String,
+    /// Artist name
     pub name: String,
 }
 
@@ -103,6 +123,7 @@ pub struct AcoustIDClient {
 }
 
 impl AcoustIDClient {
+    /// Create new AcoustID client with API key and database pool
     pub fn new(api_key: String, db: sqlx::SqlitePool) -> Result<Self, AcoustIDError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)

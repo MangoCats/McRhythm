@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 use wkmp_common::events::WkmpEvent;
 
@@ -295,7 +295,7 @@ impl DecoderWorker {
             // Periodic logging (more frequent for debugging)
             if iteration.is_multiple_of(10) {
                 let state = self.state.lock().await;
-                debug!(
+                trace!(
                     "Worker iteration {}: pending={}, active={}, yielded={}",
                     iteration,
                     state.pending_requests.len(),
@@ -334,7 +334,7 @@ impl DecoderWorker {
         let queue_entry_ids: Vec<Uuid> = state.yielded_chains.keys().copied().collect();
 
         if !queue_entry_ids.is_empty() {
-            debug!("Checking {} yielded chains for resume", queue_entry_ids.len());
+            trace!("Checking {} yielded chains for resume", queue_entry_ids.len());
         }
 
         for queue_entry_id in queue_entry_ids {
@@ -345,7 +345,7 @@ impl DecoderWorker {
                 .unwrap_or(false);
 
             if let Some(chain) = state.yielded_chains.get(&queue_entry_id) {
-                debug!(
+                trace!(
                     "[Chain {}] Resume check: can_resume={}",
                     chain.chain_index(),
                     can_resume
@@ -354,7 +354,7 @@ impl DecoderWorker {
 
             if can_resume {
                 if let Some(chain) = state.yielded_chains.remove(&queue_entry_id) {
-                    debug!("[Chain {}] Resuming (buffer drained)", chain.chain_index());
+                    trace!("[Chain {}] Resuming (buffer drained)", chain.chain_index());
                     state.active_chains.insert(queue_entry_id, chain);
                     // **[DBD-DEC-045]** Chain assignment changed (yielded → active)
                     state.chain_assignments_generation += 1;
@@ -466,19 +466,19 @@ impl DecoderWorker {
             // Determine which chain to process
             let queue_entry_id = if should_reevaluate {
                 // **[DBD-DEC-045]** Re-evaluation triggered: select new chain
-                debug!("Re-evaluating priorities");
+                trace!("Re-evaluating priorities");
                 match self.select_highest_priority_chain(&state).await {
                     Some(id) => {
                         // Update state: new decoder selected, reset timer, update observed generation
                         state.current_decoder_id = Some(id);
                         state.last_reevaluation = tokio::time::Instant::now();
                         state.last_observed_generation = state.chain_assignments_generation;
-                        debug!("Selected new decoder: {}", id);
+                        trace!("Selected new decoder: {}", id);
                         id
                     }
                     None => {
                         // All buffers are full, no work to do
-                        debug!("All active chain buffers are full, idling");
+                        trace!("All active chain buffers are full, idling");
                         state.current_decoder_id = None;
                         state.last_observed_generation = state.chain_assignments_generation;
                         return Ok(Some(false));
@@ -491,12 +491,12 @@ impl DecoderWorker {
                 // Verify current decoder still exists in active_chains
                 if !state.active_chains.contains_key(&id) {
                     // Current decoder finished/removed, force re-evaluation on next iteration
-                    debug!("Current decoder {} no longer active, clearing selection", id);
+                    trace!("Current decoder {} no longer active, clearing selection", id);
                     state.current_decoder_id = None;
                     return Ok(Some(false));
                 }
 
-                debug!("Continuing current decoder: {}", id);
+                trace!("Continuing current decoder: {}", id);
                 id
             };
 
@@ -518,7 +518,7 @@ impl DecoderWorker {
 
         match result {
             ChunkProcessResult::Processed { frames_pushed } => {
-                debug!(
+                trace!(
                     "[Chain {}] Processed chunk: {} frames",
                     chain.chain_index(),
                     frames_pushed
@@ -529,7 +529,7 @@ impl DecoderWorker {
             }
 
             ChunkProcessResult::BufferFull { frames_pushed } => {
-                debug!(
+                trace!(
                     "[Chain {}] Buffer full (partial push: {} frames), yielding",
                     chain.chain_index(),
                     frames_pushed
@@ -641,13 +641,13 @@ impl DecoderWorker {
     ) -> bool {
         // Trigger 1: No current decoder (initial state or decoder finished)
         if current_decoder_id.is_none() {
-            debug!("Re-evaluation trigger: no current decoder");
+            trace!("Re-evaluation trigger: no current decoder");
             return true;
         }
 
         // Trigger 2: Chain assignments changed (new/released/yielded/resumed chains)
         if chain_assignments_generation != last_observed_generation {
-            debug!(
+            trace!(
                 "Re-evaluation trigger: chain assignments changed (generation {} → {})",
                 last_observed_generation, chain_assignments_generation
             );
@@ -717,7 +717,7 @@ impl DecoderWorker {
 
         drop(queue); // Release queue lock before async buffer checks
 
-        debug!(
+        trace!(
             "Selecting highest priority chain from {} active chains",
             state.active_chains.len()
         );
@@ -731,13 +731,13 @@ impl DecoderWorker {
                 .await
                 .unwrap_or(false);
 
-            debug!(
+            trace!(
                 "  Chain {}: play_order={}, can_resume={}",
                 queue_entry_id, play_order, can_resume
             );
 
             if can_resume {
-                debug!(
+                trace!(
                     "Selected chain {} with play_order={} (buffer needs filling)",
                     queue_entry_id, play_order
                 );
@@ -746,7 +746,7 @@ impl DecoderWorker {
         }
 
         // All buffers are full
-        debug!("All buffers full, no chain selected");
+        trace!("All buffers full, no chain selected");
         None
     }
 

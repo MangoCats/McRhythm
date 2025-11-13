@@ -26,7 +26,7 @@ use crate::playback::buffer_manager::BufferManager;
 use crate::playback::pipeline::Fader;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 /// Result of processing one chunk through the decoder chain
@@ -221,7 +221,7 @@ impl DecoderChain {
         // **[BUGFIX]** Step 1: Check for pending samples from previous call
         let faded_samples = if let Some(pending) = self.pending_samples.take() {
             // Retrying push of samples that were decoded but couldn't be pushed last time
-            debug!(
+            trace!(
                 "[Chain {}] Retrying push of {} pending samples (from previous buffer-full)",
                 self.chain_index,
                 pending.len()
@@ -232,7 +232,7 @@ impl DecoderChain {
             self.chunk_count += 1;
 
             // **[DBD-DEC-110] Step 1a:** Decode chunk
-            debug!(
+            trace!(
                 "[Chain {}] Decoding chunk {} ({}ms)",
                 self.chain_index, self.chunk_count, self.chunk_duration_ms
             );
@@ -292,7 +292,7 @@ impl DecoderChain {
             };
 
             let decoded_frames = chunk_samples.len() / 2; // Stereo
-            debug!(
+            trace!(
                 "[Chain {}] Decoded {} frames",
                 self.chain_index, decoded_frames
             );
@@ -347,7 +347,7 @@ impl DecoderChain {
             Ok(frames_pushed) => {
                 // push_samples returns frames count, not samples
                 self.total_frames_pushed += frames_pushed;
-                debug!(
+                trace!(
                     "[Chain {}] Pushed {} frames to buffer (total: {})",
                     self.chain_index, frames_pushed, self.total_frames_pushed
                 );
@@ -416,7 +416,7 @@ impl DecoderChain {
 
         // **[BUGFIX] Step 3:** Check if we pushed partial data (buffer became full mid-chunk)
         if frames_pushed < total_frames_in_chunk {
-            debug!(
+            trace!(
                 "[Chain {}] Partial push: {} of {} frames (buffer filling up)",
                 self.chain_index, frames_pushed, total_frames_in_chunk
             );
@@ -425,7 +425,7 @@ impl DecoderChain {
             let samples_pushed = frames_pushed * 2; // Convert frames to samples (stereo)
             self.pending_samples = Some(faded_samples[samples_pushed..].to_vec());
 
-            debug!(
+            trace!(
                 "[Chain {}] Saved {} remaining samples for next push",
                 self.chain_index,
                 self.pending_samples.as_ref().unwrap().len()

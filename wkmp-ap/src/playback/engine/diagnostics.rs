@@ -19,7 +19,7 @@ use crate::state::CurrentPassage;
 use sqlx::{Pool, Sqlite};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, trace, error, info, warn};
 use uuid::Uuid;
 
 impl PlaybackEngine {
@@ -212,7 +212,7 @@ impl PlaybackEngine {
                         .and_then(|b| b.source_sample_rate)
                         .map(|src_rate| src_rate != sample_rate),
                     target_sample_rate: {
-                        debug!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
+                        trace!("[Chain {}] Setting target_sample_rate to {} Hz", chain_index, sample_rate);
                         sample_rate // **[DBD-PARAM-020]** working_sample_rate (device native)
                     },
                     resampler_algorithm: Some("Septic polynomial".to_string()), // **[SPEC020-MONITOR-070]** rubato FastFixedIn with Septic degree
@@ -575,6 +575,39 @@ impl PlaybackEngine {
                 Some(PlaybackEvent::PassageComplete { queue_entry_id }) => {
                     info!("PassageComplete event received for queue_entry_id: {}", queue_entry_id);
 
+                    // **[REQ-QUEUE-DEDUP-010, REQ-QUEUE-DEDUP-020]** Deduplication check (5-second window)
+                    let now = tokio::time::Instant::now();
+                    let dedup_window = std::time::Duration::from_secs(5);
+
+                    let is_duplicate = {
+                        let mut completed = self.completed_passages.write().await;
+
+                        // Clean up expired entries (>5 seconds old)
+                        completed.retain(|_, &mut timestamp| {
+                            now.duration_since(timestamp) < dedup_window
+                        });
+
+                        // Check if this is a duplicate
+                        if let Some(&previous_timestamp) = completed.get(&queue_entry_id) {
+                            let elapsed = now.duration_since(previous_timestamp);
+                            debug!(
+                                "Duplicate PassageComplete event for {} (previous event {:.1}ms ago) - skipping",
+                                queue_entry_id,
+                                elapsed.as_secs_f64() * 1000.0
+                            );
+                            true
+                        } else {
+                            // Record this completion
+                            completed.insert(queue_entry_id, now);
+                            false
+                        }
+                    };
+
+                    // Skip duplicate events
+                    if is_duplicate {
+                        continue;
+                    }
+
                     // Stop mixer and clear passage
                     {
                         let mut mixer = self.mixer.write().await;
@@ -638,7 +671,7 @@ impl PlaybackEngine {
                 Some(BufferEvent::ReadyForStart { queue_entry_id, buffer_duration_ms, .. }) => {
                     let start_time = Instant::now();
 
-                    info!(
+                    debug!(
                         "🚀 Buffer ready event received: {} ({}ms available)",
                         queue_entry_id, buffer_duration_ms
                     );
@@ -648,7 +681,7 @@ impl PlaybackEngine {
                     let current = {
                         let queue = self.queue.read().await;
                         if queue.current().map(|c| c.queue_entry_id) != Some(queue_entry_id) {
-                            debug!(
+                            trace!(
                                 "Buffer ready for {} but not current passage, ignoring",
                                 queue_entry_id
                             );

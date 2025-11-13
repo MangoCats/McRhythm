@@ -47,6 +47,7 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_module_config_table(&pool).await?;
     create_files_table(&pool).await?;
     create_passages_table(&pool).await?;
+    create_import_provenance_table(&pool).await?;
     create_queue_table(&pool).await?;
     create_acoustid_cache_table(&pool).await?;
 
@@ -67,12 +68,17 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     create_temp_file_songs_table(&pool).await?;
     create_temp_file_albums_table(&pool).await?;
 
-    // Run schema migrations [ARCH-DB-MIG-010]
-    // This must run AFTER all CREATE TABLE IF NOT EXISTS statements
-    // to handle schema changes in existing databases
+    // Phase 2: Automatic Schema Synchronization [ARCH-DB-SYNC-020]
+    // Automatically add missing columns to existing tables
+    // This runs AFTER CREATE TABLE IF NOT EXISTS and BEFORE manual migrations
+    crate::db::table_schemas::sync_all_table_schemas(&pool).await?;
+
+    // Phase 3: Manual Migrations [ARCH-DB-MIG-010]
+    // Complex transformations (type changes, data migration, etc.)
+    // This must run AFTER auto-sync to handle edge cases
     crate::db::migrations::run_migrations(&pool).await?;
 
-    // Initialize default settings [ARCH-INIT-020]
+    // Phase 4: Initialize default settings [ARCH-INIT-020]
     init_default_settings(&pool).await?;
 
     Ok(pool)
@@ -123,6 +129,9 @@ async fn create_users_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the settings table
+///
+/// Stores application configuration key-value pairs.
 pub async fn create_settings_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -191,9 +200,9 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
-    ensure_setting(pool, "validation_enabled", "true").await?;
-    ensure_setting(pool, "validation_interval_secs", "10").await?;
-    ensure_setting(pool, "validation_tolerance_samples", "8192").await?;
+    ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]
+    ensure_setting(pool, "validation_interval_secs", "10").await?;          // [DBD-PARAM-131]
+    ensure_setting(pool, "validation_tolerance_samples", "8192").await?;    // [DBD-PARAM-132]
 
     // GlobalParams defaults **[PLAN018]** - All 15 database-backed parameters
     // These match the defaults in wkmp-common/src/params.rs
@@ -310,6 +319,11 @@ async fn create_module_config_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the files table
+///
+/// Stores audio file metadata including duration in ticks (SPEC017).
+///
+/// **[REQ-F-003]** File duration uses tick-based representation for consistency.
 pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     // REQ-F-003: File duration migration to ticks (BREAKING CHANGE)
     // Changed from `duration REAL` (f64 seconds) to `duration_ticks INTEGER` (i64 ticks)
@@ -349,6 +363,10 @@ pub async fn create_files_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the passages table
+///
+/// Stores passage metadata including timing, crossfade points, and musical flavor.
+/// All timing values use tick-based representation (SPEC017).
 pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -367,10 +385,33 @@ pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
             user_title TEXT,
             artist TEXT,
             album TEXT,
+            recording_mbid TEXT,
             musical_flavor_vector TEXT,
             import_metadata TEXT,
             additional_metadata TEXT,
             decode_status TEXT DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')),
+            flavor_source_blend TEXT,
+            flavor_confidence_map TEXT,
+            flavor_completeness REAL,
+            title_source TEXT,
+            title_confidence REAL,
+            artist_source TEXT,
+            artist_confidence REAL,
+            album_source TEXT,
+            album_confidence REAL,
+            mbid_source TEXT,
+            mbid_confidence REAL,
+            identity_confidence REAL,
+            identity_posterior_probability REAL,
+            identity_conflicts TEXT,
+            overall_quality_score REAL,
+            metadata_completeness REAL,
+            validation_status TEXT,
+            validation_report TEXT,
+            validation_issues TEXT,
+            import_session_id TEXT,
+            import_timestamp TIMESTAMP,
+            import_strategy TEXT,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             CHECK (start_time_ticks >= 0),
@@ -397,6 +438,35 @@ pub async fn create_passages_table(pool: &SqlitePool) -> Result<()> {
 
     // Create index for decode_status queries (REQ-AP-ERR-011)
     sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_decode_status ON passages(decode_status)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+/// Create the import_provenance table
+///
+/// Tracks the origin and confidence of data extracted during passage import.
+/// Used for debugging import quality and providing audit trails.
+pub async fn create_import_provenance_table(pool: &SqlitePool) -> Result<()> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS import_provenance (
+            id TEXT PRIMARY KEY,
+            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
+            source_type TEXT NOT NULL,
+            data_extracted TEXT,
+            confidence REAL,
+            timestamp INTEGER,
+            FOREIGN KEY (passage_id) REFERENCES passages(guid) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index for querying all extractions for a passage
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_import_provenance_passage_id ON import_provenance(passage_id)")
         .execute(pool)
         .await?;
 
@@ -490,6 +560,9 @@ async fn create_songs_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the artists table
+///
+/// Stores artist metadata including cooldown periods and selection probabilities.
 pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -522,6 +595,9 @@ pub async fn create_artists_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the works table
+///
+/// Stores musical work metadata including cooldown periods for automatic selection.
 pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"
@@ -554,6 +630,9 @@ pub async fn create_works_table(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
+/// Create the albums table
+///
+/// Stores album metadata from MusicBrainz.
 pub async fn create_albums_table(pool: &SqlitePool) -> Result<()> {
     sqlx::query(
         r#"

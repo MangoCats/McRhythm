@@ -28,23 +28,34 @@ sqlx = { workspace = true }
 toml = { workspace = true }
 walkdir = "2.4"
 infer = "0.16"
+rayon = "1.10"
+once_cell = "1.20"
+num_cpus = "1.16"
 reqwest = { version = "0.11", features = ["json"] }
 governor = "0.6"
 lofty = "0.19"
 async-stream = "0.3"
+async-trait = "0.1"
 futures = "0.3"
 # Audio fingerprinting
 # Platform-specific: static linking on Windows, dynamic on Linux/macOS
 chromaprint-sys-next = { version = "1.6" }
 base64 = "0.22"
+# URL encoding for MusicBrainz queries
+urlencoding = "2.1"
 # File hashing for deduplication
 sha2 = "0.10"
+# String similarity (Levenshtein distance)
+strsim = "0.11"
 # Audio decoding and resampling
 symphonia = { version = "0.5", features = ["all"] }
 rubato = "0.15"
+hound = "3.5"
 # Static file serving
 tower-http = { version = "0.6", features = ["fs", "set-header"] }
 tower = { workspace = true }
+# Temporary files for audio processing
+tempfile = "3.8"
 
 [build-dependencies]
 chrono = { workspace = true }
@@ -53,7 +64,6 @@ chrono = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 hyper = { version = "1.0", features = ["full"] }
 http-body-util = "0.1"
-tempfile = "3.8"
 serial_test = "3.0"
 
 # Windows-specific: Enable static linking for chromaprint to avoid DLL dependencies

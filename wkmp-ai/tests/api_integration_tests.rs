@@ -61,12 +61,27 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
 
 /// Test helper: create temporary test directory with audio files
 fn create_test_audio_files() -> tempfile::TempDir {
+    use hound::WavWriter;
+
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
-    // Create fake MP3 file
-    let mp3_path = temp_dir.path().join("test.mp3");
-    std::fs::write(&mp3_path, b"ID3\x03\x00\x00\x00\x00\x00\x00fake_mp3_data")
-        .expect("Failed to write test MP3");
+    // Create real WAV file (1 second, 440Hz sine wave)
+    let wav_path = temp_dir.path().join("test.wav");
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 44100,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+
+    let mut writer = WavWriter::create(&wav_path, spec).expect("Failed to create WAV file");
+
+    // Write 1 second of audio (440Hz sine wave)
+    for t in 0..44100 {
+        let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin();
+        writer.write_sample((sample * i16::MAX as f32) as i16).expect("Failed to write sample");
+    }
+    writer.finalize().expect("Failed to finalize WAV file");
 
     temp_dir
 }
@@ -236,7 +251,7 @@ async fn test_sse_endpoint_connection() {
 async fn test_amplitude_analysis_endpoint() {
     let (app, _pool) = create_test_app().await;
     let temp_dir = create_test_audio_files();
-    let file_path = temp_dir.path().join("test.mp3");
+    let file_path = temp_dir.path().join("test.wav");
 
     let request_body = json!({
         "file_path": file_path.to_str().unwrap(),

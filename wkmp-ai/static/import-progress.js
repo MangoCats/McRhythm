@@ -6,6 +6,161 @@ let currentSessionId = null;
 let lastUpdateTime = 0;
 const UPDATE_THROTTLE_MS = 100; // REQ-AIA-UI-NF-001: Max 10 updates/sec
 
+// **[AIA-SEC-030]** Validate AcoustID API key before import starts
+// Returns true if validation passed or user chose to skip
+// Returns false if user cancelled
+async function validateAcoustIDBeforeImport() {
+    try {
+        // Check if API key is configured
+        const response = await fetch('/api/settings/acoustid_api_key');
+        if (!response.ok) {
+            console.error('Failed to check AcoustID API key');
+            return true; // Continue anyway - let pipeline handle it
+        }
+
+        const data = await response.json();
+
+        // No API key configured - prompt user
+        if (!data.configured) {
+            return await promptForAcoustIDKey('No AcoustID API key configured. Please enter a key or skip AcoustID functionality.');
+        }
+
+        // API key configured - validate it
+        const validateResponse = await fetch('/import/validate-acoustid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: data.api_key })
+        });
+
+        if (!validateResponse.ok) {
+            console.error('AcoustID validation request failed');
+            return true; // Continue anyway - let pipeline handle it
+        }
+
+        const validateData = await validateResponse.json();
+
+        if (validateData.valid) {
+            console.log('AcoustID API key is valid');
+            return true; // Key is valid, proceed
+        }
+
+        // Invalid key - prompt user to update or skip
+        return await promptForAcoustIDKey(`AcoustID API key is invalid: ${validateData.message}`);
+
+    } catch (error) {
+        console.error('AcoustID validation failed:', error);
+        return true; // Continue anyway - let pipeline handle it
+    }
+}
+
+// **[AIA-SEC-030]** Prompt user to enter AcoustID API key or skip
+// Returns true if user provided valid key or chose to skip
+// Returns false if user cancelled
+async function promptForAcoustIDKey(errorMessage) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('acoustid-modal');
+        const errorDisplay = document.getElementById('acoustid-error-message');
+        const modalError = document.getElementById('acoustid-modal-error');
+        const submitBtn = document.getElementById('acoustid-submit-btn');
+        const skipBtn = document.getElementById('acoustid-skip-btn');
+        const apiKeyInput = document.getElementById('acoustid-api-key');
+
+        // Show modal with error message
+        errorDisplay.textContent = errorMessage;
+        modalError.style.display = 'none';
+        apiKeyInput.value = '';
+        modal.style.display = 'flex';
+
+        // Handle submit - validate and save key
+        const handleSubmit = async () => {
+            const apiKey = apiKeyInput.value.trim();
+
+            if (!apiKey) {
+                modalError.textContent = 'Please enter an API key';
+                modalError.style.display = 'block';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Validating...';
+            modalError.style.display = 'none';
+
+            try {
+                // Validate the key
+                const validateResponse = await fetch('/import/validate-acoustid', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+
+                if (!validateResponse.ok) {
+                    throw new Error('Validation request failed');
+                }
+
+                const validateData = await validateResponse.json();
+
+                if (!validateData.valid) {
+                    // Invalid key - show error and allow retry
+                    modalError.textContent = `Invalid API key: ${validateData.message}`;
+                    modalError.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Key';
+                    return;
+                }
+
+                // Valid key - save it to settings
+                const saveResponse = await fetch('/api/settings/acoustid_api_key', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+
+                if (!saveResponse.ok) {
+                    throw new Error('Failed to save API key');
+                }
+
+                // Close modal and proceed
+                cleanup();
+                modal.style.display = 'none';
+                resolve(true);
+
+            } catch (error) {
+                console.error('Failed to validate/save AcoustID key:', error);
+                modalError.textContent = error.message || 'Failed to validate API key';
+                modalError.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Key';
+            }
+        };
+
+        // Handle skip - proceed without AcoustID
+        const handleSkip = () => {
+            cleanup();
+            modal.style.display = 'none';
+            console.log('User chose to skip AcoustID functionality');
+            resolve(true);
+        };
+
+        // Handle close - cancel import
+        const handleClose = () => {
+            cleanup();
+            modal.style.display = 'none';
+            console.log('User cancelled import');
+            resolve(false);
+        };
+
+        // Cleanup event listeners
+        const cleanup = () => {
+            submitBtn.removeEventListener('click', handleSubmit);
+            skipBtn.removeEventListener('click', handleSkip);
+        };
+
+        // Attach event listeners
+        submitBtn.addEventListener('click', handleSubmit);
+        skipBtn.addEventListener('click', handleSkip);
+    });
+}
+
 // Start import workflow
 async function startImport() {
     const rootFolder = document.getElementById('root-folder').value.trim();
@@ -18,10 +173,21 @@ async function startImport() {
     }
 
     startBtn.disabled = true;
-    startBtn.textContent = 'Starting...';
+    startBtn.textContent = 'Validating...';
     errorDiv.style.display = 'none';
 
     try {
+        // **[AIA-SEC-030]** Validate AcoustID API key before starting import
+        const keyValid = await validateAcoustIDBeforeImport();
+        if (!keyValid) {
+            // User cancelled or validation failed
+            startBtn.disabled = false;
+            startBtn.textContent = 'Start Import';
+            return;
+        }
+
+        startBtn.textContent = 'Starting...';
+
         const response = await fetch('/import/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -113,6 +279,13 @@ function connectSSE() {
 
 // REQ-AIA-UI-001 through REQ-AIA-UI-005: Update all UI sections
 function updateUI(event) {
+    // **[AIA-SEC-030]** Check for PAUSED state (invalid AcoustID API key)
+    if (event.state === 'PAUSED' && event.current_operation &&
+        event.current_operation.includes('AcoustID API key invalid')) {
+        showAcoustIDKeyModal(event.current_operation);
+        return; // Don't update other UI elements while paused
+    }
+
     // REQ-AIA-UI-001: Update workflow checklist
     if (event.phases && event.phases.length > 0) {
         updateWorkflowChecklist(event.phases);
@@ -260,7 +433,147 @@ function showError(message) {
     errorDiv.style.display = 'block';
 }
 
+// **[AIA-SEC-030]** AcoustID API key validation modal
+function showAcoustIDKeyModal(errorMessage) {
+    const modal = document.getElementById('acoustid-modal');
+    const errorDisplay = document.getElementById('acoustid-error-message');
+
+    if (modal && errorDisplay) {
+        errorDisplay.textContent = errorMessage;
+        modal.style.display = 'flex';
+    }
+}
+
+function closeAcoustIDModal() {
+    const modal = document.getElementById('acoustid-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function submitAcoustIDKey() {
+    const apiKey = document.getElementById('acoustid-api-key').value.trim();
+    const submitBtn = document.getElementById('acoustid-submit-btn');
+    const errorDisplay = document.getElementById('acoustid-modal-error');
+
+    if (!apiKey) {
+        errorDisplay.textContent = 'Please enter an API key';
+        errorDisplay.style.display = 'block';
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Validating...';
+    errorDisplay.style.display = 'none';
+
+    try {
+        const response = await fetch('/import/acoustid-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: currentSessionId,
+                api_key: apiKey
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error?.error?.message || 'Failed to validate API key');
+        }
+
+        // Close modal and resume import
+        closeAcoustIDModal();
+        console.log('AcoustID API key updated successfully');
+
+    } catch (error) {
+        console.error('Failed to update AcoustID key:', error);
+        errorDisplay.textContent = error.message || 'Failed to validate API key';
+        errorDisplay.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Key';
+    }
+}
+
+async function skipAcoustID() {
+    const skipBtn = document.getElementById('acoustid-skip-btn');
+    const errorDisplay = document.getElementById('acoustid-modal-error');
+
+    skipBtn.disabled = true;
+    skipBtn.textContent = 'Skipping...';
+    errorDisplay.style.display = 'none';
+
+    try {
+        const response = await fetch('/import/acoustid-skip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: currentSessionId })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error?.error?.message || 'Failed to skip AcoustID');
+        }
+
+        // Close modal and resume import
+        closeAcoustIDModal();
+        console.log('AcoustID skipped successfully');
+
+    } catch (error) {
+        console.error('Failed to skip AcoustID:', error);
+        errorDisplay.textContent = error.message || 'Failed to skip AcoustID';
+        errorDisplay.style.display = 'block';
+        skipBtn.disabled = false;
+        skipBtn.textContent = 'Skip AcoustID';
+    }
+}
+
 console.log('Enhanced import progress page loaded (PLAN011)');
+
+// **[AIA-SEC-030]** Check for active import session on page load
+// If import is in progress, restore the progress UI instead of showing setup
+async function checkForActiveSession() {
+    try {
+        const response = await fetch('/import/active');
+        if (!response.ok) {
+            console.log('No active import session');
+            return;
+        }
+
+        const data = await response.json();
+        if (data && data.session_id) {
+            console.log('Active import session found:', data.session_id);
+            currentSessionId = data.session_id;
+
+            // Hide setup, show progress sections
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('workflow-checklist').style.display = 'block';
+            document.getElementById('active-progress').style.display = 'block';
+            document.getElementById('current-file').style.display = 'block';
+            document.getElementById('time-estimates').style.display = 'flex';
+
+            // Update UI with current progress
+            updateUI({
+                session_id: data.session_id,
+                state: data.state,
+                current: data.progress.progress_current,
+                total: data.progress.progress_total,
+                current_operation: data.current_operation,
+                elapsed_seconds: data.elapsed_seconds,
+                estimated_remaining_seconds: data.estimated_remaining_seconds,
+                phases: data.progress.phases || [],
+                current_file: data.progress.current_file
+            });
+
+            // Connect to SSE to receive ongoing updates
+            connectSSE();
+        }
+    } catch (error) {
+        console.error('Failed to check for active session:', error);
+    }
+}
+
+// Check for active session when page loads
+checkForActiveSession();
 
 // Connect to general SSE for connection status monitoring on page load
 // This is separate from the import-specific SSE that connects when "Start Import" is clicked

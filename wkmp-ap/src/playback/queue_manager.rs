@@ -200,12 +200,19 @@ impl QueueManager {
                     });
                 }
 
-                // **[ERH-QUEUE-010]** Remove invalid entry from database
-                if let Err(e) = queue::remove_from_queue(db, entry.queue_entry_id).await {
-                    warn!(
-                        "Failed to auto-remove invalid queue entry {}: {}",
-                        entry.queue_entry_id, e
-                    );
+                // **[ERH-QUEUE-010]** Remove invalid entry from database (idempotent)
+                match queue::remove_from_queue(db, entry.queue_entry_id).await {
+                    Ok(was_removed) => {
+                        if was_removed {
+                            debug!("Auto-removed invalid queue entry {}", entry.queue_entry_id);
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to auto-remove invalid queue entry {}: {}",
+                            entry.queue_entry_id, e
+                        );
+                    }
                 }
 
                 debug!("Auto-removed invalid queue entry: {}", entry.queue_entry_id);

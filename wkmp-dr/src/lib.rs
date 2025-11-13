@@ -36,6 +36,7 @@ pub fn build_router(state: AppState) -> Router {
     // Protected routes (require authentication)
     let protected = Router::new()
         .route("/api/table/:name", get(api::get_table_data))
+        .route("/api/settings/browser", get(api::get_settings_browser))
         .route("/api/filters/passages-without-mbid", get(api::passages_without_mbid))
         .route("/api/filters/files-without-passages", get(api::files_without_passages))
         .route("/api/search/by-work-id", get(api::search_by_work_id))

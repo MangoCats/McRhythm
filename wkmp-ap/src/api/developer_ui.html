@@ -567,7 +567,10 @@
                     <button class="btn-pause" onclick="controlPlayback('pause')">⏸ Pause</button>
                 </div>
                 <div class="button-group" style="margin-top: 6px;">
-                    <button class="btn-skip" onclick="skipCurrentPassage()">⏭ Skip Current</button>
+                    <button class="btn-skip" onclick="skipForward10s()">⏭️ +10s Skip</button>
+                    <button class="btn-skip" onclick="skipCurrentPassage()">⏭️ Next</button>
+                </div>
+                <div class="button-group" style="margin-top: 6px;">
                     <button class="btn-danger" onclick="clearQueue()">🗑 Clear Queue</button>
                 </div>
                 <div class="control-group" style="margin-top: 8px;">
@@ -1339,6 +1342,26 @@
                 }
             } catch (err) {
                 console.error(`Failed to ${action}:`, err);
+            }
+        }
+
+        // Skip forward 10 seconds
+        async function skipForward10s() {
+            try {
+                const response = await authenticatedFetch(`${API_BASE}/playback/skip-forward`, { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.json();
+                    const errorMsg = error.status || 'Unknown error';
+                    addEvent('system', `Skip forward failed: ${errorMsg}`);
+                    console.error('Failed to skip forward:', errorMsg);
+                } else {
+                    const result = await response.json();
+                    const newPosSeconds = (result.new_position_ms / 1000).toFixed(1);
+                    addEvent('system', `✓ Skipped forward 10 seconds → ${newPosSeconds}s`);
+                }
+            } catch (err) {
+                addEvent('system', `Skip forward error: ${err.message}`);
+                console.error('Failed to skip forward:', err);
             }
         }
 

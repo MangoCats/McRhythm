@@ -40,7 +40,7 @@ use ringbuf::{traits::*, HeapRb, HeapProd, HeapCons};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use thiserror::Error;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
 /// **[DBD-PARAM-070]** Default playout ring buffer capacity (661941 samples = 15.01s @ 44.1kHz)
@@ -372,6 +372,81 @@ impl PlayoutRingBuffer {
         }
     }
 
+    /// Pop and discard a frame for seek/skip operations (does NOT increment read counter)
+    ///
+    /// **[PLAN022]** Skip forward validation accounting fix
+    ///
+    /// Similar to `pop_frame()` but does NOT increment `total_frames_read` counter.
+    /// Used for seek/skip operations where frames are discarded without being processed by mixer.
+    ///
+    /// This prevents validation accounting mismatch where:
+    /// - `total_frames_read` would include skipped frames
+    /// - `mixer_frames_mixed` would NOT include skipped frames
+    /// - Validation expects: `total_frames_read / 2 ≈ mixer_frames_mixed`
+    ///
+    /// # Returns
+    /// - `Ok(())` - Frame discarded successfully
+    /// - `Err(BufferEmptyError)` - Buffer empty (same as `pop_frame()`)
+    ///
+    /// # Side Effects
+    /// - Updates fill_level counter (atomic) - SAME as pop_frame()
+    /// - Clears decoder_should_pause flag when space available (atomic) - SAME as pop_frame()
+    /// - Does NOT increment total_frames_read (DIFFERENT from pop_frame())
+    ///
+    /// # Usage
+    /// ```ignore
+    /// // In seek() implementation:
+    /// for _ in 0..frames_to_skip {
+    ///     buffer.pop_frame_skip()?;  // Discard without accounting
+    /// }
+    /// ```
+    pub fn pop_frame_skip(&self) -> Result<(), BufferEmptyError> {
+        // Acquire consumer lock only for this operation
+        let mut cons = self.cons.lock().unwrap();
+
+        if cons.try_pop().is_some() {
+            // Release lock immediately
+            drop(cons);
+
+            // Update fill level (Relaxed: statistics only)
+            let new_level = self.fill_level.fetch_sub(1, Ordering::Relaxed).saturating_sub(1);
+            // **[PLAN022]** CRITICAL: DO NOT increment total_frames_read here!
+            // These frames are discarded, not processed by mixer
+
+            // **[DBD-BUF-050]** **[DBD-PARAM-085]** Clear pause flag if buffer has space again
+            // (Same logic as pop_frame() - decoder should resume regardless of how space was freed)
+            let free_space = self.capacity.saturating_sub(new_level);
+            let resume_threshold = self.resume_hysteresis.saturating_add(self.headroom);
+            if free_space >= resume_threshold && self.decoder_should_pause.load(Ordering::Relaxed) {
+                // Use Release ordering to ensure buffer state visible to decoder
+                self.decoder_should_pause.store(false, Ordering::Release);
+                trace!(
+                    "Playout buffer resume threshold reached (skip): fill={}/{} ({:.1}%), free={}, resume_threshold={}",
+                    new_level,
+                    self.capacity,
+                    self.fill_percent(),
+                    free_space,
+                    resume_threshold
+                );
+            }
+
+            Ok(())
+        } else {
+            // Release lock
+            drop(cons);
+
+            // **[DBD-BUF-030][DBD-BUF-040]** Buffer empty - return last valid frame in error
+            let left_bits = self.last_frame_left.load(Ordering::Relaxed) as u32;
+            let right_bits = self.last_frame_right.load(Ordering::Relaxed) as u32;
+            let last_frame = AudioFrame {
+                left: f32::from_bits(left_bits),
+                right: f32::from_bits(right_bits),
+            };
+
+            Err(BufferEmptyError { last_frame })
+        }
+    }
+
     /// Get current buffer fill percentage
     ///
     /// # Returns
@@ -513,7 +588,7 @@ impl PlayoutRingBuffer {
         let resume_threshold = self.resume_hysteresis.saturating_add(self.headroom);
         let can_resume = free_space >= resume_threshold;
 
-        debug!(
+        trace!(
             "can_decoder_resume: occupied={}, free_space={}, capacity={}, resume_threshold={} (hysteresis={} + headroom={}), result={}",
             occupied, free_space, self.capacity, resume_threshold, self.resume_hysteresis, self.headroom, can_resume
         );

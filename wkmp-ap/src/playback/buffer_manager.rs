@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, info, warn};
+use tracing::{debug, trace, info, warn};
 use uuid::Uuid;
 
 /// **[DBD-PARAM-020]** Read working sample rate from GlobalParams (default: 44100 Hz per SPEC016)
@@ -386,7 +386,7 @@ impl BufferManager {
                             buffer_duration_ms,
                         }).await;
 
-                        info!(
+                        debug!(
                             "⚡ Buffer ready for playback: {} ({}ms buffered)",
                             queue_entry_id, buffer_duration_ms
                         );
@@ -478,7 +478,7 @@ impl BufferManager {
                     }
                     Err(BufferFullError { capacity, occupied }) => {
                         // Buffer full - decoder should pause
-                        debug!(
+                        trace!(
                             "Ring buffer full for {}: pushed {}/{} frames (capacity={}, occupied={})",
                             queue_entry_id, frames_pushed, total_frames, capacity, occupied
                         );

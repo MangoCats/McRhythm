@@ -84,23 +84,9 @@ impl PlaybackEngine {
         // Mark buffer as exhausted
         self.buffer_manager.mark_exhausted(current.queue_entry_id).await;
 
-        // Stop mixer immediately
-        // [SUB-INC-4B] Replace stop() with SPEC016 operations (don't set to Paused - let process_queue handle state)
-        let mut mixer = self.mixer.write().await;
-        mixer.clear_all_markers();
-        mixer.clear_passage();
-        drop(mixer);
-
-        // Remove buffer from memory
-        if let Some(passage_id) = current.passage_id {
-            self.buffer_manager.remove(passage_id).await;
-        }
-
+        // **[REQ-QUEUE-DRY-010]** Cleanup resources before removal (consolidated helper)
+        self.cleanup_queue_entry(current.queue_entry_id, current.passage_id).await;
         info!("Mixer stopped and buffer cleaned up");
-
-        // **[DBD-LIFECYCLE-020]** Release decoder-buffer chain before removing from queue
-        // Implements requirement that chains are freed when passage is removed (skip counts as removal)
-        self.release_chain(current.queue_entry_id).await;
 
         // Remove skipped entry from database + memory + emit events
         // [SUB-INC-4B] Use shared helper to ensure consistent removal behavior
@@ -336,9 +322,17 @@ impl PlaybackEngine {
 
         // [BUG001] Check if removed entry is currently playing
         // If yes, must perform lifecycle cleanup: release chain, stop mixer, start next
-        let is_current = {
+        let (is_current, passage_id) = {
             let queue = self.queue.read().await;
-            queue.current().map(|c| c.queue_entry_id) == Some(queue_entry_id)
+            if let Some(current) = queue.current() {
+                if current.queue_entry_id == queue_entry_id {
+                    (true, current.passage_id)
+                } else {
+                    (false, None)
+                }
+            } else {
+                (false, None)
+            }
         };
 
         if is_current {
@@ -348,17 +342,8 @@ impl PlaybackEngine {
             // [REQ-FIX-030] Clear mixer state
             info!("Removing currently playing passage - performing lifecycle cleanup");
 
-            // 1. Release decoder-buffer chain (free resources, allow reassignment)
-            // [REQ-FIX-020] Release decoder chain resources
-            self.release_chain(queue_entry_id).await;
-
-            // 2. Stop mixer (clear playback state)
-            // [SUB-INC-4B] Replace stop() with SPEC016 operations (don't set to Paused - let process_queue handle state)
-            {
-                let mut mixer = self.mixer.write().await;
-                mixer.clear_all_markers();
-                mixer.clear_passage();
-            }
+            // **[REQ-QUEUE-DRY-010]** Cleanup resources before removal (consolidated helper)
+            self.cleanup_queue_entry(queue_entry_id, passage_id).await;
             info!("Mixer cleared for removed passage");
 
             // 3. Remove from queue + emit events
@@ -399,9 +384,16 @@ impl PlaybackEngine {
             // Non-current passage - simple removal (existing behavior)
             // [REQ-FIX-060] No disruption when removing non-current passage
 
-            // Persist to database first (queue state persistence principle)
-            if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
-                error!("Failed to remove entry from database: {}", e);
+            // Persist to database first (queue state persistence principle, idempotent)
+            match crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
+                Ok(was_removed) => {
+                    if was_removed {
+                        debug!("Removed queue entry {} from database", queue_entry_id);
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to remove entry from database: {}", e);
+                }
             }
 
             // Remove from in-memory queue
@@ -568,10 +560,17 @@ impl PlaybackEngine {
             )
         };
 
-        // Remove from database FIRST (persistence before memory)
+        // Remove from database FIRST (persistence before memory, idempotent)
         // [SUB-INC-4B] Persist removal to database (matches PassageComplete handler)
-        if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
-            error!("Failed to remove entry from database: {}", e);
+        match crate::db::queue::remove_from_queue(&self.db_pool, queue_entry_id).await {
+            Ok(was_removed) => {
+                if was_removed {
+                    debug!("Removed queue entry {} from database", queue_entry_id);
+                }
+            }
+            Err(e) => {
+                error!("Failed to remove entry from database: {}", e);
+            }
         }
 
         // Remove from in-memory queue
@@ -634,5 +633,47 @@ impl PlaybackEngine {
         self.emit_queue_change_events(trigger).await;
 
         Ok(true)
+    }
+
+    /// Cleanup queue entry resources (pre-removal operations)
+    ///
+    /// **[REQ-QUEUE-DRY-010]** Single cleanup implementation consolidating duplicated logic
+    /// **[REQ-QUEUE-DRY-020]** Ensures consistent operation ordering
+    ///
+    /// Performs cleanup operations that must happen BEFORE database/memory removal:
+    /// 1. Release decoder-buffer chain (free resources)
+    /// 2. Clear mixer state (stop audio processing)
+    /// 3. Remove buffer from memory (if passage_id provided)
+    ///
+    /// **Ordering rationale:**
+    /// - Chain release first: Stops decoder, prevents new audio
+    /// - Mixer clear second: Stops mixing, prevents playback
+    /// - Buffer removal third: Cleans up memory after processing stopped
+    ///
+    /// **Usage:**
+    /// ```rust
+    /// // Before removing queue entry
+    /// self.cleanup_queue_entry(queue_entry_id, passage_id).await;
+    /// // Then: database removal, memory removal, event emission
+    /// ```
+    async fn cleanup_queue_entry(&self, queue_entry_id: Uuid, passage_id: Option<Uuid>) {
+        // 1. Release decoder-buffer chain
+        // **[DBD-LIFECYCLE-020]** Free chain resources before queue removal
+        self.release_chain(queue_entry_id).await;
+
+        // 2. Clear mixer state
+        // **[SUB-INC-4B]** SPEC016-compliant mixer clearing
+        {
+            let mut mixer = self.mixer.write().await;
+            mixer.clear_all_markers();
+            mixer.clear_passage();
+        }
+
+        // 3. Remove buffer from memory (if passage exists)
+        if let Some(pid) = passage_id {
+            self.buffer_manager.remove(pid).await;
+        }
+
+        debug!("Completed cleanup for queue entry {}", queue_entry_id);
     }
 }

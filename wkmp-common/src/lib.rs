@@ -10,6 +10,8 @@
 //! - Fade curve definitions and calculations
 //! - SSE (Server-Sent Events) utilities
 
+#![warn(missing_docs)]
+
 pub mod api;
 pub mod config;
 pub mod db;

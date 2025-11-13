@@ -1,407 +1,333 @@
-//! Database schema definitions for WKMP audio library
+//! Database Schema Synchronization for WKMP-AI
 //!
-//! **[AIA-DB-010]** Database integration for audio ingest
-//! Per [IMPL001-database_schema.md](../../docs/IMPL001-database_schema.md)
+//! Implements automatic schema maintenance using SPEC031 SchemaSync.
+//! Defines expected schemas for passages and files tables with PLAN024 extensions.
+//!
+//! # Implementation
+//! - TASK-003: Database Schema Sync (PLAN024)
+//! - REQ-AI-080-086: Passages table extensions (17 columns)
+//! - REQ-AI-009-01: Files table extensions (7 columns, Amendment 8)
+//!
+//! # Architecture
+//! Per SPEC031, schema definitions are the single source of truth.
+//! SchemaSync automatically adds missing columns on module startup.
 
-use anyhow::Result;
 use sqlx::SqlitePool;
+use wkmp_common::db::schema_sync::{ColumnDefinition, SchemaSync, TableSchema};
+use wkmp_common::Result;
 
-/// Initialize database schema
+// ============================================================================
+// Passages Table Schema
+// ============================================================================
+
+/// Passages table schema with PLAN024 extensions
 ///
-/// Creates all required tables for audio library management:
-/// - Core entities: files, passages, songs, artists, works, albums, images
-/// - Linking tables: passage_songs, song_artists, passage_albums
-/// - System tables: schema_version, users, settings
-pub async fn initialize_schema(pool: &SqlitePool) -> Result<()> {
-    // Execute schema in transaction for atomic creation
-    let mut tx = pool.begin().await?;
+/// **Base columns:** Existing passage fields (guid, file_id, timing, metadata)
+/// **PLAN024 extensions (17 columns):** Source provenance, quality scores, validation
+///
+/// **Requirements:**
+/// - REQ-AI-081: Flavor source provenance (2 columns)
+/// - REQ-AI-082: Metadata source provenance (4 columns)
+/// - REQ-AI-083: Identity resolution tracking (3 columns)
+/// - REQ-AI-084: Quality scores (3 columns)
+/// - REQ-AI-085: Validation flags (2 columns)
+/// - REQ-AI-086: Import metadata (3 columns)
+pub struct PassagesTableSchema;
 
-    // Schema version tracking
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS schema_version (
-            version INTEGER PRIMARY KEY,
-            applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+impl TableSchema for PassagesTableSchema {
+    fn table_name() -> &'static str {
+        "passages"
+    }
 
-    // Users table
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS users (
-            guid TEXT PRIMARY KEY,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            password_salt TEXT NOT NULL,
-            config_interface_access BOOLEAN NOT NULL DEFAULT 1,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+    fn expected_columns() -> Vec<ColumnDefinition> {
+        vec![
+            // ----------------------------------------------------------------
+            // Base columns (existing)
+            // ----------------------------------------------------------------
+            ColumnDefinition::new("guid", "TEXT").primary_key(),
+            ColumnDefinition::new("file_id", "TEXT").not_null(),
+            ColumnDefinition::new("start_time_ticks", "INTEGER").not_null(),
+            ColumnDefinition::new("fade_in_start_ticks", "INTEGER"),
+            ColumnDefinition::new("lead_in_start_ticks", "INTEGER"),
+            ColumnDefinition::new("lead_out_start_ticks", "INTEGER"),
+            ColumnDefinition::new("fade_out_start_ticks", "INTEGER"),
+            ColumnDefinition::new("end_time_ticks", "INTEGER").not_null(),
+            ColumnDefinition::new("fade_in_curve", "TEXT"),
+            ColumnDefinition::new("fade_out_curve", "TEXT"),
+            ColumnDefinition::new("title", "TEXT"),
+            ColumnDefinition::new("user_title", "TEXT"),
+            ColumnDefinition::new("artist", "TEXT"),
+            ColumnDefinition::new("album", "TEXT"),
+            ColumnDefinition::new("musical_flavor_vector", "TEXT"),
+            ColumnDefinition::new("import_metadata", "TEXT"),
+            ColumnDefinition::new("additional_metadata", "TEXT"),
+            ColumnDefinition::new("created_at", "TEXT"),
+            ColumnDefinition::new("updated_at", "TEXT"),
+            // ----------------------------------------------------------------
+            // PLAN024 extensions (17 columns)
+            // ----------------------------------------------------------------
+            // [REQ-AI-081] Flavor source provenance
+            ColumnDefinition::new("flavor_source_blend", "TEXT"),
+            ColumnDefinition::new("flavor_confidence_map", "TEXT"),
+            // [REQ-AI-082] Metadata source provenance
+            ColumnDefinition::new("title_source", "TEXT"),
+            ColumnDefinition::new("title_confidence", "REAL"),
+            ColumnDefinition::new("artist_source", "TEXT"),
+            ColumnDefinition::new("artist_confidence", "REAL"),
+            // [REQ-AI-083] Identity resolution tracking
+            ColumnDefinition::new("recording_mbid", "TEXT"),
+            ColumnDefinition::new("identity_confidence", "REAL"),
+            ColumnDefinition::new("identity_conflicts", "TEXT"),
+            // [REQ-AI-084] Quality scores
+            ColumnDefinition::new("overall_quality_score", "REAL"),
+            ColumnDefinition::new("metadata_completeness", "REAL"),
+            ColumnDefinition::new("flavor_completeness", "REAL"),
+            // [REQ-AI-085] Validation flags
+            ColumnDefinition::new("validation_status", "TEXT"),
+            ColumnDefinition::new("validation_report", "TEXT"),
+            // [REQ-AI-086] Import metadata
+            ColumnDefinition::new("import_session_id", "TEXT"),
+            ColumnDefinition::new("import_timestamp", "INTEGER"),
+            ColumnDefinition::new("import_strategy", "TEXT"),
+        ]
+    }
 
-    // Settings table
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+    fn validate_schema(_pool: &SqlitePool) -> Result<()> {
+        // Custom validation could check:
+        // - Foreign key constraints
+        // - Index existence
+        // - Trigger presence
+        // For now, rely on auto-sync only
+        Ok(())
+    }
+}
 
-    // Files table - Audio files discovered by scanner
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS files (
-            guid TEXT PRIMARY KEY,
-            path TEXT NOT NULL UNIQUE,
-            hash TEXT NOT NULL,
-            duration REAL,
-            modification_time TIMESTAMP NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (duration IS NULL OR duration > 0)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+// ============================================================================
+// Files Table Schema
+// ============================================================================
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_files_path ON files(path)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_files_hash ON files(hash)")
-        .execute(&mut *tx)
-        .await?;
+/// Files table schema with PLAN024 Amendment 8 extensions
+///
+/// **Base columns:** Existing file fields (guid, path, hash, format, etc.)
+/// **Amendment 8 extensions (7 columns):** File-level import tracking
+///
+/// **Requirements:**
+/// - REQ-AI-009-01: File-level import completion tracking
+/// - REQ-AI-009-01: Import success confidence
+/// - REQ-AI-009-01: Metadata import completion tracking
+/// - REQ-AI-009-01: Metadata confidence
+/// - REQ-AI-009-01: User approval timestamp
+/// - REQ-AI-009-01: Re-import attempt counter
+/// - REQ-AI-009-01: Last re-import attempt timestamp
+pub struct FilesTableSchema;
 
-    // Passages table - Playable segments
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS passages (
-            guid TEXT PRIMARY KEY,
-            file_id TEXT NOT NULL REFERENCES files(guid) ON DELETE CASCADE,
-            start_time_ticks INTEGER NOT NULL,
-            fade_in_start_ticks INTEGER,
-            lead_in_start_ticks INTEGER,
-            lead_out_start_ticks INTEGER,
-            fade_out_start_ticks INTEGER,
-            end_time_ticks INTEGER NOT NULL,
-            fade_in_curve TEXT,
-            fade_out_curve TEXT,
-            title TEXT,
-            user_title TEXT,
-            artist TEXT,
-            album TEXT,
-            musical_flavor_vector TEXT,
-            import_metadata TEXT,
-            additional_metadata TEXT,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (start_time_ticks >= 0),
-            CHECK (end_time_ticks > start_time_ticks)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+impl TableSchema for FilesTableSchema {
+    fn table_name() -> &'static str {
+        "files"
+    }
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passages_file ON passages(file_id)")
-        .execute(&mut *tx)
-        .await?;
+    fn expected_columns() -> Vec<ColumnDefinition> {
+        vec![
+            // ----------------------------------------------------------------
+            // Base columns (existing)
+            // ----------------------------------------------------------------
+            ColumnDefinition::new("guid", "TEXT").primary_key(),
+            ColumnDefinition::new("path", "TEXT").not_null().unique(),
+            ColumnDefinition::new("hash", "TEXT"),
+            ColumnDefinition::new("duration_ticks", "INTEGER"),
+            ColumnDefinition::new("format", "TEXT"),
+            ColumnDefinition::new("sample_rate", "INTEGER"),
+            ColumnDefinition::new("channels", "INTEGER"),
+            ColumnDefinition::new("file_size_bytes", "INTEGER"),
+            ColumnDefinition::new("modification_time", "TEXT"),
+            ColumnDefinition::new("created_at", "TEXT"),
+            ColumnDefinition::new("updated_at", "TEXT"),
+            // ----------------------------------------------------------------
+            // Amendment 8 extensions (7 columns)
+            // ----------------------------------------------------------------
+            // [REQ-AI-009-01] File-level import tracking
+            ColumnDefinition::new("import_completed_at", "INTEGER"),
+            ColumnDefinition::new("import_success_confidence", "REAL"),
+            ColumnDefinition::new("metadata_import_completed_at", "INTEGER"),
+            ColumnDefinition::new("metadata_confidence", "REAL"),
+            ColumnDefinition::new("user_approved_at", "INTEGER"),
+            ColumnDefinition::new("reimport_attempt_count", "INTEGER")
+                .not_null()
+                .default("0"),
+            ColumnDefinition::new("last_reimport_attempt_at", "INTEGER"),
+        ]
+    }
 
-    // Songs table - MusicBrainz recordings
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS songs (
-            guid TEXT PRIMARY KEY,
-            recording_mbid TEXT NOT NULL UNIQUE,
-            work_id TEXT,
-            related_songs TEXT,
-            lyrics TEXT,
-            base_probability REAL NOT NULL DEFAULT 1.0,
-            min_cooldown INTEGER NOT NULL DEFAULT 604800,
-            ramping_cooldown INTEGER NOT NULL DEFAULT 1209600,
-            last_played_at TIMESTAMP,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (base_probability >= 0.0 AND base_probability <= 1000.0),
-            CHECK (min_cooldown >= 0),
-            CHECK (ramping_cooldown >= 0)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+    fn validate_schema(_pool: &SqlitePool) -> Result<()> {
+        // Custom validation could check:
+        // - Foreign key constraints
+        // - Index existence
+        // - Unique constraint on path
+        // For now, rely on auto-sync only
+        Ok(())
+    }
+}
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_songs_recording_mbid ON songs(recording_mbid)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_songs_last_played ON songs(last_played_at)")
-        .execute(&mut *tx)
-        .await?;
+// ============================================================================
+// Schema Initialization
+// ============================================================================
 
-    // Artists table - Performing artists
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS artists (
-            guid TEXT PRIMARY KEY,
-            artist_mbid TEXT NOT NULL UNIQUE,
-            name TEXT NOT NULL,
-            base_probability REAL NOT NULL DEFAULT 1.0,
-            min_cooldown INTEGER NOT NULL DEFAULT 7200,
-            ramping_cooldown INTEGER NOT NULL DEFAULT 14400,
-            last_played_at TIMESTAMP,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (base_probability >= 0.0 AND base_probability <= 1000.0),
-            CHECK (min_cooldown >= 0),
-            CHECK (ramping_cooldown >= 0)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+/// Initialize all WKMP-AI database schemas
+///
+/// Syncs passages and files tables with expected schemas.
+/// Per SPEC031, automatically adds missing columns via ALTER TABLE.
+///
+/// # Errors
+/// Returns error if:
+/// - Database connection fails
+/// - Schema introspection fails
+/// - Column addition fails
+/// - Type/constraint mismatch detected (requires manual migration)
+///
+/// # Usage
+/// Call once during module initialization (after database opened):
+/// ```rust,ignore
+/// use wkmp_ai::db::schema::init_schemas;
+///
+/// let pool = SqlitePool::connect(&db_path).await?;
+/// init_schemas(&pool).await?;
+/// ```
+pub async fn init_schemas(pool: &SqlitePool) -> Result<()> {
+    tracing::info!("Initializing WKMP-AI database schemas (SPEC031 auto-sync)");
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_artists_mbid ON artists(artist_mbid)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_artists_last_played ON artists(last_played_at)")
-        .execute(&mut *tx)
-        .await?;
+    // Sync passages table (17 new columns)
+    SchemaSync::sync_table::<PassagesTableSchema>(pool).await?;
 
-    // Works table - Musical works (compositions)
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS works (
-            guid TEXT PRIMARY KEY,
-            work_mbid TEXT NOT NULL UNIQUE,
-            title TEXT NOT NULL,
-            base_probability REAL NOT NULL DEFAULT 1.0,
-            min_cooldown INTEGER NOT NULL DEFAULT 259200,
-            ramping_cooldown INTEGER NOT NULL DEFAULT 604800,
-            last_played_at TIMESTAMP,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (base_probability >= 0.0 AND base_probability <= 1000.0),
-            CHECK (min_cooldown >= 0),
-            CHECK (ramping_cooldown >= 0)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+    tracing::info!("✓ Passages table schema synchronized (17 PLAN024 columns)");
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_works_mbid ON works(work_mbid)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_works_last_played ON works(last_played_at)")
-        .execute(&mut *tx)
-        .await?;
+    // Sync files table (7 new columns)
+    SchemaSync::sync_table::<FilesTableSchema>(pool).await?;
 
-    // Albums table - Albums/releases
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS albums (
-            guid TEXT PRIMARY KEY,
-            album_mbid TEXT NOT NULL UNIQUE,
-            title TEXT NOT NULL,
-            release_date TEXT,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
+    tracing::info!("✓ Files table schema synchronized (7 Amendment 8 columns)");
 
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_albums_mbid ON albums(album_mbid)")
-        .execute(&mut *tx)
-        .await?;
-
-    // Images table - Cover art and entity images
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS images (
-            guid TEXT PRIMARY KEY,
-            file_path TEXT NOT NULL,
-            image_type TEXT NOT NULL,
-            entity_id TEXT NOT NULL,
-            priority INTEGER NOT NULL DEFAULT 100,
-            width INTEGER,
-            height INTEGER,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CHECK (image_type IN ('album_front', 'album_back', 'album_liner', 'song', 'passage', 'artist', 'work', 'logo')),
-            CHECK (priority >= 0)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_images_entity ON images(entity_id, image_type, priority)",
-    )
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_images_type ON images(image_type)")
-        .execute(&mut *tx)
-        .await?;
-
-    // Linking table: passage_songs
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS passage_songs (
-            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
-            song_id TEXT NOT NULL REFERENCES songs(guid) ON DELETE CASCADE,
-            start_time_ticks INTEGER NOT NULL,
-            end_time_ticks INTEGER NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (passage_id, song_id),
-            CHECK (start_time_ticks >= 0),
-            CHECK (end_time_ticks > start_time_ticks)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_passage_songs_passage ON passage_songs(passage_id)",
-    )
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passage_songs_song ON passage_songs(song_id)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_passage_songs_timing ON passage_songs(passage_id, start_time_ticks)",
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    // Linking table: song_artists
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS song_artists (
-            song_id TEXT NOT NULL REFERENCES songs(guid) ON DELETE CASCADE,
-            artist_id TEXT NOT NULL REFERENCES artists(guid) ON DELETE CASCADE,
-            weight REAL NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (song_id, artist_id),
-            CHECK (weight > 0.0 AND weight <= 1.0)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_song_artists_song ON song_artists(song_id)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_song_artists_artist ON song_artists(artist_id)")
-        .execute(&mut *tx)
-        .await?;
-
-    // Linking table: passage_albums
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS passage_albums (
-            passage_id TEXT NOT NULL REFERENCES passages(guid) ON DELETE CASCADE,
-            album_id TEXT NOT NULL REFERENCES albums(guid) ON DELETE CASCADE,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (passage_id, album_id)
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passage_albums_passage ON passage_albums(passage_id)")
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_passage_albums_album ON passage_albums(album_id)")
-        .execute(&mut *tx)
-        .await?;
-
-    // Import sessions table (already exists from earlier, but include for completeness)
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS import_sessions (
-            session_id TEXT PRIMARY KEY,
-            state TEXT NOT NULL,
-            root_folder TEXT NOT NULL,
-            parameters TEXT NOT NULL,
-            progress_current INTEGER NOT NULL,
-            progress_total INTEGER NOT NULL,
-            progress_percentage REAL NOT NULL,
-            current_operation TEXT NOT NULL,
-            errors TEXT NOT NULL,
-            started_at TEXT NOT NULL,
-            ended_at TEXT
-        )
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    // Insert initial schema version
-    sqlx::query(
-        r#"
-        INSERT OR IGNORE INTO schema_version (version) VALUES (1)
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    // Insert Anonymous user if not exists
-    sqlx::query(
-        r#"
-        INSERT OR IGNORE INTO users (guid, username, password_hash, password_salt, config_interface_access)
-        VALUES ('00000000-0000-0000-0000-000000000001', 'Anonymous', '', '', 1)
-        "#,
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    tx.commit().await?;
-
-    tracing::info!("Database schema initialized successfully");
     Ok(())
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_schema_initialization() {
-        let pool = SqlitePool::connect("sqlite::memory:")
-            .await
-            .expect("Failed to create in-memory database");
+    #[test]
+    fn test_passages_table_column_count() {
+        let columns = PassagesTableSchema::expected_columns();
+        // 19 base + 17 PLAN024 = 36 total
+        assert_eq!(columns.len(), 36, "Passages table should have 36 columns");
+    }
 
-        initialize_schema(&pool).await.expect("Schema initialization failed");
+    #[test]
+    fn test_files_table_column_count() {
+        let columns = FilesTableSchema::expected_columns();
+        // 11 base + 7 Amendment 8 = 18 total
+        assert_eq!(columns.len(), 18, "Files table should have 18 columns");
+    }
 
-        // Verify schema_version table exists
-        let version: i64 = sqlx::query_scalar("SELECT version FROM schema_version WHERE version = 1")
-            .fetch_one(&pool)
-            .await
-            .expect("Schema version not found");
-        assert_eq!(version, 1);
+    #[test]
+    fn test_passages_table_name() {
+        assert_eq!(PassagesTableSchema::table_name(), "passages");
+    }
 
-        // Verify Anonymous user exists
-        let username: String = sqlx::query_scalar("SELECT username FROM users WHERE guid = '00000000-0000-0000-0000-000000000001'")
-            .fetch_one(&pool)
-            .await
-            .expect("Anonymous user not found");
-        assert_eq!(username, "Anonymous");
+    #[test]
+    fn test_files_table_name() {
+        assert_eq!(FilesTableSchema::table_name(), "files");
+    }
+
+    #[test]
+    fn test_passages_primary_key() {
+        let columns = PassagesTableSchema::expected_columns();
+        let guid_column = columns.iter().find(|c| c.name == "guid").unwrap();
+        assert!(guid_column.primary_key, "guid should be primary key");
+    }
+
+    #[test]
+    fn test_files_primary_key() {
+        let columns = FilesTableSchema::expected_columns();
+        let guid_column = columns.iter().find(|c| c.name == "guid").unwrap();
+        assert!(guid_column.primary_key, "guid should be primary key");
+    }
+
+    #[test]
+    fn test_files_path_unique() {
+        let columns = FilesTableSchema::expected_columns();
+        let path_column = columns.iter().find(|c| c.name == "path").unwrap();
+        assert!(path_column.unique, "path should be unique");
+        assert!(path_column.not_null, "path should be not null");
+    }
+
+    #[test]
+    fn test_reimport_attempt_count_default() {
+        let columns = FilesTableSchema::expected_columns();
+        let counter_column = columns
+            .iter()
+            .find(|c| c.name == "reimport_attempt_count")
+            .unwrap();
+        assert!(counter_column.not_null, "reimport_attempt_count should be NOT NULL");
+        assert_eq!(
+            counter_column.default_value,
+            Some("0".to_string()),
+            "reimport_attempt_count should default to 0"
+        );
+    }
+
+    #[test]
+    fn test_plan024_columns_present() {
+        let columns = PassagesTableSchema::expected_columns();
+        let plan024_columns = vec![
+            "flavor_source_blend",
+            "flavor_confidence_map",
+            "title_source",
+            "title_confidence",
+            "artist_source",
+            "artist_confidence",
+            "recording_mbid",
+            "identity_confidence",
+            "identity_conflicts",
+            "overall_quality_score",
+            "metadata_completeness",
+            "flavor_completeness",
+            "validation_status",
+            "validation_report",
+            "import_session_id",
+            "import_timestamp",
+            "import_strategy",
+        ];
+
+        for column_name in plan024_columns {
+            assert!(
+                columns.iter().any(|c| c.name == column_name),
+                "PLAN024 column '{}' should be present",
+                column_name
+            );
+        }
+    }
+
+    #[test]
+    fn test_amendment8_columns_present() {
+        let columns = FilesTableSchema::expected_columns();
+        let amendment8_columns = vec![
+            "import_completed_at",
+            "import_success_confidence",
+            "metadata_import_completed_at",
+            "metadata_confidence",
+            "user_approved_at",
+            "reimport_attempt_count",
+            "last_reimport_attempt_at",
+        ];
+
+        for column_name in amendment8_columns {
+            assert!(
+                columns.iter().any(|c| c.name == column_name),
+                "Amendment 8 column '{}' should be present",
+                column_name
+            );
+        }
     }
 }

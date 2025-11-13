@@ -9,12 +9,19 @@ use uuid::Uuid;
 /// Artist record (MusicBrainz artist)
 #[derive(Debug, Clone)]
 pub struct Artist {
+    /// Unique identifier (UUID)
     pub guid: Uuid,
+    /// MusicBrainz Artist MBID
     pub artist_mbid: String,
+    /// Artist name
     pub name: String,
+    /// Base selection probability (0.0-1.0+, default 1.0)
     pub base_probability: f64,
+    /// Minimum cooldown period in seconds
     pub min_cooldown: i64,
+    /// Ramping cooldown period in seconds
     pub ramping_cooldown: i64,
+    /// ISO 8601 timestamp when last played
     pub last_played_at: Option<String>,
 }
 

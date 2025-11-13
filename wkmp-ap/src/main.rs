@@ -53,10 +53,17 @@ struct Args {
 async fn main() -> Result<()> {
     // Initialize tracing subscriber for logging
     // File + line numbers enabled for debugging
+    // Default log level: WARN in release mode, DEBUG in debug mode (when RUST_LOG not set)
+    let default_log_level = if cfg!(debug_assertions) {
+        "wkmp_ap=debug,tower_http=debug,wkmp_common=info"
+    } else {
+        "wkmp_ap=warn,tower_http=warn,wkmp_common=warn"
+    };
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "wkmp_ap=debug,tower_http=debug,wkmp_common=info".into()),
+                .unwrap_or_else(|_| default_log_level.into()),
         )
         .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
         .init();

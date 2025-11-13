@@ -22,8 +22,23 @@ use crate::playback::types::DecodePriority;
 use crate::state::PlaybackState;
 use std::sync::atomic::Ordering;
 use tokio::time::{interval, Duration};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, trace, error, info, warn};
 use uuid::Uuid;
+
+/// **[PLAN022]** Default assumed duration for ephemeral passages (ticks)
+///
+/// Ephemeral passages (files not in database) have unknown duration until EOF is reached.
+/// This constant defines the assumed maximum duration used for:
+/// - Position marker generation in mixer
+/// - EOF unreachable marker calculation
+///
+/// **Value:** 3 hours = 10,800 seconds = 304,819,200,000 ticks
+/// **Unit:** Ticks (1 tick = 1/28,224,000 second per SPEC023 SRC-TICK-020)
+/// **Calculation:** 10,800 seconds × 28,224,000 ticks/second
+///
+/// **Rationale:** Conservative upper bound for typical audio files while avoiding excessive
+/// marker generation (24-hour default created ~86,400 position markers for short passages).
+pub(super) const EPHEMERAL_PASSAGE_ASSUMED_DURATION_TICKS: i64 = 304_819_200_000; // 3 hours in ticks
 
 impl PlaybackEngine {
     pub async fn play(&self) -> Result<()> {
@@ -149,6 +164,84 @@ impl PlaybackEngine {
         Ok(())
     }
 
+    /// Skip forward 10 seconds in current passage
+    ///
+    /// **Traceability:** [REQ-SF-010] through [REQ-SF-050]
+    /// **Requirements:**
+    /// - [REQ-SF-020] 10-second skip with sample accuracy
+    /// - [REQ-SF-030] Buffer availability validation (≥11s required)
+    /// - [REQ-SF-040] Works in Playing/Paused states
+    /// - [REQ-SF-050] Emits PlaybackProgress event
+    ///
+    /// [API] POST /playback/skip-forward
+    ///
+    /// # Returns
+    /// Ok(new_position_ms) on success, Err with descriptive message on failure
+    ///
+    /// # Safety
+    /// Validates that ≥11 seconds of audio are buffered before skipping to prevent underruns.
+    pub async fn skip_forward(&self) -> Result<u64> {
+        info!("Skip forward command received (10 seconds)");
+
+        // Step 1: Get current queue entry
+        let queue = self.queue.read().await;
+        let current = queue.current().cloned();
+        drop(queue);
+
+        let current = match current {
+            Some(c) => c,
+            None => {
+                return Err(Error::Playback("no passage currently playing".to_string()));
+            }
+        };
+
+        // Step 2: Get buffer for current passage
+        let buffer_ref = self.buffer_manager.get_buffer(current.queue_entry_id).await;
+        let buffer = match buffer_ref {
+            Some(b) => b,
+            None => {
+                return Err(Error::Playback(format!(
+                    "buffer not available for queue_entry_id={}",
+                    current.queue_entry_id
+                )));
+            }
+        };
+
+        // Step 3: Validate buffer availability
+        // [REQ-SF-030] Require ≥11 seconds of buffered audio (10s skip + 1s safety margin)
+        let sample_rate = *self.working_sample_rate.read().unwrap();
+        let required_frames = ((11000 * sample_rate as u64) / 1000) as usize; // 11 seconds in frames
+        let available_frames = buffer.occupied();
+
+        if available_frames < required_frames {
+            let available_seconds = (available_frames as f64) / (sample_rate as f64);
+            return Err(Error::Playback(format!(
+                "insufficient buffer - only {:.1}s available (need 11s)",
+                available_seconds
+            )));
+        }
+
+        // Step 4: Get current playback position
+        let mixer = self.mixer.read().await;
+        let current_tick = mixer.get_current_tick();
+        drop(mixer);
+
+        // Step 5: Calculate new position (10 seconds forward)
+        // Convert ticks → ms → add 10s → pass to seek()
+        let current_position_ms = wkmp_common::timing::ticks_to_ms(current_tick) as u64;
+        let new_position_ms = current_position_ms + 10000; // Add 10 seconds
+
+        // Step 6: Call existing seek() logic (reuse validation, clamping, events)
+        self.seek(new_position_ms).await?;
+
+        info!(
+            "Skip forward complete: {}ms → {}ms",
+            current_position_ms, new_position_ms
+        );
+
+        Ok(new_position_ms)
+    }
+
     /// Seek to position in current passage
     ///
     /// [API] POST /playback/seek
@@ -184,13 +277,52 @@ impl PlaybackEngine {
         let max_frames = stats.total_written as usize;
         let clamped_position = position_frames.min(max_frames.saturating_sub(1));
 
-        // Update mixer position
+        // Calculate how many frames to skip forward from current position
+        let mixer = self.mixer.read().await;
+        let current_tick = mixer.get_current_tick();
+        drop(mixer);
+
+        // Convert ticks to frames using the proper conversion function
+        let current_frames = wkmp_common::timing::ticks_to_samples(current_tick, sample_rate);
+        let frames_to_skip = if clamped_position > current_frames {
+            clamped_position - current_frames
+        } else {
+            // Seeking backwards not supported - would require buffer rewind
+            warn!("Seek backwards not supported: current={}ms, requested={}ms",
+                  (current_frames as f32 / sample_rate as f32 * 1000.0), position_ms);
+            return Err(Error::Playback("Seek backwards not supported".to_string()));
+        };
+
+        // Actually skip frames in the buffer by discarding them
+        // **[PLAN022]** Use pop_frame_skip() instead of pop_frame() to avoid inflating read counter
+        // Frames are discarded without being processed by mixer, so they shouldn't count as "read"
+        debug!("Seeking: discarding {} frames from buffer ({}ms → {}ms)",
+               frames_to_skip,
+               (current_frames as f32 / sample_rate as f32 * 1000.0),
+               (clamped_position as f32 / sample_rate as f32 * 1000.0));
+
+        let mut frames_skipped = 0;
+        for _ in 0..frames_to_skip {
+            match buffer.pop_frame_skip() {
+                Ok(_) => frames_skipped += 1,
+                Err(_) => {
+                    // Buffer ran out before we could skip all frames
+                    warn!("Buffer exhausted during seek: skipped {}/{} frames",
+                          frames_skipped, frames_to_skip);
+                    break;
+                }
+            }
+        }
+
+        // Update mixer position to reflect the actual skip
         // [SUB-INC-4B] Replace set_position() with set_current_passage()
         // Note: Marker recalculation deferred to Phase 4 (currently just updates position)
         let mut mixer = self.mixer.write().await;
         if let Some(passage_id) = current.passage_id {
-            let seek_tick = clamped_position as i64; // Convert frames to ticks (1:1 for now)
-            mixer.set_current_passage(passage_id, current.queue_entry_id, seek_tick);
+            // Convert frames back to ticks for mixer
+            let new_frames = current_frames + frames_skipped;
+            let new_tick = wkmp_common::timing::samples_to_ticks(new_frames, sample_rate);
+            mixer.set_current_passage(passage_id, current.queue_entry_id, new_tick);
             // **[PLAN014]** Marker recalculation from seek deferred to future enhancement
             // Current implementation: markers calculate from passage start; seek invalidates markers
         }
@@ -532,7 +664,7 @@ impl PlaybackEngine {
                 .await;
 
             if buffer_has_minimum {
-                debug!("Watchdog: Buffer has minimum playback buffer for {}", current.queue_entry_id);
+                trace!("Watchdog: Buffer has minimum playback buffer for {}", current.queue_entry_id);
                 // Watchdog detection: Check if mixer should be playing but isn't
                 match self.start_mixer_for_current(current).await {
                     Ok(true) => {
@@ -551,7 +683,7 @@ impl PlaybackEngine {
                     }
                     Ok(false) => {
                         // No intervention needed - mixer already playing or buffer not ready
-                        debug!("Watchdog: No intervention needed for {} (mixer already playing or buffer not found)", current.queue_entry_id);
+                        trace!("Watchdog: No intervention needed for {} (mixer already playing or buffer not found)", current.queue_entry_id);
                     }
                     Err(e) => {
                         warn!("[WATCHDOG] Failed to start mixer for {}: {}", current.queue_entry_id, e);
@@ -695,11 +827,18 @@ impl PlaybackEngine {
                         queue: queue_info,
                     });
 
-                    // Remove completed passage from database to keep in sync
-                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
-                        warn!("Failed to remove completed passage from database: {}", e);
-                    } else {
-                        info!("Queue advanced (crossfade) and synced to database (removed {})", completed_id);
+                    // Remove completed passage from database to keep in sync (idempotent)
+                    match crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        Ok(was_removed) => {
+                            if was_removed {
+                                info!("Queue advanced (crossfade) and synced to database (removed {})", completed_id);
+                            } else {
+                                debug!("Queue entry {} already removed during crossfade", completed_id);
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to remove completed passage from database: {}", e);
+                        }
                     }
 
                     // Update audio_expected flag
@@ -822,13 +961,20 @@ impl PlaybackEngine {
                     queue: queue_info,
                 });
 
-                // Remove completed passage from database to keep in sync
+                // Remove completed passage from database to keep in sync (idempotent)
                 if let Some(completed_id) = completed_queue_entry_id {
-                    if let Err(e) = crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
-                        // Log error but don't fail - queue already advanced in memory
-                        warn!("Failed to remove completed passage from database queue: {} (continuing anyway)", e);
-                    } else {
-                        info!("Queue advanced and synced to database (removed {})", completed_id);
+                    match crate::db::queue::remove_from_queue(&self.db_pool, completed_id).await {
+                        Ok(was_removed) => {
+                            if was_removed {
+                                info!("Queue advanced and synced to database (removed {})", completed_id);
+                            } else {
+                                debug!("Queue entry {} already removed", completed_id);
+                            }
+                        }
+                        Err(e) => {
+                            // Log error but don't fail - queue already advanced in memory
+                            warn!("Failed to remove completed passage from database queue: {} (continuing anyway)", e);
+                        }
                     }
                 } else {
                     info!("Queue advanced to next passage");
@@ -899,11 +1045,11 @@ impl PlaybackEngine {
         let mixer_passage_id = mixer.get_current_passage_id();
         drop(mixer);
 
-        debug!("start_mixer_for_current: mixer_idle={}, mixer_passage_id={:?}, queue_entry_id={}",
+        trace!("start_mixer_for_current: mixer_idle={}, mixer_passage_id={:?}, queue_entry_id={}",
                mixer_idle, mixer_passage_id, current.queue_entry_id);
 
         if !mixer_idle {
-            debug!("Mixer already playing passage {:?} - skipping start for {}", mixer_passage_id, current.queue_entry_id);
+            trace!("Mixer already playing passage {:?} - skipping start for {}", mixer_passage_id, current.queue_entry_id);
             return Ok(false); // Not an intervention - mixer already running
         }
 
@@ -1015,8 +1161,8 @@ impl PlaybackEngine {
             let position_interval_ticks = wkmp_common::timing::ms_to_ticks(position_interval_ms);
 
             // Calculate passage duration in ticks
-            // Default to 24 hours for ephemeral passages (safety fallback - EOF detection is primary mechanism)
-            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + wkmp_common::timing::ms_to_ticks(86_400_000)))); // Default 24hr max
+            // **[PLAN022]** Use centralized constant for ephemeral passage assumed duration (already in ticks)
+            let passage_end_ticks = passage.end_time_ticks.unwrap_or(passage.fade_out_point_ticks.unwrap_or(passage.lead_out_point_ticks.unwrap_or(passage.start_time_ticks + EPHEMERAL_PASSAGE_ASSUMED_DURATION_TICKS)));
             let passage_duration_ticks = passage_end_ticks.saturating_sub(passage.start_time_ticks);
 
             // Add position update markers

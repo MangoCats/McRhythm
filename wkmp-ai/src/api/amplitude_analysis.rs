@@ -21,18 +21,47 @@ pub async fn analyze_amplitude(
     State(_state): State<AppState>,
     Json(request): Json<AmplitudeAnalysisRequest>,
 ) -> ApiResult<Json<AmplitudeAnalysisResponse>> {
-    // TODO: Implement amplitude analysis (SPEC025, IMPL009)
-    tracing::info!(file_path = %request.file_path, "Amplitude analysis request (stub)");
+    use crate::services::AmplitudeAnalyzer;
+    use std::path::Path;
 
-    // Return stub response
+    tracing::info!(
+        file_path = %request.file_path,
+        start = request.start_time,
+        end = request.end_time.unwrap_or(0.0),
+        "Amplitude analysis request"
+    );
+
+    // Get parameters (use request params or use Default trait)
+    let params = request.parameters.unwrap_or_default();
+
+    // Create analyzer
+    let analyzer = AmplitudeAnalyzer::new(params);
+
+    // Analyze file
+    let file_path = Path::new(&request.file_path);
+    let end_time = request.end_time.unwrap_or(f64::MAX);
+
+    let result = analyzer
+        .analyze_file(file_path, request.start_time, end_time)
+        .await
+        .map_err(|e| crate::error::ApiError::Internal(e.to_string()))?;
+
+    // Convert to response (convert f32 RMS profile to f64)
+    let rms_profile_f64: Vec<f64> = result
+        .rms_profile
+        .unwrap_or_default()
+        .iter()
+        .map(|&v| v as f64)
+        .collect();
+
     let response = AmplitudeAnalysisResponse {
         file_path: request.file_path,
-        peak_rms: 0.85, // Stub value
-        lead_in_duration: 2.5,
-        lead_out_duration: 3.2,
-        quick_ramp_up: false,
-        quick_ramp_down: false,
-        rms_profile: vec![0.1, 0.3, 0.6, 0.85, 0.82, 0.4, 0.2], // Stub profile
+        peak_rms: result.peak_rms,
+        lead_in_duration: result.lead_in_duration,
+        lead_out_duration: result.lead_out_duration,
+        quick_ramp_up: result.quick_ramp_up,
+        quick_ramp_down: result.quick_ramp_down,
+        rms_profile: rms_profile_f64,
         analyzed_at: chrono::Utc::now(),
     };
 

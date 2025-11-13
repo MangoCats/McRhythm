@@ -102,6 +102,7 @@ pub async fn run(
         .route("/playback/next", post(super::handlers::skip_next))
         .route("/playback/previous", post(super::handlers::skip_previous))
         .route("/playback/seek", post(super::handlers::seek))
+        .route("/playback/skip-forward", post(super::handlers::skip_forward))
         .route("/playback/queue", get(super::handlers::get_queue))
         .route("/playback/state", get(super::handlers::get_playback_state))
         .route("/playback/watchdog_status", get(super::handlers::get_watchdog_status))
