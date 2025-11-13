@@ -2619,10 +2619,14 @@ impl WorkflowOrchestrator {
             "Starting per-file pipeline"
         );
 
+        // Combine relative path with root folder to get absolute path
+        let root_path = std::path::Path::new(&root_folder);
+        let absolute_path = root_path.join(&file_path);
+
         let result = self
             .process_file_plan024_with_decoding(
-                std::path::Path::new(&file_path),
-                std::path::Path::new(&root_folder),
+                &absolute_path,
+                root_path,
             )
             .await;
 
