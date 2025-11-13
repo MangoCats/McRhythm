@@ -75,7 +75,7 @@ Initial development of wkmp-ai will focus on batch import of large numbers of fi
 
 For each of the stages in the workflow: SCANNING, PROCESSING, FILENAME MATCHING, HASHING, EXTRACTING, SEGMENTING, FINGERPRINTING, SONG MATCHING, RECORDING, AMPLITUDE, FLAVORING, PASSAGES COMPLETE, and FILES COMPLETE, a section of the user interface shall show a real-time (SSE driven) updated display of relevant status and statistics pertaining to what the stage has done so far while the stage is working.
 
-SCANNING shall show: 'scanning' while the files scan is in progress and 'N potential files found' when all potential audio files under the folder have been identified.
+SCANNING shall show: 'scanning' while the files scan is in progress and 'X total files found, Y potential audio files' when all files under the folder (X = the total number of files) have been classified as potential audio files (Y = the number of files that may contain audio) or not.
 
 PROCESSING shall show: 'Processing X to Y of Z' where X is the count of files that have completed processing, Y is the count of files that have started processing, and Z is the total count of files from SCANNING.
 

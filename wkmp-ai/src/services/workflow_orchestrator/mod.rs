@@ -252,8 +252,10 @@ impl WorkflowOrchestrator {
             return Ok(session);
         }
 
-        // Phase 2: PROCESSING - PLAN024 3-tier hybrid fusion pipeline
-        session = self.phase_processing_plan024(session, start_time, &cancel_token).await?;
+        // Phase 2: PROCESSING - Per-file pipeline (PLAN024)
+        // **[AIA-ASYNC-020]** Per-file pipeline architecture with N workers
+        // Each file goes through all 10 phases sequentially before moving to next file
+        session = self.phase_processing_per_file(session, start_time, &cancel_token).await?;
         if cancel_token.is_cancelled() {
             return Ok(session);
         }
@@ -375,6 +377,12 @@ impl WorkflowOrchestrator {
     /// - Tier 1: Extraction (7 extractors in parallel)
     /// - Tier 2: Fusion (3 fusers - identity, metadata, flavor)
     /// - Tier 3: Validation (3 validators - consistency, completeness, quality)
+    /// Phase 2: PROCESSING - PLAN024 3-tier hybrid fusion pipeline
+    ///
+    /// **DEPRECATED:** Use `phase_processing_per_file()` instead
+    ///
+    /// **[AIA-WF-020]** Batch-phase processing DEPRECATED as of corrective implementation
+    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
     async fn phase_processing_plan024(
         &self,
         mut session: ImportSession,
