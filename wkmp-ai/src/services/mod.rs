@@ -18,6 +18,7 @@ pub mod hash_deduplicator;  // PLAN024 Increment 6-7: Hash deduplication (Phase 
 pub mod metadata_extractor;
 pub mod metadata_merger;  // PLAN024 Increment 8-9: Metadata extraction & merging (Phase 3)
 pub mod musicbrainz_client;
+pub mod passage_fingerprinter;  // PLAN024 Increment 12-13: Per-passage fingerprinting (Phase 5)
 pub mod passage_segmenter;  // PLAN024 Increment 10-11: Passage segmentation (Phase 4)
 pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
 pub mod silence_detector;
@@ -41,6 +42,9 @@ pub use hash_deduplicator::{HashDeduplicator, HashResult};
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
 pub use metadata_merger::{MergedMetadata, MetadataMerger};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};
+pub use passage_fingerprinter::{
+    FingerprintResult, MBIDCandidate, PassageFingerprint, PassageFingerprinter,
+};
 pub use passage_segmenter::{PassageBoundary, PassageSegmenter, SegmentResult};
 pub use pattern_analyzer::{
     GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,
