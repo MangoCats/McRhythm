@@ -129,6 +129,7 @@ impl WorkflowOrchestrator {
 
             // Create minimal file record (no hash, no metadata yet)
             // Hash and metadata will be computed in per-file pipeline
+            // NOTE: No session_id - files table doesn't track sessions per SPEC031 zero-conf
             let mut audio_file = crate::db::files::AudioFile::new(
                 relative_path,
                 String::new(), // Hash will be computed in Phase 2

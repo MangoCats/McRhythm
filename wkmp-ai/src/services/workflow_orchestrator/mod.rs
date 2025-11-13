@@ -2473,10 +2473,11 @@ impl WorkflowOrchestrator {
         );
 
         // Get list of audio files from SCANNING phase
+        // NOTE: Files table doesn't have session_id per SPEC031 zero-conf
+        // Get all files - per-file pipeline will handle status updates
         let files: Vec<(String, String)> = sqlx::query_as(
-            "SELECT guid, path FROM files WHERE session_id = ? ORDER BY path"
+            "SELECT guid, path FROM files ORDER BY path"
         )
-        .bind(session.session_id.to_string())
         .fetch_all(&self.db)
         .await?;
 
