@@ -2104,6 +2104,285 @@ impl WorkflowOrchestrator {
             timestamp: Utc::now(),
         });
     }
+
+    /// Process single file through PLAN024 10-phase per-file pipeline
+    ///
+    /// **Traceability:** [REQ-SPEC032-007] Per-File Import Pipeline
+    ///
+    /// **10-Phase Sequence:**
+    /// 1. Filename Matching → 2. Hash Deduplication → 3. Metadata Extraction →
+    /// 4. Passage Segmentation → 5. Per-Passage Fingerprinting → 6. Song Matching →
+    /// 7. Recording → 8. Amplitude Analysis → 9. Flavoring → 10. Finalization
+    ///
+    /// **Early Exit Conditions:**
+    /// - Phase 1: Returns if file already processed (AlreadyProcessed)
+    /// - Phase 2: Returns if duplicate hash found (Duplicate)
+    /// - Phase 4: Returns if no audio detected (NoAudio)
+    ///
+    /// **TODO: Audio Decoding Integration**
+    /// Currently, this method implements Phases 1-3, but Phase 4 (Segmentation) and beyond
+    /// require audio decoding infrastructure. The segmentation service expects decoded PCM
+    /// samples as input. Integration work needed:
+    /// - Add audio decoding helper (symphonia-based)
+    /// - Pass decoded samples to `segment_file()`
+    /// - Similarly for Phase 8 (Amplitude Analysis)
+    ///
+    /// # Arguments
+    /// * `file_path` - Absolute path to audio file
+    /// * `root_folder` - Root folder path for relative path calculation
+    /// * `samples` - Decoded PCM audio samples (mono, f32)
+    /// * `sample_rate` - Sample rate in Hz
+    ///
+    /// # Returns
+    /// Result indicating success or failure of pipeline execution
+    ///
+    /// # Errors
+    /// Returns error if any phase fails (database errors, I/O errors, etc.)
+    pub async fn process_file_plan024(
+        &self,
+        file_path: &std::path::Path,
+        root_folder: &std::path::Path,
+        samples: &[f32],
+        sample_rate: usize,
+    ) -> Result<()> {
+        tracing::info!(
+            file = ?file_path,
+            "Starting PLAN024 10-phase per-file pipeline"
+        );
+
+        // Phase 1: Filename Matching
+        tracing::debug!(file = ?file_path, "Phase 1: Filename Matching");
+
+        // Calculate relative path from root folder
+        let relative_path = file_path.strip_prefix(root_folder)
+            .map_err(|e| anyhow::anyhow!("File path not under root folder: {}", e))?;
+
+        let filename_matcher = crate::services::FilenameMatcher::new(self.db.clone());
+        let match_result = filename_matcher.check_file(relative_path).await?;
+
+        let file_id = match match_result {
+            crate::services::MatchResult::AlreadyProcessed(guid) => {
+                tracing::info!(
+                    file = ?file_path,
+                    file_id = %guid,
+                    "File already processed, skipping pipeline"
+                );
+                return Ok(());
+            }
+            crate::services::MatchResult::Reuse(guid) => {
+                tracing::debug!(file_id = %guid, "Reusing existing file record");
+                guid
+            }
+            crate::services::MatchResult::New => {
+                // Get file modification time
+                let metadata = std::fs::metadata(file_path)?;
+                let modification_time = metadata.modified()?
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs() as i64;
+
+                let guid = filename_matcher.create_file_record(relative_path, modification_time).await?;
+                tracing::debug!(file_id = %guid, "Created new file record");
+                guid
+            }
+        };
+
+        // Phase 2: Hash Deduplication
+        tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 2: Hash Deduplication");
+        let hash_deduplicator = crate::services::HashDeduplicator::new(self.db.clone());
+        let hash_result = hash_deduplicator.process_file_hash(file_id, file_path).await?;
+
+        match hash_result {
+            crate::services::HashResult::Duplicate { hash, original_file_id } => {
+                tracing::info!(
+                    file = ?file_path,
+                    file_id = %file_id,
+                    hash,
+                    original_file_id = %original_file_id,
+                    "Duplicate hash found, skipping pipeline"
+                );
+                return Ok(());
+            }
+            crate::services::HashResult::Unique(hash) => {
+                tracing::debug!(file_id = %file_id, hash, "Hash unique, continuing pipeline");
+            }
+        }
+
+        // Phase 3: Metadata Extraction & Merging
+        tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 3: Metadata Extraction & Merging");
+        let metadata_merger = crate::services::MetadataMerger::new(self.db.clone());
+        let merged_metadata = metadata_merger.extract_and_merge(file_id, file_path).await?;
+
+        // Calculate duration in ticks from sample count
+        const TICKS_PER_SECOND: i64 = 28_224_000;
+        let duration_seconds = samples.len() as f64 / sample_rate as f64;
+        let duration_ticks = (duration_seconds * TICKS_PER_SECOND as f64) as i64;
+
+        // Phase 4: Passage Segmentation
+        tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Passage Segmentation");
+        let passage_segmenter = crate::services::PassageSegmenter::new(self.db.clone());
+        let segment_result = passage_segmenter.segment_file(
+            file_id,
+            file_path,
+            samples,
+            sample_rate,
+            duration_ticks
+        ).await?;
+
+        let passages = match segment_result {
+            crate::services::SegmentResult::NoAudio => {
+                tracing::info!(
+                    file = ?file_path,
+                    file_id = %file_id,
+                    "No audio detected, skipping pipeline"
+                );
+                return Ok(());
+            }
+            crate::services::SegmentResult::Passages(boundaries) => {
+                tracing::debug!(
+                    file_id = %file_id,
+                    passage_count = boundaries.len(),
+                    "Passages segmented successfully"
+                );
+                boundaries
+            }
+        };
+
+        // Phase 5: Per-Passage Fingerprinting
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            passage_count = passages.len(),
+            "Phase 5: Per-Passage Fingerprinting"
+        );
+
+        // Get API key from database settings
+        let api_key: Option<String> = sqlx::query_scalar(
+            "SELECT value FROM settings WHERE key = 'acoustid_api_key'"
+        )
+        .fetch_optional(&self.db)
+        .await?;
+
+        let passage_fingerprinter = crate::services::PassageFingerprinter::new(
+            api_key,
+            self.db.clone(),
+        )?;
+        let fingerprint_results = passage_fingerprinter
+            .fingerprint_passages(file_path, &passages)
+            .await?;
+
+        tracing::debug!(
+            file_id = %file_id,
+            "Fingerprinting complete"
+        );
+
+        // Phase 6: Song Matching
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 6: Song Matching"
+        );
+        let passage_song_matcher = crate::services::PassageSongMatcher::new();
+        let song_match_result = passage_song_matcher
+            .match_passages(&passages, &fingerprint_results, &merged_metadata);
+
+        tracing::debug!(
+            file_id = %file_id,
+            matches = song_match_result.matches.len(),
+            high_conf = song_match_result.stats.high_confidence,
+            medium_conf = song_match_result.stats.medium_confidence,
+            low_conf = song_match_result.stats.low_confidence,
+            zero_song = song_match_result.stats.zero_song,
+            "Song matching complete"
+        );
+
+        // Phase 7: Recording
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 7: Recording"
+        );
+        let passage_recorder = crate::services::PassageRecorder::new(self.db.clone());
+        let recording_result = passage_recorder
+            .record_passages(file_id, &song_match_result.matches)
+            .await?;
+
+        tracing::debug!(
+            file_id = %file_id,
+            passages_recorded = recording_result.passages.len(),
+            songs_created = recording_result.stats.songs_created,
+            songs_reused = recording_result.stats.songs_reused,
+            "Recording complete"
+        );
+
+        // Phase 8: Amplitude Analysis
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 8: Amplitude Analysis"
+        );
+        let passage_amplitude_analyzer = crate::services::PassageAmplitudeAnalyzer::new(self.db.clone()).await?;
+        let amplitude_result = passage_amplitude_analyzer
+            .analyze_passages(file_path, &recording_result.passages)
+            .await?;
+
+        tracing::debug!(
+            file_id = %file_id,
+            passages_analyzed = amplitude_result.passages.len(),
+            "Amplitude analysis complete"
+        );
+
+        // Phase 9: Flavoring
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 9: Flavoring"
+        );
+        let passage_flavor_fetcher = crate::services::PassageFlavorFetcher::new(self.db.clone())?;
+        let flavor_result = passage_flavor_fetcher
+            .fetch_flavors(file_path, &recording_result.passages)
+            .await?;
+
+        tracing::debug!(
+            file_id = %file_id,
+            songs_processed = flavor_result.stats.songs_processed,
+            acousticbrainz = flavor_result.stats.acousticbrainz_count,
+            essentia = flavor_result.stats.essentia_count,
+            failed = flavor_result.stats.failed_count,
+            "Flavoring complete"
+        );
+
+        // Phase 10: Finalization
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 10: Finalization"
+        );
+        let passage_finalizer = crate::services::PassageFinalizer::new(self.db.clone());
+        let finalization_result = passage_finalizer.finalize(file_id).await?;
+
+        if finalization_result.success {
+            tracing::info!(
+                file = ?file_path,
+                file_id = %file_id,
+                passages = finalization_result.passages_validated,
+                "PLAN024 pipeline complete - File ingested successfully"
+            );
+        } else {
+            tracing::error!(
+                file = ?file_path,
+                file_id = %file_id,
+                errors = ?finalization_result.errors,
+                "PLAN024 pipeline failed - Finalization validation errors"
+            );
+            anyhow::bail!(
+                "Finalization failed with {} validation errors: {:?}",
+                finalization_result.errors.len(),
+                finalization_result.errors
+            );
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
