@@ -21,7 +21,38 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
-### 2025-11-12 20:20:52 -0500
+### 2025-11-12 20:34:16 -0500
+
+**Archive PLAN025 SPEC032 wkmp-ai Update**
+
+Archived PLAN025 SPEC032 wkmp-ai implementation update plan (16+ files, 8,263 lines) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/PLAN025_spec032_wkmp_ai_update/ directory (git rm -r)
+  - 00_PLAN_SUMMARY.md (450 lines) - Executive summary
+  - 01_specification_issues.md - 8 issues (0 CRITICAL, 2 HIGH, 4 MEDIUM, 2 LOW)
+  - 02_test_specifications/ (test_index.md, traceability_matrix.md)
+  - requirements_index.md (250 lines) - 12 requirements
+  - scope_statement.md - Scope definition
+  - Session summaries, phase summaries, SPEC032 documents
+- Updated workflows/REG002_archive_index.md
+  - Added PLAN025 entry with detailed retrieval commands
+  - Updated archived document count: 50 → 51
+  - Updated context reduction: 80,701 → 88,964 lines
+
+**Plan Summary:**
+- Objective: Segmentation-first, evidence-based architecture for wkmp-ai
+- Status: Phases 1-3 complete (Week 1 Deliverable)
+- Requirements: 12 total (2 P0 Critical, 6 P1 High, 4 P2 Medium)
+- Coverage: 32 tests, 100% requirement-to-test traceability
+- Architecture: Segment → Match → Fingerprint → Identify (reordered pipeline)
+
+**Archival Rationale:**
+Planning complete. Implementation ready. Historical plan preserved in archive branch for reference during development.
+
+---
+
+### 2025-11-12 20:20:52 -0500 | Hash: a3956e0ef02716e05ef99b1a252585162b3de8ca
 
 **Archive PLAN024 WKMP-AI Recode Plan**
 
