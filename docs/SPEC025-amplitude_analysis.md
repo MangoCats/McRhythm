@@ -4,7 +4,7 @@
 
 Defines algorithms for automatic detection of passage lead-in and lead-out points based on amplitude analysis. Derived from user story requirements. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Amplitude Analyzer Implementation](IMPL009-amplitude_analyzer_implementation.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) | [Library Management](SPEC008-library_management.md) | [Crossfade Design](SPEC002-crossfade.md) | [Amplitude Analyzer Implementation](IMPL009-amplitude_analyzer_implementation.md)
 
 ---
 

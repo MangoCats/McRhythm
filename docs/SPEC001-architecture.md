@@ -156,7 +156,7 @@ WKMP consists of 6 independent microservices + 1 shared library:
 **Port:** 5723 (on-demand)
 **Technology:** Rust, Tokio, Axum, symphonia
 
-**See:** [SPEC024: Audio Ingest Architecture](SPEC024-audio_ingest_architecture.md) for import workflow details
+**See:** [SPEC032: Audio Ingest Architecture](SPEC032-audio_ingest_architecture.md) for import workflow details
 
 #### wkmp-le: Lyric Editor (Lyric Timing Editor)
 

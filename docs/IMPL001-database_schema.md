@@ -183,6 +183,36 @@ Audio passages (playable segments) extracted from files.
 | musical_flavor_vector | TEXT | | JSON blob of AcousticBrainz characterization values (see Musical Flavor Vector Storage) |
 | import_metadata | TEXT | | JSON blob of import analysis data (RMS profile, parameters used, timestamps) |
 | additional_metadata | TEXT | | JSON blob for extensible metadata (seasonal_holiday, profanity_level, etc.) |
+| decode_status | TEXT | DEFAULT 'pending' CHECK (decode_status IN ('pending', 'successful', 'unsupported_codec', 'failed')) | Audio decode status (used by wkmp-ap for error handling) |
+
+**Extended Import Provenance Columns (wkmp-ai):**
+
+These columns track the quality and confidence of data fusion during import. Populated by wkmp-ai's 3-tier hybrid fusion pipeline.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| flavor_source_blend | TEXT | | JSON array of flavor data sources used (e.g., `["AcousticBrainz", "Essentia"]`) |
+| flavor_confidence_map | TEXT | | JSON map of confidence scores per flavor component |
+| flavor_completeness | REAL | | Completeness score for flavor data (0.0-1.0) |
+| title_source | TEXT | | Data source for title (e.g., "ID3", "MusicBrainz", "AcoustID") |
+| title_confidence | REAL | | Confidence score for title (0.0-1.0) |
+| artist_source | TEXT | | Data source for artist |
+| artist_confidence | REAL | | Confidence score for artist (0.0-1.0) |
+| album_source | TEXT | | Data source for album |
+| album_confidence | REAL | | Confidence score for album (0.0-1.0) |
+| mbid_source | TEXT | | Data source for MusicBrainz recording ID |
+| mbid_confidence | REAL | | Confidence score for MBID (0.0-1.0) |
+| identity_confidence | REAL | | Overall identity resolution confidence (0.0-1.0) |
+| identity_posterior_probability | REAL | | Bayesian posterior probability for identity match (0.0-1.0) |
+| identity_conflicts | TEXT | | JSON array of conflicting identity candidates |
+| overall_quality_score | REAL | | Overall quality score from validation tier (0.0-1.0) |
+| metadata_completeness | REAL | | Metadata completeness score (0.0-1.0) |
+| validation_status | TEXT | | Validation result: "passed", "warning", "failed" |
+| validation_report | TEXT | | JSON validation report with detailed findings |
+| validation_issues | TEXT | | JSON array of validation issues detected |
+| import_session_id | TEXT | | UUID of import session that created this passage |
+| import_timestamp | TIMESTAMP | | When this passage was imported |
+| import_strategy | TEXT | | Import strategy used: "PLAN024" (hybrid fusion) or "PLAN025" (segmentation-first) |
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
@@ -257,6 +287,28 @@ Stores extensible metadata parameters (JSON). Schema-less design allows arbitrar
 - Parameters may be automatically determined (e.g., via Essentia analysis), manually edited by users, or both
 - New parameters can be added without schema changes
 - NULL column value = no additional metadata defined
+
+### `import_provenance`
+
+Tracks the origin and confidence of data extracted during passage import. Used for debugging import quality and providing audit trails.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | TEXT | PRIMARY KEY | Unique log entry identifier (UUID) |
+| passage_id | TEXT | NOT NULL REFERENCES passages(guid) ON DELETE CASCADE | Passage this data was extracted for |
+| source_type | TEXT | NOT NULL | Extractor type (e.g., "metadata_extractor", "identity_extractor", "flavor_extractor") |
+| data_extracted | TEXT | | JSON blob of extracted data |
+| confidence | REAL | | Confidence score for this extraction (0.0-1.0) |
+| timestamp | INTEGER | | Unix timestamp when extraction occurred |
+
+**Purpose:**
+- Audit trail for multi-source data fusion
+- Debugging import quality issues
+- Understanding which extractors contributed to final passage data
+- Populated by wkmp-ai's PLAN024 hybrid fusion pipeline
+
+**Indexes:**
+- `idx_import_provenance_passage_id` on `passage_id` (for querying all extractions for a passage)
 
 ### `songs`
 
@@ -799,7 +851,7 @@ The database is initialized with default module configurations on first run:
 <a id="settings"></a>
 ### `settings`
 
-**Global** application settings (key-value store). All settings are system-wide, not per-user.
+**[DB-SET-010]** **Global** application settings (key-value store). All settings are system-wide, not per-user.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -807,17 +859,17 @@ The database is initialized with default module configurations on first run:
 | value | TEXT | NOT NULL | Setting value (JSON format for complex values) |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When setting was last modified |
 
-**Design Philosophy:**
+**[DB-SET-020] Design Philosophy:**
 - **WKMP functions like a shared hi-fi system**: Settings apply to the entire system, not individual users
 - **Multiple users may be listening simultaneously**: User-specific settings would be inappropriate
 - **System may run with zero users logged in**: Settings must be independent of authentication state
 - **User-specific data belongs elsewhere**: See `likes_dislikes` table for user-scoped preferences
 
-### Settings Keys Reference
+### **[DB-SET-030]** Settings Keys Reference
 
 All runtime configuration is stored in the `settings` table using a key-value pattern. Settings are typed in application code but stored as TEXT in the database.
 
-**Configuration Philosophy:**
+**[DB-SET-040] Configuration Philosophy:**
 - **Database-first**: All runtime settings in `settings` table (per architecture.md)
 - **TOML files**: Bootstrap only (root folder path, logging)
 - **NULL values**: When a setting is NULL or missing, the application initializes it with the built-in default value and writes that default to the database
@@ -825,36 +877,36 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 
 | Key | Type | Default | Purpose | Module | Version |
 |-----|------|---------|---------|--------|---------|
-| **Playback State** |
+| **[DB-SET-050] Playback State** |
 | `initial_play_state` | TEXT | `"playing"` | Playback state on app launch ("playing" or "paused") | wkmp-ap | All |
 | `currently_playing_passage_id` | TEXT (UUID) | NULL | UUID of passage currently playing | wkmp-ap | All |
 | `last_played_passage_id` | TEXT (UUID) | NULL | UUID of last played passage | wkmp-ap | All |
 | `last_played_position_ticks` | INTEGER | 0 | Position in ticks (audio timing, updated only on clean shutdown, reset to 0 on queue change) | wkmp-ap | All |
-| **Audio Configuration** |
+| **[DB-SET-060] Audio Configuration** |
 | `volume_level` | REAL | 0.5 | Volume as double 0.0-1.0 (HTTP API also uses 0.0-1.0; UI displays 0-100 with conversion: `display = round(volume * 100.0)`) | wkmp-ap | All |
 | `audio_sink` | TEXT | `"default"` | Selected audio output sink identifier | wkmp-ap | All |
 
 > See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters) for complete audio player operating parameter definitions ([DBD-PARAM-010] through [DBD-PARAM-100]).
-| **Event Timing Configuration** |
+| **[DB-SET-070] Event Timing Configuration** |
 | `position_event_interval_ms` | INTEGER | 1000 | **Internal event**: Interval for mixer to emit PositionUpdate internal events (milliseconds). Controls song boundary detection accuracy and CPU usage. Lower values = more frequent boundary checks but higher CPU. Range: 100-5000ms. | wkmp-ap | All |
 | `playback_progress_interval_ms` | INTEGER | 5000 | **External event**: Interval for emitting PlaybackProgress SSE events to UI clients (milliseconds). Controls UI progress bar update frequency. Based on playback time, not wall clock time. Range: 1000-10000ms. | wkmp-ap | All |
 
 > Note: These event intervals are distinct from [SPEC016 DBD-PARAM-040] output_refill_period (90ms) which controls mixer-to-output buffer refills. See [SPEC016 Operating Parameters](SPEC016-decoder_buffer_design.md#operating-parameters).
-| **Database Backup** |
+| **[DB-SET-080] Database Backup** |
 | `backup_location` | TEXT | (same folder as wkmp.db) | Path to backup directory | wkmp-ui | All |
 | `backup_interval_ms` | INTEGER | 7776000000 | Periodic backup interval (default: 90 days) | wkmp-ui | All |
 | `backup_minimum_interval_ms` | INTEGER | 1209600000 | Minimum time between startup backups (default: 14 days) | wkmp-ui | All |
 | `backup_retention_count` | INTEGER | 3 | Number of timestamped backups to keep | wkmp-ui | All |
 | `last_backup_timestamp_ms` | INTEGER | NULL | Unix milliseconds of last successful backup | wkmp-ui | All |
-| **Crossfade** |
+| **[DB-SET-090] Crossfade** |
 | `global_crossfade_time` | REAL | 2.0 | Global crossfade time in seconds | wkmp-ap | All |
 | `global_fade_curve` | TEXT | `"exponential_logarithmic"` | Fade curve pair (options: 'exponential_logarithmic', 'linear_linear', 'cosine_cosine') | wkmp-ap | All |
-| **Pause/Resume** |
+| **[DB-SET-100] Pause/Resume** |
 | `resume_from_pause_fade_in_duration` | REAL | 0.5 | Resume fade-in duration in seconds (range: 0.0-5.0) | wkmp-ap | All |
 | `resume_from_pause_fade_in_curve` | TEXT | `"exponential"` | Resume fade-in curve type (options: 'linear', 'exponential', 'cosine') | wkmp-ap | All |
-| **Volume Fade Updates** |
+| **[DB-SET-110] Volume Fade Updates** |
 | `volume_fade_update_period` | INTEGER | 10 | Volume fade update period in milliseconds (range: 1-100) | wkmp-ap | All |
-| **Queue Management** |
+| **[DB-SET-120] Queue Management** |
 | `queue_entry_timing_overrides` | TEXT (JSON) | `{}` | JSON object mapping queue entry guid → timing overrides (see schema below) | wkmp-ap | All |
 | `queue_refill_threshold_passages` | INTEGER | 2 | Min passages before refill | wkmp-ap | Full, Lite |
 | `queue_refill_threshold_seconds` | INTEGER | 900 | Min seconds before refill (15 minutes) | wkmp-ap | Full, Lite |
@@ -862,22 +914,22 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `queue_refill_acknowledgment_timeout_seconds` | INTEGER | 5 | Timeout for PD acknowledgment | wkmp-ap | Full, Lite |
 | `queue_max_size` | INTEGER | 100 | Maximum queue size in passages | wkmp-ap | All |
 | `queue_max_enqueue_batch` | INTEGER | 5 | Maximum passages to enqueue at once by Program Director | wkmp-pd | Full, Lite |
-| **Module Management** |
+| **[DB-SET-130] Module Management** |
 | `relaunch_delay` | INTEGER | 5 | Seconds between module relaunch attempts | wkmp-ui | All |
 | `relaunch_attempts` | INTEGER | 20 | Max relaunch attempts before giving up | wkmp-ui | All |
-| **Session Management** |
+| **[DB-SET-140] Session Management** |
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
-| **File Ingest** |
+| **[DB-SET-150] File Ingest** |
 | `ingest_max_concurrent_jobs` | INTEGER | 4 | Maximum concurrent file processing jobs | wkmp-ai | Full |
-| **Library** |
+| **[DB-SET-160] Library** |
 | `music_directories` | TEXT (JSON) | `[]` | JSON array of directories to scan | wkmp-ai | Full |
 | `temporary_flavor_override` | TEXT (JSON) | NULL | JSON with target flavor and expiration | wkmp-pd | Full, Lite |
-| **HTTP Server Configuration** |
+| **[DB-SET-170] HTTP Server Configuration** |
 | `http_base_ports` | TEXT (JSON) | `[5720, 15720, 25720, 17200, 23400]` | JSON array of base port numbers | All modules | All |
 | `http_request_timeout_ms` | INTEGER | 30000 | Request timeout in milliseconds | All modules | All |
 | `http_keepalive_timeout_ms` | INTEGER | 60000 | Keepalive timeout in milliseconds | All modules | All |
 | `http_max_body_size_bytes` | INTEGER | 1048576 | Maximum request body size (1 MB) | All modules | All |
-| **Program Director** |
+| **[DB-SET-180] Program Director** |
 | `playback_failure_threshold` | INTEGER | 3 | Failures before stopping automatic selection | wkmp-pd | Full, Lite |
 | `playback_failure_window_seconds` | INTEGER | 60 | Time window for failure counting | wkmp-pd | Full, Lite |
 
@@ -889,11 +941,11 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 - See [Crossfade Design](SPEC002-crossfade.md) for complete crossfade system specifications
 - See [Architecture](SPEC001-architecture.md) for module responsibilities and configuration patterns
 
-### Event Timing Intervals - Detailed Explanation
+### **[DB-SET-200]** Event Timing Intervals - Detailed Explanation
 
 WKMP uses an **event-driven architecture** for position tracking with two configurable time intervals that control different aspects of the system:
 
-#### 1. Position Event Interval (`position_event_interval_ms`)
+#### **[DB-SET-210]** Position Event Interval (`position_event_interval_ms`)
 
 **Purpose:** Controls how often the mixer emits **internal** `PositionUpdate` events
 
@@ -926,7 +978,7 @@ Mixer (every position_event_interval_ms of audio)
               └─> Checks song timeline for boundaries
 ```
 
-#### 2. PlaybackProgress Event Interval (`playback_progress_interval_ms`)
+#### **[DB-SET-220]** PlaybackProgress Event Interval (`playback_progress_interval_ms`)
 
 **Purpose:** Controls how often **external** `PlaybackProgress` SSE events are sent to UI clients
 
@@ -996,7 +1048,7 @@ Time    Position Event (1000ms)    PlaybackProgress Event (5000ms)
 - When paused: No events emitted (no frame generation)
 - After seek: Immediate position event, then regular intervals resume
 
-**Queue Entry Timing Overrides JSON Schema:**
+**[DB-SET-300] Queue Entry Timing Overrides JSON Schema:**
 
 The `queue_entry_timing_overrides` setting stores per-queue-entry timing overrides as a JSON object. Each key is a queue entry GUID, and each value is an object containing override fields. All fields are optional; only overridden values are included.
 
@@ -1252,27 +1304,60 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 
 ### Migration Strategy
 
-**Current Schema Version:** `0.1` (Development)
+**Current Schema Version:** `4` (Production)
 
-**Development Phase:**
-- During development, the database schema version is established as `0.1`
-- Any changes to the database schema during development are addressed by deletion of existing databases and rebuild from scratch with default values
-- No migration scripts are maintained during the development phase
+**Automatic Schema Maintenance:**
 
-**Post-Release Strategy:**
-1. Schema version is tracked in `schema_version` table
-2. Migration scripts are numbered sequentially (001_initial.sql, 002_add_works.sql, etc.)
-3. On startup, application checks current version and applies pending migrations
-4. Each migration is wrapped in a transaction
-5. Database is backed up before applying migrations
+WKMP implements a **data-driven schema maintenance system** that eliminates manual migrations for most schema changes. See [SPEC031-data_driven_schema_maintenance.md](SPEC031-data_driven_schema_maintenance.md) for complete specification.
 
-**Breaking Changes:**
-- After initial release, breaking changes are to be avoided
-- If a breaking change must be implemented for release, migration strategies shall be developed and implemented before release of the breaking change
+**Four-Phase Database Initialization:**
+
+1. **Phase 1: CREATE TABLE IF NOT EXISTS** - Create missing tables with current schema
+2. **Phase 2: Automatic Schema Synchronization** - Add missing columns via ALTER TABLE (NEW)
+3. **Phase 3: Manual Migrations** - Complex transformations (v1-v4 migrations)
+4. **Phase 4: Default Settings** - Initialize settings with defaults
+
+**What Happens Automatically:**
+- ✅ **Missing columns added** - System introspects database schema on startup
+- ✅ **Type mismatches detected** - Warns if column types differ from expected
+- ✅ **Concurrent-safe** - Handles duplicate column errors gracefully
+- ✅ **Comprehensive logging** - All changes documented
+
+**When Manual Migrations Still Required:**
+- Type changes (e.g., `duration REAL` → `duration_ticks INTEGER`)
+- Data transformations (populating new columns from existing data)
+- Column removal (SQLite limitation)
+- Constraint changes (PRIMARY KEY, UNIQUE, NOT NULL without DEFAULT)
+
+**Schema Version Tracking:**
+- Schema version tracked in `schema_version` table
+- Current version: 4
+- Migration v1: Add import_metadata column to passages
+- Migration v2: Add title column to songs
+- Migration v3: Add duration_ticks column to files
+- Migration v4: Add audio metadata columns (format, sample_rate, channels, file_size_bytes)
+
+**Development Workflow:**
+
+Adding a new column (automatic):
+```rust
+// Update schema definition in table_schemas.rs
+ColumnDefinition::new("new_column", "TEXT"),  // DONE!
+// System automatically adds column on next startup
+```
+
+Complex schema change (manual migration required):
+```rust
+// Write migration in migrations.rs
+async fn migrate_vN(pool: &SqlitePool) -> Result<()> {
+    // Complex transformation logic
+}
+```
 
 **Version Upgrade Paths (Minimal → Lite → Full):**
 - Minimal, Lite, and Full versions are implemented by launching different subsets of the modules (microservices)
 - Each module creates database tables it requires if they are missing
+- Automatic schema sync adds missing columns regardless of version
 - Each module initializes missing values it requires with default values encoded in the module
 - See [architecture.md#module-launching-process](SPEC001-architecture.md#module-launching-process) for module initialization details
 
@@ -1280,6 +1365,8 @@ The `passages.musical_flavor_vector` field stores a JSON blob containing all Aco
 - **Important:** Databases cannot be downgraded
 - Once a schema migration is applied, reverting to an earlier version is not supported
 - Users must backup their database before upgrading if they need to preserve the ability to use an older version
+
+**Reference:** [SPEC031-data_driven_schema_maintenance.md](SPEC031-data_driven_schema_maintenance.md)
 
 ### Performance Considerations
 

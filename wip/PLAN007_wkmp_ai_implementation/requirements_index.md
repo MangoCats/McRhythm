@@ -1,6 +1,6 @@
 # PLAN007: Requirements Index
 
-**Source:** [SPEC024-audio_ingest_architecture.md](../../docs/SPEC024-audio_ingest_architecture.md)
+**Source:** [SPEC032-audio_ingest_architecture.md](../../docs/SPEC032-audio_ingest_architecture.md)
 **Requirements Found:** 26
 **Document Size:** 501 lines
 **Extraction Date:** 2025-10-28

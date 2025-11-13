@@ -654,7 +654,7 @@ stateDiagram-v2
 
     AudioRingBuffer (lock-free SPSC ring buffer)
          │
-         │ DBD-PARAM-030: output_ringbuffer_size = 88,200 samples (2.0s)
+         │ DBD-PARAM-030: output_ringbuffer_size = 8,192 frames (186ms @ 44.1kHz)
          │
          ├─→ [Producer Side - Mixer Thread]
          │   • producer.push(AudioFrame)
@@ -844,7 +844,7 @@ CPAL Stream → Audio Device → Speakers
 |-----------|------|---------|------|---------------|
 | **DBD-PARAM-010** | General | N/A | - | Settings table storage |
 | **DBD-PARAM-020** | working_sample_rate | 44,100 | Hz | Resampler output, throughout pipeline |
-| **DBD-PARAM-030** | output_ringbuffer_size | 88,200 | samples | AudioRingBuffer capacity (2.0s) |
+| **DBD-PARAM-030** | output_ringbuffer_size | 8,192 | frames | AudioRingBuffer capacity (186ms @ 44.1kHz) |
 | **DBD-PARAM-040** | output_refill_period | 90 | ms | Mixer check interval (deprecated) |
 | **DBD-PARAM-050** | maximum_decode_streams | 12 | count | Chain pool size, max concurrent decoders |
 | **DBD-PARAM-060** | decode_work_period | 5,000 | ms | Priority queue check interval |
@@ -1031,11 +1031,11 @@ graph TD
   - **Behavior:** Fill 256 frames per wake to maintain level
 
 #### 7. Output Ring Buffer
-- **DBD-PARAM-030** (`output_ringbuffer_size` = 88,200 samples)
+- **DBD-PARAM-030** (`output_ringbuffer_size` = 8,192 frames)
   - **Applied in:** `ring_buffer.rs` - AudioRingBuffer capacity
   - **Purpose:** Lock-free buffer between mixer and audio callback
-  - **Equivalent:** 2.0 seconds @ 44.1kHz stereo
-  - **Memory:** 88,200 × 8 bytes = ~706 KB
+  - **Equivalent:** 186ms @ 44.1kHz
+  - **Memory:** 8,192 × 8 bytes = ~65.5 KB
 
 #### 8. Audio Output
 - **DBD-PARAM-110** (`audio_buffer_size` = 2,208 frames)
@@ -1054,7 +1054,7 @@ graph LR
         T65[DBD-PARAM-065<br/>decode_chunk_size<br/>25,000 samples]
         T70[DBD-PARAM-070<br/>playout_ringbuffer_size<br/>661,941 samples]
         T88[DBD-PARAM-088<br/>mixer_min_start_level<br/>22,050 samples]
-        T30[DBD-PARAM-030<br/>output_ringbuffer_size<br/>88,200 samples]
+        T30[DBD-PARAM-030<br/>output_ringbuffer_size<br/>8,192 frames]
         T110[DBD-PARAM-110<br/>audio_buffer_size<br/>2,208 frames]
     end
 

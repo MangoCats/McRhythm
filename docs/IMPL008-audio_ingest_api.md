@@ -2,9 +2,9 @@
 
 **🔌 TIER 3 - IMPLEMENTATION SPECIFICATION**
 
-Defines HTTP API for wkmp-ai (Audio Ingest microservice). Derived from [SPEC024](SPEC024-audio_ingest_architecture.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
+Defines HTTP API for wkmp-ai (Audio Ingest microservice). Derived from [SPEC032](SPEC032-audio_ingest_architecture.md). See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related:** [Architecture](SPEC024-audio_ingest_architecture.md) | [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Library Management](SPEC008-library_management.md)
+> **Related:** [Architecture](SPEC032-audio_ingest_architecture.md) | [Amplitude Analysis](SPEC025-amplitude_analysis.md) | [Library Management](SPEC008-library_management.md)
 
 ---
 

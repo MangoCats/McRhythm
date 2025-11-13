@@ -131,8 +131,8 @@ seconds = 141,120,000 ÷ 28,224,000 = 5.0 seconds (exact)
 
 ```
 max_ticks = 2^63 - 1 = 9,223,372,036,854,775,807 ticks
-max_seconds = max_ticks ÷ 28,224,000 ≈ 326,869,873 seconds
-max_years ≈ 10.36 years
+max_seconds = max_ticks ÷ 28,224,000 ≈ 326,076,039,812 seconds
+max_years ≈ 10,333 years
 ```
 
 **[SRC-PREC-030]** This range is sufficient for all practical audio passage lengths.

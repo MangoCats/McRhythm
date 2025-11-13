@@ -1,7 +1,7 @@
 # PLAN007: Scope Statement
 
 **Project:** wkmp-ai (Audio Ingest) Microservice Implementation
-**Specification:** [SPEC024-audio_ingest_architecture.md](../../docs/SPEC024-audio_ingest_architecture.md)
+**Specification:** [SPEC032-audio_ingest_architecture.md](../../docs/SPEC032-audio_ingest_architecture.md)
 **Plan Date:** 2025-10-28
 **Target Version:** Full version only (not Lite/Minimal)
 
