@@ -5,6 +5,7 @@
 pub mod acousticbrainz_client;
 pub mod acoustid_client;
 pub mod amplitude_analyzer;
+pub mod api_key_validator;  // PLAN024 Increment 4: AcoustID API key validation (Step 1)
 pub mod confidence_assessor;  // PLAN025 Phase 2: Evidence-based confidence assessment
 pub mod contextual_matcher;  // PLAN025 Phase 2: Contextual MusicBrainz matching
 pub mod essentia_client;
@@ -20,6 +21,7 @@ pub mod workflow_orchestrator;
 pub use acousticbrainz_client::{ABError, ABLowLevel, AcousticBrainzClient, MusicalFlavorVector};
 pub use acoustid_client::{AcoustIDClient, AcoustIDError, AcoustIDResponse};
 pub use amplitude_analyzer::{AmplitudeAnalysisResult, AmplitudeAnalyzer, AnalysisError};
+pub use api_key_validator::{ApiKeyValidator, UserChoice, ValidationResult};
 pub use confidence_assessor::{ConfidenceAssessor, ConfidenceError, ConfidenceResult, Decision, Evidence};
 pub use contextual_matcher::{ContextualMatcher, ContextualMatcherError, MatchCandidate};
 pub use essentia_client::{EssentiaClient, EssentiaError, EssentiaOutput};
