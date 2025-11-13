@@ -12,8 +12,8 @@ This index tracks documents that have been archived to the `archive` git branch 
 
 **Current Status:**
 - **Active Documents:** All visible in working tree
-- **Archived Documents:** 51 (PLAN025_spec032_wkmp_ai_update + PLAN024_wkmp_ai_recode + SPEC032_alignment_analysis + PLAN021 + wkmp-ai_static_serving + wkmp-ai_path_escaping + SSE_troubleshooting + SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
-- **Context Reduction:** Significant (~88,964 lines total: 8,263 from PLAN025_spec032_wkmp_ai_update + 11,142 from PLAN024_wkmp_ai_recode + 4,286 from SPEC032_alignment_analysis + 7,543 from PLAN021 + 159 from wkmp-ai_static_serving + 178 from wkmp-ai_path_escaping + 258 from SSE_troubleshooting + 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
+- **Archived Documents:** 52 (PLAN023_wkmp_ai_recode + PLAN025_spec032_wkmp_ai_update + PLAN024_wkmp_ai_recode + SPEC032_alignment_analysis + PLAN021 + wkmp-ai_static_serving + wkmp-ai_path_escaping + SSE_troubleshooting + SPEC_event_driven + SPEC_import_progress + DRY_analysis + DRY_implementation + PROJ001 + PLAN020 + SPEC024_tech_debt + SPEC024_implementation + wkmp-ap_technical_debt_report + TECH_DEBT_REVIEW + mixer_technical_debt_analysis + mixer_architecture_review + SPEC_spec017 + PLAN_sqlx_0.8_upgrade + MED-005 + increment2_zero_config_analysis + IMPL-GLOBAL-PARAMS + PLAN010 + PLAN006 + PLAN014 + PLAN008 + PLAN009 + PLAN016 + PLAN019 + PLAN017 + PLAN018 + 18 previous archives)
+- **Context Reduction:** Significant (~96,764 lines total: 7,800 from PLAN023_wkmp_ai_recode + 8,263 from PLAN025_spec032_wkmp_ai_update + 11,142 from PLAN024_wkmp_ai_recode + 4,286 from SPEC032_alignment_analysis + 7,543 from PLAN021 + 159 from wkmp-ai_static_serving + 178 from wkmp-ai_path_escaping + 258 from SSE_troubleshooting + 1,179 from SPEC_event_driven + 478 from SPEC_import_progress + 742 from DRY_analysis + 334 from DRY_implementation + 3,301 from PROJ001 + 5,120 from PLAN020 + 837 from SPEC024_tech_debt + 477 from SPEC024_implementation + 316 from wkmp-ap_technical_debt_report + 1,031 from TECH_DEBT_REVIEW + 354 from mixer_technical_debt_analysis + 453 from mixer_architecture_review + 998 from SPEC_spec017 + 349 from PLAN_sqlx_0.8_upgrade + 425 from MED-005 + 470 from increment2_zero_config_analysis + 607 from IMPL-GLOBAL-PARAMS + 2,000 from PLAN010 + 2,239 from PLAN006 + 11,624 from PLAN014 + 4,020 from PLAN008 + 540 from PLAN009 + 4,941 from PLAN016 + 3,450 from PLAN019 + 4,354 from PLAN017 + 6,500 from PLAN018)
 
 ---
 
@@ -65,6 +65,50 @@ git checkout dev  # Return to working branch
 <!-- Entries organized by category, reverse chronological within each category -->
 
 ### Archived Plan Documents
+
+#### PLAN023: WKMP-AI Ground-Up Recode (2025-11-12)
+
+Archived WKMP-AI ground-up recode implementation plan folder from wip/PLAN023_wkmp_ai_recode/
+
+**Contents:** 24 files, 7,800 lines
+- 00_PLAN_SUMMARY.md - Executive summary
+- 01_specification_issues.md - Specification issues analysis
+- 02_test_specifications/ (4 files: test_index.md, traceability_matrix.md, 2 test cases)
+- requirements_index.md, scope_statement.md, dependencies_map.md
+- CRITICAL_RESOLUTIONS.md, CRITICAL_SPEC017_VIOLATION.md
+- DATABASE_MIGRATION_FIX.md, ENHANCEMENTS_SUMMARY.md
+- IMPLEMENTATION_PROGRESS.md, REMAINING_TECHNICAL_DEBT.md
+- SESSION_3_SUMMARY.md, SESSION_4_COMPLETE.md, SESSION_4_SUMMARY.md, SESSION_SUMMARY.md
+- TECHNICAL_DEBT_FINAL.md, TECHNICAL_DEBT_REVIEW.md, TEST_COVERAGE_SUMMARY.md
+- WAVEFORM_COMPLETE.md, WAVEFORM_IMPLEMENTATION_PLAN.md
+
+**Reason:** Historical plan - Superseded by PLAN024 and PLAN025 (more comprehensive recode approaches)
+
+**Restoration:**
+```bash
+# Restore complete folder
+git checkout archive -- wip/PLAN023_wkmp_ai_recode/
+
+# Or view archive branch
+git checkout archive
+cd wip/PLAN023_wkmp_ai_recode/
+# Browse files normally
+git checkout ai-trial2  # Return to working branch
+```
+
+**Retrieval (individual files):**
+```bash
+# View plan summary
+git show archive:wip/PLAN023_wkmp_ai_recode/00_PLAN_SUMMARY.md
+
+# View specification issues
+git show archive:wip/PLAN023_wkmp_ai_recode/01_specification_issues.md
+
+# List all files in folder
+git ls-tree -r archive -- wip/PLAN023_wkmp_ai_recode/
+```
+
+---
 
 #### PLAN025: SPEC032 wkmp-ai Update (2025-11-12)
 

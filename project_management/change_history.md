@@ -21,6 +21,32 @@ This file is automatically maintained by the `/commit` workflow. Each commit app
 
 <!-- Entries will be added below by /commit workflow -->
 
+### 2025-11-12 20:55:45 -0500
+
+**Archive PLAN023 WKMP-AI Recode Plan**
+
+Archived historical PLAN023 WKMP-AI ground-up recode plan (24 files, 7,800 lines) to archive branch and updated archive index.
+
+**Changes:**
+- Removed wip/PLAN023_wkmp_ai_recode/ directory (git rm -r)
+  - 24 plan files including summary, issues, tests, resolutions, session summaries, technical debt analysis
+  - Implementation progress, waveform implementation, database migration fixes
+  - Critical SPEC017 violation documentation and resolutions
+- Updated workflows/REG002_archive_index.md
+  - Added PLAN023 entry with detailed retrieval commands
+  - Updated archived document count: 51 → 52
+  - Updated context reduction: 88,964 → 96,764 lines
+
+**Plan Summary:**
+- Status: Ready for Implementation Review
+- Created: 2025-01-08
+- Specification Source: wip/SPEC_wkmp_ai_recode.md
+
+**Archival Rationale:**
+Historical plan superseded by PLAN024 and PLAN025 (more comprehensive recode approaches). Preserved in archive for reference.
+
+---
+
 ### 2025-11-12 20:34:16 -0500 | Hash: 02ca248109632e71285c8b18c125a02b306f8294
 
 **Archive PLAN025 SPEC032 wkmp-ai Update**
