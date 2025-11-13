@@ -2383,6 +2383,59 @@ impl WorkflowOrchestrator {
 
         Ok(())
     }
+
+    /// Process single file through PLAN024 pipeline with automatic audio decoding
+    ///
+    /// **Convenience wrapper** that handles audio decoding internally.
+    ///
+    /// **Traceability:** [REQ-SPEC032-007] Per-File Import Pipeline
+    ///
+    /// # Arguments
+    /// * `file_path` - Absolute path to audio file
+    /// * `root_folder` - Root folder path for relative path calculation
+    ///
+    /// # Returns
+    /// Result indicating success or failure of pipeline execution
+    ///
+    /// # Errors
+    /// - Audio decoding errors (unsupported format, corrupt file)
+    /// - Pipeline errors (database, I/O, API failures)
+    pub async fn process_file_plan024_with_decoding(
+        &self,
+        file_path: &std::path::Path,
+        root_folder: &std::path::Path,
+    ) -> Result<()> {
+        tracing::info!(
+            file = ?file_path,
+            "Starting PLAN024 pipeline with audio decoding"
+        );
+
+        // Decode audio file to mono f32 PCM
+        let decoded = tokio::task::spawn_blocking({
+            let file_path = file_path.to_path_buf();
+            move || crate::utils::decode_audio_file(&file_path)
+        })
+        .await?
+        .map_err(|e| anyhow::anyhow!("Audio decoding failed: {}", e))?;
+
+        tracing::debug!(
+            file = ?file_path,
+            sample_rate = decoded.sample_rate,
+            channels = decoded.channels,
+            duration = format!("{:.2}s", decoded.duration_seconds),
+            samples = decoded.samples.len(),
+            "Audio decoded successfully"
+        );
+
+        // Process through PLAN024 pipeline
+        self.process_file_plan024(
+            file_path,
+            root_folder,
+            &decoded.samples,
+            decoded.sample_rate as usize,
+        )
+        .await
+    }
 }
 
 #[cfg(test)]
