@@ -43,7 +43,17 @@ impl WorkflowOrchestrator {
         session.transition_to(ImportState::Scanning);
         session.update_progress(0, 0, "Scanning for audio files...".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+
+        // **[PLAN024]** Set scanning to active
+        {
+            let mut scan_stats = self.statistics.scanning.lock().unwrap();
+            scan_stats.is_scanning = true;
+            scan_stats.potential_files_found = 0;
+        }
+
+        // Broadcast initial scanning state
+        let phase_statistics = self.convert_statistics_to_sse();
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING (file discovery only)");
 
@@ -53,6 +63,12 @@ impl WorkflowOrchestrator {
             .scan_with_stats_and_progress(
                 Path::new(&session.root_folder),
                 |file_count| {
+                    // **[PLAN024]** Update scanning statistics during scan
+                    {
+                        let mut scan_stats = self.statistics.scanning.lock().unwrap();
+                        scan_stats.potential_files_found = file_count;
+                    }
+
                     tracing::debug!(
                         session_id = %session.session_id,
                         files_found = file_count,
@@ -149,6 +165,13 @@ impl WorkflowOrchestrator {
 
         let files_found = file_records.len();
 
+        // **[PLAN024]** Mark scanning complete
+        {
+            let mut scan_stats = self.statistics.scanning.lock().unwrap();
+            scan_stats.is_scanning = false;
+            scan_stats.potential_files_found = files_found;
+        }
+
         // Update progress with final scan count
         session.update_progress(
             files_found,
@@ -157,7 +180,10 @@ impl WorkflowOrchestrator {
         );
         session.progress.total = files_found; // Set total for PROCESSING phase
         crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+
+        // Broadcast final scanning state
+        let phase_statistics = self.convert_statistics_to_sse();
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         tracing::info!(
             session_id = %session.session_id,

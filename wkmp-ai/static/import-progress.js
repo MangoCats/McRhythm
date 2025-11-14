@@ -320,6 +320,12 @@ function updateUI(event) {
     } else {
         document.getElementById('remaining-time').textContent = 'Estimating...';
     }
+
+    // **[PLAN024]** Update phase-specific statistics
+    if (event.phase_statistics && event.phase_statistics.length > 0) {
+        displayPhaseStatistics(event.phase_statistics);
+        document.getElementById('phase-statistics').style.display = 'block';
+    }
 }
 
 // REQ-AIA-UI-001: Update workflow checklist
@@ -371,6 +377,106 @@ function updateSubTaskStatus(subtasks) {
             <div style="font-weight: bold;">${successRate}% ${getStatusIcon(colorClass)}</div>
         `;
         container.appendChild(subtaskEl);
+    });
+}
+
+// **[PLAN024]** Display phase-specific statistics
+function displayPhaseStatistics(statistics) {
+    const container = document.getElementById('phase-statistics-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    statistics.forEach(stat => {
+        const statEl = document.createElement('div');
+        statEl.className = 'phase-stat-item';
+
+        let content = '';
+        const phaseName = stat.phase_name;
+
+        // Format statistics based on phase type (per wkmp-ai_refinement.md lines 74-103)
+        switch (phaseName) {
+            case 'SCANNING':
+                content = stat.is_scanning
+                    ? 'scanning'
+                    : `${stat.potential_files_found} potential files found`;
+                break;
+
+            case 'PROCESSING':
+                content = `Processing ${stat.completed} to ${stat.started} of ${stat.total}`;
+                break;
+
+            case 'FILENAME_MATCHING':
+                content = `${stat.completed_filenames_found} completed filenames found`;
+                break;
+
+            case 'HASHING':
+                content = `${stat.hashes_computed} hashes computed, ${stat.matches_found} matches found`;
+                break;
+
+            case 'EXTRACTING':
+                content = `Metadata successfully extracted from ${stat.successful_extractions} files, ${stat.failures} failures`;
+                break;
+
+            case 'SEGMENTING':
+                content = `${stat.files_processed} files, ${stat.potential_passages} potential passages, ${stat.finalized_passages} finalized passages, ${stat.songs_identified} songs identified`;
+                break;
+
+            case 'FINGERPRINTING':
+                content = `${stat.passages_fingerprinted} potential passages fingerprinted, ${stat.successful_matches} successfully matched`;
+                break;
+
+            case 'SONG_MATCHING':
+                content = `${stat.high_confidence} high, ${stat.medium_confidence} medium, ${stat.low_confidence} low, ${stat.no_confidence} no confidence`;
+                break;
+
+            case 'RECORDING':
+                // Scrollable list of recorded passages
+                if (stat.recorded_passages && stat.recorded_passages.length > 0) {
+                    const list = stat.recorded_passages.map(p => {
+                        const title = p.song_title || 'unidentified passage';
+                        return `<div class="passage-item">${title} in ${p.file_path}</div>`;
+                    }).join('');
+                    content = `<div class="scrollable-list">${list}</div>`;
+                } else {
+                    content = 'No passages recorded yet';
+                }
+                break;
+
+            case 'AMPLITUDE':
+                // Scrollable list of analyzed passages with timing
+                if (stat.analyzed_passages && stat.analyzed_passages.length > 0) {
+                    const list = stat.analyzed_passages.map(p => {
+                        const title = p.song_title || 'unidentified passage';
+                        return `<div class="passage-item">${title} ${p.passage_length_seconds.toFixed(1)}s lead-in ${p.lead_in_ms} ms lead-out ${p.lead_out_ms} ms</div>`;
+                    }).join('');
+                    content = `<div class="scrollable-list">${list}</div>`;
+                } else {
+                    content = 'No passages analyzed yet';
+                }
+                break;
+
+            case 'FLAVORING':
+                content = `${stat.pre_existing} pre-existing, ${stat.acousticbrainz} by AcousticBrainz, ${stat.essentia} by Essentia, ${stat.failed} could not be flavored`;
+                break;
+
+            case 'PASSAGES_COMPLETE':
+                content = `${stat.passages_completed} passages completed`;
+                break;
+
+            case 'FILES_COMPLETE':
+                content = `${stat.files_completed} files completed`;
+                break;
+
+            default:
+                content = JSON.stringify(stat);
+        }
+
+        statEl.innerHTML = `
+            <div class="phase-stat-name">${phaseName}</div>
+            <div class="phase-stat-content">${content}</div>
+        `;
+        container.appendChild(statEl);
     });
 }
 

@@ -418,6 +418,57 @@ pub async fn import_progress_page() -> impl IntoResponse {
             background: #2a2a2a;
             cursor: not-allowed;
         }}
+
+        /* **[PLAN024]** Phase Statistics Display */
+        .phase-statistics {{
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #3a3a3a;
+            display: none;
+        }}
+        .phase-statistics h2 {{
+            margin-top: 0;
+            color: #4a9eff;
+        }}
+        #phase-statistics-container {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+        .phase-stat-item {{
+            padding: 12px;
+            background: #1a1a1a;
+            border: 1px solid #3a3a3a;
+            border-radius: 6px;
+        }}
+        .phase-stat-name {{
+            font-weight: bold;
+            color: #4a9eff;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }}
+        .phase-stat-content {{
+            color: #e0e0e0;
+            font-size: 14px;
+        }}
+        .scrollable-list {{
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            margin-top: 6px;
+        }}
+        .passage-item {{
+            padding: 8px;
+            border-bottom: 1px solid #3a3a3a;
+            font-family: monospace;
+            font-size: 12px;
+        }}
+        .passage-item:last-child {{
+            border-bottom: none;
+        }}
     </style>
 </head>
 <body>
@@ -488,6 +539,12 @@ pub async fn import_progress_page() -> impl IntoResponse {
             <div class="time-label">Estimated Remaining</div>
             <div class="time-value" id="remaining-time">Estimating...</div>
         </div>
+    </div>
+
+    <!-- **[PLAN024]** Phase-Specific Statistics -->
+    <div class="phase-statistics" id="phase-statistics" style="display: none;">
+        <h2>Phase Statistics</h2>
+        <div id="phase-statistics-container"></div>
     </div>
 
     <p><a href="/">← Back to Home</a></p>

@@ -177,16 +177,9 @@ impl SongMatchingStats {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct RecordingStats {
     /// List of recorded passages with song title + file path
-    pub recorded_passages: Vec<RecordedPassageInfo>,
+    pub recorded_passages: Vec<wkmp_common::events::RecordedPassageInfo>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RecordedPassageInfo {
-    /// Song title (None for zero-song passages)
-    pub song_title: Option<String>,
-    /// File path
-    pub file_path: String,
-}
 
 impl RecordingStats {
     pub fn display_lines(&self) -> Vec<String> {
@@ -210,20 +203,9 @@ impl RecordingStats {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AmplitudeStats {
     /// List of analyzed passages with timing information
-    pub analyzed_passages: Vec<AnalyzedPassageInfo>,
+    pub analyzed_passages: Vec<wkmp_common::events::AnalyzedPassageInfo>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnalyzedPassageInfo {
-    /// Song title (None for zero-song passages)
-    pub song_title: Option<String>,
-    /// Total passage length in seconds
-    pub passage_length_seconds: f64,
-    /// Lead-in duration in milliseconds
-    pub lead_in_ms: u64,
-    /// Lead-out duration in milliseconds
-    pub lead_out_ms: u64,
-}
 
 impl AmplitudeStats {
     pub fn display_lines(&self) -> Vec<String> {
@@ -382,7 +364,7 @@ impl ImportStatistics {
     /// Add recorded passage (Phase 7)
     pub fn add_recorded_passage(&self, song_title: Option<String>, file_path: String) {
         let mut stats = self.recording.lock().unwrap();
-        stats.recorded_passages.push(RecordedPassageInfo {
+        stats.recorded_passages.push(wkmp_common::events::RecordedPassageInfo {
             song_title,
             file_path,
         });
@@ -397,7 +379,7 @@ impl ImportStatistics {
         lead_out_ms: u64,
     ) {
         let mut stats = self.amplitude.lock().unwrap();
-        stats.analyzed_passages.push(AnalyzedPassageInfo {
+        stats.analyzed_passages.push(wkmp_common::events::AnalyzedPassageInfo {
             song_title,
             passage_length_seconds,
             lead_in_ms,
@@ -500,11 +482,11 @@ mod tests {
     #[test]
     fn test_recording_stats_display() {
         let mut stats = RecordingStats::default();
-        stats.recorded_passages.push(RecordedPassageInfo {
+        stats.recorded_passages.push(wkmp_common::events::RecordedPassageInfo {
             song_title: Some("Bohemian Rhapsody".to_string()),
             file_path: "Queen/A Night at the Opera/01.mp3".to_string(),
         });
-        stats.recorded_passages.push(RecordedPassageInfo {
+        stats.recorded_passages.push(wkmp_common::events::RecordedPassageInfo {
             song_title: None,
             file_path: "Unknown/Track.mp3".to_string(),
         });
@@ -518,7 +500,7 @@ mod tests {
     #[test]
     fn test_amplitude_stats_display() {
         let mut stats = AmplitudeStats::default();
-        stats.analyzed_passages.push(AnalyzedPassageInfo {
+        stats.analyzed_passages.push(wkmp_common::events::AnalyzedPassageInfo {
             song_title: Some("Stairway to Heaven".to_string()),
             passage_length_seconds: 482.3,
             lead_in_ms: 1200,

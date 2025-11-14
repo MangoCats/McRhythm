@@ -80,6 +80,8 @@ pub struct WorkflowOrchestrator {
     acoustid_client: Option<Arc<AcoustIDClient>>,
     acousticbrainz_client: Option<Arc<AcousticBrainzClient>>,
     essentia_client: Option<EssentiaClient>,
+    /// **[PLAN024]** Phase-specific statistics for UI display
+    statistics: statistics::ImportStatistics,
 }
 
 impl WorkflowOrchestrator {
@@ -134,6 +136,7 @@ impl WorkflowOrchestrator {
             acoustid_client,
             acousticbrainz_client,
             essentia_client,
+            statistics: statistics::ImportStatistics::new(),
         }
     }
 
@@ -2107,6 +2110,68 @@ impl WorkflowOrchestrator {
         });
     }
 
+    /// **[PLAN024]** Convert ImportStatistics to PhaseStatistics for SSE events
+    fn convert_statistics_to_sse(&self) -> Vec<wkmp_common::events::PhaseStatistics> {
+        use wkmp_common::events::PhaseStatistics;
+
+        vec![
+            PhaseStatistics::Scanning {
+                potential_files_found: self.statistics.scanning.lock().unwrap().potential_files_found,
+                is_scanning: self.statistics.scanning.lock().unwrap().is_scanning,
+            },
+            PhaseStatistics::Processing {
+                completed: self.statistics.processing.lock().unwrap().completed,
+                started: self.statistics.processing.lock().unwrap().started,
+                total: self.statistics.processing.lock().unwrap().total,
+            },
+            PhaseStatistics::FilenameMatching {
+                completed_filenames_found: self.statistics.filename_matching.lock().unwrap().completed_filenames_found,
+            },
+            PhaseStatistics::Hashing {
+                hashes_computed: self.statistics.hashing.lock().unwrap().hashes_computed,
+                matches_found: self.statistics.hashing.lock().unwrap().matches_found,
+            },
+            PhaseStatistics::Extracting {
+                successful_extractions: self.statistics.extracting.lock().unwrap().successful_extractions,
+                failures: self.statistics.extracting.lock().unwrap().failures,
+            },
+            PhaseStatistics::Segmenting {
+                files_processed: self.statistics.segmenting.lock().unwrap().files_processed,
+                potential_passages: self.statistics.segmenting.lock().unwrap().potential_passages,
+                finalized_passages: self.statistics.segmenting.lock().unwrap().finalized_passages,
+                songs_identified: self.statistics.segmenting.lock().unwrap().songs_identified,
+            },
+            PhaseStatistics::Fingerprinting {
+                passages_fingerprinted: self.statistics.fingerprinting.lock().unwrap().passages_fingerprinted,
+                successful_matches: self.statistics.fingerprinting.lock().unwrap().successful_matches,
+            },
+            PhaseStatistics::SongMatching {
+                high_confidence: self.statistics.song_matching.lock().unwrap().high_confidence,
+                medium_confidence: self.statistics.song_matching.lock().unwrap().medium_confidence,
+                low_confidence: self.statistics.song_matching.lock().unwrap().low_confidence,
+                no_confidence: self.statistics.song_matching.lock().unwrap().no_confidence,
+            },
+            PhaseStatistics::Recording {
+                recorded_passages: self.statistics.recording.lock().unwrap().recorded_passages.clone(),
+            },
+            PhaseStatistics::Amplitude {
+                analyzed_passages: self.statistics.amplitude.lock().unwrap().analyzed_passages.clone(),
+            },
+            PhaseStatistics::Flavoring {
+                pre_existing: self.statistics.flavoring.lock().unwrap().pre_existing,
+                acousticbrainz: self.statistics.flavoring.lock().unwrap().acousticbrainz,
+                essentia: self.statistics.flavoring.lock().unwrap().essentia,
+                failed: self.statistics.flavoring.lock().unwrap().failed,
+            },
+            PhaseStatistics::PassagesComplete {
+                passages_completed: self.statistics.passages_complete.lock().unwrap().passages_completed,
+            },
+            PhaseStatistics::FilesComplete {
+                files_completed: self.statistics.files_complete.lock().unwrap().files_completed,
+            },
+        ]
+    }
+
     /// Process single file through PLAN024 10-phase per-file pipeline
     ///
     /// **Traceability:** [REQ-SPEC032-007] Per-File Import Pipeline
@@ -2164,6 +2229,9 @@ impl WorkflowOrchestrator {
 
         let file_id = match match_result {
             crate::services::MatchResult::AlreadyProcessed(guid) => {
+                // **[PLAN024]** Track completed filenames (early exit)
+                self.statistics.increment_completed_filenames();
+
                 tracing::info!(
                     file = ?file_path,
                     file_id = %guid,
@@ -2193,8 +2261,14 @@ impl WorkflowOrchestrator {
         let hash_deduplicator = crate::services::HashDeduplicator::new(self.db.clone());
         let hash_result = hash_deduplicator.process_file_hash(file_id, file_path).await?;
 
+        // **[PLAN024]** Track hash computation
+        self.statistics.increment_hashes_computed();
+
         match hash_result {
             crate::services::HashResult::Duplicate { hash, original_file_id } => {
+                // **[PLAN024]** Track hash match (early exit)
+                self.statistics.increment_hash_matches();
+
                 tracing::info!(
                     file = ?file_path,
                     file_id = %file_id,
@@ -2214,6 +2288,10 @@ impl WorkflowOrchestrator {
         let metadata_merger = crate::services::MetadataMerger::new(self.db.clone());
         let merged_metadata = metadata_merger.extract_and_merge(file_id, file_path).await?;
 
+        // **[PLAN024]** Track metadata extraction
+        let successful = merged_metadata.title.is_some() || merged_metadata.artist.is_some() || merged_metadata.album.is_some();
+        self.statistics.record_metadata_extraction(successful);
+
         // Calculate duration in ticks from sample count
         const TICKS_PER_SECOND: i64 = 28_224_000;
         let duration_seconds = samples.len() as f64 / sample_rate as f64;
@@ -2232,6 +2310,9 @@ impl WorkflowOrchestrator {
 
         let passages = match segment_result {
             crate::services::SegmentResult::NoAudio => {
+                // **[PLAN024]** Track segmentation (no audio - early exit)
+                self.statistics.record_segmentation(0, 0, 0);
+
                 tracing::info!(
                     file = ?file_path,
                     file_id = %file_id,
@@ -2277,6 +2358,13 @@ impl WorkflowOrchestrator {
             "Fingerprinting complete"
         );
 
+        // **[PLAN024]** Track fingerprinting
+        let (passages_fingerprinted, successful_matches) = match &fingerprint_results {
+            crate::services::FingerprintResult::Success(candidates) => (passages.len(), candidates.len()),
+            _ => (passages.len(), 0),
+        };
+        self.statistics.record_fingerprinting(passages_fingerprinted, successful_matches);
+
         // Phase 6: Song Matching
         tracing::debug!(
             file = ?file_path,
@@ -2297,6 +2385,25 @@ impl WorkflowOrchestrator {
             "Song matching complete"
         );
 
+        // **[PLAN024]** Track song matching
+        self.statistics.record_song_matching(
+            song_match_result.stats.high_confidence,
+            song_match_result.stats.medium_confidence,
+            song_match_result.stats.low_confidence,
+            song_match_result.stats.zero_song,
+        );
+
+        // **[PLAN024]** Update segmenting stats with finalized passages
+        {
+            let mut seg_stats = self.statistics.segmenting.lock().unwrap();
+            seg_stats.files_processed += 1;
+            seg_stats.potential_passages += passages.len();
+            seg_stats.finalized_passages += song_match_result.matches.len();
+            seg_stats.songs_identified += song_match_result.matches.iter()
+                .filter(|m| m.mbid.is_some())
+                .count();
+        }
+
         // Phase 7: Recording
         tracing::debug!(
             file = ?file_path,
@@ -2316,6 +2423,24 @@ impl WorkflowOrchestrator {
             "Recording complete"
         );
 
+        // **[PLAN024]** Track recording (Phase 7)
+        for passage_record in &recording_result.passages {
+            let song_title = if let Some(ref song_id) = passage_record.song_id {
+                // Query database for song title
+                sqlx::query_scalar::<_, String>(
+                    "SELECT title FROM songs WHERE guid = ?"
+                )
+                .bind(song_id.to_string())
+                .fetch_optional(&self.db)
+                .await?
+            } else {
+                None
+            };
+
+            let file_path_str = relative_path.to_string_lossy().to_string();
+            self.statistics.add_recorded_passage(song_title, file_path_str);
+        }
+
         // Phase 8: Amplitude Analysis
         tracing::debug!(
             file = ?file_path,
@@ -2332,6 +2457,39 @@ impl WorkflowOrchestrator {
             passages_analyzed = amplitude_result.passages.len(),
             "Amplitude analysis complete"
         );
+
+        // **[PLAN024]** Track amplitude analysis (Phase 8)
+        for passage_timing in &amplitude_result.passages {
+            // Query passage details from database
+            let passage_info: Option<(i64, i64, Option<String>)> = sqlx::query_as(
+                "SELECT p.start_ticks, p.end_ticks, s.title
+                 FROM passages p
+                 LEFT JOIN songs s ON p.song_id = s.guid
+                 WHERE p.guid = ?"
+            )
+            .bind(passage_timing.passage_id.to_string())
+            .fetch_optional(&self.db)
+            .await?;
+
+            if let Some((start_ticks, end_ticks, song_title)) = passage_info {
+                let passage_length_seconds = (end_ticks - start_ticks) as f64 / TICKS_PER_SECOND as f64;
+
+                let lead_in_ms =
+                    ((passage_timing.lead_in_start_ticks - start_ticks) * 1000 / TICKS_PER_SECOND) as u64;
+
+                let lead_out_ms =
+                    ((end_ticks - passage_timing.lead_out_start_ticks) * 1000 / TICKS_PER_SECOND) as u64;
+
+                self.statistics.add_analyzed_passage(
+                    song_title,
+                    passage_length_seconds,
+                    lead_in_ms,
+                    lead_out_ms,
+                );
+
+                self.statistics.increment_passages_completed();
+            }
+        }
 
         // Phase 9: Flavoring
         tracing::debug!(
@@ -2353,6 +2511,28 @@ impl WorkflowOrchestrator {
             "Flavoring complete"
         );
 
+        // **[PLAN024]** Track flavoring (Phase 9)
+        // Note: flavor_result.stats already contains the counts we need
+        // We need to track each source type - the service should provide this detail
+        // For now, use the aggregate counts from the flavor_result.stats
+        for _ in 0..flavor_result.stats.acousticbrainz_count {
+            self.statistics.record_flavoring(false, Some("acousticbrainz"));
+        }
+        for _ in 0..flavor_result.stats.essentia_count {
+            self.statistics.record_flavoring(false, Some("essentia"));
+        }
+        for _ in 0..flavor_result.stats.failed_count {
+            self.statistics.record_flavoring(false, None);
+        }
+        // Pre-existing flavors are those songs_processed but not in the other categories
+        let pre_existing_count = flavor_result.stats.songs_processed
+            .saturating_sub(flavor_result.stats.acousticbrainz_count)
+            .saturating_sub(flavor_result.stats.essentia_count)
+            .saturating_sub(flavor_result.stats.failed_count);
+        for _ in 0..pre_existing_count {
+            self.statistics.record_flavoring(true, None);
+        }
+
         // Phase 10: Finalization
         tracing::debug!(
             file = ?file_path,
@@ -2363,6 +2543,9 @@ impl WorkflowOrchestrator {
         let finalization_result = passage_finalizer.finalize(file_id).await?;
 
         if finalization_result.success {
+            // **[PLAN024]** Track file completion (Phase 10)
+            self.statistics.increment_files_completed();
+
             tracing::info!(
                 file = ?file_path,
                 file_id = %file_id,
@@ -2467,7 +2650,6 @@ impl WorkflowOrchestrator {
         session.transition_to(ImportState::Processing);
         session.update_progress(0, 0, "Starting per-file processing".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
 
         // Get parallelism level from settings (auto-initialized if NULL)
         let parallelism: usize = sqlx::query_scalar::<_, String>(
@@ -2502,6 +2684,18 @@ impl WorkflowOrchestrator {
             total_files
         );
 
+        // **[PLAN024]** Initialize PROCESSING statistics
+        {
+            let mut proc_stats = self.statistics.processing.lock().unwrap();
+            proc_stats.total = total_files;
+            proc_stats.completed = 0;
+            proc_stats.started = 0;
+        }
+
+        // Broadcast initial statistics
+        let phase_statistics = self.convert_statistics_to_sse();
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
+
         // Create worker pool using FuturesUnordered
         use futures::stream::{FuturesUnordered, StreamExt};
 
@@ -2513,6 +2707,12 @@ impl WorkflowOrchestrator {
         // Seed initial workers
         for _ in 0..parallelism {
             if let Some((idx, (file_id, file_path))) = file_iter.next() {
+                // **[PLAN024]** Track file started
+                {
+                    let mut proc_stats = self.statistics.processing.lock().unwrap();
+                    proc_stats.started += 1;
+                }
+
                 let task = self.process_single_file_with_context(
                     idx,
                     file_id,
@@ -2548,9 +2748,14 @@ impl WorkflowOrchestrator {
                 }
             }
 
+            // **[PLAN024]** Update PROCESSING statistics
+            {
+                let mut proc_stats = self.statistics.processing.lock().unwrap();
+                proc_stats.completed = completed;
+            }
+
             // Update progress
             let processed = completed + failed;
-            let in_progress = tasks.len();  // Number of active workers
 
             // **[wkmp-ai_refinement.md line 80]** Format: "Processing X to Y of Z"
             // X = completed, Y = started (completed + in_progress), Z = total
@@ -2566,10 +2771,19 @@ impl WorkflowOrchestrator {
             }
 
             crate::db::sessions::save_session(&self.db, &session).await?;
-            self.broadcast_progress(&session, start_time);
+
+            // **[PLAN024]** Broadcast progress with phase statistics
+            let phase_statistics = self.convert_statistics_to_sse();
+            self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
             // Maintain parallelism level - spawn next file
             if let Some((idx, (file_id, file_path))) = file_iter.next() {
+                // **[PLAN024]** Track file started
+                {
+                    let mut proc_stats = self.statistics.processing.lock().unwrap();
+                    proc_stats.started += 1;
+                }
+
                 let task = self.process_single_file_with_context(
                     idx,
                     file_id,
