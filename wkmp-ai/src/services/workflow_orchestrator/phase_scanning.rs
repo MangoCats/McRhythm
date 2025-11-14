@@ -40,9 +40,13 @@ impl WorkflowOrchestrator {
         start_time: std::time::Instant,
         cancel_token: &tokio_util::sync::CancellationToken,
     ) -> Result<ImportSession> {
+        tracing::debug!(session_id = %session.session_id, "phase_scanning() entry");
         session.transition_to(ImportState::Scanning);
+        tracing::debug!(session_id = %session.session_id, "transitioned to Scanning state");
         session.update_progress(0, 0, "Scanning for audio files...".to_string());
+        tracing::debug!(session_id = %session.session_id, "updated progress, about to save session to database");
         crate::db::sessions::save_session(&self.db, &session).await?;
+        tracing::debug!(session_id = %session.session_id, "session saved to database");
 
         // **[PLAN024]** Set scanning to active
         {

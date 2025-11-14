@@ -109,13 +109,16 @@ impl PassageAmplitudeAnalyzer {
         let mut total_lead_out = 0.0;
 
         for passage_record in passages {
-            // Get passage boundaries from database
-            let (start_ticks, end_ticks): (i64, i64) = sqlx::query_as(
-                "SELECT start_time_ticks, end_time_ticks FROM passages WHERE guid = ?"
-            )
-            .bind(passage_record.passage_id.to_string())
-            .fetch_one(&self.db)
-            .await?;
+            // **[PHASE 1]** Get passage boundaries from database, then RELEASE connection
+            // This prevents holding database locks during long-running amplitude analysis
+            let (start_ticks, end_ticks): (i64, i64) = {
+                sqlx::query_as(
+                    "SELECT start_time_ticks, end_time_ticks FROM passages WHERE guid = ?"
+                )
+                .bind(passage_record.passage_id.to_string())
+                .fetch_one(&self.db)
+                .await?
+            }; // Connection released here
 
             // Convert to seconds
             let start_seconds = start_ticks as f64 / TICKS_PER_SECOND as f64;
@@ -128,30 +131,44 @@ impl PassageAmplitudeAnalyzer {
                 "Analyzing passage amplitude"
             );
 
-            // Analyze amplitude
+            // **[PHASE 2]** Analyze amplitude (long-running, NO database connection held)
             let analysis = self
                 .analyzer
                 .analyze_file(file_path, start_seconds, end_seconds)
                 .await
                 .map_err(|e| Error::Internal(format!("Amplitude analysis failed: {}", e)))?;
 
-            // Convert lead-in/lead-out to ticks (relative to passage start)
-            let lead_in_start_ticks = (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
-            let passage_duration_ticks = end_ticks - start_ticks;
-            let lead_out_start_ticks = passage_duration_ticks
-                - (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
+            // **[PHASE 3]** Convert lead-in/lead-out to ABSOLUTE tick positions (relative to file start)
+            // **[SPEC032]** Database stores absolute positions, verified by CHECK constraints
+            // **[ORIGINAL SPEC]** Lead-in limited to first 25% of passage, lead-out limited to last 25%
+            // Therefore lead_in_start_ticks <= lead_out_start_ticks is ALWAYS satisfied (no overlap check needed)
+
+            // Lead-in: absolute position = passage start + lead-in duration
+            // Clamped to [start_ticks, end_ticks]
+            let lead_in_duration_ticks = (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
+            let lead_in_start_ticks = (start_ticks + lead_in_duration_ticks).clamp(start_ticks, end_ticks);
+
+            // Lead-out: absolute position = passage end - lead-out duration
+            // Clamped to [start_ticks, end_ticks]
+            let lead_out_duration_ticks = (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
+            let lead_out_start_ticks = (end_ticks - lead_out_duration_ticks).clamp(start_ticks, end_ticks);
 
             tracing::debug!(
                 passage_id = %passage_record.passage_id,
                 lead_in_seconds = analysis.lead_in_duration,
                 lead_out_seconds = analysis.lead_out_duration,
+                start_ticks,
+                end_ticks,
                 lead_in_start_ticks,
                 lead_out_start_ticks,
-                "Amplitude analysis complete"
+                lead_in_valid = lead_in_start_ticks >= start_ticks && lead_in_start_ticks <= end_ticks,
+                lead_out_valid = lead_out_start_ticks >= start_ticks && lead_out_start_ticks <= end_ticks,
+                ordering_valid = lead_in_start_ticks <= lead_out_start_ticks,
+                "Amplitude analysis complete - computed absolute positions"
             );
 
-            // Update passages table
-            sqlx::query(
+            // **[PHASE 4]** Update passages table (brief database write, connection released after)
+            if let Err(e) = sqlx::query(
                 r#"
                 UPDATE passages
                 SET lead_in_start_ticks = ?,
@@ -165,7 +182,21 @@ impl PassageAmplitudeAnalyzer {
             .bind(lead_out_start_ticks)
             .bind(passage_record.passage_id.to_string())
             .execute(&self.db)
-            .await?;
+            .await {
+                tracing::error!(
+                    passage_id = %passage_record.passage_id,
+                    start_ticks,
+                    end_ticks,
+                    lead_in_start_ticks,
+                    lead_out_start_ticks,
+                    lead_in_duration_seconds = analysis.lead_in_duration,
+                    lead_out_duration_seconds = analysis.lead_out_duration,
+                    passage_duration_ticks = end_ticks - start_ticks,
+                    error = %e,
+                    "Database update failed with CHECK constraint - dumping all values"
+                );
+                return Err(e.into());
+            }
 
             results.push(PassageAmplitudeResult {
                 passage_id: passage_record.passage_id,

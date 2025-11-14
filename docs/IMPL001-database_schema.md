@@ -949,6 +949,7 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
 | **[DB-SET-150] File Ingest** |
 | `ingest_max_concurrent_jobs` | INTEGER | 4 | **DEPRECATED** - Use `ai_processing_thread_count` | wkmp-ai | Full |
+| `ai_database_max_lock_wait_ms` | INTEGER | 5000 | Database lock timeout in milliseconds (applied via PRAGMA busy_timeout) | wkmp-ai | Full |
 | `silence_threshold_dB` | REAL | 35.0 | Silence detection threshold for passage segmentation (Phase 4) | wkmp-ai | Full |
 | `silence_min_duration_ticks` | INTEGER | 8467200 | Minimum silence duration to detect passage boundary (300ms = 8,467,200 ticks) | wkmp-ai | Full |
 | `minimum_passage_audio_duration_ticks` | INTEGER | 2822400 | Minimum non-silence duration for valid audio (100ms = 2,822,400 ticks, <100ms = NO AUDIO) | wkmp-ai | Full |

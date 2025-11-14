@@ -11,8 +11,15 @@ const UPDATE_THROTTLE_MS = 100; // REQ-AIA-UI-NF-001: Max 10 updates/sec
 // Returns false if user cancelled
 async function validateAcoustIDBeforeImport() {
     try {
-        // Check if API key is configured
-        const response = await fetch('/api/settings/acoustid_api_key');
+        // Check if API key is configured (with 5 second timeout)
+        const controller1 = new AbortController();
+        const timeout1 = setTimeout(() => controller1.abort(), 5000);
+
+        const response = await fetch('/api/settings/acoustid_api_key', {
+            signal: controller1.signal
+        });
+        clearTimeout(timeout1);
+
         if (!response.ok) {
             console.error('Failed to check AcoustID API key');
             return true; // Continue anyway - let pipeline handle it
@@ -25,12 +32,17 @@ async function validateAcoustIDBeforeImport() {
             return await promptForAcoustIDKey('No AcoustID API key configured. Please enter a key or skip AcoustID functionality.');
         }
 
-        // API key configured - validate it
+        // API key configured - validate it (with 10 second timeout for external API)
+        const controller2 = new AbortController();
+        const timeout2 = setTimeout(() => controller2.abort(), 10000);
+
         const validateResponse = await fetch('/import/validate-acoustid', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ api_key: data.api_key })
+            body: JSON.stringify({ api_key: data.api_key }),
+            signal: controller2.signal
         });
+        clearTimeout(timeout2);
 
         if (!validateResponse.ok) {
             console.error('AcoustID validation request failed');
@@ -48,6 +60,11 @@ async function validateAcoustIDBeforeImport() {
         return await promptForAcoustIDKey(`AcoustID API key is invalid: ${validateData.message}`);
 
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('AcoustID validation timed out');
+            // Timeout - skip validation and continue
+            return true;
+        }
         console.error('AcoustID validation failed:', error);
         return true; // Continue anyway - let pipeline handle it
     }
@@ -86,12 +103,17 @@ async function promptForAcoustIDKey(errorMessage) {
             modalError.style.display = 'none';
 
             try {
-                // Validate the key
+                // Validate the key (with 10 second timeout)
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 10000);
+
                 const validateResponse = await fetch('/import/validate-acoustid', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_key: apiKey })
+                    body: JSON.stringify({ api_key: apiKey }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeout);
 
                 if (!validateResponse.ok) {
                     throw new Error('Validation request failed');
@@ -126,7 +148,11 @@ async function promptForAcoustIDKey(errorMessage) {
 
             } catch (error) {
                 console.error('Failed to validate/save AcoustID key:', error);
-                modalError.textContent = error.message || 'Failed to validate API key';
+                if (error.name === 'AbortError') {
+                    modalError.textContent = 'Validation timed out. Please check your internet connection and try again.';
+                } else {
+                    modalError.textContent = error.message || 'Failed to validate API key';
+                }
                 modalError.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Key';

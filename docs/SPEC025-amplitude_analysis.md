@@ -366,13 +366,18 @@ RETURN lead_out_duration
 
 ### Conversion to Tick-Based Timing
 
-**[AMP-DB-010]** Convert detected durations to tick-based storage:
+**[AMP-DB-010]** Convert detected durations to **absolute tick positions** (relative to file start):
 
 **Formula:**
 ```
-lead_in_start_ticks = start_time_ticks - (lead_in_duration * 28_224_000)
+lead_in_start_ticks = start_time_ticks + (lead_in_duration * 28_224_000)
 lead_out_start_ticks = end_time_ticks - (lead_out_duration * 28_224_000)
 ```
+
+**Storage Convention:**
+- `lead_in_start_ticks` and `lead_out_start_ticks` are stored as **absolute positions** relative to file start
+- Values must satisfy: `start_time_ticks <= value <= end_time_ticks` (enforced by database CHECK constraints)
+- When relative positions (passage-relative) are needed for display, compute: `lead_in_duration = lead_in_start_ticks - start_time_ticks`
 
 **Example:**
 ```
@@ -384,12 +389,12 @@ Detected:
   lead_in_duration = 2.3 seconds
   lead_out_duration = 3.2 seconds
 
-Calculated:
-  lead_in_start_ticks = 0 - (2.3 * 28_224_000) = -64_915_200
+Calculated (absolute positions):
+  lead_in_start_ticks = 0 + (2.3 * 28_224_000) = 64_915_200
   lead_out_start_ticks = 5_080_320_000 - (3.2 * 28_224_000) = 4_989_952_000
 ```
 
-**Note:** Negative `lead_in_start_ticks` is valid (indicates fade-in starts before passage start, useful for crossfading)
+**Rationale:** Absolute positioning simplifies crossfade calculations (no need to add passage start offset) and is enforced by database CHECK constraints
 
 ### Metadata Storage
 

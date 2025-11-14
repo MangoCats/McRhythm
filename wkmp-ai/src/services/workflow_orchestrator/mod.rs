@@ -244,14 +244,18 @@ impl WorkflowOrchestrator {
         );
 
         // Broadcast session started event
+        tracing::debug!(session_id = %session.session_id, "Broadcasting ImportSessionStarted event");
         self.event_bus.emit_lossy(WkmpEvent::ImportSessionStarted {
             session_id: session.session_id,
             root_folder: session.root_folder.clone(),
             timestamp: Utc::now(),
         });
+        tracing::debug!(session_id = %session.session_id, "ImportSessionStarted event broadcast complete");
 
         // Phase 1: SCANNING - Discover audio files (reuse legacy implementation)
+        tracing::debug!(session_id = %session.session_id, "Calling phase_scanning()");
         session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        tracing::debug!(session_id = %session.session_id, "phase_scanning() returned");
         if cancel_token.is_cancelled() {
             return Ok(session);
         }
@@ -2114,60 +2118,75 @@ impl WorkflowOrchestrator {
     fn convert_statistics_to_sse(&self) -> Vec<wkmp_common::events::PhaseStatistics> {
         use wkmp_common::events::PhaseStatistics;
 
+        // Lock each mutex once and extract all fields to avoid multiple lock acquisitions
+        let scanning = self.statistics.scanning.lock().unwrap();
+        let processing = self.statistics.processing.lock().unwrap();
+        let filename_matching = self.statistics.filename_matching.lock().unwrap();
+        let hashing = self.statistics.hashing.lock().unwrap();
+        let extracting = self.statistics.extracting.lock().unwrap();
+        let segmenting = self.statistics.segmenting.lock().unwrap();
+        let fingerprinting = self.statistics.fingerprinting.lock().unwrap();
+        let song_matching = self.statistics.song_matching.lock().unwrap();
+        let recording = self.statistics.recording.lock().unwrap();
+        let amplitude = self.statistics.amplitude.lock().unwrap();
+        let flavoring = self.statistics.flavoring.lock().unwrap();
+        let passages_complete = self.statistics.passages_complete.lock().unwrap();
+        let files_complete = self.statistics.files_complete.lock().unwrap();
+
         vec![
             PhaseStatistics::Scanning {
-                potential_files_found: self.statistics.scanning.lock().unwrap().potential_files_found,
-                is_scanning: self.statistics.scanning.lock().unwrap().is_scanning,
+                potential_files_found: scanning.potential_files_found,
+                is_scanning: scanning.is_scanning,
             },
             PhaseStatistics::Processing {
-                completed: self.statistics.processing.lock().unwrap().completed,
-                started: self.statistics.processing.lock().unwrap().started,
-                total: self.statistics.processing.lock().unwrap().total,
+                completed: processing.completed,
+                started: processing.started,
+                total: processing.total,
             },
             PhaseStatistics::FilenameMatching {
-                completed_filenames_found: self.statistics.filename_matching.lock().unwrap().completed_filenames_found,
+                completed_filenames_found: filename_matching.completed_filenames_found,
             },
             PhaseStatistics::Hashing {
-                hashes_computed: self.statistics.hashing.lock().unwrap().hashes_computed,
-                matches_found: self.statistics.hashing.lock().unwrap().matches_found,
+                hashes_computed: hashing.hashes_computed,
+                matches_found: hashing.matches_found,
             },
             PhaseStatistics::Extracting {
-                successful_extractions: self.statistics.extracting.lock().unwrap().successful_extractions,
-                failures: self.statistics.extracting.lock().unwrap().failures,
+                successful_extractions: extracting.successful_extractions,
+                failures: extracting.failures,
             },
             PhaseStatistics::Segmenting {
-                files_processed: self.statistics.segmenting.lock().unwrap().files_processed,
-                potential_passages: self.statistics.segmenting.lock().unwrap().potential_passages,
-                finalized_passages: self.statistics.segmenting.lock().unwrap().finalized_passages,
-                songs_identified: self.statistics.segmenting.lock().unwrap().songs_identified,
+                files_processed: segmenting.files_processed,
+                potential_passages: segmenting.potential_passages,
+                finalized_passages: segmenting.finalized_passages,
+                songs_identified: segmenting.songs_identified,
             },
             PhaseStatistics::Fingerprinting {
-                passages_fingerprinted: self.statistics.fingerprinting.lock().unwrap().passages_fingerprinted,
-                successful_matches: self.statistics.fingerprinting.lock().unwrap().successful_matches,
+                passages_fingerprinted: fingerprinting.passages_fingerprinted,
+                successful_matches: fingerprinting.successful_matches,
             },
             PhaseStatistics::SongMatching {
-                high_confidence: self.statistics.song_matching.lock().unwrap().high_confidence,
-                medium_confidence: self.statistics.song_matching.lock().unwrap().medium_confidence,
-                low_confidence: self.statistics.song_matching.lock().unwrap().low_confidence,
-                no_confidence: self.statistics.song_matching.lock().unwrap().no_confidence,
+                high_confidence: song_matching.high_confidence,
+                medium_confidence: song_matching.medium_confidence,
+                low_confidence: song_matching.low_confidence,
+                no_confidence: song_matching.no_confidence,
             },
             PhaseStatistics::Recording {
-                recorded_passages: self.statistics.recording.lock().unwrap().recorded_passages.clone(),
+                recorded_passages: recording.recorded_passages.clone(),
             },
             PhaseStatistics::Amplitude {
-                analyzed_passages: self.statistics.amplitude.lock().unwrap().analyzed_passages.clone(),
+                analyzed_passages: amplitude.analyzed_passages.clone(),
             },
             PhaseStatistics::Flavoring {
-                pre_existing: self.statistics.flavoring.lock().unwrap().pre_existing,
-                acousticbrainz: self.statistics.flavoring.lock().unwrap().acousticbrainz,
-                essentia: self.statistics.flavoring.lock().unwrap().essentia,
-                failed: self.statistics.flavoring.lock().unwrap().failed,
+                pre_existing: flavoring.pre_existing,
+                acousticbrainz: flavoring.acousticbrainz,
+                essentia: flavoring.essentia,
+                failed: flavoring.failed,
             },
             PhaseStatistics::PassagesComplete {
-                passages_completed: self.statistics.passages_complete.lock().unwrap().passages_completed,
+                passages_completed: passages_complete.passages_completed,
             },
             PhaseStatistics::FilesComplete {
-                files_completed: self.statistics.files_complete.lock().unwrap().files_completed,
+                files_completed: files_complete.files_completed,
             },
         ]
     }
@@ -2462,7 +2481,7 @@ impl WorkflowOrchestrator {
         for passage_timing in &amplitude_result.passages {
             // Query passage details from database
             let passage_info: Option<(i64, i64, Option<String>)> = sqlx::query_as(
-                "SELECT p.start_ticks, p.end_ticks, s.title
+                "SELECT p.start_time_ticks, p.end_time_ticks, s.title
                  FROM passages p
                  LEFT JOIN songs s ON p.song_id = s.guid
                  WHERE p.guid = ?"
@@ -2474,11 +2493,17 @@ impl WorkflowOrchestrator {
             if let Some((start_ticks, end_ticks, song_title)) = passage_info {
                 let passage_length_seconds = (end_ticks - start_ticks) as f64 / TICKS_PER_SECOND as f64;
 
-                let lead_in_ms =
-                    ((passage_timing.lead_in_start_ticks - start_ticks) * 1000 / TICKS_PER_SECOND) as u64;
+                // **[SPEC032]** lead_in_start_ticks and lead_out_start_ticks are stored as ABSOLUTE positions
+                // (relative to file start). Compute durations by subtracting passage boundaries.
+                // **[SPEC002]** Lead-in and lead-out durations are NON-NEGATIVE by definition
 
-                let lead_out_ms =
-                    ((end_ticks - passage_timing.lead_out_start_ticks) * 1000 / TICKS_PER_SECOND) as u64;
+                // Lead-in duration = absolute lead-in position - passage start position
+                let lead_in_duration_ticks = (passage_timing.lead_in_start_ticks - start_ticks).max(0);
+                let lead_in_ms = (lead_in_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
+
+                // Lead-out duration = passage end position - absolute lead-out position
+                let lead_out_duration_ticks = (end_ticks - passage_timing.lead_out_start_ticks).max(0);
+                let lead_out_ms = (lead_out_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
 
                 self.statistics.add_analyzed_passage(
                     song_title,

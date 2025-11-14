@@ -25,7 +25,7 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 4. Silence-based passage boundary detection
 5. Per-passage audio fingerprinting via AcoustID API
 6. Song matching with confidence assessment (High/Medium/Low/None)
-7. Amplitude-based lead-in/lead-out detection (optimize crossfade points)
+7. Amplitude-based lead-in/lead-out point detection (define valid overlap regions for crossfades)
 8. Musical flavor data retrieval (AcousticBrainz → Essentia fallback)
 
 **In Scope:** Automatic ingest workflow for music library construction
@@ -108,6 +108,44 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 - If running, "Import Music" button enabled (opens http://localhost:5723)
 - If not running, button shows "Install Full Version to enable import"
 - No embedded import UI in wkmp-ui (wkmp-ai owns all import UX)
+
+**[AIA-UI-025]** Folder selection UI implementation (Step 2 of workflow):
+- **Technology:** Server-side directory tree component (HTML/CSS/JavaScript)
+  - No HTML5 File API (not supported for folder selection in browsers)
+  - Server-side directory traversal with client-side tree rendering
+- **UI Layout:**
+  ```
+  ┌─────────────────────────────────────────────┐
+  │ Select Folder to Import                     │
+  ├─────────────────────────────────────────────┤
+  │ Root Folder: /home/user/Music              │
+  │                                             │
+  │ ▼ Music (root folder)                       │
+  │   ▼ Albums                                  │
+  │     ▶ The Beatles                           │
+  │     ▶ Pink Floyd                            │
+  │   ▼ Compilations                            │
+  │     ▶ Best of 70s                           │
+  │   ▶ Singles                                 │
+  │                                             │
+  │ [Select This Folder] [Cancel]               │
+  └─────────────────────────────────────────────┘
+  ```
+- **Stage One Constraint Enforcement:**
+  - Tree only displays root folder and descendants (subfolders any depth)
+  - External folders not visible in tree (cannot be selected)
+  - Stage Two (future): Add "Browse External Folders" button at top
+- **User Interaction:**
+  - Click folder name → Highlight folder
+  - Click expand icon (▶/▼) → Expand/collapse subfolder tree
+  - Click "Select This Folder" → Validate path (Stage One check), proceed to scanning
+  - Validation error → Display modal: "Stage Two feature - coming soon"
+- **API Endpoints:**
+  - `GET /api/folders/tree?root={path}` - Get folder tree (Stage One: root and descendants only)
+  - `POST /api/folders/validate` - Validate selected folder (Stage One constraint check)
+- **Performance:**
+  - Lazy loading: Only load subfolders when parent expanded
+  - Cache folder tree in memory (invalidate on refresh button click)
 
 **[AIA-UI-030]** After import completion:
 - wkmp-ai displays "Import Complete" with link back to wkmp-ui
@@ -254,24 +292,30 @@ CREATE TABLE IF NOT EXISTS settings (
 - If NULL or missing: Use compiled default
 - Store default to database for future use
 
-**Thread Count Auto-Initialization:**
+**Thread Count Auto-Initialization (MANDATORY):**
 ```rust
-// At workflow start:
+// At workflow start (REQUIRED behavior):
 let thread_count = match read_setting("ai_processing_thread_count") {
     Some(value) => value,  // Use stored value (user tuning supported)
     None => {
         let cpu_count = num_cpus::get();
         let computed = cpu_count + 1;  // Algorithm: CPU_core_count + 1
-        write_setting("ai_processing_thread_count", computed);  // Persist for future use
+        write_setting("ai_processing_thread_count", computed);  // REQUIRED: Persist for future use
         computed
     }
 };
 ```
 
-**Rationale:**
+**Auto-Initialization Persistence Requirements:**
+- **MUST persist computed value:** When `ai_processing_thread_count` is NULL, compute `num_cpus::get() + 1` and write to database BEFORE starting processing
+- **MUST use persisted value:** Subsequent sessions use stored value (no re-computation unless user deletes setting)
+- **MUST support user tuning:** Users can override auto-computed value via direct database update
+- **Rationale:** Preserve auto-computed value for consistency across sessions, enable user performance tuning
+
+**Benefits:**
 - **Auto-initialization:** Sensible defaults without user configuration
 - **User tuning:** Users can override auto-computed thread count via database update
-- **Persistent:** Settings retained across sessions
+- **Persistent:** Settings retained across sessions (no re-computation overhead)
 - **Centralized:** All microservices share `settings` table (wkmp-wide configuration)
 
 ---
@@ -371,6 +415,86 @@ WHERE s.status = 'FLAVORING FAILED';
 
 ---
 
+## Lead-In/Lead-Out vs Fade-In/Fade-Out Distinction
+
+**[AIA-TIMING-010]** wkmp-ai Phase 8 (Amplitude Analysis) detects **lead-in and lead-out points only**. These are fundamentally different concepts from fade-in/fade-out:
+
+**Lead-In/Lead-Out Points ([SPEC002:XFD-PT-030, XFD-PT-040](SPEC002-crossfade.md#point-definitions)):**
+- **Purpose:** Define valid overlap regions where passages MAY play simultaneously with adjacent passages
+- **Definition (Lead-In Point):** Latest time the previous passage may still be playing ([SPEC002:XFD-PT-030](SPEC002-crossfade.md#point-definitions))
+- **Definition (Lead-Out Point):** Earliest time the next passage may start playing ([SPEC002:XFD-PT-040](SPEC002-crossfade.md#point-definitions))
+- **Nature:** Single absolute tick positions within the passage (not durations, not ranges)
+- **Audio Processing:** No volume modification or fading occurs at these points
+- **Use Case:** Enable crossfade scheduling (determine when passages can overlap without listener distraction)
+- **Detection Method:** Amplitude-based (scan for audio exceeding threshold)
+- **wkmp-ai Responsibility:** Detect and record these points automatically (Phase 8)
+
+**Fade-In/Fade-Out Points ([SPEC002:XFD-PT-020, XFD-PT-050](SPEC002-crossfade.md#point-definitions)):**
+- **Purpose:** Define volume envelope for passage playback (modify audible volume over time)
+- **Definition (Fade-In Point):** When volume reaches 100% ([SPEC002:XFD-PT-020](SPEC002-crossfade.md#point-definitions))
+- **Definition (Fade-Out Point):** When volume begins decreasing ([SPEC002:XFD-PT-050](SPEC002-crossfade.md#point-definitions))
+- **Nature:** Two absolute tick positions per fade (start and end points for each fade curve)
+- **Audio Processing:** Apply fade curves to modify volume (5 curve types per [SPEC002](SPEC002-crossfade.md))
+- **Use Case:** Smooth passage starts/ends (e.g., passages extracted from middle of continuous music)
+- **Detection Method:** Requires musical judgment (not automatable via amplitude analysis alone)
+- **wkmp-ai Responsibility:** None (leave all fade fields NULL, manual definition deferred to wkmp-pe)
+
+**Database Fields (Automatic vs Manual):**
+```sql
+-- Automatically detected by wkmp-ai Phase 8 (Amplitude Analysis):
+lead_in_start_ticks   INTEGER  -- Single point: latest time previous passage may play
+lead_out_start_ticks  INTEGER  -- Single point: earliest time next passage may start
+
+-- Left NULL by wkmp-ai (manual definition in wkmp-pe):
+fade_in_start_ticks   INTEGER  -- Fade curve start: passage start → fade-in point
+fade_in_end_ticks     INTEGER  -- Fade curve end: volume reaches 100%
+fade_out_start_ticks  INTEGER  -- Fade curve start: volume begins decreasing
+-- (fade_out_end_ticks is always end_time_ticks per SPEC002)
+```
+
+**Key Distinction Summary:**
+- **Lead-In/Lead-Out:** Define WHEN passages may overlap (scheduling boundaries, no volume change)
+- **Fade-In/Fade-Out:** Define HOW passage volume changes over time (volume envelope, independent of overlap)
+- **Independence:** Lead and fade points are independent per [SPEC002:XFD-CONS-020](SPEC002-crossfade.md#constraints)
+  - Lead-In may be before, after, or equal to Fade-In
+  - Lead-Out may be before, after, or equal to Fade-Out
+  - All four points may be equal (no overlap, no fades)
+
+**Example Passage (60-second track):**
+```
+Database Values (after wkmp-ai Phase 8):
+  start_time_ticks      = 0 ticks (0.0s)
+  lead_in_start_ticks   = 141120000 ticks (5.0s)  ← Detected by amplitude analysis
+  fade_in_start_ticks   = NULL                    ← Not detected (requires manual definition)
+  fade_in_end_ticks     = NULL                    ← Not detected (requires manual definition)
+  fade_out_start_ticks  = NULL                    ← Not detected (requires manual definition)
+  lead_out_start_ticks  = 1552320000 ticks (55.0s) ← Detected by amplitude analysis
+  end_time_ticks        = 1693440000 ticks (60.0s)
+
+Interpretation:
+  - Passage may overlap with previous passage from 0.0s-5.0s (lead-in region)
+  - Passage may overlap with next passage from 55.0s-60.0s (lead-out region)
+  - No volume fades applied (fade fields NULL → constant volume 1.0 throughout)
+  - User may later define fades via wkmp-pe if desired (e.g., fade-in from 0s-2s)
+```
+
+**Rationale for Automatic Lead-In/Lead-Out Only:**
+- **Amplitude-based detection:** Reliable for determining "when music is present" (threshold-based)
+- **Objective criteria:** Lead points have clear audio-level triggers (e.g., >45dB RMS)
+- **Fade points require judgment:** Artistic decision about how aggressively to fade volume
+  - Some users prefer gentle fades (fade-in over 5 seconds)
+  - Others prefer abrupt fades (fade-in over 0.5 seconds)
+  - No single "correct" answer determinable from audio amplitude alone
+- **Separation of concerns:** wkmp-ai provides automatic analysis, wkmp-pe provides manual refinement
+
+**See Also:**
+- [SPEC002 Crossfade Design](SPEC002-crossfade.md) - Complete timing point specification
+- [SPEC002:XFD-PT-070](SPEC002-crossfade.md#point-definitions) - Lead-In/Lead-Out definition
+- [SPEC002:XFD-PT-080](SPEC002-crossfade.md#point-definitions) - Fade-In/Fade-Out definition (independent of simultaneous playback)
+- [SPEC025 Amplitude Analysis](SPEC025-amplitude_analysis.md) - Lead-in/lead-out detection algorithm
+
+---
+
 ## Component Architecture
 
 ### High-Level Structure
@@ -445,7 +569,7 @@ wkmp-ai/
 | **acoustid_client** | Query AcoustID API for MBID candidates | Phase 5 | Fingerprint string | List of (MBID, confidence score) |
 | **confidence_assessor** | Combine metadata + fingerprint evidence | Phase 6 | Metadata + fingerprint scores | MBID with confidence (High/Medium/Low/None) per passage |
 | **musicbrainz_client** | Query MusicBrainz API for recording details | Phase 6 | Recording MBID | Recording, artist, work, album metadata |
-| **amplitude_analyzer** | Detect lead-in/lead-out points | Phase 8 | Audio PCM, thresholds from settings | Lead-in/lead-out durations (ticks), fade fields NULL |
+| **amplitude_analyzer** | Detect lead-in/lead-out points | Phase 8 | Audio PCM, thresholds from settings | Lead-in/lead-out absolute positions (ticks), fade fields NULL |
 | **acousticbrainz_client** | Query AcousticBrainz API for musical flavor | Phase 9 | Recording MBID | Musical flavor vector (JSON) |
 | **essentia_runner** | Run Essentia analysis (fallback for Phase 9) | Phase 9 | Audio file path | Musical flavor vector (JSON) |
 | **settings_manager** | Read/write database settings table with defaults | All phases | Setting key | Setting value (with auto-initialization) |
@@ -728,13 +852,31 @@ For each file, execute in order (10-phase pipeline):
 
   Phase 3: EXTRACTING
     └─ Parse metadata tags (Lofty: ID3/Vorbis/MP4)
-    └─ Merge with existing metadata (new values overwrite, old values preserved if new is NULL)
-    └─ Output: Title, artist, album, duration, merged metadata
+    └─ Merge with existing metadata using JSON object merge algorithm:
+       a. Load existing metadata JSON from database (or empty object {} if NULL)
+       b. For each key-value pair in newly extracted metadata:
+          - If new value is non-NULL: Set merged[key] = new_value (overwrite existing)
+          - If new value is NULL: Preserve existing[key] (no change)
+       c. Keys present in existing but absent in new: Preserved unchanged
+       d. Result: Union of old and new metadata, with new non-NULL values taking precedence
+    └─ Output: Title, artist, album, duration, merged metadata JSON
 
   Phase 4: SEGMENTING
-    └─ Decode audio PCM, detect silence using thresholds from settings table
-    └─ Check minimum_passage_audio_duration_ticks (if <100ms non-silence → NO AUDIO, stop)
-    └─ Output: Passage time ranges (ticks) or NO AUDIO (stop)
+    └─ Decode audio PCM, detect silence using thresholds from settings table:
+       - silence_threshold_dB (default: 35dB RMS)
+       - silence_min_duration_ticks (default: 8467200 ticks = 300ms)
+    └─ Identify potential passage boundaries (audio segments between silence)
+    └─ Calculate total non-silence duration across all potential passages
+    └─ NO AUDIO detection (file-level check):
+       a. If total non-silence duration < minimum_passage_audio_duration_ticks (default: 2822400 ticks = 100ms):
+          - Mark files.status = 'NO AUDIO'
+          - STOP processing this file (skip remaining phases)
+          - Log: "File has <100ms non-silence, marked NO AUDIO"
+       b. Otherwise: Continue to fingerprinting (Phase 5)
+    └─ Filter potential passages by minimum duration:
+       - Each potential passage MUST be ≥ minimum_passage_audio_duration_ticks
+       - Passages shorter than minimum: Discarded (not viable for playback)
+    └─ Output: Potential passage time ranges (ticks) OR NO AUDIO status (stop)
 
   Phase 5: FINGERPRINTING
     └─ Generate Chromaprint fingerprint PER PASSAGE (tokio::task::spawn_blocking for CPU work)
@@ -743,9 +885,22 @@ For each file, execute in order (10-phase pipeline):
 
   Phase 6: SONG MATCHING
     └─ Combine metadata + fingerprint evidence per passage
-    └─ Support zero-song passages (None confidence)
-    └─ Adjacent zero-song passages merged into single passage
-    └─ Output: MBID with confidence (High/Medium/Low/None) per passage
+    └─ Assess confidence level for each potential passage:
+       - High: Fingerprint match + metadata match (title/artist/duration aligned)
+       - Medium: Fingerprint match OR strong metadata match
+       - Low: Weak fingerprint or metadata evidence
+       - None: No fingerprint match, no metadata match (zero-song passage)
+    └─ Apply zero-song passage merging algorithm:
+       a. Identify sequences of adjacent passages with None confidence
+       b. Merge contiguous None-confidence passages into single passage:
+          - New start_time_ticks = first passage start
+          - New end_time_ticks = last passage end
+          - Discard intermediate silence boundaries
+       c. Exception: Preserve boundaries if silence duration >30 seconds
+          (likely intentional track separation, not embedded silence)
+       d. Rationale: Unidentifiable audio likely one continuous section
+          (ambient, spoken word, sound effects, etc.)
+    └─ Output: MBID with confidence (High/Medium/Low/None) per finalized passage
 
   Phase 7: RECORDING
     └─ Write passages to database (atomic transaction)
@@ -754,14 +909,26 @@ For each file, execute in order (10-phase pipeline):
     └─ Output: Persisted passages with passageId
 
   Phase 8: AMPLITUDE
-    └─ Analyze amplitude using thresholds from settings table
-    └─ Detect lead-in/lead-out durations (ticks)
-    └─ Leave fade_in, fade_out fields NULL (manual definition deferred to wkmp-pe)
+    └─ Detect lead-in point (single absolute tick position):
+       a. Scan forward from start_time_ticks
+       b. Find first position where RMS amplitude > lead_in_threshold_dB (default: 45dB)
+       c. Maximum scan distance: 25% of passage duration (fallback if threshold never exceeded)
+       d. Record absolute tick position as lead_in_start_ticks
+    └─ Detect lead-out point (single absolute tick position):
+       a. Scan backward from end_time_ticks
+       b. Find first position where RMS amplitude > lead_out_threshold_dB (default: 40dB)
+       c. Maximum scan distance: 25% of passage duration (fallback if threshold never exceeded)
+       d. Record absolute tick position as lead_out_start_ticks
+    └─ Leave fade_in_start_ticks, fade_in_end_ticks, fade_out_start_ticks fields NULL (manual definition deferred to wkmp-pe)
     └─ Mark passages.status = 'INGEST COMPLETE'
-    └─ Output: Lead-in/lead-out durations persisted
+    └─ Output: Lead-in/lead-out absolute positions persisted (NOT durations, NOT fades)
 
   Phase 9: FLAVORING
-    └─ Query AcousticBrainz API for musical flavor (rate-limited, async)
+    └─ Check if passage has associated song (passage_songs table)
+       └─ If no song: Skip flavoring (zero-song passage), continue to Phase 10
+    └─ Check if song.status = 'FLAVOR READY' (pre-existing flavor from previous import)
+       └─ If true: Skip flavor retrieval (increment 'pre-existing' counter), continue to Phase 10
+    └─ Otherwise: Query AcousticBrainz API for musical flavor (rate-limited, async)
     └─ Fallback to Essentia if AcousticBrainz fails
     └─ Mark songs.status = 'FLAVOR READY' or 'FLAVORING FAILED'
     └─ Output: Musical flavor vector (JSON) or failure status
@@ -995,16 +1162,18 @@ if cancel_token.is_cancelled() {
 let ticks: i64 = (seconds * 28_224_000.0).round() as i64;
 ```
 
-**Database Fields (all INTEGER):**
-- `start_time_ticks` - Passage start point
-- `lead_in_start_ticks` - Lead-in fade start
-- `fade_in_start_ticks` - Fade-in start
-- `fade_in_end_ticks` - Fade-in end (music at full volume)
-- `fade_out_start_ticks` - Fade-out start (begin crossfade)
-- `lead_out_start_ticks` - Lead-out start
-- `end_time_ticks` - Passage end point
+**Database Fields (all INTEGER, stored as absolute positions relative to file start):**
+- `start_time_ticks` - Passage start point (absolute position in file)
+- `lead_in_start_ticks` - Lead-in fade start (absolute position, must be >= start_time_ticks)
+- `fade_in_start_ticks` - Fade-in start (absolute position)
+- `fade_in_end_ticks` - Fade-in end (music at full volume, absolute position)
+- `fade_out_start_ticks` - Fade-out start (begin crossfade, absolute position)
+- `lead_out_start_ticks` - Lead-out start (absolute position, must be <= end_time_ticks)
+- `end_time_ticks` - Passage end point (absolute position in file)
 
-**Rationale:** Tick-based timing ensures sample-accurate crossfade points across all source sample rates, satisfying [REQ-CF-050] precision requirements. See [SPEC017](SPEC017-sample_rate_conversion.md) for complete tick system specification.
+**Storage Convention:** All timing fields are absolute positions relative to file start (tick 0). Database CHECK constraints enforce: `start_time_ticks <= lead_in_start_ticks <= end_time_ticks` (and similar for lead_out_start_ticks). When relative positions (passage-relative) are needed for display or duration calculations, compute from absolute positions.
+
+**Rationale:** Tick-based timing ensures sample-accurate crossfade points across all source sample rates, satisfying [REQ-CF-050] precision requirements. Absolute positioning simplifies crossfade calculations. See [SPEC017](SPEC017-sample_rate_conversion.md) for complete tick system specification and [SPEC025](SPEC025-amplitude_analysis.md) for amplitude timing details.
 
 ### Database Integration
 
@@ -1258,6 +1427,32 @@ Example progression:
 **[AIA-SEC-010]** Validate all user inputs:
 - **Root folder path:** Must exist, readable, no symlink loops
 - **Selected folder (Step 2):** Must be root folder or subfolder (Stage One constraint)
+  - Validation algorithm:
+    ```rust
+    fn validate_stage_one_folder(selected: &Path, root: &Path) -> Result<(), ValidationError> {
+        // Canonicalize paths (resolve symlinks, normalize separators)
+        let canonical_selected = selected.canonicalize()
+            .map_err(|e| ValidationError::PathNotFound { path: selected.to_path_buf(), source: e })?;
+        let canonical_root = root.canonicalize()
+            .map_err(|e| ValidationError::PathNotFound { path: root.to_path_buf(), source: e })?;
+
+        // Check if selected is root or subfolder of root
+        if canonical_selected.starts_with(&canonical_root) {
+            Ok(())
+        } else {
+            Err(ValidationError::ExternalFolder {
+                selected: canonical_selected,
+                root: canonical_root,
+                message: "Stage Two feature - coming soon. Please select root folder or a subfolder within root."
+            })
+        }
+    }
+    ```
+  - Edge cases handled:
+    - Symbolic links: Resolved via `canonicalize()` before comparison
+    - Relative paths: Converted to absolute via `canonicalize()`
+    - Windows junction points: Treated as symlinks (resolved by `canonicalize()`)
+    - Case sensitivity: Platform-native comparison (case-insensitive on Windows)
   - Error message if external folder selected: "Stage Two feature - coming soon"
 - **File paths during scanning:** Must be within selected folder (prevent directory traversal)
 - **Symlinks/junctions:** Do NOT follow during scanning (prevent loop vulnerabilities)
@@ -1275,6 +1470,21 @@ Example progression:
 - Validate stored key at workflow start before scanning
 - If invalid/missing: Prompt user for valid key OR acknowledge lack
 - User choice persisted for session (re-prompt next session if still invalid)
+  - **Session-scoped state (in-memory only, not persisted to database):**
+    ```rust
+    struct ImportSession {
+        session_id: Uuid,
+        acoustid_skip_acknowledged: bool,  // True if user chose to skip fingerprinting
+        // ... other session state
+    }
+    ```
+  - **State lifecycle:**
+    - Created when import workflow starts (Step 1)
+    - `acoustid_skip_acknowledged` initialized to `false`
+    - If user acknowledges lack of API key: Set to `true` for this session
+    - Cleared when session ends (Step 5 or cancellation)
+    - Next session starts fresh: Re-prompt for API key validation
+  - **Rationale:** Session-scoped (not persistent) ensures users are reminded to provide API key on each import, maximizing identification accuracy
 - If user acknowledges lack: Phase 5 (Fingerprinting) skipped, metadata-only matching used
 - Log warning when fingerprinting skipped (reduced identification accuracy)
 - See Five-Step Workflow section for complete validation logic
@@ -1363,19 +1573,31 @@ Example progression:
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** 2025-11-12
+**Document Version:** 2.1
+**Last Updated:** 2025-11-13
 **Status:** Design specification (PLAN024 refinement - implementation in progress)
 **Changes:**
-- Added Scope Definition, Two-Stage Roadmap, Five-Step Workflow sections
-- Added Ten-Phase Per-File Pipeline specification
-- Added Duplicate Detection Strategy, Settings Management, UI Progress Display, Status Field Enumeration sections
-- Updated Component Architecture for 10-phase pipeline
-- Updated Import Workflow State Machine for 5-step workflow
-- Added Database Integration details (settings table, status fields, matching_hashes)
-- Updated Testing Strategy for 26 requirements (100% coverage target)
-- Removed deprecated pattern analyzer, contextual matcher components (out of scope)
-- Clarified out-of-scope features (quality control → wkmp-qa, manual editing → wkmp-pe)
+- **v2.1 (2025-11-13):**
+  - Added comprehensive "Lead-In/Lead-Out vs Fade-In/Fade-Out Distinction" section ([AIA-TIMING-010])
+  - Enhanced Phase 8 (AMPLITUDE) with detailed algorithm: 25% scan limit, absolute positions (not durations)
+  - Enhanced Phase 9 (FLAVORING) with pre-existing flavor check logic
+  - Enhanced Phase 3 (EXTRACTING) with metadata merge algorithm (JSON object merge)
+  - Enhanced Phase 6 (SONG MATCHING) with zero-song passage merging algorithm (30-second threshold)
+  - Enhanced Phase 4 (SEGMENTING) with NO AUDIO detection logic (file-level check)
+  - Added Stage One folder validation algorithm to [AIA-SEC-010] (canonicalize + starts_with)
+  - Added session-scoped API key acknowledgment details to [AIA-SEC-030] (in-memory state)
+  - Added thread count auto-initialization persistence requirements (MANDATORY)
+  - Added folder selection UI implementation details ([AIA-UI-025]) with tree component spec
+- **v2.0 (2025-11-12):**
+  - Added Scope Definition, Two-Stage Roadmap, Five-Step Workflow sections
+  - Added Ten-Phase Per-File Pipeline specification
+  - Added Duplicate Detection Strategy, Settings Management, UI Progress Display, Status Field Enumeration sections
+  - Updated Component Architecture for 10-phase pipeline
+  - Updated Import Workflow State Machine for 5-step workflow
+  - Added Database Integration details (settings table, status fields, matching_hashes)
+  - Updated Testing Strategy for 26 requirements (100% coverage target)
+  - Removed deprecated pattern analyzer, contextual matcher components (out of scope)
+  - Clarified out-of-scope features (quality control → wkmp-qa, manual editing → wkmp-pe)
 
 ---
 

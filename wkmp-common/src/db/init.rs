@@ -35,7 +35,16 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
         .execute(&pool)
         .await?;
 
-    // Set busy timeout to 5 seconds [ARCH-ERRH-070]
+    // **[ARCH-PERF-010]** Enable WAL mode for better write concurrency
+    // WAL (Write-Ahead Logging) allows concurrent readers with one writer
+    // Critical for multi-threaded import workflow with multiple worker threads
+    sqlx::query("PRAGMA journal_mode = WAL")
+        .execute(&pool)
+        .await?;
+
+    // Set busy timeout [ARCH-ERRH-070]
+    // Read from settings table after it's created, or use default 5000ms
+    // This will be re-applied after init_default_settings() creates the setting
     sqlx::query("PRAGMA busy_timeout = 5000")
         .execute(&pool)
         .await?;
@@ -80,6 +89,21 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
 
     // Phase 4: Initialize default settings [ARCH-INIT-020]
     init_default_settings(&pool).await?;
+
+    // Apply configurable busy timeout from settings [ARCH-ERRH-070]
+    let timeout_ms: i64 = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+    )
+    .fetch_optional(&pool)
+    .await?
+    .unwrap_or(5000);
+
+    let pragma_sql = format!("PRAGMA busy_timeout = {}", timeout_ms);
+    sqlx::query(&pragma_sql)
+        .execute(&pool)
+        .await?;
+
+    info!("Database busy timeout set to {} ms", timeout_ms);
 
     Ok(pool)
 }
@@ -198,6 +222,7 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
 
     // Audio Ingest settings (Full version)
     ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
+    ensure_setting(pool, "ai_database_max_lock_wait_ms", "5000").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
     ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]
