@@ -4,6 +4,97 @@
 
 use serde::{Deserialize, Serialize};
 
+/// **PLAN024 Phase-Specific Statistics**
+///
+/// Per wkmp-ai_refinement.md UI requirements
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "phase_name")]
+pub enum PhaseStatistics {
+    #[serde(rename = "SCANNING")]
+    Scanning {
+        potential_files_found: usize,
+        is_scanning: bool,
+    },
+    #[serde(rename = "PROCESSING")]
+    Processing {
+        completed: usize,
+        started: usize,
+        total: usize,
+    },
+    #[serde(rename = "FILENAME_MATCHING")]
+    FilenameMatching {
+        completed_filenames_found: usize,
+    },
+    #[serde(rename = "HASHING")]
+    Hashing {
+        hashes_computed: usize,
+        matches_found: usize,
+    },
+    #[serde(rename = "EXTRACTING")]
+    Extracting {
+        successful_extractions: usize,
+        failures: usize,
+    },
+    #[serde(rename = "SEGMENTING")]
+    Segmenting {
+        files_processed: usize,
+        potential_passages: usize,
+        finalized_passages: usize,
+        songs_identified: usize,
+    },
+    #[serde(rename = "FINGERPRINTING")]
+    Fingerprinting {
+        passages_fingerprinted: usize,
+        successful_matches: usize,
+    },
+    #[serde(rename = "SONG_MATCHING")]
+    SongMatching {
+        high_confidence: usize,
+        medium_confidence: usize,
+        low_confidence: usize,
+        no_confidence: usize,
+    },
+    #[serde(rename = "RECORDING")]
+    Recording {
+        recorded_passages: Vec<RecordedPassageInfo>,
+    },
+    #[serde(rename = "AMPLITUDE")]
+    Amplitude {
+        analyzed_passages: Vec<AnalyzedPassageInfo>,
+    },
+    #[serde(rename = "FLAVORING")]
+    Flavoring {
+        pre_existing: usize,
+        acousticbrainz: usize,
+        essentia: usize,
+        failed: usize,
+    },
+    #[serde(rename = "PASSAGES_COMPLETE")]
+    PassagesComplete {
+        passages_completed: usize,
+    },
+    #[serde(rename = "FILES_COMPLETE")]
+    FilesComplete {
+        files_completed: usize,
+    },
+}
+
+/// Recorded passage information for RECORDING phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordedPassageInfo {
+    pub song_title: Option<String>,
+    pub file_path: String,
+}
+
+/// Analyzed passage information for AMPLITUDE phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalyzedPassageInfo {
+    pub song_title: Option<String>,
+    pub passage_length_seconds: f64,
+    pub lead_in_ms: u64,
+    pub lead_out_ms: u64,
+}
+
 /// **[REQ-AIA-UI-001]** Phase status for import workflow checklist
 ///
 /// Used in SSE events for UI display

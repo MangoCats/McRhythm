@@ -11,7 +11,10 @@ mod shared_types;
 // Re-export all types for backward compatibility
 pub use playback_types::{BufferStatus, DecoderState, FadeStage, PlaybackState};
 pub use queue_types::{EnqueueSource, QueueChangeTrigger, UserActionType};
-pub use import_types::{PhaseProgressData, PhaseStatusData, SubTaskData};
+pub use import_types::{
+    AnalyzedPassageInfo, PhaseProgressData, PhaseStatistics, PhaseStatusData, RecordedPassageInfo,
+    SubTaskData,
+};
 pub use shared_types::{BufferChainInfo, PlaybackPositionInfo, QueueEntryInfo};
 
 use serde::{Deserialize, Serialize};
@@ -838,6 +841,9 @@ pub enum WkmpEvent {
         /// Current file being processed
         #[serde(default)]
         current_file: Option<String>,
+        /// **PLAN024 Phase-Specific Statistics** (per wkmp-ai_refinement.md)
+        #[serde(default)]
+        phase_statistics: Vec<PhaseStatistics>,
         /// When progress updated
         timestamp: chrono::DateTime<chrono::Utc>,
     },

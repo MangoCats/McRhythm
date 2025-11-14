@@ -41,6 +41,7 @@ mod phase_fingerprinting;
 mod phase_segmenting;
 mod phase_analyzing;
 mod phase_flavoring;
+mod statistics;
 
 /// Command for state transitions (event task → main task communication)
 #[derive(Debug, Clone)]
@@ -2075,6 +2076,16 @@ impl WorkflowOrchestrator {
     ///
     /// **[AIA-MS-010]** SSE event streaming
     fn broadcast_progress(&self, session: &ImportSession, start_time: std::time::Instant) {
+        self.broadcast_progress_with_stats(session, start_time, vec![]);
+    }
+
+    /// **[PLAN024]** SSE event streaming with phase-specific statistics
+    fn broadcast_progress_with_stats(
+        &self,
+        session: &ImportSession,
+        start_time: std::time::Instant,
+        phase_statistics: Vec<wkmp_common::events::PhaseStatistics>,
+    ) {
         let elapsed_seconds = start_time.elapsed().as_secs();
 
         self.event_bus.emit_lossy(WkmpEvent::ImportProgressUpdate {
@@ -2090,6 +2101,8 @@ impl WorkflowOrchestrator {
             phases: session.progress.phases.iter().map(|p| p.into()).collect(),
             // **[REQ-AIA-UI-004]** Include current file being processed
             current_file: session.progress.current_file.clone(),
+            // **[PLAN024]** Phase-specific statistics per wkmp-ai_refinement.md
+            phase_statistics,
             timestamp: Utc::now(),
         });
     }

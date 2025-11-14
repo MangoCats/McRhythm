@@ -62,6 +62,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: Some(file_path),
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -97,6 +98,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -122,6 +124,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -154,6 +157,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -175,6 +179,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -196,6 +201,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -236,6 +242,7 @@ pub async fn bridge_workflow_events(
                     },
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -267,6 +274,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: Some(0),
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -291,6 +299,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }
@@ -314,6 +323,7 @@ pub async fn bridge_workflow_events(
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
                     current_file: None,
+                    phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                     timestamp: Utc::now(),
                 })
             }

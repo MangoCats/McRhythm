@@ -150,6 +150,7 @@ impl WorkflowOrchestrator {
                         estimated_remaining_seconds: Some(eta_secs),
                         phases: vec![], // Not tracking phases in parallel section
                         current_file: None, // Parallel processing, no single "current" file
+                        phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                         timestamp: chrono::Utc::now(),
                     });
 
