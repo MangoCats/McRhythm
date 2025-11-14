@@ -76,6 +76,163 @@ impl TableSchema for FilesTableSchema {
     }
 }
 
+/// Passages table schema
+///
+/// Per PLAN024 requirements for Phase 7-9 (Recording, Amplitude, Flavoring)
+pub struct PassagesTableSchema;
+
+impl TableSchema for PassagesTableSchema {
+    fn table_name() -> &'static str {
+        "passages"
+    }
+
+    fn expected_columns() -> Vec<ColumnDefinition> {
+        vec![
+            ColumnDefinition::new("guid", "TEXT")
+                .primary_key(),
+
+            ColumnDefinition::new("file_id", "TEXT")
+                .not_null(),
+
+            // PLAN024 Phase 7: Recording - Song association
+            ColumnDefinition::new("song_id", "TEXT"),
+
+            // Timing columns (SPEC017 tick-based)
+            ColumnDefinition::new("start_time_ticks", "INTEGER")
+                .not_null()
+                .default("0"),
+
+            ColumnDefinition::new("end_time_ticks", "INTEGER")
+                .not_null(),
+
+            // PLAN024 Phase 4: Segmentation - Passage boundaries
+            ColumnDefinition::new("start_ticks", "INTEGER"),
+            ColumnDefinition::new("end_ticks", "INTEGER"),
+
+            // PLAN024 Phase 8: Amplitude analysis - Lead-in/lead-out timing
+            ColumnDefinition::new("lead_in_start_ticks", "INTEGER"),
+            ColumnDefinition::new("lead_out_start_ticks", "INTEGER"),
+
+            // Crossfade points
+            ColumnDefinition::new("fade_in_start_ticks", "INTEGER"),
+            ColumnDefinition::new("fade_out_start_ticks", "INTEGER"),
+            ColumnDefinition::new("fade_in_curve", "TEXT"),
+            ColumnDefinition::new("fade_out_curve", "TEXT"),
+
+            // PLAN024 Phase 8: Processing status
+            ColumnDefinition::new("status", "TEXT")
+                .default("'PENDING'"),
+
+            // Metadata columns
+            ColumnDefinition::new("title", "TEXT"),
+            ColumnDefinition::new("user_title", "TEXT"),
+            ColumnDefinition::new("artist", "TEXT"),
+            ColumnDefinition::new("album", "TEXT"),
+            ColumnDefinition::new("recording_mbid", "TEXT"),
+
+            // PLAN024 Phase 9: Musical flavor
+            ColumnDefinition::new("musical_flavor_vector", "TEXT"),
+            ColumnDefinition::new("flavor_source_blend", "TEXT"),
+            ColumnDefinition::new("flavor_confidence_map", "TEXT"),
+            ColumnDefinition::new("flavor_completeness", "REAL"),
+
+            // Metadata fusion confidence scores
+            ColumnDefinition::new("title_source", "TEXT"),
+            ColumnDefinition::new("title_confidence", "REAL"),
+            ColumnDefinition::new("artist_source", "TEXT"),
+            ColumnDefinition::new("artist_confidence", "REAL"),
+            ColumnDefinition::new("album_source", "TEXT"),
+            ColumnDefinition::new("album_confidence", "REAL"),
+            ColumnDefinition::new("mbid_source", "TEXT"),
+            ColumnDefinition::new("mbid_confidence", "REAL"),
+            ColumnDefinition::new("identity_confidence", "REAL"),
+            ColumnDefinition::new("identity_posterior_probability", "REAL"),
+            ColumnDefinition::new("identity_conflicts", "TEXT"),
+            ColumnDefinition::new("overall_quality_score", "REAL"),
+            ColumnDefinition::new("metadata_completeness", "REAL"),
+
+            // Validation
+            ColumnDefinition::new("validation_status", "TEXT"),
+            ColumnDefinition::new("validation_report", "TEXT"),
+            ColumnDefinition::new("validation_issues", "TEXT"),
+
+            // Import provenance
+            ColumnDefinition::new("import_metadata", "TEXT"),
+            ColumnDefinition::new("additional_metadata", "TEXT"),
+            ColumnDefinition::new("import_session_id", "TEXT"),
+            ColumnDefinition::new("import_timestamp", "TIMESTAMP"),
+            ColumnDefinition::new("import_strategy", "TEXT"),
+
+            // Decode status
+            ColumnDefinition::new("decode_status", "TEXT")
+                .default("'pending'"),
+
+            ColumnDefinition::new("created_at", "TIMESTAMP")
+                .not_null()
+                .default("CURRENT_TIMESTAMP"),
+
+            ColumnDefinition::new("updated_at", "TIMESTAMP")
+                .not_null()
+                .default("CURRENT_TIMESTAMP"),
+        ]
+    }
+}
+
+/// Songs table schema
+///
+/// Per PLAN024 Phase 7 (Recording) and Phase 9 (Flavoring)
+pub struct SongsTableSchema;
+
+impl TableSchema for SongsTableSchema {
+    fn table_name() -> &'static str {
+        "songs"
+    }
+
+    fn expected_columns() -> Vec<ColumnDefinition> {
+        vec![
+            ColumnDefinition::new("guid", "TEXT")
+                .primary_key(),
+
+            ColumnDefinition::new("recording_mbid", "TEXT")
+                .not_null()
+                .unique(),
+
+            // PLAN024 Phase 7: Song metadata
+            ColumnDefinition::new("title", "TEXT"),
+            ColumnDefinition::new("artist_name", "TEXT"),
+
+            // PLAN024 Phase 9: Flavor vector
+            ColumnDefinition::new("flavor_vector", "TEXT"),
+            ColumnDefinition::new("flavor_source_blend", "TEXT"),
+            ColumnDefinition::new("status", "TEXT")
+                .default("'PENDING'"),
+
+            // Program Director parameters
+            ColumnDefinition::new("work_id", "TEXT"),
+            ColumnDefinition::new("related_songs", "TEXT"),
+            ColumnDefinition::new("lyrics", "TEXT"),
+            ColumnDefinition::new("base_probability", "REAL")
+                .not_null()
+                .default("1.0"),
+            ColumnDefinition::new("min_cooldown", "INTEGER")
+                .not_null()
+                .default("604800"),
+            ColumnDefinition::new("ramping_cooldown", "INTEGER")
+                .not_null()
+                .default("1209600"),
+            ColumnDefinition::new("last_played_at", "TIMESTAMP"),
+
+            ColumnDefinition::new("created_at", "TIMESTAMP")
+                .not_null()
+                .default("CURRENT_TIMESTAMP"),
+
+            ColumnDefinition::new("updated_at", "TIMESTAMP")
+                .not_null()
+                .default("CURRENT_TIMESTAMP"),
+        ]
+    }
+}
+
 /// Synchronize all table schemas
 ///
 /// **Phase 2 of database initialization** (after CREATE TABLE IF NOT EXISTS, before migrations)
@@ -85,9 +242,9 @@ pub async fn sync_all_table_schemas(pool: &SqlitePool) -> Result<()> {
     info!("=== Phase 2: Automatic Schema Synchronization ===");
 
     // Sync each table
-    // Note: Only files table implemented as proof of concept
-    // Future: Add all 30+ tables from IMPL001-database_schema.md
     SchemaSync::sync_table::<FilesTableSchema>(pool).await?;
+    SchemaSync::sync_table::<PassagesTableSchema>(pool).await?;
+    SchemaSync::sync_table::<SongsTableSchema>(pool).await?;
 
     info!("=== Schema Synchronization Complete ===");
     Ok(())
