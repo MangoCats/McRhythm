@@ -18,6 +18,81 @@ WKMP uses SQLite as its database engine. The schema is designed to support:
 - User preferences and time-based flavor targets
 - Queue state persistence
 
+## Database Connection Management - CRITICAL ARCHITECTURAL PRINCIPLE
+
+**[ARCH-DB-CONN-001] CPU-Intensive Work MUST NOT Hold Database Connections**
+
+**Principle:** All CPU-intensive operations (audio decoding, amplitude analysis, fingerprinting, network API calls) SHALL complete and prepare data BEFORE acquiring database connections. Connections are acquired ONLY when data is ready to write, written immediately, and released immediately.
+
+**Rationale:**
+- SQLite connection pool has finite size (default: 20 connections)
+- CPU-intensive work holding connections causes pool exhaustion
+- Pool exhaustion forces other tasks to wait 10+ seconds for connections
+- Long waits exceed retry timeouts → "database is locked" errors
+- **Correct pattern:** Compute → Acquire → Write → Release (milliseconds)
+- **Incorrect pattern:** Acquire → Compute → Write → Release (minutes)
+
+**Implementation Requirements:**
+1. **Prepare data first:** Complete all computation, I/O, network calls
+2. **Batch writes:** Collect multiple records, write in single transaction
+3. **Minimize transaction scope:** Only INSERT/UPDATE/SELECT within transaction
+4. **No await points during transaction:** Avoid async calls that might yield
+5. **Use tokio::task::unconstrained():** Prevent task switching during critical sections
+
+**Example - Audio Ingest Pipeline:**
+```rust
+// ✅ CORRECT: Compute outside transaction
+let decoded_audio = decode_audio_file(path).await?;  // CPU-intensive, NO connection
+let amplitude = analyze_amplitude(&decoded_audio)?;   // CPU-intensive, NO connection
+let fingerprint = generate_fingerprint(&decoded_audio)?;  // CPU-intensive, NO connection
+
+// Only NOW acquire connection and write
+let mut tx = pool.begin().await?;
+sqlx::query("INSERT INTO passages ...").bind(amplitude).execute(&mut tx).await?;
+tx.commit().await?;  // Released immediately
+
+// ❌ INCORRECT: Holding connection during CPU work
+let mut tx = pool.begin().await?;  // Connection acquired
+let decoded = decode_audio_file(path).await?;  // CPU work holding connection for MINUTES
+sqlx::query("INSERT ...").execute(&mut tx).await?;
+tx.commit().await?;  // Finally released
+```
+
+**Verification:**
+- Monitor connection hold times via pool_monitor logs
+- Connection hold time MUST be <100ms for write operations
+- Connection hold time >1000ms indicates architectural violation
+
+**WKMP-AI Implementation Compliance:**
+
+All wkmp-ai pipeline phases comply with [ARCH-DB-CONN-001]:
+
+| Phase | CPU-Intensive Work | Database Write | Compliant |
+|-------|-------------------|----------------|-----------|
+| 1. Filename Matching | N/A (database query only) | CREATE file record | ✅ |
+| 2. Hash Deduplication | SHA-256 hash computation (spawn_blocking) | UPDATE file.hash | ✅ |
+| 3. Metadata Extraction | ID3 tag parsing | UPDATE file metadata | ✅ |
+| 4. Passage Segmentation | Symphonia decode + amplitude scan | INSERT passages batch | ✅ |
+| 5. Fingerprinting | Chromaprint (spawn_blocking) + AcoustID API | (no writes) | ✅ |
+| 6. Song Matching | Metadata comparison | (no writes) | ✅ |
+| 7. Recording | N/A (batch INSERT only) | INSERT passages/songs | ✅ |
+| 8. Amplitude Analysis | Symphonia decode + RMS analysis | UPDATE passages (lead-in/out) | ✅ |
+| 9. Flavor Fetching | AcousticBrainz API + Essentia | UPDATE songs.flavor_vector | ✅ |
+| 10. Finalization | N/A (status update only) | UPDATE files.status | ✅ |
+
+**Pattern Used:**
+```rust
+// Phase 4 Example (Passage Segmentation)
+let passages = passage_segmenter.segment_file(file_path).await?;  // CPU work
+passage_recorder.record(file_id, &passages).await?;  // Database write
+```
+
+**Key Safeguards:**
+1. `passage_recorder::record()` pre-fetches existing songs BEFORE transaction
+2. All transactions wrapped in `tokio::task::unconstrained()` to prevent interruption
+3. Connection acquisition occurs only when data is ready to write
+4. No `.await` points during transaction except INSERT/UPDATE operations
+
 ## Global vs User-Scoped Data Design
 
 **WKMP functions like a shared hi-fi system**, not a personal music player:

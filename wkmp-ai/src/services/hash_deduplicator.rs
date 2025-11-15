@@ -10,7 +10,7 @@ use sqlx::{Pool, Sqlite};
 use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
-use crate::utils::begin_monitored;
+use crate::utils::{retry_on_lock, begin_monitored};
 
 /// Hash deduplication result
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -179,8 +179,23 @@ impl HashDeduplicator {
             "Creating bidirectional duplicate link"
         );
 
-        // Start monitored transaction
-        let mut tx = begin_monitored(&self.db, "hash_deduplicator::link_duplicates").await?;
+        // Get max lock wait time from settings (default 5000ms)
+        let max_wait_ms: i64 = sqlx::query_scalar(
+            "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+        )
+        .fetch_optional(&self.db)
+        .await?
+        .unwrap_or(5000);
+
+        // Wrap in retry logic with unconstrained execution
+        let db_ref = &self.db;
+        tokio::task::unconstrained(
+            retry_on_lock(
+                "hash deduplicator link",
+                max_wait_ms as u64,
+                || async {
+                    // Start monitored transaction
+                    let mut tx = begin_monitored(db_ref, "hash_deduplicator::link_duplicates").await?;
 
         // Read original file's matching_hashes
         let original_matches: Option<String> = sqlx::query_scalar(
@@ -258,6 +273,9 @@ impl HashDeduplicator {
         );
 
         Ok(())
+                }
+            )
+        ).await // Close unconstrained() wrapper around retry_on_lock
     }
 
     /// Process file hash (calculate, check duplicate, update database)

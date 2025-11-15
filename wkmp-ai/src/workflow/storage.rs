@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use sqlx::SqlitePool;
 use tracing::{debug, info};
 use uuid::Uuid;
-use crate::utils::begin_monitored;
+use crate::utils::{retry_on_lock, begin_monitored};
 
 /// Look up file GUID by file path
 ///
@@ -324,6 +324,17 @@ pub async fn store_passages_batch(
     // **[FIX]** Look up file_id from file_path BEFORE starting transaction (per IMPL001 schema)
     let file_id = get_file_id_by_path(db, file_path).await?;
 
+    // Get max lock wait time from settings (default 5000ms)
+    let max_wait_ms: i64 = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+    )
+    .fetch_optional(db)
+    .await
+    .map_err(|e| anyhow::anyhow!("Failed to fetch lock wait setting: {}", e))?
+    .unwrap_or(5000);
+
+    // Legacy PLAN025 code - returns anyhow::Result, not wkmp_common::Result
+    // Cannot use retry_on_lock directly due to incompatible error types
     let mut tx = begin_monitored(db, "workflow::store_passages")
         .await
         .map_err(|e| anyhow::anyhow!("Failed to begin transaction: {}", e))?;

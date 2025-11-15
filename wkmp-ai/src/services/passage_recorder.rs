@@ -126,20 +126,20 @@ impl PassageRecorder {
         // Wrap transaction in retry logic
         let matches_vec = matches.to_vec();
         let existing_songs_map = existing_songs; // Already a HashMap
-        retry_on_lock(
-            "passage recording",
-            max_wait_ms as u64,
-            || {
-                let matches_ref = &matches_vec;
-                let db_ref = &self.db;
-                let existing_ref = &existing_songs_map;
-                async move {
-                    // **[IMPL001]** Wrap transaction in unconstrained() to prevent Tokio work-stealing
-                    // Without this, Tokio can switch to other tasks during `.await` points in the
-                    // transaction (like INSERT statements), causing the transaction to hang for minutes
-                    // while the thread works on other tasks (e.g., amplitude analysis), eventually
-                    // timing out with "database is locked" errors.
-                    tokio::task::unconstrained(async {
+
+        // **[IMPL001]** Wrap entire retry_on_lock in unconstrained() to prevent Tokio from
+        // interrupting both connection acquisition AND transaction execution.
+        // Without this, Tokio can switch tasks during pool.begin().await, causing 14+ second
+        // waits when all 20 pool connections are held by CPU-intensive tasks.
+        tokio::task::unconstrained(
+            retry_on_lock(
+                "passage recording",
+                max_wait_ms as u64,
+                || {
+                    let matches_ref = &matches_vec;
+                    let db_ref = &self.db;
+                    let existing_ref = &existing_songs_map;
+                    async move {
                         // Step 3: Begin transaction (all song lookups already done)
                         tracing::debug!("Beginning monitored transaction for passage recording");
                         let mut tx = begin_monitored(db_ref, "passage_recorder::record").await?;
@@ -297,11 +297,10 @@ impl PassageRecorder {
                     );
 
                     Ok(RecordingResult { passages, stats })
-                    }).await // Close unconstrained()
+                    }
                 }
-            }
-        )
-        .await
+            )
+        ).await // Close unconstrained() wrapper around retry_on_lock
     }
 
     /// Batch query existing songs by MBIDs
