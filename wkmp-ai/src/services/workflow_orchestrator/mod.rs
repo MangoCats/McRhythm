@@ -2156,6 +2156,11 @@ impl WorkflowOrchestrator {
             })
             .collect();
 
+        tracing::trace!(
+            worker_count = worker_activities.len(),
+            "Worker activities collected for SSE"
+        );
+
         let result = vec![
             PhaseStatistics::Scanning {
                 potential_files_found: scanning.potential_files_found,
@@ -2267,14 +2272,65 @@ impl WorkflowOrchestrator {
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| file_path.display().to_string());
 
+        tracing::trace!(
+            worker_id = %thread_id,
+            file_index = file_index,
+            phase_number = phase_number,
+            phase_name = phase_name,
+            "Setting worker phase"
+        );
+
         let activity = WorkerActivity {
             worker_id: thread_id.clone(),
-            file_path: Some(relative_path),
+            file_path: Some(relative_path.clone()),
             file_index: Some(file_index),
             phase_number: Some(phase_number),
             phase_name: Some(phase_name.to_string()),
             phase_started_at: Some(Utc::now()),
             elapsed_ms: None,
+            passage_start_seconds: None,
+            passage_end_seconds: None,
+        };
+
+        self.worker_activities.write().insert(thread_id, activity);
+    }
+
+    /// **[AIA-UI-010]** Update worker activity with passage timing (for passage-level phases)
+    fn set_worker_phase_with_passage(
+        &self,
+        file_path: &std::path::Path,
+        root_folder: &std::path::Path,
+        file_index: usize,
+        phase_number: u8,
+        phase_name: &str,
+        passage_start_seconds: f64,
+        passage_end_seconds: f64,
+    ) {
+        let thread_id = format!("{:?}", std::thread::current().id());
+        let relative_path = file_path.strip_prefix(root_folder)
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| file_path.display().to_string());
+
+        tracing::trace!(
+            worker_id = %thread_id,
+            file_index = file_index,
+            phase_number = phase_number,
+            phase_name = phase_name,
+            passage_start = passage_start_seconds,
+            passage_end = passage_end_seconds,
+            "Setting worker phase with passage timing"
+        );
+
+        let activity = WorkerActivity {
+            worker_id: thread_id.clone(),
+            file_path: Some(relative_path.clone()),
+            file_index: Some(file_index),
+            phase_number: Some(phase_number),
+            phase_name: Some(phase_name.to_string()),
+            phase_started_at: Some(Utc::now()),
+            elapsed_ms: None,
+            passage_start_seconds: Some(passage_start_seconds),
+            passage_end_seconds: Some(passage_end_seconds),
         };
 
         self.worker_activities.write().insert(thread_id, activity);

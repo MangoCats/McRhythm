@@ -167,4 +167,8 @@ pub struct WorkerActivity {
     pub phase_started_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Elapsed milliseconds in current phase
     pub elapsed_ms: Option<u64>,
+    /// Passage start time in seconds (for passage-level processing phases)
+    pub passage_start_seconds: Option<f64>,
+    /// Passage end time in seconds (for passage-level processing phases)
+    pub passage_end_seconds: Option<f64>,
 }

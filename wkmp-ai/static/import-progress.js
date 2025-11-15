@@ -6,6 +6,10 @@ let currentSessionId = null;
 let lastUpdateTime = 0;
 const UPDATE_THROTTLE_MS = 100; // REQ-AIA-UI-NF-001: Max 10 updates/sec
 
+// **[AIA-UI-010]** Worker activity live update tracking
+let currentWorkerActivities = [];
+let workerUpdateInterval = null;
+
 // **[AIA-SEC-030]** Validate AcoustID API key before import starts
 // Returns true if validation passed or user chose to skip
 // Returns false if user cancelled
@@ -290,6 +294,14 @@ function connectSSE() {
     eventSource.addEventListener('ImportSessionCompleted', (e) => {
         console.log('ImportSessionCompleted');
         document.getElementById('current-phase-name').textContent = 'Import Completed ✓';
+
+        // **[AIA-UI-010]** Stop worker live updates
+        if (workerUpdateInterval) {
+            clearInterval(workerUpdateInterval);
+            workerUpdateInterval = null;
+        }
+        currentWorkerActivities = [];
+
         eventSource.close();
         setTimeout(() => {
             window.location.href = '/import-complete';
@@ -299,6 +311,14 @@ function connectSSE() {
     eventSource.addEventListener('ImportSessionFailed', (e) => {
         const event = JSON.parse(e.data);
         showError('Import failed: ' + (event.error || 'Unknown error'));
+
+        // **[AIA-UI-010]** Stop worker live updates
+        if (workerUpdateInterval) {
+            clearInterval(workerUpdateInterval);
+            workerUpdateInterval = null;
+        }
+        currentWorkerActivities = [];
+
         eventSource.close();
     });
 }
@@ -429,7 +449,51 @@ function displayPhaseStatistics(statistics) {
                 break;
 
             case 'PROCESSING':
-                content = `Processing ${stat.completed} to ${stat.started} of ${stat.total}`;
+                // **[AIA-UI-010]** Display worker activity tracking
+                let workerSection = '';
+                if (stat.workers && stat.workers.length > 0) {
+                    // Store current workers for live update interval
+                    currentWorkerActivities = stat.workers;
+
+                    const workerList = stat.workers.map(w => {
+                        const fileDisplay = w.file_path || 'idle';
+                        const phaseDisplay = w.phase_name || 'waiting';
+
+                        // Calculate elapsed time client-side from phase_started_at
+                        let elapsedDisplay = '';
+                        if (w.phase_started_at) {
+                            const startTime = new Date(w.phase_started_at);
+                            const elapsedSeconds = (Date.now() - startTime.getTime()) / 1000;
+                            elapsedDisplay = `Started ${elapsedSeconds.toFixed(1)} seconds ago.`;
+                        }
+
+                        // Add passage timing if present
+                        let passageDisplay = '';
+                        if (w.passage_start_seconds !== null && w.passage_end_seconds !== null) {
+                            const startMin = Math.floor(w.passage_start_seconds / 60);
+                            const startSec = (w.passage_start_seconds % 60).toFixed(0);
+                            const endMin = Math.floor(w.passage_end_seconds / 60);
+                            const endSec = (w.passage_end_seconds % 60).toFixed(0);
+                            passageDisplay = ` [${startMin}:${startSec.padStart(2, '0')}-${endMin}:${endSec.padStart(2, '0')}]`;
+                        }
+
+                        return `<div class="worker-item" data-worker-id="${w.worker_id}">Worker ${w.worker_id}: ${phaseDisplay} - ${fileDisplay}${passageDisplay} <span class="worker-elapsed">${elapsedDisplay}</span></div>`;
+                    }).join('');
+                    workerSection = `<div class="scrollable-list worker-list">${workerList}</div>`;
+
+                    // Start live update interval if not already running
+                    if (!workerUpdateInterval) {
+                        startWorkerLiveUpdates();
+                    }
+                } else {
+                    // No workers, clear stored activities and stop interval
+                    currentWorkerActivities = [];
+                    if (workerUpdateInterval) {
+                        clearInterval(workerUpdateInterval);
+                        workerUpdateInterval = null;
+                    }
+                }
+                content = `Processing ${stat.completed} of ${stat.total} (${stat.started} started)${workerSection ? '<br>' + workerSection : ''}`;
                 break;
 
             case 'FILENAME_MATCHING':
@@ -659,6 +723,42 @@ async function skipAcoustID() {
     }
 }
 
+// **[AIA-UI-010]** Start live worker activity elapsed time updates
+// Updates elapsed times every second using client-side calculation
+function startWorkerLiveUpdates() {
+    workerUpdateInterval = setInterval(() => {
+        updateWorkerElapsedTimes();
+    }, 1000); // Update every second
+}
+
+// **[AIA-UI-010]** Update worker elapsed times in DOM
+// Recalculates elapsed time from phase_started_at timestamp
+function updateWorkerElapsedTimes() {
+    if (currentWorkerActivities.length === 0) return;
+
+    currentWorkerActivities.forEach(worker => {
+        if (!worker.phase_started_at) return;
+
+        // Find the worker element in DOM
+        const workerElement = document.querySelector(`.worker-item[data-worker-id="${worker.worker_id}"]`);
+        if (!workerElement) return;
+
+        // Find the elapsed time span within this worker element
+        const elapsedSpan = workerElement.querySelector('.worker-elapsed');
+        if (!elapsedSpan) return;
+
+        // Calculate current elapsed time from phase_started_at
+        const startTime = new Date(worker.phase_started_at);
+        const elapsedSeconds = (Date.now() - startTime.getTime()) / 1000;
+        const newElapsedDisplay = `Started ${elapsedSeconds.toFixed(1)} seconds ago.`;
+
+        // Update only if changed (avoid unnecessary DOM updates)
+        if (elapsedSpan.textContent !== newElapsedDisplay) {
+            elapsedSpan.textContent = newElapsedDisplay;
+        }
+    });
+}
+
 console.log('Enhanced import progress page loaded (PLAN011)');
 
 // **[AIA-SEC-030]** Check for active import session on page load
@@ -712,3 +812,11 @@ checkForActiveSession();
 // Note: WkmpSSEConnection class is loaded from /static/wkmp-sse.js in the HTML
 const generalSSE = new WkmpSSEConnection('/events', 'connection-status');
 generalSSE.connect();
+
+// **[AIA-UI-010]** Cleanup worker interval when page unloads
+window.addEventListener('beforeunload', () => {
+    if (workerUpdateInterval) {
+        clearInterval(workerUpdateInterval);
+        workerUpdateInterval = null;
+    }
+});
