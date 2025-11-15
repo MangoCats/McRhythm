@@ -23,10 +23,12 @@ const TICKS_PER_SECOND: i64 = 28_224_000;
 pub struct PassageAmplitudeResult {
     /// Passage GUID
     pub passage_id: Uuid,
-    /// Lead-in start time (ticks from passage start)
-    pub lead_in_start_ticks: i64,
-    /// Lead-out start time (ticks from passage start)
-    pub lead_out_start_ticks: i64,
+    /// Lead-in start time (ticks from passage start), None if passage too short
+    /// Reference: minimum_passage_audio_duration_ticks setting (default 2,822,400 ticks = 100ms)
+    pub lead_in_start_ticks: Option<i64>,
+    /// Lead-out start time (ticks from passage start), None if passage too short
+    /// Reference: minimum_passage_audio_duration_ticks setting (default 2,822,400 ticks = 100ms)
+    pub lead_out_start_ticks: Option<i64>,
 }
 
 /// Amplitude analysis result
@@ -141,17 +143,82 @@ impl PassageAmplitudeAnalyzer {
 
             // **[PHASE 3]** Convert lead-in/lead-out to ABSOLUTE tick positions (relative to file start)
             // **[SPEC032]** Database stores absolute positions, verified by CHECK constraints
+            // **[SPEC017]** Tick-based timing: 1 tick = 1/28,224,000 second (sample-accurate)
             // **[ORIGINAL SPEC]** Lead-in limited to first 25% of passage, lead-out limited to last 25%
             // Therefore lead_in_start_ticks <= lead_out_start_ticks is ALWAYS satisfied (no overlap check needed)
 
+            let passage_duration_ticks = end_ticks - start_ticks;
+
+            // **[BUG FIX]** Validate lead-in/lead-out don't exceed passage duration
+            // This can happen for very short passages (near minimum_passage_audio_duration_ticks threshold)
+            // Reference: minimum_passage_audio_duration_ticks setting (default 2,822,400 ticks = 100ms)
+            // **[SPEC017]** Conversion: ticks = seconds × 28,224,000 (tick rate)
+            let lead_in_duration_ticks = (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
+            let lead_out_duration_ticks = (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
+
+            // Check if combined fade durations exceed passage duration
+            if lead_in_duration_ticks + lead_out_duration_ticks > passage_duration_ticks {
+                tracing::warn!(
+                    passage_id = %passage_record.passage_id,
+                    passage_duration_ticks,
+                    lead_in_duration_ticks,
+                    lead_out_duration_ticks,
+                    combined_duration = lead_in_duration_ticks + lead_out_duration_ticks,
+                    "Lead-in + lead-out exceed passage duration - setting both to NULL (passage too short for amplitude analysis)"
+                );
+
+                // Set both to NULL when passage is too short for meaningful amplitude analysis
+                // This satisfies the CHECK constraint: lead_in_start_ticks IS NULL OR lead_out_start_ticks IS NULL OR lead_in_start_ticks <= lead_out_start_ticks
+                let lead_in_start_ticks: Option<i64> = None;
+                let lead_out_start_ticks: Option<i64> = None;
+
+                // Update database with NULL values
+                let max_wait_ms: i64 = sqlx::query_scalar(
+                    "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+                )
+                .fetch_optional(&self.db)
+                .await?
+                .unwrap_or(5000);
+
+                let db_ref = &self.db;
+                let passage_id_str = passage_record.passage_id.to_string();
+                retry_on_lock(
+                    "passage amplitude update",
+                    max_wait_ms as u64,
+                    || async {
+                        sqlx::query(
+                            r#"
+                            UPDATE passages
+                            SET lead_in_start_ticks = NULL,
+                                lead_out_start_ticks = NULL,
+                                status = 'INGEST COMPLETE',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE guid = ?
+                            "#
+                        )
+                        .bind(&passage_id_str)
+                        .execute(db_ref)
+                        .await
+                        .map_err(|e| Error::Database(e))
+                    }
+                )
+                .await?;
+
+                results.push(PassageAmplitudeResult {
+                    passage_id: passage_record.passage_id,
+                    lead_in_start_ticks: None,
+                    lead_out_start_ticks: None,
+                });
+
+                continue; // Skip to next passage
+            }
+
             // Lead-in: absolute position = passage start + lead-in duration
             // Clamped to [start_ticks, end_ticks]
-            let lead_in_duration_ticks = (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
             let lead_in_start_ticks = (start_ticks + lead_in_duration_ticks).clamp(start_ticks, end_ticks);
 
             // Lead-out: absolute position = passage end - lead-out duration
             // Clamped to [start_ticks, end_ticks]
-            let lead_out_duration_ticks = (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
             let lead_out_start_ticks = (end_ticks - lead_out_duration_ticks).clamp(start_ticks, end_ticks);
 
             tracing::debug!(
@@ -220,8 +287,8 @@ impl PassageAmplitudeAnalyzer {
 
             results.push(PassageAmplitudeResult {
                 passage_id: passage_record.passage_id,
-                lead_in_start_ticks,
-                lead_out_start_ticks,
+                lead_in_start_ticks: Some(lead_in_start_ticks),
+                lead_out_start_ticks: Some(lead_out_start_ticks),
             });
 
             total_lead_in += analysis.lead_in_duration;

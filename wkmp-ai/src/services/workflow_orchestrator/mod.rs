@@ -2502,13 +2502,18 @@ impl WorkflowOrchestrator {
                 // **[SPEC032]** lead_in_start_ticks and lead_out_start_ticks are stored as ABSOLUTE positions
                 // (relative to file start). Compute durations by subtracting passage boundaries.
                 // **[SPEC002]** Lead-in and lead-out durations are NON-NEGATIVE by definition
+                // **Note:** For very short passages (near minimum_passage_audio_duration_ticks), these may be NULL
 
-                // Lead-in duration = absolute lead-in position - passage start position
-                let lead_in_duration_ticks = (passage_timing.lead_in_start_ticks - start_ticks).max(0);
+                // Lead-in duration = absolute lead-in position - passage start position (or 0 if NULL)
+                let lead_in_duration_ticks = passage_timing.lead_in_start_ticks
+                    .map(|ticks| (ticks - start_ticks).max(0))
+                    .unwrap_or(0);
                 let lead_in_ms = (lead_in_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
 
-                // Lead-out duration = passage end position - absolute lead-out position
-                let lead_out_duration_ticks = (end_ticks - passage_timing.lead_out_start_ticks).max(0);
+                // Lead-out duration = passage end position - absolute lead-out position (or 0 if NULL)
+                let lead_out_duration_ticks = passage_timing.lead_out_start_ticks
+                    .map(|ticks| (end_ticks - ticks).max(0))
+                    .unwrap_or(0);
                 let lead_out_ms = (lead_out_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
 
                 self.statistics.add_analyzed_passage(
