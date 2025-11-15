@@ -493,7 +493,7 @@ function displayPhaseStatistics(statistics) {
                         workerUpdateInterval = null;
                     }
                 }
-                content = `Processing ${stat.completed} of ${stat.total} (${stat.started} started)${workerSection ? '<br>' + workerSection : ''}`;
+                content = `Processing ${stat.completed} of ${stat.total} (${stat.started} started) ingest_max_concurrent_jobs ${stat.max_workers}${workerSection ? '<br>' + workerSection : ''}`;
                 break;
 
             case 'FILENAME_MATCHING':

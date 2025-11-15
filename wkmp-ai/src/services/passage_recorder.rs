@@ -156,6 +156,10 @@ impl PassageRecorder {
                     // Track newly created songs in this transaction
                     let mut newly_created_songs: HashMap<String, Uuid> = HashMap::new();
 
+                    // **[PERF-FIX]** Prepare all passage data first, then batch insert
+                    // This avoids 20+ individual .await points that can yield
+                    let mut passage_data = Vec::new();
+
                     for (idx, match_item) in matches_ref.iter().enumerate() {
                         // Get or create song if MBID present
                         let (song_id, song_created) = if let Some(ref mbid) = match_item.mbid {
@@ -223,58 +227,92 @@ impl PassageRecorder {
                             (None, false)
                         };
 
-                        // Create passage record (INSERT only)
+                        // Prepare passage data (don't insert yet)
                         let passage_id = Uuid::new_v4();
 
-                        tracing::trace!(
-                            passage_id = %passage_id,
-                            passage_idx = idx,
-                            "Executing INSERT for passage"
+                        passage_data.push((
+                            passage_id,
+                            song_id,
+                            song_created,
+                            match_item.clone(),
+                            idx,
+                        ));
+
+                        stats.passages_recorded += 1;
+                    }
+
+                    // **[PERF-FIX]** Batch insert all passages with a single multi-row INSERT
+                    // This reduces from 20+ .await points to just 1
+                    if !passage_data.is_empty() {
+                        tracing::debug!(
+                            passage_count = passage_data.len(),
+                            "Batch inserting passages"
                         );
 
-                        sqlx::query(
+                        // Build multi-row INSERT statement
+                        let values_clause = passage_data
+                            .iter()
+                            .map(|_| "(?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+                            .collect::<Vec<_>>()
+                            .join(", ");
+
+                        let insert_sql = format!(
                             r#"
                             INSERT INTO passages (
                                 guid, file_id, start_time_ticks, end_time_ticks,
                                 song_id, title, status,
                                 created_at, updated_at
                             )
-                            VALUES (?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                            "#
-                        )
-                        .bind(passage_id.to_string())
-                        .bind(file_id.to_string())
-                        .bind(match_item.passage.start_ticks)
-                        .bind(match_item.passage.end_ticks)
-                        .bind(song_id.as_ref().map(|id| id.to_string()))
-                        .bind(match_item.title.as_ref())
-                        .execute(&mut **tx.inner_mut())
-                        .await
-                        .map_err(|e| {
-                            tracing::error!(
-                                passage_id = %passage_id,
-                                passage_idx = idx,
-                                error = %e,
-                                "Passage INSERT failed"
-                            );
-                            wkmp_common::Error::Database(e)
-                        })?;
-
-                        tracing::debug!(
-                            passage_id = %passage_id,
-                            passage_idx = idx,
-                            song_id = ?song_id,
-                            confidence = %match_item.confidence.as_str(),
-                            "Recorded passage"
+                            VALUES {}
+                            "#,
+                            values_clause
                         );
 
-                        passages.push(PassageRecord {
-                            passage_id,
-                            song_id,
-                            song_created,
-                        });
+                        let mut query = sqlx::query(&insert_sql);
 
-                        stats.passages_recorded += 1;
+                        for (passage_id, song_id, _, match_item, _) in &passage_data {
+                            query = query
+                                .bind(passage_id.to_string())
+                                .bind(file_id.to_string())
+                                .bind(match_item.passage.start_ticks)
+                                .bind(match_item.passage.end_ticks)
+                                .bind(song_id.as_ref().map(|id| id.to_string()))
+                                .bind(match_item.title.as_ref());
+                        }
+
+                        query
+                            .execute(&mut **tx.inner_mut())
+                            .await
+                            .map_err(|e| {
+                                tracing::error!(
+                                    error = %e,
+                                    passage_count = passage_data.len(),
+                                    "Batch passage INSERT failed"
+                                );
+                                wkmp_common::Error::Database(e)
+                            })?;
+
+                        tracing::debug!(
+                            passage_count = passage_data.len(),
+                            "Batch insert complete"
+                        );
+
+                        // Build result records
+                        for (passage_id, song_id, song_created, match_item, idx) in passage_data {
+                            tracing::debug!(
+                                passage_id = %passage_id,
+                                passage_idx = idx,
+                                song_id = ?song_id,
+                                confidence = %match_item.confidence.as_str(),
+                                "Recorded passage"
+                            );
+
+                            passages.push(PassageRecord {
+                                passage_id,
+                                song_id,
+                                song_created,
+                            });
+                        }
                     }
 
                     // Commit transaction (logs connection release timing)

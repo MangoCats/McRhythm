@@ -22,6 +22,8 @@ pub enum PhaseStatistics {
         total: usize,
         /// **[AIA-UI-010]** Real-time worker activity tracking
         workers: Vec<WorkerActivity>,
+        /// Maximum concurrent worker threads configured
+        max_workers: usize,
     },
     #[serde(rename = "FILENAME_MATCHING")]
     FilenameMatching {

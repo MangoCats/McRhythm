@@ -22,10 +22,10 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
 
     // Use sqlite options to create database if it doesn't exist
     // **[ARCH-PERF-020]** Increase connection pool size for concurrent write operations
-    // Default is 10, increasing to 20 to reduce lock contention during parallel import
+    // Default is 10, increasing to 96 to support 12 workers × 8 connections per worker
     let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
     let pool = SqlitePoolOptions::new()
-        .max_connections(20)
+        .max_connections(96)
         .min_connections(5)
         .connect(&db_url)
         .await?;
@@ -230,7 +230,9 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     ensure_setting(pool, "playback_failure_window_seconds", "60").await?;
 
     // Audio Ingest settings (Full version)
-    ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
+    // **[ARCH-ASYNC-020]** Maximum concurrent import jobs
+    // Balanced for modern multi-core CPUs (12 workers)
+    ensure_setting(pool, "ingest_max_concurrent_jobs", "12").await?;
     // **[IMPL001]** Database lock retry timeout
     // Application-layer retry timeout for database lock contention during parallel
     // file processing. Default: 5000ms (5 seconds)

@@ -1023,7 +1023,8 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | **[DB-SET-140] Session Management** |
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
 | **[DB-SET-150] File Ingest** |
-| `ingest_max_concurrent_jobs` | INTEGER | 4 | **DEPRECATED** - Use `ai_processing_thread_count` | wkmp-ai | Full |
+| `ai_database_connection_pool_size` | INTEGER | 96 | **[ARCH-PERF-020]** SQLite connection pool size (supports 12 workers × 8 connections per worker). Cached in TOML for startup, database is source of truth. Requires restart to take effect. | wkmp-ai | Full |
+| `ingest_max_concurrent_jobs` | INTEGER | 12 | **[ARCH-ASYNC-020]** Maximum concurrent import worker threads. Cached in TOML for startup, database is source of truth. Balanced for modern multi-core CPUs. | wkmp-ai | Full |
 | `ai_database_max_lock_wait_ms` | INTEGER | 5000 | Maximum total time for retry logic to attempt database operations before giving up (milliseconds) | wkmp-ai | Full |
 | `ai_database_lock_retry_ms` | INTEGER | 250 | SQLite busy_timeout - time to wait for lock before returning error to retry logic (milliseconds) | wkmp-ai | Full |
 | `silence_threshold_dB` | REAL | 35.0 | Silence detection threshold for passage segmentation (Phase 4) | wkmp-ai | Full |

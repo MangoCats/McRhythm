@@ -1030,6 +1030,107 @@ if cancel_token.is_cancelled() {
 }
 ```
 
+### CPU-Intensive Operation Yielding
+
+**[AIA-ASYNC-050]** Prevention of async runtime starvation during CPU-intensive operations:
+
+**Problem:** CPU-bound operations (SHA-256 hashing, Chromaprint fingerprinting, RMS amplitude analysis) can block Tokio's async runtime for extended periods, starving other tasks and causing worker threads to appear "stalled" despite consuming CPU.
+
+**Root Cause:** Running synchronous CPU-intensive work directly on Tokio's async thread pool prevents the scheduler from executing other tasks, leading to:
+- Database lock contention (workers holding connections during CPU work)
+- SSE heartbeat delays (event broadcasting blocked)
+- UI unresponsiveness (progress updates delayed)
+- Apparent "stalling" despite high CPU usage
+
+**Solution: Two-Tier Approach**
+
+**1. Wrap CPU-Intensive Operations in `spawn_blocking`**
+- Move synchronous blocking operations off async runtime onto dedicated blocking thread pool
+- Applies to: Chromaprint FFI calls, synchronous audio decoding
+- **Example:**
+```rust
+// INCORRECT: Blocks async runtime
+let fingerprint = fingerprinter.fingerprint_segment(file_path, start_sec, end_sec)?;
+
+// CORRECT: Uses blocking thread pool
+let fingerprint = tokio::task::spawn_blocking(move || {
+    fingerprinter.fingerprint_segment(&file_path_clone, start_sec, end_sec)
+})
+.await??;
+```
+
+**2. Periodic Yielding Within Long Operations**
+- For operations that must run on async runtime or blocking pool, periodically yield control back to scheduler
+- Prevents single operation from monopolizing thread for extended periods
+- Controlled by `ai_longwork_yield_interval_ms` setting
+
+**Setting: `ai_longwork_yield_interval_ms`**
+- **Type:** Integer (milliseconds)
+- **Default:** 990 (just under 1 second)
+- **Purpose:** Interval for periodic yielding during CPU-intensive operations
+- **Behavior:**
+  - Value > 0: Yield every N milliseconds during long operations
+  - Value = 0: Disable yielding (faster execution, risk of starvation)
+- **Tradeability:** Users can trade responsiveness for raw performance
+
+**Operations Using Yield Timers:**
+1. **SHA-256 Hash Calculation (Phase 2):**
+   - Yields every 990ms while processing large MP3 files (chunk-by-chunk hashing)
+   - Uses `std::thread::yield_now()` in `spawn_blocking` context
+2. **Amplitude Analysis (Phase 8):**
+   - Yields every 990ms during RMS calculation on PCM buffers
+   - Uses `tokio::task::yield_now().await` in async context
+3. **Audio Decoding (Phases 4, 5, 8):**
+   - Yields every 990ms during Symphonia packet decoding
+   - Prevents stalls on very long audio files (multi-hour mixes)
+
+**Implementation Pattern (Async Context):**
+```rust
+let mut last_yield = Instant::now();
+let yield_enabled = yield_interval_ms > 0;
+
+loop {
+    // Yield periodically to Tokio scheduler
+    if yield_enabled && last_yield.elapsed().as_millis() >= yield_interval_ms as u128 {
+        tokio::task::yield_now().await;
+        last_yield = Instant::now();
+    }
+
+    // ... CPU-intensive work (e.g., decode audio packet) ...
+}
+```
+
+**Implementation Pattern (Blocking Context):**
+```rust
+let mut last_yield = Instant::now();
+let yield_enabled = yield_interval_ms > 0;
+
+loop {
+    // Yield periodically to blocking thread pool
+    if yield_enabled && last_yield.elapsed().as_millis() >= yield_interval_ms as u128 {
+        std::thread::yield_now();
+        last_yield = Instant::now();
+    }
+
+    // ... CPU-intensive work (e.g., SHA-256 hashing) ...
+}
+```
+
+**Performance Impact:**
+- **Overhead:** Minimal (~0.1% for 990ms interval on typical operations)
+- **Benefit:** Prevents worker stalling, maintains SSE heartbeat, improves UI responsiveness
+- **Trade-off:** Slightly slower raw CPU performance vs. much better system-wide responsiveness
+
+**Visibility:** This setting is CRITICAL for proper async runtime behavior. It must be:
+- Documented in all CPU-intensive service modules
+- Passed to all long-running operations
+- Visible in settings UI with clear description
+- Tested with both enabled (990ms) and disabled (0ms) configurations
+
+**Related Settings:**
+- `ai_processing_thread_count` - Number of parallel workers (affects contention)
+- `ai_database_max_lock_wait_ms` - Database lock timeout (related symptom of starvation)
+
 ---
 
 ## Real-Time Progress Updates

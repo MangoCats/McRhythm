@@ -86,6 +86,8 @@ pub struct WorkflowOrchestrator {
     statistics: statistics::ImportStatistics,
     /// **[AIA-UI-010]** Real-time worker activity tracking
     worker_activities: Arc<RwLock<HashMap<String, WorkerActivity>>>,
+    /// **[AIA-UI-PERF]** Maximum concurrent workers (parallelism level)
+    max_workers: Arc<RwLock<usize>>,
 }
 
 impl WorkflowOrchestrator {
@@ -142,6 +144,7 @@ impl WorkflowOrchestrator {
             essentia_client,
             statistics: statistics::ImportStatistics::new(),
             worker_activities: Arc::new(RwLock::new(HashMap::new())),
+            max_workers: Arc::new(RwLock::new(0)), // Will be set when processing starts
         }
     }
 
@@ -632,6 +635,10 @@ impl WorkflowOrchestrator {
         // Low CPU observed with high parallelism (42 tasks, 5% CPU) suggests tasks blocking on sync operations
         let cpu_count = num_cpus::get();
         let parallelism_level = cpu_count.clamp(4, 16); // 1x CPU count, min 4, max 16
+
+        // Store max_workers for UI display
+        *self.max_workers.write() = parallelism_level;
+
         tracing::info!(
             session_id = %session.session_id,
             cpu_count,
@@ -2171,6 +2178,7 @@ impl WorkflowOrchestrator {
                 started: processing.started,
                 total: processing.total,
                 workers: worker_activities,
+                max_workers: *self.max_workers.read(),
             },
             PhaseStatistics::FilenameMatching {
                 completed_filenames_found: filename_matching.completed_filenames_found,
@@ -2823,6 +2831,9 @@ impl WorkflowOrchestrator {
         .await?
         .parse()
         .unwrap_or(4);
+
+        // Store max_workers for UI display
+        *self.max_workers.write() = parallelism;
 
         tracing::info!(
             session_id = %session.session_id,
