@@ -2119,6 +2119,7 @@ impl WorkflowOrchestrator {
         use wkmp_common::events::PhaseStatistics;
 
         // Lock each mutex once and extract all fields to avoid multiple lock acquisitions
+        tracing::debug!("Acquiring all statistics Mutex locks for SSE conversion");
         let scanning = self.statistics.scanning.lock().unwrap();
         let processing = self.statistics.processing.lock().unwrap();
         let filename_matching = self.statistics.filename_matching.lock().unwrap();
@@ -2132,8 +2133,9 @@ impl WorkflowOrchestrator {
         let flavoring = self.statistics.flavoring.lock().unwrap();
         let passages_complete = self.statistics.passages_complete.lock().unwrap();
         let files_complete = self.statistics.files_complete.lock().unwrap();
+        tracing::debug!("All statistics Mutex locks acquired for SSE conversion");
 
-        vec![
+        let result = vec![
             PhaseStatistics::Scanning {
                 potential_files_found: scanning.potential_files_found,
                 is_scanning: scanning.is_scanning,
@@ -2188,7 +2190,11 @@ impl WorkflowOrchestrator {
             PhaseStatistics::FilesComplete {
                 files_completed: files_complete.files_completed,
             },
-        ]
+        ];
+
+        // Log before dropping mutex guards (which happens when function returns)
+        tracing::debug!("Releasing all statistics Mutex locks for SSE conversion");
+        result
     }
 
     /// Process single file through PLAN024 10-phase per-file pipeline

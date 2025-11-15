@@ -7,7 +7,7 @@
 //! - [DEP-DB-011]: Database initialization on first run
 
 use crate::Result;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::path::Path;
 use tracing::{info, warn};
 
@@ -21,8 +21,14 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     }
 
     // Use sqlite options to create database if it doesn't exist
+    // **[ARCH-PERF-020]** Increase connection pool size for concurrent write operations
+    // Default is 10, increasing to 20 to reduce lock contention during parallel import
     let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
-    let pool = SqlitePool::connect(&db_url).await?;
+    let pool = SqlitePoolOptions::new()
+        .max_connections(20)
+        .min_connections(5)
+        .connect(&db_url)
+        .await?;
 
     if newly_created {
         info!("Initialized new database: {}", db_path.display());
@@ -91,12 +97,15 @@ pub async fn init_database(db_path: &Path) -> Result<SqlitePool> {
     init_default_settings(&pool).await?;
 
     // Apply configurable busy timeout from settings [ARCH-ERRH-070]
+    // Use ai_database_lock_retry_ms (default 250ms) for SQLite busy_timeout
+    // This allows shorter lock waits before returning errors, enabling retry logic
+    // to handle contention with exponential backoff up to ai_database_max_lock_wait_ms
     let timeout_ms: i64 = sqlx::query_scalar(
-        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_lock_retry_ms'"
     )
     .fetch_optional(&pool)
     .await?
-    .unwrap_or(5000);
+    .unwrap_or(250);
 
     let pragma_sql = format!("PRAGMA busy_timeout = {}", timeout_ms);
     sqlx::query(&pragma_sql)
@@ -223,6 +232,7 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     // Audio Ingest settings (Full version)
     ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
     ensure_setting(pool, "ai_database_max_lock_wait_ms", "5000").await?;
+    ensure_setting(pool, "ai_database_lock_retry_ms", "250").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
     ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]

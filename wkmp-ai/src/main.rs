@@ -20,13 +20,20 @@ use wkmp_ai::AppState;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing with file and line number information
+    // Initialize tracing with file, line number, and thread ID information
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "wkmp_ai=debug,wkmp_common=info".into()),
         )
-        .with(tracing_subscriber::fmt::layer().with_target(true).with_file(true).with_line_number(true))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_file(true)
+                .with_line_number(true)
+                .with_thread_ids(true)
+                .with_thread_names(true)
+        )
         .init();
 
     // **[ARCH-INIT-004]** Log build identification IMMEDIATELY after tracing init

@@ -11,6 +11,7 @@ use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
+use crate::utils::retry_on_lock;
 use super::acousticbrainz_client::AcousticBrainzClient;
 use super::essentia_client::EssentiaClient;
 use super::passage_recorder::PassageRecord;
@@ -133,6 +134,14 @@ impl PassageFlavorFetcher {
             "Fetching flavor vectors"
         );
 
+        // Get max lock wait time from settings (default 5000ms)
+        let max_wait_ms: i64 = sqlx::query_scalar(
+            "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+        )
+        .fetch_optional(&self.db)
+        .await?
+        .unwrap_or(5000);
+
         // Collect unique song IDs (skip None for zero-song passages)
         let unique_song_ids: HashSet<Uuid> = passages
             .iter()
@@ -176,19 +185,29 @@ impl PassageFlavorFetcher {
                     let flavor_json = serde_json::to_string(&flavor_vector)
                         .map_err(|e| Error::Internal(format!("JSON serialization failed: {}", e)))?;
 
-                    sqlx::query(
-                        r#"
-                        UPDATE songs
-                        SET flavor_vector = ?,
-                            flavor_source_blend = '["AcousticBrainz"]',
-                            status = 'FLAVOR READY',
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE guid = ?
-                        "#
+                    let db_ref = &self.db;
+                    let song_id_str = song_id.to_string();
+                    retry_on_lock(
+                        "song flavor update (AcousticBrainz)",
+                        max_wait_ms as u64,
+                        || async {
+                            sqlx::query(
+                                r#"
+                                UPDATE songs
+                                SET flavor_vector = ?,
+                                    flavor_source_blend = '["AcousticBrainz"]',
+                                    status = 'FLAVOR READY',
+                                    updated_at = CURRENT_TIMESTAMP
+                                WHERE guid = ?
+                                "#
+                            )
+                            .bind(&flavor_json)
+                            .bind(&song_id_str)
+                            .execute(db_ref)
+                            .await
+                            .map_err(|e| Error::Database(e))
+                        }
                     )
-                    .bind(flavor_json)
-                    .bind(song_id.to_string())
-                    .execute(&self.db)
                     .await?;
 
                     tracing::debug!(
@@ -216,19 +235,29 @@ impl PassageFlavorFetcher {
                             let flavor_json = serde_json::to_string(&flavor_vector)
                                 .map_err(|e| Error::Internal(format!("JSON serialization failed: {}", e)))?;
 
-                            sqlx::query(
-                                r#"
-                                UPDATE songs
-                                SET flavor_vector = ?,
-                                    flavor_source_blend = '["Essentia"]',
-                                    status = 'FLAVOR READY',
-                                    updated_at = CURRENT_TIMESTAMP
-                                WHERE guid = ?
-                                "#
+                            let db_ref = &self.db;
+                            let song_id_str = song_id.to_string();
+                            retry_on_lock(
+                                "song flavor update (Essentia)",
+                                max_wait_ms as u64,
+                                || async {
+                                    sqlx::query(
+                                        r#"
+                                        UPDATE songs
+                                        SET flavor_vector = ?,
+                                            flavor_source_blend = '["Essentia"]',
+                                            status = 'FLAVOR READY',
+                                            updated_at = CURRENT_TIMESTAMP
+                                        WHERE guid = ?
+                                        "#
+                                    )
+                                    .bind(&flavor_json)
+                                    .bind(&song_id_str)
+                                    .execute(db_ref)
+                                    .await
+                                    .map_err(|e| Error::Database(e))
+                                }
                             )
-                            .bind(flavor_json)
-                            .bind(song_id.to_string())
-                            .execute(&self.db)
                             .await?;
 
                             tracing::debug!(
@@ -300,6 +329,27 @@ mod tests {
     /// Setup in-memory test database
     async fn setup_test_db() -> SqlitePool {
         let pool = SqlitePool::connect(":memory:").await.unwrap();
+
+        // Create settings table
+        sqlx::query(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Insert ai_database_max_lock_wait_ms setting
+        sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')")
+            .execute(&pool)
+            .await
+            .unwrap();
 
         // Create songs table
         sqlx::query(

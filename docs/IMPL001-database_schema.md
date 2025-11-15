@@ -949,7 +949,8 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `session_timeout_seconds` | INTEGER | 31536000 | Session timeout duration (default: 1 year) | wkmp-ui | All |
 | **[DB-SET-150] File Ingest** |
 | `ingest_max_concurrent_jobs` | INTEGER | 4 | **DEPRECATED** - Use `ai_processing_thread_count` | wkmp-ai | Full |
-| `ai_database_max_lock_wait_ms` | INTEGER | 5000 | Database lock timeout in milliseconds (applied via PRAGMA busy_timeout) | wkmp-ai | Full |
+| `ai_database_max_lock_wait_ms` | INTEGER | 5000 | Maximum total time for retry logic to attempt database operations before giving up (milliseconds) | wkmp-ai | Full |
+| `ai_database_lock_retry_ms` | INTEGER | 250 | SQLite busy_timeout - time to wait for lock before returning error to retry logic (milliseconds) | wkmp-ai | Full |
 | `silence_threshold_dB` | REAL | 35.0 | Silence detection threshold for passage segmentation (Phase 4) | wkmp-ai | Full |
 | `silence_min_duration_ticks` | INTEGER | 8467200 | Minimum silence duration to detect passage boundary (300ms = 8,467,200 ticks) | wkmp-ai | Full |
 | `minimum_passage_audio_duration_ticks` | INTEGER | 2822400 | Minimum non-silence duration for valid audio (100ms = 2,822,400 ticks, <100ms = NO AUDIO) | wkmp-ai | Full |
@@ -1411,6 +1412,35 @@ async fn migrate_vN(pool: &SqlitePool) -> Result<()> {
 - Musical flavor vectors are stored as JSON for flexibility (can normalize to columns if performance requires)
 - Query plans should be analyzed with `EXPLAIN QUERY PLAN` for selection algorithm queries
 - Consider periodic `VACUUM` and `ANALYZE` for optimal performance
+
+#### Database Lock Retry Mechanism
+
+**Purpose:** Handle transient SQLite write lock contention during concurrent operations (especially multi-threaded import).
+
+**Two-Layer Timeout Strategy:**
+
+1. **SQLite busy_timeout** (`ai_database_lock_retry_ms`, default 250ms):
+   - Applied via `PRAGMA busy_timeout` during database initialization
+   - Controls how long SQLite waits for a lock before returning "database is locked" error
+   - Short timeout (250ms) allows quick failure, enabling retry logic to handle contention
+
+2. **Application retry logic** (`ai_database_max_lock_wait_ms`, default 5000ms):
+   - Wraps database operations with exponential backoff retry
+   - Total retry duration: up to 5000ms (configurable)
+   - Backoff pattern: 10ms → 20ms → 40ms → 80ms → 160ms → 320ms → 640ms → 1000ms (max)
+   - Allows ~20 retry attempts within 5-second window
+
+**Why Two Timeouts:**
+- If SQLite busy_timeout matches retry timeout, operations block too long before returning errors
+- Short SQLite timeout (250ms) + longer retry timeout (5000ms) allows multiple retry attempts
+- Retry logic can use exponential backoff for better contention handling
+
+**Configuration:**
+- Both timeouts fully adjustable via database settings
+- To disable retry logic: Set `ai_database_lock_retry_ms` = `ai_database_max_lock_wait_ms`
+- To increase retry attempts: Increase `ai_database_max_lock_wait_ms` (e.g., 10000ms for ~40 attempts)
+
+**Implementation:** See `wkmp-ai/src/utils/db_retry.rs` for retry logic details.
 
 ### Version-Specific Tables
 

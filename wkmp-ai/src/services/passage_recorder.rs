@@ -4,10 +4,13 @@
 //!
 //! Writes passages to database and creates song/artist relationships.
 //! Uses atomic transactions to ensure data consistency.
+//! **[ARCH-ERRH-070]** Retry logic for transient database lock errors.
 
 use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
+use crate::utils::{retry_on_lock, begin_monitored};
+use std::collections::HashMap;
 
 use super::passage_segmenter::PassageBoundary;
 use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
@@ -63,15 +66,21 @@ impl PassageRecorder {
     /// Record passages to database
     ///
     /// **Algorithm:**
-    /// 1. Begin atomic transaction
-    /// 2. For each passage match:
-    ///    a. If has MBID: Get or create song
-    ///    b. Create passage record (song_id = NULL for zero-song)
-    ///    c. Set passage.status = 'PENDING' (awaiting Phase 8 amplitude analysis)
-    /// 3. Commit transaction
-    /// 4. Return recording result with statistics
+    /// 1. Pre-fetch all unique MBIDs from passage matches
+    /// 2. Batch query existing songs (OUTSIDE transaction - reduces lock time)
+    /// 3. Begin atomic transaction
+    /// 4. Insert new songs (INSERT-only, no SELECT)
+    /// 5. Insert passages (INSERT-only, no SELECT)
+    /// 6. Commit transaction
+    /// 7. Return recording result with statistics
+    ///
+    /// **Performance Optimization:**
+    /// - Song queries moved OUTSIDE transaction to reduce connection hold time
+    /// - Transaction only contains fast INSERT operations
+    /// - Target: <100ms transaction hold time (vs. 9,500ms in previous implementation)
     ///
     /// **Traceability:** [REQ-SPEC032-014]
+    /// **[ARCH-ERRH-070]** Retry logic for transient database lock errors
     pub async fn record_passages(
         &self,
         file_id: Uuid,
@@ -83,142 +92,206 @@ impl PassageRecorder {
             "Recording passages to database"
         );
 
-        let mut tx = self.db.begin().await?;
-        let mut passages = Vec::new();
-        let mut stats = RecordingStats {
-            passages_recorded: 0,
-            passages_with_songs: 0,
-            zero_song_passages: 0,
-            songs_created: 0,
-            songs_reused: 0,
-        };
-
-        for (idx, match_item) in matches.iter().enumerate() {
-            // Get or create song if MBID present
-            let (song_id, song_created) = if let Some(ref mbid) = match_item.mbid {
-                let (id, created) = self.get_or_create_song(&mut tx, mbid, &match_item.title).await?;
-                if created {
-                    stats.songs_created += 1;
-                } else {
-                    stats.songs_reused += 1;
-                }
-                stats.passages_with_songs += 1;
-                (Some(id), created)
-            } else {
-                // Zero-song passage
-                stats.zero_song_passages += 1;
-                (None, false)
-            };
-
-            // Create passage record
-            let passage_id = Uuid::new_v4();
-
-            sqlx::query(
-                r#"
-                INSERT INTO passages (
-                    guid, file_id, start_time_ticks, end_time_ticks,
-                    song_id, title, status,
-                    created_at, updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                "#
-            )
-            .bind(passage_id.to_string())
-            .bind(file_id.to_string())
-            .bind(match_item.passage.start_ticks)
-            .bind(match_item.passage.end_ticks)
-            .bind(song_id.as_ref().map(|id| id.to_string()))
-            .bind(match_item.title.as_ref())
-            .execute(&mut *tx)
-            .await?;
-
-            tracing::debug!(
-                passage_id = %passage_id,
-                passage_idx = idx,
-                song_id = ?song_id,
-                confidence = %match_item.confidence.as_str(),
-                "Recorded passage"
-            );
-
-            passages.push(PassageRecord {
-                passage_id,
-                song_id,
-                song_created,
-            });
-
-            stats.passages_recorded += 1;
-        }
-
-        // Commit transaction
-        tx.commit().await?;
-
-        tracing::info!(
-            file_id = %file_id,
-            passages_recorded = stats.passages_recorded,
-            songs_created = stats.songs_created,
-            zero_song_passages = stats.zero_song_passages,
-            "Recording complete"
-        );
-
-        Ok(RecordingResult { passages, stats })
-    }
-
-    /// Get existing song or create new one
-    ///
-    /// Returns (song_id, created)
-    async fn get_or_create_song(
-        &self,
-        tx: &mut sqlx::Transaction<'_, Sqlite>,
-        mbid: &str,
-        title: &Option<String>,
-    ) -> Result<(Uuid, bool)> {
-        // Check if song already exists
-        let existing: Option<(String,)> = sqlx::query_as(
-            "SELECT guid FROM songs WHERE recording_mbid = ?"
+        // Get max lock wait time from settings (default 5000ms)
+        let max_wait_ms: i64 = sqlx::query_scalar(
+            "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
         )
-        .bind(mbid)
-        .fetch_optional(&mut **tx)
-        .await?;
+        .fetch_optional(&self.db)
+        .await?
+        .unwrap_or(5000);
 
-        if let Some((guid_str,)) = existing {
-            let song_id = Uuid::parse_str(&guid_str)
-                .map_err(|e| Error::Internal(format!("Invalid song GUID: {}", e)))?;
-
-            tracing::debug!(
-                song_id = %song_id,
-                mbid,
-                "Reusing existing song"
-            );
-
-            return Ok((song_id, false));
-        }
-
-        // Create new song
-        let song_id = Uuid::new_v4();
-
-        sqlx::query(
-            r#"
-            INSERT INTO songs (
-                guid, recording_mbid, base_probability,
-                min_cooldown, ramping_cooldown, status,
-                created_at, updated_at
-            )
-            VALUES (?, ?, 1.0, 604800, 1209600, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            "#
-        )
-        .bind(song_id.to_string())
-        .bind(mbid)
-        .execute(&mut **tx)
-        .await?;
+        // Step 1: Pre-fetch all unique MBIDs from passage matches (OUTSIDE transaction)
+        let unique_mbids: Vec<String> = matches
+            .iter()
+            .filter_map(|m| m.mbid.as_ref())
+            .map(|mbid| mbid.clone())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
 
         tracing::debug!(
-            song_id = %song_id,
-            mbid,
-            title = ?title,
-            "Created new song"
+            unique_mbid_count = unique_mbids.len(),
+            "Pre-fetching existing songs"
         );
 
-        Ok((song_id, true))
+        // Step 2: Batch query existing songs (OUTSIDE transaction)
+        let existing_songs = Self::batch_query_existing_songs(&self.db, &unique_mbids).await?;
+
+        tracing::debug!(
+            existing_song_count = existing_songs.len(),
+            songs_to_create = unique_mbids.len() - existing_songs.len(),
+            "Existing songs queried"
+        );
+
+        // Wrap transaction in retry logic
+        let matches_vec = matches.to_vec();
+        let existing_songs_map = existing_songs; // Already a HashMap
+        retry_on_lock(
+            "passage recording",
+            max_wait_ms as u64,
+            || {
+                let matches_ref = &matches_vec;
+                let db_ref = &self.db;
+                let existing_ref = &existing_songs_map;
+                async move {
+                    // Step 3: Begin transaction (all song lookups already done)
+                    let mut tx = begin_monitored(db_ref, "passage_recorder::record").await?;
+                    let mut passages = Vec::new();
+                    let mut stats = RecordingStats {
+                        passages_recorded: 0,
+                        passages_with_songs: 0,
+                        zero_song_passages: 0,
+                        songs_created: 0,
+                        songs_reused: 0,
+                    };
+
+                    // Track newly created songs in this transaction
+                    let mut newly_created_songs: HashMap<String, Uuid> = HashMap::new();
+
+                    for (idx, match_item) in matches_ref.iter().enumerate() {
+                        // Get or create song if MBID present
+                        let (song_id, song_created) = if let Some(ref mbid) = match_item.mbid {
+                            // Check existing songs first
+                            if let Some(&existing_id) = existing_ref.get(mbid) {
+                                stats.songs_reused += 1;
+                                stats.passages_with_songs += 1;
+                                (Some(existing_id), false)
+                            }
+                            // Check if we already created this song in this transaction
+                            else if let Some(&created_id) = newly_created_songs.get(mbid) {
+                                stats.songs_reused += 1;
+                                stats.passages_with_songs += 1;
+                                (Some(created_id), false)
+                            }
+                            // Create new song (INSERT only, no SELECT)
+                            else {
+                                let song_id = Uuid::new_v4();
+
+                                sqlx::query(
+                                    r#"
+                                    INSERT INTO songs (
+                                        guid, recording_mbid, base_probability,
+                                        min_cooldown, ramping_cooldown, status,
+                                        created_at, updated_at
+                                    )
+                                    VALUES (?, ?, 1.0, 604800, 1209600, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                    "#
+                                )
+                                .bind(song_id.to_string())
+                                .bind(mbid)
+                                .execute(&mut **tx.inner_mut())
+                                .await?;
+
+                                tracing::debug!(
+                                    song_id = %song_id,
+                                    mbid,
+                                    title = ?match_item.title,
+                                    "Created new song"
+                                );
+
+                                newly_created_songs.insert(mbid.clone(), song_id);
+                                stats.songs_created += 1;
+                                stats.passages_with_songs += 1;
+                                (Some(song_id), true)
+                            }
+                        } else {
+                            // Zero-song passage
+                            stats.zero_song_passages += 1;
+                            (None, false)
+                        };
+
+                        // Create passage record (INSERT only)
+                        let passage_id = Uuid::new_v4();
+
+                        sqlx::query(
+                            r#"
+                            INSERT INTO passages (
+                                guid, file_id, start_time_ticks, end_time_ticks,
+                                song_id, title, status,
+                                created_at, updated_at
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                            "#
+                        )
+                        .bind(passage_id.to_string())
+                        .bind(file_id.to_string())
+                        .bind(match_item.passage.start_ticks)
+                        .bind(match_item.passage.end_ticks)
+                        .bind(song_id.as_ref().map(|id| id.to_string()))
+                        .bind(match_item.title.as_ref())
+                        .execute(&mut **tx.inner_mut())
+                        .await?;
+
+                        tracing::debug!(
+                            passage_id = %passage_id,
+                            passage_idx = idx,
+                            song_id = ?song_id,
+                            confidence = %match_item.confidence.as_str(),
+                            "Recorded passage"
+                        );
+
+                        passages.push(PassageRecord {
+                            passage_id,
+                            song_id,
+                            song_created,
+                        });
+
+                        stats.passages_recorded += 1;
+                    }
+
+                    // Commit transaction (logs connection release timing)
+                    tx.commit().await?;
+                    tracing::debug!("Database transaction committed for passage recording");
+
+                    tracing::info!(
+                        file_id = %file_id,
+                        passages_recorded = stats.passages_recorded,
+                        songs_created = stats.songs_created,
+                        zero_song_passages = stats.zero_song_passages,
+                        "Recording complete"
+                    );
+
+                    Ok(RecordingResult { passages, stats })
+                }
+            }
+        )
+        .await
+    }
+
+    /// Batch query existing songs by MBIDs
+    ///
+    /// **Performance:** Runs OUTSIDE transaction to avoid holding connection during query.
+    /// Returns HashMap of MBID -> song_id for reuse.
+    async fn batch_query_existing_songs(
+        db: &Pool<Sqlite>,
+        mbids: &[String],
+    ) -> Result<HashMap<String, Uuid>> {
+        if mbids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        // Build parameterized query with placeholders
+        let placeholders = mbids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+        let query_sql = format!(
+            "SELECT guid, recording_mbid FROM songs WHERE recording_mbid IN ({})",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, String)>(&query_sql);
+        for mbid in mbids {
+            query = query.bind(mbid);
+        }
+
+        let rows = query.fetch_all(db).await?;
+
+        let mut map = HashMap::new();
+        for (guid_str, mbid) in rows {
+            let song_id = Uuid::parse_str(&guid_str)
+                .map_err(|e| Error::Internal(format!("Invalid song GUID: {}", e)))?;
+            map.insert(mbid, song_id);
+        }
+
+        Ok(map)
     }
 }
 
@@ -230,6 +303,27 @@ mod tests {
     /// Setup in-memory test database with passages and songs tables
     async fn setup_test_db() -> SqlitePool {
         let pool = SqlitePool::connect(":memory:").await.unwrap();
+
+        // Create settings table
+        sqlx::query(
+            r#"
+            CREATE TABLE settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        // Insert ai_database_max_lock_wait_ms setting
+        sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')")
+            .execute(&pool)
+            .await
+            .unwrap();
 
         // Create files table
         sqlx::query(

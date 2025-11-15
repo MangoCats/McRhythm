@@ -11,6 +11,7 @@ use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
 use crate::models::AmplitudeParameters;
+use crate::utils::retry_on_lock;
 use super::amplitude_analyzer::AmplitudeAnalyzer;
 use super::passage_recorder::PassageRecord;
 
@@ -168,20 +169,39 @@ impl PassageAmplitudeAnalyzer {
             );
 
             // **[PHASE 4]** Update passages table (brief database write, connection released after)
-            if let Err(e) = sqlx::query(
-                r#"
-                UPDATE passages
-                SET lead_in_start_ticks = ?,
-                    lead_out_start_ticks = ?,
-                    status = 'INGEST COMPLETE',
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE guid = ?
-                "#
+            // Get max lock wait time from settings (default 5000ms)
+            let max_wait_ms: i64 = sqlx::query_scalar(
+                "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
             )
-            .bind(lead_in_start_ticks)
-            .bind(lead_out_start_ticks)
-            .bind(passage_record.passage_id.to_string())
-            .execute(&self.db)
+            .fetch_optional(&self.db)
+            .await?
+            .unwrap_or(5000);
+
+            // Wrap UPDATE in retry logic
+            let db_ref = &self.db;
+            let passage_id_str = passage_record.passage_id.to_string();
+            if let Err(e) = retry_on_lock(
+                "passage amplitude update",
+                max_wait_ms as u64,
+                || async {
+                    sqlx::query(
+                        r#"
+                        UPDATE passages
+                        SET lead_in_start_ticks = ?,
+                            lead_out_start_ticks = ?,
+                            status = 'INGEST COMPLETE',
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE guid = ?
+                        "#
+                    )
+                    .bind(lead_in_start_ticks)
+                    .bind(lead_out_start_ticks)
+                    .bind(&passage_id_str)
+                    .execute(db_ref)
+                    .await
+                    .map_err(|e| Error::Database(e))
+                }
+            )
             .await {
                 tracing::error!(
                     passage_id = %passage_record.passage_id,
@@ -195,7 +215,7 @@ impl PassageAmplitudeAnalyzer {
                     error = %e,
                     "Database update failed with CHECK constraint - dumping all values"
                 );
-                return Err(e.into());
+                return Err(e);
             }
 
             results.push(PassageAmplitudeResult {

@@ -10,6 +10,7 @@ use sqlx::{Pool, Sqlite};
 use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
+use crate::utils::begin_monitored;
 
 /// Hash deduplication result
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -178,15 +179,15 @@ impl HashDeduplicator {
             "Creating bidirectional duplicate link"
         );
 
-        // Start transaction
-        let mut tx = self.db.begin().await?;
+        // Start monitored transaction
+        let mut tx = begin_monitored(&self.db, "hash_deduplicator::link_duplicates").await?;
 
         // Read original file's matching_hashes
         let original_matches: Option<String> = sqlx::query_scalar(
             "SELECT matching_hashes FROM files WHERE guid = ?",
         )
         .bind(original_file_id.to_string())
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx.inner_mut())
         .await?;
 
         let mut original_array: Vec<String> = match original_matches {
@@ -207,7 +208,7 @@ impl HashDeduplicator {
             "SELECT matching_hashes FROM files WHERE guid = ?",
         )
         .bind(current_file_id.to_string())
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut **tx.inner_mut())
         .await?;
 
         let mut current_array: Vec<String> = match current_matches {
@@ -232,7 +233,7 @@ impl HashDeduplicator {
         )
         .bind(&original_json)
         .bind(original_file_id.to_string())
-        .execute(&mut *tx)
+        .execute(&mut **tx.inner_mut())
         .await?;
 
         // Update current file (set matching_hashes AND status to DUPLICATE HASH)
@@ -244,10 +245,10 @@ impl HashDeduplicator {
         )
         .bind(&current_json)
         .bind(current_file_id.to_string())
-        .execute(&mut *tx)
+        .execute(&mut **tx.inner_mut())
         .await?;
 
-        // Commit transaction
+        // Commit transaction (logs connection release timing)
         tx.commit().await?;
 
         tracing::info!(

@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use sqlx::SqlitePool;
 use tracing::{debug, info};
 use uuid::Uuid;
+use crate::utils::begin_monitored;
 
 /// Look up file GUID by file path
 ///
@@ -323,7 +324,9 @@ pub async fn store_passages_batch(
     // **[FIX]** Look up file_id from file_path BEFORE starting transaction (per IMPL001 schema)
     let file_id = get_file_id_by_path(db, file_path).await?;
 
-    let mut tx = db.begin().await.context("Failed to begin transaction")?;
+    let mut tx = begin_monitored(db, "workflow::store_passages")
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to begin transaction: {}", e))?;
     let mut passage_ids = Vec::new();
 
     for passage in passages {
@@ -436,7 +439,7 @@ pub async fn store_passages_batch(
             .bind(import_session_id)
             .bind(timestamp)
             .bind("hybrid_fusion_v2")
-            .execute(&mut *tx)
+            .execute(&mut **tx.inner_mut())
             .await?;
 
         // Store provenance logs
@@ -500,14 +503,14 @@ pub async fn store_passages_batch(
             .bind(&data_str)
             .bind(confidence)
             .bind(timestamp)
-            .execute(&mut *tx)
+            .execute(&mut **tx.inner_mut())
             .await?;
         }
 
         passage_ids.push(passage_id);
     }
 
-    tx.commit().await.context("Failed to commit transaction")?;
+    tx.commit().await.map_err(|e| anyhow::anyhow!("Failed to commit transaction: {}", e))?;
 
     info!(
         "Stored {} passages from {} in transaction",
