@@ -65,11 +65,13 @@ impl AmplitudeAnalyzer {
     /// Analyze audio file for lead-in/lead-out timing
     ///
     /// **[AIA-COMP-010]** Real implementation using symphonia
+    /// **[IMPL001]** Yields periodically to prevent Tokio work-stealing starvation
     pub async fn analyze_file(
         &self,
         file_path: &Path,
         start_time: f64,
         end_time: f64,
+        yield_interval_ms: u64,
     ) -> Result<AmplitudeAnalysisResult, AnalysisError> {
         use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
         use symphonia::core::formats::FormatOptions;
@@ -77,11 +79,13 @@ impl AmplitudeAnalyzer {
         use symphonia::core::meta::MetadataOptions;
         use symphonia::core::probe::Hint;
         use std::fs::File;
+        use std::time::Instant;
 
         tracing::debug!(
             file = %file_path.display(),
             start = start_time,
             end = end_time,
+            yield_interval_ms,
             "Amplitude analysis (real implementation)"
         );
 
@@ -130,10 +134,19 @@ impl AmplitudeAnalyzer {
         );
 
         // Decode audio and extract only passage samples
+        // **[IMPL001]** Track time for periodic yielding to prevent Tokio starvation
         let mut all_samples = Vec::new();
         let mut current_sample = 0;
+        let mut last_yield = Instant::now();
+        let yield_enabled = yield_interval_ms > 0;
 
         loop {
+            // **[IMPL001]** Yield to Tokio scheduler periodically during CPU-intensive work
+            if yield_enabled && last_yield.elapsed().as_millis() >= yield_interval_ms as u128 {
+                tokio::task::yield_now().await;
+                last_yield = Instant::now();
+            }
+
             match format.next_packet() {
                 Ok(packet) if packet.track_id() == track_id => {
                     match decoder.decode(&packet) {
@@ -304,7 +317,8 @@ impl AmplitudeAnalyzer {
         let mut results = Vec::with_capacity(files.len());
 
         for (path, start, end) in files {
-            results.push(self.analyze_file(path.as_ref(), *start, *end).await);
+            // Tests: disable yielding (0) for faster execution
+            results.push(self.analyze_file(path.as_ref(), *start, *end, 0).await);
         }
 
         results

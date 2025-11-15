@@ -231,8 +231,16 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
 
     // Audio Ingest settings (Full version)
     ensure_setting(pool, "ingest_max_concurrent_jobs", "4").await?;
+    // **[IMPL001]** Database lock retry timeout
+    // Application-layer retry timeout for database lock contention during parallel
+    // file processing. Default: 5000ms (5 seconds)
     ensure_setting(pool, "ai_database_max_lock_wait_ms", "5000").await?;
     ensure_setting(pool, "ai_database_lock_retry_ms", "250").await?;
+    // **[IMPL001]** Long-running task yield interval
+    // CPU-intensive operations (audio decoding, amplitude analysis) yield to Tokio
+    // scheduler every N milliseconds to prevent work-stealing from starving other
+    // tasks. Default: 990ms (just under 1 second). Set to 0 to disable yielding.
+    ensure_setting(pool, "ai_longwork_yield_interval_ms", "990").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
     ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]

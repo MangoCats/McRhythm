@@ -41,8 +41,9 @@ pub async fn analyze_amplitude(
     let file_path = Path::new(&request.file_path);
     let end_time = request.end_time.unwrap_or(f64::MAX);
 
+    // API endpoint: disable yielding (0) for responsive single-file analysis
     let result = analyzer
-        .analyze_file(file_path, request.start_time, end_time)
+        .analyze_file(file_path, request.start_time, end_time, 0)
         .await
         .map_err(|e| crate::error::ApiError::Internal(e.to_string()))?;
 

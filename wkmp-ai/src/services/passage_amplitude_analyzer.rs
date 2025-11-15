@@ -54,9 +54,11 @@ pub struct AmplitudeStats {
 /// Passage Amplitude Analyzer
 ///
 /// **Traceability:** [REQ-SPEC032-015] (Phase 8: AMPLITUDE)
+/// **[IMPL001]** Yields periodically during CPU-intensive work to prevent Tokio starvation
 pub struct PassageAmplitudeAnalyzer {
     db: Pool<Sqlite>,
     analyzer: AmplitudeAnalyzer,
+    yield_interval_ms: u64,
 }
 
 impl PassageAmplitudeAnalyzer {
@@ -65,6 +67,14 @@ impl PassageAmplitudeAnalyzer {
         // Load amplitude parameters from settings
         let lead_in_threshold_db = get_lead_in_threshold_db(&db).await?;
         let lead_out_threshold_db = get_lead_out_threshold_db(&db).await?;
+
+        // **[IMPL001]** Load yield interval for preventing Tokio work-stealing starvation
+        let yield_interval_ms: u64 = sqlx::query_scalar(
+            "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_longwork_yield_interval_ms'"
+        )
+        .fetch_optional(&db)
+        .await?
+        .unwrap_or(990);
 
         let params = AmplitudeParameters {
             rms_window_ms: 100, // 100ms windows
@@ -80,6 +90,7 @@ impl PassageAmplitudeAnalyzer {
         Ok(Self {
             db,
             analyzer: AmplitudeAnalyzer::new(params),
+            yield_interval_ms,
         })
     }
 
@@ -135,9 +146,10 @@ impl PassageAmplitudeAnalyzer {
             );
 
             // **[PHASE 2]** Analyze amplitude (long-running, NO database connection held)
+            // **[IMPL001]** Pass yield interval to prevent Tokio work-stealing starvation
             let analysis = self
                 .analyzer
-                .analyze_file(file_path, start_seconds, end_seconds)
+                .analyze_file(file_path, start_seconds, end_seconds, self.yield_interval_ms)
                 .await
                 .map_err(|e| Error::Internal(format!("Amplitude analysis failed: {}", e)))?;
 
@@ -169,9 +181,6 @@ impl PassageAmplitudeAnalyzer {
 
                 // Set both to NULL when passage is too short for meaningful amplitude analysis
                 // This satisfies the CHECK constraint: lead_in_start_ticks IS NULL OR lead_out_start_ticks IS NULL OR lead_in_start_ticks <= lead_out_start_ticks
-                let lead_in_start_ticks: Option<i64> = None;
-                let lead_out_start_ticks: Option<i64> = None;
-
                 // Update database with NULL values
                 let max_wait_ms: i64 = sqlx::query_scalar(
                     "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"

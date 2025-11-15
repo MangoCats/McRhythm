@@ -45,6 +45,14 @@ where
     loop {
         attempt += 1;
 
+        if attempt > 1 {
+            tracing::debug!(
+                operation = operation_name,
+                attempt,
+                "Retrying database operation"
+            );
+        }
+
         match operation().await {
             Ok(result) => {
                 if attempt > 1 {

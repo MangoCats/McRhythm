@@ -134,8 +134,16 @@ impl PassageRecorder {
                 let db_ref = &self.db;
                 let existing_ref = &existing_songs_map;
                 async move {
-                    // Step 3: Begin transaction (all song lookups already done)
-                    let mut tx = begin_monitored(db_ref, "passage_recorder::record").await?;
+                    // **[IMPL001]** Wrap transaction in unconstrained() to prevent Tokio work-stealing
+                    // Without this, Tokio can switch to other tasks during `.await` points in the
+                    // transaction (like INSERT statements), causing the transaction to hang for minutes
+                    // while the thread works on other tasks (e.g., amplitude analysis), eventually
+                    // timing out with "database is locked" errors.
+                    tokio::task::unconstrained(async {
+                        // Step 3: Begin transaction (all song lookups already done)
+                        tracing::debug!("Beginning monitored transaction for passage recording");
+                        let mut tx = begin_monitored(db_ref, "passage_recorder::record").await?;
+                        tracing::debug!("Transaction acquired, starting passage recording loop");
                     let mut passages = Vec::new();
                     let mut stats = RecordingStats {
                         passages_recorded: 0,
@@ -167,6 +175,12 @@ impl PassageRecorder {
                             else {
                                 let song_id = Uuid::new_v4();
 
+                                tracing::trace!(
+                                    song_id = %song_id,
+                                    mbid,
+                                    "Executing INSERT for new song"
+                                );
+
                                 sqlx::query(
                                     r#"
                                     INSERT INTO songs (
@@ -180,7 +194,16 @@ impl PassageRecorder {
                                 .bind(song_id.to_string())
                                 .bind(mbid)
                                 .execute(&mut **tx.inner_mut())
-                                .await?;
+                                .await
+                                .map_err(|e| {
+                                    tracing::error!(
+                                        song_id = %song_id,
+                                        mbid,
+                                        error = %e,
+                                        "Song INSERT failed"
+                                    );
+                                    wkmp_common::Error::Database(e)
+                                })?;
 
                                 tracing::debug!(
                                     song_id = %song_id,
@@ -203,6 +226,12 @@ impl PassageRecorder {
                         // Create passage record (INSERT only)
                         let passage_id = Uuid::new_v4();
 
+                        tracing::trace!(
+                            passage_id = %passage_id,
+                            passage_idx = idx,
+                            "Executing INSERT for passage"
+                        );
+
                         sqlx::query(
                             r#"
                             INSERT INTO passages (
@@ -220,7 +249,16 @@ impl PassageRecorder {
                         .bind(song_id.as_ref().map(|id| id.to_string()))
                         .bind(match_item.title.as_ref())
                         .execute(&mut **tx.inner_mut())
-                        .await?;
+                        .await
+                        .map_err(|e| {
+                            tracing::error!(
+                                passage_id = %passage_id,
+                                passage_idx = idx,
+                                error = %e,
+                                "Passage INSERT failed"
+                            );
+                            wkmp_common::Error::Database(e)
+                        })?;
 
                         tracing::debug!(
                             passage_id = %passage_id,
@@ -240,7 +278,14 @@ impl PassageRecorder {
                     }
 
                     // Commit transaction (logs connection release timing)
-                    tx.commit().await?;
+                    tracing::debug!("Committing transaction for passage recording");
+                    tx.commit().await.map_err(|e| {
+                        tracing::error!(
+                            error = %e,
+                            "Transaction COMMIT failed"
+                        );
+                        e
+                    })?;
                     tracing::debug!("Database transaction committed for passage recording");
 
                     tracing::info!(
@@ -252,6 +297,7 @@ impl PassageRecorder {
                     );
 
                     Ok(RecordingResult { passages, stats })
+                    }).await // Close unconstrained()
                 }
             }
         )

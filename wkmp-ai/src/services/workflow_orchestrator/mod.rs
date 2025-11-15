@@ -1836,10 +1836,12 @@ impl WorkflowOrchestrator {
         let mut amplitude_results = Vec::new();
 
         for (idx, segment) in segments.iter().enumerate() {
+            // Old workflow (legacy): disable yielding
             match amplitude_analyzer.analyze_file(
                 file_path,
                 segment.start_seconds as f64,
                 segment.end_seconds as f64,
+                0,
             ).await {
                 Ok(result) => {
                     tracing::debug!(

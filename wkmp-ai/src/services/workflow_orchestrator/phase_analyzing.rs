@@ -57,8 +57,8 @@ impl WorkflowOrchestrator {
                 let start_sec = wkmp_common::timing::ticks_to_seconds(passage.start_time_ticks);
                 let end_sec = wkmp_common::timing::ticks_to_seconds(passage.end_time_ticks);
 
-                // Analyze amplitude profile
-                match self.amplitude_analyzer.analyze_file(&file_path, start_sec, end_sec).await {
+                // Analyze amplitude profile (disable yielding for old PLAN025 pipeline)
+                match self.amplitude_analyzer.analyze_file(&file_path, start_sec, end_sec, 0).await {
                     Ok(analysis) => {
                         // Calculate lead-in and lead-out start times relative to passage start
                         let lead_in_start_sec = start_sec + analysis.lead_in_duration;
