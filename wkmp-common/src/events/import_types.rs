@@ -20,6 +20,8 @@ pub enum PhaseStatistics {
         completed: usize,
         started: usize,
         total: usize,
+        /// **[AIA-UI-010]** Real-time worker activity tracking
+        workers: Vec<WorkerActivity>,
     },
     #[serde(rename = "FILENAME_MATCHING")]
     FilenameMatching {
@@ -144,4 +146,25 @@ pub struct PhaseProgressData {
     pub subtasks: Vec<SubTaskData>,
     /// Brief description of what this phase does (8 words max)
     pub description: String,
+}
+
+/// **[AIA-UI-010]** Worker activity tracking for real-time progress visibility
+///
+/// Tracks what each parallel worker thread is currently doing during the PROCESSING phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkerActivity {
+    /// Worker identifier (thread ID or worker index)
+    pub worker_id: String,
+    /// File path being processed (relative to root folder)
+    pub file_path: Option<String>,
+    /// File index (for progress tracking)
+    pub file_index: Option<usize>,
+    /// Current phase number (1-10)
+    pub phase_number: Option<u8>,
+    /// Current phase name (e.g., "Filename Matching", "Hash Deduplication")
+    pub phase_name: Option<String>,
+    /// Timestamp when current phase started
+    pub phase_started_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Elapsed milliseconds in current phase
+    pub elapsed_ms: Option<u64>,
 }

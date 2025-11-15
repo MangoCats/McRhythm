@@ -29,10 +29,12 @@ use crate::services::{
 use anyhow::Result;
 use chrono::Utc;
 use futures::stream::{FuturesUnordered, StreamExt};
+use parking_lot::RwLock;
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use wkmp_common::events::{EventBus, WkmpEvent};
+use wkmp_common::events::{EventBus, WkmpEvent, WorkerActivity};
 
 // Phase modules (internal implementation)
 mod phase_scanning;
@@ -82,6 +84,8 @@ pub struct WorkflowOrchestrator {
     essentia_client: Option<EssentiaClient>,
     /// **[PLAN024]** Phase-specific statistics for UI display
     statistics: statistics::ImportStatistics,
+    /// **[AIA-UI-010]** Real-time worker activity tracking
+    worker_activities: Arc<RwLock<HashMap<String, WorkerActivity>>>,
 }
 
 impl WorkflowOrchestrator {
@@ -137,6 +141,7 @@ impl WorkflowOrchestrator {
             acousticbrainz_client,
             essentia_client,
             statistics: statistics::ImportStatistics::new(),
+            worker_activities: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -2137,6 +2142,20 @@ impl WorkflowOrchestrator {
         let files_complete = self.statistics.files_complete.lock().unwrap();
         tracing::debug!("All statistics Mutex locks acquired for SSE conversion");
 
+        // **[AIA-UI-010]** Get current worker activities with elapsed time calculation
+        let worker_activities: Vec<WorkerActivity> = self.worker_activities
+            .read()
+            .values()
+            .map(|activity| {
+                let mut activity = activity.clone();
+                // Calculate elapsed_ms from phase_started_at
+                if let Some(started_at) = activity.phase_started_at {
+                    activity.elapsed_ms = Some((Utc::now() - started_at).num_milliseconds() as u64);
+                }
+                activity
+            })
+            .collect();
+
         let result = vec![
             PhaseStatistics::Scanning {
                 potential_files_found: scanning.potential_files_found,
@@ -2146,6 +2165,7 @@ impl WorkflowOrchestrator {
                 completed: processing.completed,
                 started: processing.started,
                 total: processing.total,
+                workers: worker_activities,
             },
             PhaseStatistics::FilenameMatching {
                 completed_filenames_found: filename_matching.completed_filenames_found,
@@ -2232,12 +2252,47 @@ impl WorkflowOrchestrator {
     ///
     /// # Errors
     /// Returns error if any phase fails (database errors, I/O errors, etc.)
+
+    /// **[AIA-UI-010]** Update worker activity (current phase)
+    fn set_worker_phase(
+        &self,
+        file_path: &std::path::Path,
+        root_folder: &std::path::Path,
+        file_index: usize,
+        phase_number: u8,
+        phase_name: &str,
+    ) {
+        let thread_id = format!("{:?}", std::thread::current().id());
+        let relative_path = file_path.strip_prefix(root_folder)
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| file_path.display().to_string());
+
+        let activity = WorkerActivity {
+            worker_id: thread_id.clone(),
+            file_path: Some(relative_path),
+            file_index: Some(file_index),
+            phase_number: Some(phase_number),
+            phase_name: Some(phase_name.to_string()),
+            phase_started_at: Some(Utc::now()),
+            elapsed_ms: None,
+        };
+
+        self.worker_activities.write().insert(thread_id, activity);
+    }
+
+    /// **[AIA-UI-010]** Clear worker activity (worker now idle)
+    fn clear_worker_phase(&self) {
+        let thread_id = format!("{:?}", std::thread::current().id());
+        self.worker_activities.write().remove(&thread_id);
+    }
+
     pub async fn process_file_plan024(
         &self,
         file_path: &std::path::Path,
         root_folder: &std::path::Path,
         samples: &[f32],
         sample_rate: usize,
+        file_index: usize,
     ) -> Result<()> {
         tracing::info!(
             file = ?file_path,
@@ -2245,6 +2300,7 @@ impl WorkflowOrchestrator {
         );
 
         // Phase 1: Filename Matching
+        self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching");
         tracing::debug!(file = ?file_path, "Phase 1: Filename Matching");
 
         // Calculate relative path from root folder
@@ -2284,6 +2340,7 @@ impl WorkflowOrchestrator {
         };
 
         // Phase 2: Hash Deduplication
+        self.set_worker_phase(file_path, root_folder, file_index, 2, "Hash Deduplication");
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 2: Hash Deduplication");
         let hash_deduplicator = crate::services::HashDeduplicator::new(self.db.clone());
         let hash_result = hash_deduplicator.process_file_hash(file_id, file_path).await?;
@@ -2311,6 +2368,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 3: Metadata Extraction & Merging
+        self.set_worker_phase(file_path, root_folder, file_index, 3, "Metadata Extraction");
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 3: Metadata Extraction & Merging");
         let metadata_merger = crate::services::MetadataMerger::new(self.db.clone());
         let merged_metadata = metadata_merger.extract_and_merge(file_id, file_path).await?;
@@ -2325,6 +2383,7 @@ impl WorkflowOrchestrator {
         let duration_ticks = (duration_seconds * TICKS_PER_SECOND as f64) as i64;
 
         // Phase 4: Passage Segmentation
+        self.set_worker_phase(file_path, root_folder, file_index, 4, "Passage Segmentation");
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Passage Segmentation");
         let passage_segmenter = crate::services::PassageSegmenter::new(self.db.clone());
         let segment_result = passage_segmenter.segment_file(
@@ -2358,6 +2417,7 @@ impl WorkflowOrchestrator {
         };
 
         // Phase 5: Per-Passage Fingerprinting
+        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting");
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2393,6 +2453,7 @@ impl WorkflowOrchestrator {
         self.statistics.record_fingerprinting(passages_fingerprinted, successful_matches);
 
         // Phase 6: Song Matching
+        self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching");
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2432,6 +2493,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 7: Recording
+        self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording");
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2469,6 +2531,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 8: Amplitude Analysis
+        self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis");
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2530,6 +2593,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 9: Flavoring
+        self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching");
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2572,6 +2636,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 10: Finalization
+        self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization");
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2604,6 +2669,9 @@ impl WorkflowOrchestrator {
             );
         }
 
+        // Clear worker phase tracking when done (whether success or failure)
+        self.clear_worker_phase();
+
         Ok(())
     }
 
@@ -2627,6 +2695,7 @@ impl WorkflowOrchestrator {
         &self,
         file_path: &std::path::Path,
         root_folder: &std::path::Path,
+        file_index: usize,
     ) -> Result<()> {
         tracing::info!(
             file = ?file_path,
@@ -2656,6 +2725,7 @@ impl WorkflowOrchestrator {
             root_folder,
             &decoded.samples,
             decoded.sample_rate as usize,
+            file_index,
         )
         .await
     }
@@ -2892,6 +2962,7 @@ impl WorkflowOrchestrator {
             .process_file_plan024_with_decoding(
                 &absolute_path,
                 root_path,
+                idx,
             )
             .await;
 

@@ -2,53 +2,82 @@
 //!
 //! **[AIA-WF-020]** Import session state persistence
 
-use anyhow::Result;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
+use wkmp_common::Result;
 
 use crate::models::{ImportSession, ImportState, ImportParameters, ImportProgress, ImportError};
+use crate::utils::retry_on_lock;
 
 /// Save import session to database
+///
+/// **[ARCH-DB-CONN-001]** Uses retry_on_lock to handle transient database lock contention
 pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<()> {
+    // Prepare all data BEFORE acquiring database connection
     let session_id = session.session_id.to_string();
-    let state = serde_json::to_string(&session.state)?;
-    let parameters = serde_json::to_string(&session.parameters)?;
-    let errors = serde_json::to_string(&session.errors)?;
+    let state = serde_json::to_string(&session.state)
+        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize state: {}", e)))?;
+    let parameters = serde_json::to_string(&session.parameters)
+        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize parameters: {}", e)))?;
+    let errors = serde_json::to_string(&session.errors)
+        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize errors: {}", e)))?;
     let started_at = session.started_at.to_rfc3339();
     let ended_at = session.ended_at.map(|dt| dt.to_rfc3339());
+    let progress_current = session.progress.current as i64;
+    let progress_total = session.progress.total as i64;
+    let progress_percentage = session.progress.percentage;
+    let current_operation = session.progress.current_operation.clone();
+    let root_folder = session.root_folder.clone();
 
-    sqlx::query(
-        r#"
-        INSERT INTO import_sessions (
-            session_id, state, root_folder, parameters,
-            progress_current, progress_total, progress_percentage,
-            current_operation, errors, started_at, ended_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(session_id) DO UPDATE SET
-            state = excluded.state,
-            progress_current = excluded.progress_current,
-            progress_total = excluded.progress_total,
-            progress_percentage = excluded.progress_percentage,
-            current_operation = excluded.current_operation,
-            errors = excluded.errors,
-            ended_at = excluded.ended_at
-        "#,
+    // Get max lock wait time from settings (default 5000ms)
+    let max_wait_ms: i64 = sqlx::query_scalar(
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
     )
-    .bind(session_id)
-    .bind(state)
-    .bind(&session.root_folder)
-    .bind(parameters)
-    .bind(session.progress.current as i64)
-    .bind(session.progress.total as i64)
-    .bind(session.progress.percentage)
-    .bind(&session.progress.current_operation)
-    .bind(errors)
-    .bind(started_at)
-    .bind(ended_at)
-    .execute(pool)
-    .await?;
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or(5000);
 
-    Ok(())
+    // Wrap in retry logic with unconstrained execution
+    retry_on_lock(
+        "save_session",
+        max_wait_ms as u64,
+        || async {
+            sqlx::query(
+                r#"
+                INSERT INTO import_sessions (
+                    session_id, state, root_folder, parameters,
+                    progress_current, progress_total, progress_percentage,
+                    current_operation, errors, started_at, ended_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id) DO UPDATE SET
+                    state = excluded.state,
+                    progress_current = excluded.progress_current,
+                    progress_total = excluded.progress_total,
+                    progress_percentage = excluded.progress_percentage,
+                    current_operation = excluded.current_operation,
+                    errors = excluded.errors,
+                    ended_at = excluded.ended_at
+                "#,
+            )
+            .bind(&session_id)
+            .bind(&state)
+            .bind(&root_folder)
+            .bind(&parameters)
+            .bind(progress_current)
+            .bind(progress_total)
+            .bind(progress_percentage)
+            .bind(&current_operation)
+            .bind(&errors)
+            .bind(&started_at)
+            .bind(&ended_at)
+            .execute(pool)
+            .await
+            .map_err(wkmp_common::Error::Database)?;
+
+            Ok(())
+        }
+    )
+    .await
 }
 
 /// Load import session from database
@@ -71,22 +100,27 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
     match row {
         Some(row) => {
             let state: String = row.get("state");
-            let state: ImportState = serde_json::from_str(&state)?;
+            let state: ImportState = serde_json::from_str(&state)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e)))?;
 
             let parameters: String = row.get("parameters");
-            let parameters: ImportParameters = serde_json::from_str(&parameters)?;
+            let parameters: ImportParameters = serde_json::from_str(&parameters)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e)))?;
 
             let errors: String = row.get("errors");
-            let errors: Vec<ImportError> = serde_json::from_str(&errors)?;
+            let errors: Vec<ImportError> = serde_json::from_str(&errors)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e)))?;
 
             let started_at: String = row.get("started_at");
-            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)?
+            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e)))?
                 .with_timezone(&chrono::Utc);
 
             let ended_at: Option<String> = row.get("ended_at");
             let ended_at = ended_at
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
-                .transpose()?
+                .transpose()
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e)))?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
             let progress = ImportProgress {
@@ -169,25 +203,31 @@ pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSessio
     match row {
         Some(row) => {
             let session_id_str: String = row.get("session_id");
-            let session_id = Uuid::parse_str(&session_id_str)?;
+            let session_id = Uuid::parse_str(&session_id_str)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse session_id: {}", e)))?;
 
             let state: String = row.get("state");
-            let state: ImportState = serde_json::from_str(&state)?;
+            let state: ImportState = serde_json::from_str(&state)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e)))?;
 
             let parameters: String = row.get("parameters");
-            let parameters: ImportParameters = serde_json::from_str(&parameters)?;
+            let parameters: ImportParameters = serde_json::from_str(&parameters)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e)))?;
 
             let errors: String = row.get("errors");
-            let errors: Vec<ImportError> = serde_json::from_str(&errors)?;
+            let errors: Vec<ImportError> = serde_json::from_str(&errors)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e)))?;
 
             let started_at: String = row.get("started_at");
-            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)?
+            let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e)))?
                 .with_timezone(&chrono::Utc);
 
             let ended_at: Option<String> = row.get("ended_at");
             let ended_at = ended_at
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
-                .transpose()?
+                .transpose()
+                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e)))?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
             let progress = ImportProgress {

@@ -37,6 +37,7 @@ lofty = "0.19"
 async-stream = "0.3"
 async-trait = "0.1"
 futures = "0.3"
+parking_lot = "0.12"
 # Audio fingerprinting
 # Platform-specific: static linking on Windows, dynamic on Linux/macOS
 chromaprint-sys-next = { version = "1.6" }
