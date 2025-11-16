@@ -7,7 +7,6 @@
 //! candidates BEFORE fingerprinting, reducing search space and improving accuracy.
 
 use crate::services::{MusicBrainzClient, PatternMetadata};
-use std::time::Duration;
 use thiserror::Error;
 
 /// Contextual matcher errors

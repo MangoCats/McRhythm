@@ -10,7 +10,7 @@ use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
-use super::metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
+use super::metadata_extractor::MetadataExtractor;
 
 /// Merged metadata result
 #[derive(Debug, Clone)]

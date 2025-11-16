@@ -6,7 +6,7 @@
 
 use sqlx::{Pool, Sqlite};
 use uuid::Uuid;
-use wkmp_common::{Error, Result};
+use wkmp_common::Result;
 
 /// Finalization result
 #[derive(Debug, Clone)]

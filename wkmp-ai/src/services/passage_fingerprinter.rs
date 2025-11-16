@@ -9,7 +9,7 @@ use sqlx::{Pool, Sqlite};
 use std::path::Path;
 use wkmp_common::{Error, Result};
 
-use super::acoustid_client::{AcoustIDClient, AcoustIDRecording};
+use super::acoustid_client::AcoustIDClient;
 use super::fingerprinter::Fingerprinter;
 use super::passage_segmenter::PassageBoundary;
 
