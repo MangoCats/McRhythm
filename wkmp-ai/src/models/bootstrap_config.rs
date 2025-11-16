@@ -29,9 +29,9 @@ use anyhow::{Context, Result};
 pub struct WkmpAiBootstrapConfig {
     /// Database connection pool size
     ///
-    /// **Default:** 96 connections
-    /// **Interdependency:** Should be ≥ `processing_thread_count` × 8
-    /// **Memory:** ~1 MB per connection (96 connections = ~96 MB)
+    /// **Default:** 10 connections (optimized for PLAN028 single-writer architecture)
+    /// **Interdependency:** With PLAN028, lower pool size reduces lock contention
+    /// **Memory:** ~1 MB per connection (10 connections = ~10 MB)
     pub connection_pool_size: u32,
 
     /// SQLite busy_timeout - time to wait for lock before error
@@ -42,7 +42,7 @@ pub struct WkmpAiBootstrapConfig {
 
     /// Maximum total retry time for database operations
     ///
-    /// **Default:** 5000 ms
+    /// **Default:** 10000 ms (10 seconds - increased for PLAN028 periodic sync)
     /// **Purpose:** Total retry budget before giving up (prevents infinite loops)
     pub max_lock_wait_ms: u64,
 
@@ -92,7 +92,7 @@ impl WkmpAiBootstrapConfig {
             SELECT
                 COALESCE(
                     (SELECT value FROM settings WHERE key = 'ai_database_connection_pool_size'),
-                    '96'
+                    '10'
                 ) as pool_size,
                 COALESCE(
                     (SELECT value FROM settings WHERE key = 'ai_database_lock_retry_ms'),
@@ -100,7 +100,7 @@ impl WkmpAiBootstrapConfig {
                 ) as lock_retry,
                 COALESCE(
                     (SELECT value FROM settings WHERE key = 'ai_database_max_lock_wait_ms'),
-                    '5000'
+                    '10000'
                 ) as max_wait,
                 (SELECT value FROM settings WHERE key = 'ai_processing_thread_count') as thread_count
             "#

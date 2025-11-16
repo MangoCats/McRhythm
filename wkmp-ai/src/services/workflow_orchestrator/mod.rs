@@ -1340,14 +1340,13 @@ impl WorkflowOrchestrator {
             format!("Processing {} files through segmentation-first pipeline", total_files),
         );
         // **[PLAN028]** Use ProgressManager instead of direct database write + SSE broadcast
-        {
-            let pm = self.progress_manager.lock();
-            if let Some(pm) = pm.as_ref() {
-                pm.update_progress(
-                    0,
-                    format!("Processing {} files through segmentation-first pipeline", total_files),
-                ).await?;
-            }
+        // Clone to avoid holding lock across await
+        let pm_clone = self.progress_manager.lock().clone();
+        if let Some(pm) = pm_clone {
+            pm.update_progress(
+                0,
+                format!("Processing {} files through segmentation-first pipeline", total_files),
+            ).await?;
         }
 
         // Thread-safe progress counter
@@ -1451,19 +1450,16 @@ impl WorkflowOrchestrator {
                 "Import cancelled by user".to_string(),
             );
             // **[PLAN028]** Force sync and shutdown on cancellation
-            {
-                let pm = self.progress_manager.lock();
-                if let Some(pm) = pm.as_ref() {
-                    pm.update_progress(processed, "Import cancelled by user".to_string()).await?;
-                    pm.force_sync().await?;
-                    pm.shutdown();
-                }
+            // Clone to avoid holding lock across await
+            let pm_clone = self.progress_manager.lock().clone();
+            if let Some(pm) = pm_clone {
+                pm.update_progress(processed, "Import cancelled by user".to_string()).await?;
+                pm.force_sync().await?;
+                pm.shutdown();
             }
-            {
-                let wq = self.write_queue.lock();
-                if let Some(wq) = wq.as_ref() {
-                    wq.shutdown().await?;
-                }
+            let wq_clone = self.write_queue.lock().clone();
+            if let Some(wq) = wq_clone {
+                wq.shutdown().await?;
             }
             return Ok(session);
         }
@@ -1488,22 +1484,19 @@ impl WorkflowOrchestrator {
         );
 
         // **[PLAN028]** Force final sync and shutdown
-        {
-            let pm = self.progress_manager.lock();
-            if let Some(pm) = pm.as_ref() {
-                pm.update_progress(
-                    final_count,
-                    format!("PLAN025 pipeline completed - {} files processed", final_count),
-                ).await?;
-                pm.force_sync().await?;
-                pm.shutdown();
-            }
+        // Clone to avoid holding lock across await
+        let pm_clone = self.progress_manager.lock().clone();
+        if let Some(pm) = pm_clone {
+            pm.update_progress(
+                final_count,
+                format!("PLAN025 pipeline completed - {} files processed", final_count),
+            ).await?;
+            pm.force_sync().await?;
+            pm.shutdown();
         }
-        {
-            let wq = self.write_queue.lock();
-            if let Some(wq) = wq.as_ref() {
-                wq.shutdown().await?;
-            }
+        let wq_clone = self.write_queue.lock().clone();
+        if let Some(wq) = wq_clone {
+            wq.shutdown().await?;
         }
 
         Ok(session)
@@ -3057,7 +3050,20 @@ impl WorkflowOrchestrator {
                 session.progress.current_file = Some(file_path.clone());
             }
 
-            crate::db::sessions::save_session(&self.db, &session).await?;
+            // **[PLAN028]** Use ProgressManager instead of direct database write
+            // Clone to avoid holding lock across await
+            let pm_clone = self.progress_manager.lock().clone();
+            if let Some(pm) = pm_clone {
+                pm.update_progress(
+                    completed,
+                    format!("Processing {} to {} of {}", completed, processed, total_files),
+                ).await?;
+
+                // **[PLAN028]** Periodic database sync (every 100 files or on completion)
+                if completed % 100 == 0 || completed == total_files {
+                    pm.sync_to_database().await?;
+                }
+            }
 
             // **[PLAN024]** Broadcast progress with phase statistics
             let phase_statistics = self.convert_statistics_to_sse();
@@ -3095,6 +3101,20 @@ impl WorkflowOrchestrator {
                     total_files,
                     "Import cancelled by user".to_string(),
                 );
+
+                // **[PLAN028]** Force sync and shutdown on cancellation
+                // Clone to avoid holding lock across await
+                let pm_clone = self.progress_manager.lock().clone();
+                if let Some(pm) = pm_clone {
+                    pm.update_progress(completed, "Import cancelled by user".to_string()).await?;
+                    pm.force_sync().await?;
+                    pm.shutdown();
+                }
+                let wq_clone = self.write_queue.lock().clone();
+                if let Some(wq) = wq_clone {
+                    wq.shutdown().await?;
+                }
+
                 crate::db::sessions::save_session(&self.db, &session).await?;
                 return Ok(session);
             }
