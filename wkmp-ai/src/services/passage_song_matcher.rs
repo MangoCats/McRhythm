@@ -289,7 +289,7 @@ impl PassageSongMatcher {
     fn calculate_metadata_score(
         &self,
         candidate_title: &Option<String>,
-        file_artist: &Option<String>,
+        _file_artist: &Option<String>,
         file_title: &Option<String>,
     ) -> f32 {
         // Simple heuristic: if title matches, score = 0.8, else 0.3

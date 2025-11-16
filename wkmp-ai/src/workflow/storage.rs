@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use sqlx::SqlitePool;
 use tracing::{debug, info};
 use uuid::Uuid;
-use crate::utils::{retry_on_lock, begin_monitored};
+use crate::utils::begin_monitored;
 
 /// Look up file GUID by file path
 ///

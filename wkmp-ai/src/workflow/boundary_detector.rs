@@ -20,7 +20,7 @@
 
 use super::{FileAudioData, PassageBoundary, TICK_RATE};
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::{debug, info};
 
 /// Silence detection threshold (RMS energy below this is considered silence)

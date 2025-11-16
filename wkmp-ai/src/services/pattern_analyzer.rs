@@ -242,7 +242,7 @@ impl PatternAnalyzer {
         track_count: usize,
         mean_gap: Option<f32>,
         gap_std_dev: Option<f32>,
-        gap_pattern: GapPattern,
+        _gap_pattern: GapPattern,
     ) -> (SourceMedia, f32) {
         // Single segment files - likely single track (cannot classify)
         if track_count == 1 {
