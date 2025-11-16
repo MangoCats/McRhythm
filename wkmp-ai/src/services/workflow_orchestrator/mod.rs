@@ -869,7 +869,15 @@ impl WorkflowOrchestrator {
                                 "Passages stored to database successfully"
                             );
 
-                            // Link passages to songs/artists/albums based on fused identity
+                            // **[PLAN026]** Batch link passages to songs/artists/albums
+                            // Pattern: Pre-fetch reads (step 1) → Batch writes in transaction (step 2)
+
+                            // Step 1: Collect all MBIDs and build entity structs
+                            let mut song_mbids_needed = Vec::new();
+                            let mut artist_mbids_needed = Vec::new();
+                            let mut album_mbids_needed = Vec::new();
+                            let mut passage_data = Vec::new(); // Store (passage_guid, passage_id_str, processed_passage)
+
                             for (passage_id_str, processed_passage) in passage_ids.iter().zip(&processed_passages) {
                                 let passage_guid = match Uuid::parse_str(passage_id_str) {
                                     Ok(guid) => guid,
@@ -884,252 +892,234 @@ impl WorkflowOrchestrator {
                                     }
                                 };
 
-                                // Extract recording MBID from fusion results
-                                let recording_mbid = if let Some(ref mbid_cv) = processed_passage.fusion.metadata.recording_mbid {
-                                    mbid_cv.value.clone()
-                                } else {
-                                    // No MBID - cannot link to song
-                                    tracing::debug!(
-                                        session_id = %session.session_id,
-                                        passage_id = %passage_id_str,
-                                        "No recording MBID found, skipping song linking"
-                                    );
-                                    continue;
-                                };
+                                // Extract MBIDs
+                                if let Some(ref mbid_cv) = processed_passage.fusion.metadata.recording_mbid {
+                                    song_mbids_needed.push(mbid_cv.value.clone());
+                                }
 
-                                // Look up or create song
-                                let song = match crate::db::songs::load_song_by_mbid(&self.db, &recording_mbid).await {
-                                    Ok(Some(existing_song)) => {
-                                        tracing::debug!(
-                                            session_id = %session.session_id,
-                                            song_id = %existing_song.guid,
-                                            recording_mbid = %recording_mbid,
-                                            "Found existing song"
-                                        );
-                                        existing_song
-                                    }
-                                    Ok(None) => {
-                                        // Create new song from fusion results
+                                if let Some(ref artist_cv) = processed_passage.fusion.metadata.artist {
+                                    let artist_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("artist_mbid") {
+                                        mbid_cv.value.clone()
+                                    } else if let Some(mbids_cv) = processed_passage.fusion.metadata.additional.get("artist_mbids") {
+                                        mbids_cv.value.split(',').next().unwrap_or("").to_string()
+                                    } else {
+                                        format!("name:{}", artist_cv.value)
+                                    };
+                                    artist_mbids_needed.push(artist_mbid);
+                                }
+
+                                if let Some(ref album_cv) = processed_passage.fusion.metadata.album {
+                                    let album_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("release_mbid") {
+                                        mbid_cv.value.clone()
+                                    } else {
+                                        format!("title:{}", album_cv.value)
+                                    };
+                                    album_mbids_needed.push(album_mbid);
+                                }
+
+                                passage_data.push((passage_guid, passage_id_str, processed_passage));
+                            }
+
+                            tracing::debug!(
+                                session_id = %session.session_id,
+                                songs_needed = song_mbids_needed.len(),
+                                artists_needed = artist_mbids_needed.len(),
+                                albums_needed = album_mbids_needed.len(),
+                                "Collected MBIDs for batch query"
+                            );
+
+                            // Step 2: Batch query existing entities (OUTSIDE transaction)
+                            let existing_songs = crate::db::songs::batch_query_existing_songs(&self.db, &song_mbids_needed).await?;
+                            let existing_artists = crate::db::artists::batch_query_existing_artists(&self.db, &artist_mbids_needed).await?;
+                            let existing_albums = crate::db::albums::batch_query_existing_albums(&self.db, &album_mbids_needed).await?;
+
+                            tracing::debug!(
+                                session_id = %session.session_id,
+                                existing_songs = existing_songs.len(),
+                                existing_artists = existing_artists.len(),
+                                existing_albums = existing_albums.len(),
+                                "Pre-fetched existing entities"
+                            );
+
+                            // Step 3: Build new entities to insert
+                            let mut new_songs = Vec::new();
+                            let mut new_artists = Vec::new();
+                            let mut new_albums = Vec::new();
+
+                            for (_passage_guid, _passage_id_str, processed_passage) in &passage_data {
+                                // Songs
+                                if let Some(ref mbid_cv) = processed_passage.fusion.metadata.recording_mbid {
+                                    let mbid = &mbid_cv.value;
+                                    if !existing_songs.contains_key(mbid) && !new_songs.iter().any(|s: &crate::db::songs::Song| &s.recording_mbid == mbid) {
                                         let title = processed_passage.fusion.metadata.title.as_ref().map(|cv| cv.value.clone());
-                                        let new_song = crate::db::songs::Song::new(recording_mbid.clone(), title.clone());
-
-                                        if let Err(e) = crate::db::songs::save_song(&self.db, &new_song).await {
-                                            tracing::error!(
-                                                session_id = %session.session_id,
-                                                recording_mbid = %recording_mbid,
-                                                error = ?e,
-                                                "Failed to create new song, skipping"
-                                            );
-                                            continue;
-                                        }
-
-                                        tracing::info!(
-                                            session_id = %session.session_id,
-                                            song_id = %new_song.guid,
-                                            title = ?title,
-                                            recording_mbid = %recording_mbid,
-                                            "Created new song"
-                                        );
-
-                                        new_song
+                                        new_songs.push(crate::db::songs::Song::new(mbid.clone(), title));
                                     }
-                                    Err(e) => {
-                                        tracing::error!(
-                                            session_id = %session.session_id,
-                                            recording_mbid = %recording_mbid,
-                                            error = ?e,
-                                            "Failed to query for existing song, skipping"
-                                        );
-                                        continue;
-                                    }
-                                };
+                                }
 
-                                // Link passage to song
-                                if let Err(e) = crate::db::songs::link_passage_to_song(
-                                    &self.db,
-                                    passage_guid,
-                                    song.guid,
-                                    processed_passage.boundary.start_time,
-                                    processed_passage.boundary.end_time,
-                                )
-                                .await
-                                {
-                                    tracing::error!(
+                                // Artists
+                                if let Some(ref artist_cv) = processed_passage.fusion.metadata.artist {
+                                    let artist_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("artist_mbid") {
+                                        mbid_cv.value.clone()
+                                    } else if let Some(mbids_cv) = processed_passage.fusion.metadata.additional.get("artist_mbids") {
+                                        mbids_cv.value.split(',').next().unwrap_or("").to_string()
+                                    } else {
+                                        format!("name:{}", artist_cv.value)
+                                    };
+
+                                    if !existing_artists.contains_key(&artist_mbid) && !new_artists.iter().any(|a: &crate::db::artists::Artist| a.artist_mbid == artist_mbid) {
+                                        new_artists.push(crate::db::artists::Artist::new(artist_mbid, artist_cv.value.clone()));
+                                    }
+                                }
+
+                                // Albums
+                                if let Some(ref album_cv) = processed_passage.fusion.metadata.album {
+                                    let album_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("release_mbid") {
+                                        mbid_cv.value.clone()
+                                    } else {
+                                        format!("title:{}", album_cv.value)
+                                    };
+
+                                    if !existing_albums.contains_key(&album_mbid) && !new_albums.iter().any(|a: &crate::db::albums::Album| a.album_mbid == album_mbid) {
+                                        new_albums.push(crate::db::albums::Album::new(album_mbid, album_cv.value.clone()));
+                                    }
+                                }
+                            }
+
+                            tracing::info!(
+                                session_id = %session.session_id,
+                                new_songs = new_songs.len(),
+                                new_artists = new_artists.len(),
+                                new_albums = new_albums.len(),
+                                "Prepared new entities for batch insert"
+                            );
+
+                            // Step 4: Batch insert new entities within single transaction
+                            if !new_songs.is_empty() || !new_artists.is_empty() || !new_albums.is_empty() {
+                                let mut tx = self.db.begin().await?;
+
+                                if !new_songs.is_empty() {
+                                    crate::db::songs::batch_save_songs(&mut tx, &new_songs).await?;
+                                    tracing::info!(
                                         session_id = %session.session_id,
-                                        passage_id = %passage_id_str,
-                                        song_id = %song.guid,
-                                        error = ?e,
-                                        "Failed to link passage to song"
-                                    );
-                                } else {
-                                    tracing::debug!(
-                                        session_id = %session.session_id,
-                                        passage_id = %passage_id_str,
-                                        song_id = %song.guid,
-                                        "Linked passage to song"
+                                        count = new_songs.len(),
+                                        "Batch inserted songs"
                                     );
                                 }
 
-                                // Link to artist(s) if available
-                                if let Some(ref artist_cv) = processed_passage.fusion.metadata.artist {
-                                    let artist_name = &artist_cv.value;
+                                if !new_artists.is_empty() {
+                                    crate::db::artists::batch_save_artists(&mut tx, &new_artists).await?;
+                                    tracing::info!(
+                                        session_id = %session.session_id,
+                                        count = new_artists.len(),
+                                        "Batch inserted artists"
+                                    );
+                                }
 
-                                    // Extract artist MBID from fusion metadata (MusicBrainz extractor)
+                                if !new_albums.is_empty() {
+                                    crate::db::albums::batch_save_albums(&mut tx, &new_albums).await?;
+                                    tracing::info!(
+                                        session_id = %session.session_id,
+                                        count = new_albums.len(),
+                                        "Batch inserted albums"
+                                    );
+                                }
+
+                                tx.commit().await?;
+                                tracing::info!(
+                                    session_id = %session.session_id,
+                                    "Committed batch entity insert transaction"
+                                );
+                            }
+
+                            // Step 5: Build combined song lookup (existing + newly inserted)
+                            let mut all_songs = existing_songs;
+                            for song in new_songs {
+                                all_songs.insert(song.recording_mbid.clone(), song);
+                            }
+
+                            let mut all_artists = existing_artists;
+                            for artist in new_artists {
+                                all_artists.insert(artist.artist_mbid.clone(), artist);
+                            }
+
+                            let mut all_albums = existing_albums;
+                            for album in new_albums {
+                                all_albums.insert(album.album_mbid.clone(), album);
+                            }
+
+                            // Step 6: Link passages to entities (individual links OK - low frequency)
+                            for (passage_guid, passage_id_str, processed_passage) in passage_data {
+                                // Link to song
+                                if let Some(ref mbid_cv) = processed_passage.fusion.metadata.recording_mbid {
+                                    if let Some(song) = all_songs.get(&mbid_cv.value) {
+                                        if let Err(e) = crate::db::songs::link_passage_to_song(
+                                            &self.db,
+                                            passage_guid,
+                                            song.guid,
+                                            processed_passage.boundary.start_time,
+                                            processed_passage.boundary.end_time,
+                                        ).await {
+                                            tracing::error!(
+                                                session_id = %session.session_id,
+                                                passage_id = %passage_id_str,
+                                                song_id = %song.guid,
+                                                error = ?e,
+                                                "Failed to link passage to song"
+                                            );
+                                        }
+                                    }
+                                }
+
+                                // Link to artist
+                                if let Some(ref artist_cv) = processed_passage.fusion.metadata.artist {
                                     let artist_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("artist_mbid") {
-                                        // Single artist - use actual MBID from MusicBrainz
                                         mbid_cv.value.clone()
                                     } else if let Some(mbids_cv) = processed_passage.fusion.metadata.additional.get("artist_mbids") {
-                                        // Multiple artists - use first MBID (primary artist)
                                         mbids_cv.value.split(',').next().unwrap_or("").to_string()
                                     } else {
-                                        // No MusicBrainz MBID available - fall back to name-based ID
-                                        format!("name:{}", artist_name)
+                                        format!("name:{}", artist_cv.value)
                                     };
 
-                                    match crate::db::artists::load_artist_by_mbid(&self.db, &artist_mbid).await {
-                                        Ok(Some(existing_artist)) => {
-                                            // Link song to existing artist
+                                    if let (Some(song_mbid_cv), Some(artist)) = (&processed_passage.fusion.metadata.recording_mbid, all_artists.get(&artist_mbid)) {
+                                        if let Some(song) = all_songs.get(&song_mbid_cv.value) {
                                             if let Err(e) = crate::db::artists::link_song_to_artist(
                                                 &self.db,
                                                 song.guid,
-                                                existing_artist.guid,
-                                                1.0, // Full weight (single artist)
-                                            )
-                                            .await
-                                            {
+                                                artist.guid,
+                                                1.0,
+                                            ).await {
                                                 tracing::error!(
                                                     session_id = %session.session_id,
                                                     song_id = %song.guid,
-                                                    artist_id = %existing_artist.guid,
+                                                    artist_id = %artist.guid,
                                                     error = ?e,
                                                     "Failed to link song to artist"
                                                 );
                                             }
                                         }
-                                        Ok(None) => {
-                                            // Create new artist
-                                            let new_artist = crate::db::artists::Artist::new(artist_mbid.clone(), artist_name.clone());
-
-                                            if let Err(e) = crate::db::artists::save_artist(&self.db, &new_artist).await {
-                                                tracing::error!(
-                                                    session_id = %session.session_id,
-                                                    artist_name = %artist_name,
-                                                    error = ?e,
-                                                    "Failed to create artist"
-                                                );
-                                            } else {
-                                                // Link song to new artist
-                                                if let Err(e) = crate::db::artists::link_song_to_artist(
-                                                    &self.db,
-                                                    song.guid,
-                                                    new_artist.guid,
-                                                    1.0,
-                                                )
-                                                .await
-                                                {
-                                                    tracing::error!(
-                                                        session_id = %session.session_id,
-                                                        song_id = %song.guid,
-                                                        artist_id = %new_artist.guid,
-                                                        error = ?e,
-                                                        "Failed to link song to new artist"
-                                                    );
-                                                } else {
-                                                    tracing::debug!(
-                                                        session_id = %session.session_id,
-                                                        song_id = %song.guid,
-                                                        artist_name = %artist_name,
-                                                        "Created and linked new artist"
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        Err(e) => {
-                                            tracing::error!(
-                                                session_id = %session.session_id,
-                                                artist_name = %artist_name,
-                                                error = ?e,
-                                                "Failed to query for existing artist"
-                                            );
-                                        }
                                     }
                                 }
 
-                                // Link to album if available
+                                // Link to album
                                 if let Some(ref album_cv) = processed_passage.fusion.metadata.album {
-                                    let album_title = &album_cv.value;
-
-                                    // Extract release MBID from fusion metadata (MusicBrainz extractor)
                                     let album_mbid = if let Some(mbid_cv) = processed_passage.fusion.metadata.additional.get("release_mbid") {
-                                        // Use actual release MBID from MusicBrainz
                                         mbid_cv.value.clone()
                                     } else {
-                                        // No MusicBrainz MBID available - fall back to title-based ID
-                                        format!("title:{}", album_title)
+                                        format!("title:{}", album_cv.value)
                                     };
 
-                                    match crate::db::albums::load_album_by_mbid(&self.db, &album_mbid).await {
-                                        Ok(Some(existing_album)) => {
-                                            // Link passage to existing album
-                                            if let Err(e) = crate::db::albums::link_passage_to_album(
-                                                &self.db,
-                                                passage_guid,
-                                                existing_album.guid,
-                                            )
-                                            .await
-                                            {
-                                                tracing::error!(
-                                                    session_id = %session.session_id,
-                                                    passage_id = %passage_id_str,
-                                                    album_id = %existing_album.guid,
-                                                    error = ?e,
-                                                    "Failed to link passage to album"
-                                                );
-                                            }
-                                        }
-                                        Ok(None) => {
-                                            // Create new album
-                                            let new_album = crate::db::albums::Album::new(album_mbid.clone(), album_title.clone());
-
-                                            if let Err(e) = crate::db::albums::save_album(&self.db, &new_album).await {
-                                                tracing::error!(
-                                                    session_id = %session.session_id,
-                                                    album_title = %album_title,
-                                                    error = ?e,
-                                                    "Failed to create album"
-                                                );
-                                            } else {
-                                                // Link passage to new album
-                                                if let Err(e) = crate::db::albums::link_passage_to_album(
-                                                    &self.db,
-                                                    passage_guid,
-                                                    new_album.guid,
-                                                )
-                                                .await
-                                                {
-                                                    tracing::error!(
-                                                        session_id = %session.session_id,
-                                                        passage_id = %passage_id_str,
-                                                        album_id = %new_album.guid,
-                                                        error = ?e,
-                                                        "Failed to link passage to new album"
-                                                    );
-                                                } else {
-                                                    tracing::debug!(
-                                                        session_id = %session.session_id,
-                                                        passage_id = %passage_id_str,
-                                                        album_title = %album_title,
-                                                        "Created and linked new album"
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        Err(e) => {
+                                    if let Some(album) = all_albums.get(&album_mbid) {
+                                        if let Err(e) = crate::db::albums::link_passage_to_album(
+                                            &self.db,
+                                            passage_guid,
+                                            album.guid,
+                                        ).await {
                                             tracing::error!(
                                                 session_id = %session.session_id,
-                                                album_title = %album_title,
+                                                passage_id = %passage_id_str,
+                                                album_id = %album.guid,
                                                 error = ?e,
-                                                "Failed to query for existing album"
+                                                "Failed to link passage to album"
                                             );
                                         }
                                     }
