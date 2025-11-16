@@ -325,7 +325,7 @@ pub async fn store_passages_batch(
     let file_id = get_file_id_by_path(db, file_path).await?;
 
     // Get max lock wait time from settings (default 5000ms)
-    let max_wait_ms: i64 = sqlx::query_scalar(
+    let _max_wait_ms: i64 = sqlx::query_scalar(
         "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
     )
     .fetch_optional(db)
