@@ -5,7 +5,7 @@
 //! Provides POST /api/settings/acoustid_api_key for Web UI configuration
 
 use crate::{ApiError, ApiResult, AppState};
-use axum::{extract::State, routing::{get, post}, Json, Router};
+use axum::{extract::State, routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{info, warn};
