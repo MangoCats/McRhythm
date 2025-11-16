@@ -176,9 +176,14 @@ Defines architecture for wkmp-ai (Audio Ingest microservice) to guide users thro
 - `GET /api/folders/tree?root={path}` - Get folder tree (root and descendants only)
 - `POST /api/folders/validate` - Validate selected folder (Stage One constraint check)
 
+### File Classification Endpoints
+- `GET /api/import/file-classification` - Get file classification report with pagination
+- `GET /api/import/file-classification?category={audio|image|other}&offset={n}&limit={n}` - Paginated category files
+
 ### UI Page Endpoints
 - `GET /` - Import wizard home page
 - `GET /import-progress` - Real-time progress display with SSE
+- `GET /file-report` - File classification report page (available after SCANNING completes)
 - `GET /segment-editor` - Waveform editor for passage boundaries (future)
 - `GET /settings` - Settings configuration UI
 - `GET /import-complete` - Import completion summary page
@@ -276,6 +281,217 @@ UPDATE files SET matching_hashes = json_insert(matching_hashes, '$[#]', 'fileA_u
 - **Reorganization tolerance:** Hash matching detects moved/renamed files
 - **Bidirectional links:** Users can discover all copies of same audio content
 - **No false positives:** Hash collision probability negligible (2^-256 for SHA-256)
+
+---
+
+## File Classification
+
+**[AIA-CLASSIFY-010]** During the SCANNING phase (Step 3), wkmp-ai classifies ALL discovered files into three categories:
+
+**File Categories:**
+1. **Audio Files:** Files with audio format extensions (MP3, FLAC, OGG, M4A, AAC, OPUS, WAV, etc.)
+2. **Still Image Files:** Files with image format extensions (JPG, JPEG, PNG, GIF, BMP, WEBP, etc.)
+3. **Other Files:** All remaining files not matching audio or image extensions
+
+**Classification Scope:**
+- **Root folder scan:** ALL files under selected folder (not just audio files)
+- **Recursive traversal:** Include all subfolders to any depth
+- **Symlink handling:** Do NOT follow symlinks/junctions (same as audio file scanning per [AIA-SEC-010])
+- **Hidden files:** Respect `skip_hidden_files` setting (default: skip hidden files)
+
+**Implementation:**
+- **Extension matching:** Case-insensitive extension lookup (`.mp3` == `.MP3`)
+- **Classification data structure:** Three separate `Vec<PathBuf>` lists maintained during scan
+- **No file content inspection:** Classification based on extension only (fast, no I/O per file)
+
+**[AIA-CLASSIFY-020]** File category extension lists:
+
+**Audio Extensions (Supported Formats per REQ-PI-020):**
+```rust
+const AUDIO_EXTENSIONS: &[&str] = &[
+    ".mp3", ".flac", ".ogg", ".m4a", ".aac", ".opus", ".wav"
+];
+```
+
+**Image Extensions (Album Art per REQ-ART-020):**
+```rust
+const IMAGE_EXTENSIONS: &[&str] = &[
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tiff", ".tif"
+];
+```
+
+**Other Files:**
+- Any extension not matching audio or image lists
+- Files without extensions
+
+**[AIA-CLASSIFY-030]** Classification results stored in import session state:
+
+**Session State Extension:**
+```rust
+pub struct ImportSession {
+    // ... existing fields ...
+    pub classified_files: FileClassification,
+}
+
+pub struct FileClassification {
+    pub audio_files: Vec<FileInfo>,
+    pub image_files: Vec<FileInfo>,
+    pub other_files: Vec<FileInfo>,
+}
+
+pub struct FileInfo {
+    pub path: PathBuf,
+    pub size_bytes: u64,
+    pub modified_at: SystemTime,
+}
+```
+
+**Benefits:**
+- **Single scan:** Classification happens during existing directory traversal (no additional I/O)
+- **Complete inventory:** Users see ALL files discovered, not just audio files
+- **Post-scan analysis:** Report provides comprehensive root folder content overview
+
+---
+
+## File Classification Report UI
+
+**[AIA-CLASSIFY-UI-010]** After SCANNING phase completion, wkmp-ai provides a dedicated report page at `/file-report`:
+
+**UI Access:**
+- **Route:** `GET /file-report`
+- **When Available:** After SCANNING phase completes (before PROCESSING phase starts)
+- **Access Method:** Link displayed in progress page: "View File Classification Report"
+- **Report Persistence:** Available throughout entire import session (survives page refresh)
+
+**UI Layout:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ File Classification Report                                  │
+├─────────────────────────────────────────────────────────────┤
+│ Scanned Folder: /home/user/Music                           │
+│                                                             │
+│ ┌─────────────┬─────────────┬─────────────┐                │
+│ │ Audio Files │ Image Files │ Other Files │                │
+│ │   (1,247)   │    (342)    │     (15)    │                │
+│ └─────────────┴─────────────┴─────────────┘                │
+│                                                             │
+│ [X] Audio Files (1,247 files, 8.2 GB)        [Selected]    │
+│ ┌─────────────────────────────────────────────────────────┐│
+│ │ Path                                    Size   Modified ││
+│ │ /home/user/Music/Album1/track01.flac   42 MB  2024-01-15││
+│ │ /home/user/Music/Album1/track02.flac   38 MB  2024-01-15││
+│ │ /home/user/Music/Album2/song.mp3        5 MB  2023-12-20││
+│ │ ... (1,244 more files)                                  ││
+│ │                                                          ││
+│ │ [Scroll for more files]                                 ││
+│ └─────────────────────────────────────────────────────────┘│
+│                                                             │
+│ [Continue to Processing] [Cancel Import]                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**[AIA-CLASSIFY-UI-020]** Category Tab Behavior:
+
+**Tab Selection:**
+- Click category tab → Switch active file list display
+- Active tab highlighted with bold/color styling
+- Tab label shows count: `"Audio Files (1,247)"`
+- Tab label shows total size in human-readable format: `"8.2 GB"`
+
+**Per-Category Display:**
+- **Scrollable List:** Infinite scroll or pagination (if >1000 files, paginate 500 per page)
+- **Columns:**
+  - **Path:** Full absolute path (left-aligned)
+  - **Size:** Human-readable format (right-aligned)
+    - Bytes: `"1,234 B"` (if < 1 KB)
+    - Kilobytes: `"42.5 KB"` (if < 1 MB)
+    - Megabytes: `"15.3 MB"` (if < 1 GB)
+    - Gigabytes: `"2.1 GB"` (if >= 1 GB)
+  - **Modified:** Date only (YYYY-MM-DD format) for files <1 year old, full timestamp for older files
+- **Sorting:** Default = alphabetical by path (ascending)
+- **No filtering:** Display all files in category (search/filter out of scope)
+
+**[AIA-CLASSIFY-UI-030]** Human-readable size formatting algorithm:
+
+```rust
+pub fn format_file_size(size_bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+
+    if size_bytes < KB {
+        format!("{} B", size_bytes)
+    } else if size_bytes < MB {
+        format!("{:.1} KB", size_bytes as f64 / KB as f64)
+    } else if size_bytes < GB {
+        format!("{:.1} MB", size_bytes as f64 / MB as f64)
+    } else {
+        format!("{:.1} GB", size_bytes as f64 / GB as f64)
+    }
+}
+```
+
+**[AIA-CLASSIFY-UI-040]** Report Page API Endpoint:
+
+**Endpoint:** `GET /api/import/file-classification`
+
+**Response (200 OK):**
+```json
+{
+  "session_id": "uuid",
+  "scanned_folder": "/home/user/Music",
+  "audio_files": {
+    "count": 1247,
+    "total_size_bytes": 8812634112,
+    "files": [
+      {
+        "path": "/home/user/Music/Album1/track01.flac",
+        "size_bytes": 44040192,
+        "modified_at": "2024-01-15T14:23:00Z"
+      },
+      // ... (up to 500 files, paginate if more)
+    ]
+  },
+  "image_files": {
+    "count": 342,
+    "total_size_bytes": 45678912,
+    "files": [ /* ... */ ]
+  },
+  "other_files": {
+    "count": 15,
+    "total_size_bytes": 1234567,
+    "files": [ /* ... */ ]
+  }
+}
+```
+
+**Pagination Parameters:**
+- `?category=audio&offset=0&limit=500` - Get audio files 0-499
+- `?category=image&offset=500&limit=500` - Get image files 500-999
+
+**Error Responses:**
+- `404 Not Found` - Session not found or SCANNING phase not yet completed
+- `409 Conflict` - Import session still in SCANNING phase (report not ready)
+
+**[AIA-CLASSIFY-UI-050]** Integration with Import Workflow:
+
+**Workflow Modification:**
+1. **SCANNING Phase Completes** → Store `FileClassification` in session state
+2. **Progress Page Update** → Display link: "View File Classification Report"
+3. **User Clicks Link** → Navigate to `/file-report` (new tab or modal)
+4. **User Reviews Report** → Switch between categories, scroll file lists
+5. **User Clicks "Continue to Processing"** → Return to progress page, PROCESSING phase begins
+6. **Alternative: User Clicks "Cancel Import"** → Cancel session, return to home
+
+**Non-Blocking Design:**
+- Report viewing is **optional** (user can skip directly to PROCESSING)
+- Report does **not** block workflow progression
+- If user skips report, PROCESSING begins automatically after SCANNING completes
+
+**Persistence:**
+- Classification data persists in session state (survives page refresh)
+- Report accessible at any time after SCANNING completes
+- Classification data discarded when session ends (COMPLETED or CANCELLED)
 
 ---
 
@@ -2030,10 +2246,19 @@ Example progression:
 
 ---
 
-**Document Version:** 2.1
-**Last Updated:** 2025-11-13
+**Document Version:** 2.2
+**Last Updated:** 2025-11-16
 **Status:** Design specification (PLAN024 refinement - implementation in progress)
 **Changes:**
+- **v2.2 (2025-11-16):**
+  - Added comprehensive "File Classification" section ([AIA-CLASSIFY-010] through [AIA-CLASSIFY-030])
+  - Added "File Classification Report UI" section ([AIA-CLASSIFY-UI-010] through [AIA-CLASSIFY-UI-050])
+  - Enhanced SCANNING phase to classify ALL files into audio/image/other categories
+  - Added `/file-report` UI page endpoint for post-scan file classification viewing
+  - Added `GET /api/import/file-classification` REST endpoint with pagination support
+  - Added `FileClassification` and `FileInfo` data structures to import session state
+  - Added human-readable file size formatting specification ([AIA-CLASSIFY-UI-030])
+  - Updated API Endpoint Reference to include file classification endpoints
 - **v2.1 (2025-11-13):**
   - Added comprehensive "Lead-In/Lead-Out vs Fade-In/Fade-Out Distinction" section ([AIA-TIMING-010])
   - Enhanced Phase 8 (AMPLITUDE) with detailed algorithm: 25% scan limit, absolute positions (not durations)

@@ -8,7 +8,132 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::time::SystemTime;
 use uuid::Uuid;
+
+// ========================================
+// File Classification Data Structures
+// **[AIA-CLASSIFY-030]** Per SPEC032 v2.2
+// ========================================
+
+/// **[AIA-CLASSIFY-030]** File metadata for classification report
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfo {
+    /// Absolute path to file
+    pub path: PathBuf,
+    /// File size in bytes
+    pub size_bytes: u64,
+    /// File last modified timestamp
+    #[serde(with = "systemtime_serde")]
+    pub modified_at: SystemTime,
+}
+
+impl FileInfo {
+    /// Create new FileInfo from path and metadata
+    pub fn new(path: PathBuf, size_bytes: u64, modified_at: SystemTime) -> Self {
+        Self {
+            path,
+            size_bytes,
+            modified_at,
+        }
+    }
+}
+
+/// **[AIA-CLASSIFY-030]** File classification results
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FileClassification {
+    /// Audio files (MP3, FLAC, OGG, M4A, AAC, OPUS, WAV)
+    pub audio_files: Vec<FileInfo>,
+    /// Image files (JPG, PNG, GIF, BMP, WEBP, TIFF)
+    pub image_files: Vec<FileInfo>,
+    /// Other files (all remaining)
+    pub other_files: Vec<FileInfo>,
+    /// When scan completed (classification finalized)
+    pub scan_completed_at: Option<DateTime<Utc>>,
+}
+
+impl FileClassification {
+    /// Create new empty classification
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get total count of all files
+    pub fn total_count(&self) -> usize {
+        self.audio_files.len() + self.image_files.len() + self.other_files.len()
+    }
+
+    /// Get total size of all audio files
+    pub fn audio_total_size(&self) -> u64 {
+        self.audio_files.iter().map(|f| f.size_bytes).sum()
+    }
+
+    /// Get total size of all image files
+    pub fn image_total_size(&self) -> u64 {
+        self.image_files.iter().map(|f| f.size_bytes).sum()
+    }
+
+    /// Get total size of all other files
+    pub fn other_total_size(&self) -> u64 {
+        self.other_files.iter().map(|f| f.size_bytes).sum()
+    }
+
+    /// Get total size of all files
+    pub fn total_size(&self) -> u64 {
+        self.audio_total_size() + self.image_total_size() + self.other_total_size()
+    }
+
+    /// Mark scan as completed with current timestamp
+    pub fn mark_completed(&mut self) {
+        self.scan_completed_at = Some(Utc::now());
+    }
+
+    /// Sort all file lists alphabetically by path (case-insensitive)
+    pub fn sort_all(&mut self) {
+        self.audio_files.sort_by(|a, b| {
+            a.path.to_string_lossy().to_lowercase().cmp(
+                &b.path.to_string_lossy().to_lowercase()
+            )
+        });
+        self.image_files.sort_by(|a, b| {
+            a.path.to_string_lossy().to_lowercase().cmp(
+                &b.path.to_string_lossy().to_lowercase()
+            )
+        });
+        self.other_files.sort_by(|a, b| {
+            a.path.to_string_lossy().to_lowercase().cmp(
+                &b.path.to_string_lossy().to_lowercase()
+            )
+        });
+    }
+}
+
+// Custom serde module for SystemTime serialization
+mod systemtime_serde {
+    use serde::{Deserialize, Deserializer, Serializer};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    pub fn serialize<S>(time: &SystemTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let duration = time.duration_since(UNIX_EPOCH).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_u64(duration.as_secs())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let secs = u64::deserialize(deserializer)?;
+        Ok(UNIX_EPOCH + std::time::Duration::from_secs(secs))
+    }
+}
+
+// ========================================
+// Import Workflow State Machine
+// ========================================
 
 /// **[AIA-WF-010]** Import workflow state
 ///
@@ -124,6 +249,9 @@ pub struct ImportSession {
 
     /// Session end time (if completed/cancelled/failed)
     pub ended_at: Option<DateTime<Utc>>,
+
+    /// **[AIA-CLASSIFY-030]** File classification results (populated during SCANNING phase)
+    pub file_classification: FileClassification,
 }
 
 /// **[REQ-AIA-UI-001]** Phase status for workflow checklist
@@ -294,6 +422,7 @@ impl ImportSession {
             errors: Vec::new(),
             started_at: Utc::now(),
             ended_at: None,
+            file_classification: FileClassification::new(),
         }
     }
 

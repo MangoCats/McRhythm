@@ -112,6 +112,21 @@ Parameters are classified by their modification behavior:
 
 ---
 
+### ai_longwork_yield_interval_ms
+
+- **Database Key:** `ai_longwork_yield_interval_ms`
+- **Type:** INTEGER
+- **Default:** `990`
+- **Units:** milliseconds
+- **Valid Range:** 0-5000 (0 = disabled, 1-5000 = yield interval)
+- **Modification Impact:** RESTART_REQUIRED
+- **Used By:** wkmp-ai (Full version only)
+- **Defined In:** [SPEC032:1325-1332](SPEC032-audio_ingest_architecture.md), [wkmp-common/src/db/init.rs:241-245]
+- **Description:** Interval for periodic yielding during CPU-intensive operations (audio decoding, amplitude analysis, SHA-256 hashing). Long-running operations yield control back to Tokio scheduler every N milliseconds to prevent work-stealing starvation. Set to 0 to disable yielding for faster execution at risk of blocking other async tasks.
+- **Tradeoff:** Lower values increase responsiveness but reduce throughput. Higher values maximize performance but may cause UI delays during heavy import operations.
+
+---
+
 ### ai_processing_thread_count
 
 - **Database Key:** `ai_processing_thread_count`
@@ -632,14 +647,14 @@ Parameters are classified by their modification behavior:
 
 - **Database Key:** `pause_decay_factor`
 - **Type:** REAL
-- **Default:** `0.96875` (31/32)
+- **Default:** `0.95`
 - **Units:** ratio (multiplication factor)
 - **Valid Range:** 0.0-1.0
 - **Modification Impact:** RESTART_REQUIRED
 - **Used By:** wkmp-ap (All versions)
-- **Defined In:** [SPEC016:DBD-PARAM-090](SPEC016-decoder_buffer_design.md#pause_decay_factor), [GUIDE003:856](GUIDE003_audio_pipeline_diagrams.md)
+- **Defined In:** [SPEC016:DBD-PARAM-090](SPEC016-decoder_buffer_design.md#pause_decay_factor), [GUIDE003:856](GUIDE003_audio_pipeline_diagrams.md), [init.rs:263]
 - **Description:** Exponential decay factor applied to samples during pause mode. Creates smooth fade to silence, reducing audible "pop" from sudden stop.
-- **Behavior:** Each sample output during pause = `previous_sample × 0.96875`
+- **Behavior:** Each sample output during pause = `previous_sample × 0.95`
 - **Time to Silence:** ~200 samples @ 44.1kHz to reach `pause_decay_floor`
 
 ---
@@ -708,15 +723,15 @@ Parameters are classified by their modification behavior:
 
 - **Database Key:** `playout_ringbuffer_headroom`
 - **Type:** INTEGER
-- **Default:** `32768`
+- **Default:** `4410`
 - **Units:** samples (stereo)
 - **Valid Range:** 882-88200 (0.02-2.0 seconds @ 44.1kHz)
 - **Modification Impact:** RESTART_REQUIRED
 - **Used By:** wkmp-ap (All versions)
-- **Defined In:** [SPEC016:DBD-PARAM-080](SPEC016-decoder_buffer_design.md#playout_ringbuffer_headroom), [GUIDE003:853](GUIDE003_audio_pipeline_diagrams.md)
+- **Defined In:** [SPEC016:DBD-PARAM-080](SPEC016-decoder_buffer_design.md#playout_ringbuffer_headroom), [GUIDE003:853](GUIDE003_audio_pipeline_diagrams.md), [init.rs:260]
 - **Description:** Reserved space in playout buffer for in-flight resampler samples after decoder pause.
-- **Time Equivalent:** 0.74 seconds @ 44.1kHz
-- **Behavior:** Decoder pauses when `free_space ≤ 32768` to prevent overflow from resampler output still in pipeline.
+- **Time Equivalent:** 0.1 seconds @ 44.1kHz (100ms)
+- **Behavior:** Decoder pauses when `free_space ≤ 4410` to prevent overflow from resampler output still in pipeline.
 - **Interdependencies:** Pause threshold for `decoder_resume_hysteresis_samples` calculation
 
 ---
@@ -913,13 +928,13 @@ Parameters are classified by their modification behavior:
 
 - **Database Key:** `relaunch_delay`
 - **Type:** INTEGER
-- **Default:** `5`
-- **Units:** seconds
-- **Valid Range:** 1-60
+- **Default:** `5000`
+- **Units:** milliseconds
+- **Valid Range:** 1000-60000
 - **Modification Impact:** IMMEDIATE
 - **Used By:** wkmp-ui (All versions)
-- **Defined In:** [IMPL001:1021](IMPL001-database_schema.md#settings)
-- **Description:** Wait time between module relaunch attempts. Prevents rapid relaunch spam when module fails immediately.
+- **Defined In:** [IMPL001:1021](IMPL001-database_schema.md#settings), [init.rs:225]
+- **Description:** Wait time between module relaunch attempts. Prevents rapid relaunch spam when module fails immediately. Default 5000ms = 5 seconds.
 
 ---
 

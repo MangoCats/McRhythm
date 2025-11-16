@@ -103,14 +103,18 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
     // Stage 2: Production - Create configured pool and initialize schema
     info!("Stage 2: Creating production database pool with configuration");
 
-    // Note: We create the pool using bootstrap config, but still need to run schema initialization
-    // Since init_database() creates its own pool, we'll create pool first, then verify schema
+    // Create production pool with bootstrap configuration
     let db_pool = bootstrap_config.create_pool(&db_path).await
         .map_err(|e| anyhow::anyhow!("Failed to create production database pool: {}", e))?;
 
-    // Verify/initialize schema using existing schema maintenance system **[AIA-DB-010]**
-    // (SPEC031 data-driven schema maintenance runs migrations automatically)
-    info!("Database pool ready ({} connections)", bootstrap_config.connection_pool_size);
+    // Initialize/verify schema using shared schema maintenance system **[AIA-DB-010]**
+    // This runs all migrations, schema sync, and default settings initialization
+    // Idempotent - safe to call on existing database
+    info!("Initializing database schema");
+    wkmp_common::db::init::init_database_schema(&db_pool).await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize database schema: {}", e))?;
+
+    info!("Database pool ready ({} connections, schema verified)", bootstrap_config.connection_pool_size);
 
     // Step 4: Determine TOML config path
     let toml_path = std::env::var("HOME")
@@ -202,10 +206,33 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
 
     // Create application state with configured thread count
     let state = AppState::new(
-        db_pool,
+        db_pool.clone(),
         event_bus,
         bootstrap_config.processing_thread_count()
     );
+
+    // **[PERF001]** Spawn background task to monitor connection pool utilization
+    // Logs pool state every 10 seconds to identify saturation patterns
+    tokio::spawn({
+        let pool = db_pool.clone();
+        async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+            loop {
+                interval.tick().await;
+                let state = pool.size() as usize;
+                let idle = pool.num_idle();
+                let in_use = state.saturating_sub(idle);
+
+                tracing::info!(
+                    pool_size = state,
+                    idle_connections = idle,
+                    in_use_connections = in_use,
+                    utilization_pct = if state > 0 { (in_use as f64 / state as f64 * 100.0) as u32 } else { 0 },
+                    "Pool utilization snapshot"
+                );
+            }
+        }
+    });
 
     // Build router
     let app = wkmp_ai::build_router(state);

@@ -10,6 +10,7 @@ pub mod health;
 pub mod sse;
 pub mod ui;
 pub mod settings;
+pub mod file_classification; // PLAN027: File classification API
 
 pub use import_workflow::import_routes;
 pub use amplitude_analysis::amplitude_routes;
@@ -18,3 +19,4 @@ pub use health::health_routes;
 pub use sse::{event_stream, import_event_stream};
 pub use ui::ui_routes;
 pub use settings::settings_routes;
+pub use file_classification::file_classification_routes;

@@ -24,7 +24,7 @@
 use crate::models::{ImportSession, ImportState};
 use crate::services::{
     AcousticBrainzClient, AcoustIDClient, AmplitudeAnalyzer, EssentiaClient, FileScanner,
-    Fingerprinter, MetadataExtractor, MusicBrainzClient,
+    Fingerprinter, MetadataExtractor, MusicBrainzClient, ProgressManager, WriteQueue,
 };
 use anyhow::Result;
 use chrono::Utc;
@@ -88,6 +88,10 @@ pub struct WorkflowOrchestrator {
     worker_activities: Arc<RwLock<HashMap<String, WorkerActivity>>>,
     /// **[AIA-UI-PERF]** Maximum concurrent workers (parallelism level)
     max_workers: Arc<RwLock<usize>>,
+    /// **[PLAN028]** In-memory progress manager with periodic sync (lazy initialized)
+    progress_manager: parking_lot::Mutex<Option<ProgressManager>>,
+    /// **[PLAN028]** Database write queue with single executor (lazy initialized)
+    write_queue: parking_lot::Mutex<Option<Arc<WriteQueue>>>,
 }
 
 impl WorkflowOrchestrator {
@@ -145,6 +149,8 @@ impl WorkflowOrchestrator {
             statistics: statistics::ImportStatistics::new(),
             worker_activities: Arc::new(RwLock::new(HashMap::new())),
             max_workers: Arc::new(RwLock::new(0)), // Will be set when processing starts
+            progress_manager: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
+            write_queue: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
         }
     }
 
@@ -1302,6 +1308,26 @@ impl WorkflowOrchestrator {
         let files = crate::db::files::load_all_files(&self.db).await?;
         let total_files = files.len();
 
+        // **[PLAN028]** Initialize performance optimization components
+        tracing::debug!(
+            session_id = %session.session_id,
+            total_files,
+            "Initializing PLAN028 ProgressManager and WriteQueue"
+        );
+        {
+            let mut pm = self.progress_manager.lock();
+            *pm = Some(ProgressManager::new(
+                session.session_id,
+                self.event_bus.clone(),
+                self.db.clone(),
+                total_files,
+            ));
+        }
+        {
+            let mut wq = self.write_queue.lock();
+            *wq = Some(Arc::new(WriteQueue::new(self.db.clone())));
+        }
+
         tracing::info!(
             session_id = %session.session_id,
             file_count = total_files,
@@ -1313,8 +1339,16 @@ impl WorkflowOrchestrator {
             total_files,
             format!("Processing {} files through segmentation-first pipeline", total_files),
         );
-        crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+        // **[PLAN028]** Use ProgressManager instead of direct database write + SSE broadcast
+        {
+            let pm = self.progress_manager.lock();
+            if let Some(pm) = pm.as_ref() {
+                pm.update_progress(
+                    0,
+                    format!("Processing {} files through segmentation-first pipeline", total_files),
+                ).await?;
+            }
+        }
 
         // Thread-safe progress counter
         let files_processed = Arc::new(AtomicUsize::new(0));
@@ -1416,7 +1450,21 @@ impl WorkflowOrchestrator {
                 total_files,
                 "Import cancelled by user".to_string(),
             );
-            crate::db::sessions::save_session(&self.db, &session).await?;
+            // **[PLAN028]** Force sync and shutdown on cancellation
+            {
+                let pm = self.progress_manager.lock();
+                if let Some(pm) = pm.as_ref() {
+                    pm.update_progress(processed, "Import cancelled by user".to_string()).await?;
+                    pm.force_sync().await?;
+                    pm.shutdown();
+                }
+            }
+            {
+                let wq = self.write_queue.lock();
+                if let Some(wq) = wq.as_ref() {
+                    wq.shutdown().await?;
+                }
+            }
             return Ok(session);
         }
 
@@ -1438,8 +1486,25 @@ impl WorkflowOrchestrator {
             total_files,
             format!("PLAN025 pipeline completed - {} files processed", final_count),
         );
-        crate::db::sessions::save_session(&self.db, &session).await?;
-        self.broadcast_progress(&session, start_time);
+
+        // **[PLAN028]** Force final sync and shutdown
+        {
+            let pm = self.progress_manager.lock();
+            if let Some(pm) = pm.as_ref() {
+                pm.update_progress(
+                    final_count,
+                    format!("PLAN025 pipeline completed - {} files processed", final_count),
+                ).await?;
+                pm.force_sync().await?;
+                pm.shutdown();
+            }
+        }
+        {
+            let wq = self.write_queue.lock();
+            if let Some(wq) = wq.as_ref() {
+                wq.shutdown().await?;
+            }
+        }
 
         Ok(session)
     }
@@ -2355,6 +2420,7 @@ impl WorkflowOrchestrator {
 
         // Phase 1: Filename Matching
         self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching");
+        let phase1_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, "Phase 1: Filename Matching");
 
         // Calculate relative path from root folder
@@ -2363,6 +2429,13 @@ impl WorkflowOrchestrator {
 
         let filename_matcher = crate::services::FilenameMatcher::new(self.db.clone());
         let match_result = filename_matcher.check_file(relative_path).await?;
+
+        tracing::info!(
+            phase = "Filename Matching",
+            duration_ms = phase1_start.elapsed().as_millis(),
+            file_index = file_index,
+            "Phase 1 completed"
+        );
 
         let file_id = match match_result {
             crate::services::MatchResult::AlreadyProcessed(guid) => {
@@ -2395,6 +2468,7 @@ impl WorkflowOrchestrator {
 
         // Phase 2: Hash Deduplication
         self.set_worker_phase(file_path, root_folder, file_index, 2, "Hash Deduplication");
+        let phase2_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 2: Hash Deduplication");
         let hash_deduplicator = crate::services::HashDeduplicator::new(self.db.clone());
         let hash_result = hash_deduplicator.process_file_hash(file_id, file_path).await?;
@@ -2408,6 +2482,9 @@ impl WorkflowOrchestrator {
                 self.statistics.increment_hash_matches();
 
                 tracing::info!(
+                    phase = "Hash Deduplication",
+                    duration_ms = phase2_start.elapsed().as_millis(),
+                    file_index = file_index,
                     file = ?file_path,
                     file_id = %file_id,
                     hash,
@@ -2417,12 +2494,19 @@ impl WorkflowOrchestrator {
                 return Ok(());
             }
             crate::services::HashResult::Unique(hash) => {
-                tracing::debug!(file_id = %file_id, hash, "Hash unique, continuing pipeline");
+                tracing::info!(
+                    phase = "Hash Deduplication",
+                    duration_ms = phase2_start.elapsed().as_millis(),
+                    file_index = file_index,
+                    hash,
+                    "Phase 2 completed - hash unique"
+                );
             }
         }
 
         // Phase 3: Metadata Extraction & Merging
         self.set_worker_phase(file_path, root_folder, file_index, 3, "Metadata Extraction");
+        let phase3_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 3: Metadata Extraction & Merging");
         let metadata_merger = crate::services::MetadataMerger::new(self.db.clone());
         let merged_metadata = metadata_merger.extract_and_merge(file_id, file_path).await?;
@@ -2431,6 +2515,17 @@ impl WorkflowOrchestrator {
         let successful = merged_metadata.title.is_some() || merged_metadata.artist.is_some() || merged_metadata.album.is_some();
         self.statistics.record_metadata_extraction(successful);
 
+        tracing::info!(
+            phase = "Metadata Extraction",
+            duration_ms = phase3_start.elapsed().as_millis(),
+            file_index = file_index,
+            successful = successful,
+            has_title = merged_metadata.title.is_some(),
+            has_artist = merged_metadata.artist.is_some(),
+            has_album = merged_metadata.album.is_some(),
+            "Phase 3 completed"
+        );
+
         // Calculate duration in ticks from sample count
         const TICKS_PER_SECOND: i64 = 28_224_000;
         let duration_seconds = samples.len() as f64 / sample_rate as f64;
@@ -2438,6 +2533,7 @@ impl WorkflowOrchestrator {
 
         // Phase 4: Passage Segmentation
         self.set_worker_phase(file_path, root_folder, file_index, 4, "Passage Segmentation");
+        let phase4_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Passage Segmentation");
         let passage_segmenter = crate::services::PassageSegmenter::new(self.db.clone());
         let segment_result = passage_segmenter.segment_file(
@@ -2454,6 +2550,9 @@ impl WorkflowOrchestrator {
                 self.statistics.record_segmentation(0, 0, 0);
 
                 tracing::info!(
+                    phase = "Passage Segmentation",
+                    duration_ms = phase4_start.elapsed().as_millis(),
+                    file_index = file_index,
                     file = ?file_path,
                     file_id = %file_id,
                     "No audio detected, skipping pipeline"
@@ -2461,10 +2560,12 @@ impl WorkflowOrchestrator {
                 return Ok(());
             }
             crate::services::SegmentResult::Passages(boundaries) => {
-                tracing::debug!(
-                    file_id = %file_id,
+                tracing::info!(
+                    phase = "Passage Segmentation",
+                    duration_ms = phase4_start.elapsed().as_millis(),
+                    file_index = file_index,
                     passage_count = boundaries.len(),
-                    "Passages segmented successfully"
+                    "Phase 4 completed"
                 );
                 boundaries
             }
@@ -2472,6 +2573,7 @@ impl WorkflowOrchestrator {
 
         // Phase 5: Per-Passage Fingerprinting
         self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting");
+        let phase5_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2494,11 +2596,6 @@ impl WorkflowOrchestrator {
             .fingerprint_passages(file_path, &passages)
             .await?;
 
-        tracing::debug!(
-            file_id = %file_id,
-            "Fingerprinting complete"
-        );
-
         // **[PLAN024]** Track fingerprinting
         let (passages_fingerprinted, successful_matches) = match &fingerprint_results {
             crate::services::FingerprintResult::Success(candidates) => (passages.len(), candidates.len()),
@@ -2506,8 +2603,18 @@ impl WorkflowOrchestrator {
         };
         self.statistics.record_fingerprinting(passages_fingerprinted, successful_matches);
 
+        tracing::info!(
+            phase = "Fingerprinting",
+            duration_ms = phase5_start.elapsed().as_millis(),
+            file_index = file_index,
+            passages_fingerprinted = passages_fingerprinted,
+            successful_matches = successful_matches,
+            "Phase 5 completed"
+        );
+
         // Phase 6: Song Matching
         self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching");
+        let phase6_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2517,22 +2624,24 @@ impl WorkflowOrchestrator {
         let song_match_result = passage_song_matcher
             .match_passages(&passages, &fingerprint_results, &merged_metadata);
 
-        tracing::debug!(
-            file_id = %file_id,
-            matches = song_match_result.matches.len(),
-            high_conf = song_match_result.stats.high_confidence,
-            medium_conf = song_match_result.stats.medium_confidence,
-            low_conf = song_match_result.stats.low_confidence,
-            zero_song = song_match_result.stats.zero_song,
-            "Song matching complete"
-        );
-
         // **[PLAN024]** Track song matching
         self.statistics.record_song_matching(
             song_match_result.stats.high_confidence,
             song_match_result.stats.medium_confidence,
             song_match_result.stats.low_confidence,
             song_match_result.stats.zero_song,
+        );
+
+        tracing::info!(
+            phase = "Song Matching",
+            duration_ms = phase6_start.elapsed().as_millis(),
+            file_index = file_index,
+            matches = song_match_result.matches.len(),
+            high_conf = song_match_result.stats.high_confidence,
+            medium_conf = song_match_result.stats.medium_confidence,
+            low_conf = song_match_result.stats.low_confidence,
+            zero_song = song_match_result.stats.zero_song,
+            "Phase 6 completed"
         );
 
         // **[PLAN024]** Update segmenting stats with finalized passages
@@ -2548,6 +2657,7 @@ impl WorkflowOrchestrator {
 
         // Phase 7: Recording
         self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording");
+        let phase7_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2558,12 +2668,13 @@ impl WorkflowOrchestrator {
             .record_passages(file_id, &song_match_result.matches)
             .await?;
 
-        tracing::debug!(
-            file_id = %file_id,
+        tracing::info!(
+            phase = "Recording",
+            duration_ms = phase7_start.elapsed().as_millis(),
+            file_index = file_index,
             passages_recorded = recording_result.passages.len(),
             songs_created = recording_result.stats.songs_created,
-            songs_reused = recording_result.stats.songs_reused,
-            "Recording complete"
+            "Phase 7 completed"
         );
 
         // **[PLAN024]** Track recording (Phase 7)
@@ -2586,6 +2697,7 @@ impl WorkflowOrchestrator {
 
         // Phase 8: Amplitude Analysis
         self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis");
+        let phase8_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2596,10 +2708,12 @@ impl WorkflowOrchestrator {
             .analyze_passages(file_path, &recording_result.passages)
             .await?;
 
-        tracing::debug!(
-            file_id = %file_id,
+        tracing::info!(
+            phase = "Amplitude Analysis",
+            duration_ms = phase8_start.elapsed().as_millis(),
+            file_index = file_index,
             passages_analyzed = amplitude_result.passages.len(),
-            "Amplitude analysis complete"
+            "Phase 8 completed"
         );
 
         // **[PLAN024]** Track amplitude analysis (Phase 8)
@@ -2648,6 +2762,7 @@ impl WorkflowOrchestrator {
 
         // Phase 9: Flavoring
         self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching");
+        let phase9_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2658,13 +2773,13 @@ impl WorkflowOrchestrator {
             .fetch_flavors(file_path, &recording_result.passages)
             .await?;
 
-        tracing::debug!(
-            file_id = %file_id,
+        tracing::info!(
+            phase = "Flavor Fetching",
+            duration_ms = phase9_start.elapsed().as_millis(),
+            file_index = file_index,
             songs_processed = flavor_result.stats.songs_processed,
             acousticbrainz = flavor_result.stats.acousticbrainz_count,
-            essentia = flavor_result.stats.essentia_count,
-            failed = flavor_result.stats.failed_count,
-            "Flavoring complete"
+            "Phase 9 completed"
         );
 
         // **[PLAN024]** Track flavoring (Phase 9)
@@ -2691,6 +2806,7 @@ impl WorkflowOrchestrator {
 
         // Phase 10: Finalization
         self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization");
+        let phase10_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
@@ -2704,17 +2820,23 @@ impl WorkflowOrchestrator {
             self.statistics.increment_files_completed();
 
             tracing::info!(
+                phase = "Finalization",
+                duration_ms = phase10_start.elapsed().as_millis(),
+                file_index = file_index,
                 file = ?file_path,
                 file_id = %file_id,
                 passages = finalization_result.passages_validated,
-                "PLAN024 pipeline complete - File ingested successfully"
+                "Phase 10 completed - File ingested successfully"
             );
         } else {
             tracing::error!(
+                phase = "Finalization",
+                duration_ms = phase10_start.elapsed().as_millis(),
+                file_index = file_index,
                 file = ?file_path,
                 file_id = %file_id,
                 errors = ?finalization_result.errors,
-                "PLAN024 pipeline failed - Finalization validation errors"
+                "Phase 10 failed - Finalization validation errors"
             );
             anyhow::bail!(
                 "Finalization failed with {} validation errors: {:?}",

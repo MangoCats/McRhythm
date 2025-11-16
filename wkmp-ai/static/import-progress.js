@@ -584,7 +584,14 @@ function getPhaseIcon(status) {
 
 function getPhaseSum(phase, status) {
     if (status === 'Completed' || status === 'CompletedWithWarnings') {
-        return `Completed - ${phase.progress_current}/${phase.progress_total} processed`;
+        let summary = `Completed - ${phase.progress_current}/${phase.progress_total} processed`;
+
+        // **[PLAN027]** Add link to file classification report for SCANNING phase
+        if (phase.phase === 'SCANNING') {
+            summary += ' <a href="/file-report" style="color: #4a9eff; text-decoration: underline; font-weight: bold;">View File Classification Report</a>';
+        }
+
+        return summary;
     } else if (status === 'InProgress') {
         return `In Progress - ${phase.progress_current}/${phase.progress_total} processed`;
     } else if (status === 'Pending') {

@@ -26,8 +26,10 @@ pub mod passage_recorder;  // PLAN024 Increment 16: Recording (Phase 7)
 pub mod passage_segmenter;  // PLAN024 Increment 10-11: Passage segmentation (Phase 4)
 pub mod passage_song_matcher;  // PLAN024 Increment 14-15: Song matching (Phase 6)
 pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
+pub mod progress_manager;  // PLAN028 Increment 1: In-memory progress tracking
 pub mod silence_detector;
 pub mod workflow_orchestrator;
+pub mod write_queue;  // PLAN028 Increment 4: Database write queue
 
 pub use acousticbrainz_client::{ABError, ABLowLevel, AcousticBrainzClient, MusicalFlavorVector};
 pub use acoustid_client::{AcoustIDClient, AcoustIDError, AcoustIDResponse};
@@ -65,5 +67,7 @@ pub use passage_song_matcher::{
 pub use pattern_analyzer::{
     GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,
 };
+pub use progress_manager::ProgressManager;
 pub use silence_detector::{SilenceDetector, SilenceRegion};
 pub use workflow_orchestrator::WorkflowOrchestrator;
+pub use write_queue::{PassageData, WriteQueue};

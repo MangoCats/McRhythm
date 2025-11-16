@@ -86,6 +86,7 @@ pub fn build_router(state: AppState) -> Router {
         .merge(api::amplitude_routes())
         .merge(api::parameter_routes())
         .merge(api::settings_routes())
+        .merge(api::file_classification_routes()) // PLAN027: File classification API
         .merge(api::health_routes())
         .with_state(state)
 }

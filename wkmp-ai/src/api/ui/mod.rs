@@ -23,6 +23,7 @@ mod import_progress;
 mod segment_editor;
 mod import_complete;
 mod settings;
+mod file_report; // PLAN027: File classification report
 
 // Re-export handler functions for router assembly
 use static_assets::{
@@ -31,12 +32,14 @@ use static_assets::{
     serve_import_progress_js,
     serve_settings_css,
     serve_settings_js,
+    serve_file_report_js, // PLAN027
 };
 use root::root_page;
 use import_progress::import_progress_page;
 use segment_editor::segment_editor_page;
 use import_complete::import_complete_page;
 use settings::settings_page;
+use file_report::file_report_page; // PLAN027
 
 /// Build UI routes
 pub fn ui_routes() -> Router<AppState> {
@@ -44,6 +47,7 @@ pub fn ui_routes() -> Router<AppState> {
         // Page routes
         .route("/", get(root_page))
         .route("/import-progress", get(import_progress_page))
+        .route("/file-report", get(file_report_page)) // PLAN027
         .route("/segment-editor", get(segment_editor_page))
         .route("/import-complete", get(import_complete_page))
         .route("/settings", get(settings_page))
@@ -51,6 +55,7 @@ pub fn ui_routes() -> Router<AppState> {
         .route("/static/wkmp-sse.js", get(serve_wkmp_sse_js))
         .route("/static/wkmp-ui.css", get(serve_wkmp_ui_css))
         .route("/static/import-progress.js", get(serve_import_progress_js))
+        .route("/static/file-report.js", get(serve_file_report_js)) // PLAN027
         .route("/static/settings.css", get(serve_settings_css))
         .route("/static/settings.js", get(serve_settings_js))
 }

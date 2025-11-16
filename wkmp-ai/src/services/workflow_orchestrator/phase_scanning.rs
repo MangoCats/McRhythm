@@ -59,14 +59,14 @@ impl WorkflowOrchestrator {
         let phase_statistics = self.convert_statistics_to_sse();
         self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
-        tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING (file discovery only)");
+        tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING (file discovery + classification)");
 
-        // Scan filesystem for audio files
-        let scan_result = self
+        // **[AIA-CLASSIFY-010]** Scan and classify ALL files (audio/image/other)
+        let classification = self
             .file_scanner
-            .scan_with_stats_and_progress(
+            .scan_and_classify_with_progress(
                 Path::new(&session.root_folder),
-                |file_count| {
+                &mut |file_count| {
                     // **[PLAN024]** Update scanning statistics during scan
                     {
                         let mut scan_stats = self.statistics.scanning.lock().unwrap();
@@ -83,10 +83,20 @@ impl WorkflowOrchestrator {
 
         tracing::info!(
             session_id = %session.session_id,
-            files_found = scan_result.files.len(),
-            total_size_mb = scan_result.total_size / 1_000_000,
-            "File scan completed"
+            audio_files = classification.audio_files.len(),
+            image_files = classification.image_files.len(),
+            other_files = classification.other_files.len(),
+            total_files = classification.total_count(),
+            "File classification completed"
         );
+
+        // Store classification results in session state
+        session.file_classification = classification.clone();
+
+        // Extract audio files for processing (backward compatibility)
+        let audio_files: Vec<std::path::PathBuf> = classification.audio_files.iter()
+            .map(|f| f.path.clone())
+            .collect();
 
         // Create basic file records in database
         // NOTE: We only store path and modification time here
@@ -94,7 +104,7 @@ impl WorkflowOrchestrator {
         let root_path = Path::new(&session.root_folder);
         let mut file_records = Vec::new();
 
-        for file_path in &scan_result.files {
+        for file_path in &audio_files {
             // Check cancellation
             if cancel_token.is_cancelled() {
                 tracing::info!(
@@ -105,7 +115,7 @@ impl WorkflowOrchestrator {
                 session.transition_to(ImportState::Cancelled);
                 session.update_progress(
                     file_records.len(),
-                    scan_result.files.len(),
+                    audio_files.len(),
                     "Import cancelled by user".to_string(),
                 );
                 crate::db::sessions::save_session(&self.db, &session).await?;

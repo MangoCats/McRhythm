@@ -28,6 +28,8 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
     let progress_percentage = session.progress.percentage;
     let current_operation = session.progress.current_operation.clone();
     let root_folder = session.root_folder.clone();
+    let file_classification_data = serde_json::to_string(&session.file_classification)
+        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize file_classification: {}", e)))?;
 
     // Get max lock wait time from settings (default 5000ms)
     let max_wait_ms: i64 = sqlx::query_scalar(
@@ -47,8 +49,8 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
                 INSERT INTO import_sessions (
                     session_id, state, root_folder, parameters,
                     progress_current, progress_total, progress_percentage,
-                    current_operation, errors, started_at, ended_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    current_operation, errors, started_at, ended_at, file_classification_data
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(session_id) DO UPDATE SET
                     state = excluded.state,
                     progress_current = excluded.progress_current,
@@ -56,7 +58,8 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
                     progress_percentage = excluded.progress_percentage,
                     current_operation = excluded.current_operation,
                     errors = excluded.errors,
-                    ended_at = excluded.ended_at
+                    ended_at = excluded.ended_at,
+                    file_classification_data = excluded.file_classification_data
                 "#,
             )
             .bind(&session_id)
@@ -70,6 +73,7 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
             .bind(&errors)
             .bind(&started_at)
             .bind(&ended_at)
+            .bind(&file_classification_data)
             .execute(pool)
             .await
             .map_err(wkmp_common::Error::Database)?;
@@ -88,7 +92,7 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
         r#"
         SELECT session_id, state, root_folder, parameters,
                progress_current, progress_total, progress_percentage,
-               current_operation, errors, started_at, ended_at
+               current_operation, errors, started_at, ended_at, file_classification_data
         FROM import_sessions
         WHERE session_id = ?
         "#,
@@ -123,6 +127,15 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
                 .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e)))?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
+            // **[PLAN027]** Deserialize file_classification_data if present
+            let file_classification_data: Option<String> = row.get("file_classification_data");
+            let file_classification = if let Some(data) = file_classification_data {
+                serde_json::from_str(&data)
+                    .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize file_classification: {}", e)))?
+            } else {
+                crate::models::FileClassification::new()
+            };
+
             let progress = ImportProgress {
                 current: row.get::<i64, _>("progress_current") as usize,
                 total: row.get::<i64, _>("progress_total") as usize,
@@ -148,6 +161,7 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
                 errors,
                 started_at,
                 ended_at,
+                file_classification, // **[PLAN027]** Persisted to DB as JSON
             }))
         }
         None => Ok(None),
@@ -190,7 +204,7 @@ pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSessio
         r#"
         SELECT session_id, state, root_folder, parameters,
                progress_current, progress_total, progress_percentage,
-               current_operation, errors, started_at, ended_at
+               current_operation, errors, started_at, ended_at, file_classification_data
         FROM import_sessions
         WHERE state NOT IN ('"COMPLETED"', '"CANCELLED"', '"FAILED"')
         ORDER BY started_at DESC
@@ -230,6 +244,15 @@ pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSessio
                 .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e)))?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
+            // **[PLAN027]** Deserialize file_classification_data if present
+            let file_classification_data: Option<String> = row.get("file_classification_data");
+            let file_classification = if let Some(data) = file_classification_data {
+                serde_json::from_str(&data)
+                    .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize file_classification: {}", e)))?
+            } else {
+                crate::models::FileClassification::new()
+            };
+
             let progress = ImportProgress {
                 current: row.get::<i64, _>("progress_current") as usize,
                 total: row.get::<i64, _>("progress_total") as usize,
@@ -255,6 +278,7 @@ pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSessio
                 errors,
                 started_at,
                 ended_at,
+                file_classification, // **[PLAN027]** Persisted to DB as JSON
             }))
         }
         None => Ok(None),

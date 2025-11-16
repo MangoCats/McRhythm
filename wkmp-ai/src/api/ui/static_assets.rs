@@ -8,6 +8,7 @@ use axum::{http::StatusCode, response::{IntoResponse, Response}};
 const WKMP_SSE_JS: &str = include_str!("../../../../wkmp-common/static/wkmp-sse.js");
 const WKMP_UI_CSS: &str = include_str!("../../../../wkmp-common/static/wkmp-ui.css");
 const IMPORT_PROGRESS_JS: &str = include_str!("../../../static/import-progress.js");
+const FILE_REPORT_JS: &str = include_str!("../../../static/file-report.js"); // PLAN027
 const SETTINGS_HTML: &str = include_str!("../../../static/settings.html");
 const SETTINGS_CSS: &str = include_str!("../../../static/settings.css");
 const SETTINGS_JS: &str = include_str!("../../../static/settings.js");
@@ -56,6 +57,21 @@ pub async fn serve_import_progress_js() -> Response {
             ("cache-control", "no-cache, no-store, must-revalidate"),
         ],
         IMPORT_PROGRESS_JS,
+    )
+        .into_response()
+}
+
+/// GET /static/file-report.js
+///
+/// **[PLAN027]** Serves the file classification report page JavaScript
+pub async fn serve_file_report_js() -> Response {
+    (
+        StatusCode::OK,
+        [
+            ("content-type", "application/javascript"),
+            ("cache-control", "no-cache, no-store, must-revalidate"),
+        ],
+        FILE_REPORT_JS,
     )
         .into_response()
 }

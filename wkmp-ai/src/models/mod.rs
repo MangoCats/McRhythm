@@ -10,7 +10,10 @@ pub mod amplitude_profile;
 pub mod import_result;
 pub mod bootstrap_config;
 
-pub use import_session::{ImportSession, ImportState, ImportProgress, StateTransition};
+pub use import_session::{
+    ImportSession, ImportState, ImportProgress, StateTransition,
+    FileInfo, FileClassification, // PLAN027: File classification
+};
 pub use parameters::{ImportParameters, AmplitudeParameters};
 pub use amplitude_profile::{AmplitudeProfile, AmplitudeAnalysisRequest, AmplitudeAnalysisResponse};
 pub use import_result::{ImportResult, ImportError, ErrorSeverity};

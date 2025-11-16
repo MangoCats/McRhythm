@@ -71,11 +71,19 @@ impl WkmpAiBootstrapConfig {
         // Stage 1: Single-connection bootstrap pool
         tracing::debug!("Creating bootstrap connection to read RESTART_REQUIRED parameters");
 
+        let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
-            .connect(db_path.to_str().context("Invalid database path")?)
+            .connect(&db_url)
             .await
             .context("Failed to create bootstrap database connection")?;
+
+        // **[AIA-INIT-010]** Ensure settings table exists before reading from it
+        // Bootstrap may run on fresh database before schema initialization
+        // This is idempotent - safe to call on existing database
+        wkmp_common::db::init::create_settings_table(&pool)
+            .await
+            .context("Failed to ensure settings table exists")?;
 
         // Read all RESTART_REQUIRED parameters in single query
         // Note: Using runtime query instead of compile-time macro to avoid offline compilation issues
