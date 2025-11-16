@@ -50,8 +50,8 @@ pub struct WkmpAiBootstrapConfig {
 
     /// Worker thread count for parallel import processing
     ///
-    /// **Default:** CPU core count + 1 (auto-detected)
-    /// **Range:** 1-64 (recommended: CPU cores × 1.5)
+    /// **Default:** 8 workers (optimized for I/O-bound workload - PLAN030)
+    /// **Range:** 1-64 (can be overridden via settings table)
     pub processing_thread_count: usize,
 }
 
@@ -139,13 +139,13 @@ impl WkmpAiBootstrapConfig {
                 .parse()
                 .context("Invalid ai_processing_thread_count (must be integer 1-64)")?
         } else {
-            // Auto-detect: CPU core count + 1
-            let cpu_count = num_cpus::get();
-            let auto_count = cpu_count + 1;
+            // **[PLAN030 Task 3.5]** Fixed worker count for I/O-bound workload
+            // Previously: cpu_count + 1 (resulted in 21 workers, but only 2-3 active)
+            // Optimal: 8 workers for I/O-bound work (network, disk, fingerprinting)
+            let auto_count = 8;
             tracing::info!(
-                "ai_processing_thread_count is NULL, auto-detected: {} (CPU cores: {})",
-                auto_count,
-                cpu_count
+                "ai_processing_thread_count is NULL, using optimized default: {} workers",
+                auto_count
             );
             auto_count
         };
@@ -252,9 +252,10 @@ mod tests {
         // Bootstrap should succeed with defaults
         let config = WkmpAiBootstrapConfig::from_database(&db_path).await.unwrap();
 
-        assert_eq!(config.connection_pool_size, 96);
-        assert_eq!(config.lock_retry_ms, 250);
-        assert_eq!(config.max_lock_wait_ms, 5000);
+        // **[PLAN029]** Updated defaults for optimized pool configuration
+        assert_eq!(config.connection_pool_size, 30);
+        assert_eq!(config.lock_retry_ms, 5000);
+        assert_eq!(config.max_lock_wait_ms, 30000);
         assert!(config.processing_thread_count >= 1); // Auto-detected
     }
 

@@ -14,6 +14,11 @@ const ACOUSTID_BASE_URL: &str = "https://api.acoustid.org/v2/lookup";
 const USER_AGENT: &str = "WKMP/0.1.0 (https://github.com/wkmp/wkmp)";
 const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between requests)
 
+// **[PLAN030 Task 3.4]** Aggressive timeout to prevent worker blocking
+const ACOUSTID_TIMEOUT_SECS: u64 = 5; // Down from 30s
+const CIRCUIT_BREAKER_THRESHOLD: u32 = 3; // Open after 3 consecutive failures
+const CIRCUIT_BREAKER_COOLDOWN_SECS: u64 = 60; // Stay open for 60s before retry
+
 /// AcoustID client errors
 #[derive(Debug, Error)]
 pub enum AcoustIDError {
@@ -110,26 +115,108 @@ impl RateLimiter {
     }
 }
 
+/// **[PLAN030 Task 3.4]** Circuit breaker to prevent cascading failures
+struct CircuitBreaker {
+    state: Mutex<CircuitState>,
+}
+
+#[derive(Debug, Clone)]
+enum CircuitState {
+    Closed { consecutive_failures: u32 },
+    Open { opened_at: Instant },
+}
+
+impl CircuitBreaker {
+    fn new() -> Self {
+        Self {
+            state: Mutex::new(CircuitState::Closed {
+                consecutive_failures: 0,
+            }),
+        }
+    }
+
+    async fn is_open(&self) -> bool {
+        let mut state = self.state.lock().await;
+
+        match *state {
+            CircuitState::Open { opened_at } => {
+                // Check if cooldown has expired
+                if opened_at.elapsed() >= Duration::from_secs(CIRCUIT_BREAKER_COOLDOWN_SECS) {
+                    tracing::info!("Circuit breaker cooldown expired, attempting half-open state");
+                    *state = CircuitState::Closed {
+                        consecutive_failures: 0,
+                    };
+                    false
+                } else {
+                    true
+                }
+            }
+            CircuitState::Closed { .. } => false,
+        }
+    }
+
+    async fn on_success(&self) {
+        let mut state = self.state.lock().await;
+        *state = CircuitState::Closed {
+            consecutive_failures: 0,
+        };
+    }
+
+    async fn on_failure(&self) {
+        let mut state = self.state.lock().await;
+
+        match *state {
+            CircuitState::Closed {
+                consecutive_failures,
+            } => {
+                let new_failures = consecutive_failures + 1;
+                if new_failures >= CIRCUIT_BREAKER_THRESHOLD {
+                    tracing::warn!(
+                        "AcoustID circuit breaker opened after {} consecutive failures",
+                        new_failures
+                    );
+                    *state = CircuitState::Open {
+                        opened_at: Instant::now(),
+                    };
+                } else {
+                    *state = CircuitState::Closed {
+                        consecutive_failures: new_failures,
+                    };
+                }
+            }
+            CircuitState::Open { .. } => {
+                // Already open, no change
+            }
+        }
+    }
+}
+
 /// AcoustID API client with database caching
+///
+/// **[PLAN030 Task 3.4]** Enhanced with circuit breaker and 5s timeout
 pub struct AcoustIDClient {
     http_client: reqwest::Client,
     rate_limiter: Arc<RateLimiter>,
+    circuit_breaker: Arc<CircuitBreaker>,
     api_key: String,
     db: sqlx::SqlitePool,
 }
 
 impl AcoustIDClient {
     /// Create new AcoustID client with API key and database pool
+    ///
+    /// **[PLAN030 Task 3.4]** 5-second timeout + circuit breaker
     pub fn new(api_key: String, db: sqlx::SqlitePool) -> Result<Self, AcoustIDError> {
         let http_client = reqwest::Client::builder()
             .user_agent(USER_AGENT)
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(ACOUSTID_TIMEOUT_SECS)) // **[PLAN030]** 5s (was 30s)
             .build()
             .map_err(|e| AcoustIDError::NetworkError(e.to_string()))?;
 
         Ok(Self {
             http_client,
             rate_limiter: Arc::new(RateLimiter::new(RATE_LIMIT_MS)),
+            circuit_breaker: Arc::new(CircuitBreaker::new()), // **[PLAN030]** Circuit breaker
             api_key,
             db,
         })
@@ -163,6 +250,12 @@ impl AcoustIDClient {
             });
         }
 
+        // **[PLAN030 Task 3.4]** Check circuit breaker state
+        if self.circuit_breaker.is_open().await {
+            tracing::warn!("AcoustID circuit breaker is open, skipping lookup");
+            return Err(AcoustIDError::NoMatches);
+        }
+
         // Rate limit
         self.rate_limiter.wait().await;
 
@@ -181,13 +274,26 @@ impl AcoustIDClient {
             "Querying AcoustID API"
         );
 
-        let response = self
+        // **[PLAN030 Task 3.4]** Wrap HTTP request with circuit breaker callbacks
+        let response = match self
             .http_client
             .post(ACOUSTID_BASE_URL)
             .form(&params)
             .send()
             .await
-            .map_err(|e| AcoustIDError::NetworkError(e.to_string()))?;
+        {
+            Ok(resp) => {
+                // **[PLAN030]** Record success (network level)
+                self.circuit_breaker.on_success().await;
+                resp
+            }
+            Err(e) => {
+                // **[PLAN030]** Record failure (timeout, connection error)
+                self.circuit_breaker.on_failure().await;
+                tracing::warn!("AcoustID network error: {}", e);
+                return Err(AcoustIDError::NetworkError(e.to_string()));
+            }
+        };
 
         let status = response.status();
 
