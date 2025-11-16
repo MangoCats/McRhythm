@@ -92,6 +92,10 @@ pub struct WorkflowOrchestrator {
     progress_manager: parking_lot::Mutex<Option<ProgressManager>>,
     /// **[PLAN028]** Database write queue with single executor (lazy initialized)
     write_queue: parking_lot::Mutex<Option<Arc<WriteQueue>>>,
+    /// **[PLAN029]** Pool statistics tracking for performance monitoring
+    pool_stats: Arc<parking_lot::RwLock<crate::services::pool_manager::PoolStatistics>>,
+    /// **[PLAN029 Task 2.3]** Memory monitoring with automatic cleanup on high usage
+    memory_monitor: Arc<crate::utils::MemoryMonitor>,
 }
 
 impl WorkflowOrchestrator {
@@ -151,7 +155,64 @@ impl WorkflowOrchestrator {
             max_workers: Arc::new(RwLock::new(0)), // Will be set when processing starts
             progress_manager: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
             write_queue: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
+            pool_stats: Arc::new(parking_lot::RwLock::new(crate::services::pool_manager::PoolStatistics {
+                total_acquisitions: 0,
+                avg_wait_ms: 0,
+                max_wait_ms: 0,
+                slow_acquisitions: 0,
+            })),  // **[PLAN029]** Pool statistics tracking
+            memory_monitor: Arc::new(crate::utils::MemoryMonitor::new()),  // **[PLAN029 Task 2.3]** Memory monitoring with 500MB threshold
         }
+    }
+
+    /// Log pool statistics
+    ///
+    /// **[PLAN029]** Performance monitoring
+    ///
+    /// Logs current database connection pool statistics including:
+    /// - Total acquisitions
+    /// - Average wait time
+    /// - Maximum wait time
+    /// - Slow acquisition count (>100ms)
+    pub fn log_pool_stats(&self) {
+        let stats = self.pool_stats.read();
+        tracing::info!(
+            acquisitions = stats.total_acquisitions,
+            avg_wait_ms = stats.avg_wait_ms,
+            max_wait_ms = stats.max_wait_ms,
+            slow_acquisitions = stats.slow_acquisitions,
+            "Pool statistics - Acquisitions: {} (avg {}ms, max {}ms, slow {})",
+            stats.total_acquisitions,
+            stats.avg_wait_ms,
+            stats.max_wait_ms,
+            stats.slow_acquisitions
+        );
+    }
+
+    /// Clean up processing state to free memory
+    ///
+    /// **[PLAN029 Task 2.3]** Memory recovery mechanism
+    ///
+    /// Triggers cleanup of any cached/accumulated state to reduce memory usage.
+    /// Currently a placeholder for future cache clearing integrations.
+    ///
+    /// # Future Enhancements
+    /// - Clear audio buffer caches
+    /// - Release temporary fingerprint data
+    /// - Compact internal data structures
+    async fn cleanup_processing_state(&self) -> Result<()> {
+        tracing::info!("Cleaning up processing state to free memory");
+
+        // Log current memory status
+        self.memory_monitor.log_stats();
+
+        // Future: Add actual cleanup operations here
+        // - Clear any audio buffer caches
+        // - Release temporary fingerprint data
+        // - Compact internal data structures
+        // - Trigger WriteQueue flush if needed
+
+        Ok(())
     }
 
     /// Execute complete import workflow
@@ -170,6 +231,12 @@ impl WorkflowOrchestrator {
             root_folder = %session.root_folder,
             "Starting import workflow"
         );
+
+        // **[PLAN029 Task 2.3]** Start memory monitoring background task
+        let memory_monitor_clone = self.memory_monitor.clone();
+        tokio::spawn(async move {
+            memory_monitor_clone.monitor_task().await;
+        });
 
         // Broadcast session started event
         self.event_bus.emit_lossy(WkmpEvent::ImportSessionStarted {
@@ -1498,6 +1565,9 @@ impl WorkflowOrchestrator {
         if let Some(wq) = wq_clone {
             wq.shutdown().await?;
         }
+
+        // **[PLAN029]** Log pool statistics at import completion
+        self.log_pool_stats();
 
         Ok(session)
     }
@@ -3062,6 +3132,41 @@ impl WorkflowOrchestrator {
                 // **[PLAN028]** Periodic database sync (every 100 files or on completion)
                 if completed % 100 == 0 || completed == total_files {
                     pm.sync_to_database().await?;
+                }
+            }
+
+            // **[PLAN029 Task 2.3]** Memory check every 10 files
+            if completed % 10 == 0 && completed > 0 {
+                use crate::utils::MemoryStatus;
+                match self.memory_monitor.check_memory() {
+                    MemoryStatus::Critical(_) => {
+                        tracing::error!(
+                            "Critical memory usage detected at {} files, pausing for cleanup",
+                            completed
+                        );
+
+                        // Pause processing briefly to allow memory recovery
+                        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+
+                        // Force cleanup of any accumulated state
+                        self.cleanup_processing_state().await?;
+
+                        // Re-check after cleanup
+                        if let MemoryStatus::Critical(bytes_after) = self.memory_monitor.check_memory() {
+                            tracing::error!(
+                                "Memory still critical after cleanup ({}MB), continuing with caution",
+                                bytes_after / 1_000_000
+                            );
+                        } else {
+                            tracing::info!("Memory recovered after cleanup");
+                        }
+                    }
+                    MemoryStatus::Warning(_) => {
+                        // Log warning but continue processing
+                    }
+                    MemoryStatus::Normal(_) | MemoryStatus::Unknown => {
+                        // No action needed
+                    }
                 }
             }
 

@@ -29,21 +29,23 @@ use anyhow::{Context, Result};
 pub struct WkmpAiBootstrapConfig {
     /// Database connection pool size
     ///
-    /// **Default:** 10 connections (optimized for PLAN028 single-writer architecture)
-    /// **Interdependency:** With PLAN028, lower pool size reduces lock contention
-    /// **Memory:** ~1 MB per connection (10 connections = ~10 MB)
+    /// **Default:** 30 connections (PLAN029 - balanced for read/write operations)
+    /// **Rationale:** Supports concurrent reads while respecting single-writer limitation
+    /// **Memory:** ~1 MB per connection (30 connections = ~30 MB)
     pub connection_pool_size: u32,
 
     /// SQLite busy_timeout - time to wait for lock before error
     ///
-    /// **Default:** 250 ms
+    /// **Default:** 5000 ms (5 seconds - PLAN029 optimization)
     /// **Applied:** Per-connection PRAGMA on all pool connections
+    /// **Rationale:** SQLite write operations can take seconds; short timeouts cause excessive retries
     pub lock_retry_ms: u64,
 
     /// Maximum total retry time for database operations
     ///
-    /// **Default:** 10000 ms (10 seconds - increased for PLAN028 periodic sync)
+    /// **Default:** 30000 ms (30 seconds - PLAN029 optimization)
     /// **Purpose:** Total retry budget before giving up (prevents infinite loops)
+    /// **Rationale:** Allows sufficient time for complex operations without premature failures
     pub max_lock_wait_ms: u64,
 
     /// Worker thread count for parallel import processing
@@ -92,15 +94,15 @@ impl WkmpAiBootstrapConfig {
             SELECT
                 COALESCE(
                     (SELECT value FROM settings WHERE key = 'ai_database_connection_pool_size'),
-                    '10'
+                    '30'
                 ) as pool_size,
                 COALESCE(
                     (SELECT value FROM settings WHERE key = 'ai_database_lock_retry_ms'),
-                    '250'
+                    '5000'
                 ) as lock_retry,
                 COALESCE(
                     (SELECT value FROM settings WHERE key = 'ai_database_max_lock_wait_ms'),
-                    '10000'
+                    '30000'
                 ) as max_wait,
                 (SELECT value FROM settings WHERE key = 'ai_processing_thread_count') as thread_count
             "#

@@ -16,6 +16,8 @@ use symphonia::core::probe::Hint;
 use symphonia::core::sample::Sample;
 
 /// Decoded audio result
+///
+/// **[PLAN029 Task 2.1]** Memory management for audio buffers
 #[derive(Debug)]
 pub struct DecodedAudio {
     /// Mono audio samples (f32, range [-1.0, 1.0])
@@ -26,6 +28,38 @@ pub struct DecodedAudio {
     pub channels: usize,
     /// Duration in seconds
     pub duration_seconds: f64,
+}
+
+impl DecodedAudio {
+    /// Clear samples and release memory
+    ///
+    /// **[PLAN029 Task 2.1]** Explicit memory cleanup
+    ///
+    /// Clears the sample buffer and releases allocated memory back to the system.
+    /// Useful when finished processing audio to free memory promptly.
+    pub fn clear(&mut self) {
+        self.samples.clear();
+        self.samples.shrink_to_fit();
+        tracing::trace!(
+            "DecodedAudio cleared, released {} samples",
+            self.samples.capacity()
+        );
+    }
+
+    /// Get sample count
+    pub fn sample_count(&self) -> usize {
+        self.samples.len()
+    }
+}
+
+impl Drop for DecodedAudio {
+    /// **[PLAN029 Task 2.1]** Ensure memory cleanup on drop
+    fn drop(&mut self) {
+        let capacity = self.samples.capacity();
+        if capacity > 0 {
+            tracing::trace!("DecodedAudio dropped, {} samples freed", capacity);
+        }
+    }
 }
 
 /// Decode audio file to mono f32 PCM samples

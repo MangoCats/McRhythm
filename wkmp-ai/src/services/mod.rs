@@ -26,6 +26,7 @@ pub mod passage_recorder;  // PLAN024 Increment 16: Recording (Phase 7)
 pub mod passage_segmenter;  // PLAN024 Increment 10-11: Passage segmentation (Phase 4)
 pub mod passage_song_matcher;  // PLAN024 Increment 14-15: Song matching (Phase 6)
 pub mod pattern_analyzer;  // PLAN025 Phase 2: Pattern analysis for source media classification
+pub mod pool_manager;  // PLAN029 Task 1.1: Connection pool with statistics tracking
 pub mod progress_manager;  // PLAN028 Increment 1: In-memory progress tracking
 pub mod silence_detector;
 pub mod workflow_orchestrator;
@@ -67,6 +68,7 @@ pub use passage_song_matcher::{
 pub use pattern_analyzer::{
     GapPattern, PatternAnalyzer, PatternError, PatternMetadata, Segment, SourceMedia,
 };
+pub use pool_manager::{PoolManager, PoolStatistics};
 pub use progress_manager::ProgressManager;
 pub use silence_detector::{SilenceDetector, SilenceRegion};
 pub use workflow_orchestrator::WorkflowOrchestrator;
