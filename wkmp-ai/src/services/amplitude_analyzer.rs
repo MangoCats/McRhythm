@@ -368,7 +368,7 @@ mod tests {
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 1.0)
+            .analyze_file(temp_file.path(), 0.0, 1.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -413,7 +413,7 @@ mod tests {
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 2.0)
+            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -456,7 +456,7 @@ mod tests {
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 3.0)
+            .analyze_file(temp_file.path(), 0.0, 3.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -496,7 +496,7 @@ mod tests {
         // Analyze the file (should convert to mono)
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 1.0)
+            .analyze_file(temp_file.path(), 0.0, 1.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -508,7 +508,7 @@ mod tests {
     async fn test_analyze_nonexistent_file() {
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(std::path::Path::new("/nonexistent/file.wav"), 0.0, 1.0)
+            .analyze_file(std::path::Path::new("/nonexistent/file.wav"), 0.0, 1.0, 100)
             .await;
 
         assert!(result.is_err());
@@ -541,7 +541,7 @@ mod tests {
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 1.0)
+            .analyze_file(temp_file.path(), 0.0, 1.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -625,7 +625,7 @@ mod tests {
         // Analyze with default parameters
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 4.0)
+            .analyze_file(temp_file.path(), 0.0, 4.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -673,7 +673,7 @@ mod tests {
         // Analyze
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 2.0)
+            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
             .await;
 
         assert!(result.is_ok());
@@ -725,7 +725,7 @@ mod tests {
         params_high.lead_in_threshold_db = -3.0;  // Very high threshold (just 3dB below peak)
         let analyzer_high = AmplitudeAnalyzer::new(params_high);
         let result_high = analyzer_high
-            .analyze_file(temp_file.path(), 0.0, 2.0)
+            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
             .await
             .unwrap();
 
@@ -734,7 +734,7 @@ mod tests {
         params_low.lead_in_threshold_db = -20.0;  // Low threshold (20dB below peak)
         let analyzer_low = AmplitudeAnalyzer::new(params_low);
         let result_low = analyzer_low
-            .analyze_file(temp_file.path(), 0.0, 2.0)
+            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
             .await
             .unwrap();
 

@@ -160,17 +160,18 @@ async fn tc_db_004_audio_file_insert_without_session_id() {
         chrono::Utc::now(),
     );
 
+    // Save the guid before inserting
+    let guid = file.guid.clone();
+
     // Insert record
     let result = wkmp_ai::db::files::save_file(&pool, &file).await;
 
     // Verify: INSERT succeeded
     assert!(result.is_ok(), "AudioFile INSERT should succeed: {:?}", result);
 
-    let guid = result.unwrap();
-
     // Verify: Record persisted
     let path: String = sqlx::query_scalar("SELECT path FROM files WHERE guid = ?")
-        .bind(&guid)
+        .bind(guid.to_string())
         .fetch_one(&pool)
         .await
         .unwrap();

@@ -31,7 +31,7 @@ async fn test_set_api_key_success() {
     wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     let event_bus = EventBus::new(100);
-    let state = AppState::new(pool.clone(), event_bus);
+    let state = AppState::new(pool.clone(), event_bus, 16);
     let app = build_router(state);
 
     // Send request
@@ -81,7 +81,7 @@ async fn test_set_api_key_rejects_empty_key() {
     wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     let event_bus = EventBus::new(100);
-    let state = AppState::new(pool.clone(), event_bus);
+    let state = AppState::new(pool.clone(), event_bus, 16);
     let app = build_router(state);
 
     // Send request with empty key
@@ -121,7 +121,7 @@ async fn test_set_api_key_rejects_whitespace_key() {
     wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
 
     let event_bus = EventBus::new(100);
-    let state = AppState::new(pool.clone(), event_bus);
+    let state = AppState::new(pool.clone(), event_bus, 16);
     let app = build_router(state);
 
     // Send request with whitespace-only key

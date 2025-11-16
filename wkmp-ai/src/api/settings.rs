@@ -178,7 +178,7 @@ mod tests {
     /// Create test AppState with in-memory database
     fn create_test_state(pool: SqlitePool) -> AppState {
         use wkmp_common::events::EventBus;
-        AppState::new(pool, EventBus::new(100))
+        AppState::new(pool, EventBus::new(100), 16)
     }
 
     #[tokio::test]

@@ -174,6 +174,12 @@ impl SilenceDetector {
     fn db_to_linear(db: f32) -> f32 {
         10.0_f32.powf(db / 20.0)
     }
+
+    /// Convert linear amplitude to dB (test helper)
+    #[cfg(test)]
+    fn linear_to_db(linear: f32) -> f32 {
+        20.0 * linear.log10()
+    }
 }
 
 impl Default for SilenceDetector {

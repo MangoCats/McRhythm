@@ -12,7 +12,8 @@ use wkmp_common::{Error, Result};
 use crate::utils::{retry_on_lock, begin_monitored};
 use std::collections::HashMap;
 
-use super::passage_song_matcher::PassageSongMatch;
+use super::passage_song_matcher::{PassageSongMatch, ConfidenceLevel};
+use super::passage_segmenter::PassageBoundary;
 
 /// Recording result for a passage
 #[derive(Debug, Clone)]
