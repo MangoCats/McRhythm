@@ -32,11 +32,28 @@ impl<'c> MonitoredTransaction<'c> {
         tx.commit().await
             .map_err(|e| wkmp_common::Error::Database(e))?;
 
-        tracing::debug!(
-            caller = self.caller,
-            held_ms = elapsed.as_millis(),
-            "Connection released (commit)"
-        );
+        // **[AIA-METRICS-011]** Alert on long-held connections (>2 seconds)
+        // Long transactions contribute to pool saturation
+        let held_ms = elapsed.as_millis();
+        if held_ms > 2000 {
+            tracing::warn!(
+                caller = self.caller,
+                held_ms = held_ms,
+                "LONG TRANSACTION - Connection held for extended period, may contribute to pool saturation"
+            );
+        } else if held_ms > 1000 {
+            tracing::info!(
+                caller = self.caller,
+                held_ms = held_ms,
+                "Transaction held longer than expected (>1s)"
+            );
+        } else {
+            tracing::debug!(
+                caller = self.caller,
+                held_ms = held_ms,
+                "Connection released (commit)"
+            );
+        }
 
         Ok(())
     }
@@ -49,11 +66,20 @@ impl<'c> MonitoredTransaction<'c> {
         tx.rollback().await
             .map_err(|e| wkmp_common::Error::Database(e))?;
 
-        tracing::debug!(
-            caller = self.caller,
-            held_ms = elapsed.as_millis(),
-            "Connection released (rollback)"
-        );
+        let held_ms = elapsed.as_millis();
+        if held_ms > 2000 {
+            tracing::warn!(
+                caller = self.caller,
+                held_ms = held_ms,
+                "LONG TRANSACTION - Connection held for extended period before rollback"
+            );
+        } else {
+            tracing::debug!(
+                caller = self.caller,
+                held_ms = held_ms,
+                "Connection released (rollback)"
+            );
+        }
 
         Ok(())
     }
@@ -68,11 +94,22 @@ impl<'c> Drop for MonitoredTransaction<'c> {
     fn drop(&mut self) {
         if self.tx.is_some() {
             let elapsed = self.acquired_at.elapsed();
-            tracing::debug!(
-                caller = self.caller,
-                held_ms = elapsed.as_millis(),
-                "Connection released (drop)"
-            );
+            let held_ms = elapsed.as_millis();
+
+            // **[AIA-METRICS-012]** Warn on dropped transactions (potential error path)
+            if held_ms > 2000 {
+                tracing::warn!(
+                    caller = self.caller,
+                    held_ms = held_ms,
+                    "LONG TRANSACTION DROPPED - Connection held then released via Drop (error path?)"
+                );
+            } else {
+                tracing::debug!(
+                    caller = self.caller,
+                    held_ms = held_ms,
+                    "Connection released (drop)"
+                );
+            }
         }
     }
 }
@@ -106,11 +143,27 @@ pub async fn begin_monitored<'c>(
 
     let wait_ms = start.elapsed().as_millis();
 
-    tracing::debug!(
-        caller = caller,
-        wait_ms = wait_ms,
-        "Connection acquired"
-    );
+    // **[AIA-METRICS-010]** Alert on slow connection acquisition (>1 second)
+    // This indicates connection pool saturation - all connections held by other operations
+    if wait_ms > 1000 {
+        tracing::warn!(
+            caller = caller,
+            wait_ms = wait_ms,
+            "SLOW CONNECTION ACQUISITION - Pool may be saturated (all connections in use)"
+        );
+    } else if wait_ms > 500 {
+        tracing::info!(
+            caller = caller,
+            wait_ms = wait_ms,
+            "Connection acquisition slower than expected (>500ms)"
+        );
+    } else {
+        tracing::debug!(
+            caller = caller,
+            wait_ms = wait_ms,
+            "Connection acquired"
+        );
+    }
 
     Ok(MonitoredTransaction::new(tx, caller, Instant::now()))
 }

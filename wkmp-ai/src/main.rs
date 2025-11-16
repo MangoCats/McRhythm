@@ -18,8 +18,7 @@ use wkmp_common::events::EventBus;
 // Use library definitions
 use wkmp_ai::AppState;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     // Initialize tracing with file, line number, and thread ID information
     tracing_subscriber::registry()
         .with(
@@ -61,8 +60,13 @@ async fn main() -> Result<()> {
     // **[AIA-INIT-010]** Two-stage database initialization
     // Stage 1: Bootstrap - Read RESTART_REQUIRED parameters with minimal connection
     info!("Stage 1: Reading RESTART_REQUIRED configuration parameters");
-    let bootstrap_config = wkmp_ai::models::WkmpAiBootstrapConfig::from_database(&db_path).await
-        .map_err(|e| anyhow::anyhow!("Failed to read bootstrap configuration: {}", e))?;
+
+    // Need to use a temporary runtime for bootstrap config reading
+    let bootstrap_runtime = tokio::runtime::Runtime::new()?;
+    let bootstrap_config = bootstrap_runtime.block_on(async {
+        wkmp_ai::models::WkmpAiBootstrapConfig::from_database(&db_path).await
+            .map_err(|e| anyhow::anyhow!("Failed to read bootstrap configuration: {}", e))
+    })?;
 
     info!(
         "Configuration loaded: pool_size={}, lock_retry={}ms, max_wait={}ms, threads={}",
@@ -72,6 +76,30 @@ async fn main() -> Result<()> {
         bootstrap_config.processing_thread_count()
     );
 
+    // **[AIA-RT-010]** Build production runtime with explicit worker_threads and max_blocking_threads
+    // - worker_threads: Set to ai_processing_thread_count for controlled parallelism
+    // - max_blocking_threads: Set to 2x ai_processing_thread_count to prevent thread starvation during parallel audio processing
+    let ai_processing_thread_count = bootstrap_config.processing_thread_count();
+    let max_blocking_threads = 2 * ai_processing_thread_count;
+
+    info!(
+        "Building Tokio runtime: worker_threads={}, max_blocking_threads={}",
+        ai_processing_thread_count,
+        max_blocking_threads
+    );
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(ai_processing_thread_count)
+        .max_blocking_threads(max_blocking_threads)
+        .enable_all()
+        .build()?;
+
+    runtime.block_on(async move {
+        run_async(db_path, bootstrap_config).await
+    })
+}
+
+async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::models::WkmpAiBootstrapConfig) -> Result<()> {
     // Stage 2: Production - Create configured pool and initialize schema
     info!("Stage 2: Creating production database pool with configuration");
 

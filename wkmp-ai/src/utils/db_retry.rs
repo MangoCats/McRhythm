@@ -55,13 +55,32 @@ where
 
         match operation().await {
             Ok(result) => {
+                let elapsed_ms = start_time.elapsed().as_millis();
+
                 if attempt > 1 {
-                    tracing::debug!(
-                        operation = operation_name,
-                        attempt,
-                        elapsed_ms = start_time.elapsed().as_millis(),
-                        "Database operation succeeded after retry"
-                    );
+                    // **[AIA-METRICS-020]** Alert on operations that required retries
+                    if elapsed_ms > 5000 {
+                        tracing::error!(
+                            operation = operation_name,
+                            attempt,
+                            elapsed_ms = elapsed_ms,
+                            "Database operation succeeded after EXTENDED retry period (>5s) - indicates severe contention"
+                        );
+                    } else if elapsed_ms > 2000 {
+                        tracing::warn!(
+                            operation = operation_name,
+                            attempt,
+                            elapsed_ms = elapsed_ms,
+                            "Database operation succeeded after significant retry period (>2s)"
+                        );
+                    } else {
+                        tracing::debug!(
+                            operation = operation_name,
+                            attempt,
+                            elapsed_ms = elapsed_ms,
+                            "Database operation succeeded after retry"
+                        );
+                    }
                 }
                 return Ok(result);
             }
