@@ -2823,14 +2823,14 @@ impl WorkflowOrchestrator {
         session.update_progress(0, 0, "Starting per-file processing".to_string());
         crate::db::sessions::save_session(&self.db, &session).await?;
 
-        // Get parallelism level from settings (auto-initialized if NULL)
+        // Get parallelism level from settings (auto-initialized to 12 if NULL)
         let parallelism: usize = sqlx::query_scalar::<_, String>(
-            "SELECT COALESCE((SELECT value FROM settings WHERE key = 'ai_processing_thread_count'), '4')"
+            "SELECT COALESCE((SELECT value FROM settings WHERE key = 'ingest_max_concurrent_jobs'), '12')"
         )
         .fetch_one(&self.db)
         .await?
         .parse()
-        .unwrap_or(4);
+        .unwrap_or(12);
 
         // Store max_workers for UI display
         *self.max_workers.write() = parallelism;

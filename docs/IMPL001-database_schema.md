@@ -4,7 +4,7 @@
 
 Defines data structures and schema. Derived from Tier 2 design documents. See [Document Hierarchy](GOV001-document_hierarchy.md).
 
-> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md)
+> **Related Documentation:** [Requirements](REQ001-requirements.md) | [Architecture](SPEC001-architecture.md) | [Settings Reference](IMPL016-settings_reference.md)
 
 ---
 
@@ -971,6 +971,8 @@ The database is initialized with default module configurations on first run:
 ### **[DB-SET-030]** Settings Keys Reference
 
 All runtime configuration is stored in the `settings` table using a key-value pattern. Settings are typed in application code but stored as TEXT in the database.
+
+> **💡 Comprehensive Reference:** See [IMPL016-settings_reference.md](IMPL016-settings_reference.md) for complete documentation of ALL settings parameters including units, valid ranges, modification impact, interdependencies, and conversion formulas. The table below provides a summary; consult IMPL016 for detailed specifications.
 
 **[DB-SET-040] Configuration Philosophy:**
 - **Database-first**: All runtime settings in `settings` table (per architecture.md)

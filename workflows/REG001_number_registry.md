@@ -12,15 +12,15 @@
 |----------|------|-------------|
 | GOV | 004 | Governance (document hierarchy, conventions, requirements enumeration) |
 | REQ | 003 | Requirements (authoritative requirements, entity definitions) |
-| SPEC | 032 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
-| IMPL | 008 | Implementation (database schema, coding conventions, structure, deployment) |
+| SPEC | 033 | Specifications (design specs, API design, crossfade, musical flavor, etc.) |
+| IMPL | 012 | Implementation (database schema, coding conventions, structure, deployment) |
 | EXEC | 002 | Execution (implementation order, schedules) |
 | REV | 005 | Reviews (design reviews, architecture updates) |
 | GUIDE | 004 | Guides (implementation guides, tutorials) |
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 025 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 026 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 
