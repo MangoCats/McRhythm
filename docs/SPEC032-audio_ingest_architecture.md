@@ -281,32 +281,80 @@ UPDATE files SET matching_hashes = json_insert(matching_hashes, '$[#]', 'fileA_u
 
 ## Settings Management
 
-**[AIA-SETTINGS-010]** Import parameters stored in database `settings` table:
+### Two-Stage Database Initialization
 
-**Settings Table Schema:**
-```sql
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT  -- JSON-encoded value
-);
+**[AIA-INIT-010]** wkmp-ai uses a two-stage database initialization pattern to read RESTART_REQUIRED parameters before configuring the production database pool.
+
+**Stage 1: Bootstrap - Read RESTART_REQUIRED Parameters**
+
+```rust
+// Create minimal 1-connection pool
+let bootstrap_pool = SqlitePoolOptions::new()
+    .max_connections(1)
+    .connect(&db_path).await?;
+
+// Read 4 RESTART_REQUIRED parameters
+let config = read_restart_params(&bootstrap_pool).await?;
+
+// Close bootstrap pool (release resources)
+bootstrap_pool.close().await;
 ```
 
-**Import Parameters (7 total):**
+**Parameters Read (RESTART_REQUIRED per IMPL016):**
+1. `ai_database_connection_pool_size` - Production pool size (default: 96 connections)
+2. `ai_database_lock_retry_ms` - SQLite busy_timeout per connection (default: 250ms)
+3. `ai_database_max_lock_wait_ms` - Total retry budget (default: 5000ms)
+4. `ai_processing_thread_count` - Worker parallelism (default: NULL, auto-detect CPU cores + 1)
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `silence_threshold_dB` | REAL | 35.0 | Silence detection threshold (Phase 4) |
-| `silence_min_duration_ticks` | INTEGER | 8467200 | Minimum silence duration (300ms in ticks) |
-| `minimum_passage_audio_duration_ticks` | INTEGER | 2822400 | Minimum non-silence for valid audio (100ms in ticks) |
-| `lead_in_threshold_dB` | REAL | 45.0 | Lead-in detection threshold (Phase 8) |
-| `lead_out_threshold_dB` | REAL | 40.0 | Lead-out detection threshold (Phase 8) |
-| `acoustid_api_key` | TEXT | NULL | AcoustID API key (Phase 5) |
-| `ai_processing_thread_count` | INTEGER | NULL | Parallel processing thread count (auto-initialized) |
+**Stage 2: Production - Create Configured Pool**
 
-**Parameter Loading:**
-- Read from `settings` table at workflow start
-- If NULL or missing: Use compiled default
-- Store default to database for future use
+```rust
+// Create production pool with Stage 1 configuration
+let pool = SqlitePoolOptions::new()
+    .max_connections(config.connection_pool_size)
+    .acquire_timeout(Duration::from_millis(config.max_lock_wait_ms))
+    .connect_with(
+        SqliteConnectOptions::new()
+            .busy_timeout(Duration::from_millis(config.lock_retry_ms))
+            .journal_mode(SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+    )
+    .await?;
+```
+
+**Benefits:**
+- **Configuration-Driven:** Pool size and timeouts read from database settings
+- **Clean Separation:** Bootstrap vs. production phases clearly separated
+- **Minimal Overhead:** ~10-20ms one-time cost at startup (<2% of total startup time)
+- **Memory Efficient:** Bootstrap connection released before production pool creation
+- **Auto-Detection:** CPU-based thread count when not configured
+- **Zero Risk:** SQLite handles multiple open/close cycles safely
+
+**Performance Impact:**
+- Bootstrap phase: 1 connection, 1 SELECT query, ~10-20ms
+- Production phase: N connections (configured), PRAGMA setup, ~50-100ms
+- Total overhead: <30ms added to startup (negligible)
+
+**Implementation:** See `wkmp-ai/src/models/bootstrap_config.rs` for complete two-stage initialization logic.
+
+---
+
+### Runtime Settings
+
+**[AIA-SETTINGS-010]** wkmp-ai reads the following settings from the database `settings` table at workflow start:
+
+- `silence_threshold_dB` - Silence detection threshold (Phase 4 SEGMENTING)
+- `silence_min_duration_ticks` - Minimum silence duration (Phase 4 SEGMENTING)
+- `minimum_passage_audio_duration_ticks` - Minimum non-silence for valid audio (Phase 4 SEGMENTING)
+- `lead_in_threshold_dB` - Lead-in detection threshold (Phase 8 AMPLITUDE)
+- `lead_out_threshold_dB` - Lead-out detection threshold (Phase 8 AMPLITUDE)
+- `acoustid_api_key` - AcoustID API key (Phase 5 FINGERPRINTING, Phase 6 SONG_MATCHING)
+
+For complete parameter definitions (type, default, range, units, modification impact, presets), see [IMPL016-settings_reference.md](IMPL016-settings_reference.md).
+
+**Parameter Loading Pattern:**
+- Read from `settings` table at workflow start (after pool creation)
+- If NULL or missing: Use compiled default, then store to database for future use
 
 **Thread Count Auto-Initialization (MANDATORY):**
 ```rust
@@ -1124,17 +1172,12 @@ For each file, execute in order (10-phase pipeline):
     └─ Output: Persisted passages with passageId
 
   Phase 8: AMPLITUDE
-    └─ Detect lead-in point (single absolute tick position):
-       a. Scan forward from start_time_ticks
-       b. Find first position where RMS amplitude > lead_in_threshold_dB (see Settings Management)
-       c. Maximum scan distance: 25% of passage duration (fallback if threshold never exceeded)
-       d. Record absolute tick position as lead_in_start_ticks
-    └─ Detect lead-out point (single absolute tick position):
-       a. Scan backward from end_time_ticks
-       b. Find first position where RMS amplitude > lead_out_threshold_dB (see Settings Management)
-       c. Maximum scan distance: 25% of passage duration (fallback if threshold never exceeded)
-       d. Record absolute tick position as lead_out_start_ticks
-    └─ Leave fade_in_start_ticks, fade_in_end_ticks, fade_out_start_ticks fields NULL (manual definition deferred to wkmp-pe)
+    └─ Perform amplitude analysis to detect lead-in and lead-out absolute tick positions
+       - Algorithm: RMS envelope calculation, threshold detection, quick-ramp handling
+       - Complete algorithm specification: [SPEC025-amplitude_analysis.md](SPEC025-amplitude_analysis.md)
+       - Thresholds: `lead_in_threshold_dB`, `lead_out_threshold_dB` (from settings table, see Settings Management)
+    └─ Record absolute tick positions: `lead_in_start_ticks`, `lead_out_start_ticks`
+    └─ Leave fade fields NULL: `fade_in_start_ticks`, `fade_in_end_ticks`, `fade_out_start_ticks` (manual definition deferred to wkmp-pe)
     └─ Mark passages.status = 'INGEST COMPLETE'
     └─ Output: Lead-in/lead-out absolute positions persisted (NOT durations, NOT fades)
 

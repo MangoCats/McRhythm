@@ -448,16 +448,17 @@ Parameters are classified by their modification behavior:
 - **Database Key:** `lead_in_threshold_dB`
 - **Type:** REAL
 - **Default:** `45.0`
-- **Units:** dB (relative to silence detection threshold)
-- **Valid Range:** 0.0-80.0
+- **Units:** dB (absolute RMS amplitude level, per [SPEC025:AMP-THR-010](SPEC025-amplitude_analysis.md#threshold-definitions))
+- **Valid Range:** 0.0-100.0
 - **Modification Impact:** REIMPORT_REQUIRED (affects Phase 8 amplitude analysis)
 - **Used By:** wkmp-ai (Full version only)
-- **Defined In:** [IMPL001:1033](IMPL001-database_schema.md#settings), [SPEC025:AMP-PARAM-010](SPEC025-amplitude_analysis.md)
-- **Description:** Amplitude threshold for lead-in detection. Defines 1/4 intensity point (dB below peak RMS).
-- **Presets:**
-  - Classical: -15.0 dB (gentler fade-ins)
-  - Rock/Pop: -8.0 dB (aggressive starts)
-  - Electronic/Ambient: -18.0 dB (very gentle fades)
+- **Defined In:** [IMPL001:1033](IMPL001-database_schema.md#settings), [SPEC025:AMP-THR-010,AMP-PARAM-010](SPEC025-amplitude_analysis.md), [SPEC032:301](SPEC032-audio_ingest_architecture.md)
+- **Description:** Absolute dB threshold defining minimum RMS amplitude level considered "audible content beginning". Audio below this threshold is lead-in ambience. Per [SPEC025:AMP-THR-010](SPEC025-amplitude_analysis.md).
+- **Presets:** See [Import Genre Presets](#import-genre-presets) below
+  - Classical: 50.0 dB (more sensitive to quiet lead-ins)
+  - Rock/Pop: 40.0 dB (less sensitive, expects sudden attacks)
+  - Electronic/Ambient: 55.0 dB (very sensitive to long fade-ins)
+  - Default: 45.0 dB (balanced for mixed library)
 
 ---
 
@@ -466,13 +467,17 @@ Parameters are classified by their modification behavior:
 - **Database Key:** `lead_out_threshold_dB`
 - **Type:** REAL
 - **Default:** `40.0`
-- **Units:** dB (relative to silence detection threshold)
-- **Valid Range:** 0.0-80.0
+- **Units:** dB (absolute RMS amplitude level, per [SPEC025:AMP-THR-020](SPEC025-amplitude_analysis.md#threshold-definitions))
+- **Valid Range:** 0.0-100.0
 - **Modification Impact:** REIMPORT_REQUIRED (affects Phase 8 amplitude analysis)
 - **Used By:** wkmp-ai (Full version only)
-- **Defined In:** [IMPL001:1034](IMPL001-database_schema.md#settings), [SPEC025:AMP-PARAM-010](SPEC025-amplitude_analysis.md)
-- **Description:** Amplitude threshold for lead-out detection. Defines 1/4 intensity point (dB below peak RMS).
-- **Presets:** (same as `lead_in_threshold_dB`)
+- **Defined In:** [IMPL001:1034](IMPL001-database_schema.md#settings), [SPEC025:AMP-THR-020,AMP-PARAM-010](SPEC025-amplitude_analysis.md), [SPEC032:302](SPEC032-audio_ingest_architecture.md)
+- **Description:** Absolute dB threshold defining minimum RMS amplitude level considered "audible content ending". Audio below this threshold is lead-out ambience. Per [SPEC025:AMP-THR-020](SPEC025-amplitude_analysis.md).
+- **Presets:** See [Import Genre Presets](#import-genre-presets) below
+  - Classical: 45.0 dB (more sensitive to quiet lead-outs)
+  - Rock/Pop: 35.0 dB (less sensitive, expects abrupt endings)
+  - Electronic/Ambient: 50.0 dB (very sensitive to long fade-outs)
+  - Default: 40.0 dB (balanced for mixed library)
 
 ---
 
@@ -1321,41 +1326,44 @@ ai_database_max_lock_wait_ms [1028]
 **Classical Music:**
 ```json
 {
-  "rms_window_ms": 200,
-  "lead_in_threshold_dB": -15.0,
-  "lead_out_threshold_dB": -15.0,
-  "quick_ramp_duration_s": 2.0,
-  "max_lead_in_duration_s": 5.0,
-  "max_lead_out_duration_s": 5.0,
-  "silence_threshold_dB": 80.0
+  "lead_in_threshold_dB": 50.0,
+  "lead_out_threshold_dB": 45.0,
+  "silence_threshold_dB": 40.0
 }
 ```
+**Rationale:** Classical music often has gradual dynamic changes requiring more sensitive detection (higher absolute dB thresholds detect quieter content). Per [SPEC025:327-330](SPEC025-amplitude_analysis.md).
 
 **Rock/Pop:**
 ```json
 {
-  "rms_window_ms": 50,
-  "lead_in_threshold_dB": -8.0,
-  "lead_out_threshold_dB": -8.0,
-  "quick_ramp_duration_s": 0.5,
-  "max_lead_in_duration_s": 2.0,
-  "max_lead_out_duration_s": 2.0,
-  "silence_threshold_dB": 60.0
+  "lead_in_threshold_dB": 40.0,
+  "lead_out_threshold_dB": 35.0,
+  "silence_threshold_dB": 35.0
 }
 ```
+**Rationale:** Rock/pop typically has sharp transients and abrupt endings requiring less sensitive detection (lower thresholds expect louder content onset). Per [SPEC025:332-335](SPEC025-amplitude_analysis.md).
 
 **Electronic/Ambient:**
 ```json
 {
-  "rms_window_ms": 250,
-  "lead_in_threshold_dB": -18.0,
-  "lead_out_threshold_dB": -18.0,
-  "quick_ramp_duration_s": 3.0,
-  "max_lead_in_duration_s": 8.0,
-  "max_lead_out_duration_s": 8.0,
-  "silence_threshold_dB": 70.0
+  "lead_in_threshold_dB": 55.0,
+  "lead_out_threshold_dB": 50.0,
+  "silence_threshold_dB": 45.0
 }
 ```
+**Rationale:** Electronic music often uses extended fades requiring very sensitive detection (highest thresholds to capture long quiet ramps). Per [SPEC025:337-340](SPEC025-amplitude_analysis.md).
+
+**Default (General Purpose):**
+```json
+{
+  "lead_in_threshold_dB": 45.0,
+  "lead_out_threshold_dB": 40.0,
+  "silence_threshold_dB": 35.0
+}
+```
+**Rationale:** Balanced for mixed library with various musical styles. Per [SPEC025:342-345](SPEC025-amplitude_analysis.md), [SPEC032](SPEC032-audio_ingest_architecture.md).
+
+**NOTE:** Hardcoded algorithm parameters (not in settings table): `rms_window_ms: 100`, `quick_ramp_threshold: 0.75`, `quick_ramp_duration_s: 1.0`, `max_lead_in_duration_s: 10.0`, `max_lead_out_duration_s: 10.0`, `apply_a_weighting: false`. See [SPEC025:310-315](SPEC025-amplitude_analysis.md) for algorithm parameter details.
 
 ---
 

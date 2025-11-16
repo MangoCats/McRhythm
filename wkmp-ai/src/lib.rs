@@ -39,6 +39,11 @@ pub struct AppState {
     pub event_bus: EventBus,
     /// Cancellation tokens for active import sessions **[AIA-ASYNC-010]**
     pub cancellation_tokens: Arc<RwLock<HashMap<Uuid, CancellationToken>>>,
+    /// Processing thread count from bootstrap configuration **[AIA-INIT-010]**
+    ///
+    /// Read from `ai_processing_thread_count` setting at startup (RESTART_REQUIRED parameter).
+    /// Used to configure parallel worker pool for import pipeline.
+    pub processing_thread_count: usize,
     /// Service startup timestamp for uptime tracking **[HIGH-005]**
     pub startup_time: DateTime<Utc>,
     /// Last error for diagnostic purposes **[HIGH-005]**
@@ -51,11 +56,13 @@ impl AppState {
     /// # Arguments
     /// * `db` - Database connection pool
     /// * `event_bus` - Event bus for SSE broadcasting
-    pub fn new(db: SqlitePool, event_bus: EventBus) -> Self {
+    /// * `processing_thread_count` - Worker parallelism from bootstrap config
+    pub fn new(db: SqlitePool, event_bus: EventBus, processing_thread_count: usize) -> Self {
         Self {
             db,
             event_bus,
             cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
+            processing_thread_count,
             startup_time: Utc::now(),
             last_error: Arc::new(RwLock::new(None)),
         }

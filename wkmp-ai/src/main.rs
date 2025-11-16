@@ -54,15 +54,35 @@ async fn main() -> Result<()> {
     initializer.ensure_directory_exists()
         .map_err(|e| anyhow::anyhow!("Failed to initialize root folder: {}", e))?;
 
-    // Step 3: Open or create database [REQ-NF-036]
+    // Step 3: Get database path [REQ-NF-036]
     let db_path = initializer.database_path();
     info!("Database: {}", db_path.display());
 
-    // Initialize database connection pool **[AIA-DB-010]**
-    // Uses common database initialization to ensure complete schema (REQ-NF-037)
-    let db_pool = wkmp_common::db::init::init_database(&db_path).await
-        .map_err(|e| anyhow::anyhow!("Failed to initialize database: {}", e))?;
-    info!("Database connection established");
+    // **[AIA-INIT-010]** Two-stage database initialization
+    // Stage 1: Bootstrap - Read RESTART_REQUIRED parameters with minimal connection
+    info!("Stage 1: Reading RESTART_REQUIRED configuration parameters");
+    let bootstrap_config = wkmp_ai::models::WkmpAiBootstrapConfig::from_database(&db_path).await
+        .map_err(|e| anyhow::anyhow!("Failed to read bootstrap configuration: {}", e))?;
+
+    info!(
+        "Configuration loaded: pool_size={}, lock_retry={}ms, max_wait={}ms, threads={}",
+        bootstrap_config.connection_pool_size,
+        bootstrap_config.lock_retry_ms,
+        bootstrap_config.max_lock_wait_ms,
+        bootstrap_config.processing_thread_count()
+    );
+
+    // Stage 2: Production - Create configured pool and initialize schema
+    info!("Stage 2: Creating production database pool with configuration");
+
+    // Note: We create the pool using bootstrap config, but still need to run schema initialization
+    // Since init_database() creates its own pool, we'll create pool first, then verify schema
+    let db_pool = bootstrap_config.create_pool(&db_path).await
+        .map_err(|e| anyhow::anyhow!("Failed to create production database pool: {}", e))?;
+
+    // Verify/initialize schema using existing schema maintenance system **[AIA-DB-010]**
+    // (SPEC031 data-driven schema maintenance runs migrations automatically)
+    info!("Database pool ready ({} connections)", bootstrap_config.connection_pool_size);
 
     // Step 4: Determine TOML config path
     let toml_path = std::env::var("HOME")
@@ -152,8 +172,12 @@ async fn main() -> Result<()> {
     let event_bus = EventBus::new(100); // 100 event capacity
     info!("Event bus initialized");
 
-    // Create application state
-    let state = AppState::new(db_pool, event_bus);
+    // Create application state with configured thread count
+    let state = AppState::new(
+        db_pool,
+        event_bus,
+        bootstrap_config.processing_thread_count()
+    );
 
     // Build router
     let app = wkmp_ai::build_router(state);

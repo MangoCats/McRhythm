@@ -575,6 +575,10 @@ mod tests {
             .expect("Failed to enable foreign keys");
 
         // Use production schema from wkmp-common
+        wkmp_common::db::init::create_settings_table(&pool)
+            .await
+            .expect("Failed to create settings table");
+
         wkmp_common::db::init::create_files_table(&pool)
             .await
             .expect("Failed to create files table");

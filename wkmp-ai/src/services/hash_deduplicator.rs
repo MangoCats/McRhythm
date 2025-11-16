@@ -325,6 +325,11 @@ mod tests {
     async fn setup_test_db() -> SqlitePool {
         let pool = SqlitePool::connect(":memory:").await.unwrap();
 
+        // Create settings table (required by hash deduplicator operations)
+        wkmp_common::db::init::create_settings_table(&pool)
+            .await
+            .unwrap();
+
         sqlx::query(
             r#"
             CREATE TABLE files (

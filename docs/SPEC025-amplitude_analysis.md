@@ -99,40 +99,39 @@ For each window starting at index i:
 
 ### 1/4 Intensity Threshold
 
-**[AMP-THR-010]** "1/4 perceived audible intensity" defined as:
+**[AMP-THR-010]** Lead-in detection threshold defined as:
 
 ```
-threshold_25 = peak_rms * 10^(threshold_db / 20)
+threshold_lead_in = 10^(threshold_dB / 20)
 
 Where:
-  peak_rms = maximum RMS value across entire passage
-  threshold_db = -12 dB (default, user-configurable)
+  threshold_dB = 45.0 dB (absolute dB, default, user-configurable via settings table)
 
 Calculation:
-  10^(-12 / 20) = 10^(-0.6) ≈ 0.251
-
-  Therefore: threshold_25 ≈ 0.25 * peak_rms
+  threshold_lead_in = 10^(45.0 / 20) = 10^(2.25) ≈ 177.8 (linear amplitude)
 ```
 
-**Rationale:** -12 dB attenuation ≈ 1/4 power, perceived as roughly "1/4 as loud"
+**Interpretation:** Absolute dB threshold defining the minimum RMS amplitude level considered "audible content beginning". Audio below this threshold is considered lead-in ambience.
+
+**Rationale:** Absolute dB scale provides consistent threshold across all passages regardless of peak amplitude. User-configurable via `lead_in_threshold_dB` setting ([IMPL016](IMPL016-settings_reference.md), [SPEC032](SPEC032-audio_ingest_architecture.md)).
 
 ### 3/4 Intensity Threshold
 
-**[AMP-THR-020]** "3/4 perceived audible intensity" defined as:
+**[AMP-THR-020]** Lead-out detection threshold defined as:
 
 ```
-threshold_75 = peak_rms * 10^(threshold_db / 20)
+threshold_lead_out = 10^(threshold_dB / 20)
 
 Where:
-  threshold_db = -5 dB (default, user-configurable)
+  threshold_dB = 40.0 dB (absolute dB, default, user-configurable via settings table)
 
 Calculation:
-  10^(-5 / 20) = 10^(-0.25) ≈ 0.562
-
-  Therefore: threshold_75 ≈ 0.56 * peak_rms ≈ 3/4 power
+  threshold_lead_out = 10^(40.0 / 20) = 10^(2.0) = 100.0 (linear amplitude)
 ```
 
-**Rationale:** -5 dB attenuation ≈ 0.56x power, perceived as roughly "3/4 as loud"
+**Interpretation:** Absolute dB threshold defining the minimum RMS amplitude level considered "audible content ending". Audio below this threshold is considered lead-out ambience.
+
+**Rationale:** Absolute dB scale provides consistent threshold across all passages regardless of peak amplitude. User-configurable via `lead_out_threshold_dB` setting ([IMPL016](IMPL016-settings_reference.md), [SPEC032](SPEC032-audio_ingest_architecture.md)).
 
 ---
 
@@ -168,27 +167,19 @@ Example (100ms windows at 44.1kHz):
   RMS array: [0.02, 0.15, 0.45, 0.82, 0.95, 0.93, ...]
 ```
 
-**Step 2: Find Passage Peak RMS**
+**Step 2: Calculate Absolute Thresholds**
 ```
-peak_rms = max(rms_envelope)
+threshold_lead_in = 10^(lead_in_threshold_dB / 20)
+threshold_lead_out = 10^(lead_out_threshold_dB / 20)
 
-Example:
-  peak_rms = 0.95
-```
-
-**Step 3: Calculate Thresholds**
-```
-threshold_25 = peak_rms * 10^(lead_in_threshold_db / 20)
-threshold_75 = peak_rms * 10^(-5 / 20)
-
-Example (default -12 dB threshold):
-  threshold_25 = 0.95 * 0.251 ≈ 0.238
-  threshold_75 = 0.95 * 0.562 ≈ 0.534
+Example (default 45.0 dB / 40.0 dB absolute thresholds):
+  threshold_lead_in = 10^(45.0 / 20) ≈ 177.8 (linear amplitude)
+  threshold_lead_out = 10^(40.0 / 20) = 100.0 (linear amplitude)
 ```
 
-**Step 4: Detect Quick Ramp-Up**
+**Step 3: Detect Quick Ramp-Up**
 ```
-Find first window where RMS >= threshold_75
+Find first window where RMS >= threshold_lead_out
 time_to_75 = (window_index * window_duration_ms) / 1000
 
 IF time_to_75 < quick_ramp_duration_s:
@@ -202,10 +193,10 @@ Example:
       RETURN 0.0 seconds
 ```
 
-**Step 5: Find Lead-In Point (Slow Ramp-Up)**
+**Step 4: Find Lead-In Point (Slow Ramp-Up)**
 ```
 // Search from start of passage forward
-Find first window where RMS >= threshold_25
+Find first window where RMS >= threshold_lead_in
 lead_in_window = window_index
 lead_in_duration = (lead_in_window * window_duration_ms) / 1000
 
@@ -213,16 +204,16 @@ lead_in_duration = (lead_in_window * window_duration_ms) / 1000
 lead_in_duration = min(lead_in_duration, max_lead_in_duration_s)
 
 Example:
-  First RMS >= 0.238 at window 23
+  First RMS >= 177.8 at window 23
   lead_in_duration = (23 * 100ms) / 1000 = 2.3 seconds
 
-  IF 2.3 > 5.0 (default max_lead_in_duration_s):
-      lead_in_duration = 5.0
+  IF 2.3 > 10.0 (default max_lead_in_duration_s):
+      lead_in_duration = 10.0
   ELSE:
       lead_in_duration = 2.3 seconds
 ```
 
-**Step 6: Return Result**
+**Step 5: Return Result**
 ```
 RETURN lead_in_duration
 ```
@@ -249,12 +240,12 @@ Output:
 
 **[AMP-LEADOUT-020]** Detection process (mirror of lead-in):
 
-**Step 1-3:** Same as lead-in (RMS envelope, peak, thresholds)
+**Step 1-2:** Same as lead-in (RMS envelope, thresholds)
 
-**Step 4: Detect Quick Ramp-Down**
+**Step 3: Detect Quick Ramp-Down**
 ```
 // Search from end of passage backward
-Find last window where RMS >= threshold_75
+Find last window where RMS >= threshold_lead_out
 num_windows = length(rms_envelope)
 time_from_75_to_end = ((num_windows - window_index) * window_duration_ms) / 1000
 
@@ -269,10 +260,10 @@ Example:
       RETURN 0.0 seconds
 ```
 
-**Step 5: Find Lead-Out Point (Slow Ramp-Down)**
+**Step 4: Find Lead-Out Point (Slow Ramp-Down)**
 ```
 // Search from end of passage backward
-Find last window where RMS >= threshold_25
+Find last window where RMS >= threshold_lead_in
 lead_out_window = num_windows - window_index
 lead_out_duration = (lead_out_window * window_duration_ms) / 1000
 
@@ -280,17 +271,17 @@ lead_out_duration = (lead_out_window * window_duration_ms) / 1000
 lead_out_duration = min(lead_out_duration, max_lead_out_duration_s)
 
 Example:
-  Last RMS >= 0.238 at window 1768
+  Last RMS >= 177.8 at window 1768
   lead_out_window = 1800 - 1768 = 32
   lead_out_duration = (32 * 100ms) / 1000 = 3.2 seconds
 
-  IF 3.2 > 5.0:
-      lead_out_duration = 5.0
+  IF 3.2 > 10.0:
+      lead_out_duration = 10.0
   ELSE:
       lead_out_duration = 3.2 seconds
 ```
 
-**Step 6: Return Result**
+**Step 5: Return Result**
 ```
 RETURN lead_out_duration
 ```
@@ -301,64 +292,35 @@ RETURN lead_out_duration
 
 ### Parameter Definitions
 
-**[AMP-PARAM-010]** Configurable parameters for amplitude analysis:
+**[AMP-PARAM-010]** Amplitude analysis uses two types of parameters:
 
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| `rms_window_ms` | Integer | 100 | 10-1000 | RMS sliding window size (milliseconds) |
-| `lead_in_threshold_db` | Float | -12.0 | -60.0 to 0.0 | Threshold for 1/4 intensity (dB below peak) |
-| `lead_out_threshold_db` | Float | -12.0 | -60.0 to 0.0 | Threshold for 1/4 intensity (dB below peak) |
-| `quick_ramp_threshold` | Float | 0.75 | 0.0 to 1.0 | Intensity level for "quick ramp" detection (fraction) |
-| `quick_ramp_duration_s` | Float | 1.0 | 0.1 to 5.0 | Max duration for "quick ramp" (seconds) |
-| `max_lead_in_duration_s` | Float | 5.0 | 0.0 to 10.0 | Maximum allowed lead-in duration (seconds) |
-| `max_lead_out_duration_s` | Float | 5.0 | 0.0 to 10.0 | Maximum allowed lead-out duration (seconds) |
-| `apply_a_weighting` | Boolean | true | - | Enable A-weighting filter for perceptual accuracy |
+**Settings Table Parameters (User-Configurable):**
+- `lead_in_threshold_dB` - Absolute dB threshold for lead-in detection (default: 45.0 dB)
+- `lead_out_threshold_dB` - Absolute dB threshold for lead-out detection (default: 40.0 dB)
+
+For complete parameter definitions (type, range, modification impact, presets), see [IMPL016-settings_reference.md](IMPL016-settings_reference.md#lead_in_threshold_db).
+
+**Hardcoded Algorithm Constants (Not User-Configurable):**
+- `rms_window_ms` = 100 (RMS sliding window size in milliseconds)
+- `quick_ramp_threshold` = 0.75 (intensity level for quick ramp detection, fraction of threshold)
+- `quick_ramp_duration_s` = 1.0 (maximum duration for quick ramp in seconds)
+- `max_lead_in_duration_s` = 10.0 (maximum allowed lead-in duration in seconds)
+- `max_lead_out_duration_s` = 10.0 (maximum allowed lead-out duration in seconds)
+- `apply_a_weighting` = false (A-weighting filter disabled by default)
+
+These constants are compiled into `amplitude_analyzer.rs` and cannot be modified via settings table. Future enhancement may move these to settings table for user configurability.
 
 ### Parameter Presets
 
-**[AMP-PARAM-020]** Recommended presets for common musical styles:
+**[AMP-PARAM-020]** Genre-specific preset configurations are defined in [IMPL016-settings_reference.md](IMPL016-settings_reference.md#import-genre-presets).
 
-**Classical Music:**
-```json
-{
-  "rms_window_ms": 200,
-  "lead_in_threshold_db": -15.0,
-  "lead_out_threshold_db": -15.0,
-  "quick_ramp_threshold": 0.75,
-  "quick_ramp_duration_s": 2.0,
-  "max_lead_in_duration_s": 5.0,
-  "max_lead_out_duration_s": 5.0,
-  "apply_a_weighting": true
-}
-```
+**Available Presets:**
+- Classical Music (more sensitive to quiet lead-ins/lead-outs)
+- Rock/Pop (less sensitive, expects sudden attacks/abrupt endings)
+- Electronic/Ambient (very sensitive to long fade-ins/fade-outs)
+- Default (balanced for mixed library)
 
-**Rock/Pop:**
-```json
-{
-  "rms_window_ms": 50,
-  "lead_in_threshold_db": -8.0,
-  "lead_out_threshold_db": -8.0,
-  "quick_ramp_threshold": 0.75,
-  "quick_ramp_duration_s": 0.5,
-  "max_lead_in_duration_s": 2.0,
-  "max_lead_out_duration_s": 2.0,
-  "apply_a_weighting": true
-}
-```
-
-**Electronic/Ambient:**
-```json
-{
-  "rms_window_ms": 250,
-  "lead_in_threshold_db": -18.0,
-  "lead_out_threshold_db": -18.0,
-  "quick_ramp_threshold": 0.75,
-  "quick_ramp_duration_s": 3.0,
-  "max_lead_in_duration_s": 8.0,
-  "max_lead_out_duration_s": 8.0,
-  "apply_a_weighting": true
-}
-```
+Each preset specifies `lead_in_threshold_dB`, `lead_out_threshold_dB`, and `silence_threshold_dB` values optimized for the respective musical genre. See [IMPL016](IMPL016-settings_reference.md#import-genre-presets) for complete preset definitions and rationale.
 
 ---
 
@@ -410,20 +372,20 @@ Calculated (absolute positions):
     "quick_ramp_down": false,
     "parameters_used": {
       "rms_window_ms": 100,
-      "lead_in_threshold_db": -12.0,
-      "lead_out_threshold_db": -12.0,
+      "lead_in_threshold_dB": 45.0,
+      "lead_out_threshold_dB": 40.0,
       "quick_ramp_threshold": 0.75,
       "quick_ramp_duration_s": 1.0,
-      "max_lead_in_duration_s": 5.0,
-      "max_lead_out_duration_s": 5.0,
-      "apply_a_weighting": true
+      "max_lead_in_duration_s": 10.0,
+      "max_lead_out_duration_s": 10.0,
+      "apply_a_weighting": false
     },
     "analyzed_at": "2025-10-27T12:34:56Z"
   }
 }
 ```
 
-**Purpose:** Audit trail for how timing points were determined
+**Purpose:** Audit trail for how timing points were determined (parameters snapshot preserves exact analysis configuration)
 
 ---
 
@@ -516,9 +478,25 @@ Calculated (absolute positions):
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-27
-**Status:** Design specification (implementation pending)
+## Document History
+
+**Version 1.1** (2025-11-15):
+- **ALIGNMENT UPDATE:** Aligned with [SPEC032](SPEC032-audio_ingest_architecture.md) as controlling document
+- Updated default thresholds: `lead_in_threshold_dB` = 45.0 dB, `lead_out_threshold_dB` = 40.0 dB
+- Clarified interpretation: All dB values are **absolute dB** (RMS amplitude levels, not relative to peak)
+- Updated `max_lead_in_duration_s` / `max_lead_out_duration_s` defaults to 10.0 seconds (per implementation)
+- Updated `apply_a_weighting` default to `false` (per implementation)
+- Documented settings table storage for user-configurable parameters
+- Revised presets to use positive absolute dB values
+
+**Version 1.0** (2025-10-27):
+- Initial specification
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-11-15
+**Status:** Design specification (aligned with SPEC032 and implementation)
 
 ---
 

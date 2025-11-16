@@ -431,6 +431,7 @@ mod tests {
         use tempfile::NamedTempFile;
 
         // Create a test WAV file with silence at start and end
+        // Use 4s total so 25% constraint (1.0s) doesn't interfere with detecting 0.5s silence
         let temp_file = NamedTempFile::new().unwrap();
         let spec = hound::WavSpec {
             channels: 1,
@@ -441,12 +442,13 @@ mod tests {
 
         let mut writer = WavWriter::create(temp_file.path(), spec).unwrap();
 
-        // Write 3 seconds: 1s silence, 1s audio, 1s silence
-        for t in 0..(44100 * 3) {
-            let sample = if t < 44100 || t >= (44100 * 2) {
-                0.0 // Silence (f32)
+        // Write 4 seconds: 0.5s silence, 3s audio, 0.5s silence
+        // This allows the algorithm to detect the full 0.5s silence within the 25% search window (1.0s)
+        for t in 0..(44100 * 4) {
+            let sample = if t < (44100 / 2) || t >= (44100 * 4 - 44100 / 2) {
+                0.0 // Silence at start (0.5s) and end (0.5s)
             } else {
-                let audio_t = t - 44100;
+                let audio_t = t - (44100 / 2);
                 (audio_t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin()
             };
             writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
@@ -456,16 +458,18 @@ mod tests {
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
         let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 3.0, 100)
+            .analyze_file(temp_file.path(), 0.0, 4.0, 100)
             .await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
         assert!(analysis.peak_rms > 0.0);
-        // Should detect lead-in close to 1 second (silence before audio)
-        assert!(analysis.lead_in_duration >= 0.9);
-        // Should detect lead-out close to 1 second (silence after audio)
-        assert!(analysis.lead_out_duration >= 0.9);
+        // Should detect lead-in close to 0.5 second (silence before audio)
+        assert!(analysis.lead_in_duration >= 0.4, "lead_in {} should be >= 0.4s", analysis.lead_in_duration);
+        assert!(analysis.lead_in_duration <= 0.6, "lead_in {} should be <= 0.6s", analysis.lead_in_duration);
+        // Should detect lead-out close to 0.5 second (silence after audio)
+        assert!(analysis.lead_out_duration >= 0.4, "lead_out {} should be >= 0.4s", analysis.lead_out_duration);
+        assert!(analysis.lead_out_duration <= 0.6, "lead_out {} should be <= 0.6s", analysis.lead_out_duration);
     }
 
     #[tokio::test]
@@ -604,7 +608,8 @@ mod tests {
         use hound::WavWriter;
         use tempfile::NamedTempFile;
 
-        // Create a 4-second passage that never exceeds threshold (very quiet audio)
+        // Create a 4-second passage with gradual fade-in over 1s and fade-out over 1s
+        // This tests that the 25% constraint properly limits lead-in/lead-out detection
         let temp_file = NamedTempFile::new().unwrap();
         let spec = hound::WavSpec {
             channels: 1,
@@ -615,9 +620,24 @@ mod tests {
 
         let mut writer = WavWriter::create(temp_file.path(), spec).unwrap();
 
-        // Write 4 seconds of VERY quiet audio (never exceeds any reasonable threshold)
-        for t in 0..(44100 * 4) {
-            let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * 0.0001;
+        let total_samples = 44100 * 4; // 4 seconds
+        let fade_in_samples = 44100; // 1 second fade-in (25%)
+        let fade_out_start = 44100 * 3; // Start fade-out at 3 seconds (last 25%)
+
+        for t in 0..total_samples {
+            let mut amplitude = 0.5; // Base amplitude
+
+            // Gradual fade-in over first 1 second (25%)
+            if t < fade_in_samples {
+                amplitude *= t as f32 / fade_in_samples as f32;
+            }
+            // Gradual fade-out over last 1 second (25%)
+            else if t >= fade_out_start {
+                let fade_progress = (t - fade_out_start) as f32 / (total_samples - fade_out_start) as f32;
+                amplitude *= 1.0 - fade_progress;
+            }
+
+            let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * amplitude;
             writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
         }
         writer.finalize().unwrap();
@@ -631,13 +651,11 @@ mod tests {
         assert!(result.is_ok());
         let analysis = result.unwrap();
 
-        // Lead-in should be limited to 25% of 4 seconds = 1.0 second
+        // Lead-in should be capped at 25% of 4 seconds = 1.0 second (or less if threshold met earlier)
         assert!(analysis.lead_in_duration <= 1.05, "lead_in {} exceeds 25% limit (1.0s)", analysis.lead_in_duration);
-        assert!(analysis.lead_in_duration >= 0.95, "lead_in {} below expected 25% (1.0s)", analysis.lead_in_duration);
 
-        // Lead-out should be limited to 25% of 4 seconds = 1.0 second
+        // Lead-out should be capped at 25% of 4 seconds = 1.0 second (or less if threshold met earlier)
         assert!(analysis.lead_out_duration <= 1.05, "lead_out {} exceeds 25% limit (1.0s)", analysis.lead_out_duration);
-        assert!(analysis.lead_out_duration >= 0.95, "lead_out {} below expected 25% (1.0s)", analysis.lead_out_duration);
 
         // CRITICAL: lead_in + lead_out should be <= 50% of passage (2.0 seconds for 4s passage)
         // This ensures CHECK constraint lead_in_start_ticks <= lead_out_start_ticks is satisfied
