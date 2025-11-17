@@ -20,6 +20,7 @@ pub mod events;
 pub mod fade_curves;
 pub mod human_time;
 pub mod params;
+pub mod path_normalization;
 pub mod sse;
 pub mod time;
 pub mod timing;

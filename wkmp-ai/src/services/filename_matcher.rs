@@ -9,6 +9,7 @@
 use sqlx::{Pool, Sqlite};
 use std::path::Path;
 use uuid::Uuid;
+use wkmp_common::path_normalization::normalize_path_for_db;
 use wkmp_common::{Error, Result};
 
 /// Filename matching result
@@ -45,11 +46,8 @@ impl FilenameMatcher {
     ///
     /// **Traceability:** [REQ-SPEC032-008]
     pub async fn check_file(&self, file_path: &Path) -> Result<MatchResult> {
-        // Convert path to string (relative to root folder, forward slashes)
-        let path_str = file_path
-            .to_str()
-            .ok_or_else(|| Error::InvalidInput("Invalid UTF-8 in file path".to_string()))?
-            .replace('\\', "/");
+        // **[Path Normalization]** Convert to canonical database format (forward slashes)
+        let path_str = normalize_path_for_db(file_path);
 
         tracing::debug!(path = %path_str, "Checking if file exists in database");
 
@@ -105,10 +103,8 @@ impl FilenameMatcher {
         modification_time: i64,
     ) -> Result<Uuid> {
         let guid = Uuid::new_v4();
-        let path_str = file_path
-            .to_str()
-            .ok_or_else(|| Error::InvalidInput("Invalid UTF-8 in file path".to_string()))?
-            .replace('\\', "/");
+        // **[Path Normalization]** Convert to canonical database format (forward slashes)
+        let path_str = normalize_path_for_db(file_path);
 
         // Create file record with PENDING status and temporary hash
         // Hash will be updated in Phase 2

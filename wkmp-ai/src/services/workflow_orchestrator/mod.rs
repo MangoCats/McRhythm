@@ -3349,13 +3349,27 @@ impl WorkflowOrchestrator {
         {
             let mut states = self.file_processing_states.write().await;
             if let Some(file_state) = states.get_mut(&idx) {
-                // Determine final state based on result
-                file_state.state = if result.is_ok() {
-                    FileState::IngestComplete
-                } else {
-                    // Keep current processing state with error
-                    FileState::Processing(format!("Failed: {:?}", result.as_ref().err()))
-                };
+                // Only update state if not already in a terminal state (DuplicateHash, NoAudio)
+                // These states are set during processing when early exit occurs
+                match &file_state.state {
+                    FileState::DuplicateHash | FileState::NoAudio => {
+                        // Already in terminal state, don't overwrite
+                        tracing::debug!(
+                            file_index = idx,
+                            state = ?file_state.state,
+                            "File already in terminal state, preserving"
+                        );
+                    }
+                    _ => {
+                        // Update to final state based on result
+                        file_state.state = if result.is_ok() {
+                            FileState::IngestComplete
+                        } else {
+                            // Keep current processing state with error
+                            FileState::Processing(format!("Failed: {:?}", result.as_ref().err()))
+                        };
+                    }
+                }
                 file_state.total_time_seconds = Some(elapsed);
             }
         }
