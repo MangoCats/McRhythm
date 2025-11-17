@@ -14,8 +14,9 @@ const ACOUSTID_BASE_URL: &str = "https://api.acoustid.org/v2/lookup";
 const USER_AGENT: &str = "WKMP/0.1.0 (https://github.com/wkmp/wkmp)";
 const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between requests)
 
-// **[PLAN030 Task 3.4]** Aggressive timeout to prevent worker blocking
-const ACOUSTID_TIMEOUT_SECS: u64 = 5; // Down from 30s
+// **[PLAN031 Fix 1]** Emergency kill switch and ultra-aggressive timeout
+const ACOUSTID_ENABLED: bool = false; // EMERGENCY: Disable entirely (725 timeouts in testV.log)
+const ACOUSTID_TIMEOUT_SECS: u64 = 1; // Down from 5s (PLAN030) -> 1s (PLAN031 emergency)
 const CIRCUIT_BREAKER_THRESHOLD: u32 = 3; // Open after 3 consecutive failures
 const CIRCUIT_BREAKER_COOLDOWN_SECS: u64 = 60; // Stay open for 60s before retry
 
@@ -248,6 +249,12 @@ impl AcoustIDClient {
                     }]),
                 }],
             });
+        }
+
+        // **[PLAN031 Fix 1]** Emergency kill switch - AcoustID causing 725 timeouts in testV.log
+        if !ACOUSTID_ENABLED {
+            tracing::debug!("AcoustID disabled via ACOUSTID_ENABLED flag, skipping lookup");
+            return Err(AcoustIDError::NoMatches);
         }
 
         // **[PLAN030 Task 3.4]** Check circuit breaker state

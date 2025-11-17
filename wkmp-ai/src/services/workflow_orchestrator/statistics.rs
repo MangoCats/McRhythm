@@ -16,6 +16,12 @@ pub struct ScanningStats {
     pub potential_files_found: usize,
     /// Scanning in progress
     pub is_scanning: bool,
+    /// Number of audio files found
+    pub audio_files: usize,
+    /// Number of image files found
+    pub image_files: usize,
+    /// Number of other files found
+    pub other_files: usize,
 }
 
 impl ScanningStats {

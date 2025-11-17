@@ -50,9 +50,23 @@ pub struct WkmpAiBootstrapConfig {
 
     /// Worker thread count for parallel import processing
     ///
-    /// **Default:** 8 workers (optimized for I/O-bound workload - PLAN030)
+    /// **Default:** 4 workers (emergency reduction - PLAN031)
     /// **Range:** 1-64 (can be overridden via settings table)
     pub processing_thread_count: usize,
+
+    /// Memory usage threshold in bytes for monitoring
+    ///
+    /// **Default:** 12GB (12884901888 bytes)
+    /// **Purpose:** Threshold for memory usage warnings/critical alerts
+    /// **Rationale:** Modern systems have 16-32GB RAM, 12GB is reasonable operating limit
+    pub memory_usage_threshold_bytes: u64,
+
+    /// Event bus capacity for SSE broadcasting
+    ///
+    /// **Default:** 1000 events
+    /// **Purpose:** Size of event channel buffer for SSE updates
+    /// **Rationale:** 100 was too small causing event loss; 1000 provides safety margin
+    pub event_bus_capacity: usize,
 }
 
 impl WkmpAiBootstrapConfig {
@@ -104,7 +118,15 @@ impl WkmpAiBootstrapConfig {
                     (SELECT value FROM settings WHERE key = 'ai_database_max_lock_wait_ms'),
                     '30000'
                 ) as max_wait,
-                (SELECT value FROM settings WHERE key = 'ai_processing_thread_count') as thread_count
+                (SELECT value FROM settings WHERE key = 'ai_processing_thread_count') as thread_count,
+                COALESCE(
+                    (SELECT value FROM settings WHERE key = 'ai_memory_usage_threshold_bytes'),
+                    '12884901888'
+                ) as memory_threshold,
+                COALESCE(
+                    (SELECT value FROM settings WHERE key = 'ai_event_bus_capacity'),
+                    '1000'
+                ) as event_capacity
             "#
         )
         .fetch_one(&pool)
@@ -139,16 +161,70 @@ impl WkmpAiBootstrapConfig {
                 .parse()
                 .context("Invalid ai_processing_thread_count (must be integer 1-64)")?
         } else {
-            // **[PLAN030 Task 3.5]** Fixed worker count for I/O-bound workload
-            // Previously: cpu_count + 1 (resulted in 21 workers, but only 2-3 active)
-            // Optimal: 8 workers for I/O-bound work (network, disk, fingerprinting)
-            let auto_count = 8;
+            // **[PLAN031 Fix 5]** Emergency worker reduction (8 -> 4)
+            // PLAN030 set to 8, but testV.log shows resource contention
+            // Reducing to 4 workers to minimize contention while maintaining parallelism
+            let auto_count = 4;
             tracing::info!(
-                "ai_processing_thread_count is NULL, using optimized default: {} workers",
+                "ai_processing_thread_count is NULL, using emergency reduced default: {} workers",
                 auto_count
             );
             auto_count
         };
+
+        // **[IMPL016]** Parse memory threshold with validation
+        let memory_threshold_str: String = row
+            .try_get("memory_threshold")
+            .context("Failed to read memory_threshold")?;
+        let mut memory_usage_threshold_bytes: u64 = memory_threshold_str
+            .parse()
+            .context("Invalid ai_memory_usage_threshold_bytes value")?;
+
+        // Validate reasonable range (1GB - 128GB)
+        const MIN_MEMORY_THRESHOLD: u64 = 1_073_741_824; // 1GB
+        const MAX_MEMORY_THRESHOLD: u64 = 137_438_953_472; // 128GB
+
+        if memory_usage_threshold_bytes < MIN_MEMORY_THRESHOLD {
+            tracing::warn!(
+                "Memory threshold {}MB is very low, using 1GB minimum",
+                memory_usage_threshold_bytes / 1_000_000
+            );
+            memory_usage_threshold_bytes = MIN_MEMORY_THRESHOLD;
+        } else if memory_usage_threshold_bytes > MAX_MEMORY_THRESHOLD {
+            tracing::warn!(
+                "Memory threshold {}GB exceeds 128GB maximum, capping",
+                memory_usage_threshold_bytes / 1_000_000_000
+            );
+            memory_usage_threshold_bytes = MAX_MEMORY_THRESHOLD;
+        }
+
+        // **[PLAN031 Task 2.2]** Parse event bus capacity with validation
+        let event_capacity_str: String = row
+            .try_get("event_capacity")
+            .context("Failed to read event_capacity")?;
+        let mut event_bus_capacity: usize = event_capacity_str
+            .parse()
+            .context("Invalid ai_event_bus_capacity value")?;
+
+        // Validate reasonable range (10 - 10,000 events)
+        const MIN_EVENT_CAPACITY: usize = 10;
+        const MAX_EVENT_CAPACITY: usize = 10_000;
+
+        if event_bus_capacity < MIN_EVENT_CAPACITY {
+            tracing::warn!(
+                "Event bus capacity {} is very low, using {} minimum",
+                event_bus_capacity,
+                MIN_EVENT_CAPACITY
+            );
+            event_bus_capacity = MIN_EVENT_CAPACITY;
+        } else if event_bus_capacity > MAX_EVENT_CAPACITY {
+            tracing::warn!(
+                "Event bus capacity {} exceeds {} maximum, capping",
+                event_bus_capacity,
+                MAX_EVENT_CAPACITY
+            );
+            event_bus_capacity = MAX_EVENT_CAPACITY;
+        }
 
         // Close bootstrap pool before returning
         pool.close().await;
@@ -171,6 +247,8 @@ impl WkmpAiBootstrapConfig {
             lock_retry_ms,
             max_lock_wait_ms,
             processing_thread_count,
+            memory_usage_threshold_bytes,
+            event_bus_capacity,
         })
     }
 
@@ -191,9 +269,14 @@ impl WkmpAiBootstrapConfig {
             self.lock_retry_ms
         );
 
+        // **[PLAN031 Fix 2]** Add min_connections to ensure pool starts with enough connections
+        let min_connections = (self.connection_pool_size / 2).max(1);
+
         let pool = SqlitePoolOptions::new()
             .max_connections(self.connection_pool_size)
+            .min_connections(min_connections)
             .acquire_timeout(Duration::from_millis(self.max_lock_wait_ms))
+            .idle_timeout(Duration::from_secs(600))  // Keep connections alive for 10 minutes
             .connect_with(
                 SqliteConnectOptions::from_str(db_path.to_str().context("Invalid database path")?)
                     .context("Failed to parse database path")?
@@ -206,8 +289,9 @@ impl WkmpAiBootstrapConfig {
             .context("Failed to create production database pool")?;
 
         tracing::info!(
-            "Production database pool ready: {} connections, busy_timeout={}ms, thread_count={}",
+            "Production database pool ready: max={} min={} connections, busy_timeout={}ms, thread_count={}",
             self.connection_pool_size,
+            min_connections,
             self.lock_retry_ms,
             self.processing_thread_count
         );
@@ -218,6 +302,18 @@ impl WkmpAiBootstrapConfig {
     /// Get processing thread count for worker pool initialization
     pub fn processing_thread_count(&self) -> usize {
         self.processing_thread_count
+    }
+
+    /// Get memory usage threshold in bytes for memory monitoring
+    pub fn memory_usage_threshold_bytes(&self) -> u64 {
+        self.memory_usage_threshold_bytes
+    }
+
+    /// Get event bus capacity for event bus initialization
+    ///
+    /// **[PLAN031 Task 2.2]** Configurable event bus capacity
+    pub fn event_bus_capacity(&self) -> usize {
+        self.event_bus_capacity
     }
 }
 
@@ -321,6 +417,8 @@ mod tests {
             lock_retry_ms: 100,
             max_lock_wait_ms: 1000,
             processing_thread_count: 2,
+            memory_usage_threshold_bytes: 1073741824, // 1GB for testing
+            event_bus_capacity: 100, // Small capacity for testing
         };
 
         let pool = config.create_pool(&db_path).await.unwrap();

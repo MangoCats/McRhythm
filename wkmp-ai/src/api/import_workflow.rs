@@ -295,7 +295,13 @@ pub async fn cancel_import(
                 "No cancellation token found - background task may have already completed"
             );
         }
+        // **[PLAN031 Task 2.1]** Opportunistic cleanup of other stale tokens
+        // (This session's token was already removed above, but this cleans up any other stale tokens)
+        drop(tokens); // Release lock before calling cleanup
     }
+
+    // **[PLAN031 Task 2.1]** Clean up any stale tokens while we're here
+    state.cleanup_completed_import(session_id).await;
 
     // Transition to cancelled state
     session.transition_to(ImportState::Cancelled);
@@ -349,6 +355,8 @@ async fn execute_import_workflow(
         state.db.clone(),
         state.event_bus.clone(),
         acoustid_api_key,
+        state.memory_usage_threshold_bytes,
+        state.processing_thread_count,
     );
 
     // Execute workflow with error handling
@@ -361,9 +369,8 @@ async fn execute_import_workflow(
                 "Import workflow completed"
             );
 
-            // Clean up cancellation token (if still present)
-            let mut tokens = state.cancellation_tokens.write().await;
-            tokens.remove(&session_id);
+            // **[PLAN031 Task 2.1]** Clean up cancellation token to prevent memory leak
+            state.cleanup_completed_import(session_id).await;
 
             Ok(())
         }
@@ -429,9 +436,8 @@ async fn execute_import_workflow(
                 }
             }
 
-            // Clean up cancellation token (if still present)
-            let mut tokens = state.cancellation_tokens.write().await;
-            tokens.remove(&session_id);
+            // **[PLAN031 Task 2.1]** Clean up cancellation token to prevent memory leak
+            state.cleanup_completed_import(session_id).await;
 
             Err(e)
         }

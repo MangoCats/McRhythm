@@ -18,6 +18,10 @@ use super::passage_recorder::PassageRecord;
 /// SPEC017: 28,224,000 ticks per second
 const TICKS_PER_SECOND: i64 = 28_224_000;
 
+/// **[PLAN031 Fix 3]** Skip amplitude analysis for passages <10 seconds
+/// Aligns with fingerprinting threshold - tiny passages don't benefit from lead-in/lead-out analysis
+const MIN_PASSAGE_DURATION_SECONDS: f64 = 10.0;
+
 /// Amplitude analysis result for a passage
 #[derive(Debug, Clone)]
 pub struct PassageAmplitudeResult {
@@ -137,11 +141,29 @@ impl PassageAmplitudeAnalyzer {
             // Convert to seconds
             let start_seconds = start_ticks as f64 / TICKS_PER_SECOND as f64;
             let end_seconds = end_ticks as f64 / TICKS_PER_SECOND as f64;
+            let duration_seconds = end_seconds - start_seconds;
+
+            // **[PLAN031 Fix 3]** Skip amplitude analysis for tiny passages (<10 seconds)
+            if duration_seconds < MIN_PASSAGE_DURATION_SECONDS {
+                tracing::debug!(
+                    passage_id = %passage_record.passage_id,
+                    duration_seconds,
+                    "Skipping amplitude analysis: passage too short (<10s)"
+                );
+                // Store default values (no lead-in/lead-out for short passages)
+                results.push(PassageAmplitudeResult {
+                    passage_id: passage_record.passage_id,
+                    lead_in_start_ticks: None,
+                    lead_out_start_ticks: None,
+                });
+                continue;
+            }
 
             tracing::debug!(
                 passage_id = %passage_record.passage_id,
                 start_seconds,
                 end_seconds,
+                duration_seconds,
                 "Analyzing passage amplitude"
             );
 

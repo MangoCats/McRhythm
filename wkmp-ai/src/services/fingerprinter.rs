@@ -199,7 +199,11 @@ impl Fingerprinter {
         use chromaprint_sys_next::*;
 
         // Acquire lock for context creation (thread-safe for all FFT backends)
-        let _guard = CHROMAPRINT_LOCK.lock().unwrap();
+        // **[PLAN031 Task 1.7]** Proper error handling for lock acquisition (no unwrap)
+        let _guard = CHROMAPRINT_LOCK.lock()
+            .map_err(|e| FingerprintError::ChromaprintError(
+                format!("Failed to acquire chromaprint lock: {}", e)
+            ))?;
 
         unsafe {
             // Step 1: Allocate Chromaprint context (algorithm 1 = TEST2 = DEFAULT, required for AcoustID)

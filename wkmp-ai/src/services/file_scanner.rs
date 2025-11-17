@@ -365,14 +365,15 @@ impl FileScanner {
     /// Returns FileClassification with all files categorized into audio/image/other.
     /// Classification happens during directory traversal (no additional I/O overhead).
     ///
-    /// **Progress Callback:** Called periodically with current file count (every 100 files)
+    /// **Progress Callback:** Called periodically with current file counts (every 100 files)
+    /// Receives total files, audio files, image files, and other files counts
     pub fn scan_and_classify_with_progress<F>(
         &self,
         root_path: &Path,
         progress_callback: &mut F,
     ) -> Result<crate::models::FileClassification, ScanError>
     where
-        F: FnMut(usize),
+        F: FnMut(usize, usize, usize, usize), // (total, audio, image, other)
     {
         use crate::models::{FileClassification, FileInfo};
 
@@ -429,7 +430,12 @@ impl FileScanner {
 
                                 // Call progress callback every 100 files
                                 if file_count % PROGRESS_INTERVAL == 0 {
-                                    progress_callback(file_count);
+                                    progress_callback(
+                                        file_count,
+                                        classification.audio_files.len(),
+                                        classification.image_files.len(),
+                                        classification.other_files.len(),
+                                    );
                                 }
                             }
                             Err(e) => {
@@ -447,7 +453,12 @@ impl FileScanner {
         }
 
         // Final progress update
-        progress_callback(file_count);
+        progress_callback(
+            file_count,
+            classification.audio_files.len(),
+            classification.image_files.len(),
+            classification.other_files.len(),
+        );
 
         // Sort all categories alphabetically
         classification.sort_all();
@@ -468,7 +479,7 @@ impl FileScanner {
 
     /// **[AIA-CLASSIFY-010]** Scan and classify ALL files (no progress callback)
     pub fn scan_and_classify(&self, root_path: &Path) -> Result<crate::models::FileClassification, ScanError> {
-        self.scan_and_classify_with_progress(root_path, &mut |_| {})
+        self.scan_and_classify_with_progress(root_path, &mut |_, _, _, _| {})
     }
 
     /// **[AIA-CLASSIFY-020]** Check if extension is audio (for classification)

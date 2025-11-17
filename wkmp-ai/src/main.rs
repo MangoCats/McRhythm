@@ -122,8 +122,9 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
         .map(|home| std::path::PathBuf::from(home).join(".config").join("wkmp").join("wkmp-ai.toml"))
         .unwrap_or_else(|_| std::path::PathBuf::from("wkmp-ai.toml"));
 
+    // **[PLAN031 Task 2.4]** Use async file I/O for TOML config loading
     let toml_config = if toml_path.exists() {
-        let content = std::fs::read_to_string(&toml_path)
+        let content = tokio::fs::read_to_string(&toml_path).await
             .map_err(|e| anyhow::anyhow!("Failed to read TOML config: {}", e))?;
         toml::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?
@@ -204,11 +205,12 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
     let event_bus = EventBus::new(100); // 100 event capacity
     info!("Event bus initialized");
 
-    // Create application state with configured thread count
+    // Create application state with configured thread count and memory threshold
     let state = AppState::new(
         db_pool.clone(),
         event_bus,
-        bootstrap_config.processing_thread_count()
+        bootstrap_config.processing_thread_count(),
+        bootstrap_config.memory_usage_threshold_bytes(),
     );
 
     // **[PERF001]** Spawn background task to monitor connection pool utilization

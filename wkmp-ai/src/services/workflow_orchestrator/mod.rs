@@ -29,7 +29,6 @@ use crate::services::{
 use anyhow::Result;
 use chrono::Utc;
 use futures::stream::{FuturesUnordered, StreamExt};
-use parking_lot::RwLock;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -85,9 +84,10 @@ pub struct WorkflowOrchestrator {
     /// **[PLAN024]** Phase-specific statistics for UI display
     statistics: statistics::ImportStatistics,
     /// **[AIA-UI-010]** Real-time worker activity tracking
-    worker_activities: Arc<RwLock<HashMap<String, WorkerActivity>>>,
+    /// **[PLAN031 Task 2.5]** Using tokio::sync::RwLock for async-friendly locking
+    worker_activities: Arc<tokio::sync::RwLock<HashMap<String, WorkerActivity>>>,
     /// **[AIA-UI-PERF]** Maximum concurrent workers (parallelism level)
-    max_workers: Arc<RwLock<usize>>,
+    max_workers: Arc<tokio::sync::RwLock<usize>>,
     /// **[PLAN028]** In-memory progress manager with periodic sync (lazy initialized)
     progress_manager: parking_lot::Mutex<Option<ProgressManager>>,
     /// **[PLAN028]** Database write queue with single executor (lazy initialized)
@@ -96,6 +96,8 @@ pub struct WorkflowOrchestrator {
     pool_stats: Arc<parking_lot::RwLock<crate::services::pool_manager::PoolStatistics>>,
     /// **[PLAN029 Task 2.3]** Memory monitoring with automatic cleanup on high usage
     memory_monitor: Arc<crate::utils::MemoryMonitor>,
+    /// **[PLAN031 Task 1.5]** Configured worker thread count for parallel processing
+    processing_thread_count: usize,
 }
 
 impl WorkflowOrchestrator {
@@ -105,7 +107,15 @@ impl WorkflowOrchestrator {
     /// * `db` - Database connection pool
     /// * `event_bus` - Event bus for progress updates
     /// * `acoustid_api_key` - Optional AcoustID API key for fingerprinting
-    pub fn new(db: SqlitePool, event_bus: EventBus, acoustid_api_key: Option<String>) -> Self {
+    /// * `memory_usage_threshold_bytes` - Memory threshold in bytes for monitoring
+    /// * `processing_thread_count` - Number of parallel worker threads
+    pub fn new(
+        db: SqlitePool,
+        event_bus: EventBus,
+        acoustid_api_key: Option<String>,
+        memory_usage_threshold_bytes: u64,
+        processing_thread_count: usize,
+    ) -> Self {
         // Initialize API clients (can fail, so wrapped in Option)
         let mb_client = MusicBrainzClient::new().ok();
 
@@ -151,8 +161,9 @@ impl WorkflowOrchestrator {
             acousticbrainz_client,
             essentia_client,
             statistics: statistics::ImportStatistics::new(),
-            worker_activities: Arc::new(RwLock::new(HashMap::new())),
-            max_workers: Arc::new(RwLock::new(0)), // Will be set when processing starts
+            // **[PLAN031 Task 2.5]** Use tokio async locks
+            worker_activities: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            max_workers: Arc::new(tokio::sync::RwLock::new(0)), // Will be set when processing starts
             progress_manager: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
             write_queue: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
             pool_stats: Arc::new(parking_lot::RwLock::new(crate::services::pool_manager::PoolStatistics {
@@ -161,7 +172,10 @@ impl WorkflowOrchestrator {
                 max_wait_ms: 0,
                 slow_acquisitions: 0,
             })),  // **[PLAN029]** Pool statistics tracking
-            memory_monitor: Arc::new(crate::utils::MemoryMonitor::new()),  // **[PLAN029 Task 2.3]** Memory monitoring with 500MB threshold
+            memory_monitor: Arc::new(
+                crate::utils::MemoryMonitor::with_threshold(memory_usage_threshold_bytes)
+            ),  // **[IMPL016]** Memory monitoring with configurable threshold
+            processing_thread_count,  // **[PLAN031]** Configured worker thread count
         }
     }
 
@@ -703,20 +717,17 @@ impl WorkflowOrchestrator {
         let mut files_at_segmenting_start = 0;
 
         // **[ARCH-PARALLEL-010]** Process files in parallel (N files in flight simultaneously)
-        // **[AIA-PERF-043]** Parallelism set to CPU count for boundary detection bottleneck
-        // Boundary detection is CPU-bound and first phase - excessive parallelism causes thread contention
-        // Low CPU observed with high parallelism (42 tasks, 5% CPU) suggests tasks blocking on sync operations
-        let cpu_count = num_cpus::get();
-        let parallelism_level = cpu_count.clamp(4, 16); // 1x CPU count, min 4, max 16
+        // **[PLAN031 Task 1.5]** Use configured processing_thread_count (default: 4 for emergency reduction)
+        // Previous implementation used CPU count which caused excessive concurrency and resource contention
+        let parallelism_level = self.processing_thread_count.clamp(1, 64);
 
-        // Store max_workers for UI display
-        *self.max_workers.write() = parallelism_level;
+        // **[PLAN031 Task 2.5]** Store max_workers for UI display (async lock)
+        *self.max_workers.write().await = parallelism_level;
 
         tracing::info!(
             session_id = %session.session_id,
-            cpu_count,
             parallelism_level,
-            "Starting parallel file processing (parallelism = CPU count for boundary detection)"
+            "Starting parallel file processing with configured worker count"
         );
 
         // **[AIA-PERF-044]** Create interval for periodic progress broadcasts
@@ -2247,29 +2258,36 @@ impl WorkflowOrchestrator {
     }
 
     /// **[PLAN024]** Convert ImportStatistics to PhaseStatistics for SSE events
-    fn convert_statistics_to_sse(&self) -> Vec<wkmp_common::events::PhaseStatistics> {
+    /// **[PLAN031 Task 2.5]** Made async for tokio::sync lock compatibility
+    async fn convert_statistics_to_sse(&self) -> Vec<wkmp_common::events::PhaseStatistics> {
         use wkmp_common::events::PhaseStatistics;
 
-        // Lock each mutex once and extract all fields to avoid multiple lock acquisitions
+        // **[PLAN031 Task 2.5]** Extract statistics data in block scope to drop guards before await
         tracing::debug!("Acquiring all statistics Mutex locks for SSE conversion");
-        let scanning = self.statistics.scanning.lock().unwrap();
-        let processing = self.statistics.processing.lock().unwrap();
-        let filename_matching = self.statistics.filename_matching.lock().unwrap();
-        let hashing = self.statistics.hashing.lock().unwrap();
-        let extracting = self.statistics.extracting.lock().unwrap();
-        let segmenting = self.statistics.segmenting.lock().unwrap();
-        let fingerprinting = self.statistics.fingerprinting.lock().unwrap();
-        let song_matching = self.statistics.song_matching.lock().unwrap();
-        let recording = self.statistics.recording.lock().unwrap();
-        let amplitude = self.statistics.amplitude.lock().unwrap();
-        let flavoring = self.statistics.flavoring.lock().unwrap();
-        let passages_complete = self.statistics.passages_complete.lock().unwrap();
-        let files_complete = self.statistics.files_complete.lock().unwrap();
-        tracing::debug!("All statistics Mutex locks acquired for SSE conversion");
+        let (scanning, processing, filename_matching, hashing, extracting, segmenting,
+             fingerprinting, song_matching, recording, amplitude, flavoring,
+             passages_complete, files_complete) = {
+            let s1 = self.statistics.scanning.lock().unwrap().clone();
+            let s2 = self.statistics.processing.lock().unwrap().clone();
+            let s3 = self.statistics.filename_matching.lock().unwrap().clone();
+            let s4 = self.statistics.hashing.lock().unwrap().clone();
+            let s5 = self.statistics.extracting.lock().unwrap().clone();
+            let s6 = self.statistics.segmenting.lock().unwrap().clone();
+            let s7 = self.statistics.fingerprinting.lock().unwrap().clone();
+            let s8 = self.statistics.song_matching.lock().unwrap().clone();
+            let s9 = self.statistics.recording.lock().unwrap().clone();
+            let s10 = self.statistics.amplitude.lock().unwrap().clone();
+            let s11 = self.statistics.flavoring.lock().unwrap().clone();
+            let s12 = self.statistics.passages_complete.lock().unwrap().clone();
+            let s13 = self.statistics.files_complete.lock().unwrap().clone();
+            tracing::debug!("All statistics Mutex locks acquired and data cloned");
+            (s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13)
+        }; // Guards dropped here
 
         // **[AIA-UI-010]** Get current worker activities with elapsed time calculation
+        // **[PLAN031 Task 2.5]** Use async read lock (safe to await after guards dropped)
         let worker_activities: Vec<WorkerActivity> = self.worker_activities
-            .read()
+            .read().await
             .values()
             .map(|activity| {
                 let mut activity = activity.clone();
@@ -2290,13 +2308,16 @@ impl WorkflowOrchestrator {
             PhaseStatistics::Scanning {
                 potential_files_found: scanning.potential_files_found,
                 is_scanning: scanning.is_scanning,
+                audio_files: scanning.audio_files,
+                image_files: scanning.image_files,
+                other_files: scanning.other_files,
             },
             PhaseStatistics::Processing {
                 completed: processing.completed,
                 started: processing.started,
                 total: processing.total,
                 workers: worker_activities,
-                max_workers: *self.max_workers.read(),
+                max_workers: *self.max_workers.read().await,
             },
             PhaseStatistics::FilenameMatching {
                 completed_filenames_found: filename_matching.completed_filenames_found,
@@ -2418,7 +2439,8 @@ impl WorkflowOrchestrator {
             passage_end_seconds: None,
         };
 
-        self.worker_activities.write().insert(thread_id, activity);
+        // **[PLAN031 Task 2.5]** Use blocking_write for sync context
+        self.worker_activities.blocking_write().insert(thread_id, activity);
     }
 
     /// **[AIA-UI-010]** Update worker activity with passage timing (for passage-level phases)
@@ -2459,13 +2481,15 @@ impl WorkflowOrchestrator {
             passage_end_seconds: Some(passage_end_seconds),
         };
 
-        self.worker_activities.write().insert(thread_id, activity);
+        // **[PLAN031 Task 2.5]** Use blocking_write for sync context
+        self.worker_activities.blocking_write().insert(thread_id, activity);
     }
 
     /// **[AIA-UI-010]** Clear worker activity (worker now idle)
     fn clear_worker_phase(&self) {
         let thread_id = format!("{:?}", std::thread::current().id());
-        self.worker_activities.write().remove(&thread_id);
+        // **[PLAN031 Task 2.5]** Use blocking_write for sync context
+        self.worker_activities.blocking_write().remove(&thread_id);
     }
 
     pub async fn process_file_plan024(
@@ -3007,8 +3031,8 @@ impl WorkflowOrchestrator {
         .parse()
         .unwrap_or(12);
 
-        // Store max_workers for UI display
-        *self.max_workers.write() = parallelism;
+        // **[PLAN031 Task 2.5]** Store max_workers for UI display (async lock)
+        *self.max_workers.write().await = parallelism;
 
         tracing::info!(
             session_id = %session.session_id,
@@ -3043,7 +3067,7 @@ impl WorkflowOrchestrator {
         }
 
         // Broadcast initial statistics
-        let phase_statistics = self.convert_statistics_to_sse();
+        let phase_statistics = self.convert_statistics_to_sse().await;
         self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         // Create worker pool using FuturesUnordered
@@ -3171,7 +3195,7 @@ impl WorkflowOrchestrator {
             }
 
             // **[PLAN024]** Broadcast progress with phase statistics
-            let phase_statistics = self.convert_statistics_to_sse();
+            let phase_statistics = self.convert_statistics_to_sse().await;
             self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
             // Maintain parallelism level - spawn next file

@@ -122,19 +122,41 @@ pub async fn save_files_batch(pool: &SqlitePool, files: &[AudioFile]) -> Result<
     .await?
     .unwrap_or(5000);
 
+    // **[PLAN031 Task 2.3]** Batch insert files in chunks to avoid huge SQL statements
+    // SQLite has a limit on the number of parameters (default: 999)
+    // With 9 parameters per file, we can do ~100 files per batch safely
+    const BATCH_CHUNK_SIZE: usize = 100;
+
     // Wrap transaction in retry logic
     retry_on_lock(
         "batch file save",
         max_wait_ms as u64,
         || async {
             let mut tx = begin_monitored(pool, "files::batch_save").await.map_err(|e| wkmp_common::Error::from(e))?;
-            let mut saved_count = 0;
+            let mut total_saved = 0;
 
-            for file in files {
-                let result = sqlx::query(
+            // Process files in chunks
+            for chunk in files.chunks(BATCH_CHUNK_SIZE) {
+                if chunk.is_empty() {
+                    continue;
+                }
+
+                tracing::debug!(
+                    chunk_size = chunk.len(),
+                    "Batch inserting file chunk"
+                );
+
+                // Build multi-row INSERT statement
+                let values_clause = chunk
+                    .iter()
+                    .map(|_| "(?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                let insert_sql = format!(
                     r#"
                     INSERT INTO files (guid, path, hash, duration_ticks, format, sample_rate, channels, file_size_bytes, modification_time, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES {}
                     ON CONFLICT(path) DO UPDATE SET
                         hash = excluded.hash,
                         duration_ticks = excluded.duration_ticks,
@@ -145,33 +167,54 @@ pub async fn save_files_batch(pool: &SqlitePool, files: &[AudioFile]) -> Result<
                         modification_time = excluded.modification_time,
                         updated_at = CURRENT_TIMESTAMP
                     "#,
-                )
-                .bind(file.guid.to_string())
-                .bind(&file.path)
-                .bind(&file.hash)
-                .bind(file.duration_ticks)
-                .bind(&file.format)
-                .bind(file.sample_rate)
-                .bind(file.channels)
-                .bind(file.file_size_bytes)
-                .bind(file.modification_time.to_rfc3339())
-                .execute(&mut **tx.inner_mut())
-                .await;
+                    values_clause
+                );
 
-                match result {
-                    Ok(_) => saved_count += 1,
-                    Err(e) => {
-                        tracing::warn!(
-                            file = %file.path,
-                            error = %e,
-                            "Failed to save file in batch, continuing with remaining files"
+                let mut query = sqlx::query(&insert_sql);
+
+                // Bind all parameters
+                for file in chunk {
+                    query = query
+                        .bind(file.guid.to_string())
+                        .bind(&file.path)
+                        .bind(&file.hash)
+                        .bind(file.duration_ticks)
+                        .bind(&file.format)
+                        .bind(file.sample_rate)
+                        .bind(file.channels)
+                        .bind(file.file_size_bytes)
+                        .bind(file.modification_time.to_rfc3339());
+                }
+
+                // Execute batch insert
+                match query.execute(&mut **tx.inner_mut()).await {
+                    Ok(result) => {
+                        let rows = result.rows_affected() as usize;
+                        total_saved += rows;
+                        tracing::debug!(
+                            rows_affected = rows,
+                            chunk_size = chunk.len(),
+                            "Chunk batch insert complete"
                         );
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            error = %e,
+                            chunk_size = chunk.len(),
+                            "Batch insert failed for chunk, transaction will roll back"
+                        );
+                        return Err(wkmp_common::Error::Database(e));
                     }
                 }
             }
 
             tx.commit().await.map_err(|e| wkmp_common::Error::from(e))?;
-            Ok(saved_count)
+            tracing::info!(
+                total_saved,
+                total_files = files.len(),
+                "Batch file save complete"
+            );
+            Ok(total_saved)
         }
     )
     .await

@@ -348,10 +348,48 @@ function updateUI(event) {
     // REQ-AIA-UI-002: Update active phase progress
     const percent = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
     document.getElementById('current-phase-name').textContent = 'Current Phase: ' + event.state;
-    document.getElementById('progress-text').textContent = `${event.current} / ${event.total} files`;
-    document.getElementById('progress-percent').textContent = `${percent}%`;
-    document.getElementById('progress-bar').style.width = `${percent}%`;
-    document.getElementById('progress-bar').textContent = `${percent}%`;
+
+    // Hide progress bar during SCANNING (we don't know total file count yet)
+    const progressBarEl = document.getElementById('progress-bar');
+    const progressTextEl = document.getElementById('progress-text');
+    const progressPercentEl = document.getElementById('progress-percent');
+
+    if (event.state === 'Scanning') {
+        // Hide progress bar and percentage during scanning
+        if (progressBarEl && progressBarEl.parentElement) {
+            progressBarEl.parentElement.style.display = 'none';
+        }
+        if (progressPercentEl) progressPercentEl.style.display = 'none';
+
+        // Show live file counts during scanning
+        if (progressTextEl && event.phase_statistics && event.phase_statistics.length > 0) {
+            const scanStat = event.phase_statistics.find(s => s.phase_name === 'SCANNING');
+            if (scanStat) {
+                const total = scanStat.audio_files + scanStat.image_files + scanStat.other_files;
+                progressTextEl.style.display = '';
+                progressTextEl.textContent = `${total} files found (${scanStat.audio_files} audio, ${scanStat.image_files} image, ${scanStat.other_files} other)`;
+            } else {
+                progressTextEl.style.display = 'none';
+            }
+        } else if (progressTextEl) {
+            progressTextEl.style.display = 'none';
+        }
+    } else {
+        // Show progress indicators during other phases
+        if (progressBarEl && progressBarEl.parentElement) {
+            progressBarEl.parentElement.style.display = '';
+        }
+        if (progressTextEl) {
+            progressTextEl.style.display = '';
+            progressTextEl.textContent = `${event.current} / ${event.total} files`;
+        }
+        if (progressPercentEl) {
+            progressPercentEl.style.display = '';
+            progressPercentEl.textContent = `${percent}%`;
+        }
+        progressBarEl.style.width = `${percent}%`;
+        progressBarEl.textContent = `${percent}%`;
+    }
 
     // REQ-AIA-UI-004: Update current file
     if (event.current_file) {
@@ -443,9 +481,13 @@ function displayPhaseStatistics(statistics) {
         // Format statistics based on phase type (per wkmp-ai_refinement.md lines 74-103)
         switch (phaseName) {
             case 'SCANNING':
-                content = stat.is_scanning
-                    ? 'scanning'
-                    : `${stat.potential_files_found} potential files found`;
+                // While scanning: "in progress", after completion: file type breakdown
+                if (stat.is_scanning) {
+                    content = 'in progress';
+                } else {
+                    const total = stat.audio_files + stat.image_files + stat.other_files;
+                    content = `${stat.audio_files} audio files, ${stat.image_files} image files, ${stat.other_files} other files, ${total} Total`;
+                }
                 break;
 
             case 'PROCESSING':

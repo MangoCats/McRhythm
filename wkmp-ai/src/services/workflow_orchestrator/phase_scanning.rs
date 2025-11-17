@@ -16,9 +16,10 @@
 
 use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::Utc;
 use std::path::Path;
+use std::sync::Arc;
 
 impl WorkflowOrchestrator {
     /// Phase 1: SCANNING - Discover audio files and create basic file records
@@ -56,30 +57,49 @@ impl WorkflowOrchestrator {
         }
 
         // Broadcast initial scanning state
-        let phase_statistics = self.convert_statistics_to_sse();
+        let phase_statistics = self.convert_statistics_to_sse().await;
         self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         tracing::info!(session_id = %session.session_id, "Phase 1: SCANNING (file discovery + classification)");
 
-        // **[AIA-CLASSIFY-010]** Scan and classify ALL files (audio/image/other)
-        let classification = self
-            .file_scanner
-            .scan_and_classify_with_progress(
-                Path::new(&session.root_folder),
-                &mut |file_count| {
+        // **[PLAN031 Task 2.4]** Use spawn_blocking for CPU-intensive filesystem scanning
+        // FileScanner uses rayon (blocking thread pool) internally, so wrap the entire
+        // scan in spawn_blocking to prevent blocking the async executor
+
+        let root_folder = session.root_folder.clone();
+        let scan_stats = Arc::clone(&self.statistics.scanning);
+        let event_bus = self.event_bus.clone();
+        let session_clone = session.clone();
+
+        let classification = tokio::task::spawn_blocking(move || {
+            use crate::services::FileScanner;
+            let scanner = FileScanner::new();
+
+            scanner.scan_and_classify_with_progress(
+                Path::new(&root_folder),
+                &mut |total_files, audio_files, image_files, other_files| {
                     // **[PLAN024]** Update scanning statistics during scan
                     {
-                        let mut scan_stats = self.statistics.scanning.lock().unwrap();
-                        scan_stats.potential_files_found = file_count;
+                        let mut stats = scan_stats.lock().unwrap();
+                        stats.potential_files_found = total_files;
+                        stats.audio_files = audio_files;
+                        stats.image_files = image_files;
+                        stats.other_files = other_files;
                     }
 
                     tracing::debug!(
-                        session_id = %session.session_id,
-                        files_found = file_count,
-                        "File discovery progress"
+                        session_id = %session_clone.session_id,
+                        total_files,
+                        audio_files,
+                        image_files,
+                        other_files,
+                        "File discovery and classification progress"
                     );
                 },
-            )?;
+            )
+        })
+        .await
+        .context("File scanner task panicked")??;
 
         tracing::info!(
             session_id = %session.session_id,
@@ -184,6 +204,9 @@ impl WorkflowOrchestrator {
             let mut scan_stats = self.statistics.scanning.lock().unwrap();
             scan_stats.is_scanning = false;
             scan_stats.potential_files_found = files_found;
+            scan_stats.audio_files = classification.audio_files.len();
+            scan_stats.image_files = classification.image_files.len();
+            scan_stats.other_files = classification.other_files.len();
         }
 
         // Update progress with final scan count
@@ -196,7 +219,7 @@ impl WorkflowOrchestrator {
         crate::db::sessions::save_session(&self.db, &session).await?;
 
         // Broadcast final scanning state
-        let phase_statistics = self.convert_statistics_to_sse();
+        let phase_statistics = self.convert_statistics_to_sse().await;
         self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         tracing::info!(

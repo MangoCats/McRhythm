@@ -127,6 +127,21 @@ Parameters are classified by their modification behavior:
 
 ---
 
+### ai_memory_usage_threshold_bytes
+
+- **Database Key:** `ai_memory_usage_threshold_bytes`
+- **Type:** INTEGER
+- **Default:** `12884901888` (12 GB)
+- **Units:** bytes
+- **Valid Range:** 1073741824-137438953472 (1 GB - 128 GB)
+- **Modification Impact:** RESTART_REQUIRED
+- **Used By:** wkmp-ai (Full version only)
+- **Defined In:** [IMPL001:1037](IMPL001-database_schema.md#settings)
+- **Description:** Memory usage threshold for the memory monitor warning system. When process memory exceeds this threshold, warnings are logged. Prevents false warnings on systems with ample RAM. Default of 12 GB is appropriate for modern systems with 16+ GB RAM.
+- **Performance Notes:** Set based on available system RAM. Recommended: 50-75% of total physical memory to allow headroom for OS and other applications.
+
+---
+
 ### ai_processing_thread_count
 
 - **Database Key:** `ai_processing_thread_count`

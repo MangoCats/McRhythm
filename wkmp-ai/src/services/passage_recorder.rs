@@ -148,83 +148,106 @@ impl PassageRecorder {
                         songs_reused: 0,
                     };
 
-                    // Track newly created songs in this transaction
-                    let mut newly_created_songs: HashMap<String, Uuid> = HashMap::new();
+                    // **[PLAN031 Task 2.3]** Step 1: Identify songs to create (batch prep)
+                    // Collect all MBIDs that need new songs created
+                    let mut songs_to_create: Vec<(String, Uuid)> = Vec::new(); // (mbid, song_id)
+                    let mut song_id_map: HashMap<String, Uuid> = HashMap::new(); // mbid -> song_id
 
-                    // **[PERF-FIX]** Prepare all passage data first, then batch insert
-                    // This avoids 20+ individual .await points that can yield
+                    // Copy existing songs into map
+                    for (mbid, &song_id) in existing_ref.iter() {
+                        song_id_map.insert(mbid.clone(), song_id);
+                    }
+
+                    // First pass: determine which songs need to be created
+                    for match_item in matches_ref.iter() {
+                        if let Some(ref mbid) = match_item.mbid {
+                            if !song_id_map.contains_key(mbid) {
+                                // Need to create this song
+                                let song_id = Uuid::new_v4();
+                                song_id_map.insert(mbid.clone(), song_id);
+                                songs_to_create.push((mbid.clone(), song_id));
+                                stats.songs_created += 1;
+                            } else {
+                                stats.songs_reused += 1;
+                            }
+                        }
+                    }
+
+                    // **[PLAN031 Task 2.3]** Step 2: Batch insert all new songs
+                    if !songs_to_create.is_empty() {
+                        tracing::debug!(
+                            song_count = songs_to_create.len(),
+                            "Batch inserting new songs"
+                        );
+
+                        // Build multi-row INSERT for songs
+                        let values_clause = songs_to_create
+                            .iter()
+                            .map(|_| "(?, ?, 1.0, 604800, 1209600, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+                            .collect::<Vec<_>>()
+                            .join(", ");
+
+                        let insert_sql = format!(
+                            r#"
+                            INSERT INTO songs (
+                                guid, recording_mbid, base_probability,
+                                min_cooldown, ramping_cooldown, status,
+                                created_at, updated_at
+                            )
+                            VALUES {}
+                            "#,
+                            values_clause
+                        );
+
+                        let mut query = sqlx::query(&insert_sql);
+
+                        for (mbid, song_id) in &songs_to_create {
+                            query = query
+                                .bind(song_id.to_string())
+                                .bind(mbid);
+                        }
+
+                        query
+                            .execute(&mut **tx.inner_mut())
+                            .await
+                            .map_err(|e| {
+                                tracing::error!(
+                                    error = %e,
+                                    song_count = songs_to_create.len(),
+                                    "Batch song INSERT failed"
+                                );
+                                wkmp_common::Error::Database(e)
+                            })?;
+
+                        tracing::debug!(
+                            song_count = songs_to_create.len(),
+                            "Batch song insert complete"
+                        );
+                    }
+
+                    // **[PLAN031 Task 2.3]** Step 3: Prepare passage data with song IDs
                     let mut passage_data = Vec::new();
 
                     for (idx, match_item) in matches_ref.iter().enumerate() {
-                        // Get or create song if MBID present
-                        let (song_id, song_created) = if let Some(ref mbid) = match_item.mbid {
-                            // Check existing songs first
-                            if let Some(&existing_id) = existing_ref.get(mbid) {
-                                stats.songs_reused += 1;
-                                stats.passages_with_songs += 1;
-                                (Some(existing_id), false)
-                            }
-                            // Check if we already created this song in this transaction
-                            else if let Some(&created_id) = newly_created_songs.get(mbid) {
-                                stats.songs_reused += 1;
-                                stats.passages_with_songs += 1;
-                                (Some(created_id), false)
-                            }
-                            // Create new song (INSERT only, no SELECT)
-                            else {
-                                let song_id = Uuid::new_v4();
-
-                                tracing::trace!(
-                                    song_id = %song_id,
-                                    mbid,
-                                    "Executing INSERT for new song"
-                                );
-
-                                sqlx::query(
-                                    r#"
-                                    INSERT INTO songs (
-                                        guid, recording_mbid, base_probability,
-                                        min_cooldown, ramping_cooldown, status,
-                                        created_at, updated_at
-                                    )
-                                    VALUES (?, ?, 1.0, 604800, 1209600, 'PENDING', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                                    "#
-                                )
-                                .bind(song_id.to_string())
-                                .bind(mbid)
-                                .execute(&mut **tx.inner_mut())
-                                .await
-                                .map_err(|e| {
-                                    tracing::error!(
-                                        song_id = %song_id,
-                                        mbid,
-                                        error = %e,
-                                        "Song INSERT failed"
-                                    );
-                                    wkmp_common::Error::Database(e)
-                                })?;
-
-                                tracing::debug!(
-                                    song_id = %song_id,
-                                    mbid,
-                                    title = ?match_item.title,
-                                    "Created new song"
-                                );
-
-                                newly_created_songs.insert(mbid.clone(), song_id);
-                                stats.songs_created += 1;
-                                stats.passages_with_songs += 1;
-                                (Some(song_id), true)
-                            }
+                        // Look up song ID (either existing or newly created)
+                        let song_id = if let Some(ref mbid) = match_item.mbid {
+                            stats.passages_with_songs += 1;
+                            song_id_map.get(mbid).copied()
                         } else {
                             // Zero-song passage
                             stats.zero_song_passages += 1;
-                            (None, false)
+                            None
                         };
 
-                        // Prepare passage data (don't insert yet)
-                        let passage_id = Uuid::new_v4();
+                        // Determine if this is a newly created song (for result tracking)
+                        let song_created = if let Some(ref mbid) = match_item.mbid {
+                            songs_to_create.iter().any(|(created_mbid, _)| created_mbid == mbid)
+                        } else {
+                            false
+                        };
 
+                        // Prepare passage data
+                        let passage_id = Uuid::new_v4();
                         passage_data.push((
                             passage_id,
                             song_id,

@@ -258,6 +258,17 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     // scheduler every N milliseconds to prevent work-stealing from starving other
     // tasks. Default: 990ms (just under 1 second). Set to 0 to disable yielding.
     ensure_setting(pool, "ai_longwork_yield_interval_ms", "990").await?;
+    // **[IMPL016]** Memory usage threshold for monitoring
+    // Process memory threshold in bytes. When exceeded, warnings are logged.
+    // Default: 12GB (12884901888 bytes) - appropriate for modern systems with 16+ GB RAM
+    // RESTART_REQUIRED - Read during bootstrap initialization
+    ensure_setting(pool, "ai_memory_usage_threshold_bytes", "12884901888").await?;
+
+    // **[PLAN031 Task 2.2]** Event bus capacity for SSE broadcasting
+    // Number of events that can be queued in the event bus channel
+    // Default: 1000 - sufficient for normal operations
+    // RESTART_REQUIRED - Read during bootstrap initialization
+    ensure_setting(pool, "ai_event_bus_capacity", "1000").await?;
 
     // Validation service settings **[ARCH-AUTO-VAL-001]**
     ensure_setting(pool, "validation_enabled", "true").await?;              // [DBD-PARAM-130]

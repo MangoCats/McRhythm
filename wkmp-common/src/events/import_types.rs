@@ -14,6 +14,9 @@ pub enum PhaseStatistics {
     Scanning {
         potential_files_found: usize,
         is_scanning: bool,
+        audio_files: usize,
+        image_files: usize,
+        other_files: usize,
     },
     #[serde(rename = "PROCESSING")]
     Processing {
