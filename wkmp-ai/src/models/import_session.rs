@@ -195,7 +195,7 @@ impl ImportState {
     /// **[REQ-AIA-UI-001]** Get brief description of what this phase does (8 words max)
     pub fn description(&self) -> &'static str {
         match self {
-            ImportState::Scanning => "Finding audio files in directories",
+            ImportState::Scanning => "Finding files in directories",
             ImportState::Extracting => "Calculating hashes and extracting basic metadata",
             ImportState::Segmenting => "Detecting silence and passage boundaries",
             ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",

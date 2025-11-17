@@ -2406,7 +2406,8 @@ impl WorkflowOrchestrator {
     /// Returns error if any phase fails (database errors, I/O errors, etc.)
 
     /// **[AIA-UI-010]** Update worker activity (current phase)
-    fn set_worker_phase(
+    /// **[PLAN031 Task 2.5]** Made async for tokio::sync::RwLock
+    async fn set_worker_phase(
         &self,
         file_path: &std::path::Path,
         root_folder: &std::path::Path,
@@ -2439,12 +2440,13 @@ impl WorkflowOrchestrator {
             passage_end_seconds: None,
         };
 
-        // **[PLAN031 Task 2.5]** Use blocking_write for sync context
-        self.worker_activities.blocking_write().insert(thread_id, activity);
+        // **[PLAN031 Task 2.5]** Use async write lock
+        self.worker_activities.write().await.insert(thread_id, activity);
     }
 
     /// **[AIA-UI-010]** Update worker activity with passage timing (for passage-level phases)
-    fn set_worker_phase_with_passage(
+    /// **[PLAN031 Task 2.5]** Made async for tokio::sync::RwLock
+    async fn set_worker_phase_with_passage(
         &self,
         file_path: &std::path::Path,
         root_folder: &std::path::Path,
@@ -2481,15 +2483,16 @@ impl WorkflowOrchestrator {
             passage_end_seconds: Some(passage_end_seconds),
         };
 
-        // **[PLAN031 Task 2.5]** Use blocking_write for sync context
-        self.worker_activities.blocking_write().insert(thread_id, activity);
+        // **[PLAN031 Task 2.5]** Use async write lock
+        self.worker_activities.write().await.insert(thread_id, activity);
     }
 
     /// **[AIA-UI-010]** Clear worker activity (worker now idle)
-    fn clear_worker_phase(&self) {
+    /// **[PLAN031 Task 2.5]** Made async for tokio::sync::RwLock
+    async fn clear_worker_phase(&self) {
         let thread_id = format!("{:?}", std::thread::current().id());
-        // **[PLAN031 Task 2.5]** Use blocking_write for sync context
-        self.worker_activities.blocking_write().remove(&thread_id);
+        // **[PLAN031 Task 2.5]** Use async write lock
+        self.worker_activities.write().await.remove(&thread_id);
     }
 
     pub async fn process_file_plan024(
@@ -2506,7 +2509,7 @@ impl WorkflowOrchestrator {
         );
 
         // Phase 1: Filename Matching
-        self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching");
+        self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching").await;
         let phase1_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, "Phase 1: Filename Matching");
 
@@ -2554,7 +2557,7 @@ impl WorkflowOrchestrator {
         };
 
         // Phase 2: Hash Deduplication
-        self.set_worker_phase(file_path, root_folder, file_index, 2, "Hash Deduplication");
+        self.set_worker_phase(file_path, root_folder, file_index, 2, "Hash Deduplication").await;
         let phase2_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 2: Hash Deduplication");
         let hash_deduplicator = crate::services::HashDeduplicator::new(self.db.clone());
@@ -2592,7 +2595,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 3: Metadata Extraction & Merging
-        self.set_worker_phase(file_path, root_folder, file_index, 3, "Metadata Extraction");
+        self.set_worker_phase(file_path, root_folder, file_index, 3, "Metadata Extraction").await;
         let phase3_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 3: Metadata Extraction & Merging");
         let metadata_merger = crate::services::MetadataMerger::new(self.db.clone());
@@ -2619,7 +2622,7 @@ impl WorkflowOrchestrator {
         let duration_ticks = (duration_seconds * TICKS_PER_SECOND as f64) as i64;
 
         // Phase 4: Passage Segmentation
-        self.set_worker_phase(file_path, root_folder, file_index, 4, "Passage Segmentation");
+        self.set_worker_phase(file_path, root_folder, file_index, 4, "Passage Segmentation").await;
         let phase4_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Passage Segmentation");
         let passage_segmenter = crate::services::PassageSegmenter::new(self.db.clone());
@@ -2659,7 +2662,7 @@ impl WorkflowOrchestrator {
         };
 
         // Phase 5: Per-Passage Fingerprinting
-        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting");
+        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting").await;
         let phase5_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2700,7 +2703,7 @@ impl WorkflowOrchestrator {
         );
 
         // Phase 6: Song Matching
-        self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching");
+        self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching").await;
         let phase6_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2743,7 +2746,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 7: Recording
-        self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording");
+        self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording").await;
         let phase7_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2783,7 +2786,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 8: Amplitude Analysis
-        self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis");
+        self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis").await;
         let phase8_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2848,7 +2851,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 9: Flavoring
-        self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching");
+        self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching").await;
         let phase9_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2892,7 +2895,7 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 10: Finalization
-        self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization");
+        self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization").await;
         let phase10_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2933,7 +2936,7 @@ impl WorkflowOrchestrator {
         }
 
         // Clear worker phase tracking when done (whether success or failure)
-        self.clear_worker_phase();
+        self.clear_worker_phase().await;
 
         Ok(())
     }

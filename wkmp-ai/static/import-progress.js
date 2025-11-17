@@ -334,7 +334,7 @@ function updateUI(event) {
 
     // REQ-AIA-UI-001: Update workflow checklist
     if (event.phases && event.phases.length > 0) {
-        updateWorkflowChecklist(event.phases);
+        updateWorkflowChecklist(event.phases, event.phase_statistics);
         // Show sub-task status only for active phases with subtasks
         const activePhase = event.phases.find(p => p.status === 'InProgress');
         if (activePhase && activePhase.subtasks && activePhase.subtasks.length > 0) {
@@ -413,21 +413,24 @@ function updateUI(event) {
 }
 
 // REQ-AIA-UI-001: Update workflow checklist
-function updateWorkflowChecklist(phases) {
+function updateWorkflowChecklist(phases, phaseStatistics) {
     const container = document.getElementById('phases-container');
     container.innerHTML = '';
 
     phases.forEach(phase => {
         const statusClass = phase.status.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase();
         const icon = getPhaseIcon(phase.status);
-        const summary = getPhaseSum(phase, phase.status);
+        const summary = getPhaseSum(phase, phase.status, phaseStatistics);
 
         const phaseEl = document.createElement('div');
         phaseEl.className = `phase-item ${statusClass}`;
 
         // Compact: phase name • description • summary on single line
         const parts = [phase.phase];
-        if (phase.description) parts.push(phase.description);
+        // Skip description for completed SCANNING phase (summary contains file counts)
+        const isCompletedScanning = phase.phase === 'SCANNING' &&
+            (phase.status === 'Completed' || phase.status === 'CompletedWithWarnings');
+        if (phase.description && !isCompletedScanning) parts.push(phase.description);
         if (summary) parts.push(summary);
         const compactText = parts.join(' • ');
 
@@ -486,7 +489,7 @@ function displayPhaseStatistics(statistics) {
                     content = 'in progress';
                 } else {
                     const total = stat.audio_files + stat.image_files + stat.other_files;
-                    content = `${stat.audio_files} audio files, ${stat.image_files} image files, ${stat.other_files} other files, ${total} Total`;
+                    content = `Found: ${stat.audio_files} audio files, ${stat.image_files} image files, ${stat.other_files} other files, ${total} Total`;
                 }
                 break;
 
@@ -624,17 +627,26 @@ function getPhaseIcon(status) {
     return icons[status] || '○';
 }
 
-function getPhaseSum(phase, status) {
+function getPhaseSum(phase, status, phaseStatistics) {
     if (status === 'Completed' || status === 'CompletedWithWarnings') {
-        let summary = `Completed - ${phase.progress_current}/${phase.progress_total} processed`;
-
-        // **[PLAN027]** Add link to file classification report for SCANNING phase
+        // **[PLAN027]** For SCANNING phase, show file counts and link
         if (phase.phase === 'SCANNING') {
-            summary += ' <a href="/file-report" style="color: #4a9eff; text-decoration: underline; font-weight: bold;">View File Classification Report</a>';
+            // Find SCANNING statistics to get file counts
+            if (phaseStatistics && phaseStatistics.length > 0) {
+                const scanStat = phaseStatistics.find(s => s.phase_name === 'SCANNING');
+                if (scanStat) {
+                    return `Found ${scanStat.audio_files} audio files, ${scanStat.image_files} image files, ${scanStat.other_files} other files. <a href="/file-report" style="color: #4a9eff; text-decoration: underline; font-weight: bold;">View File Classification Report</a>`;
+                }
+            }
+            return 'Completed <a href="/file-report" style="color: #4a9eff; text-decoration: underline; font-weight: bold;">View File Classification Report</a>';
         }
 
-        return summary;
+        return `Completed - ${phase.progress_current}/${phase.progress_total} processed`;
     } else if (status === 'InProgress') {
+        // For SCANNING phase, omit progress counts
+        if (phase.phase === 'SCANNING') {
+            return 'In Progress';
+        }
         return `In Progress - ${phase.progress_current}/${phase.progress_total} processed`;
     } else if (status === 'Pending') {
         return 'Pending';
