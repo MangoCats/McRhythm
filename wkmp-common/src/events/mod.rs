@@ -12,8 +12,8 @@ mod shared_types;
 pub use playback_types::{BufferStatus, DecoderState, FadeStage, PlaybackState};
 pub use queue_types::{EnqueueSource, QueueChangeTrigger, UserActionType};
 pub use import_types::{
-    AnalyzedPassageInfo, PhaseProgressData, PhaseStatistics, PhaseStatusData, RecordedPassageInfo,
-    SubTaskData, WorkerActivity,
+    AnalyzedPassageInfo, FileProcessingStatus, FileState, PhaseProgressData, PhaseStatistics,
+    PhaseStatusData, RecordedPassageInfo, SubTaskData, WorkerActivity,
 };
 pub use shared_types::{BufferChainInfo, PlaybackPositionInfo, QueueEntryInfo};
 

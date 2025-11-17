@@ -33,7 +33,7 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
-use wkmp_common::events::{EventBus, WkmpEvent, WorkerActivity};
+use wkmp_common::events::{EventBus, FileProcessingStatus, FileState, WkmpEvent, WorkerActivity};
 
 // Phase modules (internal implementation)
 mod phase_scanning;
@@ -86,6 +86,8 @@ pub struct WorkflowOrchestrator {
     /// **[AIA-UI-010]** Real-time worker activity tracking
     /// **[PLAN031 Task 2.5]** Using tokio::sync::RwLock for async-friendly locking
     worker_activities: Arc<tokio::sync::RwLock<HashMap<String, WorkerActivity>>>,
+    /// **[File Processing Status Tracking]** Track all files that have started or completed processing
+    file_processing_states: Arc<tokio::sync::RwLock<HashMap<usize, FileProcessingStatus>>>,
     /// **[AIA-UI-PERF]** Maximum concurrent workers (parallelism level)
     max_workers: Arc<tokio::sync::RwLock<usize>>,
     /// **[PLAN028]** In-memory progress manager with periodic sync (lazy initialized)
@@ -163,6 +165,7 @@ impl WorkflowOrchestrator {
             statistics: statistics::ImportStatistics::new(),
             // **[PLAN031 Task 2.5]** Use tokio async locks
             worker_activities: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            file_processing_states: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             max_workers: Arc::new(tokio::sync::RwLock::new(0)), // Will be set when processing starts
             progress_manager: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
             write_queue: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
@@ -2304,6 +2307,16 @@ impl WorkflowOrchestrator {
             "Worker activities collected for SSE"
         );
 
+        // **[File Processing Status]** Get current file processing states
+        let mut file_statuses: Vec<FileProcessingStatus> = self.file_processing_states
+            .read().await
+            .values()
+            .cloned()
+            .collect();
+
+        // Sort by file_index for display
+        file_statuses.sort_by_key(|f| f.file_index);
+
         let result = vec![
             PhaseStatistics::Scanning {
                 potential_files_found: scanning.potential_files_found,
@@ -2318,7 +2331,7 @@ impl WorkflowOrchestrator {
                 total: processing.total,
                 workers: worker_activities,
                 max_workers: *self.max_workers.read().await,
-                files: Vec::new(), // TODO: Populate with file processing statuses
+                files: file_statuses,
             },
             PhaseStatistics::FilenameMatching {
                 completed_filenames_found: filename_matching.completed_filenames_found,
@@ -2582,6 +2595,15 @@ impl WorkflowOrchestrator {
                     original_file_id = %original_file_id,
                     "Duplicate hash found, skipping pipeline"
                 );
+
+                // **[File Processing Status]** Mark as duplicate hash
+                {
+                    let mut states = self.file_processing_states.write().await;
+                    if let Some(file_state) = states.get_mut(&file_index) {
+                        file_state.state = FileState::DuplicateHash;
+                    }
+                }
+
                 return Ok(());
             }
             crate::services::HashResult::Unique(hash) => {
@@ -2648,6 +2670,15 @@ impl WorkflowOrchestrator {
                     file_id = %file_id,
                     "No audio detected, skipping pipeline"
                 );
+
+                // **[File Processing Status]** Mark as no audio
+                {
+                    let mut states = self.file_processing_states.write().await;
+                    if let Some(file_state) = states.get_mut(&file_index) {
+                        file_state.state = FileState::NoAudio;
+                    }
+                }
+
                 return Ok(());
             }
             crate::services::SegmentResult::Passages(boundaries) => {
@@ -3286,6 +3317,21 @@ impl WorkflowOrchestrator {
             "Starting per-file pipeline"
         );
 
+        // **[File Processing Status]** Record file start
+        let start_time = std::time::Instant::now();
+        {
+            let mut states = self.file_processing_states.write().await;
+            states.insert(
+                idx,
+                FileProcessingStatus {
+                    file_index: idx,
+                    file_path: file_path.clone(),
+                    state: FileState::Processing("Starting".to_string()),
+                    total_time_seconds: None,
+                },
+            );
+        }
+
         // Combine relative path with root folder to get absolute path
         let root_path = std::path::Path::new(&root_folder);
         let absolute_path = root_path.join(&file_path);
@@ -3297,6 +3343,22 @@ impl WorkflowOrchestrator {
                 idx,
             )
             .await;
+
+        // **[File Processing Status]** Record final state and processing time
+        let elapsed = start_time.elapsed().as_secs_f64();
+        {
+            let mut states = self.file_processing_states.write().await;
+            if let Some(file_state) = states.get_mut(&idx) {
+                // Determine final state based on result
+                file_state.state = if result.is_ok() {
+                    FileState::IngestComplete
+                } else {
+                    // Keep current processing state with error
+                    FileState::Processing(format!("Failed: {:?}", result.as_ref().err()))
+                };
+                file_state.total_time_seconds = Some(elapsed);
+            }
+        }
 
         (idx, file_path, result)
     }
