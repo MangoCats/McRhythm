@@ -17,6 +17,18 @@ use uuid::Uuid;
 // **[AIA-CLASSIFY-030]** Per SPEC032 v2.2
 // ========================================
 
+/// **[AIA-CLASSIFY-040]** Verification status for file classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerificationStatus {
+    /// Extension classification confirmed by magic byte signature
+    Confirmed,
+    /// Extension classification denied by magic byte signature (mismatched)
+    Denied,
+    /// Extension-only classification (no magic byte verification performed)
+    ExtensionOnly,
+}
+
 /// **[AIA-CLASSIFY-030]** File metadata for classification report
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
@@ -27,6 +39,8 @@ pub struct FileInfo {
     /// File last modified timestamp
     #[serde(with = "systemtime_serde")]
     pub modified_at: SystemTime,
+    /// **[AIA-CLASSIFY-040]** Magic byte verification status
+    pub verification_status: VerificationStatus,
 }
 
 impl FileInfo {
@@ -36,6 +50,22 @@ impl FileInfo {
             path,
             size_bytes,
             modified_at,
+            verification_status: VerificationStatus::ExtensionOnly,
+        }
+    }
+
+    /// Create new FileInfo with verification status
+    pub fn with_verification(
+        path: PathBuf,
+        size_bytes: u64,
+        modified_at: SystemTime,
+        verification_status: VerificationStatus,
+    ) -> Self {
+        Self {
+            path,
+            size_bytes,
+            modified_at,
+            verification_status,
         }
     }
 }
@@ -51,6 +81,11 @@ pub struct FileClassification {
     pub other_files: Vec<FileInfo>,
     /// When scan completed (classification finalized)
     pub scan_completed_at: Option<DateTime<Utc>>,
+    /// **[AIA-CLASSIFY-040]** Verification statistics
+    pub audio_confirmed: usize,
+    pub audio_denied: usize,
+    pub image_confirmed: usize,
+    pub image_denied: usize,
 }
 
 impl FileClassification {
@@ -106,6 +141,35 @@ impl FileClassification {
                 &b.path.to_string_lossy().to_lowercase()
             )
         });
+    }
+
+    /// **[AIA-CLASSIFY-040]** Recalculate verification statistics from file lists
+    ///
+    /// Should be called after files are added/modified to update statistics
+    pub fn update_verification_stats(&mut self) {
+        self.audio_confirmed = self.audio_files.iter()
+            .filter(|f| f.verification_status == VerificationStatus::Confirmed)
+            .count();
+        self.audio_denied = self.audio_files.iter()
+            .filter(|f| f.verification_status == VerificationStatus::Denied)
+            .count();
+        self.image_confirmed = self.image_files.iter()
+            .filter(|f| f.verification_status == VerificationStatus::Confirmed)
+            .count();
+        self.image_denied = self.image_files.iter()
+            .filter(|f| f.verification_status == VerificationStatus::Denied)
+            .count();
+    }
+
+    /// **[AIA-CLASSIFY-040]** Get verification summary string for logging/UI
+    pub fn verification_summary(&self) -> String {
+        format!(
+            "Audio: {} confirmed, {} denied | Images: {} confirmed, {} denied",
+            self.audio_confirmed,
+            self.audio_denied,
+            self.image_confirmed,
+            self.image_denied
+        )
     }
 }
 

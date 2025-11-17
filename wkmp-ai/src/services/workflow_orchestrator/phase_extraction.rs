@@ -80,7 +80,7 @@ impl WorkflowOrchestrator {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
-                                error = %e,
+                                error = ?e,
                                 "Failed to update file duration"
                             );
                         }
@@ -100,7 +100,7 @@ impl WorkflowOrchestrator {
                                     tracing::warn!(
                                         session_id = %session.session_id,
                                         passage_id = %passage.guid,
-                                        error = %e,
+                                        error = ?e,
                                         "Failed to update passage metadata"
                                     );
                                 }
@@ -110,7 +110,7 @@ impl WorkflowOrchestrator {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
-                                error = %e,
+                                error = ?e,
                                 "Failed to load passages for file"
                             );
                         }
@@ -122,7 +122,7 @@ impl WorkflowOrchestrator {
                     tracing::warn!(
                         session_id = %session.session_id,
                         file = %file.path,
-                        error = %e,
+                        error = ?e,
                         "Failed to extract metadata"
                     );
                     extracted_count += 1; // Still count as processed

@@ -124,7 +124,7 @@ impl WriteQueue {
                     if let Err(e) = &result {
                         tracing::error!(
                             session_id = %session.session_id,
-                            error = %e,
+                            error = ?e,
                             "Failed to save session in write queue"
                         );
                     }
@@ -138,7 +138,7 @@ impl WriteQueue {
 
                     if let Err(e) = &result {
                         tracing::error!(
-                            error = %e,
+                            error = ?e,
                             "Failed to record passages batch in write queue"
                         );
                     }
@@ -153,7 +153,7 @@ impl WriteQueue {
                     if let Err(e) = &result {
                         tracing::error!(
                             file_id = %file_id,
-                            error = %e,
+                            error = ?e,
                             "Failed to update file status in write queue"
                         );
                     }

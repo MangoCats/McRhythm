@@ -12,7 +12,7 @@ pub mod bootstrap_config;
 
 pub use import_session::{
     ImportSession, ImportState, ImportProgress, StateTransition,
-    FileInfo, FileClassification, // PLAN027: File classification
+    FileInfo, FileClassification, VerificationStatus, // PLAN027: File classification
 };
 pub use parameters::{ImportParameters, AmplitudeParameters};
 pub use amplitude_profile::{AmplitudeProfile, AmplitudeAnalysisRequest, AmplitudeAnalysisResponse};

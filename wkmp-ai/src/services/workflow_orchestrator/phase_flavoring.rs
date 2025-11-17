@@ -71,7 +71,7 @@ impl WorkflowOrchestrator {
                     Err(e) => {
                         tracing::warn!(
                             passage_id = %passage.guid,
-                            error = %e,
+                            error = ?e,
                             "Failed to get recording MBID"
                         );
                         processed_count += 1;
@@ -94,7 +94,7 @@ impl WorkflowOrchestrator {
                                     ).await {
                                         tracing::warn!(
                                             passage_id = %passage.guid,
-                                            error = %e,
+                                            error = ?e,
                                             "Failed to save flavor vector"
                                         );
                                     } else {
@@ -111,7 +111,7 @@ impl WorkflowOrchestrator {
                                 Err(e) => {
                                     tracing::warn!(
                                         passage_id = %passage.guid,
-                                        error = %e,
+                                        error = ?e,
                                         "Failed to serialize flavor vector"
                                     );
                                 }
@@ -138,7 +138,7 @@ impl WorkflowOrchestrator {
                                                 ).await {
                                                     tracing::warn!(
                                                         passage_id = %passage.guid,
-                                                        error = %e,
+                                                        error = ?e,
                                                         "Failed to save Essentia flavor vector"
                                                     );
                                                 } else {
@@ -154,7 +154,7 @@ impl WorkflowOrchestrator {
                                             Err(e) => {
                                                 tracing::warn!(
                                                     passage_id = %passage.guid,
-                                                    error = %e,
+                                                    error = ?e,
                                                     "Failed to serialize Essentia flavor vector"
                                                 );
                                             }
@@ -165,7 +165,7 @@ impl WorkflowOrchestrator {
                                         tracing::warn!(
                                             passage_id = %passage.guid,
                                             file = %file.path,
-                                            error = %e,
+                                            error = ?e,
                                             "Essentia analysis failed, no flavor data available"
                                         );
                                     }
@@ -183,7 +183,7 @@ impl WorkflowOrchestrator {
                             tracing::warn!(
                                 passage_id = %passage.guid,
                                 recording_mbid = %recording_mbid,
-                                error = %e,
+                                error = ?e,
                                 "AcousticBrainz lookup failed"
                             );
                         }

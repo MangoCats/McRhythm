@@ -75,7 +75,7 @@ impl WorkflowOrchestrator {
                 tracing::warn!(
                     session_id = %session.session_id,
                     file = %file.path,
-                    error = %e,
+                    error = ?e,
                     "Failed to save passage to database"
                 );
             } else {
@@ -107,7 +107,7 @@ impl WorkflowOrchestrator {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
-                                error = %e,
+                                error = ?e,
                                 "Failed to link passage to song"
                             );
                         }
@@ -132,7 +132,7 @@ impl WorkflowOrchestrator {
                                 tracing::warn!(
                                     session_id = %session.session_id,
                                     file = %file.path,
-                                    error = %e,
+                                    error = ?e,
                                     "Failed to link passage to album"
                                 );
                             }

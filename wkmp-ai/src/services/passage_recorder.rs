@@ -212,7 +212,7 @@ impl PassageRecorder {
                             .await
                             .map_err(|e| {
                                 tracing::error!(
-                                    error = %e,
+                                    error = ?e,
                                     song_count = songs_to_create.len(),
                                     "Batch song INSERT failed"
                                 );
@@ -303,7 +303,7 @@ impl PassageRecorder {
                             .await
                             .map_err(|e| {
                                 tracing::error!(
-                                    error = %e,
+                                    error = ?e,
                                     passage_count = passage_data.len(),
                                     "Batch passage INSERT failed"
                                 );
@@ -337,7 +337,7 @@ impl PassageRecorder {
                     tracing::debug!("Committing transaction for passage recording");
                     tx.commit().await.map_err(|e| {
                         tracing::error!(
-                            error = %e,
+                            error = ?e,
                             "Transaction COMMIT failed"
                         );
                         e

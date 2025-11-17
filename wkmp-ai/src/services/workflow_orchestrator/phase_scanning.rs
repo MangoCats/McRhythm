@@ -107,7 +107,11 @@ impl WorkflowOrchestrator {
             image_files = classification.image_files.len(),
             other_files = classification.other_files.len(),
             total_files = classification.total_count(),
-            "File classification completed"
+            audio_confirmed = classification.audio_confirmed,
+            audio_denied = classification.audio_denied,
+            image_confirmed = classification.image_confirmed,
+            image_denied = classification.image_denied,
+            "File classification completed with magic byte verification"
         );
 
         // Store classification results in session state
@@ -149,7 +153,7 @@ impl WorkflowOrchestrator {
                     tracing::warn!(
                         session_id = %session.session_id,
                         file = %file_path.display(),
-                        error = %e,
+                        error = ?e,
                         "Failed to read file metadata, skipping"
                     );
                     continue;
@@ -162,7 +166,7 @@ impl WorkflowOrchestrator {
                     tracing::warn!(
                         session_id = %session.session_id,
                         file = %file_path.display(),
-                        error = %e,
+                        error = ?e,
                         "Failed to get modification time, skipping"
                     );
                     continue;

@@ -167,7 +167,7 @@ impl ProgressManager {
                                 Err(e) => {
                                     tracing::error!(
                                         session_id = %session_id,
-                                        error = %e,
+                                        error = ?e,
                                         "Background sync failed"
                                     );
                                     // Continue running despite error

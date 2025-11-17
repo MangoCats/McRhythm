@@ -97,7 +97,7 @@ impl PassageFlavorFetcher {
                 Some(client)
             }
             Err(e) => {
-                tracing::warn!(error = %e, "Essentia client unavailable, will use AcousticBrainz only");
+                tracing::warn!(error = ?e, "Essentia client unavailable, will use AcousticBrainz only");
                 None
             }
         };
@@ -225,7 +225,7 @@ impl PassageFlavorFetcher {
                         tracing::warn!(
                             song_id = %song_id,
                             mbid,
-                            error = %ab_error,
+                            error = ?ab_error,
                             "AcousticBrainz failed, trying Essentia fallback"
                         );
 
@@ -274,8 +274,8 @@ impl PassageFlavorFetcher {
                             tracing::error!(
                                 song_id = %song_id,
                                 mbid,
-                                ab_error = %ab_error,
-                                essentia_error = %essentia_error,
+                                ab_error = ?ab_error,
+                                essentia_error = ?essentia_error,
                                 "Failed to fetch flavor from both AcousticBrainz and Essentia"
                             );
 
@@ -288,7 +288,7 @@ impl PassageFlavorFetcher {
                         tracing::error!(
                             song_id = %song_id,
                             mbid,
-                            ab_error = %ab_error,
+                            ab_error = ?ab_error,
                             "AcousticBrainz failed and Essentia not available"
                         );
 

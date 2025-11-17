@@ -156,7 +156,7 @@ impl PassageSongMatcher {
             }
             FingerprintResult::Failed(err) => {
                 // Fingerprinting failed - fall back to metadata-only
-                tracing::warn!(error = %err, "Fingerprinting failed, using metadata-only matching");
+                tracing::warn!(error = ?err, "Fingerprinting failed, using metadata-only matching");
                 for passage in passages {
                     matches.push(self.match_passage_metadata_only(passage, metadata));
                 }

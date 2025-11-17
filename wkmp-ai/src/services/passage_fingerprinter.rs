@@ -155,7 +155,7 @@ impl PassageFingerprinter {
                 Err(e) => {
                     tracing::warn!(
                         passage_idx = idx,
-                        error = %e,
+                        error = ?e,
                         "Fingerprint generation failed"
                     );
                     return Ok(FingerprintResult::Failed(format!(
@@ -180,7 +180,7 @@ impl PassageFingerprinter {
                 Err(e) => {
                     tracing::warn!(
                         passage_idx = idx,
-                        error = %e,
+                        error = ?e,
                         "AcoustID API call failed"
                     );
                     return Ok(FingerprintResult::Failed(format!(

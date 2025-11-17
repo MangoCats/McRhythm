@@ -85,7 +85,7 @@ impl FolderSelector {
             } else {
                 tracing::warn!(
                     folder = %selected_folder.display(),
-                    error = %e,
+                    error = ?e,
                     "Symlink loop or canonicalization error detected"
                 );
                 Error::InvalidInput(format!(

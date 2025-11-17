@@ -199,7 +199,7 @@ pub async fn save_files_batch(pool: &SqlitePool, files: &[AudioFile]) -> Result<
                     }
                     Err(e) => {
                         tracing::error!(
-                            error = %e,
+                            error = ?e,
                             chunk_size = chunk.len(),
                             "Batch insert failed for chunk, transaction will roll back"
                         );

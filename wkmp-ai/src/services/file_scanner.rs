@@ -315,6 +315,52 @@ impl FileScanner {
         Ok(is_audio)
     }
 
+    /// **[AIA-CLASSIFY-040]** Verify if file is audio using magic bytes
+    fn verify_audio_magic_bytes(&self, path: &Path) -> Result<bool, ScanError> {
+        self.verify_magic_bytes(path)
+    }
+
+    /// **[AIA-CLASSIFY-040]** Verify if file is image using magic bytes
+    fn verify_image_magic_bytes(&self, path: &Path) -> Result<bool, ScanError> {
+        let mut file = File::open(path)
+            .map_err(|e| ScanError::FileAccessError(path.to_path_buf(), e.to_string()))?;
+
+        let mut buffer = [0u8; 12]; // Read first 12 bytes
+        let bytes_read = file
+            .read(&mut buffer)
+            .map_err(|e| ScanError::FileAccessError(path.to_path_buf(), e.to_string()))?;
+
+        if bytes_read < 2 {
+            return Ok(false); // Too small to be image
+        }
+
+        let is_image = match &buffer[..bytes_read.min(12)] {
+            // JPEG
+            [0xFF, 0xD8, 0xFF, ..] => true,
+
+            // PNG
+            [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, ..] => true,
+
+            // GIF
+            [b'G', b'I', b'F', b'8', b'7', b'a', ..] |
+            [b'G', b'I', b'F', b'8', b'9', b'a', ..] => true,
+
+            // BMP
+            [b'B', b'M', ..] => true,
+
+            // WebP
+            [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P'] => true,
+
+            // TIFF (little-endian and big-endian)
+            [0x49, 0x49, 0x2A, 0x00, ..] |
+            [0x4D, 0x4D, 0x00, 0x2A, ..] => true,
+
+            _ => false,
+        };
+
+        Ok(is_image)
+    }
+
     /// Get file size
     pub fn get_file_size(&self, path: &Path) -> Result<u64, ScanError> {
         let metadata = std::fs::metadata(path)
@@ -363,7 +409,7 @@ impl FileScanner {
     /// **[AIA-CLASSIFY-010]** Scan and classify ALL files with progress callback
     ///
     /// Returns FileClassification with all files categorized into audio/image/other.
-    /// Classification happens during directory traversal (no additional I/O overhead).
+    /// **[AIA-CLASSIFY-040]** Performs magic byte verification to confirm file types.
     ///
     /// **Progress Callback:** Called periodically with current file counts (every 100 files)
     /// Receives total files, audio files, image files, and other files counts
@@ -375,7 +421,7 @@ impl FileScanner {
     where
         F: FnMut(usize, usize, usize, usize), // (total, audio, image, other)
     {
-        use crate::models::{FileClassification, FileInfo};
+        use crate::models::{FileClassification, FileInfo, VerificationStatus};
 
         if !root_path.exists() {
             return Err(ScanError::PathNotFound(root_path.to_path_buf()));
@@ -408,21 +454,62 @@ impl FileScanner {
                                 let size_bytes = metadata.len();
                                 let modified_at = metadata.modified().unwrap_or(SystemTime::now());
 
-                                // Classify by extension
-                                let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
-
+                                // **[AIA-CLASSIFY-040]** Classify by extension, then verify with magic bytes
                                 if let Some(ext) = path.extension() {
                                     let ext_lower = ext.to_string_lossy().to_lowercase();
 
                                     if self.is_audio_extension_classify(&ext_lower) {
+                                        // Extension says audio - verify with magic bytes
+                                        let verification_status = match self.verify_audio_magic_bytes(&path) {
+                                            Ok(true) => VerificationStatus::Confirmed,
+                                            Ok(false) => VerificationStatus::Denied,
+                                            Err(e) => {
+                                                tracing::warn!(
+                                                    "Magic byte verification failed for {}: {}",
+                                                    path.display(), e
+                                                );
+                                                VerificationStatus::ExtensionOnly
+                                            }
+                                        };
+
+                                        let file_info = FileInfo::with_verification(
+                                            path.clone(),
+                                            size_bytes,
+                                            modified_at,
+                                            verification_status,
+                                        );
                                         classification.audio_files.push(file_info);
+
                                     } else if self.is_image_extension(&ext_lower) {
+                                        // Extension says image - verify with magic bytes
+                                        let verification_status = match self.verify_image_magic_bytes(&path) {
+                                            Ok(true) => VerificationStatus::Confirmed,
+                                            Ok(false) => VerificationStatus::Denied,
+                                            Err(e) => {
+                                                tracing::warn!(
+                                                    "Magic byte verification failed for {}: {}",
+                                                    path.display(), e
+                                                );
+                                                VerificationStatus::ExtensionOnly
+                                            }
+                                        };
+
+                                        let file_info = FileInfo::with_verification(
+                                            path.clone(),
+                                            size_bytes,
+                                            modified_at,
+                                            verification_status,
+                                        );
                                         classification.image_files.push(file_info);
+
                                     } else {
+                                        // Other extension - no verification needed
+                                        let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
                                         classification.other_files.push(file_info);
                                     }
                                 } else {
                                     // No extension → other
+                                    let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
                                     classification.other_files.push(file_info);
                                 }
 
@@ -430,6 +517,8 @@ impl FileScanner {
 
                                 // Call progress callback every 100 files
                                 if file_count % PROGRESS_INTERVAL == 0 {
+                                    // **[AIA-CLASSIFY-040]** Update verification stats before callback
+                                    classification.update_verification_stats();
                                     progress_callback(
                                         file_count,
                                         classification.audio_files.len(),
@@ -452,6 +541,9 @@ impl FileScanner {
             }
         }
 
+        // **[AIA-CLASSIFY-040]** Final verification stats update
+        classification.update_verification_stats();
+
         // Final progress update
         progress_callback(
             file_count,
@@ -467,11 +559,12 @@ impl FileScanner {
         classification.mark_completed();
 
         tracing::info!(
-            "File classification complete: {} audio, {} image, {} other (total {})",
+            "File classification complete: {} audio, {} image, {} other (total {}) | {}",
             classification.audio_files.len(),
             classification.image_files.len(),
             classification.other_files.len(),
-            classification.total_count()
+            classification.total_count(),
+            classification.verification_summary()
         );
 
         Ok(classification)

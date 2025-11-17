@@ -115,7 +115,7 @@ impl ParallelExtractor {
                         warn!(
                             extractor = name,
                             passage_id = %ctx.passage_id,
-                            error = %e,
+                            error = ?e,
                             "Extraction failed (per-passage error isolation)"
                         );
                         None

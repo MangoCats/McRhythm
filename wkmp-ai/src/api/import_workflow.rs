@@ -109,7 +109,7 @@ pub async fn validate_acoustid(
             }))
         }
         Err(err) => {
-            tracing::debug!(error = %err, "AcoustID API key validation failed");
+            tracing::debug!(error = ?err, "AcoustID API key validation failed");
             Ok(Json(ValidateAcoustIDResponse {
                 valid: false,
                 message: err,
@@ -499,7 +499,7 @@ pub async fn update_acoustid_key(
         Err(err) => {
             tracing::warn!(
                 session_id = %request.session_id,
-                error = %err,
+                error = ?err,
                 "AcoustID API key validation failed"
             );
             Ok(Json(UpdateAcoustIDKeyResponse {

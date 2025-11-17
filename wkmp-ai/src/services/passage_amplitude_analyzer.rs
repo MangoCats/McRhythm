@@ -310,7 +310,7 @@ impl PassageAmplitudeAnalyzer {
                     lead_in_duration_seconds = analysis.lead_in_duration,
                     lead_out_duration_seconds = analysis.lead_out_duration,
                     passage_duration_ticks = end_ticks - start_ticks,
-                    error = %e,
+                    error = ?e,
                     "Database update failed with CHECK constraint - dumping all values"
                 );
                 return Err(e);

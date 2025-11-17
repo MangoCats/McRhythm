@@ -567,7 +567,7 @@ impl WorkflowOrchestrator {
                         if !segmenting_started {
                             segmenting_started = true;
                             if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Segmenting)).await {
-                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Segmenting state transition");
+                                tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Segmenting state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2A: SEGMENTING - Boundary detection started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:463");
                         }
@@ -578,28 +578,28 @@ impl WorkflowOrchestrator {
                         if extractor == "chromaprint" && !fingerprinting_started {
                             fingerprinting_started = true;
                             if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Fingerprinting)).await {
-                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Fingerprinting state transition");
+                                tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Fingerprinting state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2B: FINGERPRINTING - Chromaprint extraction started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:474");
                         }
                         if extractor == "acoustid" && !identifying_started {
                             identifying_started = true;
                             if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Identifying)).await {
-                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Identifying state transition");
+                                tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Identifying state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2C: IDENTIFYING - MusicBrainz resolution started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:481");
                         }
                         if extractor == "audio_derived" && !analyzing_started {
                             analyzing_started = true;
                             if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Analyzing)).await {
-                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Analyzing state transition");
+                                tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Analyzing state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2D: ANALYZING - Amplitude analysis started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:488");
                         }
                         if extractor == "essentia" && !flavoring_started {
                             flavoring_started = true;
                             if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Flavoring)).await {
-                                tracing::warn!(session_id = %session_id, error = %e, "Failed to send Flavoring state transition");
+                                tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Flavoring state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2E: FLAVORING - Musical characteristics extraction started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:495");
                         }
@@ -629,7 +629,7 @@ impl WorkflowOrchestrator {
                             low_conf: low_confidence,
                             unidentified: unidentified,
                         }).await {
-                            tracing::warn!(session_id = %session_id, error = %e, "Failed to send passage progress update");
+                            tracing::warn!(session_id = %session_id, error = ?e, "Failed to send passage progress update");
                         }
 
                         tracing::debug!(
@@ -1642,7 +1642,7 @@ impl WorkflowOrchestrator {
                 tracing::warn!(
                     session_id = %session_id,
                     file = ?file_path,
-                    error = %e,
+                    error = ?e,
                     "Failed to extract metadata, continuing without it"
                 );
                 None
@@ -1722,7 +1722,7 @@ impl WorkflowOrchestrator {
                 Err(e) => {
                     tracing::warn!(
                         session_id = %session_id,
-                        error = %e,
+                        error = ?e,
                         "Failed to create contextual matcher"
                     );
                     None
@@ -1776,7 +1776,7 @@ impl WorkflowOrchestrator {
                     Err(e) => {
                         tracing::warn!(
                             session_id = %session_id,
-                            error = %e,
+                            error = ?e,
                             "Contextual matching failed"
                         );
                         0.0
@@ -1824,7 +1824,7 @@ impl WorkflowOrchestrator {
                     tracing::warn!(
                         session_id = %session_id,
                         segment_index = idx,
-                        error = %e,
+                        error = ?e,
                         "Failed to fingerprint segment, continuing with others"
                     );
                     // Continue with other segments - per-file error isolation
@@ -1883,7 +1883,7 @@ impl WorkflowOrchestrator {
                             tracing::warn!(
                                 session_id = %session_id,
                                 segment_index = idx,
-                                error = %e,
+                                error = ?e,
                                 "AcoustID lookup failed for segment, continuing"
                             );
                             // Continue with other segments - per-file error isolation
@@ -2002,7 +2002,7 @@ impl WorkflowOrchestrator {
                     tracing::warn!(
                         session_id = %session_id,
                         segment_index = idx,
-                        error = %e,
+                        error = ?e,
                         "Amplitude analysis failed for segment, continuing"
                     );
                     amplitude_results.push(None);
@@ -2062,7 +2062,7 @@ impl WorkflowOrchestrator {
                                 Err(e) => {
                                     tracing::warn!(
                                         session_id = %session_id,
-                                        error = %e,
+                                        error = ?e,
                                         "Failed to serialize flavor vector"
                                     );
                                     None
@@ -2073,7 +2073,7 @@ impl WorkflowOrchestrator {
                             tracing::debug!(
                                 session_id = %session_id,
                                 mbid = %mbid,
-                                error = %e,
+                                error = ?e,
                                 "AcousticBrainz lookup failed (recording may not be in database)"
                             );
                             None
@@ -2168,7 +2168,7 @@ impl WorkflowOrchestrator {
                 tracing::warn!(
                     session_id = %session_id,
                     file = ?file_path,
-                    error = %e,
+                    error = ?e,
                     "Failed to save passage"
                 );
             } else {
@@ -3151,7 +3151,7 @@ impl WorkflowOrchestrator {
                         session_id = %session.session_id,
                         file_index = idx,
                         file = %file_path,
-                        error = %e,
+                        error = ?e,
                         "File processing failed"
                     );
                 }

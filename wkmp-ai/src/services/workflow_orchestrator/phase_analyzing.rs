@@ -87,7 +87,7 @@ impl WorkflowOrchestrator {
                         tracing::warn!(
                             file = %file.path,
                             passage_id = %passage.guid,
-                            error = %e,
+                            error = ?e,
                             "Amplitude analysis failed, using defaults"
                         );
                         // Continue with other passages
