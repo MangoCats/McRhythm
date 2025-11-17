@@ -469,6 +469,25 @@ pub async fn import_progress_page() -> impl IntoResponse {
         .passage-item:last-child {{
             border-bottom: none;
         }}
+        /* File processing status list */
+        .file-separator {{
+            margin: 12px 0;
+            border: none;
+            border-top: 1px solid #4a4a4a;
+        }}
+        .file-status-list {{
+            max-height: 300px;
+        }}
+        .file-status-item {{
+            padding: 6px 8px;
+            border-bottom: 1px solid #3a3a3a;
+            font-family: monospace;
+            font-size: 11px;
+            color: #d0d0d0;
+        }}
+        .file-status-item:last-child {{
+            border-bottom: none;
+        }}
     </style>
 </head>
 <body>

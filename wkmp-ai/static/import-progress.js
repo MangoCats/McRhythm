@@ -538,7 +538,36 @@ function displayPhaseStatistics(statistics) {
                         workerUpdateInterval = null;
                     }
                 }
-                content = `Processing ${stat.completed} of ${stat.total} (${stat.started} started) ingest_max_concurrent_jobs ${stat.max_workers}${workerSection ? '<br>' + workerSection : ''}`;
+
+                // **[File Processing Status List]** Display file processing history
+                let fileSection = '';
+                if (stat.files && stat.files.length > 0) {
+                    const fileList = stat.files.map(f => {
+                        // Format state display
+                        let stateDisplay = '';
+                        if (f.state.type === 'Processing') {
+                            stateDisplay = `PROCESSING: ${f.state.stage}`;
+                        } else if (f.state.type === 'IngestComplete') {
+                            stateDisplay = 'INGEST COMPLETE';
+                        } else if (f.state.type === 'DuplicateHash') {
+                            stateDisplay = 'DUPLICATE HASH';
+                        } else if (f.state.type === 'NoAudio') {
+                            stateDisplay = 'NO AUDIO';
+                        } else {
+                            stateDisplay = f.state.type;
+                        }
+
+                        // Format time display
+                        const timeDisplay = f.total_time_seconds !== null && f.total_time_seconds !== undefined
+                            ? ` (${f.total_time_seconds.toFixed(1)}s)`
+                            : '';
+
+                        return `<div class="file-status-item">#${f.file_index} ${f.file_path} - ${stateDisplay}${timeDisplay}</div>`;
+                    }).join('');
+                    fileSection = `<hr class="file-separator"><div class="scrollable-list file-status-list">${fileList}</div>`;
+                }
+
+                content = `Processing ${stat.completed} of ${stat.total} (${stat.started} started) ingest_max_concurrent_jobs ${stat.max_workers}${workerSection ? '<br>' + workerSection : ''}${fileSection}`;
                 break;
 
             case 'FILENAME_MATCHING':

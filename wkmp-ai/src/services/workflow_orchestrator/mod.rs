@@ -2318,6 +2318,7 @@ impl WorkflowOrchestrator {
                 total: processing.total,
                 workers: worker_activities,
                 max_workers: *self.max_workers.read().await,
+                files: Vec::new(), // TODO: Populate with file processing statuses
             },
             PhaseStatistics::FilenameMatching {
                 completed_filenames_found: filename_matching.completed_filenames_found,

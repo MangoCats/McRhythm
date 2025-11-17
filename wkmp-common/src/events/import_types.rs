@@ -27,6 +27,8 @@ pub enum PhaseStatistics {
         workers: Vec<WorkerActivity>,
         /// Maximum concurrent worker threads configured
         max_workers: usize,
+        /// List of files that have started or completed processing
+        files: Vec<FileProcessingStatus>,
     },
     #[serde(rename = "FILENAME_MATCHING")]
     FilenameMatching {
@@ -176,4 +178,33 @@ pub struct WorkerActivity {
     pub passage_start_seconds: Option<f64>,
     /// Passage end time in seconds (for passage-level processing phases)
     pub passage_end_seconds: Option<f64>,
+}
+
+/// File processing status for tracking individual file progress
+///
+/// Shows current state and completion status for all files that have started or completed processing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileProcessingStatus {
+    /// File's sequence number in the processing queue
+    pub file_index: usize,
+    /// Relative path and filename from root folder
+    pub file_path: String,
+    /// Current processing state
+    pub state: FileState,
+    /// Total processing time in seconds (None if still in progress)
+    pub total_time_seconds: Option<f64>,
+}
+
+/// Processing state for a file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "stage")]
+pub enum FileState {
+    /// File is currently being processed (with current stage name)
+    Processing(String),
+    /// File completed successfully
+    IngestComplete,
+    /// File skipped due to duplicate hash
+    DuplicateHash,
+    /// File skipped due to no audio content
+    NoAudio,
 }
