@@ -258,12 +258,12 @@ mod tests {
         .await
         .unwrap();
 
-        // Insert default settings
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('silence_threshold_dB', '35.0')")
+        // Insert default settings (empirically optimized values)
+        sqlx::query("INSERT INTO settings (key, value) VALUES ('silence_threshold_dB', '60.0')")
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('silence_min_duration_ticks', '8467200')") // 300ms
+        sqlx::query("INSERT INTO settings (key, value) VALUES ('silence_min_duration_ticks', '56448000')") // 2000ms = 2.0s
             .execute(&pool)
             .await
             .unwrap();
@@ -289,24 +289,25 @@ mod tests {
 
         let file_id = Uuid::new_v4();
 
-        // Create audio: 600ms total with only brief moments of sound
-        // Pattern: 500ms silence, 1ms sound, 99ms silence (total 600ms)
-        // Total non-silence: ~1ms < 100ms threshold → should be NO AUDIO
+        // Create audio: ~4.1s total with only brief moments of sound
+        // Pattern: 2.0s silence, 50ms sound, 2.0s silence (total ~4.1s)
+        // With 2.0s min silence duration, both silences are detected
+        // Total non-silence: ~50ms < 100ms threshold → should be NO AUDIO
         let sample_rate = 44100;
         let mut samples = Vec::new();
 
-        // 500ms of silence
-        for _ in 0..(sample_rate / 2) {
+        // 2.0s of silence (meets new 2.0s minimum silence duration)
+        for _ in 0..(sample_rate * 2) {
             samples.push(0.0);
         }
 
-        // 1ms of loud sound (above -35dB threshold)
-        for _ in 0..(sample_rate / 1000) {
+        // 50ms of loud sound (above -60dB threshold)
+        for _ in 0..(sample_rate * 50 / 1000) {
             samples.push(0.9);
         }
 
-        // 99ms of silence
-        for _ in 0..(sample_rate * 99 / 1000) {
+        // 2.0s of silence (meets new 2.0s minimum silence duration)
+        for _ in 0..(sample_rate * 2) {
             samples.push(0.0);
         }
 
@@ -335,7 +336,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Should be marked as NO AUDIO (only ~1ms of non-silence < 100ms threshold)
+        // Should be marked as NO AUDIO (only ~50ms of non-silence < 100ms threshold)
         assert_eq!(result, SegmentResult::NoAudio);
 
         // Verify file status updated

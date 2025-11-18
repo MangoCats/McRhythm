@@ -1342,8 +1342,8 @@ For each file, execute in order (10-phase pipeline):
 
   Phase 4: SEGMENTING
     └─ Decode audio PCM, detect silence using thresholds from settings table:
-       - silence_threshold_dB (default: 35dB RMS)
-       - silence_min_duration_ticks (default: 8467200 ticks = 300ms)
+       - silence_threshold_dB (default: 60dB RMS, empirically optimized)
+       - silence_min_duration_ticks (default: 56448000 ticks = 2000ms = 2.0s, empirically optimized)
     └─ Identify potential passage boundaries (audio segments between silence)
     └─ Calculate total non-silence duration across all potential passages
     └─ NO AUDIO detection (file-level check):

@@ -999,14 +999,15 @@ Parameters are classified by their modification behavior:
 
 - **Database Key:** `silence_min_duration_ticks`
 - **Type:** INTEGER
-- **Default:** `8467200` (300ms)
+- **Default:** `56448000` (2000ms = 2.0 seconds, empirically optimized)
 - **Units:** ticks (WKMP internal time: 28,224,000 ticks/second)
-- **Valid Range:** 0-28224000 (0-1 second)
+- **Valid Range:** 0-84672000 (0-3 seconds)
 - **Modification Impact:** REIMPORT_REQUIRED (affects Phase 4 segmentation)
 - **Used By:** wkmp-ai (Full version only)
 - **Defined In:** [IMPL001:1031](IMPL001-database_schema.md#settings)
 - **Description:** Minimum silence duration to detect passage boundary during audio file segmentation.
-- **Conversion:** `300ms × 28224000 ticks/sec = 8467200 ticks`
+- **Empirical Basis:** 2.0s minimum duration achieved exact 34-track segmentation on 38 Special "Anthology" test anthology (2.5hr, 34 tracks). Shorter durations (300ms-1500ms) produced false positives from brief intra-track pauses. Previous 300ms default was too short for reliable inter-track gap detection.
+- **Conversion:** `2000ms × 28224 ticks/ms = 56,448,000 ticks`
 
 ---
 
@@ -1014,13 +1015,14 @@ Parameters are classified by their modification behavior:
 
 - **Database Key:** `silence_threshold_dB`
 - **Type:** REAL
-- **Default:** `35.0`
+- **Default:** `60.0` (empirically optimized)
 - **Units:** dB (below maximum amplitude)
-- **Valid Range:** 20.0-80.0
+- **Valid Range:** 30.0-80.0
 - **Modification Impact:** REIMPORT_REQUIRED (affects Phase 4 segmentation)
 - **Used By:** wkmp-ai (Full version only)
 - **Defined In:** [IMPL001:1030](IMPL001-database_schema.md#settings)
 - **Description:** Amplitude threshold for silence detection during passage segmentation. Higher values = stricter silence detection (more sensitive).
+- **Empirical Basis:** Analysis of 38 Special "Anthology" (2.5hr, 34 tracks) showed 60dB threshold produced best accuracy (3.02s mean error vs MusicBrainz track durations). Previous default of 35dB was too insensitive for reliable track segmentation.
 
 ---
 

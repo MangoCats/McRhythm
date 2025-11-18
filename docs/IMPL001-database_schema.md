@@ -1029,8 +1029,8 @@ All runtime configuration is stored in the `settings` table using a key-value pa
 | `ingest_max_concurrent_jobs` | INTEGER | 12 | **[ARCH-ASYNC-020]** Maximum concurrent import worker threads. Cached in TOML for startup, database is source of truth. Balanced for modern multi-core CPUs. | wkmp-ai | Full |
 | `ai_database_max_lock_wait_ms` | INTEGER | 5000 | Maximum total time for retry logic to attempt database operations before giving up (milliseconds) | wkmp-ai | Full |
 | `ai_database_lock_retry_ms` | INTEGER | 250 | SQLite busy_timeout - time to wait for lock before returning error to retry logic (milliseconds) | wkmp-ai | Full |
-| `silence_threshold_dB` | REAL | 35.0 | Silence detection threshold for passage segmentation (Phase 4) | wkmp-ai | Full |
-| `silence_min_duration_ticks` | INTEGER | 8467200 | Minimum silence duration to detect passage boundary (300ms = 8,467,200 ticks) | wkmp-ai | Full |
+| `silence_threshold_dB` | REAL | 60.0 | Silence detection threshold for passage segmentation (Phase 4, empirically optimized) | wkmp-ai | Full |
+| `silence_min_duration_ticks` | INTEGER | 56448000 | Minimum silence duration to detect passage boundary (2000ms = 56,448,000 ticks, empirically optimized) | wkmp-ai | Full |
 | `minimum_passage_audio_duration_ticks` | INTEGER | 2822400 | Minimum non-silence duration for valid audio (100ms = 2,822,400 ticks, <100ms = NO AUDIO) | wkmp-ai | Full |
 | `lead_in_threshold_dB` | REAL | 45.0 | Amplitude threshold for lead-in detection (Phase 8) | wkmp-ai | Full |
 | `lead_out_threshold_dB` | REAL | 40.0 | Amplitude threshold for lead-out detection (Phase 8) | wkmp-ai | Full |
