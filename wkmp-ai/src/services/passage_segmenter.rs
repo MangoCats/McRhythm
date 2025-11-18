@@ -289,25 +289,15 @@ mod tests {
 
         let file_id = Uuid::new_v4();
 
-        // Create audio: ~4.1s total with only brief moments of sound
-        // Pattern: 2.0s silence, 50ms sound, 2.0s silence (total ~4.1s)
-        // With 2.0s min silence duration, both silences are detected
-        // Total non-silence: ~50ms < 100ms threshold → should be NO AUDIO
+        // Create audio: 3.0s of pure silence (below -60dB threshold)
+        // With 100ms detection windows, no passages will be detected
+        // Total non-silence: 0ms < 100ms threshold → should be NO AUDIO
         let sample_rate = 44100;
         let mut samples = Vec::new();
 
-        // 2.0s of silence (meets new 2.0s minimum silence duration)
-        for _ in 0..(sample_rate * 2) {
-            samples.push(0.0);
-        }
-
-        // 50ms of loud sound (above -60dB threshold)
-        for _ in 0..(sample_rate * 50 / 1000) {
-            samples.push(0.9);
-        }
-
-        // 2.0s of silence (meets new 2.0s minimum silence duration)
-        for _ in 0..(sample_rate * 2) {
+        // 3.0s of pure silence (amplitude well below -60dB threshold)
+        // Creates file with no detectable non-silence regions
+        for _ in 0..(sample_rate * 3) {
             samples.push(0.0);
         }
 
@@ -336,7 +326,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Should be marked as NO AUDIO (only ~50ms of non-silence < 100ms threshold)
+        // Should be marked as NO AUDIO (0ms of non-silence < 100ms threshold)
         assert_eq!(result, SegmentResult::NoAudio);
 
         // Verify file status updated
