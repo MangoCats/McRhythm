@@ -18,6 +18,7 @@ use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
 use anyhow::{Context, Result};
 use chrono::Utc;
+use wkmp_common::path_normalization::normalize_path_for_db;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -78,13 +79,16 @@ impl WorkflowOrchestrator {
             scanner.scan_and_classify_with_progress(
                 Path::new(&root_folder),
                 &mut |total_files, audio_files, image_files, other_files| {
-                    // **[PLAN024]** Update scanning statistics during scan
+                    // **[PLAN024]** Update scanning statistics during scan (magic byte analysis)
                     {
                         let mut stats = scan_stats.lock().unwrap();
                         stats.potential_files_found = total_files;
                         stats.audio_files = audio_files;
                         stats.image_files = image_files;
                         stats.other_files = other_files;
+                        // Magic byte analysis happens inline, so files analyzed = files counted
+                        stats.total_files = audio_files + image_files + other_files;
+                        stats.magic_byte_analyzed = stats.total_files;
                     }
 
                     tracing::debug!(
@@ -93,7 +97,7 @@ impl WorkflowOrchestrator {
                         audio_files,
                         image_files,
                         other_files,
-                        "File discovery and classification progress"
+                        "File discovery and magic byte analysis progress"
                     );
                 },
             )
@@ -117,10 +121,41 @@ impl WorkflowOrchestrator {
         // Store classification results in session state
         session.file_classification = classification.clone();
 
-        // Extract audio files for processing (backward compatibility)
+        // **[AIA-CLASSIFY-040]** Extract ONLY confirmed audio files for processing
+        // Only files with both valid audio extension AND confirmed magic bytes are processed
         let audio_files: Vec<std::path::PathBuf> = classification.audio_files.iter()
+            .filter(|f| f.verification_status == crate::models::VerificationStatus::Confirmed)
             .map(|f| f.path.clone())
             .collect();
+
+        let confirmed_count = audio_files.len();
+        let denied_count = classification.audio_denied;
+
+        tracing::info!(
+            session_id = %session.session_id,
+            confirmed_audio_files = confirmed_count,
+            denied_audio_files = denied_count,
+            "Filtered to confirmed audio files only (magic byte verified)"
+        );
+
+        // **[AIA-CLASSIFY-040]** Transition to BULK_INSERTING phase
+        session.transition_to(ImportState::BulkInserting);
+        session.update_progress(
+            0,
+            confirmed_count,
+            format!("Creating minimal records for {} audio files", confirmed_count),
+        );
+        crate::db::sessions::save_session(&self.db, &session).await?;
+
+        tracing::info!(
+            session_id = %session.session_id,
+            files_to_insert = confirmed_count,
+            "Phase 1.5: BULK_INSERTING - Creating database records for confirmed files"
+        );
+
+        // Broadcast BULK_INSERTING state
+        let phase_statistics = self.convert_statistics_to_sse().await;
+        self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         // Create basic file records in database
         // NOTE: We only store path and modification time here
@@ -175,11 +210,12 @@ impl WorkflowOrchestrator {
             let mod_time_utc = chrono::DateTime::<Utc>::from(mod_time);
 
             // Create relative path
-            let relative_path = file_path
-                .strip_prefix(root_path)
-                .unwrap_or(file_path)
-                .to_string_lossy()
-                .to_string();
+            // **[Path Normalization]** Normalize to forward slashes for database storage
+            let relative_path = normalize_path_for_db(
+                file_path
+                    .strip_prefix(root_path)
+                    .unwrap_or(file_path)
+            );
 
             // Create minimal file record (no hash, no metadata yet)
             // Hash and metadata will be computed in per-file pipeline
@@ -201,35 +237,55 @@ impl WorkflowOrchestrator {
             crate::db::files::save_files_batch(&self.db, &file_records).await?;
         }
 
-        let files_found = file_records.len();
+        let files_inserted = file_records.len();
 
-        // **[PLAN024]** Mark scanning complete
-        {
-            let mut scan_stats = self.statistics.scanning.lock().unwrap();
-            scan_stats.is_scanning = false;
-            scan_stats.potential_files_found = files_found;
-            scan_stats.audio_files = classification.audio_files.len();
-            scan_stats.image_files = classification.image_files.len();
-            scan_stats.other_files = classification.other_files.len();
-        }
-
-        // Update progress with final scan count
+        // Update progress after bulk insert
         session.update_progress(
-            files_found,
-            files_found,
-            format!("{} audio files found", files_found),
+            files_inserted,
+            files_inserted,
+            format!("{} minimal records created", files_inserted),
         );
-        session.progress.total = files_found; // Set total for PROCESSING phase
         crate::db::sessions::save_session(&self.db, &session).await?;
 
-        // Broadcast final scanning state
+        // Broadcast final bulk insert state
         let phase_statistics = self.convert_statistics_to_sse().await;
         self.broadcast_progress_with_stats(&session, start_time, phase_statistics);
 
         tracing::info!(
             session_id = %session.session_id,
-            files_found,
-            "SCANNING phase complete - file records created, ready for per-file processing"
+            files_inserted,
+            "BULK_INSERTING phase complete - minimal records created in database"
+        );
+
+        // **[PLAN024]** Mark scanning complete
+        {
+            let mut scan_stats = self.statistics.scanning.lock().unwrap();
+            scan_stats.is_scanning = false;
+            scan_stats.potential_files_found = files_inserted;
+            scan_stats.audio_files = classification.audio_files.len();
+            scan_stats.image_files = classification.image_files.len();
+            scan_stats.other_files = classification.other_files.len();
+            scan_stats.total_files = classification.audio_files.len() + classification.image_files.len() + classification.other_files.len();
+            scan_stats.magic_byte_analyzed = scan_stats.total_files; // All files analyzed by this point
+            scan_stats.audio_confirmed = classification.audio_confirmed;
+            scan_stats.image_confirmed = classification.image_confirmed;
+            scan_stats.other_confirmed = classification.other_files.len(); // All other files are "confirmed"
+            scan_stats.audio_unrecognized_ext = 0; // TODO: Track unrecognized audio extensions
+            scan_stats.image_unrecognized_ext = 0; // TODO: Track unrecognized image extensions
+            scan_stats.misleading_extension = classification.audio_denied + classification.image_denied;
+        }
+
+        // Set total for PROCESSING phase (only confirmed files)
+        session.progress.total = files_inserted; // Set total for PROCESSING phase
+
+        tracing::info!(
+            session_id = %session.session_id,
+            files_inserted,
+            total_files_scanned = classification.total_count(),
+            audio_confirmed = classification.audio_confirmed,
+            audio_denied = classification.audio_denied,
+            "SCANNING + BULK_INSERTING phases complete - {} confirmed files ready for processing",
+            files_inserted
         );
 
         Ok(session)

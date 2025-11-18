@@ -2324,6 +2324,14 @@ impl WorkflowOrchestrator {
                 audio_files: scanning.audio_files,
                 image_files: scanning.image_files,
                 other_files: scanning.other_files,
+                total_files: scanning.total_files,
+                magic_byte_analyzed: scanning.magic_byte_analyzed,
+                audio_confirmed: scanning.audio_confirmed,
+                image_confirmed: scanning.image_confirmed,
+                other_confirmed: scanning.other_confirmed,
+                audio_unrecognized_ext: scanning.audio_unrecognized_ext,
+                image_unrecognized_ext: scanning.image_unrecognized_ext,
+                misleading_extension: scanning.misleading_extension,
             },
             PhaseStatistics::Processing {
                 completed: processing.completed,
@@ -2509,34 +2517,51 @@ impl WorkflowOrchestrator {
         self.worker_activities.write().await.remove(&thread_id);
     }
 
+    /// **[PLAN031 Fix 7]** Process file through 10-phase pipeline with late audio decoding
+    ///
+    /// **Architecture Change:** Audio decoding moved from pre-pipeline to Phase 4
+    /// - Phase 1: Filename matching (early-exit if already processed)
+    /// - Phase 2: Hash computation (early-exit if duplicate)
+    /// - Phase 3: Metadata extraction
+    /// - **Phase 4: Decode audio + Segmentation** (decode happens HERE, not before Phase 1)
+    /// - Phases 5, 8: Reuse decoded samples from Phase 4
+    ///
+    /// **Benefits:**
+    /// - Files that early-exit never get decoded (save CPU + memory)
+    /// - Hash computation reads compressed bytes only (not 200 MB decoded samples)
+    /// - Single decode per file (not pre-decode + hash read)
     pub async fn process_file_plan024(
         &self,
         file_path: &std::path::Path,
         root_folder: &std::path::Path,
-        samples: &[f32],
-        sample_rate: usize,
         file_index: usize,
     ) -> Result<()> {
         tracing::info!(
             file = ?file_path,
-            "Starting PLAN024 10-phase per-file pipeline"
+            "Starting PLAN024 10-phase per-file pipeline (late audio decode)"
         );
 
         // Phase 1: Filename Matching
         self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching").await;
         let phase1_start = std::time::Instant::now();
-        tracing::debug!(file = ?file_path, "Phase 1: Filename Matching");
+        tracing::debug!(file = ?file_path, "Phase 1: Filename Matching - START");
 
         // Calculate relative path from root folder
+        let path_start = std::time::Instant::now();
         let relative_path = file_path.strip_prefix(root_folder)
             .map_err(|e| anyhow::anyhow!("File path not under root folder: {}", e))?;
+        let path_elapsed = path_start.elapsed();
 
+        let db_start = std::time::Instant::now();
         let filename_matcher = crate::services::FilenameMatcher::new(self.db.clone());
         let match_result = filename_matcher.check_file(relative_path).await?;
+        let db_elapsed = db_start.elapsed();
 
         tracing::info!(
             phase = "Filename Matching",
             duration_ms = phase1_start.elapsed().as_millis(),
+            path_us = path_elapsed.as_micros(),
+            db_ms = db_elapsed.as_millis(),
             file_index = file_index,
             "Phase 1 completed"
         );
@@ -2549,23 +2574,34 @@ impl WorkflowOrchestrator {
                 tracing::info!(
                     file = ?file_path,
                     file_id = %guid,
-                    "File already processed, skipping pipeline"
+                    "File already processed (INGEST COMPLETE/NO AUDIO/DUPLICATE HASH), skipping all remaining phases"
                 );
                 return Ok(());
             }
             crate::services::MatchResult::Reuse(guid) => {
-                tracing::debug!(file_id = %guid, "Reusing existing file record");
+                tracing::debug!(file_id = %guid, "Reusing existing file record (incomplete processing)");
                 guid
             }
             crate::services::MatchResult::New => {
-                // Get file modification time
+                // **[PLAN031 Fix 7]** Create minimal file record (like bulk insert)
+                // Only path and modification time - hash/metadata/etc populated in later phases
+                let fs_start = std::time::Instant::now();
                 let metadata = std::fs::metadata(file_path)?;
                 let modification_time = metadata.modified()?
                     .duration_since(std::time::UNIX_EPOCH)?
                     .as_secs() as i64;
+                let fs_elapsed = fs_start.elapsed();
 
+                let insert_start = std::time::Instant::now();
                 let guid = filename_matcher.create_file_record(relative_path, modification_time).await?;
-                tracing::debug!(file_id = %guid, "Created new file record");
+                let insert_elapsed = insert_start.elapsed();
+
+                tracing::debug!(
+                    file_id = %guid,
+                    fs_us = fs_elapsed.as_micros(),
+                    insert_ms = insert_elapsed.as_millis(),
+                    "Created new minimal file record"
+                );
                 guid
             }
         };
@@ -2639,23 +2675,56 @@ impl WorkflowOrchestrator {
             "Phase 3 completed"
         );
 
-        // Calculate duration in ticks from sample count
-        const TICKS_PER_SECOND: i64 = 28_224_000;
-        let duration_seconds = samples.len() as f64 / sample_rate as f64;
-        let duration_ticks = (duration_seconds * TICKS_PER_SECOND as f64) as i64;
-
-        // Phase 4: Passage Segmentation
+        // **[PLAN031 Fix 7]** Phase 4: Audio Decode + Passage Segmentation
+        // Audio is decoded HERE (not before Phase 1) after early-exit opportunities
         self.set_worker_phase(file_path, root_folder, file_index, 4, "Passage Segmentation").await;
         let phase4_start = std::time::Instant::now();
-        tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Passage Segmentation");
+        tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Decoding audio + Passage Segmentation");
+
+        // Decode audio file to mono f32 PCM
+        tracing::debug!(file = ?file_path, "Decoding audio (first and only decode)");
+        let decode_start = std::time::Instant::now();
+        let decoded = tokio::task::spawn_blocking({
+            let file_path = file_path.to_path_buf();
+            move || crate::utils::decode_audio_file(&file_path)
+        })
+        .await?
+        .map_err(|e| anyhow::anyhow!("Audio decoding failed: {}", e))?;
+        let decode_elapsed = decode_start.elapsed();
+
+        tracing::info!(
+            file = ?file_path,
+            sample_rate = decoded.sample_rate,
+            channels = decoded.channels,
+            duration = format!("{:.2}s", decoded.duration_seconds),
+            samples = decoded.samples.len(),
+            decode_ms = decode_elapsed.as_millis(),
+            "Audio decoded successfully"
+        );
+
+        // Calculate duration in ticks from sample count
+        const TICKS_PER_SECOND: i64 = 28_224_000;
+        let duration_seconds = decoded.samples.len() as f64 / decoded.sample_rate as f64;
+        let duration_ticks = (duration_seconds * TICKS_PER_SECOND as f64) as i64;
+
+        // Segment audio into passages
+        tracing::debug!(file = ?file_path, "Starting passage segmentation");
+        let segment_start = std::time::Instant::now();
         let passage_segmenter = crate::services::PassageSegmenter::new(self.db.clone());
         let segment_result = passage_segmenter.segment_file(
             file_id,
             file_path,
-            samples,
-            sample_rate,
+            &decoded.samples,
+            decoded.sample_rate as usize,
             duration_ticks
         ).await?;
+        let segment_elapsed = segment_start.elapsed();
+
+        tracing::info!(
+            file = ?file_path,
+            segment_ms = segment_elapsed.as_millis(),
+            "Passage segmentation completed"
+        );
 
         let passages = match segment_result {
             crate::services::SegmentResult::NoAudio => {
@@ -2973,61 +3042,6 @@ impl WorkflowOrchestrator {
         Ok(())
     }
 
-    /// Process single file through PLAN024 pipeline with automatic audio decoding
-    ///
-    /// **Convenience wrapper** that handles audio decoding internally.
-    ///
-    /// **Traceability:** [REQ-SPEC032-007] Per-File Import Pipeline
-    ///
-    /// # Arguments
-    /// * `file_path` - Absolute path to audio file
-    /// * `root_folder` - Root folder path for relative path calculation
-    ///
-    /// # Returns
-    /// Result indicating success or failure of pipeline execution
-    ///
-    /// # Errors
-    /// - Audio decoding errors (unsupported format, corrupt file)
-    /// - Pipeline errors (database, I/O, API failures)
-    pub async fn process_file_plan024_with_decoding(
-        &self,
-        file_path: &std::path::Path,
-        root_folder: &std::path::Path,
-        file_index: usize,
-    ) -> Result<()> {
-        tracing::info!(
-            file = ?file_path,
-            "Starting PLAN024 pipeline with audio decoding"
-        );
-
-        // Decode audio file to mono f32 PCM
-        let decoded = tokio::task::spawn_blocking({
-            let file_path = file_path.to_path_buf();
-            move || crate::utils::decode_audio_file(&file_path)
-        })
-        .await?
-        .map_err(|e| anyhow::anyhow!("Audio decoding failed: {}", e))?;
-
-        tracing::debug!(
-            file = ?file_path,
-            sample_rate = decoded.sample_rate,
-            channels = decoded.channels,
-            duration = format!("{:.2}s", decoded.duration_seconds),
-            samples = decoded.samples.len(),
-            "Audio decoded successfully"
-        );
-
-        // Process through PLAN024 pipeline
-        self.process_file_plan024(
-            file_path,
-            root_folder,
-            &decoded.samples,
-            decoded.sample_rate as usize,
-            file_index,
-        )
-        .await
-    }
-
     /// Process files through per-file pipeline with parallel workers
     ///
     /// **[AIA-ASYNC-020]** Per-file pipeline architecture with N parallel workers
@@ -3336,8 +3350,9 @@ impl WorkflowOrchestrator {
         let root_path = std::path::Path::new(&root_folder);
         let absolute_path = root_path.join(&file_path);
 
+        // **[PLAN031 Fix 7]** Call process_file_plan024 directly (audio decode moved to Phase 4)
         let result = self
-            .process_file_plan024_with_decoding(
+            .process_file_plan024(
                 &absolute_path,
                 root_path,
                 idx,

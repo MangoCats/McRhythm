@@ -17,6 +17,22 @@ pub enum PhaseStatistics {
         audio_files: usize,
         image_files: usize,
         other_files: usize,
+        /// Total files discovered (sum of all file types)
+        total_files: usize,
+        /// Files that have completed magic byte analysis
+        magic_byte_analyzed: usize,
+        /// Confirmed audio files (extension + magic bytes match)
+        audio_confirmed: usize,
+        /// Confirmed image files (extension + magic bytes match)
+        image_confirmed: usize,
+        /// Confirmed other files (non-audio, non-image)
+        other_confirmed: usize,
+        /// Audio files with unrecognized extension (magic bytes say audio, extension doesn't)
+        audio_unrecognized_ext: usize,
+        /// Image files with unrecognized extension (magic bytes say image, extension doesn't)
+        image_unrecognized_ext: usize,
+        /// Files with misleading extension (extension says one thing, magic bytes say another)
+        misleading_extension: usize,
     },
     #[serde(rename = "PROCESSING")]
     Processing {

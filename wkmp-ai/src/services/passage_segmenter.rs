@@ -98,10 +98,12 @@ impl PassageSegmenter {
         );
 
         // Load settings from database
+        let settings_start = std::time::Instant::now();
         let silence_threshold_db = settings::get_silence_threshold_db(&self.db).await?;
         let silence_min_duration_ticks = settings::get_silence_min_duration_ticks(&self.db).await?;
         let minimum_passage_audio_duration_ticks =
             settings::get_minimum_passage_audio_duration_ticks(&self.db).await?;
+        let settings_elapsed = settings_start.elapsed();
 
         // Convert thresholds to formats needed by SilenceDetector
         let silence_threshold_db_f32 = -(silence_threshold_db as f32); // Negate: settings use positive dB, detector uses negative
@@ -112,6 +114,7 @@ impl PassageSegmenter {
             silence_threshold_db,
             silence_min_duration_ticks,
             minimum_passage_audio_duration_ticks,
+            settings_us = settings_elapsed.as_micros(),
             "Loaded segmentation settings"
         );
 
@@ -123,25 +126,31 @@ impl PassageSegmenter {
             .map_err(|e| Error::Internal(format!("Invalid min duration: {}", e)))?;
 
         // Detect silence regions
+        let detection_start = std::time::Instant::now();
         let silence_regions = detector
             .detect(samples, sample_rate)
             .map_err(|e| Error::Internal(format!("Silence detection failed: {}", e)))?;
+        let detection_elapsed = detection_start.elapsed();
 
         tracing::debug!(
             silence_region_count = silence_regions.len(),
+            detection_ms = detection_elapsed.as_millis(),
             "Detected silence regions"
         );
 
         // Convert silence regions to passage boundaries (regions between silences)
+        let conversion_start = std::time::Instant::now();
         let passages = self.silence_to_passages(&silence_regions, duration_ticks);
 
         // Calculate total non-silence duration from passages
         let total_non_silence_ticks: i64 = passages.iter().map(|p| p.duration_ticks()).sum();
+        let conversion_elapsed = conversion_start.elapsed();
 
         tracing::debug!(
             passage_count = passages.len(),
             total_non_silence_ticks,
             minimum_passage_audio_duration_ticks,
+            conversion_us = conversion_elapsed.as_micros(),
             "Calculated passage durations"
         );
 

@@ -22,6 +22,22 @@ pub struct ScanningStats {
     pub image_files: usize,
     /// Number of other files found
     pub other_files: usize,
+    /// Total files discovered
+    pub total_files: usize,
+    /// Files that have completed magic byte analysis
+    pub magic_byte_analyzed: usize,
+    /// Confirmed audio files (extension + magic bytes match)
+    pub audio_confirmed: usize,
+    /// Confirmed image files (extension + magic bytes match)
+    pub image_confirmed: usize,
+    /// Confirmed other files
+    pub other_confirmed: usize,
+    /// Audio files with unrecognized extension
+    pub audio_unrecognized_ext: usize,
+    /// Image files with unrecognized extension
+    pub image_unrecognized_ext: usize,
+    /// Files with misleading extension
+    pub misleading_extension: usize,
 }
 
 impl ScanningStats {

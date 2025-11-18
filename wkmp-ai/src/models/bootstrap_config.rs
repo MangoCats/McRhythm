@@ -161,12 +161,12 @@ impl WkmpAiBootstrapConfig {
                 .parse()
                 .context("Invalid ai_processing_thread_count (must be integer 1-64)")?
         } else {
-            // **[PLAN031 Fix 5]** Emergency worker reduction (8 -> 4)
-            // PLAN030 set to 8, but testV.log shows resource contention
-            // Reducing to 4 workers to minimize contention while maintaining parallelism
-            let auto_count = 4;
+            // **[PLAN031 Fix 6]** Single worker for sequential processing
+            // PLAN031 Fix 5 reduced to 4, but blocking thread pool contention still severe
+            // Setting to 1 worker eliminates spawn_blocking contention (decode + hash compete for same pool)
+            let auto_count = 1;
             tracing::info!(
-                "ai_processing_thread_count is NULL, using emergency reduced default: {} workers",
+                "ai_processing_thread_count is NULL, using single-worker default: {} workers",
                 auto_count
             );
             auto_count

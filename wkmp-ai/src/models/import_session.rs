@@ -202,15 +202,20 @@ mod systemtime_serde {
 /// **[AIA-WF-010]** Import workflow state
 ///
 /// **PLAN024 Architecture (Current):**
-/// - SCANNING → PROCESSING → COMPLETED
+/// - SCANNING → BULK_INSERTING → PROCESSING → COMPLETED
 ///
 /// **Legacy Architecture (Deprecated):**
 /// - SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ImportState {
-    /// Phase 1: Directory traversal, finding audio files
+    /// Phase 1: Directory traversal, finding audio files, magic byte verification
     Scanning,
+
+    /// Phase 1.5: Creating minimal database records for confirmed audio files
+    /// **[AIA-CLASSIFY-040]** Only files with confirmed magic bytes are inserted
+    #[serde(rename = "BULK_INSERTING")]
+    BulkInserting,
 
     /// Phase 2: Per-file pipeline (PLAN024) - Each file goes through 10 sub-phases
     /// **[AIA-ASYNC-020]** N workers process files concurrently
@@ -260,6 +265,7 @@ impl ImportState {
     pub fn description(&self) -> &'static str {
         match self {
             ImportState::Scanning => "Finding files in directories",
+            ImportState::BulkInserting => "Creating minimal records for confirmed audio files",
             ImportState::Extracting => "Calculating hashes and extracting basic metadata",
             ImportState::Segmenting => "Detecting silence and passage boundaries",
             ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",

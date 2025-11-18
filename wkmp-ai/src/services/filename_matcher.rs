@@ -47,17 +47,27 @@ impl FilenameMatcher {
     /// **Traceability:** [REQ-SPEC032-008]
     pub async fn check_file(&self, file_path: &Path) -> Result<MatchResult> {
         // **[Path Normalization]** Convert to canonical database format (forward slashes)
+        let norm_start = std::time::Instant::now();
         let path_str = normalize_path_for_db(file_path);
+        let norm_elapsed = norm_start.elapsed();
 
-        tracing::debug!(path = %path_str, "Checking if file exists in database");
+        tracing::debug!(path = %path_str, norm_us = norm_elapsed.as_micros(), "Checking if file exists in database");
 
         // Query database for file by path
+        let query_start = std::time::Instant::now();
         let row: Option<(String, String)> = sqlx::query_as(
             "SELECT guid, status FROM files WHERE path = ?",
         )
         .bind(&path_str)
         .fetch_optional(&self.db)
         .await?;
+        let query_elapsed = query_start.elapsed();
+
+        tracing::debug!(
+            path = %path_str,
+            query_us = query_elapsed.as_micros(),
+            "Database query completed"
+        );
 
         match row {
             None => {
@@ -108,6 +118,7 @@ impl FilenameMatcher {
 
         // Create file record with PENDING status and temporary hash
         // Hash will be updated in Phase 2
+        let insert_start = std::time::Instant::now();
         sqlx::query(
             r#"
             INSERT INTO files (guid, path, hash, modification_time, status)
@@ -119,10 +130,12 @@ impl FilenameMatcher {
         .bind(modification_time)
         .execute(&self.db)
         .await?;
+        let insert_elapsed = insert_start.elapsed();
 
         tracing::debug!(
             path = %path_str,
             guid = %guid,
+            insert_us = insert_elapsed.as_micros(),
             "Created new file record"
         );
 

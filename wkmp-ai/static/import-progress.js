@@ -484,12 +484,34 @@ function displayPhaseStatistics(statistics) {
         // Format statistics based on phase type (per wkmp-ai_refinement.md lines 74-103)
         switch (phaseName) {
             case 'SCANNING':
-                // While scanning: "in progress", after completion: file type breakdown
+                // While scanning: show magic byte analysis progress
                 if (stat.is_scanning) {
-                    content = 'in progress';
+                    if (stat.total_files > 0 && stat.magic_byte_analyzed > 0) {
+                        const percentage = ((stat.magic_byte_analyzed / stat.total_files) * 100).toFixed(1);
+                        content = `Analyzing files: ${stat.magic_byte_analyzed} of ${stat.total_files} (${percentage}%)`;
+                    } else {
+                        content = 'Discovering files...';
+                    }
                 } else {
+                    // After completion: show file type breakdown with verification details
                     const total = stat.audio_files + stat.image_files + stat.other_files;
-                    content = `Found: ${stat.audio_files} audio files, ${stat.image_files} image files, ${stat.other_files} other files, ${total} Total`;
+                    let breakdown = `Found: ${stat.audio_files} audio files, ${stat.image_files} image files, ${stat.other_files} other files, ${total} Total`;
+
+                    // Add verification summary if available
+                    if (stat.audio_confirmed !== undefined) {
+                        const verificationDetails = [];
+                        if (stat.audio_confirmed > 0) verificationDetails.push(`${stat.audio_confirmed} confirmed audio`);
+                        if (stat.image_confirmed > 0) verificationDetails.push(`${stat.image_confirmed} confirmed image`);
+                        if (stat.misleading_extension > 0) verificationDetails.push(`${stat.misleading_extension} misleading ext`);
+                        if (stat.audio_unrecognized_ext > 0) verificationDetails.push(`${stat.audio_unrecognized_ext} unrecognized audio ext`);
+                        if (stat.image_unrecognized_ext > 0) verificationDetails.push(`${stat.image_unrecognized_ext} unrecognized image ext`);
+
+                        if (verificationDetails.length > 0) {
+                            breakdown += ` (${verificationDetails.join(', ')})`;
+                        }
+                    }
+
+                    content = breakdown;
                 }
                 break;
 

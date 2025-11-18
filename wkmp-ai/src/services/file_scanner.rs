@@ -459,10 +459,28 @@ impl FileScanner {
                                     let ext_lower = ext.to_string_lossy().to_lowercase();
 
                                     if self.is_audio_extension_classify(&ext_lower) {
+                                        tracing::trace!(
+                                            file = %path.display(),
+                                            extension = %ext_lower,
+                                            "Extension classified as audio, verifying with magic bytes"
+                                        );
+
                                         // Extension says audio - verify with magic bytes
                                         let verification_status = match self.verify_audio_magic_bytes(&path) {
-                                            Ok(true) => VerificationStatus::Confirmed,
-                                            Ok(false) => VerificationStatus::Denied,
+                                            Ok(true) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes CONFIRMED audio"
+                                                );
+                                                VerificationStatus::Confirmed
+                                            },
+                                            Ok(false) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes DENIED audio (misleading extension)"
+                                                );
+                                                VerificationStatus::Denied
+                                            },
                                             Err(e) => {
                                                 tracing::warn!(
                                                     "Magic byte verification failed for {}: {}",
@@ -481,10 +499,28 @@ impl FileScanner {
                                         classification.audio_files.push(file_info);
 
                                     } else if self.is_image_extension(&ext_lower) {
+                                        tracing::trace!(
+                                            file = %path.display(),
+                                            extension = %ext_lower,
+                                            "Extension classified as image, verifying with magic bytes"
+                                        );
+
                                         // Extension says image - verify with magic bytes
                                         let verification_status = match self.verify_image_magic_bytes(&path) {
-                                            Ok(true) => VerificationStatus::Confirmed,
-                                            Ok(false) => VerificationStatus::Denied,
+                                            Ok(true) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes CONFIRMED image"
+                                                );
+                                                VerificationStatus::Confirmed
+                                            },
+                                            Ok(false) => {
+                                                tracing::trace!(
+                                                    file = %path.display(),
+                                                    "Magic bytes DENIED image (misleading extension)"
+                                                );
+                                                VerificationStatus::Denied
+                                            },
                                             Err(e) => {
                                                 tracing::warn!(
                                                     "Magic byte verification failed for {}: {}",
@@ -503,11 +539,22 @@ impl FileScanner {
                                         classification.image_files.push(file_info);
 
                                     } else {
+                                        tracing::trace!(
+                                            file = %path.display(),
+                                            extension = %ext_lower,
+                                            "Extension classified as other (non-audio, non-image)"
+                                        );
+
                                         // Other extension - no verification needed
                                         let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
                                         classification.other_files.push(file_info);
                                     }
                                 } else {
+                                    tracing::trace!(
+                                        file = %path.display(),
+                                        "No extension, classified as other"
+                                    );
+
                                     // No extension → other
                                     let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
                                     classification.other_files.push(file_info);
