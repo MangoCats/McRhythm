@@ -8,11 +8,18 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
 /// Expected track durations from MusicBrainz (in seconds)
+/// Michael Jackson - Thriller (1982 original release)
 const EXPECTED_DURATIONS: &[u32] = &[
-    // Disc 1
-    238, 251, 188, 279, 243, 315, 258, 245, 296, 277, 306, 249, 237, 234, 225, 235, 273, 256,
-    // Disc 2
-    234, 242, 194, 248, 238, 221, 275, 303, 300, 322, 333, 273, 357, 315, 250, 277,
+    // Track durations from MusicBrainz (release MBID: 95a7c47a-7d2d-4992-939c-689b33e49019)
+    353, // 1. Wanna Be Startin' Somethin' (5:53)
+    221, // 2. Baby Be Mine (3:41)
+    239, // 3. The Girl Is Mine (3:59)
+    358, // 4. Thriller (5:58)
+    288, // 5. Beat It (4:48)
+    302, // 6. Billie Jean (5:02)
+    257, // 7. Human Nature (4:17)
+    260, // 8. P.Y.T. (Pretty Young Thing) (4:20)
+    297, // 9. The Lady in My Life (4:57)
 ];
 
 #[derive(Debug, Clone)]
@@ -313,8 +320,8 @@ fn read_params_file(path: &Path) -> Result<Vec<SilenceParams>, Box<dyn std::erro
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file_path = Path::new(r"C:\Users\Mango Cat\Music\38 Special\Anthology.mp3");
-    let params_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\silence_params.csv");
+    let file_path = Path::new(r"C:\Users\Mango Cat\Music\Jackson, Michael\Thriller.mp3");
+    let params_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\silence_params_thriller.csv");
 
     if !file_path.exists() {
         eprintln!("Audio file not found: {}", file_path.display());
