@@ -799,21 +799,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Found {} album files to process\n", file_paths.len());
 
-    // Find "Michael Jackson - Thriller" for testing
-    let test_file = file_paths.iter()
-        .find(|p| p.to_string_lossy().contains("Jackson, Michael") && p.to_string_lossy().contains("Thriller"))
-        .cloned();
+    // Check if training_set.txt exists, otherwise use all files
+    let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
 
-    println!("NOTE: Processing Michael Jackson - Thriller for testing\n");
+    let files_to_process = if training_set_path.exists() {
+        println!("NOTE: Processing training set (25 albums)\n");
+
+        let training_content = std::fs::read_to_string(training_set_path)?;
+        let mut training_files = Vec::new();
+
+        for line in training_content.lines() {
+            if let Some(path_start) = line.find("] ") {
+                let path_str = &line[path_start + 2..];
+                training_files.push(PathBuf::from(path_str));
+            }
+        }
+
+        training_files
+    } else {
+        println!("NOTE: Processing all {} albums\n", file_paths.len());
+        file_paths.clone()
+    };
+
+    println!("Processing {} albums...\n", files_to_process.len());
 
     // Create rate limiter for MusicBrainz API
     let rate_limiter = RateLimiter::new();
 
     let mut results: Vec<MatchResult> = Vec::new();
 
-    // Process test file
-    if let Some(file_path) = test_file {
-        println!("=== Testing with Michael Jackson - Thriller ===");
+    // Process all files
+    for (idx, file_path) in files_to_process.iter().enumerate() {
+        println!("=== Album {}/{} ===", idx + 1, files_to_process.len());
 
         if !file_path.exists() {
             println!("WARNING: File not found: {}", file_path.display());
@@ -843,14 +860,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Done! Processed {} albums", results.len());
 
-    // Print summary
-    let success_count = results.iter().filter(|r| r.status == "Success").count();
+    // Print detailed summary
     let detected_count = results.iter().filter(|r| r.detected_tracks > 0).count();
+    let matched_count = results.iter().filter(|r| r.status == "Success").count();
 
-    println!("\n=== SUMMARY ===");
+    let excellent = results.iter().filter(|r| r.confidence == "Excellent").count();
+    let good = results.iter().filter(|r| r.confidence == "Good").count();
+    let fair = results.iter().filter(|r| r.confidence == "Fair").count();
+    let poor = results.iter().filter(|r| r.confidence == "Poor" && r.status == "Success").count();
+    let no_match = results.iter().filter(|r| r.confidence == "No Match").count();
+
+    println!("\n=== MATCHING SUMMARY ===");
     println!("Total files: {}", results.len());
     println!("Successfully detected tracks: {}", detected_count);
-    println!("Successfully matched to MusicBrainz: {}", success_count);
+    println!("Successfully matched to MusicBrainz: {}", matched_count);
+    println!("\nConfidence Distribution:");
+    println!("  Excellent: {}", excellent);
+    println!("  Good:      {}", good);
+    println!("  Fair:      {}", fair);
+    println!("  Poor:      {}", poor);
+    println!("  No Match:  {}", no_match);
+
+    if matched_count > 0 {
+        let scores: Vec<f64> = results.iter()
+            .filter_map(|r| r.mean_duration_error)
+            .collect();
+
+        if !scores.is_empty() {
+            let avg_score = scores.iter().sum::<f64>() / scores.len() as f64;
+            let mut sorted_scores = scores.clone();
+            sorted_scores.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let median_score = sorted_scores[sorted_scores.len() / 2];
+
+            println!("\nScoring Statistics:");
+            println!("  Average composite score: {:.2}", avg_score);
+            println!("  Median composite score:  {:.2}", median_score);
+            println!("  Best score:   {:.2}", sorted_scores[0]);
+            println!("  Worst score:  {:.2}", sorted_scores[sorted_scores.len() - 1]);
+        }
+    }
 
     Ok(())
 }
