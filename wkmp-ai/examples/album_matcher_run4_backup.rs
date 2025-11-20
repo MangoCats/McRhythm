@@ -1,42 +1,14 @@
-/// Comprehensive Album Matcher with 7-Phase Progressive Refinement (Run 8)
+/// Comprehensive Album Matcher with Multi-Stage Refinement
 ///
-/// Phase 0: ID3 Tag Extraction & Reconciliation
-/// - Extract ID3 tags via ffprobe
-/// - Reconcile with path/filename using heuristics
-/// - Provides alternate search terms when conflicts detected
-/// - Extracts estimated track count from ID3 comment field
-///
-/// Stage 1: Initial Detection (Default Parameters)
-/// - Try default parameters (-57dB, 0.9s)
-///
-/// Stage 2: Parameter Optimization
-/// - Test 180 parameter combinations if match < 100%
-/// - Tracks all tested segmentations for Stage 3
-///
-/// Stage 3: Comprehensive Segment Assembly (ENHANCED - Run 7)
-/// - Try dynamic programming assembly on ALL over-segmented candidates from Stage 1 & 2
-/// - Potentially tests 100+ assemblies instead of just current best
-/// - Dramatically increases chance of finding optimal track boundaries
-/// - Early exit on 100% match
-///
-/// Stage 4: Quiet Spot Detection
-/// - RMS-based detection when silence-based fails
-///
-/// Stage 5: Expanded MusicBrainz Search
-/// - Test all segmentations × additional MB candidates
-/// - Early exit on 100% match
-///
-/// Stage 6: Extra Track Merging (NEW - Run 8)
-/// - When detected > expected AND match quality ≥100%
-/// - Try merging adjacent track pairs to achieve correct track count
-/// - Selects merge that minimizes total duration error
-/// - Fixes false silence detections that split single tracks
+/// Uses progressive refinement strategy to maximize matching quality:
+/// - Stage 1: Try default parameters (-57dB, 0.9s)
+/// - Stage 2: Parameter optimization (42 combinations) if match < 80%
+/// - Stage 3: Expanded MusicBrainz search if still < 80%
+/// - Stage 4: Quiet spot detection if still < 80%
 ///
 /// Tracks which stage succeeded and saves optimal parameters for each album
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use symphonia::core::audio::{AudioBufferRef, Signal};
@@ -164,86 +136,24 @@ struct TrackMatch {
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct ExtraTrack {
-    track_index: usize, // 1-based index in detected tracks
-    duration: f64,
-    description: String, // "Extra track with no corresponding MusicBrainz entry"
-}
-
-#[derive(Debug, Clone, Serialize)]
 struct ValidationResult {
     album_path: String,
     artist: String,
     album: String,
     mbid: String,
-    musicbrainz_url: String, // https://musicbrainz.org/release/{mbid}
     expected_track_count: usize,
     detected_track_count: usize,
     perfect_count_match: bool,
     track_matches: Vec<TrackMatch>,
-    extra_tracks: Vec<ExtraTrack>, // Detected tracks with no MusicBrainz match
     matched_tracks_count: usize, // Tracks within 10s tolerance
     match_percentage: f64, // % of expected tracks that matched
     mean_error: f64,
     status: String,
     // New fields for multi-stage matching
-    matching_stage: String, // "Initial", "Parameter Optimization", "Segment Assembly", "Quiet Spot Detection", "Expanded MB Search"
+    matching_stage: String, // "Initial", "Parameter Optimization", "Expanded Search", "Quiet Spot Detection"
     best_threshold_db: Option<f64>,
     best_min_duration_secs: Option<f64>,
     confidence: String, // "Excellent", "Good", "Fair", "Poor"
-}
-
-// ===== Phase 0: ID3 Tag Extraction & Reconciliation =====
-
-#[derive(Debug, Clone)]
-struct ID3Metadata {
-    artist: Option<String>,
-    album: Option<String>,
-    date: Option<String>,
-    genre: Option<String>,
-    musicbrainz_albumid: Option<String>,
-    musicbrainz_artistid: Option<String>,
-    comment: Option<String>,
-    all_tags: HashMap<String, String>,
-}
-
-#[derive(Debug)]
-struct ReconciledMetadata {
-    artist: String,
-    album: String,
-    strategy: ReconciliationStrategy,
-    confidence: MetadataConfidence,
-    artist_source: MetadataSource,
-    album_source: MetadataSource,
-    alternate_artist: Option<String>,
-    alternate_album: Option<String>,
-    has_musicbrainz_ids: bool,
-    estimated_track_count: Option<usize>,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ReconciliationStrategy {
-    DirectMatch,   // ID3 and path agree
-    PartialMatch,  // Partial overlap, chose one source
-    Conflict,      // Sources disagree, applied heuristics
-    GapFill,       // One source missing, used other
-    ID3Only,       // Path extraction failed
-    PathOnly,      // ID3 tags missing
-}
-
-#[derive(Debug, Clone, Copy)]
-enum MetadataConfidence {
-    High,    // DirectMatch or strong heuristic confidence
-    Medium,  // PartialMatch or moderate heuristic confidence
-    Low,     // Conflict or GapFill
-}
-
-#[derive(Debug, Clone, Copy)]
-enum MetadataSource {
-    ID3,
-    Path,
-    Both,
-    Conflict,
 }
 
 /// Decode MP3 file to PCM samples
@@ -599,7 +509,7 @@ async fn get_expected_durations(
     detected_track_count: usize,
     detected_total_duration: f64,
     rate_limiter: &RateLimiter,
-) -> Result<Vec<(Vec<u32>, String)>, Box<dyn std::error::Error>> {
+) -> Result<(Vec<u32>, String), Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
         .timeout(Duration::from_secs(30))
@@ -825,15 +735,9 @@ async fn get_expected_durations(
 
     scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
 
-    // Return ALL candidates sorted by score (best first)
-    // This allows trying editions with better duration matches first,
-    // while still trying all available editions if needed
-    let sorted_candidates: Vec<(Vec<u32>, String)> = scored
-        .into_iter()
-        .map(|(c, _score)| (c.durations.clone(), c.mbid.clone()))
-        .collect();
-
-    Ok(sorted_candidates)
+    // Return best match
+    let (best, _score) = scored.into_iter().next().unwrap();
+    Ok((best.durations.clone(), best.mbid.clone()))
 }
 
 /// Extract artist and album from path
@@ -855,579 +759,6 @@ fn extract_metadata_from_path(path: &Path) -> (String, String) {
     } else {
         ("Unknown".to_string(), "Unknown".to_string())
     }
-}
-
-// ===== Phase 0: ID3 Tag Extraction Functions =====
-
-/// Normalized string comparison (case-insensitive, alphanumeric + whitespace only)
-fn strings_match(a: &str, b: &str) -> bool {
-    let normalize = |s: &str| -> String {
-        s.chars()
-            .filter(|c| c.is_alphanumeric() || c.is_whitespace())
-            .collect::<String>()
-            .to_lowercase()
-    };
-
-    normalize(a) == normalize(b)
-}
-
-/// Choose between ID3 and path artist using heuristics
-fn choose_artist(id3_artist: &str, path_artist: &str, album: &str) -> (String, String, MetadataSource) {
-    // Heuristic 1: Avoid "Various Artists" if possible
-    let id3_is_various = id3_artist.to_lowercase().contains("various");
-    let path_is_various = path_artist.to_lowercase().contains("various");
-
-    if id3_is_various && !path_is_various {
-        return (path_artist.to_string(), id3_artist.to_string(), MetadataSource::Path);
-    }
-    if path_is_various && !id3_is_various {
-        return (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3);
-    }
-
-    // Heuristic 2: If album name suggests compilation, prefer ID3
-    let album_lower = album.to_lowercase();
-    if album_lower.contains("greatest") || album_lower.contains("best of") ||
-       album_lower.contains("collection") || album_lower.contains("anthology") {
-        return (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3);
-    }
-
-    // Default: Prefer ID3
-    (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3)
-}
-
-/// Choose between ID3 and path album using heuristics
-fn choose_album(id3_album: &str, path_album: &str) -> (String, String, MetadataSource) {
-    // Heuristic: Prefer ID3 if it contains more detail (edition, year, etc.)
-    let id3_has_detail = id3_album.contains('(') || id3_album.contains('[') ||
-                         id3_album.contains("Deluxe") || id3_album.contains("Edition") ||
-                         id3_album.len() > path_album.len() + 10;
-
-    if id3_has_detail {
-        return (id3_album.to_string(), path_album.to_string(), MetadataSource::ID3);
-    }
-
-    // Default: Prefer ID3
-    (id3_album.to_string(), path_album.to_string(), MetadataSource::ID3)
-}
-
-/// Extract ID3 tags using ffprobe
-fn extract_id3_tags(file_path: &Path) -> Result<ID3Metadata, Box<dyn std::error::Error>> {
-    let output = Command::new("ffprobe")
-        .args(&[
-            "-v", "quiet",
-            "-show_format",
-            "-of", "json",
-            file_path.to_str().ok_or("Invalid file path")?
-        ])
-        .output()?;
-
-    if !output.status.success() {
-        return Err("ffprobe failed".into());
-    }
-
-    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-    let tags = &json["format"]["tags"];
-
-    let mut all_tags = HashMap::new();
-    if let Some(obj) = tags.as_object() {
-        for (key, value) in obj {
-            if let Some(s) = value.as_str() {
-                all_tags.insert(key.to_lowercase(), s.to_string());
-            }
-        }
-    }
-
-    // Extract standard fields (try multiple tag name variants)
-    let get_tag = |names: &[&str]| -> Option<String> {
-        for name in names {
-            if let Some(value) = all_tags.get(*name) {
-                return Some(value.clone());
-            }
-        }
-        None
-    };
-
-    Ok(ID3Metadata {
-        artist: get_tag(&["artist", "album_artist", "albumartist"]),
-        album: get_tag(&["album"]),
-        date: get_tag(&["date", "year"]),
-        genre: get_tag(&["genre"]),
-        musicbrainz_albumid: get_tag(&["musicbrainz_albumid", "musicbrainz album id"]),
-        musicbrainz_artistid: get_tag(&["musicbrainz_artistid", "musicbrainz artist id"]),
-        comment: get_tag(&["comment"]),
-        all_tags,
-    })
-}
-
-/// Reconcile ID3 tags with path/filename metadata
-fn reconcile_metadata(
-    id3: &ID3Metadata,
-    path_artist: &Option<String>,
-    path_album: &Option<String>,
-) -> ReconciledMetadata {
-    // Extract estimated track count from comment field
-    let estimated_track_count = id3.comment.as_ref().and_then(|c| {
-        // Look for patterns like "52 tracks", "28 tracks", etc.
-        c.split_whitespace()
-            .next()
-            .and_then(|s| s.parse::<usize>().ok())
-    });
-
-    let has_musicbrainz_ids = id3.musicbrainz_albumid.is_some() || id3.musicbrainz_artistid.is_some();
-
-    match (&id3.artist, path_artist, &id3.album, path_album) {
-        // Case 1: Both sources have both fields
-        (Some(id3_artist), Some(path_artist), Some(id3_album), Some(path_album)) => {
-            let artist_match = strings_match(id3_artist, path_artist);
-            let album_match = strings_match(id3_album, path_album);
-
-            match (artist_match, album_match) {
-                (true, true) => {
-                    // DirectMatch - both sources agree
-                    ReconciledMetadata {
-                        artist: id3_artist.clone(),
-                        album: id3_album.clone(),
-                        strategy: ReconciliationStrategy::DirectMatch,
-                        confidence: MetadataConfidence::High,
-                        artist_source: MetadataSource::Both,
-                        album_source: MetadataSource::Both,
-                        alternate_artist: None,
-                        alternate_album: None,
-                        has_musicbrainz_ids,
-                        estimated_track_count,
-                    }
-                }
-                (true, false) => {
-                    // Artist matches, album conflicts
-                    let (chosen_album, alt_album, album_src) = choose_album(id3_album, path_album);
-                    ReconciledMetadata {
-                        artist: id3_artist.clone(),
-                        album: chosen_album,
-                        strategy: ReconciliationStrategy::PartialMatch,
-                        confidence: MetadataConfidence::Medium,
-                        artist_source: MetadataSource::Both,
-                        album_source: album_src,
-                        alternate_artist: None,
-                        alternate_album: Some(alt_album),
-                        has_musicbrainz_ids,
-                        estimated_track_count,
-                    }
-                }
-                (false, true) => {
-                    // Album matches, artist conflicts
-                    let (chosen_artist, alt_artist, artist_src) = choose_artist(id3_artist, path_artist, id3_album);
-                    ReconciledMetadata {
-                        artist: chosen_artist,
-                        album: id3_album.clone(),
-                        strategy: ReconciliationStrategy::PartialMatch,
-                        confidence: MetadataConfidence::Medium,
-                        artist_source: artist_src,
-                        album_source: MetadataSource::Both,
-                        alternate_artist: Some(alt_artist),
-                        alternate_album: None,
-                        has_musicbrainz_ids,
-                        estimated_track_count,
-                    }
-                }
-                (false, false) => {
-                    // Both conflict
-                    let (chosen_artist, alt_artist, artist_src) = choose_artist(id3_artist, path_artist, id3_album);
-                    let (chosen_album, alt_album, album_src) = choose_album(id3_album, path_album);
-                    ReconciledMetadata {
-                        artist: chosen_artist,
-                        album: chosen_album,
-                        strategy: ReconciliationStrategy::Conflict,
-                        confidence: MetadataConfidence::Low,
-                        artist_source: artist_src,
-                        album_source: album_src,
-                        alternate_artist: Some(alt_artist),
-                        alternate_album: Some(alt_album),
-                        has_musicbrainz_ids,
-                        estimated_track_count,
-                    }
-                }
-            }
-        }
-
-        // Case 2: ID3 has both, path missing one or both
-        (Some(id3_artist), _, Some(id3_album), _) => {
-            ReconciledMetadata {
-                artist: id3_artist.clone(),
-                album: id3_album.clone(),
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::ID3,
-                album_source: MetadataSource::ID3,
-                alternate_artist: path_artist.clone(),
-                alternate_album: path_album.clone(),
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
-
-        // Case 3: Path has both, ID3 missing one or both
-        (_, Some(path_artist), _, Some(path_album)) => {
-            ReconciledMetadata {
-                artist: path_artist.clone(),
-                album: path_album.clone(),
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::Path,
-                album_source: MetadataSource::Path,
-                alternate_artist: id3.artist.clone(),
-                alternate_album: id3.album.clone(),
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
-
-        // Case 4: Incomplete data - use what we have
-        _ => {
-            let artist = id3.artist.clone()
-                .or_else(|| path_artist.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
-            let album = id3.album.clone()
-                .or_else(|| path_album.clone())
-                .unwrap_or_else(|| "Unknown".to_string());
-
-            ReconciledMetadata {
-                artist,
-                album,
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::Conflict,
-                album_source: MetadataSource::Conflict,
-                alternate_artist: None,
-                alternate_album: None,
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
-    }
-}
-
-/// Log reconciliation decision details
-fn log_reconciliation_decision(reconciled: &ReconciledMetadata) {
-    println!("  Phase 0 Reconciliation:");
-    println!("    Strategy: {:?}", reconciled.strategy);
-    println!("    Confidence: {:?}", reconciled.confidence);
-    println!("    Artist: {} (source: {:?})", reconciled.artist, reconciled.artist_source);
-    if let Some(ref alt) = reconciled.alternate_artist {
-        println!("      Alternate: {}", alt);
-    }
-    println!("    Album: {} (source: {:?})", reconciled.album, reconciled.album_source);
-    if let Some(ref alt) = reconciled.alternate_album {
-        println!("      Alternate: {}", alt);
-    }
-    if reconciled.has_musicbrainz_ids {
-        println!("    Has MusicBrainz IDs in tags: Yes");
-    }
-    if let Some(count) = reconciled.estimated_track_count {
-        println!("    Estimated track count from ID3: {}", count);
-    }
-}
-
-/// Extract and reconcile metadata from file (Phase 0 entry point)
-fn extract_and_reconcile_metadata(file_path: &Path) -> ReconciledMetadata {
-    // Extract from both sources
-    let id3_result = extract_id3_tags(file_path);
-    let (path_artist, path_album) = extract_metadata_from_path(file_path);
-
-    // Handle ID3 extraction failure gracefully
-    let id3 = match id3_result {
-        Ok(tags) => tags,
-        Err(_) => {
-            // ID3 extraction failed, use path only
-            return ReconciledMetadata {
-                artist: path_artist,
-                album: path_album,
-                strategy: ReconciliationStrategy::PathOnly,
-                confidence: MetadataConfidence::Medium,
-                artist_source: MetadataSource::Path,
-                album_source: MetadataSource::Path,
-                alternate_artist: None,
-                alternate_album: None,
-                has_musicbrainz_ids: false,
-                estimated_track_count: None,
-            };
-        }
-    };
-
-    // Reconcile
-    let path_artist_opt = if path_artist != "Unknown" { Some(path_artist) } else { None };
-    let path_album_opt = if path_album != "Unknown" { Some(path_album) } else { None };
-
-    reconcile_metadata(&id3, &path_artist_opt, &path_album_opt)
-}
-
-// ===== Stage 5: Expanded MusicBrainz Candidate Search =====
-
-#[derive(Debug, Clone)]
-struct SegmentationRecord {
-    durations: Vec<f64>,
-    track_count: usize,
-    source_stage: String,
-    threshold_db: Option<f64>,
-    min_duration_secs: Option<f64>,
-    signature: String, // for deduplication
-}
-
-impl SegmentationRecord {
-    fn new(
-        durations: Vec<f64>,
-        source_stage: String,
-        threshold_db: Option<f64>,
-        min_duration_secs: Option<f64>,
-    ) -> Self {
-        let track_count = durations.len();
-        // Create signature by rounding durations to 0.1s precision and joining
-        let signature = durations
-            .iter()
-            .map(|d| format!("{:.1}", d))
-            .collect::<Vec<_>>()
-            .join(",");
-
-        Self {
-            durations,
-            track_count,
-            source_stage,
-            threshold_db,
-            min_duration_secs,
-            signature,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct MBCandidateTracker {
-    tested_mbids: std::collections::HashSet<String>,
-    total_available: usize,
-}
-
-impl MBCandidateTracker {
-    fn new() -> Self {
-        Self {
-            tested_mbids: std::collections::HashSet::new(),
-            total_available: 0,
-        }
-    }
-
-    fn add_tested(&mut self, mbid: String) {
-        self.tested_mbids.insert(mbid);
-    }
-
-    fn is_tested(&self, mbid: &str) -> bool {
-        self.tested_mbids.contains(mbid)
-    }
-
-    fn remaining_count(&self) -> usize {
-        self.total_available.saturating_sub(self.tested_mbids.len())
-    }
-}
-
-#[derive(Debug)]
-struct Stage5MatchResult {
-    best_percentage: f64,
-    best_segmentation: SegmentationRecord,
-    best_mbid: String,
-    best_expected_durations: Vec<u32>,
-    best_matches: Vec<TrackMatch>,
-    total_combinations_tested: usize,
-    mean_error: f64,
-}
-
-/// Collect all unique segmentations from previous stages
-fn collect_all_segmentations(
-    stage1_durations: &[f64],
-    stage2_results: &[(Vec<f64>, f64, f64)], // (durations, threshold, min_duration)
-    stage3_result: &Option<Vec<f64>>,
-) -> Vec<SegmentationRecord> {
-    let mut segmentations = Vec::new();
-    let mut seen_signatures = std::collections::HashSet::new();
-
-    // Stage 1 (Initial)
-    let seg1 = SegmentationRecord::new(
-        stage1_durations.to_vec(),
-        "Initial".to_string(),
-        Some(-57.0),
-        Some(0.9),
-    );
-    if seen_signatures.insert(seg1.signature.clone()) {
-        segmentations.push(seg1);
-    }
-
-    // Stage 2 (Parameter Optimization) - collect all tested combinations
-    for (durations, threshold, min_dur) in stage2_results {
-        let seg = SegmentationRecord::new(
-            durations.clone(),
-            format!("Parameter Optimization ({}dB, {}s)", threshold, min_dur),
-            Some(*threshold),
-            Some(*min_dur),
-        );
-        if seen_signatures.insert(seg.signature.clone()) {
-            segmentations.push(seg);
-        }
-    }
-
-    // Stage 3 (Segment Assembly)
-    if let Some(assembled_durations) = stage3_result {
-        let seg3 = SegmentationRecord::new(
-            assembled_durations.clone(),
-            "Segment Assembly".to_string(),
-            None,
-            None,
-        );
-        if seen_signatures.insert(seg3.signature.clone()) {
-            segmentations.push(seg3);
-        }
-    }
-
-    segmentations
-}
-
-/// Get additional untested MusicBrainz candidates
-async fn get_additional_mb_candidates(
-    artist: &str,
-    album: &str,
-    tracker: &MBCandidateTracker,
-    rate_limiter: &RateLimiter,
-) -> Result<Vec<(Vec<u32>, String)>, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::builder()
-        .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
-        .timeout(Duration::from_secs(30))
-        .build()?;
-
-    // Use all search strategies to get comprehensive candidate list
-    let search_queries = generate_search_queries(artist, album);
-    let mut all_candidates: Vec<(Vec<u32>, String)> = Vec::new();
-    let mut seen_mbids = std::collections::HashSet::new();
-
-    for query in search_queries.iter() {
-        let encoded_query = urlencoding::encode(query);
-        let search_url = format!(
-            "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
-            encoded_query
-        );
-
-        rate_limiter.wait().await;
-
-        let response = retry_with_backoff(|| async {
-            client
-                .get(&search_url)
-                .send()
-                .await
-                .map_err(|e| format!("error sending request: {}", e))?
-                .json::<MBSearchResponse>()
-                .await
-                .map_err(|e| format!("error parsing JSON: {}", e))
-        }).await;
-
-        let response = match response {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-
-        // Fetch details for untested releases
-        for release in response.releases.iter().take(50) {
-            if tracker.is_tested(&release.id) || seen_mbids.contains(&release.id) {
-                continue;
-            }
-
-            seen_mbids.insert(release.id.clone());
-
-            rate_limiter.wait().await;
-
-            let details_url = format!(
-                "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
-                release.id
-            );
-
-            let details = retry_with_backoff(|| async {
-                client
-                    .get(&details_url)
-                    .send()
-                    .await
-                    .map_err(|e| format!("error fetching details: {}", e))?
-                    .json::<MBReleaseDetails>()
-                    .await
-                    .map_err(|e| format!("error parsing details: {}", e))
-            }).await;
-
-            let details = match details {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-
-            let mut durations = Vec::new();
-            for medium in &details.media {
-                for track in &medium.tracks {
-                    if let Some(length_ms) = track.length {
-                        durations.push(length_ms / 1000);
-                    }
-                }
-            }
-
-            if !durations.is_empty() {
-                all_candidates.push((durations, release.id.clone()));
-            }
-
-            // Stop if we have enough candidates
-            if all_candidates.len() >= 50 {
-                break;
-            }
-        }
-
-        if all_candidates.len() >= 50 {
-            break;
-        }
-    }
-
-    Ok(all_candidates)
-}
-
-/// Test all combinations of segmentations × MB candidates
-fn test_all_combinations(
-    segmentations: &[SegmentationRecord],
-    mb_candidates: &[(Vec<u32>, String)],
-    tolerance_secs: f64,
-) -> Option<Stage5MatchResult> {
-    let mut best_result: Option<Stage5MatchResult> = None;
-    let mut combinations_tested = 0;
-
-    for segmentation in segmentations {
-        for (expected_durations, mbid) in mb_candidates {
-            combinations_tested += 1;
-
-            let (matches, matched_count, percentage) =
-                analyze_track_matching(&segmentation.durations, expected_durations, tolerance_secs);
-
-            let mean_error = if !matches.is_empty() {
-                matches.iter().map(|m| m.error).sum::<f64>() / matches.len() as f64
-            } else {
-                0.0
-            };
-
-            // Update best if this is better
-            if best_result.is_none() || percentage > best_result.as_ref().unwrap().best_percentage {
-                best_result = Some(Stage5MatchResult {
-                    best_percentage: percentage,
-                    best_segmentation: segmentation.clone(),
-                    best_mbid: mbid.clone(),
-                    best_expected_durations: expected_durations.clone(),
-                    best_matches: matches,
-                    total_combinations_tested: combinations_tested,
-                    mean_error,
-                });
-
-                // Early exit if perfect match found
-                if percentage >= 100.0 {
-                    return best_result;
-                }
-            }
-        }
-    }
-
-    best_result
 }
 
 /// Assemble segments into tracks using dynamic programming
@@ -1605,8 +936,8 @@ fn classify_confidence(match_percentage: f64) -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Comprehensive Album Matcher (Run 8) ===");
-    println!("7-Phase Matching: ID3 Reconciliation -> Initial -> Parameter Opt -> ENHANCED Segment Assembly -> Quiet Spots -> Expanded MB Search -> Extra Track Merging\n");
+    println!("=== Comprehensive Album Matcher ===");
+    println!("Multi-stage matching: Initial -> Parameter Opt -> Segment Assembly -> Quiet Spots\n");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -1645,8 +976,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //   With adaptive 25ms RMS windows, these very short durations now have adequate temporal resolution
     // - Added -64, -66 dB (stricter thresholds) for completeness
     // - Added 2.5, 3.0s (longer durations) for completeness
-    let threshold_values = [-36.0, -38.0, -40.0, -42.0, -44.0, -47.0, -50.0, -52.0, -54.0, -56.0, -58.0, -60.0];
-    let min_duration_values = [0.05, 0.10, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
+    let threshold_values = [-44.0, -46.0, -48.0, -50.0, -52.0, -54.0, -56.0, -58.0, -60.0, -62.0, -64.0, -66.0];
+    let min_duration_values = [0.05, 0.06, 0.08, 0.10, 0.12, 0.15, 0.2, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0];
 
     for (idx, file_path) in training_files.iter().enumerate() {
         println!("=== Album {}/{} ===", idx + 1, training_files.len());
@@ -1657,12 +988,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        // === PHASE 0: ID3 Tag Extraction & Reconciliation ===
-        let reconciled = extract_and_reconcile_metadata(file_path);
-        log_reconciliation_decision(&reconciled);
-
-        let artist = &reconciled.artist;
-        let album = &reconciled.album;
+        let (artist, album) = extract_metadata_from_path(file_path);
+        println!("  Artist: {}", artist);
+        println!("  Album: {}", album);
 
         // Decode MP3
         print!("  Decoding... ");
@@ -1679,12 +1007,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     artist: artist.clone(),
                     album: album.clone(),
                     mbid: String::new(),
-                    musicbrainz_url: String::new(),
                     expected_track_count: 0,
                     detected_track_count: 0,
                     perfect_count_match: false,
                     track_matches: Vec::new(),
-                    extra_tracks: Vec::new(),
                     matched_tracks_count: 0,
                     match_percentage: 0.0,
                     mean_error: 0.0,
@@ -1699,48 +1025,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // Initialize tracking for Stage 5
-        let mut stage2_results: Vec<(Vec<f64>, f64, f64)> = Vec::new(); // (durations, threshold, min_dur)
-        let mut mb_candidate_tracker = MBCandidateTracker::new();
-
         // === STAGE 1: Try default parameters ===
         println!("  STAGE 1: Testing default parameters (-57dB, 0.9s)...");
         let stage1_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
         let stage1_total: f64 = stage1_durations.iter().sum();
         println!("    Found {} tracks", stage1_durations.len());
 
-        // Get expected durations from MusicBrainz (sorted by duration match, best first)
+        // Get expected durations from MusicBrainz
         print!("  Fetching MusicBrainz data... ");
-        let mb_candidates = match get_expected_durations(
+        let (expected_durations, mbid) = match get_expected_durations(
             &artist, &album, stage1_durations.len(), stage1_total, &rate_limiter
         ).await {
             Ok(data) => {
-                if data.is_empty() {
-                    println!("FAILED: No candidates found");
-                    results.push(ValidationResult {
-                        album_path: file_path.to_string_lossy().to_string(),
-                        artist: artist.clone(),
-                        album: album.clone(),
-                        mbid: String::new(),
-                        musicbrainz_url: String::new(),
-                        expected_track_count: 0,
-                        detected_track_count: stage1_durations.len(),
-                        perfect_count_match: false,
-                        track_matches: Vec::new(),
-                        extra_tracks: Vec::new(),
-                        matched_tracks_count: 0,
-                        match_percentage: 0.0,
-                        mean_error: 0.0,
-                        status: "MusicBrainz lookup failed: No candidates".to_string(),
-                        matching_stage: "None".to_string(),
-                        best_threshold_db: None,
-                        best_min_duration_secs: None,
-                        confidence: "Poor".to_string(),
-                    });
-                    println!();
-                    continue;
-                }
-                println!("Found {} editions (sorted by duration match, trying best first)", data.len());
+                println!("Found {} tracks", data.0.len());
                 data
             }
             Err(e) => {
@@ -1750,12 +1047,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     artist: artist.clone(),
                     album: album.clone(),
                     mbid: String::new(),
-                    musicbrainz_url: String::new(),
                     expected_track_count: 0,
                     detected_track_count: stage1_durations.len(),
                     perfect_count_match: false,
                     track_matches: Vec::new(),
-                    extra_tracks: Vec::new(),
                     matched_tracks_count: 0,
                     match_percentage: 0.0,
                     mean_error: 0.0,
@@ -1769,25 +1064,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
-
-        // Use first candidate as initial best match (best duration match)
-        let (mut expected_durations, mut mbid) = mb_candidates[0].clone();
-        println!("  Using best match: {} tracks from release {}", expected_durations.len(), &mbid[..8]);
-
-        // Track this MBID as tested
-        mb_candidate_tracker.add_tested(mbid.clone());
-
-        // Store remaining candidates for Stage 5 if needed
-        let remaining_mb_candidates: Vec<(Vec<u32>, String)> = mb_candidates
-            .iter()
-            .skip(1)
-            .filter(|(_, candidate_mbid)| !mb_candidate_tracker.is_tested(candidate_mbid))
-            .cloned()
-            .collect();
-
-        if remaining_mb_candidates.len() > 0 {
-            println!("  {} additional editions available if needed", remaining_mb_candidates.len());
-        }
 
         // Analyze Stage 1 results
         let (stage1_matches, stage1_matched_count, stage1_percentage) =
@@ -1814,10 +1090,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for &min_dur in &min_duration_values {
                     tested += 1;
                     let test_durations = get_track_durations(&samples, sample_rate, thresh, min_dur);
-
-                    // Track this result for Stage 5
-                    stage2_results.push((test_durations.clone(), thresh as f64, min_dur as f64));
-
                     let (test_matches, test_matched_count, test_percentage) =
                         analyze_track_matching(&test_durations, &expected_durations, match_tolerance_secs);
 
@@ -1849,80 +1121,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 best_percentage, classify_confidence(best_percentage));
         }
 
-        // === STAGE 3: Comprehensive Segment Assembly ===
-        // Try assembly on ALL over-segmented candidates from Stage 1 and Stage 2
-        let mut stage3_result: Option<Vec<f64>> = None; // Track for Stage 5
+        // === STAGE 3: Segment Assembly (if over-segmentation detected) ===
+        if best_percentage < 100.0 && best_durations.len() > expected_durations.len() {
+            println!("  STAGE 3: Attempting segment assembly (over-segmentation detected: {} segments, {} expected)...",
+                best_durations.len(), expected_durations.len());
 
-        if best_percentage < 100.0 {
-            // Collect all segmentations that are over-segmented
-            let mut over_segmented_candidates = Vec::new();
+            if let Some(assembled_durations) = assemble_segments_dp(&best_durations, &expected_durations) {
+                let (assembled_matches, assembled_matched_count, assembled_percentage) =
+                    analyze_track_matching(&assembled_durations, &expected_durations, match_tolerance_secs);
 
-            // Stage 1 result
-            if stage1_durations.len() > expected_durations.len() {
-                over_segmented_candidates.push((stage1_durations.clone(), "Initial".to_string(), None, None));
-            }
+                println!("    Assembled {} segments into {} tracks", best_durations.len(), assembled_durations.len());
+                println!("    Assembly match quality: {:.1}%", assembled_percentage);
 
-            // Stage 2 results
-            for (durations, thresh, min_dur) in &stage2_results {
-                if durations.len() > expected_durations.len() {
-                    over_segmented_candidates.push((
-                        durations.clone(),
-                        format!("Parameter Optimization ({}dB, {}s)", thresh, min_dur),
-                        Some(*thresh),
-                        Some(*min_dur)
-                    ));
-                }
-            }
-
-            if !over_segmented_candidates.is_empty() {
-                println!("  STAGE 3: Comprehensive segment assembly across {} over-segmented candidates...",
-                    over_segmented_candidates.len());
-
-                let mut best_assembly_percentage = 0.0;
-                let mut best_assembly_source = String::new();
-                let mut assemblies_tested = 0;
-                let mut assemblies_improved = 0;
-
-                for (candidate_durations, source, thresh, min_dur) in over_segmented_candidates {
-                    if let Some(assembled_durations) = assemble_segments_dp(&candidate_durations, &expected_durations) {
-                        assemblies_tested += 1;
-
-                        let (assembled_matches, assembled_matched_count, assembled_percentage) =
-                            analyze_track_matching(&assembled_durations, &expected_durations, match_tolerance_secs);
-
-                        if assembled_percentage > best_percentage {
-                            assemblies_improved += 1;
-                            best_durations = assembled_durations.clone();
-                            best_matches = assembled_matches;
-                            best_matched_count = assembled_matched_count;
-                            best_percentage = assembled_percentage;
-                            best_stage = "Segment Assembly";
-                            best_assembly_percentage = assembled_percentage;
-                            best_assembly_source = source.clone();
-                            stage3_result = Some(assembled_durations.clone());
-
-                            // Update best parameters if from Stage 2
-                            if let (Some(t), Some(m)) = (thresh, min_dur) {
-                                best_threshold = Some(t);
-                                best_min_duration = Some(m);
-                            }
-
-                            println!("    New best: {:.1}% via assembly of {} ({} segments → {} tracks)",
-                                best_percentage, source, candidate_durations.len(), assembled_durations.len());
-
-                            if best_percentage >= 100.0 {
-                                break; // Early exit on perfect match
-                            }
-                        }
-                    }
-                }
-
-                println!("    Tested {} assemblies, {} improved over best", assemblies_tested, assemblies_improved);
-                if best_assembly_percentage > 0.0 {
-                    println!("    Best assembly: {:.1}% from {}", best_assembly_percentage, best_assembly_source);
+                if assembled_percentage > best_percentage {
+                    best_durations = assembled_durations;
+                    best_matches = assembled_matches;
+                    best_matched_count = assembled_matched_count;
+                    best_percentage = assembled_percentage;
+                    best_stage = "Segment Assembly";
+                    println!("    Segment assembly improved match to {:.1}%", best_percentage);
                 } else {
-                    println!("    No assembly improved over current best ({:.1}%)", best_percentage);
+                    println!("    Segment assembly: {:.1}% (not better than current best)", assembled_percentage);
                 }
+            } else {
+                println!("    Segment assembly failed to find valid grouping");
             }
         }
 
@@ -1949,131 +1171,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // === STAGE 5: Try Alternative MusicBrainz Editions ===
-        if best_percentage < 100.0 && !remaining_mb_candidates.is_empty() && !stage2_results.is_empty() {
-            println!("  STAGE 5: Trying alternative MusicBrainz editions (sorted by duration match)...");
-
-            // Collect all unique segmentations
-            let all_segmentations = collect_all_segmentations(
-                &stage1_durations,
-                &stage2_results,
-                &stage3_result,
-            );
-
-            println!("    Collected {} unique segmentations", all_segmentations.len());
-            println!("    Testing {} editions (already sorted by best duration match)", remaining_mb_candidates.len());
-            println!("    Testing {} combinations ({} segmentations × {} editions)...",
-                all_segmentations.len() * remaining_mb_candidates.len(),
-                all_segmentations.len(),
-                remaining_mb_candidates.len());
-
-            if let Some(stage5_result) = test_all_combinations(
-                &all_segmentations,
-                &remaining_mb_candidates,
-                match_tolerance_secs,
-            ) {
-                println!("    Best match from Stage 5: {:.1}% ({} combinations tested)",
-                    stage5_result.best_percentage,
-                    stage5_result.total_combinations_tested);
-
-                if stage5_result.best_percentage > best_percentage {
-                    // Update best result with Stage 5 findings
-                    best_durations = stage5_result.best_segmentation.durations.clone();
-                    best_matches = stage5_result.best_matches;
-                    best_matched_count = best_matches.iter().filter(|m| m.matches).count();
-                    best_percentage = stage5_result.best_percentage;
-                    best_stage = "Expanded MB Search";
-                    mbid = stage5_result.best_mbid;
-                    expected_durations = stage5_result.best_expected_durations;
-
-                    // Extract threshold/duration from segmentation if available
-                    if let (Some(thresh), Some(dur)) = (
-                        stage5_result.best_segmentation.threshold_db,
-                        stage5_result.best_segmentation.min_duration_secs,
-                    ) {
-                        best_threshold = Some(thresh);
-                        best_min_duration = Some(dur);
-                    }
-
-                    println!("    Stage 5 improved match to {:.1}%", best_percentage);
-                    println!("    Best segmentation: {}", stage5_result.best_segmentation.source_stage);
-                } else {
-                    println!("    Stage 5: {:.1}% (not better than current best)", stage5_result.best_percentage);
-                }
-            }
-        }
-
-        // === STAGE 6: Extra Track Merging ===
-        // When detected > expected AND match quality is already high (≥100%),
-        // try merging adjacent tracks to achieve correct track count
-        if best_percentage >= 100.0 && best_durations.len() > expected_durations.len() {
-            let extra_count = best_durations.len() - expected_durations.len();
-            println!("  STAGE 6: Attempting extra track merging...");
-            println!("    {} extra track(s) detected, match quality {:.1}%", extra_count, best_percentage);
-            println!("    Testing {} possible adjacent track merges", best_durations.len() - 1);
-
-            let mut best_merge_durations = None;
-            let mut best_merge_error = f64::INFINITY;
-            let mut best_merge_index = None;
-
-            // Try merging each possible pair of adjacent tracks
-            for merge_idx in 0..(best_durations.len() - 1) {
-                // Create new duration list with tracks merge_idx and merge_idx+1 merged
-                let mut merged_durations = Vec::new();
-
-                for i in 0..best_durations.len() {
-                    if i == merge_idx {
-                        // Merge this track with the next one
-                        merged_durations.push(best_durations[i] + best_durations[i + 1]);
-                    } else if i == merge_idx + 1 {
-                        // Skip - already merged with previous
-                        continue;
-                    } else {
-                        merged_durations.push(best_durations[i]);
-                    }
-                }
-
-                // Evaluate this merged configuration
-                let (merged_matches, merged_matched_count, merged_percentage) =
-                    analyze_track_matching(&merged_durations, &expected_durations, match_tolerance_secs);
-
-                // Calculate total error
-                let total_error: f64 = merged_matches.iter().map(|m| m.error).sum();
-
-                // Track best merge
-                if merged_durations.len() == expected_durations.len() && total_error < best_merge_error {
-                    best_merge_error = total_error;
-                    best_merge_durations = Some(merged_durations);
-                    best_merge_index = Some(merge_idx);
-                }
-            }
-
-            // Apply best merge if found
-            if let Some(merged_durations) = best_merge_durations {
-                let (merged_matches, merged_matched_count, merged_percentage) =
-                    analyze_track_matching(&merged_durations, &expected_durations, match_tolerance_secs);
-
-                let mean_merged_error = best_merge_error / merged_matches.len() as f64;
-
-                println!("    Best merge: tracks {} + {} → {:.1}% match, {:.2}s mean error",
-                    best_merge_index.unwrap() + 1,
-                    best_merge_index.unwrap() + 2,
-                    merged_percentage,
-                    mean_merged_error);
-
-                // Accept merge to achieve correct track count
-                best_durations = merged_durations;
-                best_matches = merged_matches;
-                best_matched_count = merged_matched_count;
-                best_percentage = merged_percentage;
-                best_stage = "Extra Track Merging";
-                println!("    Track count corrected: {} → {} ({:.1}% match)",
-                    best_durations.len() + 1, best_durations.len(), best_percentage);
-            } else {
-                println!("    No valid merge found that produces correct track count");
-            }
-        }
-
         // Calculate final statistics
         let perfect_count = best_durations.len() == expected_durations.len();
         let mean_error = if !best_matches.is_empty() {
@@ -2084,7 +1181,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("\n  FINAL RESULT:");
         println!("    Matching stage: {}", best_stage);
-        println!("    MusicBrainz: https://musicbrainz.org/release/{}", mbid);
         println!("    Track count: {}/{} {}", best_durations.len(), expected_durations.len(),
             if perfect_count { "✓" } else { "✗" });
         println!("    Matched tracks: {}/{} ({:.1}%)", best_matched_count, expected_durations.len(), best_percentage);
@@ -2105,39 +1201,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Calculate extra tracks (detected tracks with no MusicBrainz match)
-        let mut extra_tracks = Vec::new();
-        let min_count = best_durations.len().min(expected_durations.len());
-
-        if best_durations.len() > expected_durations.len() {
-            // Detected more tracks than expected - the extras are at the end
-            for i in min_count..best_durations.len() {
-                extra_tracks.push(ExtraTrack {
-                    track_index: i + 1, // 1-based
-                    duration: best_durations[i],
-                    description: "Extra track with no corresponding MusicBrainz entry".to_string(),
-                });
-            }
-
-            if !extra_tracks.is_empty() {
-                println!("  Extra tracks detected ({} beyond expected count):", extra_tracks.len());
-                for et in &extra_tracks {
-                    println!("    Track {}: {:.1}s (no MusicBrainz match)", et.track_index, et.duration);
-                }
-            }
-        }
-
         results.push(ValidationResult {
             album_path: file_path.to_string_lossy().to_string(),
-            artist: artist.clone(),
-            album: album.clone(),
-            mbid: mbid.clone(),
-            musicbrainz_url: format!("https://musicbrainz.org/release/{}", mbid),
+            artist,
+            album,
+            mbid,
             expected_track_count: expected_durations.len(),
             detected_track_count: best_durations.len(),
             perfect_count_match: perfect_count,
             track_matches: best_matches,
-            extra_tracks,
             matched_tracks_count: best_matched_count,
             match_percentage: best_percentage,
             mean_error,
@@ -2170,18 +1242,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Matching stage breakdown
         let stage1 = results.iter().filter(|r| r.matching_stage == "Initial").count();
         let stage2 = results.iter().filter(|r| r.matching_stage == "Parameter Optimization").count();
-        let stage3 = results.iter().filter(|r| r.matching_stage == "Segment Assembly").count();
+        let stage3 = results.iter().filter(|r| r.matching_stage == "Expanded Search").count();
         let stage4 = results.iter().filter(|r| r.matching_stage == "Quiet Spot Detection").count();
-        let stage5 = results.iter().filter(|r| r.matching_stage == "Expanded MB Search").count();
-        let stage6 = results.iter().filter(|r| r.matching_stage == "Extra Track Merging").count();
 
         println!("\nMatching Stage Results:");
-        println!("  Stage 1 (Initial):                {} albums", stage1);
-        println!("  Stage 2 (Parameter Opt):          {} albums", stage2);
-        println!("  Stage 3 (Segment Assembly):       {} albums", stage3);
-        println!("  Stage 4 (Quiet Spot Detection):   {} albums", stage4);
-        println!("  Stage 5 (Expanded MB Search):     {} albums", stage5);
-        println!("  Stage 6 (Extra Track Merging):    {} albums", stage6);
+        println!("  Stage 1 (Initial):              {} albums", stage1);
+        println!("  Stage 2 (Parameter Opt):        {} albums", stage2);
+        println!("  Stage 3 (Expanded Search):      {} albums", stage3);
+        println!("  Stage 4 (Quiet Spot Detection): {} albums", stage4);
 
         // Confidence level breakdown
         let excellent = results.iter().filter(|r| r.confidence == "Excellent").count();
@@ -2236,7 +1304,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  {}. {} - {} ({:.1}%, {} via {})",
                 i + 1, result.artist, result.album, result.match_percentage,
                 result.confidence, result.matching_stage);
-            println!("     MusicBrainz: {}", result.musicbrainz_url);
         }
 
         println!("\nWorst 5 Albums:");
@@ -2244,7 +1311,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  {}. {} - {} ({:.1}%, {} via {})",
                 i + 1, result.artist, result.album, result.match_percentage,
                 result.confidence, result.matching_stage);
-            println!("     MusicBrainz: {}", result.musicbrainz_url);
         }
     }
 

@@ -28,6 +28,9 @@ struct MBRelease {
     title: String,
     #[serde(rename = "artist-credit")]
     artist_credit: Option<Vec<MBArtistCredit>>,
+    country: Option<String>,
+    status: Option<String>,
+    packaging: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,6 +53,7 @@ struct MBReleaseDetails {
 #[derive(Debug, Deserialize)]
 struct MBMedia {
     tracks: Vec<MBTrack>,
+    format: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -324,8 +328,59 @@ fn analyze_track_matching(detected: &[f64], expected: &[u32], tolerance_secs: f6
     (matches, matched_count, match_percentage)
 }
 
+/// Insert spaces before capital letters in CamelCase strings
+fn split_camel_case(s: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = s.chars().collect();
+
+    for (i, &ch) in chars.iter().enumerate() {
+        if i > 0 && ch.is_uppercase() && chars[i-1].is_lowercase() {
+            result.push(' ');
+        }
+        result.push(ch);
+    }
+    result
+}
+
+/// Apply wildcard to handle common misspellings
+fn apply_wildcard_fixes(text: &str) -> Option<String> {
+    // Handle "Lizzie" vs "Lizzy" (Thin Lizzie -> Thin Lizz?)
+    if text.contains("Lizzie") {
+        return Some(text.replace("Lizzie", "Lizz?"));
+    }
+    None
+}
+
+/// Generate search query variants to try in sequence
+fn generate_search_queries(artist: &str, album: &str) -> Vec<String> {
+    let mut queries = Vec::new();
+
+    // Strategy 1: Original query with type:album filter
+    queries.push(format!("type:album AND artist:{} AND release:{}", artist, album));
+
+    // Strategy 2: CamelCase split (most effective per test results)
+    let album_spaced = split_camel_case(album);
+    if album_spaced != album {
+        queries.push(format!("type:album AND artist:{} AND release:\"{}\"", artist, album_spaced));
+    }
+
+    // Strategy 3: Fuzzy matching (catches punctuation differences like "Funk49" -> "Funk #49")
+    queries.push(format!("type:album AND artist:{}~ AND release:{}~", artist, album));
+
+    // Strategy 4: Targeted wildcard for common misspellings (e.g., "Lizzie" -> "Lizz?")
+    if let Some(artist_wildcard) = apply_wildcard_fixes(artist) {
+        let album_variant = apply_wildcard_fixes(album).unwrap_or_else(|| album.to_string());
+        queries.push(format!("type:album AND artist:{} AND release:{}", artist_wildcard, album_variant));
+    } else if let Some(album_wildcard) = apply_wildcard_fixes(album) {
+        queries.push(format!("type:album AND artist:{} AND release:{}", artist, album_wildcard));
+    }
+
+    queries
+}
+
 /// Search MusicBrainz for album and get expected track durations
 /// Multi-stage filtering: 1) Total duration, 2) Track count, 3) Duration pattern
+/// Uses multiple search strategies: original, CamelCase split, fuzzy matching
 async fn get_expected_durations(
     artist: &str,
     album: &str,
@@ -333,31 +388,40 @@ async fn get_expected_durations(
     detected_total_duration: f64,
     rate_limiter: &RateLimiter,
 ) -> Result<(Vec<u32>, String), Box<dyn std::error::Error>> {
-    let query = format!("artist:{} AND release:{}", artist, album);
-    let encoded_query = urlencoding::encode(&query);
-
-    let search_url = format!(
-        "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=10",
-        encoded_query
-    );
-
-    rate_limiter.wait().await;
-
     let client = reqwest::Client::builder()
         .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
         .timeout(Duration::from_secs(30))
         .build()?;
 
-    let search_response = client
-        .get(&search_url)
-        .send()
-        .await?
-        .json::<MBSearchResponse>()
-        .await?;
+    // Try multiple search strategies until one succeeds
+    let search_queries = generate_search_queries(artist, album);
+    let mut search_response = None;
 
-    if search_response.releases.is_empty() {
-        return Err("No releases found".into());
+    for (i, query) in search_queries.iter().enumerate() {
+        let encoded_query = urlencoding::encode(query);
+        let search_url = format!(
+            "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
+            encoded_query
+        );
+
+        rate_limiter.wait().await;
+
+        let response = client
+            .get(&search_url)
+            .send()
+            .await?
+            .json::<MBSearchResponse>()
+            .await?;
+
+        if !response.releases.is_empty() {
+            println!("  MusicBrainz: Found {} results with search strategy {}/{}",
+                     response.releases.len(), i + 1, search_queries.len());
+            search_response = Some(response);
+            break;
+        }
     }
+
+    let search_response = search_response.ok_or("No releases found with any search strategy")?;
 
     // Fetch details for all candidates
     #[derive(Debug)]
@@ -368,11 +432,16 @@ async fn get_expected_durations(
         total_duration: u32,
         duration_diff: f64,
         count_diff: i32,
+        // Metadata for prioritization
+        country: Option<String>,
+        status: Option<String>,
+        packaging: Option<String>,
+        is_cd: bool,
     }
 
     let mut candidates: Vec<Candidate> = Vec::new();
 
-    for release in search_response.releases.iter().take(10) {
+    for release in search_response.releases.iter().take(30) {
         rate_limiter.wait().await;
 
         let details_url = format!(
@@ -388,12 +457,19 @@ async fn get_expected_durations(
             Err(_) => continue,
         };
 
-        // Extract track durations
+        // Extract track durations and check for CD format
         let mut durations = Vec::new();
+        let mut is_cd = false;
         for medium in &details.media {
             for track in &medium.tracks {
                 if let Some(length_ms) = track.length {
                     durations.push(length_ms / 1000); // Convert to seconds
+                }
+            }
+            // Check if this medium is a CD
+            if let Some(ref format) = medium.format {
+                if format == "CD" {
+                    is_cd = true;
                 }
             }
         }
@@ -412,6 +488,10 @@ async fn get_expected_durations(
             total_duration,
             duration_diff,
             count_diff,
+            country: release.country.clone(),
+            status: release.status.clone(),
+            packaging: release.packaging.clone(),
+            is_cd,
         });
     }
 
@@ -445,11 +525,28 @@ async fn get_expected_durations(
     };
 
     // Stage 2: Among duration-matched candidates, sort by composite score
-    // Score = duration_diff (seconds) + count_diff * 60 (penalize track count mismatch heavily)
+    // Base score = duration_diff (seconds) + count_diff * 60 (penalize track count mismatch heavily)
+    // Then apply metadata-based prioritization (subtract to improve score)
     let mut scored: Vec<_> = candidates_to_consider
         .into_iter()
         .map(|c| {
-            let score = c.duration_diff + (c.count_diff as f64 * 60.0);
+            let mut score = c.duration_diff + (c.count_diff as f64 * 60.0);
+
+            // Prioritize CD releases (-50 points)
+            if c.is_cd {
+                score -= 50.0;
+            }
+
+            // Prioritize US releases (-30 points)
+            if c.country.as_deref() == Some("US") {
+                score -= 30.0;
+            }
+
+            // Prioritize Official status (-40 points)
+            if c.status.as_deref() == Some("Official") {
+                score -= 40.0;
+            }
+
             (c, score)
         })
         .collect();
