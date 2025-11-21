@@ -1,4 +1,9 @@
-/// Comprehensive Album Matcher with 7-Phase Progressive Refinement (Run 8)
+/// Comprehensive Album Matcher with 7-Phase Progressive Refinement (Run 12)
+///
+/// Run 12 Changes:
+/// - FIXED: Stage 2 now collects ALL over-segmented candidates (not just best)
+/// - FIXED: Stage 3 now tries assembling EACH collected candidate (restores Run 7 behavior)
+/// - This fixes Funk #49 regression: 50% (Run 10/11) → 100% (Run 7/12)
 ///
 /// Phase 0: ID3 Tag Extraction & Reconciliation
 /// - Extract ID3 tags via ffprobe
@@ -6,31 +11,31 @@
 /// - Provides alternate search terms when conflicts detected
 /// - Extracts estimated track count from ID3 comment field
 ///
+/// Name Distance Ranking (Run 11)
+/// - Calculate Levenshtein distance from each MusicBrainz candidate to source names
+/// - Rank all candidates 1-N based on name similarity (1 = closest match)
+/// - Display "NDR:{rank}" in all candidate album logging
+///
 /// Stage 1: Initial Detection (Default Parameters)
 /// - Try default parameters (-57dB, 0.9s)
 ///
-/// Stage 2: Parameter Optimization
+/// Stage 2: Parameter Optimization (ENHANCED - Run 12)
 /// - Test 180 parameter combinations if match < 100%
-/// - Tracks all tested segmentations for Stage 3
+/// - NEW: Collects ALL over-segmented candidates for Stage 3 assembly
+/// - Returns both best immediate match AND collected candidates
 ///
-/// Stage 3: Comprehensive Segment Assembly (ENHANCED - Run 7)
-/// - Try dynamic programming assembly on ALL over-segmented candidates from Stage 1 & 2
-/// - Potentially tests 100+ assemblies instead of just current best
-/// - Dramatically increases chance of finding optimal track boundaries
+/// Stage 3: Comprehensive Segment Assembly (FIXED - Run 12)
+/// - Try dynamic programming assembly on ALL over-segmented candidates from Stage 2
+/// - Tests potentially 100+ assemblies (vs 14-16 in Run 10/11)
+/// - Each candidate tested against each target edition
 /// - Early exit on 100% match
 ///
 /// Stage 4: Quiet Spot Detection
 /// - RMS-based detection when silence-based fails
 ///
-/// Stage 5: Expanded MusicBrainz Search
-/// - Test all segmentations × additional MB candidates
-/// - Early exit on 100% match
-///
-/// Stage 6: Extra Track Merging (NEW - Run 8)
+/// Stage 5: Extra Track Merging (Run 8)
 /// - When detected > expected AND match quality ≥100%
 /// - Try merging adjacent track pairs to achieve correct track count
-/// - Selects merge that minimizes total duration error
-/// - Fixes false silence detections that split single tracks
 ///
 /// Tracks which stage succeeded and saves optimal parameters for each album
 
@@ -48,80 +53,242 @@ use symphonia::core::probe::Hint;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use parking_lot::Mutex;
+use strsim::levenshtein;
 
-// MusicBrainz API structures
+// ===== Configuration Constants =====
+
+// Default silence detection parameters
+const DEFAULT_THRESHOLD_DB: f64 = -57.0;
+const DEFAULT_MIN_DURATION_SECS: f64 = 0.9;
+
+// Track matching tolerance (seconds difference allowed for a track to be considered "matched")
+const MATCH_TOLERANCE_SECS: f64 = 10.0;
+
+// MusicBrainz API configuration
+const MB_RATE_LIMIT_SECS: u64 = 2;           // Seconds between API requests (2x safety margin)
+const MB_REQUEST_TIMEOUT_SECS: u64 = 30;     // HTTP request timeout
+const MB_MAX_RELEASES: usize = 150;          // Maximum releases to fetch across all strategies
+
+// Edition/MBID scoring weights (lower score = better match)
+const SCORE_CD_BONUS: f64 = -50.0;           // Bonus for CD releases
+const SCORE_OFFICIAL_BONUS: f64 = -40.0;     // Bonus for Official status
+const SCORE_US_BONUS: f64 = -30.0;           // Bonus for US releases
+const SCORE_TRACK_COUNT_PENALTY: f64 = 60.0; // Seconds penalty per track count difference
+
+// Runtime filter tolerance (file duration must be within this % of edition duration)
+const RUNTIME_FILTER_MIN_RATIO: f64 = 0.75;  // 75% minimum
+const RUNTIME_FILTER_MAX_RATIO: f64 = 1.25;  // 125% maximum
+
+// Confidence level thresholds (match percentage)
+const CONFIDENCE_EXCELLENT_THRESHOLD: f64 = 80.0;
+const CONFIDENCE_GOOD_THRESHOLD: f64 = 60.0;
+const CONFIDENCE_FAIR_THRESHOLD: f64 = 40.0;
+
+// Silence detection window sizing (adaptive based on min_duration)
+const RMS_WINDOW_SHORT_SECS: f64 = 0.025;    // 25ms for very short silences (≤0.3s)
+const RMS_WINDOW_MEDIUM_SECS: f64 = 0.05;    // 50ms for medium silences (0.3-0.6s)
+const RMS_WINDOW_STANDARD_SECS: f64 = 0.1;   // 100ms for longer silences (>0.6s)
+const RMS_WINDOW_OVERLAP: f64 = 0.5;         // 50% overlap between windows
+
+// Stage 4: Edition-guided quiet spot detection
+const QUIET_SPOT_WINDOW_SECS: f64 = 0.5;       // 500ms window for RMS calculation
+const QUIET_SPOT_WINDOW_STEP_SECS: f64 = 0.25; // 250ms step between windows (50% overlap)
+const QUIET_SPOT_SEARCH_RADIUS_RATIO: f64 = 0.15; // 15% of expected track duration
+const QUIET_SPOT_SEARCH_RADIUS_MIN: f64 = 5.0;   // Minimum search radius
+const QUIET_SPOT_SEARCH_RADIUS_MAX: f64 = 20.0;  // Maximum search radius
+const QUIET_SPOT_PROXIMITY_PENALTY: f64 = 0.5;   // Penalty factor for distance from expected
+const QUIET_SPOT_TOP_EDITIONS: usize = 5;        // Try top N editions for guided search
+
+// Name distance weighting for edition ranking
+const NAME_DISTANCE_ALBUM_WEIGHT: f64 = 2.0;
+const NAME_DISTANCE_ARTIST_WEIGHT: f64 = 1.0;
+
+// Silence threshold for dB calculations
+const SILENCE_DB_FLOOR: f32 = -100.0;
+const SILENCE_RMS_EPSILON: f32 = 1e-10;
+
+// ===== End Configuration Constants =====
+
+// ===== Shared Scoring Functions =====
+
+/// Calculate MBID priority score based on release metadata
+/// Lower scores are better (CD, Official, US releases prioritized)
+fn calculate_mbid_priority_score(is_cd: bool, country: Option<&str>, status: Option<&str>) -> f64 {
+    let mut score = 0.0;
+
+    if is_cd {
+        score += SCORE_CD_BONUS;
+    }
+
+    if country == Some("US") {
+        score += SCORE_US_BONUS;
+    }
+
+    if status == Some("Official") {
+        score += SCORE_OFFICIAL_BONUS;
+    }
+
+    score
+}
+
+// ===== End Shared Scoring Functions =====
+
+// ===== MusicBrainz API Structures =====
+
+/// Response from MusicBrainz release search API.
 #[derive(Debug, Clone, Deserialize)]
 struct MBSearchResponse {
+    /// List of releases matching the search query.
     releases: Vec<MBRelease>,
 }
 
+/// A MusicBrainz release (album) from search results.
+///
+/// Note: Some fields exist in the MusicBrainz JSON response but are not currently
+/// used by our matching algorithm. They are retained for API completeness.
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct MBRelease {
+    /// MusicBrainz release ID (MBID).
     id: String,
+    /// Release title.
     title: String,
+    /// Artist credits for this release.
     #[serde(rename = "artist-credit")]
     artist_credit: Option<Vec<MBArtistCredit>>,
+    /// Country of release (e.g., "US", "GB").
     country: Option<String>,
+    /// Release status (e.g., "Official", "Bootleg").
     status: Option<String>,
+    /// Physical packaging type (e.g., "Jewel Case").
     packaging: Option<String>,
 }
 
+/// Artist credit entry linking an artist to a release.
 #[derive(Debug, Clone, Deserialize)]
 struct MBArtistCredit {
+    /// The artist information.
     artist: Option<MBArtist>,
 }
 
+/// MusicBrainz artist information.
 #[derive(Debug, Clone, Deserialize)]
 struct MBArtist {
+    /// Artist name.
     name: String,
 }
 
+/// Detailed release information including track listings.
+///
+/// Note: Some fields exist in the MusicBrainz JSON response but are not currently
+/// used by our matching algorithm. They are retained for API completeness.
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct MBReleaseDetails {
+    /// MusicBrainz release ID (MBID).
     id: String,
+    /// Release title.
     title: String,
+    /// Media (discs) in this release.
     media: Vec<MBMedia>,
 }
 
+/// A single medium (disc) within a release.
 #[derive(Debug, Deserialize)]
 struct MBMedia {
+    /// Tracks on this medium.
     tracks: Vec<MBTrack>,
+    /// Format type (e.g., "CD", "Vinyl", "Digital Media").
     format: Option<String>,
 }
 
+/// A single track on a medium.
 #[derive(Debug, Deserialize)]
 struct MBTrack {
-    length: Option<u32>, // in milliseconds
+    /// Track length in milliseconds.
+    length: Option<u32>,
 }
 
-// Edition grouping structures (multiple MBIDs can represent same edition)
+// ===== Edition Grouping Structures =====
+
+/// A specific MusicBrainz release ID within an edition group.
+/// Multiple MBIDs can represent the same edition (e.g., US vs UK release).
 #[derive(Debug, Clone)]
 struct EditionMBID {
+    /// MusicBrainz release ID.
     mbid: String,
+    /// Country of release.
     country: Option<String>,
+    /// Release status (Official, Bootleg, etc.).
     status: Option<String>,
+    /// Whether this is a CD release (preferred format).
     is_cd: bool,
 }
 
+/// A unique album edition identified by track count and duration pattern.
+/// Groups multiple MBIDs that represent the same physical release.
 #[derive(Debug, Clone)]
 struct Edition {
+    /// Number of tracks in this edition.
     track_count: usize,
-    durations: Vec<u32>,           // Track durations in seconds
-    mbids: Vec<EditionMBID>,       // All MBIDs for this edition
-    duration_signature: String,    // For deduplication (e.g., "107,125,135,...")
-    artist: String,                // Artist name from MusicBrainz
-    album: String,                 // Album title from MusicBrainz
+    /// Track durations in seconds.
+    durations: Vec<u32>,
+    /// All MBIDs representing this edition.
+    mbids: Vec<EditionMBID>,
+    /// Signature for deduplication (e.g., "107,125,135,...").
+    duration_signature: String,
+    /// Artist name from MusicBrainz.
+    artist: String,
+    /// Album title from MusicBrainz.
+    album: String,
+    /// Rank 1-N based on name similarity to source (1 = best match).
+    name_distance_rank: usize,
+    /// Overall name distance score (lower = better match).
+    name_distance_score: f64,
 }
 
-// Rate limiter for MusicBrainz API (1 request per second)
+// ===== Run 12 Stage 2/3 Structures =====
+
+/// Over-segmented candidate collected during Stage 2 for Stage 3 assembly.
+/// Represents a segmentation with more tracks than expected, which may
+/// assemble into a correct match via dynamic programming.
+#[derive(Debug, Clone)]
+struct OverSegmentedCandidate {
+    /// Detected track durations in seconds.
+    durations: Vec<f64>,
+    /// Silence detection threshold used (dB).
+    threshold_db: f64,
+    /// Minimum silence duration used (seconds).
+    min_duration_secs: f64,
+    /// Number of tracks detected.
+    track_count: usize,
+}
+
+/// Results from Stage 2 parameter optimization.
+/// Contains both the best immediate match AND all over-segmented candidates
+/// for comprehensive Stage 3 assembly (Run 12 fix).
+#[derive(Debug)]
+struct Stage2Results {
+    /// Best match found during parameter optimization.
+    best_result: Option<CandidateTestResult>,
+    /// All over-segmented candidates for Stage 3 assembly.
+    over_segmented_candidates: Vec<OverSegmentedCandidate>,
+}
+
+// ===== Rate Limiting =====
+
+/// Rate limiter for MusicBrainz API compliance.
+/// Enforces minimum delay between requests to avoid being blocked.
+#[derive(Debug)]
 struct RateLimiter {
+    /// Timestamp of last API request.
     last_request: Arc<Mutex<std::time::Instant>>,
 }
 
 impl RateLimiter {
     fn new() -> Self {
         Self {
-            last_request: Arc::new(Mutex::new(std::time::Instant::now() - Duration::from_secs(2))),
+            last_request: Arc::new(Mutex::new(std::time::Instant::now() - Duration::from_secs(MB_RATE_LIMIT_SECS))),
         }
     }
 
@@ -133,8 +300,8 @@ impl RateLimiter {
 
         // MusicBrainz API limit: 1 req/sec
         // Use 2-second delay (0.5 req/sec) for 2x safety margin to prevent timeouts
-        if elapsed < Duration::from_secs(2) {
-            let wait_time = Duration::from_secs(2) - elapsed;
+        if elapsed < Duration::from_secs(MB_RATE_LIMIT_SECS) {
+            let wait_time = Duration::from_secs(MB_RATE_LIMIT_SECS) - elapsed;
             sleep(wait_time).await;
         }
 
@@ -174,162 +341,193 @@ where
     unreachable!()
 }
 
+// ===== Validation Result Structures =====
+
+/// Comparison result for a single track.
 #[derive(Debug, Clone, Serialize)]
 struct TrackMatch {
+    /// Duration detected from audio analysis (seconds).
     detected_duration: f64,
+    /// Expected duration from MusicBrainz (seconds).
     expected_duration: u32,
+    /// Absolute difference between detected and expected (seconds).
     error: f64,
-    matches: bool, // Within 10s tolerance
+    /// Whether error is within MATCH_TOLERANCE_SECS.
+    matches: bool,
 }
 
+/// A detected track with no corresponding MusicBrainz entry.
 #[derive(Debug, Clone, Serialize)]
 struct ExtraTrack {
-    track_index: usize, // 1-based index in detected tracks
+    /// 1-based index in detected tracks.
+    track_index: usize,
+    /// Duration in seconds.
     duration: f64,
-    description: String, // "Extra track with no corresponding MusicBrainz entry"
+    /// Description of why this is extra.
+    description: String,
 }
 
+/// Complete validation result for an album matching attempt.
 #[derive(Debug, Clone, Serialize)]
 struct ValidationResult {
+    /// Path to the source audio file.
     album_path: String,
+    /// Artist name (from ID3 or path).
     artist: String,
+    /// Album name (from ID3 or path).
     album: String,
+    /// MusicBrainz release ID of best match.
     mbid: String,
-    musicbrainz_url: String, // https://musicbrainz.org/release/{mbid}
+    /// Full MusicBrainz URL for the release.
+    musicbrainz_url: String,
+    /// Number of tracks in matched MusicBrainz release.
     expected_track_count: usize,
+    /// Number of tracks detected in audio file.
     detected_track_count: usize,
+    /// Whether detected count equals expected count.
     perfect_count_match: bool,
+    /// Per-track comparison results.
     track_matches: Vec<TrackMatch>,
-    extra_tracks: Vec<ExtraTrack>, // Detected tracks with no MusicBrainz match
-    matched_tracks_count: usize, // Tracks within 10s tolerance
-    match_percentage: f64, // % of expected tracks that matched
+    /// Detected tracks with no MusicBrainz match.
+    extra_tracks: Vec<ExtraTrack>,
+    /// Count of tracks within tolerance.
+    matched_tracks_count: usize,
+    /// Percentage of expected tracks that matched.
+    match_percentage: f64,
+    /// Mean absolute error across matched tracks (seconds).
     mean_error: f64,
+    /// Status message describing result.
     status: String,
-    // New fields for multi-stage matching
-    matching_stage: String, // "album_extractor_1_initial", "album_extractor_2_optimization", etc.
+    /// Stage that produced best match (e.g., "album_extractor_2_optimization").
+    matching_stage: String,
+    /// Optimal silence threshold (dB) if found.
     best_threshold_db: Option<f64>,
+    /// Optimal minimum silence duration (seconds) if found.
     best_min_duration_secs: Option<f64>,
-    confidence: String, // "Excellent", "Good", "Fair", "Poor"
+    /// Confidence level: "Excellent", "Good", "Fair", "Poor".
+    confidence: String,
 }
 
-// ===== Shared Context Structures for Stage Pipeline =====
-
-/// Shared context passed between matching stages
-#[derive(Debug)]
-struct MatchContext {
-    // Audio data
-    samples: Vec<f32>,
-    sample_rate: u32,
-
-    // Metadata
-    artist: String,
-    album: String,
-    file_path: PathBuf,
-
-    // MusicBrainz candidates (sorted by score, best first)
-    mb_candidates: Vec<(Vec<u32>, String)>, // (durations, mbid)
-    mb_candidate_tracker: MBCandidateTracker,
-
-    // Best match tracking across all stages
-    best_durations: Vec<f64>,
-    best_matches: Vec<TrackMatch>,
-    best_matched_count: usize,
-    best_percentage: f64,
-    best_stage: String,
-    best_threshold: Option<f64>,
-    best_min_duration: Option<f64>,
-    expected_durations: Vec<u32>,
-    mbid: String,
-
-    // Stage-specific tracking
-    stage2_results: Vec<(Vec<f64>, f64, f64)>, // (durations, threshold, min_dur)
-    stage3_result: Option<Vec<f64>>,
-
-    // Configuration
-    match_tolerance_secs: f64,
-    threshold_values: Vec<f64>,
-    min_duration_values: Vec<f64>,
-}
-
-impl MatchContext {
-    /// Update best match if new result is better
-    fn update_best(
-        &mut self,
-        durations: Vec<f64>,
-        matches: Vec<TrackMatch>,
-        matched_count: usize,
-        percentage: f64,
-        stage_name: &str,
-        threshold: Option<f64>,
-        min_duration: Option<f64>,
-    ) {
-        if percentage > self.best_percentage {
-            self.best_durations = durations;
-            self.best_matches = matches;
-            self.best_matched_count = matched_count;
-            self.best_percentage = percentage;
-            self.best_stage = stage_name.to_string();
-            self.best_threshold = threshold;
-            self.best_min_duration = min_duration;
+impl ValidationResult {
+    /// Create an error/failure ValidationResult with common defaults
+    fn error(
+        album_path: &Path,
+        artist: &str,
+        album: &str,
+        detected_track_count: usize,
+        status: String,
+    ) -> Self {
+        Self {
+            album_path: album_path.to_string_lossy().to_string(),
+            artist: artist.to_string(),
+            album: album.to_string(),
+            mbid: String::new(),
+            musicbrainz_url: String::new(),
+            expected_track_count: 0,
+            detected_track_count,
+            perfect_count_match: false,
+            track_matches: Vec::new(),
+            extra_tracks: Vec::new(),
+            matched_tracks_count: 0,
+            match_percentage: 0.0,
+            mean_error: 0.0,
+            status,
+            matching_stage: "None".to_string(),
+            best_threshold_db: None,
+            best_min_duration_secs: None,
+            confidence: "Poor".to_string(),
         }
-    }
-
-    /// Check if we've achieved perfect match (100%)
-    fn has_perfect_match(&self) -> bool {
-        self.best_percentage >= 100.0
     }
 }
 
 // ===== Phase 0: ID3 Tag Extraction & Reconciliation =====
 
+/// Raw ID3 tag metadata extracted from an audio file via ffprobe.
+///
+/// Note: Some fields exist in the ffprobe JSON output but are not currently
+/// used by our matching algorithm. They are retained for completeness.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ID3Metadata {
+    /// Artist name from ID3 tag.
     artist: Option<String>,
+    /// Album name from ID3 tag.
     album: Option<String>,
+    /// Release date from ID3 tag.
     date: Option<String>,
+    /// Genre from ID3 tag.
     genre: Option<String>,
+    /// MusicBrainz album ID if present in tags.
     musicbrainz_albumid: Option<String>,
+    /// MusicBrainz artist ID if present in tags.
     musicbrainz_artistid: Option<String>,
+    /// Comment field (may contain track count info).
     comment: Option<String>,
+    /// All ID3 tags as key-value pairs.
     all_tags: HashMap<String, String>,
 }
 
-#[derive(Debug)]
+/// Metadata after reconciling ID3 tags with path-derived information.
+#[derive(Debug, Clone)]
 struct ReconciledMetadata {
+    /// Final artist name to use for search.
     artist: String,
+    /// Final album name to use for search.
     album: String,
+    /// Strategy used to resolve conflicts.
     strategy: ReconciliationStrategy,
+    /// Confidence level in the reconciled metadata.
     confidence: MetadataConfidence,
+    /// Source of the artist name.
     artist_source: MetadataSource,
+    /// Source of the album name.
     album_source: MetadataSource,
+    /// Alternative artist name for fallback searches.
     alternate_artist: Option<String>,
+    /// Alternative album name for fallback searches.
     alternate_album: Option<String>,
+    /// Whether MusicBrainz IDs were found in tags.
     has_musicbrainz_ids: bool,
+    /// Estimated track count from ID3 comment field.
     estimated_track_count: Option<usize>,
 }
 
+/// Strategy used to reconcile ID3 tags with path-derived metadata.
 #[derive(Debug, Clone, Copy)]
 enum ReconciliationStrategy {
-    DirectMatch,   // ID3 and path agree
-    PartialMatch,  // Partial overlap, chose one source
-    Conflict,      // Sources disagree, applied heuristics
-    GapFill,       // One source missing, used other
-    ID3Only,       // Path extraction failed
-    PathOnly,      // ID3 tags missing
+    /// ID3 and path agree on values.
+    DirectMatch,
+    /// Partial overlap, chose one source.
+    PartialMatch,
+    /// Sources disagree, applied heuristics.
+    Conflict,
+    /// One source missing, used other.
+    GapFill,
+    /// ID3 tags missing, used path only.
+    PathOnly,
 }
 
+/// Confidence level in reconciled metadata.
 #[derive(Debug, Clone, Copy)]
 enum MetadataConfidence {
-    High,    // DirectMatch or strong heuristic confidence
-    Medium,  // PartialMatch or moderate heuristic confidence
-    Low,     // Conflict or GapFill
+    /// DirectMatch or strong heuristic confidence.
+    High,
+    /// PartialMatch or moderate heuristic confidence.
+    Medium,
+    /// Conflict or GapFill.
+    Low,
 }
 
+/// Source of a metadata field.
 #[derive(Debug, Clone, Copy)]
 enum MetadataSource {
+    /// Value from ID3 tags.
     ID3,
+    /// Value derived from file path.
     Path,
+    /// Both sources agree.
     Both,
+    /// Sources conflict (heuristic was applied).
     Conflict,
 }
 
@@ -440,13 +638,13 @@ fn calculate_rms(samples: &[f32]) -> f32 {
 /// Calculate RMS amplitude in decibels
 fn calculate_db(samples: &[f32]) -> f32 {
     if samples.is_empty() {
-        return -100.0;
+        return SILENCE_DB_FLOOR;
     }
 
     let rms = calculate_rms(samples);
 
-    if rms < 1e-10 {
-        -100.0
+    if rms < SILENCE_RMS_EPSILON {
+        SILENCE_DB_FLOOR
     } else {
         20.0 * rms.log10()
     }
@@ -464,17 +662,17 @@ fn detect_silence(
     // Use window = min(0.1s, min_duration / 3) to ensure at least 3 windows per silence period
     let rms_window_secs = if min_duration_secs <= 0.3 {
         // For short durations (≤0.3s): use 25ms window for fine-grained detection
-        0.025
+        RMS_WINDOW_SHORT_SECS
     } else if min_duration_secs <= 0.6 {
         // For medium durations (0.3-0.6s): use 50ms window
-        0.05
+        RMS_WINDOW_MEDIUM_SECS
     } else {
         // For long durations (>0.6s): use standard 100ms window
-        0.1
+        RMS_WINDOW_STANDARD_SECS
     };
 
     let window_size = (sample_rate as f64 * rms_window_secs) as usize;
-    let window_step = (sample_rate as f64 * rms_window_secs * 0.5) as usize; // 50% overlap
+    let window_step = (sample_rate as f64 * rms_window_secs * RMS_WINDOW_OVERLAP) as usize; // 50% overlap
     let min_silence_samples = (sample_rate as f64 * min_duration_secs) as usize;
 
     let mut is_silent = Vec::new();
@@ -595,46 +793,6 @@ fn apply_wildcard_fixes(text: &str) -> Option<String> {
     None
 }
 
-/// Check if album name is a reasonable match (fuzzy comparison)
-/// Returns true if the MusicBrainz title is similar enough to the expected album
-fn is_album_name_match(mb_title: &str, expected_album: &str) -> bool {
-    let mb_lower = mb_title.to_lowercase();
-    let expected_lower = expected_album.to_lowercase();
-
-    // Exact match (case insensitive)
-    if mb_lower == expected_lower {
-        return true;
-    }
-
-    // Check if one contains the other (handles extra text like "Deluxe Edition")
-    if mb_lower.contains(&expected_lower) || expected_lower.contains(&mb_lower) {
-        return true;
-    }
-
-    // Split into words and check overlap
-    let mb_words: Vec<&str> = mb_lower.split_whitespace().collect();
-    let expected_words: Vec<&str> = expected_lower.split_whitespace().collect();
-
-    // If all expected words appear in MB title, it's a match
-    let all_expected_in_mb = expected_words.iter().all(|word| mb_words.contains(word));
-    if all_expected_in_mb {
-        return true;
-    }
-
-    // If all MB words appear in expected title, it's a match (MB title is subset)
-    let all_mb_in_expected = mb_words.iter().all(|word| expected_words.contains(word));
-    if all_mb_in_expected {
-        return true;
-    }
-
-    // Calculate word overlap percentage
-    let matching_words = expected_words.iter().filter(|word| mb_words.contains(word)).count();
-    let overlap_ratio = matching_words as f64 / expected_words.len().max(1) as f64;
-
-    // Accept if >50% of words match
-    overlap_ratio >= 0.5
-}
-
 /// Generate search query variants to try in sequence
 fn generate_search_queries(artist: &str, album: &str) -> Vec<String> {
     let mut queries = Vec::new();
@@ -677,240 +835,55 @@ fn generate_search_queries(artist: &str, album: &str) -> Vec<String> {
     queries
 }
 
-/// Search MusicBrainz for album and get expected track durations
-/// Multi-stage filtering: 1) Total duration, 2) Track count, 3) Duration pattern
-/// Uses multiple search strategies: original, CamelCase split, fuzzy matching
-async fn get_expected_durations(
-    artist: &str,
-    album: &str,
-    detected_track_count: usize,
-    detected_total_duration: f64,
-    rate_limiter: &RateLimiter,
-) -> Result<Vec<(Vec<u32>, String)>, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::builder()
-        .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
-        .timeout(Duration::from_secs(30))
-        .build()?;
-
-    // Try multiple search strategies with proper cascading:
-    // - Use first strategy that returns album name matches
-    // - If a strategy returns results but no album matches, try next strategy
-    // - Only fall back to unfiltered results if all strategies fail
-    let search_queries = generate_search_queries(artist, album);
-    let mut final_response: Option<MBSearchResponse> = None;
-    let mut use_album_filter = false;
-
-    for (i, query) in search_queries.iter().enumerate() {
-        let encoded_query = urlencoding::encode(query);
-        let search_url = format!(
-            "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
-            encoded_query
-        );
-
-        rate_limiter.wait().await;
-
-        // Retry with exponential backoff on network failures
-        let response = retry_with_backoff(|| async {
-            client
-                .get(&search_url)
-                .send()
-                .await
-                .map_err(|e| format!("error sending request for url ({}): {}", search_url, e))?
-                .json::<MBSearchResponse>()
-                .await
-                .map_err(|e| format!("error parsing JSON response: {}", e))
-        }).await;
-
-        let response = match response {
-            Ok(r) => r,
-            Err(e) => {
-                println!("  Strategy {}/{} FAILED: {}", i + 1, search_queries.len(), e);
-                continue; // Try next search strategy
-            }
-        };
-
-        if response.releases.is_empty() {
-            println!("  Strategy {}/{}: No results", i + 1, search_queries.len());
-            continue;
-        }
-
-        // Check if this strategy's results match the album name
-        let matching_count = response.releases
-            .iter()
-            .filter(|release| is_album_name_match(&release.title, album))
-            .count();
-
-        if matching_count > 0 {
-            // Found usable matches - use this strategy's results with album filter
-            println!("  MusicBrainz: Found {} results with search strategy {}/{}, {} match album name",
-                     response.releases.len(), i + 1, search_queries.len(), matching_count);
-            final_response = Some(response);
-            use_album_filter = true;
-            break;
-        } else {
-            // This strategy returned results but none match album name - save as fallback
-            println!("  Strategy {}/{}: {} results but no album name matches, trying next strategy",
-                     i + 1, search_queries.len(), response.releases.len());
-            if final_response.is_none() {
-                final_response = Some(response);
-            }
-        }
-    }
-
-    let search_response = final_response.ok_or("No releases found with any search strategy")?;
-
-    // Apply album name filter if appropriate strategy was found
-    let releases_to_fetch: Vec<&MBRelease> = if use_album_filter {
-        search_response.releases
-            .iter()
-            .filter(|release| is_album_name_match(&release.title, album))
-            .take(50)
-            .collect()
+/// Calculate overall name distance score for a release against source variants
+/// Returns: (2 * album_distance + artist_distance) / 3
+/// Lower scores indicate better matches
+fn calculate_name_distance(
+    candidate_artist: &str,
+    candidate_album: &str,
+    source_artists: &[String],
+    source_albums: &[String],
+) -> f64 {
+    // Calculate average Levenshtein distance to all source album names
+    let album_distances: Vec<usize> = source_albums
+        .iter()
+        .map(|source_album| levenshtein(candidate_album, source_album))
+        .collect();
+    let avg_album_distance = if album_distances.is_empty() {
+        0.0
     } else {
-        // Fallback: use first 30 from last strategy that returned any results
-        println!("  No strategy found album name matches, falling back to first 30 from last response");
-        search_response.releases.iter().take(30).collect()
+        album_distances.iter().sum::<usize>() as f64 / album_distances.len() as f64
     };
 
-    // Fetch details for all candidates
-    #[derive(Debug)]
-    struct Candidate {
-        durations: Vec<u32>,
-        mbid: String,
-        track_count: usize,
-        total_duration: u32,
-        duration_diff: f64,
-        count_diff: i32,
-        // Metadata for prioritization
-        country: Option<String>,
-        status: Option<String>,
-        packaging: Option<String>,
-        is_cd: bool,
-    }
-
-    let mut candidates: Vec<Candidate> = Vec::new();
-
-    // Fetch details for all matching releases (instead of just first 30)
-    for release in releases_to_fetch.iter() {
-        rate_limiter.wait().await;
-
-        let details_url = format!(
-            "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
-            release.id
-        );
-
-        // Retry with exponential backoff on network failures
-        let details = retry_with_backoff(|| async {
-            client
-                .get(&details_url)
-                .send()
-                .await
-                .map_err(|e| format!("error fetching release details: {}", e))?
-                .json::<MBReleaseDetails>()
-                .await
-                .map_err(|e| format!("error parsing release details: {}", e))
-        }).await;
-
-        let details = match details {
-            Ok(d) => d,
-            Err(_) => continue, // Skip this release if retry fails
-        };
-
-        // Extract track durations and check for CD format
-        let mut durations = Vec::new();
-        let mut is_cd = false;
-        for medium in &details.media {
-            for track in &medium.tracks {
-                if let Some(length_ms) = track.length {
-                    durations.push(length_ms / 1000); // Convert to seconds
-                }
-            }
-            // Check if this medium is a CD
-            if let Some(ref format) = medium.format {
-                if format == "CD" {
-                    is_cd = true;
-                }
-            }
-        }
-
-        let track_count = durations.len();
-        let total_duration: u32 = durations.iter().sum();
-
-        // Calculate fitness scores
-        let duration_diff = (total_duration as f64 - detected_total_duration).abs();
-        let count_diff = (track_count as i32 - detected_track_count as i32).abs();
-
-        candidates.push(Candidate {
-            durations,
-            mbid: release.id.clone(),
-            track_count,
-            total_duration,
-            duration_diff,
-            count_diff,
-            country: release.country.clone(),
-            status: release.status.clone(),
-            packaging: release.packaging.clone(),
-            is_cd,
-        });
-    }
-
-    if candidates.is_empty() {
-        return Err("No valid releases found".into());
-    }
-
-    // Sort ALL candidates by composite score (no duration filtering)
-    // Base score = duration_diff (seconds) + count_diff * 60 (penalize track count mismatch heavily)
-    // Then apply metadata-based prioritization (subtract to improve score)
-    let mut scored: Vec<_> = candidates
+    // Calculate average Levenshtein distance to all source artist names
+    let artist_distances: Vec<usize> = source_artists
         .iter()
-        .map(|c| {
-            let mut score = c.duration_diff + (c.count_diff as f64 * 60.0);
-
-            // Prioritize CD releases (-50 points)
-            if c.is_cd {
-                score -= 50.0;
-            }
-
-            // Prioritize US releases (-30 points)
-            if c.country.as_deref() == Some("US") {
-                score -= 30.0;
-            }
-
-            // Prioritize Official status (-40 points)
-            if c.status.as_deref() == Some("Official") {
-                score -= 40.0;
-            }
-
-            (c, score)
-        })
+        .map(|source_artist| levenshtein(candidate_artist, source_artist))
         .collect();
+    let avg_artist_distance = if artist_distances.is_empty() {
+        0.0
+    } else {
+        artist_distances.iter().sum::<usize>() as f64 / artist_distances.len() as f64
+    };
 
-    scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
-
-    // Return ALL candidates sorted by score (best first)
-    // This allows trying editions with better duration matches first,
-    // while still trying all available editions if needed
-    let sorted_candidates: Vec<(Vec<u32>, String)> = scored
-        .into_iter()
-        .map(|(c, _score)| (c.durations.clone(), c.mbid.clone()))
-        .collect();
-
-    Ok(sorted_candidates)
+    // Overall score: album name weighted 2x, artist name weighted 1x
+    (NAME_DISTANCE_ALBUM_WEIGHT * avg_album_distance + NAME_DISTANCE_ARTIST_WEIGHT * avg_artist_distance)
+        / (NAME_DISTANCE_ALBUM_WEIGHT + NAME_DISTANCE_ARTIST_WEIGHT)
 }
 
 /// Comprehensive MusicBrainz search using ALL strategies and name variants
-/// Returns up to 150 releases with full metadata (not yet grouped into editions)
-/// Returns: Vec<(durations, mbid_info, artist, album)>
+/// Returns up to MB_MAX_RELEASES releases with full metadata (not yet grouped into editions)
+/// Returns: Vec<(durations, mbid_info, artist, album, name_distance_rank, name_distance_score)>
 async fn comprehensive_musicbrainz_search(
     artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
     album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
-    file_duration_secs: f64,     // Total audio file duration for filtering
-    id3_track_count: Option<usize>,  // Track count from ID3 tags (if available)
+    _file_duration_secs: f64,    // Total audio file duration (reserved for future filtering)
+    _id3_track_count: Option<usize>, // Track count from ID3 tags (reserved for future use)
     rate_limiter: &RateLimiter,
-) -> Result<Vec<(Vec<u32>, EditionMBID, String, String)>, Box<dyn std::error::Error>> {
+) -> Result<Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
-        .timeout(Duration::from_secs(30))
+        .timeout(Duration::from_secs(MB_REQUEST_TIMEOUT_SECS))
         .build()?;
 
     let mut all_releases: Vec<MBRelease> = Vec::new();
@@ -922,8 +895,8 @@ async fn comprehensive_musicbrainz_search(
             let search_queries = generate_search_queries(artist, album);
 
             for (i, query) in search_queries.iter().enumerate() {
-                if all_releases.len() >= 150 {
-                    println!("  Reached 150 release limit");
+                if all_releases.len() >= MB_MAX_RELEASES {
+                    println!("  Reached {} release limit", MB_MAX_RELEASES);
                     break;
                 }
 
@@ -964,19 +937,19 @@ async fn comprehensive_musicbrainz_search(
                     if seen_mbids.insert(release.id.clone()) {
                         all_releases.push(release);
 
-                        if all_releases.len() >= 150 {
+                        if all_releases.len() >= MB_MAX_RELEASES {
                             break;
                         }
                     }
                 }
             }
 
-            if all_releases.len() >= 150 {
+            if all_releases.len() >= MB_MAX_RELEASES {
                 break;
             }
         }
 
-        if all_releases.len() >= 150 {
+        if all_releases.len() >= MB_MAX_RELEASES {
             break;
         }
     }
@@ -1051,15 +1024,38 @@ async fn comprehensive_musicbrainz_search(
         ));
     }
 
-    Ok(results)
+    // Calculate name distance scores and assign ranks (1-N, lower = better)
+    let mut results_with_scores: Vec<((Vec<u32>, EditionMBID, String, String), f64)> = results
+        .into_iter()
+        .map(|(durations, mbid_info, artist, album)| {
+            let score = calculate_name_distance(&artist, &album, artist_variants, album_variants);
+            ((durations, mbid_info, artist, album), score)
+        })
+        .collect();
+
+    // Sort by name distance score (ascending - lower is better)
+    results_with_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Assign ranks 1-N based on sorted order and include scores
+    let results_with_ranks: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)> = results_with_scores
+        .into_iter()
+        .enumerate()
+        .map(|(index, ((durations, mbid_info, artist, album), score))| {
+            let rank = index + 1; // Rank 1-based
+            (durations, mbid_info, artist, album, rank, score)
+        })
+        .collect();
+
+    Ok(results_with_ranks)
 }
 
 /// Group MBIDs into editions based on track count + duration pattern
 /// Multiple MBIDs can represent the same edition (e.g., US vs UK release of same album)
-fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String)>) -> Vec<Edition> {
+/// Takes the best (lowest) name distance rank and its score among all MBIDs in an edition
+fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>) -> Vec<Edition> {
     let mut editions: Vec<Edition> = Vec::new();
 
-    for (durations, mbid_info, artist, album) in releases {
+    for (durations, mbid_info, artist, album, rank, score) in releases {
         // Create signature: "track_count:duration1,duration2,..."
         let signature = format!("{}:{}",
             durations.len(),
@@ -1070,6 +1066,11 @@ fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String)>) -
         if let Some(edition) = editions.iter_mut().find(|e| e.duration_signature == signature) {
             // Add this MBID to existing edition
             edition.mbids.push(mbid_info);
+            // Update to best (lowest) rank and corresponding score
+            if rank < edition.name_distance_rank {
+                edition.name_distance_rank = rank;
+                edition.name_distance_score = score;
+            }
         } else {
             // Create new edition
             editions.push(Edition {
@@ -1079,6 +1080,8 @@ fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String)>) -
                 duration_signature: signature,
                 artist,
                 album,
+                name_distance_rank: rank,
+                name_distance_score: score,
             });
         }
     }
@@ -1105,10 +1108,40 @@ fn score_edition_match(
     // Add penalty for track count difference (60 seconds per track)
     if let Some(file_tracks) = estimated_track_count {
         let track_diff = (edition.track_count as i32 - file_tracks as i32).abs();
-        score += track_diff as f64 * 60.0;
+        score += track_diff as f64 * SCORE_TRACK_COUNT_PENALTY;
     }
 
     score
+}
+
+/// Re-sort editions using a conservative bubble sort based on name similarity.
+///
+/// After editions are sorted by runtime likelihood, this performs a secondary
+/// sort that allows editions with significantly better name matches to bubble up,
+/// while preserving the runtime-based ordering for editions with similar name scores.
+///
+/// Algorithm: Repeatedly scan the list. If item[i] has a name_distance_score more
+/// than 2x the score of item[i+1], swap them. Continue until a full pass has zero swaps.
+/// This ensures only significantly better name matches override the runtime ordering.
+fn resort_by_name_similarity(editions: &mut [Edition]) {
+    if editions.len() < 2 {
+        return;
+    }
+
+    loop {
+        let mut swaps = 0;
+        for i in 0..editions.len() - 1 {
+            // Lower name_distance_score is better
+            // Swap if current item's score is more than 2x worse than next item's score
+            if editions[i].name_distance_score > 2.0 * editions[i + 1].name_distance_score {
+                editions.swap(i, i + 1);
+                swaps += 1;
+            }
+        }
+        if swaps == 0 {
+            break;
+        }
+    }
 }
 
 /// Select best MBID from an edition using metadata prioritization
@@ -1126,23 +1159,11 @@ fn select_best_mbid(edition: &Edition) -> String {
     let mut scored: Vec<(&EditionMBID, f64)> = edition.mbids
         .iter()
         .map(|mbid_info| {
-            let mut score = 0.0;
-
-            // Prioritize CD releases (-50 points)
-            if mbid_info.is_cd {
-                score -= 50.0;
-            }
-
-            // Prioritize US releases (-30 points)
-            if mbid_info.country.as_deref() == Some("US") {
-                score -= 30.0;
-            }
-
-            // Prioritize Official status (-40 points)
-            if mbid_info.status.as_deref() == Some("Official") {
-                score -= 40.0;
-            }
-
+            let score = calculate_mbid_priority_score(
+                mbid_info.is_cd,
+                mbid_info.country.as_deref(),
+                mbid_info.status.as_deref(),
+            );
             (mbid_info, score)
         })
         .collect();
@@ -1153,19 +1174,19 @@ fn select_best_mbid(edition: &Edition) -> String {
 }
 
 /// Extract artist and album from path
+/// Expects pattern: ".../Artist/Album.mp3" (cross-platform)
 fn extract_metadata_from_path(path: &Path) -> (String, String) {
-    let path_str = path.to_string_lossy();
+    // Use path components for cross-platform compatibility
+    let components: Vec<_> = path.components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .collect();
 
-    // Extract from pattern: "Music\Artist\Album.mp3"
-    let parts: Vec<&str> = path_str.split('\\').collect();
-
-    if parts.len() >= 3 {
-        let artist = parts[parts.len() - 2].replace(", ", " ").to_string();
-        let album_with_ext = parts[parts.len() - 1];
+    if components.len() >= 2 {
+        let artist = components[components.len() - 2].replace(", ", " ");
+        let album_with_ext = components[components.len() - 1];
         let album = album_with_ext
             .trim_end_matches(".mp3")
-            .replace(", ", " ")
-            .to_string();
+            .replace(", ", " ");
 
         (artist, album)
     } else {
@@ -1476,276 +1497,6 @@ fn extract_and_reconcile_metadata(file_path: &Path) -> ReconciledMetadata {
     reconcile_metadata(&id3, &path_artist_opt, &path_album_opt)
 }
 
-// ===== Stage 5: Expanded MusicBrainz Candidate Search =====
-
-#[derive(Debug, Clone)]
-struct SegmentationRecord {
-    durations: Vec<f64>,
-    track_count: usize,
-    source_stage: String,
-    threshold_db: Option<f64>,
-    min_duration_secs: Option<f64>,
-    signature: String, // for deduplication
-}
-
-impl SegmentationRecord {
-    fn new(
-        durations: Vec<f64>,
-        source_stage: String,
-        threshold_db: Option<f64>,
-        min_duration_secs: Option<f64>,
-    ) -> Self {
-        let track_count = durations.len();
-        // Create signature by rounding durations to 0.1s precision and joining
-        let signature = durations
-            .iter()
-            .map(|d| format!("{:.1}", d))
-            .collect::<Vec<_>>()
-            .join(",");
-
-        Self {
-            durations,
-            track_count,
-            source_stage,
-            threshold_db,
-            min_duration_secs,
-            signature,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct MBCandidateTracker {
-    tested_mbids: std::collections::HashSet<String>,
-    total_available: usize,
-}
-
-impl MBCandidateTracker {
-    fn new() -> Self {
-        Self {
-            tested_mbids: std::collections::HashSet::new(),
-            total_available: 0,
-        }
-    }
-
-    fn add_tested(&mut self, mbid: String) {
-        self.tested_mbids.insert(mbid);
-    }
-
-    fn is_tested(&self, mbid: &str) -> bool {
-        self.tested_mbids.contains(mbid)
-    }
-
-    fn remaining_count(&self) -> usize {
-        self.total_available.saturating_sub(self.tested_mbids.len())
-    }
-}
-
-#[derive(Debug)]
-struct Stage5MatchResult {
-    best_percentage: f64,
-    best_segmentation: SegmentationRecord,
-    best_mbid: String,
-    best_expected_durations: Vec<u32>,
-    best_matches: Vec<TrackMatch>,
-    total_combinations_tested: usize,
-    mean_error: f64,
-}
-
-/// Collect all unique segmentations from previous stages
-fn collect_all_segmentations(
-    stage1_durations: &[f64],
-    stage2_results: &[(Vec<f64>, f64, f64)], // (durations, threshold, min_duration)
-    stage3_result: &Option<Vec<f64>>,
-) -> Vec<SegmentationRecord> {
-    let mut segmentations = Vec::new();
-    let mut seen_signatures = std::collections::HashSet::new();
-
-    // Stage 1 (Initial)
-    let seg1 = SegmentationRecord::new(
-        stage1_durations.to_vec(),
-        "album_extractor_1_initial".to_string(),
-        Some(-57.0),
-        Some(0.9),
-    );
-    if seen_signatures.insert(seg1.signature.clone()) {
-        segmentations.push(seg1);
-    }
-
-    // Stage 2 (Parameter Optimization) - collect all tested combinations
-    for (durations, threshold, min_dur) in stage2_results {
-        let seg = SegmentationRecord::new(
-            durations.clone(),
-            format!("Parameter Optimization ({}dB, {}s)", threshold, min_dur),
-            Some(*threshold),
-            Some(*min_dur),
-        );
-        if seen_signatures.insert(seg.signature.clone()) {
-            segmentations.push(seg);
-        }
-    }
-
-    // Stage 3 (Segment Assembly)
-    if let Some(assembled_durations) = stage3_result {
-        let seg3 = SegmentationRecord::new(
-            assembled_durations.clone(),
-            "album_extractor_3_assembly".to_string(),
-            None,
-            None,
-        );
-        if seen_signatures.insert(seg3.signature.clone()) {
-            segmentations.push(seg3);
-        }
-    }
-
-    segmentations
-}
-
-/// Get additional untested MusicBrainz candidates
-async fn get_additional_mb_candidates(
-    artist: &str,
-    album: &str,
-    tracker: &MBCandidateTracker,
-    rate_limiter: &RateLimiter,
-) -> Result<Vec<(Vec<u32>, String)>, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::builder()
-        .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
-        .timeout(Duration::from_secs(30))
-        .build()?;
-
-    // Use all search strategies to get comprehensive candidate list
-    let search_queries = generate_search_queries(artist, album);
-    let mut all_candidates: Vec<(Vec<u32>, String)> = Vec::new();
-    let mut seen_mbids = std::collections::HashSet::new();
-
-    for query in search_queries.iter() {
-        let encoded_query = urlencoding::encode(query);
-        let search_url = format!(
-            "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
-            encoded_query
-        );
-
-        rate_limiter.wait().await;
-
-        let response = retry_with_backoff(|| async {
-            client
-                .get(&search_url)
-                .send()
-                .await
-                .map_err(|e| format!("error sending request: {}", e))?
-                .json::<MBSearchResponse>()
-                .await
-                .map_err(|e| format!("error parsing JSON: {}", e))
-        }).await;
-
-        let response = match response {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-
-        // Fetch details for untested releases
-        for release in response.releases.iter().take(50) {
-            if tracker.is_tested(&release.id) || seen_mbids.contains(&release.id) {
-                continue;
-            }
-
-            seen_mbids.insert(release.id.clone());
-
-            rate_limiter.wait().await;
-
-            let details_url = format!(
-                "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
-                release.id
-            );
-
-            let details = retry_with_backoff(|| async {
-                client
-                    .get(&details_url)
-                    .send()
-                    .await
-                    .map_err(|e| format!("error fetching details: {}", e))?
-                    .json::<MBReleaseDetails>()
-                    .await
-                    .map_err(|e| format!("error parsing details: {}", e))
-            }).await;
-
-            let details = match details {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
-
-            let mut durations = Vec::new();
-            for medium in &details.media {
-                for track in &medium.tracks {
-                    if let Some(length_ms) = track.length {
-                        durations.push(length_ms / 1000);
-                    }
-                }
-            }
-
-            if !durations.is_empty() {
-                all_candidates.push((durations, release.id.clone()));
-            }
-
-            // Stop if we have enough candidates
-            if all_candidates.len() >= 50 {
-                break;
-            }
-        }
-
-        if all_candidates.len() >= 50 {
-            break;
-        }
-    }
-
-    Ok(all_candidates)
-}
-
-/// Test all combinations of segmentations × MB candidates
-fn test_all_combinations(
-    segmentations: &[SegmentationRecord],
-    mb_candidates: &[(Vec<u32>, String)],
-    tolerance_secs: f64,
-) -> Option<Stage5MatchResult> {
-    let mut best_result: Option<Stage5MatchResult> = None;
-    let mut combinations_tested = 0;
-
-    for segmentation in segmentations {
-        for (expected_durations, mbid) in mb_candidates {
-            combinations_tested += 1;
-
-            let (matches, matched_count, percentage) =
-                analyze_track_matching(&segmentation.durations, expected_durations, tolerance_secs);
-
-            let mean_error = if !matches.is_empty() {
-                matches.iter().map(|m| m.error).sum::<f64>() / matches.len() as f64
-            } else {
-                0.0
-            };
-
-            // Update best if this is better
-            if best_result.is_none() || percentage > best_result.as_ref().unwrap().best_percentage {
-                best_result = Some(Stage5MatchResult {
-                    best_percentage: percentage,
-                    best_segmentation: segmentation.clone(),
-                    best_mbid: mbid.clone(),
-                    best_expected_durations: expected_durations.clone(),
-                    best_matches: matches,
-                    total_combinations_tested: combinations_tested,
-                    mean_error,
-                });
-
-                // Early exit if perfect match found
-                if percentage >= 100.0 {
-                    return best_result;
-                }
-            }
-        }
-    }
-
-    best_result
-}
-
 /// Assemble segments into tracks using dynamic programming
 /// Used in Stage 3 when over-segmentation is detected (detected_segments > expected_tracks)
 ///
@@ -1821,86 +1572,124 @@ fn assemble_segments_dp(
     Some(assembled_durations)
 }
 
-/// Detect quiet spots (local minima 1 std dev below mean RMS)
-/// Used in Stage 4 when silence-based detection fails
-fn detect_quiet_spots(
+/// Calculate RMS values across entire audio file for quiet spot detection
+/// Returns (position_secs, rms_value) pairs
+fn calculate_rms_profile(
     samples: &[f32],
     sample_rate: u32,
-    expected_track_count: usize,
-) -> Vec<usize> {
-    let window_size = (sample_rate as f64 * 0.5) as usize; // 500ms windows
+) -> Vec<(f64, f32)> {
+    let window_samples = (sample_rate as f64 * QUIET_SPOT_WINDOW_SECS) as usize;
+    let step_samples = (sample_rate as f64 * QUIET_SPOT_WINDOW_STEP_SECS) as usize;
 
-    // Calculate RMS for each window
-    let mut rms_values = Vec::new();
-    for i in (0..samples.len()).step_by(window_size / 4) {
-        let end = (i + window_size).min(samples.len());
-        let rms = calculate_rms(&samples[i..end]);
-        rms_values.push((i, rms));
+    let mut rms_profile = Vec::new();
+    let mut pos = 0;
+
+    while pos + window_samples <= samples.len() {
+        let rms = calculate_rms(&samples[pos..pos + window_samples]);
+        let pos_secs = pos as f64 / sample_rate as f64;
+        rms_profile.push((pos_secs, rms));
+        pos += step_samples;
     }
 
-    if rms_values.is_empty() {
+    rms_profile
+}
+
+/// Edition-guided quiet spot detection for Stage 4
+/// Searches for quiet spots near expected track boundaries based on edition durations
+fn find_edition_guided_boundaries(
+    rms_profile: &[(f64, f32)],
+    expected_durations: &[u32],
+    total_duration_secs: f64,
+) -> Vec<f64> {
+    if expected_durations.is_empty() || rms_profile.is_empty() {
         return Vec::new();
     }
 
-    // Calculate mean and std dev
-    let mean: f32 = rms_values.iter().map(|(_, rms)| rms).sum::<f32>() / rms_values.len() as f32;
-    let variance: f32 = rms_values.iter()
-        .map(|(_, rms)| {
-            let diff = rms - mean;
-            diff * diff
-        })
-        .sum::<f32>() / rms_values.len() as f32;
-    let std_dev = variance.sqrt();
-
-    let quiet_threshold = mean - std_dev;
-
-    // Find local minima below threshold
-    let mut quiet_spots = Vec::new();
-    for i in 1..rms_values.len() - 1 {
-        let (pos, rms) = rms_values[i];
-        let prev_rms = rms_values[i - 1].1;
-        let next_rms = rms_values[i + 1].1;
-
-        // Local minimum and below threshold
-        if rms < prev_rms && rms < next_rms && rms < quiet_threshold {
-            quiet_spots.push(pos);
+    // Calculate expected boundary positions (cumulative durations)
+    let mut expected_boundaries: Vec<f64> = Vec::new();
+    let mut cumulative = 0.0;
+    for (i, &dur) in expected_durations.iter().enumerate() {
+        cumulative += dur as f64;
+        // Don't add boundary after last track
+        if i < expected_durations.len() - 1 {
+            expected_boundaries.push(cumulative);
         }
     }
 
-    // Sort by quietness and take N quietest where N = expected_track_count - 1
-    quiet_spots.sort_by(|&a, &b| {
-        let rms_a = calculate_rms(&samples[a..(a + window_size).min(samples.len())]);
-        let rms_b = calculate_rms(&samples[b..(b + window_size).min(samples.len())]);
-        rms_a.partial_cmp(&rms_b).unwrap()
-    });
+    // For each expected boundary, find quietest spot within search window
+    let mut detected_boundaries = Vec::new();
 
-    if expected_track_count > 0 {
-        quiet_spots.truncate(expected_track_count - 1);
-        quiet_spots.sort(); // Sort by position
+    for (boundary_idx, &expected_pos) in expected_boundaries.iter().enumerate() {
+        // Calculate dynamic search radius (15% of preceding track duration, clamped)
+        let prev_track_dur = if boundary_idx == 0 {
+            expected_durations[0] as f64
+        } else {
+            expected_durations[boundary_idx] as f64
+        };
+        let dynamic_radius = (prev_track_dur * QUIET_SPOT_SEARCH_RADIUS_RATIO)
+            .max(QUIET_SPOT_SEARCH_RADIUS_MIN)
+            .min(QUIET_SPOT_SEARCH_RADIUS_MAX);
+
+        let search_start = (expected_pos - dynamic_radius).max(0.0);
+        let search_end = (expected_pos + dynamic_radius).min(total_duration_secs);
+
+        // Find RMS values within search window
+        let candidates: Vec<_> = rms_profile.iter()
+            .filter(|(pos, _)| *pos >= search_start && *pos <= search_end)
+            .collect();
+
+        if candidates.is_empty() {
+            // No candidates in window - use expected position
+            detected_boundaries.push(expected_pos);
+            continue;
+        }
+
+        // Score each candidate: lower RMS is better, but penalize distance from expected
+        let mut best_pos = expected_pos;
+        let mut best_score = f64::INFINITY;
+
+        for &(pos, rms) in &candidates {
+            let rms_db = if *rms > SILENCE_RMS_EPSILON {
+                20.0 * (*rms as f64).log10()
+            } else {
+                SILENCE_DB_FLOOR as f64
+            };
+
+            // Score = RMS in dB + penalty for distance from expected
+            let distance = (pos - expected_pos).abs();
+            let distance_penalty = (distance / dynamic_radius) * QUIET_SPOT_PROXIMITY_PENALTY * 20.0;
+            let score = rms_db + distance_penalty;
+
+            if score < best_score {
+                best_score = score;
+                best_pos = *pos;
+            }
+        }
+
+        // Check if best spot meets minimum quietness threshold
+        // If not, still use it but it might not be a real boundary
+        detected_boundaries.push(best_pos);
     }
 
-    quiet_spots
+    detected_boundaries
 }
 
-/// Convert quiet spot positions to track durations
-fn quiet_spots_to_durations(
-    quiet_spots: &[usize],
-    total_samples: usize,
-    sample_rate: u32,
+/// Convert detected boundary positions to track durations
+fn boundaries_to_durations(
+    boundaries: &[f64],
+    total_duration_secs: f64,
 ) -> Vec<f64> {
     let mut durations = Vec::new();
-    let mut track_start = 0;
+    let mut prev_pos = 0.0;
 
-    for &spot in quiet_spots {
-        let duration = (spot - track_start) as f64 / sample_rate as f64;
-        durations.push(duration);
-        track_start = spot;
+    for &boundary in boundaries {
+        durations.push(boundary - prev_pos);
+        prev_pos = boundary;
     }
 
-    // Final track
-    if track_start < total_samples {
-        let duration = (total_samples - track_start) as f64 / sample_rate as f64;
-        durations.push(duration);
+    // Final track (from last boundary to end of file)
+    if prev_pos < total_duration_secs {
+        durations.push(total_duration_secs - prev_pos);
     }
 
     durations
@@ -1908,26 +1697,34 @@ fn quiet_spots_to_durations(
 
 /// Classify match quality as confidence level
 fn classify_confidence(match_percentage: f64) -> String {
-    if match_percentage >= 80.0 {
+    if match_percentage >= CONFIDENCE_EXCELLENT_THRESHOLD {
         "Excellent".to_string()
-    } else if match_percentage >= 60.0 {
+    } else if match_percentage >= CONFIDENCE_GOOD_THRESHOLD {
         "Good".to_string()
-    } else if match_percentage >= 40.0 {
+    } else if match_percentage >= CONFIDENCE_FAIR_THRESHOLD {
         "Fair".to_string()
     } else {
         "Poor".to_string()
     }
 }
 
-/// Result from testing a segmentation against all MB candidates
+/// Result from testing a segmentation against all MusicBrainz candidates.
+/// Contains the best match found and all comparison details.
 #[derive(Debug, Clone)]
 struct CandidateTestResult {
+    /// Percentage of expected tracks that matched (0-100).
     percentage: f64,
+    /// Number of tracks within tolerance.
     matched_count: usize,
+    /// Per-track comparison results.
     matches: Vec<TrackMatch>,
+    /// MusicBrainz release ID of best match.
     mbid: String,
+    /// Expected track durations from MusicBrainz (seconds).
     expected_durations: Vec<u32>,
+    /// Mean absolute error across matched tracks (seconds).
     mean_error: f64,
+    /// Detected track durations from audio analysis (seconds).
     detected_durations: Vec<f64>,
 }
 
@@ -2005,8 +1802,9 @@ fn run_stage1_initial_detection(
     (durations, result)
 }
 
-/// Stage 2: Parameter optimization
+/// Stage 2: Parameter optimization (ENHANCED - Run 12)
 /// Tests grid of threshold/duration combinations against ALL MB candidates
+/// NOW ALSO collects all over-segmented candidates for Stage 3 assembly
 fn run_stage2_parameter_optimization(
     samples: &[f32],
     sample_rate: u32,
@@ -2015,23 +1813,34 @@ fn run_stage2_parameter_optimization(
     mb_candidates: &[(Vec<u32>, String)],
     tolerance: f64,
     current_best_percentage: f64,
-) -> Option<CandidateTestResult> {
+) -> Stage2Results {
     if current_best_percentage >= 100.0 {
-        return None; // Already perfect
+        return Stage2Results {
+            best_result: None,
+            over_segmented_candidates: Vec::new(),
+        };
     }
 
     println!("  STAGE 2: Testing {} parameter combinations against all editions...",
         threshold_values.len() * min_duration_values.len());
 
     let mut best_result: Option<CandidateTestResult> = None;
+    let mut over_segmented_candidates: Vec<OverSegmentedCandidate> = Vec::new();
     let mut tested = 0;
     let total_combinations = threshold_values.len() * min_duration_values.len();
+
+    // Get max expected track count across all editions for over-segmentation detection
+    let max_expected_tracks = mb_candidates.iter()
+        .map(|(durs, _)| durs.len())
+        .max()
+        .unwrap_or(0);
 
     for &thresh in threshold_values {
         for &min_dur in min_duration_values {
             tested += 1;
             let test_durations = get_track_durations(samples, sample_rate, thresh, min_dur);
 
+            // Track best immediate match (existing behavior)
             if let Some(result) = test_segmentation_against_all_candidates(
                 &test_durations,
                 mb_candidates,
@@ -2048,8 +1857,25 @@ fn run_stage2_parameter_optimization(
 
                     if best_result.as_ref().unwrap().percentage >= 100.0 {
                         println!("    Best match after parameter optimization: 100.0% (Excellent confidence)");
-                        return best_result; // Early exit
+                        return Stage2Results {
+                            best_result,
+                            over_segmented_candidates,
+                        };
                     }
+                }
+            }
+
+            // NEW (Run 12): Collect over-segmented candidates for Stage 3 assembly
+            if test_durations.len() > max_expected_tracks {
+                over_segmented_candidates.push(OverSegmentedCandidate {
+                    durations: test_durations,
+                    threshold_db: thresh,
+                    min_duration_secs: min_dur,
+                    track_count: 0, // Will be set from durations.len()
+                });
+                // Update track_count from actual durations
+                if let Some(last) = over_segmented_candidates.last_mut() {
+                    last.track_count = last.durations.len();
                 }
             }
         }
@@ -2060,13 +1886,20 @@ fn run_stage2_parameter_optimization(
             r.percentage, classify_confidence(r.percentage));
     }
 
-    best_result
+    println!("    Collected {} over-segmented candidates for Stage 3 assembly",
+        over_segmented_candidates.len());
+
+    Stage2Results {
+        best_result,
+        over_segmented_candidates,
+    }
 }
 
-/// Stage 3: Segment assembly
-/// Tries assembling current best segmentation to match each edition's track count
-fn run_stage3_segment_assembly(
-    best_durations: &[f64],
+/// Stage 3: Comprehensive Segment Assembly (FIXED - Run 12)
+/// Tries assembling EACH over-segmented candidate from Stage 2 against EACH target edition
+/// This restores Run 7 behavior where 100+ assemblies could be tested
+fn run_stage3_comprehensive_assembly(
+    over_segmented_candidates: &[OverSegmentedCandidate],
     mb_candidates: &[(Vec<u32>, String)],
     tolerance: f64,
     current_best_percentage: f64,
@@ -2075,36 +1908,54 @@ fn run_stage3_segment_assembly(
         return None; // Already perfect
     }
 
-    println!("  STAGE 3: Attempting segment assembly against all editions...");
+    if over_segmented_candidates.is_empty() {
+        println!("  STAGE 3: No over-segmented candidates to assemble");
+        return None;
+    }
+
+    println!("  STAGE 3: Comprehensive segment assembly across {} over-segmented candidates...",
+        over_segmented_candidates.len());
 
     let mut assemblies_tested = 0;
     let mut assemblies_improved = 0;
     let mut best_result: Option<CandidateTestResult> = None;
+    let mut best_source_params: Option<(f64, f64, usize)> = None;
 
-    for (expected_u32, _mbid) in mb_candidates {
-        // Only try assembly if current segmentation is over-segmented for this edition
-        if best_durations.len() > expected_u32.len() {
-            if let Some(assembled_durations) = assemble_segments_dp(best_durations, expected_u32) {
-                assemblies_tested += 1;
+    for candidate in over_segmented_candidates {
+        for (expected_u32, _mbid) in mb_candidates {
+            // Only try assembly if candidate has more segments than target
+            if candidate.durations.len() > expected_u32.len() {
+                if let Some(assembled_durations) = assemble_segments_dp(&candidate.durations, expected_u32) {
+                    assemblies_tested += 1;
 
-                // Test assembled result against ALL candidates (not just the target)
-                if let Some(result) = test_segmentation_against_all_candidates(
-                    &assembled_durations,
-                    mb_candidates,
-                    tolerance,
-                ) {
-                    let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
+                    // Test assembled result against ALL candidates (not just the target)
+                    if let Some(result) = test_segmentation_against_all_candidates(
+                        &assembled_durations,
+                        mb_candidates,
+                        tolerance,
+                    ) {
+                        let improved = best_result.as_ref()
+                            .map_or(true, |br| result.percentage > br.percentage);
 
-                    if improved && result.percentage > current_best_percentage {
-                        assemblies_improved += 1;
-                        println!("    New best: {:.1}% via assembly → {} tracks from {} ({} tested)",
-                            result.percentage, result.expected_durations.len(), &result.mbid[..8],
-                            assemblies_tested);
+                        if improved && result.percentage > current_best_percentage {
+                            assemblies_improved += 1;
+                            println!("    New best: {:.1}% via assembly of ({}dB, {}s) ({} segments → {} tracks)",
+                                result.percentage,
+                                candidate.threshold_db, candidate.min_duration_secs,
+                                candidate.track_count, expected_u32.len());
 
-                        best_result = Some(result);
+                            best_result = Some(result);
+                            best_source_params = Some((
+                                candidate.threshold_db,
+                                candidate.min_duration_secs,
+                                candidate.track_count,
+                            ));
 
-                        if best_result.as_ref().unwrap().percentage >= 100.0 {
-                            break; // Early exit on perfect match
+                            if best_result.as_ref().unwrap().percentage >= 100.0 {
+                                println!("    Tested {} assemblies, {} improved over best",
+                                    assemblies_tested, assemblies_improved);
+                                return best_result; // Early exit on perfect match
+                            }
                         }
                     }
                 }
@@ -2112,17 +1963,18 @@ fn run_stage3_segment_assembly(
         }
     }
 
-    if assemblies_tested > 0 {
-        println!("    Tested {} assemblies, {} improved over best", assemblies_tested, assemblies_improved);
-    } else {
-        println!("    No assembly candidates (current segmentation not over-segmented)");
+    println!("    Tested {} assemblies, {} improved over best", assemblies_tested, assemblies_improved);
+
+    if let (Some(_result), Some((thresh, min_dur, seg_count))) = (&best_result, best_source_params) {
+        println!("    Best assembly from {}dB, {}s ({} segments)", thresh, min_dur, seg_count);
     }
 
     best_result
 }
 
-/// Stage 4: Quiet spot detection
-/// Tries quiet spot detection for each candidate edition's track count
+/// Stage 4: Edition-guided quiet spot detection
+/// Uses best matched edition's track durations as a guide to search for quiet spots
+/// near expected boundary positions (±search radius), then tests against all editions
 fn run_stage4_quiet_spot_detection(
     samples: &[f32],
     sample_rate: u32,
@@ -2134,47 +1986,68 @@ fn run_stage4_quiet_spot_detection(
         return None; // Already perfect
     }
 
-    println!("  STAGE 4: Attempting quiet spot detection against all editions...");
+    println!("  STAGE 4: Edition-guided quiet spot detection...");
 
-    let mut quiet_tests = 0;
-    let mut quiet_improvements = 0;
+    // Calculate RMS profile once for the entire file
+    let rms_profile = calculate_rms_profile(samples, sample_rate);
+    let total_duration_secs = samples.len() as f64 / sample_rate as f64;
+
+    if rms_profile.is_empty() {
+        println!("    No RMS profile generated");
+        return None;
+    }
+
+    println!("    RMS profile: {} windows ({}ms step)",
+        rms_profile.len(), (QUIET_SPOT_WINDOW_STEP_SECS * 1000.0) as u32);
+
+    let mut guided_tests = 0;
+    let mut guided_improvements = 0;
     let mut best_result: Option<CandidateTestResult> = None;
 
-    for (expected_u32, _mbid) in mb_candidates {
-        if expected_u32.len() > 0 {
-            let quiet_spots = detect_quiet_spots(samples, sample_rate, expected_u32.len());
-            let quiet_durations = quiet_spots_to_durations(&quiet_spots, samples.len(), sample_rate);
-            quiet_tests += 1;
+    // Try edition-guided search for top N editions
+    let editions_to_try = mb_candidates.len().min(QUIET_SPOT_TOP_EDITIONS);
+    println!("    Testing guided search against top {} editions...", editions_to_try);
 
-            // Test quiet spot result against ALL candidates
-            if let Some(result) = test_segmentation_against_all_candidates(
-                &quiet_durations,
-                mb_candidates,
-                tolerance,
-            ) {
-                let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
+    for (expected_durations, _mbid) in mb_candidates.iter().take(editions_to_try) {
+        if expected_durations.is_empty() {
+            continue;
+        }
 
-                if improved && result.percentage > current_best_percentage {
-                    quiet_improvements += 1;
-                    println!("    New best: {:.1}% via quiet spots → {} tracks from {} ({} tested)",
-                        result.percentage, result.expected_durations.len(), &result.mbid[..8],
-                        quiet_tests);
+        // Find quiet spots near expected boundaries for this edition
+        let detected_boundaries = find_edition_guided_boundaries(
+            &rms_profile,
+            expected_durations,
+            total_duration_secs,
+        );
 
-                    best_result = Some(result);
+        // Convert boundaries to track durations
+        let guided_durations = boundaries_to_durations(&detected_boundaries, total_duration_secs);
+        guided_tests += 1;
 
-                    if best_result.as_ref().unwrap().percentage >= 100.0 {
-                        break; // Early exit on perfect match
-                    }
+        // Test guided result against ALL candidates (not just the guide edition)
+        if let Some(result) = test_segmentation_against_all_candidates(
+            &guided_durations,
+            mb_candidates,
+            tolerance,
+        ) {
+            let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
+
+            if improved && result.percentage > current_best_percentage {
+                guided_improvements += 1;
+                println!("    New best: {:.1}% via guided search (guide: {} tracks, matched: {} tracks)",
+                    result.percentage, expected_durations.len(), result.expected_durations.len());
+
+                best_result = Some(result);
+
+                if best_result.as_ref().unwrap().percentage >= 100.0 {
+                    println!("    Tested {} guided searches, {} improved", guided_tests, guided_improvements);
+                    return best_result; // Early exit on perfect match
                 }
             }
         }
     }
 
-    if quiet_tests > 0 {
-        println!("    Tested {} quiet spot configurations, {} improved", quiet_tests, quiet_improvements);
-    } else {
-        println!("    No valid quiet spot candidates");
-    }
+    println!("    Tested {} guided searches, {} improved", guided_tests, guided_improvements);
 
     best_result
 }
@@ -2261,11 +2134,15 @@ fn run_stage5_extra_track_merging(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Comprehensive Album Matcher (Run 10) ===");
-    println!("ARCHITECTURE: Comprehensive upfront MB search (ALL strategies, up to 150 releases)\n");
+    println!("=== Comprehensive Album Matcher (Run 13) ===");
+    println!("ARCHITECTURE: Comprehensive upfront MB search (ALL strategies, up to {} releases)\n", MB_MAX_RELEASES);
     println!("  - Edition grouping by track count + duration pattern (not MBID)");
     println!("  - All unique editions tested through 5 stages");
-    println!("  - Best MBID selected from winning edition (CD/Official/US priority)\n");
+    println!("  - Best MBID selected from winning edition (CD/Official/US priority)");
+    println!("  - RUN 12 FIX: Stage 2 collects ALL over-segmented candidates");
+    println!("  - RUN 12 FIX: Stage 3 tries assembling EACH candidate (restores Run 7 behavior)");
+    println!("  - RUN 13: Stage 4 redesigned with edition-guided quiet spot detection");
+    println!("  - RUN 13: Extended threshold range (-30dB to -60dB)\n");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -2322,9 +2199,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ({} training set + {} from long files list)\n", initial_count, additional_files.len());
 
     // Use optimal parameters from analysis
-    let threshold_db: f64 = -57.0;
-    let min_duration_secs: f64 = 0.9;
-    let match_tolerance_secs = 10.0;
+    let threshold_db: f64 = DEFAULT_THRESHOLD_DB;
+    let min_duration_secs: f64 = DEFAULT_MIN_DURATION_SECS;
+    let match_tolerance_secs = MATCH_TOLERANCE_SECS;
 
     println!("Parameters:");
     println!("  Threshold: {} dB", threshold_db);
@@ -2335,14 +2212,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut results = Vec::new();
 
     // Parameter grid for Stage 2 optimization
-    // Extended ranges based on empirical results showing optimal performance at grid boundaries
-    // - Added -48, -46, -44 dB (less strict thresholds) after finding optima at -50 dB
-    // - Added 0.2, 0.15, 0.1s (shorter durations) after finding optima at 0.3s
-    // - Added 0.12, 0.10, 0.08, 0.06, 0.05s (very short durations) after finding optima at 0.15s
-    //   With adaptive 25ms RMS windows, these very short durations now have adequate temporal resolution
-    // - Added -64, -66 dB (stricter thresholds) for completeness
-    // - Added 2.5, 3.0s (longer durations) for completeness
-    let threshold_values = [-36.0, -38.0, -40.0, -42.0, -44.0, -47.0, -50.0, -52.0, -54.0, -56.0, -58.0, -60.0];
+    // Run 13: Extended threshold range to -30dB, -34dB (removed -40dB, -44dB)
+    // - Testing less strict thresholds for albums with louder inter-track gaps
+    let threshold_values = [-30.0, -34.0, -36.0, -38.0, -42.0, -47.0, -50.0, -52.0, -54.0, -56.0, -58.0, -60.0];
     let min_duration_values = [0.05, 0.10, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
 
     for (idx, file_path) in training_files.iter().enumerate() {
@@ -2371,26 +2243,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Err(e) => {
                 println!("FAILED: {}", e);
-                results.push(ValidationResult {
-                    album_path: file_path.to_string_lossy().to_string(),
-                    artist: artist.clone(),
-                    album: album.clone(),
-                    mbid: String::new(),
-                    musicbrainz_url: String::new(),
-                    expected_track_count: 0,
-                    detected_track_count: 0,
-                    perfect_count_match: false,
-                    track_matches: Vec::new(),
-                    extra_tracks: Vec::new(),
-                    matched_tracks_count: 0,
-                    match_percentage: 0.0,
-                    mean_error: 0.0,
-                    status: format!("Decode failed: {}", e),
-                    matching_stage: "None".to_string(),
-                    best_threshold_db: None,
-                    best_min_duration_secs: None,
-                    confidence: "Poor".to_string(),
-                });
+                results.push(ValidationResult::error(
+                    file_path, artist, album, 0,
+                    format!("Decode failed: {}", e),
+                ));
                 println!();
                 continue;
             }
@@ -2419,7 +2275,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Comprehensive MusicBrainz search (ALL strategies, ALL variants, up to 150 releases)
+        // Comprehensive MusicBrainz search (ALL strategies, ALL variants, up to MB_MAX_RELEASES releases)
         print!("  Fetching MusicBrainz data (comprehensive search)... ");
         let editions = match comprehensive_musicbrainz_search(
             &artist_variants,
@@ -2431,26 +2287,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(releases) => {
                 if releases.is_empty() {
                     println!("FAILED: No releases found");
-                    results.push(ValidationResult {
-                        album_path: file_path.to_string_lossy().to_string(),
-                        artist: artist.clone(),
-                        album: album.clone(),
-                        mbid: String::new(),
-                        musicbrainz_url: String::new(),
-                        expected_track_count: 0,
-                        detected_track_count: initial_durations.len(),
-                        perfect_count_match: false,
-                        track_matches: Vec::new(),
-                        extra_tracks: Vec::new(),
-                        matched_tracks_count: 0,
-                        match_percentage: 0.0,
-                        mean_error: 0.0,
-                        status: "MusicBrainz lookup failed: No releases found".to_string(),
-                        matching_stage: "None".to_string(),
-                        best_threshold_db: None,
-                        best_min_duration_secs: None,
-                        confidence: "Poor".to_string(),
-                    });
+                    results.push(ValidationResult::error(
+                        file_path, artist, album, initial_durations.len(),
+                        "MusicBrainz lookup failed: No releases found".to_string(),
+                    ));
                     println!();
                     continue;
                 }
@@ -2470,8 +2310,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Filter editions by runtime length (must be within 25% of file duration)
                 let total_editions = editions.len();
-                let min_duration = file_duration_secs * 0.75;
-                let max_duration = file_duration_secs * 1.25;
+                let min_duration = file_duration_secs * RUNTIME_FILTER_MIN_RATIO;
+                let max_duration = file_duration_secs * RUNTIME_FILTER_MAX_RATIO;
 
                 editions.retain(|edition| {
                     let edition_duration: u32 = edition.durations.iter().sum();
@@ -2492,55 +2332,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "FAILED: No valid editions".to_string()
                     };
                     println!("{}", failure_msg);
-                    results.push(ValidationResult {
-                        album_path: file_path.to_string_lossy().to_string(),
-                        artist: artist.clone(),
-                        album: album.clone(),
-                        mbid: String::new(),
-                        musicbrainz_url: String::new(),
-                        expected_track_count: 0,
-                        detected_track_count: initial_durations.len(),
-                        perfect_count_match: false,
-                        track_matches: Vec::new(),
-                        extra_tracks: Vec::new(),
-                        matched_tracks_count: 0,
-                        match_percentage: 0.0,
-                        mean_error: 0.0,
-                        status: failure_msg,
-                        matching_stage: "None".to_string(),
-                        best_threshold_db: None,
-                        best_min_duration_secs: None,
-                        confidence: "Poor".to_string(),
-                    });
+                    results.push(ValidationResult::error(
+                        file_path, artist, album, initial_durations.len(),
+                        failure_msg,
+                    ));
                     println!();
                     continue;
                 }
 
                 println!("Found {} unique editions to test", editions.len());
+
+                // Re-sort by name similarity using conservative bubble sort
+                // This allows editions with significantly better name matches to bubble up
+                // while preserving runtime-based ordering for similar name scores
+                resort_by_name_similarity(&mut editions);
+
                 editions
             }
             Err(e) => {
                 println!("FAILED: {}", e);
-                results.push(ValidationResult {
-                    album_path: file_path.to_string_lossy().to_string(),
-                    artist: artist.clone(),
-                    album: album.clone(),
-                    mbid: String::new(),
-                    musicbrainz_url: String::new(),
-                    expected_track_count: 0,
-                    detected_track_count: initial_durations.len(),
-                    perfect_count_match: false,
-                    track_matches: Vec::new(),
-                    extra_tracks: Vec::new(),
-                    matched_tracks_count: 0,
-                    match_percentage: 0.0,
-                    mean_error: 0.0,
-                    status: format!("MusicBrainz lookup failed: {}", e),
-                    matching_stage: "None".to_string(),
-                    best_threshold_db: None,
-                    best_min_duration_secs: None,
-                    confidence: "Poor".to_string(),
-                });
+                results.push(ValidationResult::error(
+                    file_path, artist, album, initial_durations.len(),
+                    format!("MusicBrainz lookup failed: {}", e),
+                ));
                 println!();
                 continue;
             }
@@ -2559,14 +2373,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (idx, edition) in editions.iter().enumerate() {
             let edition_duration: u32 = edition.durations.iter().sum();
             let match_score = score_edition_match(edition, file_duration_secs, estimated_track_count);
-            println!("    [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s)",
+            println!("    [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s, NDR:{},{:.1})",
                 idx,
                 edition.artist,
                 edition.album,
                 edition.track_count,
                 edition_duration,
                 edition.mbids.len(),
-                match_score
+                match_score,
+                edition.name_distance_rank,
+                edition.name_distance_score
             );
         }
 
@@ -2575,10 +2391,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(idx_str) = mbid.strip_prefix("edition_") {
                 if let Ok(idx) = idx_str.parse::<usize>() {
                     if idx < editions.len() {
-                        println!("      → Edition: {} - {} ({} tracks)",
+                        println!("      → Edition: {} - {} ({} tracks, NDR:{},{:.1})",
                             editions[idx].artist,
                             editions[idx].album,
-                            editions[idx].track_count
+                            editions[idx].track_count,
+                            editions[idx].name_distance_rank,
+                            editions[idx].name_distance_score
                         );
                     }
                 }
@@ -2600,8 +2418,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut best_matched_count: usize;
         let mut best_percentage: f64;
         let mut best_stage = "album_extractor_1_initial";
-        let mut best_threshold: Option<f64> = None;
-        let mut best_min_duration: Option<f64> = None;
+        let best_threshold: Option<f64> = None;
+        let best_min_duration: Option<f64> = None;
         let mut best_mbid: String;
         let mut best_expected_durations: Vec<u32>;
         let mut best_mean_error: f64;
@@ -2619,8 +2437,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        // === STAGE 2: Parameter optimization ===
-        if let Some(result) = run_stage2_parameter_optimization(
+        // === STAGE 2: Parameter optimization (ENHANCED - Run 12) ===
+        // Now returns Stage2Results with both best_result AND over_segmented_candidates
+        let stage2_results = run_stage2_parameter_optimization(
             &samples,
             sample_rate,
             &threshold_values,
@@ -2628,7 +2447,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &mb_candidates,
             match_tolerance_secs,
             best_percentage,
-        ) {
+        );
+
+        if let Some(result) = stage2_results.best_result {
             best_durations = result.detected_durations;
             best_matches = result.matches;
             best_matched_count = result.matched_count;
@@ -2640,9 +2461,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             show_edition_info(&result.mbid);
         }
 
-        // === STAGE 3: Segment assembly ===
-        if let Some(result) = run_stage3_segment_assembly(
-            &best_durations,
+        // === STAGE 3: Comprehensive segment assembly (FIXED - Run 12) ===
+        // Now uses ALL over-segmented candidates collected from Stage 2
+        if let Some(result) = run_stage3_comprehensive_assembly(
+            &stage2_results.over_segmented_candidates,
             &mb_candidates,
             match_tolerance_secs,
             best_percentage,
@@ -2673,7 +2495,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             best_mbid = result.mbid.clone();
             best_expected_durations = result.expected_durations;
             best_mean_error = result.mean_error;
-            best_stage = "album_extractor_4_quietspots";
+            best_stage = "album_extractor_4_guided";
             show_edition_info(&result.mbid);
         }
 
@@ -2720,10 +2542,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("    Best parameters: {}dB, {}s", thresh, min_dur);
         }
 
-        // Show first few track matches
+        // Show all track matches
         if !best_matches.is_empty() {
-            println!("  First 5 tracks:");
-            for (i, tm) in best_matches.iter().enumerate().take(5) {
+            println!("  All tracks:");
+            for (i, tm) in best_matches.iter().enumerate() {
                 let status = if tm.matches { "✓" } else { "✗" };
                 println!("    {}. {:6.1}s vs {:6}s  error={:5.1}s  {}",
                     i + 1, tm.detected_duration, tm.expected_duration, tm.error, status);
@@ -2749,6 +2571,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for et in &extra_tracks {
                     println!("    Track {}: {:.1}s (no MusicBrainz match)", et.track_index, et.duration);
                 }
+            }
+        } else if best_durations.len() < best_expected_durations.len() {
+            // MusicBrainz has more tracks than detected - show missing ones
+            let missing_count = best_expected_durations.len() - best_durations.len();
+            println!("  MusicBrainz tracks not found in file ({} missing):", missing_count);
+            for i in min_count..best_expected_durations.len() {
+                println!("    Track {}: {}s (expected but not detected in file)", i + 1, best_expected_durations[i]);
             }
         }
 
@@ -2796,7 +2625,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let stage1 = results.iter().filter(|r| r.matching_stage == "album_extractor_1_initial").count();
         let stage2 = results.iter().filter(|r| r.matching_stage == "album_extractor_2_optimization").count();
         let stage3 = results.iter().filter(|r| r.matching_stage == "album_extractor_3_assembly").count();
-        let stage4 = results.iter().filter(|r| r.matching_stage == "album_extractor_4_quietspots").count();
+        let stage4 = results.iter().filter(|r| r.matching_stage == "album_extractor_4_guided").count();
         let stage5 = results.iter().filter(|r| r.matching_stage == "album_extractor_5_editions").count();
         let stage6 = results.iter().filter(|r| r.matching_stage == "album_extractor_6_merging").count();
 
@@ -2804,7 +2633,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  album_extractor_1_initial:        {} albums", stage1);
         println!("  album_extractor_2_optimization:   {} albums", stage2);
         println!("  album_extractor_3_assembly:       {} albums", stage3);
-        println!("  album_extractor_4_quietspots:     {} albums", stage4);
+        println!("  album_extractor_4_guided:         {} albums", stage4);
         println!("  album_extractor_5_editions:       {} albums", stage5);
         println!("  album_extractor_6_merging:        {} albums", stage6);
 

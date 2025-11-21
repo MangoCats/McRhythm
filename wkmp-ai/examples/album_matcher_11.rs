@@ -1,10 +1,16 @@
-/// Comprehensive Album Matcher with 7-Phase Progressive Refinement (Run 8)
+/// Comprehensive Album Matcher with 7-Phase Progressive Refinement (Run 11)
 ///
 /// Phase 0: ID3 Tag Extraction & Reconciliation
 /// - Extract ID3 tags via ffprobe
 /// - Reconcile with path/filename using heuristics
 /// - Provides alternate search terms when conflicts detected
 /// - Extracts estimated track count from ID3 comment field
+///
+/// Name Distance Ranking (NEW - Run 11)
+/// - Calculate Levenshtein distance from each MusicBrainz candidate to source names
+/// - Rank all candidates 1-N based on name similarity (1 = closest match)
+/// - Display "NDR:{rank}" in all candidate album logging
+/// - Helps identify whether matching issues are due to name errors vs duration mismatches
 ///
 /// Stage 1: Initial Detection (Default Parameters)
 /// - Try default parameters (-57dB, 0.9s)
@@ -26,7 +32,7 @@
 /// - Test all segmentations × additional MB candidates
 /// - Early exit on 100% match
 ///
-/// Stage 6: Extra Track Merging (NEW - Run 8)
+/// Stage 6: Extra Track Merging (Run 8)
 /// - When detected > expected AND match quality ≥100%
 /// - Try merging adjacent track pairs to achieve correct track count
 /// - Selects merge that minimizes total duration error
@@ -48,6 +54,7 @@ use symphonia::core::probe::Hint;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use parking_lot::Mutex;
+use strsim::levenshtein;
 
 // MusicBrainz API structures
 #[derive(Debug, Clone, Deserialize)]
@@ -111,6 +118,8 @@ struct Edition {
     duration_signature: String,    // For deduplication (e.g., "107,125,135,...")
     artist: String,                // Artist name from MusicBrainz
     album: String,                 // Album title from MusicBrainz
+    name_distance_rank: usize,     // Rank 1-150 based on name similarity (1 = best match)
+    name_distance_score: f64,      // Overall distance score (lower = better match)
 }
 
 // Rate limiter for MusicBrainz API (1 request per second)
@@ -210,6 +219,42 @@ struct ValidationResult {
     best_threshold_db: Option<f64>,
     best_min_duration_secs: Option<f64>,
     confidence: String, // "Excellent", "Good", "Fair", "Poor"
+}
+
+/// Result from matching a single file
+#[derive(Debug, Clone)]
+struct SingleFileMatchResult {
+    /// File path that was analyzed
+    file_path: PathBuf,
+    /// Best matching release MBID (empty if no match found)
+    best_mbid: String,
+    /// MusicBrainz URL for the release
+    musicbrainz_url: String,
+    /// Artist name (from metadata reconciliation)
+    artist: String,
+    /// Album name (from metadata reconciliation)
+    album: String,
+    /// Detected track durations (segmentation result) in seconds
+    detected_durations: Vec<f64>,
+    /// Expected track durations from MBID in seconds
+    expected_durations: Vec<u32>,
+    /// Track-by-track match details
+    track_matches: Vec<TrackMatch>,
+    /// Extra detected tracks with no MBID match
+    extra_tracks: Vec<ExtraTrack>,
+    /// Match quality percentage
+    match_percentage: f64,
+    /// Mean error across matched tracks
+    mean_error: f64,
+    /// Stage that produced the match
+    matching_stage: String,
+    /// Best parameters found
+    best_threshold_db: Option<f64>,
+    best_min_duration_secs: Option<f64>,
+    /// Match confidence level
+    confidence: String,
+    /// Status message
+    status: String,
 }
 
 // ===== Shared Context Structures for Stage Pipeline =====
@@ -898,16 +943,51 @@ async fn get_expected_durations(
     Ok(sorted_candidates)
 }
 
+/// Calculate overall name distance score for a release against source variants
+/// Returns: (2 * album_distance + artist_distance) / 3
+/// Lower scores indicate better matches
+fn calculate_name_distance(
+    candidate_artist: &str,
+    candidate_album: &str,
+    source_artists: &[String],
+    source_albums: &[String],
+) -> f64 {
+    // Calculate average Levenshtein distance to all source album names
+    let album_distances: Vec<usize> = source_albums
+        .iter()
+        .map(|source_album| levenshtein(candidate_album, source_album))
+        .collect();
+    let avg_album_distance = if album_distances.is_empty() {
+        0.0
+    } else {
+        album_distances.iter().sum::<usize>() as f64 / album_distances.len() as f64
+    };
+
+    // Calculate average Levenshtein distance to all source artist names
+    let artist_distances: Vec<usize> = source_artists
+        .iter()
+        .map(|source_artist| levenshtein(candidate_artist, source_artist))
+        .collect();
+    let avg_artist_distance = if artist_distances.is_empty() {
+        0.0
+    } else {
+        artist_distances.iter().sum::<usize>() as f64 / artist_distances.len() as f64
+    };
+
+    // Overall score: album name weighted 2x, artist name weighted 1x
+    (2.0 * avg_album_distance + avg_artist_distance) / 3.0
+}
+
 /// Comprehensive MusicBrainz search using ALL strategies and name variants
 /// Returns up to 150 releases with full metadata (not yet grouped into editions)
-/// Returns: Vec<(durations, mbid_info, artist, album)>
+/// Returns: Vec<(durations, mbid_info, artist, album, name_distance_rank, name_distance_score)>
 async fn comprehensive_musicbrainz_search(
     artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
     album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
     file_duration_secs: f64,     // Total audio file duration for filtering
     id3_track_count: Option<usize>,  // Track count from ID3 tags (if available)
     rate_limiter: &RateLimiter,
-) -> Result<Vec<(Vec<u32>, EditionMBID, String, String)>, Box<dyn std::error::Error>> {
+) -> Result<Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
     let client = reqwest::Client::builder()
         .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
         .timeout(Duration::from_secs(30))
@@ -1051,15 +1131,38 @@ async fn comprehensive_musicbrainz_search(
         ));
     }
 
-    Ok(results)
+    // Calculate name distance scores and assign ranks (1-N, lower = better)
+    let mut results_with_scores: Vec<((Vec<u32>, EditionMBID, String, String), f64)> = results
+        .into_iter()
+        .map(|(durations, mbid_info, artist, album)| {
+            let score = calculate_name_distance(&artist, &album, artist_variants, album_variants);
+            ((durations, mbid_info, artist, album), score)
+        })
+        .collect();
+
+    // Sort by name distance score (ascending - lower is better)
+    results_with_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Assign ranks 1-N based on sorted order and include scores
+    let results_with_ranks: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)> = results_with_scores
+        .into_iter()
+        .enumerate()
+        .map(|(index, ((durations, mbid_info, artist, album), score))| {
+            let rank = index + 1; // Rank 1-based
+            (durations, mbid_info, artist, album, rank, score)
+        })
+        .collect();
+
+    Ok(results_with_ranks)
 }
 
 /// Group MBIDs into editions based on track count + duration pattern
 /// Multiple MBIDs can represent the same edition (e.g., US vs UK release of same album)
-fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String)>) -> Vec<Edition> {
+/// Takes the best (lowest) name distance rank and its score among all MBIDs in an edition
+fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>) -> Vec<Edition> {
     let mut editions: Vec<Edition> = Vec::new();
 
-    for (durations, mbid_info, artist, album) in releases {
+    for (durations, mbid_info, artist, album, rank, score) in releases {
         // Create signature: "track_count:duration1,duration2,..."
         let signature = format!("{}:{}",
             durations.len(),
@@ -1070,6 +1173,11 @@ fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String)>) -
         if let Some(edition) = editions.iter_mut().find(|e| e.duration_signature == signature) {
             // Add this MBID to existing edition
             edition.mbids.push(mbid_info);
+            // Update to best (lowest) rank and corresponding score
+            if rank < edition.name_distance_rank {
+                edition.name_distance_rank = rank;
+                edition.name_distance_score = score;
+            }
         } else {
             // Create new edition
             editions.push(Edition {
@@ -1079,6 +1187,8 @@ fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String)>) -
                 duration_signature: signature,
                 artist,
                 album,
+                name_distance_rank: rank,
+                name_distance_score: score,
             });
         }
     }
@@ -2259,9 +2369,67 @@ fn run_stage5_extra_track_merging(
     }
 }
 
+/// Match a single audio file against MusicBrainz database
+/// Returns the best MBID match, segmentation info, and MBID track durations
+async fn match_single_file(
+    file_path: &Path,
+    rate_limiter: &RateLimiter,
+    threshold_db: f64,
+    min_duration_secs: f64,
+    match_tolerance_secs: f64,
+    threshold_values: &[f64],
+    min_duration_values: &[f64],
+) -> SingleFileMatchResult {
+    // Placeholder - will be filled with extracted logic
+    SingleFileMatchResult {
+        file_path: file_path.to_path_buf(),
+        best_mbid: String::new(),
+        musicbrainz_url: String::new(),
+        artist: String::new(),
+        album: String::new(),
+        detected_durations: Vec::new(),
+        expected_durations: Vec::new(),
+        track_matches: Vec::new(),
+        extra_tracks: Vec::new(),
+        match_percentage: 0.0,
+        mean_error: 0.0,
+        matching_stage: "None".to_string(),
+        best_threshold_db: None,
+        best_min_duration_secs: None,
+        confidence: "Poor".to_string(),
+        status: "Not implemented yet".to_string(),
+    }
+}
+
+/// Output match result to console
+fn output_match_result(result: &SingleFileMatchResult, file_index: usize, total_files: usize) {
+    println!("=== Album {}/{} ===", file_index + 1, total_files);
+    println!("File: {}", result.file_path.display());
+    println!("Artist: {}", result.artist);
+    println!("Album: {}", result.album);
+    println!("Status: {}", result.status);
+
+    if !result.best_mbid.is_empty() {
+        println!("MBID: {}", result.best_mbid);
+        println!("URL: {}", result.musicbrainz_url);
+        println!("Match: {:.1}% ({} detected, {} expected)",
+            result.match_percentage,
+            result.detected_durations.len(),
+            result.expected_durations.len());
+        println!("Mean error: {:.2}s", result.mean_error);
+        println!("Stage: {}", result.matching_stage);
+        println!("Confidence: {}", result.confidence);
+
+        if let (Some(threshold), Some(min_dur)) = (result.best_threshold_db, result.best_min_duration_secs) {
+            println!("Parameters: {} dB, {}s", threshold, min_dur);
+        }
+    }
+    println!();
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Comprehensive Album Matcher (Run 10) ===");
+    println!("=== Comprehensive Album Matcher (Run 11) ===");
     println!("ARCHITECTURE: Comprehensive upfront MB search (ALL strategies, up to 150 releases)\n");
     println!("  - Edition grouping by track count + duration pattern (not MBID)");
     println!("  - All unique editions tested through 5 stages");
@@ -2559,14 +2727,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (idx, edition) in editions.iter().enumerate() {
             let edition_duration: u32 = edition.durations.iter().sum();
             let match_score = score_edition_match(edition, file_duration_secs, estimated_track_count);
-            println!("    [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s)",
+            println!("    [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s, NDR:{},{:.1})",
                 idx,
                 edition.artist,
                 edition.album,
                 edition.track_count,
                 edition_duration,
                 edition.mbids.len(),
-                match_score
+                match_score,
+                edition.name_distance_rank,
+                edition.name_distance_score
             );
         }
 
@@ -2575,10 +2745,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(idx_str) = mbid.strip_prefix("edition_") {
                 if let Ok(idx) = idx_str.parse::<usize>() {
                     if idx < editions.len() {
-                        println!("      → Edition: {} - {} ({} tracks)",
+                        println!("      → Edition: {} - {} ({} tracks, NDR:{},{:.1})",
                             editions[idx].artist,
                             editions[idx].album,
-                            editions[idx].track_count
+                            editions[idx].track_count,
+                            editions[idx].name_distance_rank,
+                            editions[idx].name_distance_score
                         );
                     }
                 }
@@ -2720,10 +2892,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("    Best parameters: {}dB, {}s", thresh, min_dur);
         }
 
-        // Show first few track matches
+        // Show all track matches
         if !best_matches.is_empty() {
-            println!("  First 5 tracks:");
-            for (i, tm) in best_matches.iter().enumerate().take(5) {
+            println!("  All tracks:");
+            for (i, tm) in best_matches.iter().enumerate() {
                 let status = if tm.matches { "✓" } else { "✗" };
                 println!("    {}. {:6.1}s vs {:6}s  error={:5.1}s  {}",
                     i + 1, tm.detected_duration, tm.expected_duration, tm.error, status);
@@ -2749,6 +2921,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for et in &extra_tracks {
                     println!("    Track {}: {:.1}s (no MusicBrainz match)", et.track_index, et.duration);
                 }
+            }
+        } else if best_durations.len() < best_expected_durations.len() {
+            // MusicBrainz has more tracks than detected - show missing ones
+            let missing_count = best_expected_durations.len() - best_durations.len();
+            println!("  MusicBrainz tracks not found in file ({} missing):", missing_count);
+            for i in min_count..best_expected_durations.len() {
+                println!("    Track {}: {}s (expected but not detected in file)", i + 1, best_expected_durations[i]);
             }
         }
 
