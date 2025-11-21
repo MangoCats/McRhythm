@@ -94,6 +94,23 @@ struct MBTrack {
     length: Option<u32>, // in milliseconds
 }
 
+// Edition grouping structures (multiple MBIDs can represent same edition)
+#[derive(Debug, Clone)]
+struct EditionMBID {
+    mbid: String,
+    country: Option<String>,
+    status: Option<String>,
+    is_cd: bool,
+}
+
+#[derive(Debug, Clone)]
+struct Edition {
+    track_count: usize,
+    durations: Vec<u32>,           // Track durations in seconds
+    mbids: Vec<EditionMBID>,       // All MBIDs for this edition
+    duration_signature: String,    // For deduplication (e.g., "107,125,135,...")
+}
+
 // Rate limiter for MusicBrainz API (1 request per second)
 struct RateLimiter {
     last_request: Arc<Mutex<std::time::Instant>>,
@@ -877,6 +894,225 @@ async fn get_expected_durations(
         .collect();
 
     Ok(sorted_candidates)
+}
+
+/// Comprehensive MusicBrainz search using ALL strategies and name variants
+/// Returns up to 150 releases with full metadata (not yet grouped into editions)
+async fn comprehensive_musicbrainz_search(
+    artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
+    album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
+    rate_limiter: &RateLimiter,
+) -> Result<Vec<(Vec<u32>, EditionMBID)>, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::builder()
+        .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
+        .timeout(Duration::from_secs(30))
+        .build()?;
+
+    let mut all_releases: Vec<MBRelease> = Vec::new();
+    let mut seen_mbids = std::collections::HashSet::new();
+
+    // Query with ALL combinations of artist/album variants and ALL search strategies
+    for artist in artist_variants {
+        for album in album_variants {
+            let search_queries = generate_search_queries(artist, album);
+
+            for (i, query) in search_queries.iter().enumerate() {
+                if all_releases.len() >= 150 {
+                    println!("  Reached 150 release limit");
+                    break;
+                }
+
+                let encoded_query = urlencoding::encode(query);
+                let search_url = format!(
+                    "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
+                    encoded_query
+                );
+
+                rate_limiter.wait().await;
+
+                let response = retry_with_backoff(|| async {
+                    client
+                        .get(&search_url)
+                        .send()
+                        .await
+                        .map_err(|e| format!("error sending request: {}", e))?
+                        .json::<MBSearchResponse>()
+                        .await
+                        .map_err(|e| format!("error parsing JSON: {}", e))
+                }).await;
+
+                let response = match response {
+                    Ok(r) => r,
+                    Err(e) => {
+                        println!("  Strategy {}/{} for '{}' / '{}' FAILED: {}",
+                                 i + 1, search_queries.len(), artist, album, e);
+                        continue;
+                    }
+                };
+
+                if response.releases.is_empty() {
+                    continue;
+                }
+
+                // Add new releases (deduplicate by MBID)
+                for release in response.releases {
+                    if seen_mbids.insert(release.id.clone()) {
+                        all_releases.push(release);
+
+                        if all_releases.len() >= 150 {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if all_releases.len() >= 150 {
+                break;
+            }
+        }
+
+        if all_releases.len() >= 150 {
+            break;
+        }
+    }
+
+    println!("  Found {} unique releases across all search strategies", all_releases.len());
+
+    // Fetch track details for all releases
+    let mut results: Vec<(Vec<u32>, EditionMBID)> = Vec::new();
+
+    for release in all_releases.iter() {
+        rate_limiter.wait().await;
+
+        let details_url = format!(
+            "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
+            release.id
+        );
+
+        let details = retry_with_backoff(|| async {
+            client
+                .get(&details_url)
+                .send()
+                .await
+                .map_err(|e| format!("error fetching details: {}", e))?
+                .json::<MBReleaseDetails>()
+                .await
+                .map_err(|e| format!("error parsing details: {}", e))
+        }).await;
+
+        let details = match details {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        // Extract track durations and media format
+        let mut durations = Vec::new();
+        let mut is_cd = false;
+        for medium in &details.media {
+            for track in &medium.tracks {
+                if let Some(length_ms) = track.length {
+                    durations.push(length_ms / 1000); // Convert to seconds
+                }
+            }
+            if let Some(ref format) = medium.format {
+                if format == "CD" {
+                    is_cd = true;
+                }
+            }
+        }
+
+        if durations.is_empty() {
+            continue;
+        }
+
+        results.push((
+            durations,
+            EditionMBID {
+                mbid: release.id.clone(),
+                country: release.country.clone(),
+                status: release.status.clone(),
+                is_cd,
+            }
+        ));
+    }
+
+    Ok(results)
+}
+
+/// Group MBIDs into editions based on track count + duration pattern
+/// Multiple MBIDs can represent the same edition (e.g., US vs UK release of same album)
+fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID)>) -> Vec<Edition> {
+    let mut editions: Vec<Edition> = Vec::new();
+
+    for (durations, mbid_info) in releases {
+        // Create signature: "track_count:duration1,duration2,..."
+        let signature = format!("{}:{}",
+            durations.len(),
+            durations.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(",")
+        );
+
+        // Find existing edition with this signature
+        if let Some(edition) = editions.iter_mut().find(|e| e.duration_signature == signature) {
+            // Add this MBID to existing edition
+            edition.mbids.push(mbid_info);
+        } else {
+            // Create new edition
+            editions.push(Edition {
+                track_count: durations.len(),
+                durations: durations.clone(),
+                mbids: vec![mbid_info],
+                duration_signature: signature,
+            });
+        }
+    }
+
+    println!("  Grouped into {} unique editions", editions.len());
+
+    // Sort editions by track count (helps with display)
+    editions.sort_by_key(|e| e.track_count);
+
+    editions
+}
+
+/// Select best MBID from an edition using metadata prioritization
+/// Returns (mbid, country, status, is_cd) tuple
+fn select_best_mbid(edition: &Edition) -> String {
+    if edition.mbids.is_empty() {
+        return String::new();
+    }
+
+    if edition.mbids.len() == 1 {
+        return edition.mbids[0].mbid.clone();
+    }
+
+    // Score each MBID using the established criteria
+    let mut scored: Vec<(&EditionMBID, f64)> = edition.mbids
+        .iter()
+        .map(|mbid_info| {
+            let mut score = 0.0;
+
+            // Prioritize CD releases (-50 points)
+            if mbid_info.is_cd {
+                score -= 50.0;
+            }
+
+            // Prioritize US releases (-30 points)
+            if mbid_info.country.as_deref() == Some("US") {
+                score -= 30.0;
+            }
+
+            // Prioritize Official status (-40 points)
+            if mbid_info.status.as_deref() == Some("Official") {
+                score -= 40.0;
+            }
+
+            (mbid_info, score)
+        })
+        .collect();
+
+    scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+    scored[0].0.mbid.clone()
 }
 
 /// Extract artist and album from path
@@ -1988,9 +2224,11 @@ fn run_stage5_extra_track_merging(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Comprehensive Album Matcher (Run 8c) ===");
-    println!("6-Phase Matching: ID3 Reconciliation -> Initial -> Parameter Opt -> ENHANCED Segment Assembly -> Quiet Spots -> Extra Track Merging\n");
-    println!("ARCHITECTURE CHANGE: All MB editions tested at each stage (no premature commitment)\n");
+    println!("=== Comprehensive Album Matcher (Run 10) ===");
+    println!("ARCHITECTURE: Comprehensive upfront MB search (ALL strategies, up to 150 releases)\n");
+    println!("  - Edition grouping by track count + duration pattern (not MBID)");
+    println!("  - All unique editions tested through 5 stages");
+    println!("  - Best MBID selected from winning edition (CD/Official/US priority)\n");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -2000,9 +2238,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut training_files = Vec::new();
 
     for line in training_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Try numbered format first: "[1] path"
         if let Some(path_start) = line.find("] ") {
             let path_str = &line[path_start + 2..];
             training_files.push(PathBuf::from(path_str));
+        } else {
+            // Plain path format
+            training_files.push(PathBuf::from(trimmed));
         }
     }
 
@@ -2114,16 +2361,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Get initial track durations for MusicBrainz lookup
         let initial_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
-        let initial_total: f64 = initial_durations.iter().sum();
 
-        // Get expected durations from MusicBrainz (sorted by composite score, best first)
-        print!("  Fetching MusicBrainz data... ");
-        let mb_candidates = match get_expected_durations(
-            &artist, &album, initial_durations.len(), initial_total, &rate_limiter
+        // Build artist/album variant lists for comprehensive search
+        let mut artist_variants = vec![artist.clone()];
+        if let Some(ref alt_artist) = reconciled.alternate_artist {
+            if !artist_variants.contains(alt_artist) {
+                artist_variants.push(alt_artist.clone());
+            }
+        }
+
+        let mut album_variants = vec![album.clone()];
+        if let Some(ref alt_album) = reconciled.alternate_album {
+            if !album_variants.contains(alt_album) {
+                album_variants.push(alt_album.clone());
+            }
+        }
+
+        // Comprehensive MusicBrainz search (ALL strategies, ALL variants, up to 150 releases)
+        print!("  Fetching MusicBrainz data (comprehensive search)... ");
+        let editions = match comprehensive_musicbrainz_search(
+            &artist_variants,
+            &album_variants,
+            &rate_limiter
         ).await {
-            Ok(data) => {
-                if data.is_empty() {
-                    println!("FAILED: No candidates found");
+            Ok(releases) => {
+                if releases.is_empty() {
+                    println!("FAILED: No releases found");
                     results.push(ValidationResult {
                         album_path: file_path.to_string_lossy().to_string(),
                         artist: artist.clone(),
@@ -2138,7 +2401,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         matched_tracks_count: 0,
                         match_percentage: 0.0,
                         mean_error: 0.0,
-                        status: "MusicBrainz lookup failed: No candidates".to_string(),
+                        status: "MusicBrainz lookup failed: No releases found".to_string(),
                         matching_stage: "None".to_string(),
                         best_threshold_db: None,
                         best_min_duration_secs: None,
@@ -2147,8 +2410,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!();
                     continue;
                 }
-                println!("Found {} editions (sorted by composite score, testing all)", data.len());
-                data
+
+                // Group releases into unique editions
+                let editions = group_into_editions(releases);
+
+                if editions.is_empty() {
+                    println!("FAILED: No valid editions");
+                    results.push(ValidationResult {
+                        album_path: file_path.to_string_lossy().to_string(),
+                        artist: artist.clone(),
+                        album: album.clone(),
+                        mbid: String::new(),
+                        musicbrainz_url: String::new(),
+                        expected_track_count: 0,
+                        detected_track_count: initial_durations.len(),
+                        perfect_count_match: false,
+                        track_matches: Vec::new(),
+                        extra_tracks: Vec::new(),
+                        matched_tracks_count: 0,
+                        match_percentage: 0.0,
+                        mean_error: 0.0,
+                        status: "MusicBrainz lookup failed: No valid editions".to_string(),
+                        matching_stage: "None".to_string(),
+                        best_threshold_db: None,
+                        best_min_duration_secs: None,
+                        confidence: "Poor".to_string(),
+                    });
+                    println!();
+                    continue;
+                }
+
+                println!("Found {} unique editions to test", editions.len());
+                editions
             }
             Err(e) => {
                 println!("FAILED: {}", e);
@@ -2176,6 +2469,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
+
+        // Convert editions to old format for stage testing: Vec<(Vec<u32>, String)>
+        // Use temporary placeholder MBIDs (will select best MBID after finding winning edition)
+        let mb_candidates: Vec<(Vec<u32>, String)> = editions
+            .iter()
+            .enumerate()
+            .map(|(idx, edition)| (edition.durations.clone(), format!("edition_{}", idx)))
+            .collect();
 
         // === STAGE 1: Initial detection ===
         let (mut best_durations, stage1_result) = run_stage1_initial_detection(
@@ -2279,6 +2580,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             best_mean_error = result.mean_error;
             best_stage = "album_extractor_5_merging";
             // mbid and expected_durations stay the same
+        }
+
+        // Convert placeholder MBID to real MBID from winning edition
+        if best_mbid.starts_with("edition_") {
+            if let Some(idx_str) = best_mbid.strip_prefix("edition_") {
+                if let Ok(idx) = idx_str.parse::<usize>() {
+                    if idx < editions.len() {
+                        best_mbid = select_best_mbid(&editions[idx]);
+                    }
+                }
+            }
         }
 
         // Calculate final statistics
