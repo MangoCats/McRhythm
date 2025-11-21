@@ -187,78 +187,10 @@ struct ValidationResult {
     mean_error: f64,
     status: String,
     // New fields for multi-stage matching
-    matching_stage: String, // "album_extractor_1_initial", "album_extractor_2_optimization", etc.
+    matching_stage: String, // "Initial", "Parameter Optimization", "Segment Assembly", "Quiet Spot Detection", "Expanded MB Search"
     best_threshold_db: Option<f64>,
     best_min_duration_secs: Option<f64>,
     confidence: String, // "Excellent", "Good", "Fair", "Poor"
-}
-
-// ===== Shared Context Structures for Stage Pipeline =====
-
-/// Shared context passed between matching stages
-#[derive(Debug)]
-struct MatchContext {
-    // Audio data
-    samples: Vec<f32>,
-    sample_rate: u32,
-
-    // Metadata
-    artist: String,
-    album: String,
-    file_path: PathBuf,
-
-    // MusicBrainz candidates (sorted by score, best first)
-    mb_candidates: Vec<(Vec<u32>, String)>, // (durations, mbid)
-    mb_candidate_tracker: MBCandidateTracker,
-
-    // Best match tracking across all stages
-    best_durations: Vec<f64>,
-    best_matches: Vec<TrackMatch>,
-    best_matched_count: usize,
-    best_percentage: f64,
-    best_stage: String,
-    best_threshold: Option<f64>,
-    best_min_duration: Option<f64>,
-    expected_durations: Vec<u32>,
-    mbid: String,
-
-    // Stage-specific tracking
-    stage2_results: Vec<(Vec<f64>, f64, f64)>, // (durations, threshold, min_dur)
-    stage3_result: Option<Vec<f64>>,
-
-    // Configuration
-    match_tolerance_secs: f64,
-    threshold_values: Vec<f32>,
-    min_duration_values: Vec<f32>,
-}
-
-impl MatchContext {
-    /// Update best match if new result is better
-    fn update_best(
-        &mut self,
-        durations: Vec<f64>,
-        matches: Vec<TrackMatch>,
-        matched_count: usize,
-        percentage: f64,
-        stage_name: &str,
-        threshold: Option<f64>,
-        min_duration: Option<f64>,
-    ) {
-        if percentage > self.best_percentage {
-            self.best_durations = durations;
-            self.best_matches = matches;
-            self.best_matched_count = matched_count;
-            self.best_percentage = percentage;
-            self.best_stage = stage_name.to_string();
-            self.best_threshold = threshold;
-            self.best_min_duration = min_duration;
-        }
-    }
-
-    /// Check if we've achieved perfect match (100%)
-    fn has_perfect_match(&self) -> bool {
-        self.best_percentage >= 100.0
-    }
 }
 
 // ===== Phase 0: ID3 Tag Extraction & Reconciliation =====
@@ -1291,7 +1223,7 @@ fn collect_all_segmentations(
     // Stage 1 (Initial)
     let seg1 = SegmentationRecord::new(
         stage1_durations.to_vec(),
-        "album_extractor_1_initial".to_string(),
+        "Initial".to_string(),
         Some(-57.0),
         Some(0.9),
     );
@@ -1316,7 +1248,7 @@ fn collect_all_segmentations(
     if let Some(assembled_durations) = stage3_result {
         let seg3 = SegmentationRecord::new(
             assembled_durations.clone(),
-            "album_extractor_3_assembly".to_string(),
+            "Segment Assembly".to_string(),
             None,
             None,
         );
@@ -1646,351 +1578,10 @@ fn classify_confidence(match_percentage: f64) -> String {
     }
 }
 
-/// Result from testing a segmentation against all MB candidates
-#[derive(Debug, Clone)]
-struct CandidateTestResult {
-    percentage: f64,
-    matched_count: usize,
-    matches: Vec<TrackMatch>,
-    mbid: String,
-    expected_durations: Vec<u32>,
-    mean_error: f64,
-    detected_durations: Vec<f64>,
-}
-
-/// Test a segmentation against ALL MusicBrainz candidates (best first)
-/// Returns best match found, or None if no candidates
-fn test_segmentation_against_all_candidates(
-    detected_durations: &[f64],
-    candidates: &[(Vec<u32>, String)],
-    tolerance: f64,
-) -> Option<CandidateTestResult> {
-    let mut best_result: Option<CandidateTestResult> = None;
-
-    for (expected_u32, mbid) in candidates {
-        let (matches, matched_count, percentage) = analyze_track_matching(
-            detected_durations,
-            expected_u32,
-            tolerance,
-        );
-
-        // Calculate mean error for matched tracks
-        let mean_error = if matched_count > 0 {
-            matches
-                .iter()
-                .filter(|m| m.matches)
-                .map(|m| m.error)
-                .sum::<f64>()
-                / matched_count as f64
-        } else {
-            0.0
-        };
-
-        if best_result.is_none() || percentage > best_result.as_ref().unwrap().percentage {
-            best_result = Some(CandidateTestResult {
-                percentage,
-                matched_count,
-                matches,
-                mbid: mbid.clone(),
-                expected_durations: expected_u32.clone(),
-                mean_error,
-                detected_durations: detected_durations.to_vec(),
-            });
-        }
-
-        // Early exit on perfect match
-        if percentage >= 100.0 {
-            break;
-        }
-    }
-
-    best_result
-}
-
-/// Stage 1: Initial detection with default parameters
-/// Tests default threshold/duration against ALL MB candidates
-fn run_stage1_initial_detection(
-    samples: &[f32],
-    sample_rate: u32,
-    threshold_db: f64,
-    min_duration_secs: f64,
-    mb_candidates: &[(Vec<u32>, String)],
-    tolerance: f64,
-) -> (Vec<f64>, Option<CandidateTestResult>) {
-    println!("  STAGE 1: Testing default parameters ({}dB, {}s)...", threshold_db, min_duration_secs);
-    let durations = get_track_durations(samples, sample_rate, threshold_db as f32, min_duration_secs as f32);
-    println!("    Found {} tracks", durations.len());
-
-    let result = test_segmentation_against_all_candidates(&durations, mb_candidates, tolerance);
-
-    if let Some(ref r) = result {
-        println!("    Best match: {:.1}% with {} tracks from release {} ({} confidence)",
-            r.percentage, r.expected_durations.len(), &r.mbid[..8],
-            classify_confidence(r.percentage));
-    }
-
-    (durations, result)
-}
-
-/// Stage 2: Parameter optimization
-/// Tests grid of threshold/duration combinations against ALL MB candidates
-fn run_stage2_parameter_optimization(
-    samples: &[f32],
-    sample_rate: u32,
-    threshold_values: &[f64],
-    min_duration_values: &[f64],
-    mb_candidates: &[(Vec<u32>, String)],
-    tolerance: f64,
-    current_best_percentage: f64,
-) -> Option<CandidateTestResult> {
-    if current_best_percentage >= 100.0 {
-        return None; // Already perfect
-    }
-
-    println!("  STAGE 2: Testing {} parameter combinations against all editions...",
-        threshold_values.len() * min_duration_values.len());
-
-    let mut best_result: Option<CandidateTestResult> = None;
-    let mut tested = 0;
-    let total_combinations = threshold_values.len() * min_duration_values.len();
-
-    for &thresh in threshold_values {
-        for &min_dur in min_duration_values {
-            tested += 1;
-            let test_durations = get_track_durations(samples, sample_rate, thresh as f32, min_dur as f32);
-
-            if let Some(result) = test_segmentation_against_all_candidates(
-                &test_durations,
-                mb_candidates,
-                tolerance,
-            ) {
-                let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
-
-                if improved && result.percentage > current_best_percentage {
-                    println!("    New best: {:.1}% with {}dB, {}s → {} tracks from {} ({}/{})",
-                        result.percentage, thresh, min_dur, result.expected_durations.len(),
-                        &result.mbid[..8], tested, total_combinations);
-
-                    best_result = Some(result);
-
-                    if best_result.as_ref().unwrap().percentage >= 100.0 {
-                        println!("    Best match after parameter optimization: 100.0% (Excellent confidence)");
-                        return best_result; // Early exit
-                    }
-                }
-            }
-        }
-    }
-
-    if let Some(ref r) = best_result {
-        println!("    Best match after parameter optimization: {:.1}% ({} confidence)",
-            r.percentage, classify_confidence(r.percentage));
-    }
-
-    best_result
-}
-
-/// Stage 3: Segment assembly
-/// Tries assembling current best segmentation to match each edition's track count
-fn run_stage3_segment_assembly(
-    best_durations: &[f64],
-    mb_candidates: &[(Vec<u32>, String)],
-    tolerance: f64,
-    current_best_percentage: f64,
-) -> Option<CandidateTestResult> {
-    if current_best_percentage >= 100.0 {
-        return None; // Already perfect
-    }
-
-    println!("  STAGE 3: Attempting segment assembly against all editions...");
-
-    let mut assemblies_tested = 0;
-    let mut assemblies_improved = 0;
-    let mut best_result: Option<CandidateTestResult> = None;
-
-    for (expected_u32, _mbid) in mb_candidates {
-        // Only try assembly if current segmentation is over-segmented for this edition
-        if best_durations.len() > expected_u32.len() {
-            if let Some(assembled_durations) = assemble_segments_dp(best_durations, expected_u32) {
-                assemblies_tested += 1;
-
-                // Test assembled result against ALL candidates (not just the target)
-                if let Some(result) = test_segmentation_against_all_candidates(
-                    &assembled_durations,
-                    mb_candidates,
-                    tolerance,
-                ) {
-                    let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
-
-                    if improved && result.percentage > current_best_percentage {
-                        assemblies_improved += 1;
-                        println!("    New best: {:.1}% via assembly → {} tracks from {} ({} tested)",
-                            result.percentage, result.expected_durations.len(), &result.mbid[..8],
-                            assemblies_tested);
-
-                        best_result = Some(result);
-
-                        if best_result.as_ref().unwrap().percentage >= 100.0 {
-                            break; // Early exit on perfect match
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if assemblies_tested > 0 {
-        println!("    Tested {} assemblies, {} improved over best", assemblies_tested, assemblies_improved);
-    } else {
-        println!("    No assembly candidates (current segmentation not over-segmented)");
-    }
-
-    best_result
-}
-
-/// Stage 4: Quiet spot detection
-/// Tries quiet spot detection for each candidate edition's track count
-fn run_stage4_quiet_spot_detection(
-    samples: &[f32],
-    sample_rate: u32,
-    mb_candidates: &[(Vec<u32>, String)],
-    tolerance: f64,
-    current_best_percentage: f64,
-) -> Option<CandidateTestResult> {
-    if current_best_percentage >= 100.0 {
-        return None; // Already perfect
-    }
-
-    println!("  STAGE 4: Attempting quiet spot detection against all editions...");
-
-    let mut quiet_tests = 0;
-    let mut quiet_improvements = 0;
-    let mut best_result: Option<CandidateTestResult> = None;
-
-    for (expected_u32, _mbid) in mb_candidates {
-        if expected_u32.len() > 0 {
-            let quiet_spots = detect_quiet_spots(samples, sample_rate, expected_u32.len());
-            let quiet_durations = quiet_spots_to_durations(&quiet_spots, samples.len(), sample_rate);
-            quiet_tests += 1;
-
-            // Test quiet spot result against ALL candidates
-            if let Some(result) = test_segmentation_against_all_candidates(
-                &quiet_durations,
-                mb_candidates,
-                tolerance,
-            ) {
-                let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
-
-                if improved && result.percentage > current_best_percentage {
-                    quiet_improvements += 1;
-                    println!("    New best: {:.1}% via quiet spots → {} tracks from {} ({} tested)",
-                        result.percentage, result.expected_durations.len(), &result.mbid[..8],
-                        quiet_tests);
-
-                    best_result = Some(result);
-
-                    if best_result.as_ref().unwrap().percentage >= 100.0 {
-                        break; // Early exit on perfect match
-                    }
-                }
-            }
-        }
-    }
-
-    if quiet_tests > 0 {
-        println!("    Tested {} quiet spot configurations, {} improved", quiet_tests, quiet_improvements);
-    } else {
-        println!("    No valid quiet spot candidates");
-    }
-
-    best_result
-}
-
-/// Stage 5: Extra track merging
-/// When detected > expected AND match ≥100%, merge adjacent tracks to achieve correct count
-fn run_stage5_extra_track_merging(
-    best_durations: &[f64],
-    best_expected_durations: &[u32],
-    tolerance: f64,
-    current_best_percentage: f64,
-) -> Option<(Vec<f64>, CandidateTestResult)> {
-    if current_best_percentage < 100.0 || best_durations.len() <= best_expected_durations.len() {
-        return None; // Not applicable
-    }
-
-    let extra_count = best_durations.len() - best_expected_durations.len();
-    println!("  STAGE 5: Attempting extra track merging...");
-    println!("    {} extra track(s) detected, match quality {:.1}%", extra_count, current_best_percentage);
-    println!("    Testing {} possible adjacent track merges", best_durations.len() - 1);
-
-    let mut best_merge_durations = None;
-    let mut best_merge_error = f64::INFINITY;
-    let mut best_merge_index = None;
-
-    // Try merging each possible pair of adjacent tracks
-    for merge_idx in 0..(best_durations.len() - 1) {
-        let mut merged_durations = Vec::new();
-
-        for i in 0..best_durations.len() {
-            if i == merge_idx {
-                merged_durations.push(best_durations[i] + best_durations[i + 1]);
-            } else if i == merge_idx + 1 {
-                continue; // Skip - already merged with previous
-            } else {
-                merged_durations.push(best_durations[i]);
-            }
-        }
-
-        let (merged_matches, _merged_matched_count, _merged_percentage) =
-            analyze_track_matching(&merged_durations, best_expected_durations, tolerance);
-
-        let total_error: f64 = merged_matches.iter().map(|m| m.error).sum();
-
-        if merged_durations.len() == best_expected_durations.len() && total_error < best_merge_error {
-            best_merge_error = total_error;
-            best_merge_durations = Some(merged_durations);
-            best_merge_index = Some(merge_idx);
-        }
-    }
-
-    // Apply best merge if found
-    if let Some(merged_durations) = best_merge_durations {
-        let (merged_matches, merged_matched_count, merged_percentage) =
-            analyze_track_matching(&merged_durations, best_expected_durations, tolerance);
-
-        let mean_merged_error = best_merge_error / merged_matches.len() as f64;
-
-        println!("    Best merge: tracks {} + {} → {:.1}% match, {:.2}s mean error",
-            best_merge_index.unwrap() + 1,
-            best_merge_index.unwrap() + 2,
-            merged_percentage,
-            mean_merged_error);
-
-        println!("    Track count corrected: {} → {} ({:.1}% match)",
-            merged_durations.len() + 1, merged_durations.len(), merged_percentage);
-
-        let result = CandidateTestResult {
-            percentage: merged_percentage,
-            matched_count: merged_matched_count,
-            matches: merged_matches,
-            mbid: String::new(), // Will use existing best_mbid
-            expected_durations: best_expected_durations.to_vec(),
-            mean_error: mean_merged_error,
-            detected_durations: merged_durations.clone(),
-        };
-
-        Some((merged_durations, result))
-    } else {
-        println!("    No valid merge found that produces correct track count");
-        None
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Comprehensive Album Matcher (Run 8c) ===");
-    println!("6-Phase Matching: ID3 Reconciliation -> Initial -> Parameter Opt -> ENHANCED Segment Assembly -> Quiet Spots -> Extra Track Merging\n");
-    println!("ARCHITECTURE CHANGE: All MB editions tested at each stage (no premature commitment)\n");
+    println!("=== Comprehensive Album Matcher (Run 8) ===");
+    println!("7-Phase Matching: ID3 Reconciliation -> Initial -> Parameter Opt -> ENHANCED Segment Assembly -> Quiet Spots -> Expanded MB Search -> Extra Track Merging\n");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -2038,8 +1629,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ({} training set + {} from long files list)\n", initial_count, additional_files.len());
 
     // Use optimal parameters from analysis
-    let threshold_db: f64 = -57.0;
-    let min_duration_secs: f64 = 0.9;
+    let threshold_db = -57.0;
+    let min_duration_secs = 0.9;
     let match_tolerance_secs = 10.0;
 
     println!("Parameters:");
@@ -2112,14 +1703,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // Get initial track durations for MusicBrainz lookup
-        let initial_durations = get_track_durations(&samples, sample_rate, threshold_db as f32, min_duration_secs as f32);
-        let initial_total: f64 = initial_durations.iter().sum();
+        // Initialize tracking for Stage 5
+        let mut stage2_results: Vec<(Vec<f64>, f64, f64)> = Vec::new(); // (durations, threshold, min_dur)
+        let mut mb_candidate_tracker = MBCandidateTracker::new();
 
-        // Get expected durations from MusicBrainz (sorted by composite score, best first)
+        // === STAGE 1: Try default parameters ===
+        println!("  STAGE 1: Testing default parameters (-57dB, 0.9s)...");
+        let stage1_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
+        let stage1_total: f64 = stage1_durations.iter().sum();
+        println!("    Found {} tracks", stage1_durations.len());
+
+        // Get expected durations from MusicBrainz (sorted by duration match, best first)
         print!("  Fetching MusicBrainz data... ");
         let mb_candidates = match get_expected_durations(
-            &artist, &album, initial_durations.len(), initial_total, &rate_limiter
+            &artist, &album, stage1_durations.len(), stage1_total, &rate_limiter
         ).await {
             Ok(data) => {
                 if data.is_empty() {
@@ -2131,7 +1728,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         mbid: String::new(),
                         musicbrainz_url: String::new(),
                         expected_track_count: 0,
-                        detected_track_count: initial_durations.len(),
+                        detected_track_count: stage1_durations.len(),
                         perfect_count_match: false,
                         track_matches: Vec::new(),
                         extra_tracks: Vec::new(),
@@ -2147,7 +1744,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!();
                     continue;
                 }
-                println!("Found {} editions (sorted by composite score, testing all)", data.len());
+                println!("Found {} editions (sorted by duration match, trying best first)", data.len());
                 data
             }
             Err(e) => {
@@ -2159,7 +1756,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     mbid: String::new(),
                     musicbrainz_url: String::new(),
                     expected_track_count: 0,
-                    detected_track_count: initial_durations.len(),
+                    detected_track_count: stage1_durations.len(),
                     perfect_count_match: false,
                     track_matches: Vec::new(),
                     extra_tracks: Vec::new(),
@@ -2177,120 +1774,325 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // === STAGE 1: Initial detection ===
-        let (mut best_durations, stage1_result) = run_stage1_initial_detection(
-            &samples,
-            sample_rate,
-            threshold_db,
-            min_duration_secs,
-            &mb_candidates,
-            match_tolerance_secs,
-        );
+        // Use first candidate as initial best match (best duration match)
+        let (mut expected_durations, mut mbid) = mb_candidates[0].clone();
+        println!("  Using best match: {} tracks from release {}", expected_durations.len(), &mbid[..8]);
 
-        // Initialize tracking variables
-        let mut best_matches: Vec<TrackMatch>;
-        let mut best_matched_count: usize;
-        let mut best_percentage: f64;
-        let mut best_stage = "album_extractor_1_initial";
+        // Track this MBID as tested
+        mb_candidate_tracker.add_tested(mbid.clone());
+
+        // Store remaining candidates for Stage 5 if needed
+        let remaining_mb_candidates: Vec<(Vec<u32>, String)> = mb_candidates
+            .iter()
+            .skip(1)
+            .filter(|(_, candidate_mbid)| !mb_candidate_tracker.is_tested(candidate_mbid))
+            .cloned()
+            .collect();
+
+        if remaining_mb_candidates.len() > 0 {
+            println!("  {} additional editions available if needed", remaining_mb_candidates.len());
+        }
+
+        // Analyze Stage 1 results
+        let (stage1_matches, stage1_matched_count, stage1_percentage) =
+            analyze_track_matching(&stage1_durations, &expected_durations, match_tolerance_secs);
+
+        println!("    Match quality: {:.1}% ({} confidence)",
+            stage1_percentage, classify_confidence(stage1_percentage));
+
+        // Track best result across all stages
+        let mut best_durations = stage1_durations.clone();
+        let mut best_matches = stage1_matches.clone();
+        let mut best_matched_count = stage1_matched_count;
+        let mut best_percentage = stage1_percentage;
+        let mut best_stage = "Initial";
         let mut best_threshold: Option<f64> = None;
         let mut best_min_duration: Option<f64> = None;
-        let mut best_mbid: String;
-        let mut best_expected_durations: Vec<u32>;
-        let mut best_mean_error: f64;
 
-        if let Some(result) = stage1_result {
-            best_matches = result.matches;
-            best_matched_count = result.matched_count;
-            best_percentage = result.percentage;
-            best_mbid = result.mbid;
-            best_expected_durations = result.expected_durations;
-            best_mean_error = result.mean_error;
-        } else {
-            println!("    ERROR: No candidates to test");
-            continue;
+        // === STAGE 2: Parameter optimization (if needed) ===
+        if best_percentage < 100.0 {
+            println!("  STAGE 2: Testing {} parameter combinations...", threshold_values.len() * min_duration_values.len());
+            let mut tested = 0;
+
+            for &thresh in &threshold_values {
+                for &min_dur in &min_duration_values {
+                    tested += 1;
+                    let test_durations = get_track_durations(&samples, sample_rate, thresh, min_dur);
+
+                    // Track this result for Stage 5
+                    stage2_results.push((test_durations.clone(), thresh as f64, min_dur as f64));
+
+                    let (test_matches, test_matched_count, test_percentage) =
+                        analyze_track_matching(&test_durations, &expected_durations, match_tolerance_secs);
+
+                    if test_percentage > best_percentage {
+                        best_durations = test_durations;
+                        best_matches = test_matches;
+                        best_matched_count = test_matched_count;
+                        best_percentage = test_percentage;
+                        best_stage = "Parameter Optimization";
+                        best_threshold = Some(thresh as f64);
+                        best_min_duration = Some(min_dur as f64);
+
+                        println!("    New best: {:.1}% with {}dB, {}s ({}/{})",
+                            best_percentage, thresh, min_dur, tested,
+                            threshold_values.len() * min_duration_values.len());
+
+                        // Only stop if we found perfect match (100%)
+                        if best_percentage >= 100.0 {
+                            break;
+                        }
+                    }
+                }
+                if best_percentage >= 100.0 {
+                    break;
+                }
+            }
+
+            println!("    Best match after parameter optimization: {:.1}% ({} confidence)",
+                best_percentage, classify_confidence(best_percentage));
         }
 
-        // === STAGE 2: Parameter optimization ===
-        if let Some(result) = run_stage2_parameter_optimization(
-            &samples,
-            sample_rate,
-            &threshold_values,
-            &min_duration_values,
-            &mb_candidates,
-            match_tolerance_secs,
-            best_percentage,
-        ) {
-            best_durations = result.detected_durations;
-            best_matches = result.matches;
-            best_matched_count = result.matched_count;
-            best_percentage = result.percentage;
-            best_mbid = result.mbid;
-            best_expected_durations = result.expected_durations;
-            best_mean_error = result.mean_error;
-            best_stage = "album_extractor_2_optimization";
+        // === STAGE 3: Comprehensive Segment Assembly ===
+        // Try assembly on ALL over-segmented candidates from Stage 1 and Stage 2
+        let mut stage3_result: Option<Vec<f64>> = None; // Track for Stage 5
+
+        if best_percentage < 100.0 {
+            // Collect all segmentations that are over-segmented
+            let mut over_segmented_candidates = Vec::new();
+
+            // Stage 1 result
+            if stage1_durations.len() > expected_durations.len() {
+                over_segmented_candidates.push((stage1_durations.clone(), "Initial".to_string(), None, None));
+            }
+
+            // Stage 2 results
+            for (durations, thresh, min_dur) in &stage2_results {
+                if durations.len() > expected_durations.len() {
+                    over_segmented_candidates.push((
+                        durations.clone(),
+                        format!("Parameter Optimization ({}dB, {}s)", thresh, min_dur),
+                        Some(*thresh),
+                        Some(*min_dur)
+                    ));
+                }
+            }
+
+            if !over_segmented_candidates.is_empty() {
+                println!("  STAGE 3: Comprehensive segment assembly across {} over-segmented candidates...",
+                    over_segmented_candidates.len());
+
+                let mut best_assembly_percentage = 0.0;
+                let mut best_assembly_source = String::new();
+                let mut assemblies_tested = 0;
+                let mut assemblies_improved = 0;
+
+                for (candidate_durations, source, thresh, min_dur) in over_segmented_candidates {
+                    if let Some(assembled_durations) = assemble_segments_dp(&candidate_durations, &expected_durations) {
+                        assemblies_tested += 1;
+
+                        let (assembled_matches, assembled_matched_count, assembled_percentage) =
+                            analyze_track_matching(&assembled_durations, &expected_durations, match_tolerance_secs);
+
+                        if assembled_percentage > best_percentage {
+                            assemblies_improved += 1;
+                            best_durations = assembled_durations.clone();
+                            best_matches = assembled_matches;
+                            best_matched_count = assembled_matched_count;
+                            best_percentage = assembled_percentage;
+                            best_stage = "Segment Assembly";
+                            best_assembly_percentage = assembled_percentage;
+                            best_assembly_source = source.clone();
+                            stage3_result = Some(assembled_durations.clone());
+
+                            // Update best parameters if from Stage 2
+                            if let (Some(t), Some(m)) = (thresh, min_dur) {
+                                best_threshold = Some(t);
+                                best_min_duration = Some(m);
+                            }
+
+                            println!("    New best: {:.1}% via assembly of {} ({} segments → {} tracks)",
+                                best_percentage, source, candidate_durations.len(), assembled_durations.len());
+
+                            if best_percentage >= 100.0 {
+                                break; // Early exit on perfect match
+                            }
+                        }
+                    }
+                }
+
+                println!("    Tested {} assemblies, {} improved over best", assemblies_tested, assemblies_improved);
+                if best_assembly_percentage > 0.0 {
+                    println!("    Best assembly: {:.1}% from {}", best_assembly_percentage, best_assembly_source);
+                } else {
+                    println!("    No assembly improved over current best ({:.1}%)", best_percentage);
+                }
+            }
         }
 
-        // === STAGE 3: Segment assembly ===
-        if let Some(result) = run_stage3_segment_assembly(
-            &best_durations,
-            &mb_candidates,
-            match_tolerance_secs,
-            best_percentage,
-        ) {
-            best_durations = result.detected_durations;
-            best_matches = result.matches;
-            best_matched_count = result.matched_count;
-            best_percentage = result.percentage;
-            best_mbid = result.mbid;
-            best_expected_durations = result.expected_durations;
-            best_mean_error = result.mean_error;
-            best_stage = "album_extractor_3_assembly";
+        // === STAGE 4: Quiet spot detection (if needed) ===
+        if best_percentage < 100.0 && expected_durations.len() > 0 {
+            println!("  STAGE 4: Attempting quiet spot detection...");
+            let quiet_spots = detect_quiet_spots(&samples, sample_rate, expected_durations.len());
+            let quiet_durations = quiet_spots_to_durations(&quiet_spots, samples.len(), sample_rate);
+
+            println!("    Found {} quiet spots", quiet_spots.len());
+
+            let (quiet_matches, quiet_matched_count, quiet_percentage) =
+                analyze_track_matching(&quiet_durations, &expected_durations, match_tolerance_secs);
+
+            if quiet_percentage > best_percentage {
+                best_durations = quiet_durations;
+                best_matches = quiet_matches;
+                best_matched_count = quiet_matched_count;
+                best_percentage = quiet_percentage;
+                best_stage = "Quiet Spot Detection";
+                println!("    Quiet spot detection improved match to {:.1}%", best_percentage);
+            } else {
+                println!("    Quiet spot detection: {:.1}% (not better than current best)", quiet_percentage);
+            }
         }
 
-        // === STAGE 4: Quiet spot detection ===
-        if let Some(result) = run_stage4_quiet_spot_detection(
-            &samples,
-            sample_rate,
-            &mb_candidates,
-            match_tolerance_secs,
-            best_percentage,
-        ) {
-            best_durations = result.detected_durations;
-            best_matches = result.matches;
-            best_matched_count = result.matched_count;
-            best_percentage = result.percentage;
-            best_mbid = result.mbid;
-            best_expected_durations = result.expected_durations;
-            best_mean_error = result.mean_error;
-            best_stage = "album_extractor_4_quietspots";
+        // === STAGE 5: Try Alternative MusicBrainz Editions ===
+        if best_percentage < 100.0 && !remaining_mb_candidates.is_empty() && !stage2_results.is_empty() {
+            println!("  STAGE 5: Trying alternative MusicBrainz editions (sorted by duration match)...");
+
+            // Collect all unique segmentations
+            let all_segmentations = collect_all_segmentations(
+                &stage1_durations,
+                &stage2_results,
+                &stage3_result,
+            );
+
+            println!("    Collected {} unique segmentations", all_segmentations.len());
+            println!("    Testing {} editions (already sorted by best duration match)", remaining_mb_candidates.len());
+            println!("    Testing {} combinations ({} segmentations × {} editions)...",
+                all_segmentations.len() * remaining_mb_candidates.len(),
+                all_segmentations.len(),
+                remaining_mb_candidates.len());
+
+            if let Some(stage5_result) = test_all_combinations(
+                &all_segmentations,
+                &remaining_mb_candidates,
+                match_tolerance_secs,
+            ) {
+                println!("    Best match from Stage 5: {:.1}% ({} combinations tested)",
+                    stage5_result.best_percentage,
+                    stage5_result.total_combinations_tested);
+
+                if stage5_result.best_percentage > best_percentage {
+                    // Update best result with Stage 5 findings
+                    best_durations = stage5_result.best_segmentation.durations.clone();
+                    best_matches = stage5_result.best_matches;
+                    best_matched_count = best_matches.iter().filter(|m| m.matches).count();
+                    best_percentage = stage5_result.best_percentage;
+                    best_stage = "Expanded MB Search";
+                    mbid = stage5_result.best_mbid;
+                    expected_durations = stage5_result.best_expected_durations;
+
+                    // Extract threshold/duration from segmentation if available
+                    if let (Some(thresh), Some(dur)) = (
+                        stage5_result.best_segmentation.threshold_db,
+                        stage5_result.best_segmentation.min_duration_secs,
+                    ) {
+                        best_threshold = Some(thresh);
+                        best_min_duration = Some(dur);
+                    }
+
+                    println!("    Stage 5 improved match to {:.1}%", best_percentage);
+                    println!("    Best segmentation: {}", stage5_result.best_segmentation.source_stage);
+                } else {
+                    println!("    Stage 5: {:.1}% (not better than current best)", stage5_result.best_percentage);
+                }
+            }
         }
 
-        // === STAGE 5: Extra track merging ===
-        if let Some((merged_durations, result)) = run_stage5_extra_track_merging(
-            &best_durations,
-            &best_expected_durations,
-            match_tolerance_secs,
-            best_percentage,
-        ) {
-            best_durations = merged_durations;
-            best_matches = result.matches;
-            best_matched_count = result.matched_count;
-            best_percentage = result.percentage;
-            best_mean_error = result.mean_error;
-            best_stage = "album_extractor_5_merging";
-            // mbid and expected_durations stay the same
+        // === STAGE 6: Extra Track Merging ===
+        // When detected > expected AND match quality is already high (≥100%),
+        // try merging adjacent tracks to achieve correct track count
+        if best_percentage >= 100.0 && best_durations.len() > expected_durations.len() {
+            let extra_count = best_durations.len() - expected_durations.len();
+            println!("  STAGE 6: Attempting extra track merging...");
+            println!("    {} extra track(s) detected, match quality {:.1}%", extra_count, best_percentage);
+            println!("    Testing {} possible adjacent track merges", best_durations.len() - 1);
+
+            let mut best_merge_durations = None;
+            let mut best_merge_error = f64::INFINITY;
+            let mut best_merge_index = None;
+
+            // Try merging each possible pair of adjacent tracks
+            for merge_idx in 0..(best_durations.len() - 1) {
+                // Create new duration list with tracks merge_idx and merge_idx+1 merged
+                let mut merged_durations = Vec::new();
+
+                for i in 0..best_durations.len() {
+                    if i == merge_idx {
+                        // Merge this track with the next one
+                        merged_durations.push(best_durations[i] + best_durations[i + 1]);
+                    } else if i == merge_idx + 1 {
+                        // Skip - already merged with previous
+                        continue;
+                    } else {
+                        merged_durations.push(best_durations[i]);
+                    }
+                }
+
+                // Evaluate this merged configuration
+                let (merged_matches, merged_matched_count, merged_percentage) =
+                    analyze_track_matching(&merged_durations, &expected_durations, match_tolerance_secs);
+
+                // Calculate total error
+                let total_error: f64 = merged_matches.iter().map(|m| m.error).sum();
+
+                // Track best merge
+                if merged_durations.len() == expected_durations.len() && total_error < best_merge_error {
+                    best_merge_error = total_error;
+                    best_merge_durations = Some(merged_durations);
+                    best_merge_index = Some(merge_idx);
+                }
+            }
+
+            // Apply best merge if found
+            if let Some(merged_durations) = best_merge_durations {
+                let (merged_matches, merged_matched_count, merged_percentage) =
+                    analyze_track_matching(&merged_durations, &expected_durations, match_tolerance_secs);
+
+                let mean_merged_error = best_merge_error / merged_matches.len() as f64;
+
+                println!("    Best merge: tracks {} + {} → {:.1}% match, {:.2}s mean error",
+                    best_merge_index.unwrap() + 1,
+                    best_merge_index.unwrap() + 2,
+                    merged_percentage,
+                    mean_merged_error);
+
+                // Accept merge to achieve correct track count
+                best_durations = merged_durations;
+                best_matches = merged_matches;
+                best_matched_count = merged_matched_count;
+                best_percentage = merged_percentage;
+                best_stage = "Extra Track Merging";
+                println!("    Track count corrected: {} → {} ({:.1}% match)",
+                    best_durations.len() + 1, best_durations.len(), best_percentage);
+            } else {
+                println!("    No valid merge found that produces correct track count");
+            }
         }
 
         // Calculate final statistics
-        let perfect_count = best_durations.len() == best_expected_durations.len();
+        let perfect_count = best_durations.len() == expected_durations.len();
+        let mean_error = if !best_matches.is_empty() {
+            best_matches.iter().map(|m| m.error).sum::<f64>() / best_matches.len() as f64
+        } else {
+            0.0
+        };
 
         println!("\n  FINAL RESULT:");
         println!("    Matching stage: {}", best_stage);
-        println!("    MusicBrainz: https://musicbrainz.org/release/{}", best_mbid);
-        println!("    Track count: {}/{} {}", best_durations.len(), best_expected_durations.len(),
+        println!("    MusicBrainz: https://musicbrainz.org/release/{}", mbid);
+        println!("    Track count: {}/{} {}", best_durations.len(), expected_durations.len(),
             if perfect_count { "✓" } else { "✗" });
-        println!("    Matched tracks: {}/{} ({:.1}%)", best_matched_count, best_expected_durations.len(), best_percentage);
-        println!("    Mean error: {:.2}s", best_mean_error);
+        println!("    Matched tracks: {}/{} ({:.1}%)", best_matched_count, expected_durations.len(), best_percentage);
+        println!("    Mean error: {:.2}s", mean_error);
         println!("    Confidence: {}", classify_confidence(best_percentage));
 
         if let (Some(thresh), Some(min_dur)) = (best_threshold, best_min_duration) {
@@ -2309,9 +2111,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Calculate extra tracks (detected tracks with no MusicBrainz match)
         let mut extra_tracks = Vec::new();
-        let min_count = best_durations.len().min(best_expected_durations.len());
+        let min_count = best_durations.len().min(expected_durations.len());
 
-        if best_durations.len() > best_expected_durations.len() {
+        if best_durations.len() > expected_durations.len() {
             // Detected more tracks than expected - the extras are at the end
             for i in min_count..best_durations.len() {
                 extra_tracks.push(ExtraTrack {
@@ -2333,16 +2135,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             album_path: file_path.to_string_lossy().to_string(),
             artist: artist.clone(),
             album: album.clone(),
-            mbid: best_mbid.clone(),
-            musicbrainz_url: format!("https://musicbrainz.org/release/{}", best_mbid),
-            expected_track_count: best_expected_durations.len(),
+            mbid: mbid.clone(),
+            musicbrainz_url: format!("https://musicbrainz.org/release/{}", mbid),
+            expected_track_count: expected_durations.len(),
             detected_track_count: best_durations.len(),
             perfect_count_match: perfect_count,
             track_matches: best_matches,
             extra_tracks,
             matched_tracks_count: best_matched_count,
             match_percentage: best_percentage,
-            mean_error: best_mean_error,
+            mean_error,
             status: "Success".to_string(),
             matching_stage: best_stage.to_string(),
             best_threshold_db: best_threshold,
@@ -2370,20 +2172,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if successful > 0 {
         // Matching stage breakdown
-        let stage1 = results.iter().filter(|r| r.matching_stage == "album_extractor_1_initial").count();
-        let stage2 = results.iter().filter(|r| r.matching_stage == "album_extractor_2_optimization").count();
-        let stage3 = results.iter().filter(|r| r.matching_stage == "album_extractor_3_assembly").count();
-        let stage4 = results.iter().filter(|r| r.matching_stage == "album_extractor_4_quietspots").count();
-        let stage5 = results.iter().filter(|r| r.matching_stage == "album_extractor_5_editions").count();
-        let stage6 = results.iter().filter(|r| r.matching_stage == "album_extractor_6_merging").count();
+        let stage1 = results.iter().filter(|r| r.matching_stage == "Initial").count();
+        let stage2 = results.iter().filter(|r| r.matching_stage == "Parameter Optimization").count();
+        let stage3 = results.iter().filter(|r| r.matching_stage == "Segment Assembly").count();
+        let stage4 = results.iter().filter(|r| r.matching_stage == "Quiet Spot Detection").count();
+        let stage5 = results.iter().filter(|r| r.matching_stage == "Expanded MB Search").count();
+        let stage6 = results.iter().filter(|r| r.matching_stage == "Extra Track Merging").count();
 
         println!("\nMatching Stage Results:");
-        println!("  album_extractor_1_initial:        {} albums", stage1);
-        println!("  album_extractor_2_optimization:   {} albums", stage2);
-        println!("  album_extractor_3_assembly:       {} albums", stage3);
-        println!("  album_extractor_4_quietspots:     {} albums", stage4);
-        println!("  album_extractor_5_editions:       {} albums", stage5);
-        println!("  album_extractor_6_merging:        {} albums", stage6);
+        println!("  Stage 1 (Initial):                {} albums", stage1);
+        println!("  Stage 2 (Parameter Opt):          {} albums", stage2);
+        println!("  Stage 3 (Segment Assembly):       {} albums", stage3);
+        println!("  Stage 4 (Quiet Spot Detection):   {} albums", stage4);
+        println!("  Stage 5 (Expanded MB Search):     {} albums", stage5);
+        println!("  Stage 6 (Extra Track Merging):    {} albums", stage6);
 
         // Confidence level breakdown
         let excellent = results.iter().filter(|r| r.confidence == "Excellent").count();
@@ -2421,7 +2223,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Parameter effectiveness (for Stage 2 results)
         if stage2 > 0 {
             println!("\nParameter Optimization Details:");
-            for result in results.iter().filter(|r| r.matching_stage == "album_extractor_2_optimization") {
+            for result in results.iter().filter(|r| r.matching_stage == "Parameter Optimization") {
                 if let (Some(thresh), Some(min_dur)) = (result.best_threshold_db, result.best_min_duration_secs) {
                     println!("  {} - {}: {}dB, {}s → {:.1}%",
                         result.artist, result.album, thresh, min_dur, result.match_percentage);
@@ -2452,334 +2254,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nDone!");
     Ok(())
-}
-
-// ===== Unit Tests =====
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // ===== Tests for analyze_track_matching() =====
-
-    #[test]
-    fn test_analyze_track_matching_perfect_match() {
-        let detected = vec![180.5, 200.3, 195.7];
-        let expected = vec![180, 200, 196];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        assert_eq!(matched_count, 3, "All tracks should match");
-        assert_eq!(percentage, 100.0, "Should be 100% match");
-        assert_eq!(matches.len(), 3, "Should have 3 match records");
-        assert!(matches.iter().all(|m| m.matches), "All matches should be true");
-    }
-
-    #[test]
-    fn test_analyze_track_matching_partial_match() {
-        let detected = vec![180.0, 250.0, 196.0]; // Middle track off by 50s
-        let expected = vec![180, 200, 196];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        assert_eq!(matched_count, 2, "Only 2 tracks should match");
-        assert_eq!(percentage, 66.666666666666664, "Should be ~66.67% match (2/3)");
-        assert!(!matches[1].matches, "Middle track should not match");
-        assert!(matches[0].matches && matches[2].matches, "First and last should match");
-    }
-
-    #[test]
-    fn test_analyze_track_matching_extra_detected_tracks() {
-        let detected = vec![180.0, 100.0, 100.0, 196.0]; // Over-segmented: 4 detected vs 3 expected
-        let expected = vec![180, 200, 196];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        // Should only compare first 3 (minimum count)
-        assert_eq!(matches.len(), 3, "Should compare minimum count (3)");
-        // First matches (180 vs 180), second doesn't (100 vs 200), third doesn't (100 vs 196)
-        assert_eq!(matched_count, 1, "Only first track should match");
-        assert_eq!(percentage, 33.33333333333333, "Should be ~33.33% (1/3)");
-    }
-
-    #[test]
-    fn test_analyze_track_matching_extra_expected_tracks() {
-        let detected = vec![180.0, 200.0]; // Under-segmented: 2 detected vs 3 expected
-        let expected = vec![180, 200, 196];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        // Should only compare first 2 (minimum count)
-        assert_eq!(matches.len(), 2, "Should compare minimum count (2)");
-        assert_eq!(matched_count, 2, "Both should match");
-        // Percentage based on EXPECTED count (3), so 2/3 = 66.67%
-        assert_eq!(percentage, 66.666666666666664, "Should be ~66.67% (2/3 expected)");
-    }
-
-    #[test]
-    fn test_analyze_track_matching_empty_inputs() {
-        let detected: Vec<f64> = vec![];
-        let expected: Vec<u32> = vec![];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        assert_eq!(matches.len(), 0, "No matches for empty inputs");
-        assert_eq!(matched_count, 0, "Zero matched count");
-        assert_eq!(percentage, 0.0, "Zero percentage");
-    }
-
-    #[test]
-    fn test_analyze_track_matching_tolerance_boundary() {
-        let detected = vec![180.0, 210.0, 196.0]; // Middle track exactly at tolerance boundary
-        let expected = vec![180, 200, 196];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        // Middle track: 210.0 - 200 = 10.0, which equals tolerance
-        assert!(matches[1].matches, "Track at tolerance boundary should match");
-        assert_eq!(matched_count, 3, "All should match");
-        assert_eq!(percentage, 100.0, "Should be 100%");
-    }
-
-    #[test]
-    fn test_analyze_track_matching_just_outside_tolerance() {
-        let detected = vec![180.0, 210.1, 196.0]; // Middle track just outside tolerance
-        let expected = vec![180, 200, 196];
-        let tolerance = 10.0;
-
-        let (matches, matched_count, percentage) =
-            analyze_track_matching(&detected, &expected, tolerance);
-
-        // Middle track: 210.1 - 200 = 10.1, which exceeds tolerance
-        assert!(!matches[1].matches, "Track just outside tolerance should not match");
-        assert_eq!(matched_count, 2, "Only 2 should match");
-        assert_eq!(percentage, 66.666666666666664, "Should be ~66.67%");
-    }
-
-    // ===== Tests for strings_match() =====
-
-    #[test]
-    fn test_strings_match_exact() {
-        assert!(strings_match("Thriller", "Thriller"));
-    }
-
-    #[test]
-    fn test_strings_match_case_insensitive() {
-        assert!(strings_match("Thriller", "thriller"));
-        assert!(strings_match("THRILLER", "thriller"));
-        assert!(strings_match("ThRiLlEr", "THRILLER"));
-    }
-
-    #[test]
-    fn test_strings_match_with_punctuation() {
-        assert!(strings_match("The Dark Side of the Moon", "The Dark Side of the Moon"));
-        // Punctuation is filtered out, but "and" vs "&" remain different alphanumeric tokens
-        assert!(!strings_match("Crosby, Stills & Nash", "Crosby Stills and Nash"));
-        assert!(strings_match("Led Zeppelin IV", "Led Zeppelin IV"));
-    }
-
-    #[test]
-    fn test_strings_match_whitespace_variations() {
-        // Consecutive whitespace is NOT normalized - strings must match exactly after filtering
-        assert!(!strings_match("Led  Zeppelin", "Led Zeppelin")); // Extra space makes them different
-        // Spaces are preserved when filtering, so "LedZeppelin" != "Led Zeppelin"
-        assert!(!strings_match("LedZeppelin", "Led Zeppelin"));
-    }
-
-    #[test]
-    fn test_strings_no_match() {
-        assert!(!strings_match("Thriller", "Bad"));
-        assert!(!strings_match("Pink Floyd", "Led Zeppelin"));
-    }
-
-    // ===== Tests for detect_silence() =====
-
-    #[test]
-    fn test_detect_silence_all_silence() {
-        // Create very quiet audio (below threshold)
-        // Note: All zeros might not be detected as it could be below noise floor
-        // Use very small but non-zero values
-        let samples = vec![0.0001; 48000]; // 1 second of near-silence at 48kHz
-        let sample_rate = 48000;
-        let threshold_db = -40.0; // Higher threshold to ensure detection
-        let min_duration_secs = 0.5;
-
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        // Should detect the entire file as one silence region (or possibly none if all zeros are skipped)
-        // Allow for either outcome as implementation may handle edge case differently
-        assert!(silence_regions.len() <= 1, "Should detect at most one silence region");
-        if silence_regions.len() == 1 {
-            assert!(silence_regions[0].0 <= 1000, "Silence should start near beginning");
-        }
-    }
-
-    #[test]
-    fn test_detect_silence_no_silence() {
-        // Create loud audio (all at 0.5 amplitude, well above -60dB threshold)
-        let samples = vec![0.5; 48000];
-        let sample_rate = 48000;
-        let threshold_db = -60.0;
-        let min_duration_secs = 0.5;
-
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        assert_eq!(silence_regions.len(), 0, "Should detect no silence in loud audio");
-    }
-
-    #[test]
-    fn test_detect_silence_with_gap() {
-        // Create audio with loud section, then silence, then loud section
-        let mut samples = Vec::new();
-
-        // 1 second of loud audio (0.5 amplitude)
-        samples.extend(vec![0.5; 48000]);
-
-        // 1 second of silence (0.0 amplitude)
-        samples.extend(vec![0.0; 48000]);
-
-        // 1 second of loud audio (0.5 amplitude)
-        samples.extend(vec![0.5; 48000]);
-
-        let sample_rate = 48000;
-        let threshold_db = -60.0;
-        let min_duration_secs = 0.5;
-
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        // Should detect one silence region in the middle
-        assert_eq!(silence_regions.len(), 1, "Should detect one silence region");
-        // Silence should start around sample 48000 (allowing for window boundaries)
-        assert!(silence_regions[0].0 >= 40000 && silence_regions[0].0 <= 56000,
-                "Silence should start around the 1-second mark");
-    }
-
-    #[test]
-    fn test_detect_silence_min_duration_filter() {
-        // Create brief silence that's shorter than min_duration
-        let mut samples = Vec::new();
-
-        // 1 second of loud audio
-        samples.extend(vec![0.5; 48000]);
-
-        // 0.3 seconds of silence (shorter than 0.5s minimum)
-        samples.extend(vec![0.0; 14400]);
-
-        // 1 second of loud audio
-        samples.extend(vec![0.5; 48000]);
-
-        let sample_rate = 48000;
-        let threshold_db = -60.0;
-        let min_duration_secs = 0.5; // Require at least 0.5s of silence
-
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        // Brief silence should be filtered out
-        assert_eq!(silence_regions.len(), 0, "Should not detect silence shorter than minimum duration");
-    }
-
-    // ===== Tests for get_track_durations() =====
-
-    #[test]
-    fn test_get_track_durations_single_track() {
-        // Create one continuous loud audio segment (no silence)
-        let samples = vec![0.5; 96000]; // 2 seconds at 48kHz
-        let sample_rate = 48000;
-        let threshold_db = -60.0;
-        let min_duration_secs = 0.5;
-
-        let durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        assert_eq!(durations.len(), 1, "Should detect one track");
-        assert!((durations[0] - 2.0).abs() < 0.1, "Track should be approximately 2 seconds");
-    }
-
-    #[test]
-    fn test_get_track_durations_two_tracks() {
-        // Create two tracks separated by silence
-        let mut samples = Vec::new();
-
-        // Track 1: 3 seconds
-        samples.extend(vec![0.5; 144000]); // 3 seconds at 48kHz
-
-        // Silence: 1 second
-        samples.extend(vec![0.0; 48000]);
-
-        // Track 2: 2 seconds
-        samples.extend(vec![0.5; 96000]);
-
-        let sample_rate = 48000;
-        let threshold_db = -60.0;
-        let min_duration_secs = 0.5;
-
-        let durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        assert_eq!(durations.len(), 2, "Should detect two tracks");
-        assert!((durations[0] - 3.0).abs() < 0.2, "First track should be ~3 seconds");
-        assert!((durations[1] - 2.0).abs() < 0.2, "Second track should be ~2 seconds");
-    }
-
-    #[test]
-    fn test_get_track_durations_empty_audio() {
-        let samples: Vec<f32> = vec![];
-        let sample_rate = 48000;
-        let threshold_db = -60.0;
-        let min_duration_secs = 0.5;
-
-        let durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
-
-        assert_eq!(durations.len(), 0, "Empty audio should produce no tracks");
-    }
-
-    // ===== Tests for split_camel_case() =====
-
-    #[test]
-    fn test_split_camel_case_basic() {
-        assert_eq!(split_camel_case("DaylightAgain"), "Daylight Again");
-        assert_eq!(split_camel_case("TransEuropeExpress"), "Trans Europe Express");
-    }
-
-    #[test]
-    fn test_split_camel_case_already_spaced() {
-        assert_eq!(split_camel_case("Daylight Again"), "Daylight Again");
-    }
-
-    #[test]
-    fn test_split_camel_case_all_caps() {
-        assert_eq!(split_camel_case("USA"), "USA"); // Should not add spaces between caps
-    }
-
-    #[test]
-    fn test_split_camel_case_mixed() {
-        assert_eq!(split_camel_case("BusinessAsUsual"), "Business As Usual");
-    }
-
-    // ===== Integration Test for classify_confidence() =====
-
-    #[test]
-    fn test_classify_confidence_boundaries() {
-        assert_eq!(classify_confidence(100.0), "Excellent");
-        assert_eq!(classify_confidence(85.0), "Excellent");
-        assert_eq!(classify_confidence(80.0), "Excellent");
-        assert_eq!(classify_confidence(79.9), "Good");
-        assert_eq!(classify_confidence(70.0), "Good");
-        assert_eq!(classify_confidence(60.0), "Good");
-        assert_eq!(classify_confidence(59.9), "Fair");
-        assert_eq!(classify_confidence(50.0), "Fair");
-        assert_eq!(classify_confidence(40.0), "Fair");
-        assert_eq!(classify_confidence(39.9), "Poor");
-        assert_eq!(classify_confidence(0.0), "Poor");
-    }
 }

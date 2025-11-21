@@ -1,5 +1,7 @@
 # Run 8: Album Matcher Design - Extra Track Merging & MusicBrainz Edition Filtering
 
+> **REVISION NOTE (Run 8b):** Initial Run 8 revealed a critical bug in MusicBrainz edition filtering that eliminated valid candidates. Fixed by removing duration-based filtering entirely - now ALL editions are sorted by score and returned for potential testing. See "Critical Bug Fix" section below.
+
 ## Executive Summary
 
 Run 8 introduces two key enhancements to the album matcher while removing ineffective stages and optimizing the parameter grid:
@@ -523,6 +525,67 @@ Stage 6: Extra Track Merging (NEW)
 4. **Track-Specific Confidence Scores**
    - Identify low-confidence tracks for targeted refinement
    - Better debugging and analysis
+
+---
+
+## Critical Bug Fix (Run 8b)
+
+### Bug Discovered in Initial Run 8
+
+**Symptom:** Album 2 (Jessita Reyes - Native American Flute Lullabies) regressed from 100% (Run 7) to 56.2% (Run 8a)
+
+**Root Cause:** Over-aggressive duration filtering in `get_expected_durations()`
+
+**Original Code:**
+```rust
+// Stage 1: Filter by total duration (keep candidates within 10% of detected duration)
+let duration_tolerance = detected_total_duration * 0.10; // 10% tolerance
+let duration_filtered: Vec<_> = candidates
+    .iter()
+    .filter(|c| c.duration_diff <= duration_tolerance)
+    .collect();
+
+// If no candidates within 10%, expand to 20%
+// ... fallback logic
+```
+
+**Problem:**
+- Jessita Reyes album has two editions: 16-track and 18-track
+- Detected 19 tracks initially (close to 18-track edition)
+- 18-track edition's total duration differed by >10% from detected
+- **18-track edition filtered OUT completely**
+- Only 16-track edition remained
+- Stage 5 had no additional candidates to test
+- Result: Wrong edition selected, 56.2% match instead of 100%
+
+**Impact:**
+- Violated design principle: "Prioritize editions by duration match **while still trying all available editions**"
+- Stage 5 became ineffective (no candidates to test)
+- Any album with multiple editions at different duration ranges could be affected
+
+**Fix Applied (Run 8b):**
+```rust
+// Sort ALL candidates by composite score (no duration filtering)
+let mut scored: Vec<_> = candidates
+    .iter()
+    .map(|c| {
+        let mut score = c.duration_diff + (c.count_diff as f64 * 60.0);
+        // ... metadata bonuses
+    })
+    .collect();
+```
+
+**New Behavior:**
+- ALL MusicBrainz editions returned, sorted by score
+- Best-scoring edition tried first
+- If match < 100%, Stage 5 tests remaining editions
+- Maintains optimization (try best first) without eliminating valid candidates
+
+**Code Location:** [album_matcher.rs:774-779](wkmp-ai/examples/album_matcher.rs#L774-L779)
+
+**Verification Required:**
+- Jessita Reyes should now achieve 100% match (18-track edition)
+- All albums should have access to all available editions in Stage 5
 
 ---
 
