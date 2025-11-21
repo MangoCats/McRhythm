@@ -228,8 +228,8 @@ struct MatchContext {
 
     // Configuration
     match_tolerance_secs: f64,
-    threshold_values: Vec<f32>,
-    min_duration_values: Vec<f32>,
+    threshold_values: Vec<f64>,
+    min_duration_values: Vec<f64>,
 }
 
 impl MatchContext {
@@ -437,33 +437,33 @@ fn calculate_db(samples: &[f32]) -> f32 {
 fn detect_silence(
     samples: &[f32],
     sample_rate: u32,
-    threshold_db: f32,
-    min_duration_secs: f32,
+    threshold_db: f64,
+    min_duration_secs: f64,
 ) -> Vec<(usize, usize)> {
     // Adaptive RMS window sizing based on min_duration
     // For very short silence periods, we need smaller RMS windows for better temporal resolution
     // Use window = min(0.1s, min_duration / 3) to ensure at least 3 windows per silence period
     let rms_window_secs = if min_duration_secs <= 0.3 {
         // For short durations (≤0.3s): use 25ms window for fine-grained detection
-        0.025_f32
+        0.025
     } else if min_duration_secs <= 0.6 {
         // For medium durations (0.3-0.6s): use 50ms window
-        0.05_f32
+        0.05
     } else {
         // For long durations (>0.6s): use standard 100ms window
-        0.1_f32
+        0.1
     };
 
-    let window_size = (sample_rate as f32 * rms_window_secs) as usize;
-    let window_step = (sample_rate as f32 * rms_window_secs * 0.5) as usize; // 50% overlap
-    let min_silence_samples = (sample_rate as f32 * min_duration_secs) as usize;
+    let window_size = (sample_rate as f64 * rms_window_secs) as usize;
+    let window_step = (sample_rate as f64 * rms_window_secs * 0.5) as usize; // 50% overlap
+    let min_silence_samples = (sample_rate as f64 * min_duration_secs) as usize;
 
     let mut is_silent = Vec::new();
 
     for window_start in (0..samples.len()).step_by(window_step) {
         let window_end = (window_start + window_size).min(samples.len());
         let db = calculate_db(&samples[window_start..window_end]);
-        is_silent.push(db < threshold_db);
+        is_silent.push((db as f64) < threshold_db);
     }
 
     // Find continuous silence regions
@@ -493,8 +493,8 @@ fn detect_silence(
 fn get_track_durations(
     samples: &[f32],
     sample_rate: u32,
-    threshold_db: f32,
-    min_duration_secs: f32,
+    threshold_db: f64,
+    min_duration_secs: f64,
 ) -> Vec<f64> {
     let silence_regions = detect_silence(samples, sample_rate, threshold_db, min_duration_secs);
 
@@ -1718,7 +1718,7 @@ fn run_stage1_initial_detection(
     tolerance: f64,
 ) -> (Vec<f64>, Option<CandidateTestResult>) {
     println!("  STAGE 1: Testing default parameters ({}dB, {}s)...", threshold_db, min_duration_secs);
-    let durations = get_track_durations(samples, sample_rate, threshold_db as f32, min_duration_secs as f32);
+    let durations = get_track_durations(samples, sample_rate, threshold_db, min_duration_secs);
     println!("    Found {} tracks", durations.len());
 
     let result = test_segmentation_against_all_candidates(&durations, mb_candidates, tolerance);
@@ -1757,7 +1757,7 @@ fn run_stage2_parameter_optimization(
     for &thresh in threshold_values {
         for &min_dur in min_duration_values {
             tested += 1;
-            let test_durations = get_track_durations(samples, sample_rate, thresh as f32, min_dur as f32);
+            let test_durations = get_track_durations(samples, sample_rate, thresh, min_dur);
 
             if let Some(result) = test_segmentation_against_all_candidates(
                 &test_durations,
@@ -2113,7 +2113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // Get initial track durations for MusicBrainz lookup
-        let initial_durations = get_track_durations(&samples, sample_rate, threshold_db as f32, min_duration_secs as f32);
+        let initial_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
         let initial_total: f64 = initial_durations.iter().sum();
 
         // Get expected durations from MusicBrainz (sorted by composite score, best first)
