@@ -1,12 +1,11 @@
-/// Comprehensive Album Matcher with Edition-by-Edition Processing (Run 14)
+/// Comprehensive Album Matcher with Edition-by-Edition Processing (Run 15)
 ///
-/// Run 14 Changes:
-/// - NEW: Edition-by-edition processing - each edition candidate is fully optimized
-///   (Stages 2-5) before moving to the next edition in likelihood order
-/// - This allows early exit as soon as ANY edition achieves 100% match
-/// - Preserves Run 12/13 fixes for over-segmented candidate collection
+/// Run 15 Changes:
+/// - NEW: Early NDR filtering - calculate Name Distance Rank BEFORE fetching track details
+///   This saves API calls for releases with poor name similarity (NDR > 100)
+/// - Edition-by-edition processing from Run 14 preserved
 ///
-/// Processing Architecture (Run 14):
+/// Processing Architecture (Run 15):
 /// 1. Phase 0: ID3 Tag Extraction & Reconciliation
 /// 2. Fetch and rank all MusicBrainz editions
 /// 3. For each edition (in order of likelihood):
@@ -57,6 +56,7 @@ use symphonia::core::probe::Hint;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use strsim::levenshtein;
+use rayon::prelude::*;
 
 // ===== Configuration Constants =====
 
@@ -68,9 +68,10 @@ const DEFAULT_MIN_DURATION_SECS: f64 = 0.9;
 const MATCH_TOLERANCE_SECS: f64 = 10.0;
 
 // MusicBrainz API configuration
-const MB_RATE_LIMIT_SECS: u64 = 2;           // Seconds between API requests (2x safety margin)
+const MB_RATE_LIMIT_MS: u64 = 1550;          // Milliseconds between API requests (2x safety margin)
 const MB_REQUEST_TIMEOUT_SECS: u64 = 30;     // HTTP request timeout
 const MB_MAX_RELEASES: usize = 150;          // Maximum releases to fetch across all strategies
+const MB_RETRY_DELAYS_SECS: &[u64] = &[0, 5, 15, 45, 60]; // Backoff delays for retry attempts
 
 // Edition/MBID scoring weights (lower score = better match)
 const SCORE_CD_BONUS: f64 = -50.0;           // Bonus for CD releases
@@ -305,7 +306,7 @@ struct OverSegmentedCandidate {
 /// Results from Stage 2 parameter optimization.
 /// Contains both the best immediate match AND all over-segmented candidates
 /// for comprehensive Stage 3 assembly (Run 12 fix).
-/// NOTE: Unused in Run 14 (edition-by-edition processing uses SingleEditionStage2Results).
+/// NOTE: Unused in Run 15 (edition-by-edition processing uses SingleEditionStage2Results).
 #[derive(Debug)]
 #[allow(dead_code)]
 struct Stage2Results {
@@ -333,7 +334,7 @@ impl RateLimiter {
     fn new() -> Self {
         Self {
             last_request: Arc::new(std::sync::Mutex::new(
-                std::time::Instant::now() - Duration::from_secs(MB_RATE_LIMIT_SECS)
+                std::time::Instant::now() - Duration::from_millis(MB_RATE_LIMIT_MS)
             )),
         }
     }
@@ -346,8 +347,8 @@ impl RateLimiter {
 
         // MusicBrainz API limit: 1 req/sec
         // Use 2-second delay (0.5 req/sec) for 2x safety margin to prevent timeouts
-        if elapsed < Duration::from_secs(MB_RATE_LIMIT_SECS) {
-            let wait_time = Duration::from_secs(MB_RATE_LIMIT_SECS) - elapsed;
+        if elapsed < Duration::from_millis(MB_RATE_LIMIT_MS) {
+            let wait_time = Duration::from_millis(MB_RATE_LIMIT_MS) - elapsed;
             sleep(wait_time).await;
         }
 
@@ -363,21 +364,21 @@ where
     Fut: std::future::Future<Output = Result<T, E>>,
     E: std::fmt::Display,
 {
-    let delays = [0, 5, 15, 45]; // seconds
+    let max_attempts = MB_RETRY_DELAYS_SECS.len();
 
-    for (attempt, &delay) in delays.iter().enumerate() {
+    for (attempt, &delay) in MB_RETRY_DELAYS_SECS.iter().enumerate() {
         if delay > 0 {
-            println!("    Retrying after {} seconds (attempt {}/4)...", delay, attempt + 1);
+            println!("    Retrying after {} seconds (attempt {}/{})...", delay, attempt + 1, max_attempts);
             sleep(Duration::from_secs(delay)).await;
         }
 
         match operation().await {
             Ok(result) => return Ok(result),
             Err(e) => {
-                if attempt < delays.len() - 1 {
+                if attempt < max_attempts - 1 {
                     println!("    Network error: {} - will retry", e);
                 } else {
-                    println!("    Network error: {} - giving up after {} attempts", e, delays.len());
+                    println!("    Network error: {} - giving up after {} attempts", e, max_attempts);
                     return Err(e);
                 }
             }
@@ -1004,10 +1005,46 @@ async fn comprehensive_musicbrainz_search(
 
     println!("  Found {} unique releases across all search strategies", all_releases.len());
 
-    // Fetch track details for all releases
-    let mut results: Vec<(Vec<u32>, EditionMBID, String, String)> = Vec::new();
+    // === Run 15 Optimization: Calculate NDR BEFORE fetching track details ===
+    // This allows us to skip API calls for releases with poor name similarity
 
-    for release in all_releases.iter() {
+    // Calculate name distance score for each release using search result data
+    let mut releases_with_ndr: Vec<(&MBRelease, f64)> = all_releases
+        .iter()
+        .map(|release| {
+            let artist = release.artist_credit
+                .as_ref()
+                .and_then(|credits| credits.first())
+                .and_then(|credit| credit.artist.as_ref())
+                .map(|artist| artist.name.as_str())
+                .unwrap_or("Unknown Artist");
+            let score = calculate_name_distance(artist, &release.title, artist_variants, album_variants);
+            (release, score)
+        })
+        .collect();
+
+    // Sort by NDR score (ascending - lower is better)
+    releases_with_ndr.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Filter to keep only releases with rank <= MAX_NAME_DISTANCE_RANK
+    let pre_filter_count = releases_with_ndr.len();
+    let filtered_releases: Vec<(&MBRelease, usize, f64)> = releases_with_ndr
+        .into_iter()
+        .enumerate()
+        .map(|(idx, (release, score))| (release, idx + 1, score)) // Assign rank 1-N
+        .filter(|(_, rank, _)| *rank <= MAX_NAME_DISTANCE_RANK)
+        .collect();
+
+    let ndr_filtered_count = pre_filter_count - filtered_releases.len();
+    if ndr_filtered_count > 0 {
+        println!("  Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
+                 ndr_filtered_count, MAX_NAME_DISTANCE_RANK, filtered_releases.len());
+    }
+
+    // Fetch track details only for NDR-filtered releases
+    let mut results: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)> = Vec::new();
+
+    for (release, rank, score) in filtered_releases.iter() {
         rate_limiter.wait().await;
 
         let details_url = format!(
@@ -1059,6 +1096,7 @@ async fn comprehensive_musicbrainz_search(
             .map(|artist| artist.name.clone())
             .unwrap_or_else(|| "Unknown Artist".to_string());
 
+        // Use pre-calculated rank and score from early NDR filter
         results.push((
             durations,
             EditionMBID {
@@ -1069,32 +1107,13 @@ async fn comprehensive_musicbrainz_search(
             },
             artist,
             release.title.clone(),
+            *rank,
+            *score,
         ));
     }
 
-    // Calculate name distance scores and assign ranks (1-N, lower = better)
-    let mut results_with_scores: Vec<((Vec<u32>, EditionMBID, String, String), f64)> = results
-        .into_iter()
-        .map(|(durations, mbid_info, artist, album)| {
-            let score = calculate_name_distance(&artist, &album, artist_variants, album_variants);
-            ((durations, mbid_info, artist, album), score)
-        })
-        .collect();
-
-    // Sort by name distance score (ascending - lower is better)
-    results_with_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    // Assign ranks 1-N based on sorted order and include scores
-    let results_with_ranks: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)> = results_with_scores
-        .into_iter()
-        .enumerate()
-        .map(|(index, ((durations, mbid_info, artist, album), score))| {
-            let rank = index + 1; // Rank 1-based
-            (durations, mbid_info, artist, album, rank, score)
-        })
-        .collect();
-
-    Ok(results_with_ranks)
+    // Results already have NDR rank and score from early filtering (Run 15 optimization)
+    Ok(results)
 }
 
 /// Group MBIDs into editions based on track count + duration pattern
@@ -1778,7 +1797,7 @@ struct CandidateTestResult {
 
 /// Test a segmentation against ALL MusicBrainz candidates (best first)
 /// Returns best match found, or None if no candidates
-/// NOTE: Unused in Run 14 (edition-by-edition processing uses single-edition functions).
+/// NOTE: Unused in Run 15 (edition-by-edition processing uses single-edition functions).
 #[allow(dead_code)]
 fn test_segmentation_against_all_candidates(
     detected_durations: &[f64],
@@ -1827,7 +1846,7 @@ fn test_segmentation_against_all_candidates(
     best_result
 }
 
-/// Test a segmentation against a SINGLE edition candidate (Run 14)
+/// Test a segmentation against a SINGLE edition candidate (Run 15)
 /// Returns the test result for this specific edition
 fn test_segmentation_against_single_edition(
     detected_durations: &[f64],
@@ -1864,7 +1883,7 @@ fn test_segmentation_against_single_edition(
     }
 }
 
-/// Stage 2 results for single-edition processing (Run 14)
+/// Stage 2 results for single-edition processing (Run 15)
 struct SingleEditionStage2Results {
     best_result: Option<CandidateTestResult>,
     over_segmented_candidates: Vec<OverSegmentedCandidate>,
@@ -1872,7 +1891,213 @@ struct SingleEditionStage2Results {
     best_min_duration: Option<f64>,
 }
 
-/// Stage 2: Parameter optimization for a SINGLE edition (Run 14)
+/// Result of testing a single edition through all stages (Run 15 parallel processing)
+#[derive(Clone)]
+struct EditionTestResult {
+    /// Index of the edition in the editions list
+    edition_idx: usize,
+    /// Best percentage achieved for this edition
+    best_percentage: f64,
+    /// Best result found across all stages
+    best_result: Option<CandidateTestResult>,
+    /// Which stage produced the best result
+    best_stage: &'static str,
+    /// Best threshold from stage 2 (if applicable)
+    best_threshold: Option<f64>,
+    /// Best min_duration from stage 2 (if applicable)
+    best_min_duration: Option<f64>,
+    /// Expected durations from this edition
+    expected_durations: Vec<u32>,
+    /// Log messages accumulated during processing
+    log_messages: Vec<String>,
+}
+
+/// Test a single edition through all stages (Stages 2-5)
+/// This function is designed to run in parallel across editions
+fn test_single_edition(
+    edition_idx: usize,
+    edition: &Edition,
+    samples: &[f32],
+    sample_rate: u32,
+    threshold_values: &[f64],
+    min_duration_values: &[f64],
+    match_tolerance_secs: f64,
+    rms_profile: &[(f64, f32)],
+    total_duration_secs: f64,
+    initial_durations: &[f64],
+    total_editions: usize,
+) -> EditionTestResult {
+    let edition_id = format!("edition_{}", edition_idx);
+    let expected_durations = &edition.durations;
+    let mut log_messages = Vec::new();
+
+    log_messages.push(format!(
+        "  [Edition {}/{}] {} - {} ({} tracks, NDR:{},{:.1})",
+        edition_idx + 1,
+        total_editions,
+        edition.artist,
+        edition.album,
+        edition.track_count,
+        edition.name_distance_rank,
+        edition.name_distance_score
+    ));
+
+    // Track best result for THIS edition across stages
+    let mut edition_best_percentage = 0.0;
+    let mut edition_best_durations = initial_durations.to_vec();
+    let mut edition_best_stage: &'static str = "none";
+    let mut edition_best_result: Option<CandidateTestResult> = None;
+    let mut edition_best_threshold: Option<f64> = None;
+    let mut edition_best_min_duration: Option<f64> = None;
+
+    // === STAGE 2: Parameter optimization for this edition ===
+    log_messages.push(format!(
+        "    Stage 2: Testing {} parameter combinations...",
+        threshold_values.len() * min_duration_values.len()
+    ));
+
+    let stage2_results = run_stage2_single_edition(
+        samples,
+        sample_rate,
+        threshold_values,
+        min_duration_values,
+        expected_durations,
+        &edition_id,
+        match_tolerance_secs,
+        edition_best_percentage,
+    );
+
+    if let Some(ref result) = stage2_results.best_result {
+        if result.percentage > edition_best_percentage {
+            edition_best_percentage = result.percentage;
+            edition_best_durations = result.detected_durations.clone();
+            edition_best_stage = "album_extractor_2_optimization";
+            edition_best_result = Some(result.clone());
+            edition_best_threshold = stage2_results.best_threshold;
+            edition_best_min_duration = stage2_results.best_min_duration;
+
+            if result.percentage >= 100.0 {
+                log_messages.push("    -> 100% match in Stage 2!".to_string());
+                return EditionTestResult {
+                    edition_idx,
+                    best_percentage: edition_best_percentage,
+                    best_result: edition_best_result,
+                    best_stage: edition_best_stage,
+                    best_threshold: edition_best_threshold,
+                    best_min_duration: edition_best_min_duration,
+                    expected_durations: expected_durations.clone(),
+                    log_messages,
+                };
+            }
+        }
+    }
+
+    // === STAGE 3: Segment assembly for this edition ===
+    if !stage2_results.over_segmented_candidates.is_empty() {
+        log_messages.push(format!(
+            "    Stage 3: Testing {} over-segmented assemblies...",
+            stage2_results.over_segmented_candidates.len()
+        ));
+
+        if let Some(result) = run_stage3_single_edition(
+            &stage2_results.over_segmented_candidates,
+            expected_durations,
+            &edition_id,
+            match_tolerance_secs,
+            edition_best_percentage,
+        ) {
+            if result.percentage > edition_best_percentage {
+                edition_best_percentage = result.percentage;
+                edition_best_durations = result.detected_durations.clone();
+                edition_best_stage = "album_extractor_3_assembly";
+                edition_best_result = Some(result.clone());
+
+                if result.percentage >= 100.0 {
+                    log_messages.push("    -> 100% match in Stage 3!".to_string());
+                    return EditionTestResult {
+                        edition_idx,
+                        best_percentage: edition_best_percentage,
+                        best_result: edition_best_result,
+                        best_stage: edition_best_stage,
+                        best_threshold: edition_best_threshold,
+                        best_min_duration: edition_best_min_duration,
+                        expected_durations: expected_durations.clone(),
+                        log_messages,
+                    };
+                }
+            }
+        }
+    }
+
+    // === STAGE 4: Quiet spot detection for this edition ===
+    if !rms_profile.is_empty() {
+        log_messages.push("    Stage 4: Guided quiet spot detection...".to_string());
+
+        if let Some(result) = run_stage4_single_edition(
+            expected_durations,
+            &edition_id,
+            match_tolerance_secs,
+            edition_best_percentage,
+            rms_profile,
+            total_duration_secs,
+        ) {
+            if result.percentage > edition_best_percentage {
+                edition_best_percentage = result.percentage;
+                edition_best_durations = result.detected_durations.clone();
+                edition_best_stage = "album_extractor_4_guided";
+                edition_best_result = Some(result.clone());
+
+                if result.percentage >= 100.0 {
+                    log_messages.push("    -> 100% match in Stage 4!".to_string());
+                    return EditionTestResult {
+                        edition_idx,
+                        best_percentage: edition_best_percentage,
+                        best_result: edition_best_result,
+                        best_stage: edition_best_stage,
+                        best_threshold: edition_best_threshold,
+                        best_min_duration: edition_best_min_duration,
+                        expected_durations: expected_durations.clone(),
+                        log_messages,
+                    };
+                }
+            }
+        }
+    }
+
+    // === STAGE 5: Extra track merging for this edition ===
+    if edition_best_percentage >= 100.0 && edition_best_durations.len() > expected_durations.len() {
+        log_messages.push("    Stage 5: Extra track merging...".to_string());
+
+        if let Some((_merged_durations, result)) = run_stage5_single_edition(
+            &edition_best_durations,
+            expected_durations,
+            &edition_id,
+            match_tolerance_secs,
+            edition_best_percentage,
+        ) {
+            edition_best_stage = "album_extractor_5_merging";
+            edition_best_result = Some(result.clone());
+        }
+    }
+
+    log_messages.push(format!(
+        "    -> Edition best: {:.1}% ({})",
+        edition_best_percentage, edition_best_stage
+    ));
+
+    EditionTestResult {
+        edition_idx,
+        best_percentage: edition_best_percentage,
+        best_result: edition_best_result,
+        best_stage: edition_best_stage,
+        best_threshold: edition_best_threshold,
+        best_min_duration: edition_best_min_duration,
+        expected_durations: expected_durations.clone(),
+        log_messages,
+    }
+}
+
+/// Stage 2: Parameter optimization for a SINGLE edition (Run 15)
 /// Tests 180 parameter combinations against one edition, collecting over-segmented candidates
 fn run_stage2_single_edition(
     samples: &[f32],
@@ -1959,7 +2184,7 @@ fn run_stage2_single_edition(
     }
 }
 
-/// Stage 3: Segment assembly for a SINGLE edition (Run 14)
+/// Stage 3: Segment assembly for a SINGLE edition (Run 15)
 /// Assembles over-segmented candidates to match this edition's track count
 fn run_stage3_single_edition(
     over_segmented_candidates: &[OverSegmentedCandidate],
@@ -2018,7 +2243,7 @@ fn run_stage3_single_edition(
     best_result
 }
 
-/// Stage 4: Quiet spot detection for a SINGLE edition (Run 14)
+/// Stage 4: Quiet spot detection for a SINGLE edition (Run 15)
 /// Uses this edition's track durations as guide for boundary detection
 fn run_stage4_single_edition(
     expected_durations: &[u32],
@@ -2062,7 +2287,7 @@ fn run_stage4_single_edition(
     }
 }
 
-/// Stage 5: Extra track merging for a SINGLE edition (Run 14)
+/// Stage 5: Extra track merging for a SINGLE edition (Run 15)
 /// When detected > expected AND match >= 100%, merge adjacent tracks
 fn run_stage5_single_edition(
     best_durations: &[f64],
@@ -2137,7 +2362,7 @@ fn run_stage5_single_edition(
 
 /// Stage 1: Initial detection with default parameters
 /// Tests default threshold/duration against ALL MB candidates
-/// NOTE: Unused in Run 14 (edition-by-edition processing).
+/// NOTE: Unused in Run 15 (edition-by-edition processing).
 #[allow(dead_code)]
 fn run_stage1_initial_detection(
     samples: &[f32],
@@ -2165,7 +2390,7 @@ fn run_stage1_initial_detection(
 /// Stage 2: Parameter optimization (ENHANCED - Run 12)
 /// Tests grid of threshold/duration combinations against ALL MB candidates
 /// NOW ALSO collects all over-segmented candidates for Stage 3 assembly
-/// NOTE: Unused in Run 14 (edition-by-edition processing).
+/// NOTE: Unused in Run 15 (edition-by-edition processing).
 #[allow(dead_code)]
 fn run_stage2_parameter_optimization(
     samples: &[f32],
@@ -2260,7 +2485,7 @@ fn run_stage2_parameter_optimization(
 /// Stage 3: Comprehensive Segment Assembly (FIXED - Run 12)
 /// Tries assembling EACH over-segmented candidate from Stage 2 against EACH target edition
 /// This restores Run 7 behavior where 100+ assemblies could be tested
-/// NOTE: Unused in Run 14 (edition-by-edition processing).
+/// NOTE: Unused in Run 15 (edition-by-edition processing).
 #[allow(dead_code)]
 fn run_stage3_comprehensive_assembly(
     over_segmented_candidates: &[OverSegmentedCandidate],
@@ -2339,7 +2564,7 @@ fn run_stage3_comprehensive_assembly(
 /// Stage 4: Edition-guided quiet spot detection
 /// Uses best matched edition's track durations as a guide to search for quiet spots
 /// near expected boundary positions (±search radius), then tests against all editions
-/// NOTE: Unused in Run 14 (edition-by-edition processing).
+/// NOTE: Unused in Run 15 (edition-by-edition processing).
 #[allow(dead_code)]
 fn run_stage4_quiet_spot_detection(
     samples: &[f32],
@@ -2420,7 +2645,7 @@ fn run_stage4_quiet_spot_detection(
 
 /// Stage 5: Extra track merging
 /// When detected > expected AND match ≥100%, merge adjacent tracks to achieve correct count
-/// NOTE: Unused in Run 14 (edition-by-edition processing).
+/// NOTE: Unused in Run 15 (edition-by-edition processing).
 #[allow(dead_code)]
 fn run_stage5_extra_track_merging(
     best_durations: &[f64],
@@ -2502,13 +2727,13 @@ fn run_stage5_extra_track_merging(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== Comprehensive Album Matcher (Run 14) ===");
+    println!("=== Comprehensive Album Matcher (Run 15) ===");
     println!("ARCHITECTURE: Edition-by-edition processing (early exit on 100% match)\n");
     println!("  - Each edition fully optimized (Stages 2-5) before trying next edition");
     println!("  - Early exit: stops as soon as ANY edition achieves 100% match");
     println!("  - Editions sorted by likelihood (runtime + name similarity)");
     println!("  - Preserves Run 12/13 fixes for over-segmented assembly");
-    println!("  - RUN 14: Edition-by-edition processing for faster results\n");
+    println!("  - RUN 15: Edition-by-edition processing for faster results\n");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -2703,20 +2928,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("  Acceptable range: {:.0}s - {:.0}s", min_duration, max_duration);
                 }
 
-                // Filter by Name Distance Rank (NDR) - remove candidates with poor name similarity
-                let pre_ndr_count = editions.len();
-                editions.retain(|edition| edition.name_distance_rank <= MAX_NAME_DISTANCE_RANK);
-                let ndr_filtered_count = pre_ndr_count - editions.len();
-                if ndr_filtered_count > 0 {
-                    println!("  Filtered out {} editions (NDR > {})", ndr_filtered_count, MAX_NAME_DISTANCE_RANK);
-                }
+                // Note: NDR filtering already applied at release level before fetching track details (Run 15)
+                // All editions here are composed of releases with NDR <= MAX_NAME_DISTANCE_RANK
 
                 if editions.is_empty() {
-                    let failure_msg = if runtime_filtered_count > 0 || ndr_filtered_count > 0 {
-                        format!("FAILED: All editions filtered out ({} runtime, {} NDR)",
-                            runtime_filtered_count, ndr_filtered_count)
+                    let failure_msg = if runtime_filtered_count > 0 {
+                        format!("FAILED: All editions filtered out ({} by runtime)", runtime_filtered_count)
                     } else {
-                        "FAILED: No valid editions".to_string()
+                        "FAILED: No valid editions (NDR filtering applied at release level)".to_string()
                     };
                     println!("{}", failure_msg);
                     results.push(ValidationResult::error(
@@ -2747,7 +2966,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        // NOTE: mb_candidates format no longer used in Run 14 (edition-by-edition processing)
+        // NOTE: mb_candidates format no longer used in Run 15 (edition-by-edition processing)
         // Keeping for reference/comparison with old approach
         #[allow(unused_variables)]
         let _mb_candidates: Vec<(Vec<u32>, String)> = editions
@@ -2774,7 +2993,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
 
-        // === RUN 14: Edition-by-Edition Processing ===
+        // === RUN 15: Edition-by-Edition Processing ===
         // Process each edition through all stages before moving to next edition
         // This allows early exit as soon as ANY edition achieves 100% match
 
@@ -2795,180 +3014,108 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut best_mean_error: f64 = 0.0;
         let mut best_edition_idx: Option<usize> = None;
 
-        println!("\n  === EDITION-BY-EDITION PROCESSING (Run 14) ===");
-        println!("  Testing {} editions through Stages 2-5...\n", editions.len());
+        println!("\n  === EDITION-BY-EDITION PROCESSING (Run 15 - PARALLEL) ===");
+        println!("  Testing {} editions through Stages 2-5 using {} threads...\n",
+            editions.len(), rayon::current_num_threads());
 
-        'edition_loop: for (edition_idx, edition) in editions.iter().enumerate() {
-            let edition_id = format!("edition_{}", edition_idx);
-            let expected_durations = &edition.durations;
-
-            println!("  [Edition {}/{}] {} - {} ({} tracks, NDR:{},{:.1})",
-                edition_idx + 1,
-                editions.len(),
-                edition.artist,
-                edition.album,
-                edition.track_count,
-                edition.name_distance_rank,
-                edition.name_distance_score
-            );
-
-            // Track best result for THIS edition across stages
-            let mut edition_best_percentage = 0.0;
-            let mut edition_best_durations = initial_durations.clone();
-            let mut edition_best_stage = "none";
-            let mut edition_best_result: Option<CandidateTestResult> = None;
-
-            // === STAGE 2: Parameter optimization for this edition ===
-            println!("    Stage 2: Testing {} parameter combinations...",
-                threshold_values.len() * min_duration_values.len());
-
-            let stage2_results = run_stage2_single_edition(
-                &samples,
-                sample_rate,
-                &threshold_values,
-                &min_duration_values,
-                expected_durations,
-                &edition_id,
-                match_tolerance_secs,
-                edition_best_percentage,
-            );
-
-            if let Some(ref result) = stage2_results.best_result {
-                if result.percentage > edition_best_percentage {
-                    edition_best_percentage = result.percentage;
-                    edition_best_durations = result.detected_durations.clone();
-                    edition_best_stage = "album_extractor_2_optimization";
-                    edition_best_result = Some(result.clone());
-
-                    if result.percentage >= 100.0 {
-                        println!("    -> 100% match! Using this edition.");
-                        // Update global best
-                        best_durations = result.detected_durations.clone();
-                        best_matches = result.matches.clone();
-                        best_matched_count = result.matched_count;
-                        best_percentage = result.percentage;
-                        best_stage = edition_best_stage;
-                        best_threshold = stage2_results.best_threshold;
-                        best_min_duration = stage2_results.best_min_duration;
-                        best_mbid = edition_id.clone();
-                        best_expected_durations = expected_durations.clone();
-                        best_mean_error = result.mean_error;
-                        best_edition_idx = Some(edition_idx);
-                        break 'edition_loop;
-                    }
-                }
-            }
-
-            // === STAGE 3: Segment assembly for this edition ===
-            if !stage2_results.over_segmented_candidates.is_empty() {
-                println!("    Stage 3: Testing {} over-segmented assemblies...",
-                    stage2_results.over_segmented_candidates.len());
-
-                if let Some(result) = run_stage3_single_edition(
-                    &stage2_results.over_segmented_candidates,
-                    expected_durations,
-                    &edition_id,
+        // Process all editions in parallel
+        let edition_results: Vec<EditionTestResult> = editions
+            .par_iter()
+            .enumerate()
+            .map(|(edition_idx, edition)| {
+                test_single_edition(
+                    edition_idx,
+                    edition,
+                    &samples,
+                    sample_rate,
+                    &threshold_values,
+                    &min_duration_values,
                     match_tolerance_secs,
-                    edition_best_percentage,
-                ) {
-                    if result.percentage > edition_best_percentage {
-                        edition_best_percentage = result.percentage;
-                        edition_best_durations = result.detected_durations.clone();
-                        edition_best_stage = "album_extractor_3_assembly";
-                        edition_best_result = Some(result.clone());
-
-                        if result.percentage >= 100.0 {
-                            println!("    -> 100% match! Using this edition.");
-                            best_durations = result.detected_durations.clone();
-                            best_matches = result.matches.clone();
-                            best_matched_count = result.matched_count;
-                            best_percentage = result.percentage;
-                            best_stage = edition_best_stage;
-                            best_mbid = edition_id.clone();
-                            best_expected_durations = expected_durations.clone();
-                            best_mean_error = result.mean_error;
-                            best_edition_idx = Some(edition_idx);
-                            break 'edition_loop;
-                        }
-                    }
-                }
-            }
-
-            // === STAGE 4: Quiet spot detection for this edition ===
-            if !rms_profile.is_empty() {
-                println!("    Stage 4: Guided quiet spot detection...");
-
-                if let Some(result) = run_stage4_single_edition(
-                    expected_durations,
-                    &edition_id,
-                    match_tolerance_secs,
-                    edition_best_percentage,
                     &rms_profile,
                     total_duration_secs,
-                ) {
-                    if result.percentage > edition_best_percentage {
-                        edition_best_percentage = result.percentage;
-                        edition_best_durations = result.detected_durations.clone();
-                        edition_best_stage = "album_extractor_4_guided";
-                        edition_best_result = Some(result.clone());
+                    &initial_durations,
+                    editions.len(),
+                )
+            })
+            .collect();
 
-                        if result.percentage >= 100.0 {
-                            println!("    -> 100% match! Using this edition.");
-                            best_durations = result.detected_durations.clone();
-                            best_matches = result.matches.clone();
-                            best_matched_count = result.matched_count;
-                            best_percentage = result.percentage;
-                            best_stage = edition_best_stage;
-                            best_mbid = edition_id.clone();
-                            best_expected_durations = expected_durations.clone();
-                            best_mean_error = result.mean_error;
-                            best_edition_idx = Some(edition_idx);
-                            break 'edition_loop;
-                        }
-                    }
-                }
+        // Print all log messages in order (for consistent output)
+        for result in &edition_results {
+            for msg in &result.log_messages {
+                println!("{}", msg);
             }
-
-            // === STAGE 5: Extra track merging for this edition ===
-            if edition_best_percentage >= 100.0 && edition_best_durations.len() > expected_durations.len() {
-                println!("    Stage 5: Extra track merging...");
-
-                if let Some((_merged_durations, result)) = run_stage5_single_edition(
-                    &edition_best_durations,
-                    expected_durations,
-                    &edition_id,
-                    match_tolerance_secs,
-                    edition_best_percentage,
-                ) {
-                    // merged_durations already captured in result.detected_durations
-                    edition_best_stage = "album_extractor_5_merging";
-                    edition_best_result = Some(result.clone());
-                }
-            }
-
-            // Check if this edition is better than global best
-            if edition_best_percentage > best_percentage {
-                if let Some(ref result) = edition_best_result {
-                    best_durations = result.detected_durations.clone();
-                    best_matches = result.matches.clone();
-                    best_matched_count = result.matched_count;
-                    best_percentage = result.percentage;
-                    best_stage = edition_best_stage;
-                    best_threshold = stage2_results.best_threshold;
-                    best_min_duration = stage2_results.best_min_duration;
-                    best_mbid = edition_id.clone();
-                    best_expected_durations = expected_durations.clone();
-                    best_mean_error = result.mean_error;
-                    best_edition_idx = Some(edition_idx);
-
-                    println!("    -> New global best: {:.1}% ({})", best_percentage, best_stage);
-                }
-            } else {
-                println!("    -> Best for this edition: {:.1}% (not better than {:.1}%)",
-                    edition_best_percentage, best_percentage);
-            }
-
             println!();
+        }
+
+        // Find the best result across all editions
+        // Priority: 100% matches with lowest mean_error, then highest percentage, then lower edition index
+        let best_result_opt = edition_results
+            .iter()
+            .filter(|r| r.best_result.is_some())
+            .max_by(|a, b| {
+                let a_perfect = a.best_percentage >= 100.0;
+                let b_perfect = b.best_percentage >= 100.0;
+
+                // First priority: 100% matches beat non-100% matches
+                if a_perfect && !b_perfect {
+                    return std::cmp::Ordering::Greater;
+                }
+                if b_perfect && !a_perfect {
+                    return std::cmp::Ordering::Less;
+                }
+
+                // Both are 100%: prefer lowest mean_error (most accurate track timing)
+                if a_perfect && b_perfect {
+                    let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+                    let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+                    // Note: reversed comparison - lower error is better (Greater)
+                    return b_error.partial_cmp(&a_error)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                        .then_with(|| b.edition_idx.cmp(&a.edition_idx)); // Lower index wins ties
+                }
+
+                // Neither is 100%: prefer highest percentage, then lowest mean_error, then lower edition index
+                a.best_percentage.partial_cmp(&b.best_percentage)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| {
+                        // Lower mean_error is better (reversed comparison)
+                        let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+                        let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+                        b_error.partial_cmp(&a_error).unwrap_or(std::cmp::Ordering::Equal)
+                    })
+                    .then_with(|| b.edition_idx.cmp(&a.edition_idx))
+            });
+
+        // Extract best result into our tracking variables
+        if let Some(best_edition_result) = best_result_opt {
+            if let Some(ref result) = best_edition_result.best_result {
+                best_durations = result.detected_durations.clone();
+                best_matches = result.matches.clone();
+                best_matched_count = result.matched_count;
+                best_percentage = result.percentage;
+                best_stage = best_edition_result.best_stage;
+                best_threshold = best_edition_result.best_threshold;
+                best_min_duration = best_edition_result.best_min_duration;
+                best_mbid = format!("edition_{}", best_edition_result.edition_idx);
+                best_expected_durations = best_edition_result.expected_durations.clone();
+                best_mean_error = result.mean_error;
+                best_edition_idx = Some(best_edition_result.edition_idx);
+            }
+        }
+
+        // Count how many 100% matches we found
+        let perfect_match_count = edition_results.iter()
+            .filter(|r| r.best_percentage >= 100.0)
+            .count();
+
+        if perfect_match_count > 1 {
+            println!("  Found {} editions with 100% match - selected edition {} (lowest mean error: {:.2}s)",
+                perfect_match_count,
+                best_edition_idx.map(|i| i + 1).unwrap_or(0),
+                best_mean_error);
+        } else {
+            println!("  Parallel processing complete. Best: {:.1}% from edition {} (mean error: {:.2}s)",
+                best_percentage, best_edition_idx.map(|i| i + 1).unwrap_or(0), best_mean_error);
         }
 
         // Convert placeholder MBID to real MBID from winning edition
@@ -3489,7 +3636,7 @@ mod tests {
         assert_eq!(classify_confidence(0.0), "Poor");
     }
 
-    // ===== Tests for Run 14 single-edition functions =====
+    // ===== Tests for Run 15 single-edition functions =====
 
     #[test]
     fn test_segmentation_against_single_edition_perfect_match() {
