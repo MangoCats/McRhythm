@@ -57,7 +57,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use symphonia::core::audio::{AudioBufferRef, Signal};
@@ -70,7 +70,7 @@ use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use strsim::levenshtein;
 use rayon::prelude::*;
-use tracing::{info, warn, error};
+use tracing::{debug, info, warn, error};
 use tracing_subscriber::fmt::time::SystemTime;
 
 // ===== Configuration Constants =====
@@ -152,6 +152,15 @@ const MAX_NAME_DISTANCE_RANK: usize = 100;
 // Other threads have this much time to complete and contribute results
 // before early exit terminates remaining work
 const EARLY_EXIT_GRACE_PERIOD_SECS: u64 = 20;
+
+// Staggered feed delay (seconds) between starting new edition tests
+// This allows earlier editions to find 100% before later ones even start
+const EDITION_FEED_DELAY_SECS: u64 = 5;
+
+// Stage 4 penalty: Quiet spot detection is less reliable than silence-based detection.
+// Results from Stage 4 are de-rated by this percentage (100% Stage 4 becomes 75%).
+// Stage 4 can never trigger a 100% early exit due to this penalty.
+const STAGE4_PENALTY_PERCENT: f64 = 25.0;
 
 // Stage 2 Parameter Grid: Threshold values (dB) for silence detection sweep
 // Run 13: Extended to -30dB, -34dB for albums with louder inter-track gaps
@@ -1041,6 +1050,7 @@ async fn comprehensive_musicbrainz_search(
                 );
 
                 rate_limiter.wait().await;
+                debug!("MB query: {}", search_url);
 
                 let response = retry_with_backoff(|| async {
                     client
@@ -1136,6 +1146,7 @@ async fn comprehensive_musicbrainz_search(
             "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
             release.id
         );
+        debug!("MB details: {}", details_url);
 
         let details = retry_with_backoff(|| async {
             client
@@ -2157,6 +2168,9 @@ fn test_single_edition(
             edition_best_percentage,
             edition_idx,
             total_editions,
+            perfect_match_found,
+            perfect_match_time_ms,
+            start_time,
         ) {
             if result.percentage > edition_best_percentage {
                 edition_best_percentage = result.percentage;
@@ -2198,6 +2212,8 @@ fn test_single_edition(
     }
 
     // === STAGE 4: Quiet spot detection for this edition ===
+    // Stage 4 results incur a 25% penalty (less reliable than silence-based detection)
+    // Stage 4 can NEVER trigger 100% early exit due to this penalty
     if !rms_profile.is_empty() {
         log_messages.push("    Stage 4: Guided quiet spot detection...".to_string());
 
@@ -2211,26 +2227,19 @@ fn test_single_edition(
             edition_idx,
             total_editions,
         ) {
-            if result.percentage > edition_best_percentage {
-                edition_best_percentage = result.percentage;
+            // Apply Stage 4 penalty: raw 100% becomes 75%
+            let penalized_percentage = result.percentage * (1.0 - STAGE4_PENALTY_PERCENT / 100.0);
+
+            if penalized_percentage > edition_best_percentage {
+                log_messages.push(format!(
+                    "    -> Stage 4 raw: {:.1}%, penalized: {:.1}% (-{}%)",
+                    result.percentage, penalized_percentage, STAGE4_PENALTY_PERCENT
+                ));
+                edition_best_percentage = penalized_percentage;
                 edition_best_durations = result.detected_durations.clone();
                 edition_best_stage = "album_extractor_4_guided";
                 edition_best_result = Some(result.clone());
-
-                if result.percentage >= 100.0 {
-                    log_messages.push("    -> 100% match in Stage 4!".to_string());
-                    signal_perfect_match(perfect_match_found, perfect_match_time_ms, start_time);
-                    return EditionTestResult {
-                        edition_idx,
-                        best_percentage: edition_best_percentage,
-                        best_result: edition_best_result,
-                        best_stage: edition_best_stage,
-                        best_threshold: edition_best_threshold,
-                        best_min_duration: edition_best_min_duration,
-                        expected_durations: expected_durations.clone(),
-                        log_messages,
-                    };
-                }
+                // Note: No 100% early exit for Stage 4 - penalty makes it impossible
             }
         }
     }
@@ -2450,6 +2459,7 @@ fn run_stage2_single_edition_cached(
 
 /// Stage 3: Segment assembly for a SINGLE edition (Run 15)
 /// Assembles over-segmented candidates to match this edition's track count
+/// Run 16: Added early exit support within assembly loop
 fn run_stage3_single_edition(
     over_segmented_candidates: &[OverSegmentedCandidate],
     expected_durations: &[u32],
@@ -2458,6 +2468,9 @@ fn run_stage3_single_edition(
     current_best_percentage: f64,
     edition_idx: usize,
     total_editions: usize,
+    perfect_match_found: &AtomicBool,
+    perfect_match_time_ms: &AtomicU64,
+    start_time: Instant,
 ) -> Option<CandidateTestResult> {
     if current_best_percentage >= 100.0 {
         return None;
@@ -2471,6 +2484,13 @@ fn run_stage3_single_edition(
     let mut best_result: Option<CandidateTestResult> = None;
 
     for candidate in over_segmented_candidates {
+        // Check for early exit within the loop (grace period expired)
+        if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
+            info!("      [Edition {}/{}] Early exit during Stage 3 assembly (tested {} so far)",
+                edition_idx + 1, total_editions, assemblies_tested);
+            break;
+        }
+
         // Only try assembly if candidate has more segments than target
         if candidate.durations.len() > expected_durations.len() {
             if let Some(assembled_durations) = assemble_segments_dp(&candidate.durations, expected_durations) {
@@ -2997,7 +3017,7 @@ fn run_stage5_extra_track_merging(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize tracing with timestamps
+    // Initialize tracing with timestamps (use RUST_LOG=debug to see MB queries)
     tracing_subscriber::fmt()
         .with_timer(SystemTime::default())
         .with_target(false)
@@ -3100,7 +3120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let album = &reconciled.album;
 
         // Decode MP3 (blocking I/O - run on blocking thread pool)
-        print!("  Decoding... ");
+        info!("  Decoding...");
         let file_path_owned = file_path.clone();
         let decode_result = tokio::task::spawn_blocking(move || {
             decode_mp3(&file_path_owned)
@@ -3109,7 +3129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (samples, sample_rate) = match decode_result {
             Ok(Ok((s, sr))) => {
                 let duration_mins = s.len() as f64 / sr as f64 / 60.0;
-                info!("Done! {} samples at {} Hz ({:.2} mins)", s.len(), sr, duration_mins);
+                info!("  Decoded: {} samples at {} Hz ({:.2} mins)", s.len(), sr, duration_mins);
                 (s, sr)
             }
             Ok(Err(e)) => {
@@ -3156,7 +3176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Comprehensive MusicBrainz search (ALL strategies, ALL variants, up to MB_MAX_RELEASES releases)
-        print!("  Fetching MusicBrainz data (comprehensive search)... ");
+        info!("  Fetching MusicBrainz data (comprehensive search)...");
         let editions = match comprehensive_musicbrainz_search(
             &artist_variants,
             &album_variants,
@@ -3253,7 +3273,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect();
 
         // Display edition information
-        info!("\n  Edition Details (sorted by match likelihood):");
+        info!("  Edition Details (sorted by match likelihood):");
         for (idx, edition) in editions.iter().enumerate() {
             let edition_duration: u32 = edition.durations.iter().sum();
             let match_score = score_edition_match(edition, file_duration_secs, estimated_track_count);
@@ -3311,33 +3331,69 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let perfect_match_time_ms = AtomicU64::new(0);
         let parallel_start_time = Instant::now();
 
-        info!("\n  === EDITION-BY-EDITION PROCESSING (Run 16 - PARALLEL + CACHED + EARLY EXIT) ===");
-        info!("  Testing {} editions through Stages 2-5 using {} threads ({}s grace period)...\n",
-            editions.len(), rayon::current_num_threads(), EARLY_EXIT_GRACE_PERIOD_SECS);
+        info!("  === EDITION-BY-EDITION PROCESSING (Run 16 - STAGGERED FEED + EARLY EXIT) ===");
+        info!("  Testing {} editions through Stages 2-5 ({}s between feeds, {}s grace period)...\n",
+            editions.len(), EDITION_FEED_DELAY_SECS, EARLY_EXIT_GRACE_PERIOD_SECS);
 
-        // Process all editions in parallel using cached silence detection
-        // Threads will exit early after grace period expires once 100% match is found
-        let edition_results: Vec<EditionTestResult> = editions
-            .par_iter()
-            .enumerate()
-            .map(|(edition_idx, edition)| {
-                test_single_edition(
-                    edition_idx,
-                    edition,
-                    &silence_cache,
-                    num_thresholds,
-                    num_min_durations,
-                    match_tolerance_secs,
-                    &rms_profile,
-                    total_duration_secs,
-                    &initial_durations,
-                    editions.len(),
-                    &perfect_match_found,
-                    &perfect_match_time_ms,
-                    parallel_start_time,
-                )
-            })
-            .collect();
+        // Staggered feed: spawn editions one at a time with delays
+        // Stop feeding new editions once 100% match is found
+        let results_mutex: Mutex<Vec<EditionTestResult>> = Mutex::new(Vec::new());
+        let mut editions_started = 0;
+        let mut editions_skipped = 0;
+
+        rayon::scope(|s| {
+            for (edition_idx, edition) in editions.iter().enumerate() {
+                // Check if we should stop feeding new editions
+                if perfect_match_found.load(Ordering::Relaxed) {
+                    editions_skipped = editions.len() - edition_idx;
+                    info!("  Stopping feed: 100% match found, {} editions not started", editions_skipped);
+                    break;
+                }
+
+                editions_started += 1;
+                info!("  Starting Edition {}/{}: {} - {}",
+                    edition_idx + 1, editions.len(), edition.artist, edition.album);
+
+                // Clone references for the closure
+                let silence_cache = &silence_cache;
+                let rms_profile = &rms_profile;
+                let initial_durations = &initial_durations;
+                let perfect_match_found = &perfect_match_found;
+                let perfect_match_time_ms = &perfect_match_time_ms;
+                let results_mutex = &results_mutex;
+                let total_editions = editions.len();
+
+                s.spawn(move |_| {
+                    let result = test_single_edition(
+                        edition_idx,
+                        edition,
+                        silence_cache,
+                        num_thresholds,
+                        num_min_durations,
+                        match_tolerance_secs,
+                        rms_profile,
+                        total_duration_secs,
+                        initial_durations,
+                        total_editions,
+                        perfect_match_found,
+                        perfect_match_time_ms,
+                        parallel_start_time,
+                    );
+                    results_mutex.lock().unwrap().push(result);
+                });
+
+                // Wait before feeding next edition (unless this is the last one)
+                if edition_idx < editions.len() - 1 {
+                    std::thread::sleep(Duration::from_secs(EDITION_FEED_DELAY_SECS));
+                }
+            }
+        });
+
+        // Extract results from mutex and sort by edition_idx for consistent output
+        let mut edition_results: Vec<EditionTestResult> = results_mutex.into_inner().unwrap();
+        edition_results.sort_by_key(|r| r.edition_idx);
+
+        info!("  Completed: {} editions started, {} skipped", editions_started, editions_skipped);
 
         // Print all log messages in order (for consistent output)
         for result in &edition_results {
@@ -3430,7 +3486,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Calculate final statistics
         let perfect_count = best_durations.len() == best_expected_durations.len();
 
-        info!("\n  FINAL RESULT:");
+        info!("  FINAL RESULT:");
         info!("    Matching stage: {}", best_stage);
         info!("    MusicBrainz: https://musicbrainz.org/release/{}", best_mbid);
         info!("    Track count: {}/{} {}", best_durations.len(), best_expected_durations.len(),
