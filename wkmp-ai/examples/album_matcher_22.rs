@@ -100,14 +100,45 @@ const QUIET_SPOT_DISTANCE_PENALTY_MULTIPLIER: f64 = 20.0;
 // candidates with poor name similarity (likely wrong album/artist)
 const MAX_NAME_DISTANCE_RANK: usize = 50;
 
-// Artist mismatch verification threshold (Jaro-Winkler similarity)
+// Artist mismatch verification threshold (Jaro-Winkler similarity + substring)
 // If winning edition's artist similarity to source artist is below this,
 // the match is flagged as potentially wrong. Range: 0.0 (no match) to 1.0 (identical)
 // 0.5 = allows "Bob Marley" vs "Bob Marley & The Wailers" but rejects "Fluke" vs "Donny & Marie Osmond"
 const ARTIST_MISMATCH_THRESHOLD: f64 = 0.5;
 
-// Minimum match percentage required to accept an artist-mismatched edition
-// Even with 100% track match, if artist is different, require very high confidence
+// =============================================================================
+// Run 22: Artist Fallback Algorithm Constants
+// =============================================================================
+// When winner has artist mismatch, evaluate runner-ups with better artist fit.
+// Runner-up can replace winner if:
+//   1. Artist fit is "significantly better" (see thresholds below)
+//   2. Time fit is "not significantly worse" (time_fit_delta >= -0.5)
+
+// Minimum artist similarity for a runner-up to be considered
+// Runner must have at least decent artist match to be promoted
+const ARTIST_FALLBACK_MIN_SIMILARITY: f64 = 0.60;
+
+// Artist similarity delta threshold (absolute improvement required)
+// runner_sim > winner_sim + DELTA is one way to qualify as "significantly better"
+const ARTIST_FALLBACK_DELTA: f64 = 0.20;
+
+// Artist similarity ratio threshold (relative improvement required)
+// runner_sim > winner_sim × RATIO is another way to qualify as "significantly better"
+const ARTIST_FALLBACK_RATIO: f64 = 1.4;
+
+// Time-fit delta threshold: runner-up must not be significantly worse
+// Formula: 10 × (runner_pct/winner_pct - 1) + 1 × (1 - runner_error/winner_error)
+// Negative = worse, Positive = better. -0.5 means up to ~5% worse match% is acceptable.
+const TIME_FIT_DELTA_THRESHOLD: f64 = -0.5;
+
+// Top percentage of editions to evaluate as runner-ups (by time-fit)
+const ARTIST_FALLBACK_TOP_PCT: f64 = 0.25;
+
+// Minimum number of runner-ups to evaluate regardless of percentage
+const ARTIST_FALLBACK_MIN_CANDIDATES: usize = 3;
+
+// Minimum match percentage for a final result with artist mismatch to be considered acceptable
+// Used for status reporting when no artist-matched runner-up was found
 const ARTIST_MISMATCH_MIN_MATCH_PCT: f64 = 95.0;
 
 // Run 18: Maximum concurrent albums to process in parallel
@@ -3018,6 +3049,137 @@ fn find_best_edition_result(edition_results: &[EditionTestResult]) -> Option<&Ed
         })
 }
 
+/// Run 22: Find best edition with artist verification fallback
+///
+/// Algorithm:
+/// 1. Find best edition by time-fit (match% primary, mean error secondary)
+/// 2. Check if winner has acceptable artist similarity (>= ARTIST_MISMATCH_THRESHOLD)
+/// 3. If not, evaluate top 25% (min 3) runner-ups sorted by time-fit
+/// 4. For each runner-up, check if:
+///    - Artist fit is "significantly better": runner_sim >= 0.60 AND
+///      (runner_sim > winner_sim + 0.20 OR runner_sim > winner_sim × 1.4)
+///    - Time-fit is "not significantly worse": time_fit_delta >= -0.5
+///      where time_fit_delta = 10×(runner_pct/winner_pct - 1) + 1×(1 - runner_error/winner_error)
+/// 5. First qualifying runner-up becomes new winner
+///
+/// Returns: (best_result, was_fallback_used, rejected_original_winner)
+fn find_best_edition_result_with_artist_check<'a>(
+    edition_results: &'a [EditionTestResult],
+    editions: &[Edition],
+    source_artist: &str,
+    album_idx: usize,
+) -> (Option<&'a EditionTestResult>, bool, Option<(usize, f64, String, f64)>) {
+    // Step 1: Sort all editions by time-fit (match% desc, mean error asc)
+    let mut sorted_results: Vec<&EditionTestResult> = edition_results
+        .iter()
+        .filter(|r| r.best_result.is_some())
+        .collect();
+
+    sorted_results.sort_by(|a, b| {
+        // Primary: higher match% is better
+        let pct_cmp = b.best_percentage.partial_cmp(&a.best_percentage)
+            .unwrap_or(std::cmp::Ordering::Equal);
+        if pct_cmp != std::cmp::Ordering::Equal {
+            return pct_cmp;
+        }
+        // Secondary: lower mean error is better
+        let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+        let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+        a_error.partial_cmp(&b_error).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    if sorted_results.is_empty() {
+        return (None, false, None);
+    }
+
+    // Step 2: Get the winner (best by time-fit)
+    let winner = sorted_results[0];
+    let winner_idx = winner.edition_idx;
+
+    if winner_idx >= editions.len() {
+        return (Some(winner), false, None);
+    }
+
+    let winner_artist = &editions[winner_idx].artist;
+    let (winner_sim, winner_artist_ok) = verify_artist_match(source_artist, winner_artist);
+    let winner_pct = winner.best_percentage;
+    let winner_error = winner.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+
+    // Step 3: If winner has acceptable artist match, use it
+    if winner_artist_ok {
+        return (Some(winner), false, None);
+    }
+
+    // Step 4: Winner has artist mismatch - evaluate runner-ups
+    info!("[A{}]   🔍 Artist mismatch detected ('{}'→'{}', sim={:.1}%), evaluating runner-ups...",
+        album_idx + 1, source_artist, winner_artist, winner_sim * 100.0);
+
+    // Calculate how many runner-ups to evaluate: top 25%, minimum 3
+    let num_candidates = ((sorted_results.len() as f64 * ARTIST_FALLBACK_TOP_PCT).ceil() as usize)
+        .max(ARTIST_FALLBACK_MIN_CANDIDATES)
+        .min(sorted_results.len());
+
+    info!("[A{}]       Evaluating top {} of {} editions", album_idx + 1, num_candidates, sorted_results.len());
+
+    // Step 5: Check each runner-up
+    for (rank, runner) in sorted_results.iter().enumerate().skip(1).take(num_candidates - 1) {
+        let runner_idx = runner.edition_idx;
+        if runner_idx >= editions.len() {
+            continue;
+        }
+
+        let runner_artist = &editions[runner_idx].artist;
+        let (runner_sim, _) = verify_artist_match(source_artist, runner_artist);
+        let runner_pct = runner.best_percentage;
+        let runner_error = runner.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+
+        // Check artist fit: "significantly better"
+        // Condition: runner_sim >= 0.60 AND (runner_sim > winner_sim + 0.20 OR runner_sim > winner_sim × 1.4)
+        let meets_min_similarity = runner_sim >= ARTIST_FALLBACK_MIN_SIMILARITY;
+        let meets_delta = runner_sim > winner_sim + ARTIST_FALLBACK_DELTA;
+        let meets_ratio = runner_sim > winner_sim * ARTIST_FALLBACK_RATIO;
+        let artist_significantly_better = meets_min_similarity && (meets_delta || meets_ratio);
+
+        // Check time fit: "not significantly worse"
+        // Formula: 10 × (runner_pct/winner_pct - 1) + 1 × (1 - runner_error/winner_error)
+        let pct_ratio_term = 10.0 * (runner_pct / winner_pct - 1.0);
+        let error_ratio_term = if winner_error > 0.0 && runner_error > 0.0 {
+            1.0 * (1.0 - runner_error / winner_error)
+        } else {
+            0.0 // Can't compare errors if one is invalid
+        };
+        let time_fit_delta = pct_ratio_term + error_ratio_term;
+        let time_fit_acceptable = time_fit_delta >= TIME_FIT_DELTA_THRESHOLD;
+
+        debug!("[A{}]       Runner #{}: '{}' sim={:.1}%, pct={:.1}%, err={:.2}s",
+            album_idx + 1, rank + 1, runner_artist, runner_sim * 100.0, runner_pct, runner_error);
+        debug!("[A{}]         Artist: min={} delta={} ratio={} → better={}",
+            album_idx + 1, meets_min_similarity, meets_delta, meets_ratio, artist_significantly_better);
+        debug!("[A{}]         Time: delta={:.3} (pct={:.3} + err={:.3}) → acceptable={}",
+            album_idx + 1, time_fit_delta, pct_ratio_term, error_ratio_term, time_fit_acceptable);
+
+        // If both conditions met, promote this runner-up
+        if artist_significantly_better && time_fit_acceptable {
+            info!("[A{}]   🎯 Artist fallback: Promoting runner-up #{} over winner", album_idx + 1, rank + 1);
+            info!("[A{}]       Winner: '{}' (sim={:.1}%, pct={:.1}%, err={:.2}s)",
+                album_idx + 1, winner_artist, winner_sim * 100.0, winner_pct, winner_error);
+            info!("[A{}]       Runner: '{}' (sim={:.1}%, pct={:.1}%, err={:.2}s)",
+                album_idx + 1, runner_artist, runner_sim * 100.0, runner_pct, runner_error);
+            info!("[A{}]       Time-fit delta: {:.3} (threshold: {:.1})",
+                album_idx + 1, time_fit_delta, TIME_FIT_DELTA_THRESHOLD);
+
+            return (Some(runner), true, Some((winner_idx, winner_pct, winner_artist.clone(), winner_sim)));
+        }
+    }
+
+    // No suitable runner-up found - use original winner with warning
+    warn!("[A{}]   ⚠️ No suitable artist-matched runner-up found", album_idx + 1);
+    warn!("[A{}]       Using original winner: '{}' (sim={:.1}%, pct={:.1}%)",
+        album_idx + 1, winner_artist, winner_sim * 100.0, winner_pct);
+
+    (Some(winner), false, None)
+}
+
 /// Process a single album through all matching stages (Run 18: extracted for parallel processing)
 ///
 /// This function encapsulates all the album processing logic that was previously in the main loop.
@@ -3386,8 +3548,10 @@ async fn process_single_album(
         debug!("[A{}] ", album_idx + 1);
     }
 
-    // Find the best result across all editions
-    let best_result_opt = find_best_edition_result(&edition_results);
+    // Run 22: Find the best result with artist verification fallback
+    // This prevents wrong-artist matches from winning when a correct-artist match exists
+    let (best_result_opt, used_artist_fallback, rejected_match) =
+        find_best_edition_result_with_artist_check(&edition_results, &editions, &artist, album_idx);
 
     // Extract best result into our tracking variables
     if let Some(best_edition_result) = best_result_opt {
@@ -3445,29 +3609,36 @@ async fn process_single_album(
         (UNKNOWN_VALUE.to_string(), UNKNOWN_VALUE.to_string())
     };
 
-    // Verify artist match - detect potential wrong-artist matches
+    // Run 22: Artist verification now happens during edition selection
+    // Here we just verify the final result and determine status
     let (artist_similarity, artist_match_ok) = verify_artist_match(&artist, &winning_artist);
     let artist_mismatch = !artist_match_ok;
 
-    // If artist mismatch detected, apply stricter acceptance criteria
+    // Log final artist verification status
     if artist_mismatch {
-        warn!("[A{}]   ⚠️  ARTIST MISMATCH DETECTED:", album_idx + 1);
+        // This should be rare now since find_best_edition_result_with_artist_check
+        // prefers artist-matched editions. Only happens when no artist-matched edition
+        // meets the threshold.
+        warn!("[A{}]   ⚠️  ARTIST MISMATCH in final result:", album_idx + 1);
         warn!("[A{}]       Source artist: '{}'", album_idx + 1, artist);
         warn!("[A{}]       Matched artist: '{}'", album_idx + 1, winning_artist);
         warn!("[A{}]       Similarity: {:.1}% (threshold: {:.1}%)",
               album_idx + 1, artist_similarity * 100.0, ARTIST_MISMATCH_THRESHOLD * 100.0);
 
         if best_percentage < ARTIST_MISMATCH_MIN_MATCH_PCT {
-            warn!("[A{}]       Match rejected: {:.1}% track match < {:.1}% required for artist-mismatched editions",
+            warn!("[A{}]       ❌ LOW CONFIDENCE: {:.1}% track match < {:.1}% threshold",
                   album_idx + 1, best_percentage, ARTIST_MISMATCH_MIN_MATCH_PCT);
-            warn!("[A{}]       This match is likely INCORRECT - different artist with similar album name",
-                  album_idx + 1);
-        } else {
-            warn!("[A{}]       Match accepted with warning: {:.1}% track match >= {:.1}% threshold",
-                  album_idx + 1, best_percentage, ARTIST_MISMATCH_MIN_MATCH_PCT);
-            warn!("[A{}]       Review recommended - high track match but different artist",
-                  album_idx + 1);
         }
+    } else if used_artist_fallback {
+        // Artist fallback was used - we chose an artist-matched edition over a higher-scoring mismatched one
+        info!("[A{}]   ✅ Artist verification: Matched (fallback was used)", album_idx + 1);
+    }
+
+    // Log rejected match info if applicable
+    if let Some((rejected_idx, rejected_pct, rejected_artist, rejected_sim)) = &rejected_match {
+        info!("[A{}]   📊 Rejected original winner (artist mismatch):", album_idx + 1);
+        info!("[A{}]       Edition {}: '{}' (sim={:.1}%, pct={:.1}%)",
+            album_idx + 1, rejected_idx + 1, rejected_artist, rejected_sim * 100.0, rejected_pct);
     }
 
     info!("[A{}]   FINAL RESULT:", album_idx + 1);
@@ -3524,11 +3695,13 @@ async fn process_single_album(
 
     info!("[A{}] ", album_idx + 1);
 
-    // Determine final status based on artist mismatch
+    // Determine final status based on artist mismatch and fallback usage
     let status = if artist_mismatch && best_percentage < ARTIST_MISMATCH_MIN_MATCH_PCT {
         "Artist Mismatch - Likely Incorrect".to_string()
     } else if artist_mismatch {
         "Artist Mismatch - Review Required".to_string()
+    } else if used_artist_fallback {
+        "Success (Artist Fallback Used)".to_string()
     } else {
         "Success".to_string()
     };
