@@ -232,6 +232,32 @@ const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav", "aac", "
 
 // ===== End Configuration Constants =====
 
+// ===== DRY Helper Functions =====
+
+/// Compare two f64 values, treating NaN as equal.
+/// Eliminates repeated `.partial_cmp(&x).unwrap_or(Ordering::Equal)` pattern.
+#[inline]
+fn cmp_f64(a: f64, b: f64) -> std::cmp::Ordering {
+    a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal)
+}
+
+/// Create an error ValidationResult with standard logging and heartbeat cleanup.
+/// Eliminates repeated early-return error handling blocks.
+fn make_error_result(
+    query_stats: &QueryStats,
+    file_path: &Path,
+    artist: &str,
+    album: &str,
+    track_count: usize,
+    album_id: &str,
+    message: String,
+) -> ValidationResult {
+    error!("[{}] FAILED: {}", album_id, message);
+    info!("[{}] ", album_id);
+    query_stats.stop();
+    ValidationResult::error(file_path, artist, album, track_count, message)
+}
+
 // ===== Silence Detection Cache (Run 18: Single-Pass) =====
 
 /// Pre-computed track durations for all parameter combinations.
@@ -1829,7 +1855,7 @@ fn calculate_ndr_and_filter<'a>(
         .collect();
 
     // Sort by NDR score (ascending - lower is better)
-    releases_with_ndr.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    releases_with_ndr.sort_by(|a, b| cmp_f64(a.1, b.1));
 
     // Filter to keep only releases with rank <= MAX_NAME_DISTANCE_RANK
     let pre_filter_count = releases_with_ndr.len();
@@ -2104,7 +2130,7 @@ fn select_best_mbid(edition: &Edition) -> String {
         })
         .collect();
 
-    scored.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(CmpOrdering::Equal));
+    scored.sort_by(|a, b| cmp_f64(a.1, b.1));
 
     scored[0].0.mbid.clone()
 }
@@ -3329,7 +3355,7 @@ fn filter_and_sort_editions(
     editions.sort_by(|a, b| {
         let score_a = score_edition_match(a, file_duration_secs, estimated_track_count);
         let score_b = score_edition_match(b, file_duration_secs, estimated_track_count);
-        score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+        cmp_f64(score_a, score_b)
     });
 
     info!("[A{}]   Sorted editions by likelihood (file: {:.0}s)",
@@ -3364,44 +3390,6 @@ fn filter_and_sort_editions(
     resort_by_name_similarity(&mut editions);
 
     Ok(editions)
-}
-
-/// Find the best result across all edition test results.
-///
-/// Prioritizes 100% matches, then by percentage, then by mean error.
-/// Returns the index of the best edition and the result, if any.
-fn find_best_edition_result(edition_results: &[EditionTestResult]) -> Option<&EditionTestResult> {
-    edition_results
-        .iter()
-        .filter(|r| r.best_result.is_some())
-        .max_by(|a, b| {
-            let a_perfect = a.best_percentage >= 100.0;
-            let b_perfect = b.best_percentage >= 100.0;
-
-            if a_perfect && !b_perfect {
-                return std::cmp::Ordering::Greater;
-            }
-            if b_perfect && !a_perfect {
-                return std::cmp::Ordering::Less;
-            }
-
-            if a_perfect && b_perfect {
-                let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-                let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-                return b_error.partial_cmp(&a_error)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| b.edition_idx.cmp(&a.edition_idx));
-            }
-
-            a.best_percentage.partial_cmp(&b.best_percentage)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| {
-                    let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-                    let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-                    b_error.partial_cmp(&a_error).unwrap_or(std::cmp::Ordering::Equal)
-                })
-                .then_with(|| b.edition_idx.cmp(&a.edition_idx))
-        })
 }
 
 /// Run 22: Find best edition with artist verification fallback
@@ -3440,7 +3428,7 @@ fn find_best_edition_result_with_artist_check<'a>(
         // Secondary: lower mean error is better
         let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
         let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-        a_error.partial_cmp(&b_error).unwrap_or(std::cmp::Ordering::Equal)
+        cmp_f64(a_error, b_error)
     });
 
     if sorted_results.is_empty() {
@@ -3563,11 +3551,14 @@ async fn process_single_album(
         sleep(Duration::from_millis(stagger_delay_ms)).await;
     }
 
-    info!("[A{}] === Album {}/{} ===", album_idx + 1, album_idx + 1, total_albums);
-    info!("[A{}] File: {}", album_idx + 1, file_path.display());
+    // Create album_id early for consistent logging throughout
+    let album_id = format!("A{}", album_idx + 1);
+
+    info!("[{}] === Album {}/{} ===", album_id, album_idx + 1, total_albums);
+    info!("[{}] File: {}", album_id, file_path.display());
 
     if !file_path.exists() {
-        error!("[A{}]   ERROR: File not found\n", album_idx + 1);
+        error!("[{}]   ERROR: File not found\n", album_id);
         return ValidationResult::error(
             &file_path, UNKNOWN_VALUE, UNKNOWN_VALUE, 0,
             "File not found".to_string(),
@@ -3576,10 +3567,9 @@ async fn process_single_album(
 
     // === PHASE 0: ID3 Tag Extraction & Reconciliation ===
     let reconciled = extract_and_reconcile_metadata(&file_path);
-    log_reconciliation_decision(&reconciled, album_idx + 1);
+    log_reconciliation_decision(&reconciled, album_idx + 1);  // TODO: refactor function to take album_id
 
     // === RUN 23: Single-Track Discriminator (Pre-Decode) ===
-    let album_id = format!("A{}", album_idx + 1);
     let mut single_track_analysis = SingleTrackDiscriminator::analyze_pre_decode(&file_path, None);
     SingleTrackDiscriminator::log_pre_decode(&album_id, &single_track_analysis, &file_path);
 
@@ -3610,7 +3600,7 @@ async fn process_single_album(
 
     // === RUN 19: TRUE PARALLEL DECODE + MUSICBRAINZ ===
     // Start decode and MB lookup concurrently (MB doesn't need file_duration_secs)
-    info!("[A{}]   Starting parallel: decode + MusicBrainz lookup...", album_idx + 1);
+    info!("[{}]   Starting parallel: decode + MusicBrainz lookup...", album_id);
 
     // Create query stats for heartbeat logging during MB lookups
     let query_stats = Arc::new(QueryStats::new());
@@ -3643,24 +3633,18 @@ async fn process_single_album(
     let (samples, sample_rate) = match decode_result {
         Ok(Ok((s, sr))) => {
             let duration_mins = s.len() as f64 / sr as f64 / 60.0;
-            info!("[A{}]   Decoded: {} samples at {} Hz ({:.2} mins)", album_idx + 1, s.len(), sr, duration_mins);
+            info!("[{}]   Decoded: {} samples at {} Hz ({:.2} mins)", album_id, s.len(), sr, duration_mins);
             (s, sr)
         }
         Ok(Err(e)) => {
-            error!("[A{}] FAILED: {}", album_idx + 1, e);
-            info!("[A{}] ", album_idx + 1);
-            query_stats.stop(); // Stop heartbeat before early return
-            return ValidationResult::error(
-                &file_path, &artist, &album, 0,
+            return make_error_result(
+                &query_stats, &file_path, &artist, &album, 0, &album_id,
                 format!("Decode failed: {}", e),
             );
         }
         Err(e) => {
-            error!("[A{}] FAILED: Task panicked: {}", album_idx + 1, e);
-            info!("[A{}] ", album_idx + 1);
-            query_stats.stop(); // Stop heartbeat before early return
-            return ValidationResult::error(
-                &file_path, &artist, &album, 0,
+            return make_error_result(
+                &query_stats, &file_path, &artist, &album, 0, &album_id,
                 format!("Decode task panicked: {}", e),
             );
         }
@@ -3699,10 +3683,8 @@ async fn process_single_album(
     let silence_cache = match silence_task.await {
         Ok(cache) => cache,
         Err(e) => {
-            error!("[A{}] FAILED: Silence detection task panicked: {}", album_idx + 1, e);
-            query_stats.stop(); // Stop heartbeat before early return
-            return ValidationResult::error(
-                &file_path, &artist, &album, initial_durations.len(),
+            return make_error_result(
+                &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
                 format!("Silence detection failed: {}", e),
             );
         }
@@ -3719,11 +3701,8 @@ async fn process_single_album(
     let editions = match mb_result {
         Ok(releases) => {
             if releases.is_empty() {
-                error!("[A{}] FAILED: No releases found", album_idx + 1);
-                info!("[A{}] ", album_idx + 1);
-                query_stats.stop(); // Stop heartbeat before early return
-                return ValidationResult::error(
-                    &file_path, &artist, &album, initial_durations.len(),
+                return make_error_result(
+                    &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
                     "MusicBrainz lookup failed: No releases found".to_string(),
                 );
             }
@@ -3732,33 +3711,27 @@ async fn process_single_album(
             let editions = group_into_editions(releases, album_idx);
             match filter_and_sort_editions(editions, file_duration_secs, estimated_track_count, album_idx) {
                 Ok(filtered) => {
-                    info!("[A{}] Found {} unique editions to test", album_idx + 1, filtered.len());
+                    info!("[{}] Found {} unique editions to test", album_id, filtered.len());
                     filtered
                 }
                 Err(failure_msg) => {
-                    info!("[A{}] {}", album_idx + 1, failure_msg);
-                    info!("[A{}] ", album_idx + 1);
-                    query_stats.stop(); // Stop heartbeat before early return
-                    return ValidationResult::error(
-                        &file_path, &artist, &album, initial_durations.len(),
+                    return make_error_result(
+                        &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
                         failure_msg,
                     );
                 }
             }
         }
         Err(e) => {
-            error!("[A{}] FAILED: {}", album_idx + 1, e);
-            info!("[A{}] ", album_idx + 1);
-            query_stats.stop(); // Stop heartbeat before early return
-            return ValidationResult::error(
-                &file_path, &artist, &album, initial_durations.len(),
+            return make_error_result(
+                &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
                 format!("MusicBrainz lookup failed: {}", e),
             );
         }
     };
 
     // Display edition information
-    info!("[A{}]   Edition Details (sorted by match likelihood):", album_idx + 1);
+    info!("[{}]   Edition Details (sorted by match likelihood):", album_id);
     for (idx, edition) in editions.iter().enumerate() {
         let edition_duration: u32 = edition.durations.iter().sum();
         let match_score = score_edition_match(edition, file_duration_secs, estimated_track_count);
@@ -3802,9 +3775,9 @@ async fn process_single_album(
     let perfect_match_time_ms = AtomicU64::new(0);
     let parallel_start_time = Instant::now();
 
-    info!("[A{}]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===", album_idx + 1);
-    info!("[A{}]   Testing {} editions through Stages 2-5 ({}s between feeds, {}s grace period)...\n",
-        album_idx + 1, editions.len(), EDITION_FEED_DELAY_SECS, EARLY_EXIT_GRACE_PERIOD_SECS);
+    info!("[{}]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===", album_id);
+    info!("[{}]   Testing {} editions through Stages 2-5 ({}s between feeds, {}s grace period)...\n",
+        album_id, editions.len(), EDITION_FEED_DELAY_SECS, EARLY_EXIT_GRACE_PERIOD_SECS);
 
     // Update heartbeat activity for edition testing phase
     query_stats.set_activity(&format!("testing {} editions", editions.len()));
@@ -3819,7 +3792,7 @@ async fn process_single_album(
             // Check if we should stop feeding new editions
             if perfect_match_found.load(Ordering::Relaxed) {
                 editions_skipped = editions.len() - edition_idx;
-                info!("[A{}]   Stopping feed: 100% match found, {} editions not started", album_idx + 1, editions_skipped);
+                info!("[{}]   Stopping feed: 100% match found, {} editions not started", album_id, editions_skipped);
                 break;
             }
 
@@ -3911,14 +3884,14 @@ async fn process_single_album(
     };
     edition_results.sort_by_key(|r| r.edition_idx);
 
-    info!("[A{}]   Completed: {} editions started, {} skipped", album_idx + 1, editions_started, editions_skipped);
+    info!("[{}]   Completed: {} editions started, {} skipped", album_id, editions_started, editions_skipped);
 
     // Print all log messages in order (debug level - verbose edition-by-edition details)
     for result in &edition_results {
         for msg in &result.log_messages {
-            debug!("[A{}] {}", album_idx + 1, msg);
+            debug!("[{}] {}", album_id, msg);
         }
-        debug!("[A{}] ", album_idx + 1);
+        debug!("[{}] ", album_id);
     }
 
     // Run 22: Find the best result with artist verification fallback
@@ -3992,9 +3965,9 @@ async fn process_single_album(
         // This should be rare now since find_best_edition_result_with_artist_check
         // prefers artist-matched editions. Only happens when no artist-matched edition
         // meets the threshold.
-        warn!("[A{}]   ⚠️  ARTIST MISMATCH in final result:", album_idx + 1);
-        warn!("[A{}]       Source artist: '{}'", album_idx + 1, artist);
-        warn!("[A{}]       Matched artist: '{}'", album_idx + 1, winning_artist);
+        warn!("[{}]   ⚠️  ARTIST MISMATCH in final result:", album_id);
+        warn!("[{}]       Source artist: '{}'", album_id, artist);
+        warn!("[{}]       Matched artist: '{}'", album_id, winning_artist);
         warn!("[A{}]       Similarity: {:.1}% (threshold: {:.1}%)",
               album_idx + 1, artist_similarity * 100.0, ARTIST_MISMATCH_THRESHOLD * 100.0);
 
@@ -4423,7 +4396,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Show best and worst
         let mut success_results: Vec<_> = results.iter().filter(|r| r.status == "Success").collect();
-        success_results.sort_by(|a, b| b.match_percentage.partial_cmp(&a.match_percentage).unwrap_or(CmpOrdering::Equal));
+        success_results.sort_by(|a, b| cmp_f64(b.match_percentage, a.match_percentage));
 
         info!("\nBest 5 Albums:");
         for (i, result) in success_results.iter().take(5).enumerate() {
