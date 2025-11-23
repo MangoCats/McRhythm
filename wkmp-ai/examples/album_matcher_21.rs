@@ -98,7 +98,7 @@ const QUIET_SPOT_DISTANCE_PENALTY_MULTIPLIER: f64 = 20.0;
 // Maximum Name Distance Rank (NDR) allowed for candidate editions
 // Editions with NDR > this value are filtered out early to avoid testing
 // candidates with poor name similarity (likely wrong album/artist)
-const MAX_NAME_DISTANCE_RANK: usize = 100;
+const MAX_NAME_DISTANCE_RANK: usize = 50;
 
 // Artist mismatch verification threshold (Jaro-Winkler similarity)
 // If winning edition's artist similarity to source artist is below this,
@@ -133,7 +133,7 @@ const HEARTBEAT_INTERVAL_SECS: u64 = 60;
 // This spreads out initial MusicBrainz API calls to reduce rate limit contention
 // Set to 0 to disable staggering (all albums start immediately)
 // With 60x @ 1550ms: A1=0s, A2=93s, A3=186s, A4=279s, A5=372s, A6=465s, A7=558s, A8=651s
-const STAGGER_MULTIPLIER: u64 = 60;
+const STAGGER_MULTIPLIER: u64 = 30;
 
 // Stage 4 penalty: Quiet spot detection is less reliable than silence-based detection.
 // Results from Stage 4 are de-rated by this percentage (100% Stage 4 becomes 75%).
@@ -628,10 +628,6 @@ impl RateLimiter {
         }
     }
 
-    async fn wait(&self) {
-        self.wait_with_stats(None).await;
-    }
-
     async fn wait_with_stats(&self, stats: Option<&QueryStats>) {
         // Hold the lock across the entire wait operation to serialize requests.
         // This ensures only one task can be checking/waiting/updating at a time.
@@ -651,21 +647,6 @@ impl RateLimiter {
 
         *last = std::time::Instant::now();
     }
-}
-
-/// Retry a network operation with exponential backoff
-/// Attempts: immediate, +5s, +15s, +45s (then gives up)
-///
-/// # Arguments
-/// * `log_prefix` - Prefix for log messages (e.g., "[A42]" for album 42)
-/// * `operation` - Async closure that performs the network operation
-async fn retry_with_backoff<F, Fut, T, E>(log_prefix: &str, operation: F) -> Result<T, E>
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<T, E>>,
-    E: std::fmt::Display,
-{
-    retry_with_backoff_stats(log_prefix, None, operation).await
 }
 
 /// Retry a network operation with exponential backoff, tracking statistics.
