@@ -48,6 +48,8 @@ urlencoding = "2.1"
 sha2 = "0.10"
 # String similarity (Levenshtein distance)
 strsim = "0.11"
+# Regular expressions for pattern matching
+regex = "1.10"
 # Local time formatting for tracing
 time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
 # Audio decoding and resampling
