@@ -128,6 +128,13 @@ const EDITION_FEED_DELAY_SECS: u64 = 4;
 // Logs query statistics periodically to show progress during MB API calls
 const HEARTBEAT_INTERVAL_SECS: u64 = 60;
 
+// Staggered album start multiplier for initial concurrent album launches
+// Each album waits (position * STAGGER_MULTIPLIER * MB_RATE_LIMIT_MS) before starting
+// This spreads out initial MusicBrainz API calls to reduce rate limit contention
+// Set to 0 to disable staggering (all albums start immediately)
+// With 60x @ 1550ms: A1=0s, A2=93s, A3=186s, A4=279s, A5=372s, A6=465s, A7=558s, A8=651s
+const STAGGER_MULTIPLIER: u64 = 60;
+
 // Stage 4 penalty: Quiet spot detection is less reliable than silence-based detection.
 // Results from Stage 4 are de-rated by this percentage (100% Stage 4 becomes 75%).
 // Stage 4 can never trigger a 100% early exit due to this penalty.
@@ -3045,6 +3052,19 @@ async fn process_single_album(
     min_duration_values: &'static [f64],
     rate_limiter: RateLimiter,
 ) -> ValidationResult {
+    // === STAGGERED START DELAY ===
+    // For the initial batch of MAX_CONCURRENT_ALBUMS, stagger their starts to reduce
+    // rate limit contention. Albums beyond the initial batch start immediately when
+    // their slot becomes available (previous album finished).
+    let stagger_position = album_idx % MAX_CONCURRENT_ALBUMS;
+    if STAGGER_MULTIPLIER > 0 && stagger_position > 0 && album_idx < MAX_CONCURRENT_ALBUMS {
+        let stagger_delay_ms = stagger_position as u64 * STAGGER_MULTIPLIER * MB_RATE_LIMIT_MS;
+        let stagger_delay_secs = stagger_delay_ms / 1000;
+        info!("[A{}] Staggered start: waiting {}s ({} position × {} multiplier × {}ms rate limit)...",
+            album_idx + 1, stagger_delay_secs, stagger_position, STAGGER_MULTIPLIER, MB_RATE_LIMIT_MS);
+        sleep(Duration::from_millis(stagger_delay_ms)).await;
+    }
+
     info!("[A{}] === Album {}/{} ===", album_idx + 1, album_idx + 1, total_albums);
     info!("[A{}] File: {}", album_idx + 1, file_path.display());
 
