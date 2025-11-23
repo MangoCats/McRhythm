@@ -126,7 +126,7 @@ If a hash match is found and that match has a different path/filename, if that h
 
 If the hash matched file's status is one of the other complete statuses, then this file's status is marked DUPLICATE, a pointer to the file-id of the hash matched file is recorded in this file's record, and this file will not be processed any further.
 
-If the hash matched file's status is not a complete status, it is ignored for the moment - when the currently processing file's status becomes one of the complete statuses it will search for matching hashes and update any which are not complete to be DUPLICATE pointing at the currently processing file.
+If the hash matched file's status is not a complete status, it is ignored for the moment - when the currently processing file's status becomes one of the complete statuses it will search for matching hashes and update any which are not complete to be DUPLICATE pointing at the currently processing file (see: Completed duplicate handling)
 
 After handling any hash matches, if the currently processing file's path is found in the database, then that entry (with the matching path) is updated with this file's hash, metadata, metadata update time, and a status of HASH COMPUTED (a not complete status), and this file continues processing in Step 4.
 
@@ -140,11 +140,42 @@ timeId3LastUpdated in the internalMetadata object is populated with the time whe
 
 status is updated to METADATA EXTRACTED when this process is complete
 
+## Step 5 - Audio decoding
+
+All audio in the file is decoded to uncompressed frames.
+
+The total runtime of the file is recorded in the files table
+
+If less than 100 milliseconds of audio higher than the no audio threshold is found in the entire file, the file's status is updated to NO AUDIO and processing jumps to Completed duplicate handling.
+
+status is updated to AUDIO DECODED when this process is complete and continues to Step 6
+
+## Step 6 - Content type determination
+
+At this point, we know there is some sound in the audio file, we want to categorize it further as:
+
+- a single song (with a MusicBrainz Recording MBID)
+- a full album (with a MusicBrainz Release MBID)
+- multiple songs with MBIDs but not associated with a particular album release
+- audio not described in MusicBrainz
+
+**Algorithm summary:**
+
+1. **Duration-based triage:** Files < 12 min → single-song path; 12-25 min → dual-path; > 25 min → album path
+2. **Quick silence scan:** Relaxed parameters (-45 dB, 2s gaps) estimate segment count before MusicBrainz lookup
+3. **Single-song path:** Chromaprint → AcoustID lookup → Recording MBID (confidence ≥ 0.8 = confirmed)
+4. **Album path:** ID3/path metadata → MusicBrainz Release search → edition matching via silence detection + track duration comparison (adapted from album_matcher_20.rs stages 2-5)
+5. **Fallback classification:** Poor album match (< 50%) with multiple segments → try per-segment AcoustID → classify as MULTIPLE_SONGS or NOT_IN_MUSICBRAINZ
+
+**Status outcomes:** SINGLE_SONG, FULL_ALBUM, PARTIAL_ALBUM, MULTIPLE_SONGS, NOT_IN_MUSICBRAINZ, IDENTIFICATION_FAILED
+
+See [wkmp-ai/SPEC_content_type_determination.md](SPEC_content_type_determination.md) for full algorithm details, decision trees, and confidence thresholds.
+
+Statuses of NOT_IN_MUSICBRAINZ and IDENTIFICATION_FAILED are completed statuses which send the file to Completed duplicate handling.
+
+Statuses of FULL_ALBUM, PARTIAL_ALBUM, MULTIPLE_SONGS proceed to their own specific handlers which segment the file into multiple passages which will each be handled individually.  SINGLE_SONG becomes a single passage to be handled like one of the passages from the segmented files.
+
 ## Later steps
-
-will work through detection of whether a file has no audio, non-song audio, one song or multiple songs.
-
-passage segmentation of multi-song files
 
 start, end, lead-in and lead-out point identification
 
@@ -153,6 +184,15 @@ storing all this in the database tables
 Chromaprint / AcoustID song identification
 
 Obtaining/recording AcousticBrainz high level descriptions for songs
+
+## Completed duplicate handling
+
+As mentioned in Step 3 Hash Computation, when a file's status is set to any of the completed statuses (like: INGEST COMPLETE, DUPLICATE, NO AUDIO) then another check is made of the database for any other files with a matching hash value.  If any other files are found with a matching hash and an incomplete status, their status is set to DUPLICATE and their duplicate_id field is set to the file_id of this just finalized file.
+
+This also triggers a mechanism whereby the file, just marked DUPLICATE, is searched for within the list of files either in process or waiting to be processed (by path/filename).  If found, then that file object is signaled (through an AtomicBool) that it has been marked duplicate.  All database write processes, and other convenient / appropriate locations in the file processing code shall check this signal flag and if it is set the file shall abort any further processing - it's already completed, status DUPLICATE.  This AtomicBool prevents the need to check status in the database frequently.
+
+Once a file has completed duplicate handling, it is not processed any more.
+
 
 -----
 
@@ -164,119 +204,125 @@ The database includes:
 
 Entries in the Files table include (but are not limited to, and any key may have a value of NULL at any time):
 
-Column name / Key  | Value description
--------------------+----------------------------------------------------------------------------------------
-fileId             | a unique identifier
--------------------+----------------------------------------------------------------------------------------
-status             | an enum which includes: INGEST COMPLETE, DUPLICATE, HASH COMPUTED, NO AUDIO and others...
--------------------+----------------------------------------------------------------------------------------
-fileSystemMetadata | a json object which may include:
-                   | Key                     | Value description
-				   |-------------------------+--------------------------------------------------------------
-				   | timeMetadataLastUpdated | i64 Unix time (0 at Jan 1 1970) in microseconds when this metadata was last copied here from the filesystem
-				   | size                    | Number of bytes in the file (not size on disk)
-				   | timeLastModified        | i64 Unix time (0 at Jan 1 1970) in microseconds, converted from the filesystem's time units
--------------------+----------------------------------------------------------------------------------------
-hash               | BLOB(32) of the SHA-256 hash result
--------------------+----------------------------------------------------------------------------------------
-internalMetadata   | a json object which may include tag info extracted from the file's data:
-                   | Key                     | Value description
-				   |-------------------------+--------------------------------------------------------------
-				   | timeTagsLastUpdated     | i64 Unix time (0 at Jan 1 1970) in microseconds when metadata was last extracted
-				   | format                  | string identifying the tag format found: "id3v2", "id3v1", "vorbis", "mp4", "ape", "bwf", "wma", or null if none
-				   |-------------------------+--------------------------------------------------------------
-				   | id3                     | (MP3 files) nested json object with ID3v2/ID3v1 frame IDs as keys:
-				   |                         | Key                     | Value description
-				   |                         |-------------------------+------------------------------------
-				   |                         | TIT2                    | Title (song name)
-				   |                         | TPE1                    | Artist (lead performer)
-				   |                         | TALB                    | Album title
-				   |                         | TRCK                    | Track number (often "X/Y" format)
-				   |                         | TYER / TDRC             | Year / Recording date
-				   |                         | TCON                    | Genre
-				   |                         | TPOS                    | Disc number (often "X/Y" format)
-				   |                         | TPE2                    | Album artist
-				   |                         | TXXX                    | User-defined text (array of {description, value})
-				   |                         | ...                     | other ID3 frames as found
-				   |-------------------------+--------------------------------------------------------------
-				   | vorbis                  | (OGG, FLAC, Opus files) nested json object with Vorbis Comment field names as keys:
-				   |                         | Key                     | Value description
-				   |                         |-------------------------+------------------------------------
-				   |                         | TITLE                   | Track title
-				   |                         | ARTIST                  | Artist name
-				   |                         | ALBUM                   | Album title
-				   |                         | TRACKNUMBER             | Track number (may be "X" or "X/Y")
-				   |                         | DISCNUMBER              | Disc number
-				   |                         | DATE                    | Release date (often just year)
-				   |                         | GENRE                   | Genre
-				   |                         | ALBUMARTIST             | Album artist (for compilations)
-				   |                         | COMMENT                 | Free-form comment
-				   |                         | MUSICBRAINZ_TRACKID     | MusicBrainz Recording MBID
-				   |                         | MUSICBRAINZ_ALBUMID     | MusicBrainz Release MBID
-				   |                         | ...                     | other Vorbis comments as found (case-insensitive by spec)
-				   |-------------------------+--------------------------------------------------------------
-				   | mp4                     | (M4A, AAC, MP4 files) nested json object with iTunes/MP4 atom names as keys:
-				   |                         | Key                     | Value description
-				   |                         |-------------------------+------------------------------------
-				   |                         | ©nam                    | Title
-				   |                         | ©ART                    | Artist
-				   |                         | ©alb                    | Album title
-				   |                         | aART                    | Album artist
-				   |                         | trkn                    | Track number (tuple: [track, total])
-				   |                         | disk                    | Disc number (tuple: [disc, total])
-				   |                         | ©day                    | Release date/year
-				   |                         | ©gen / gnre             | Genre (text or numeric ID)
-				   |                         | cpil                    | Compilation flag (boolean)
-				   |                         | ©wrt                    | Composer
-				   |                         | ----                    | iTunes-specific atoms stored with "----" prefix
-				   |                         | ...                     | other MP4 atoms as found
-				   |-------------------------+--------------------------------------------------------------
-				   | ape                     | (APE, Musepack, WavPack files) nested json object with APEv2 tag keys:
-				   |                         | Key                     | Value description
-				   |                         |-------------------------+------------------------------------
-				   |                         | Title                   | Track title
-				   |                         | Artist                  | Artist name
-				   |                         | Album                   | Album title
-				   |                         | Track                   | Track number
-				   |                         | Year                    | Release year
-				   |                         | Genre                   | Genre
-				   |                         | Album Artist            | Album artist
-				   |                         | Disc                    | Disc number
-				   |                         | Comment                 | Comment
-				   |                         | ...                     | other APEv2 tags as found (case-insensitive keys)
-				   |-------------------------+--------------------------------------------------------------
-				   | bwf                     | (Broadcast WAV files) nested json object with BWF/BEXT chunk fields:
-				   |                         | Key                     | Value description
-				   |                         |-------------------------+------------------------------------
-				   |                         | Description             | Free-form description (256 chars max)
-				   |                         | Originator              | Creator/originator name
-				   |                         | OriginatorReference     | Unique reference (e.g., facility code)
-				   |                         | OriginationDate         | Creation date (YYYY-MM-DD)
-				   |                         | OriginationTime         | Creation time (HH:MM:SS)
-				   |                         | TimeReference           | Sample count since midnight (for SMPTE sync)
-				   |                         | Version                 | BWF version number
-				   |                         | UMID                    | Unique Material Identifier (64 bytes hex)
-				   |                         | LoudnessValue           | Integrated loudness (EBU R 128)
-				   |                         | LoudnessRange           | Loudness range (EBU R 128)
-				   |                         | CodingHistory           | Signal chain/encoding history
-				   |                         | ...                     | other BEXT fields as found
-				   |-------------------------+--------------------------------------------------------------
-				   | wma                     | (WMA, ASF files) nested json object with ASF metadata attribute names:
-				   |                         | Key                     | Value description
-				   |                         |-------------------------+------------------------------------
-				   |                         | Title                   | Track title
-				   |                         | Author                  | Artist/author
-				   |                         | WM/AlbumTitle           | Album title
-				   |                         | WM/AlbumArtist          | Album artist
-				   |                         | WM/TrackNumber          | Track number
-				   |                         | WM/PartOfSet            | Disc number
-				   |                         | WM/Year                 | Release year
-				   |                         | WM/Genre                | Genre
-				   |                         | WM/Composer             | Composer
-				   |                         | Description             | Description/comment
-				   |                         | Copyright               | Copyright notice
-				   |                         | WM/Publisher            | Publisher/label
-				   |                         | WM/UniqueFileIdentifier | MusicBrainz Recording MBID (if present)
-				   |                         | ...                     | other ASF attributes as found
--------------------+----------------------------------------------------------------------------------------
+Column name / Key   | Value description
+--------------------+----------------------------------------------------------------------------------------
+file_id             | a unique identifier
+--------------------+----------------------------------------------------------------------------------------
+status              | an enum which includes: INGEST COMPLETE, DUPLICATE, NO AUDIO, HASH COMPUTED, AUDIO DECODED and others...
+--------------------+----------------------------------------------------------------------------------------
+path                | this is the path, relative to the root folder, and filename of the file including extension
+--------------------+----------------------------------------------------------------------------------------
+filesystem_metadata | a json object which may include:
+                    | Key                     | Value description
+				    |-------------------------+--------------------------------------------------------------
+				    | timeMetadataLastUpdated | i64 Unix time (0 at Jan 1 1970) in microseconds when this metadata was last copied here from the filesystem
+				    | size                    | Number of bytes in the file (not size on disk)
+				    | timeLastModified        | i64 Unix time (0 at Jan 1 1970) in microseconds, converted from the filesystem's time units
+--------------------+----------------------------------------------------------------------------------------
+hash                | BLOB(32) of the SHA-256 hash result
+--------------------+----------------------------------------------------------------------------------------
+duplicate_id        | Usually NULL, but when status is DUPLICATE this contains the file_id of a file with a completed status and identical hash value to this one
+--------------------+----------------------------------------------------------------------------------------
+total_runtime_ticks | total audio runtime of the file in integer SPEC017 ticks
+--------------------+----------------------------------------------------------------------------------------
+internal_metadata   | a json object which may include tag info extracted from the file's data:
+                    | Key                     | Value description
+	 			    |-------------------------+--------------------------------------------------------------
+	 			    | timeTagsLastUpdated     | i64 Unix time (0 at Jan 1 1970) in microseconds when metadata was last extracted
+	 			    | format                  | string identifying the tag format found: "id3v2", "id3v1", "vorbis", "mp4", "ape", "bwf", "wma", or null if none
+				    |-------------------------+--------------------------------------------------------------
+				    | id3                     | (MP3 files) nested json object with ID3v2/ID3v1 frame IDs as keys:
+				    |                         | Key                     | Value description
+				    |                         |-------------------------+------------------------------------
+				    |                         | TIT2                    | Title (song name)
+				    |                         | TPE1                    | Artist (lead performer)
+				    |                         | TALB                    | Album title
+				    |                         | TRCK                    | Track number (often "X/Y" format)
+				    |                         | TYER / TDRC             | Year / Recording date
+				    |                         | TCON                    | Genre
+				    |                         | TPOS                    | Disc number (often "X/Y" format)
+				    |                         | TPE2                    | Album artist
+				    |                         | TXXX                    | User-defined text (array of {description, value})
+				    |                         | ...                     | other ID3 frames as found
+				    |-------------------------+--------------------------------------------------------------
+				    | vorbis                  | (OGG, FLAC, Opus files) nested json object with Vorbis Comment field names as keys:
+				    |                         | Key                     | Value description
+				    |                         |-------------------------+------------------------------------
+				    |                         | TITLE                   | Track title
+				    |                         | ARTIST                  | Artist name
+				    |                         | ALBUM                   | Album title
+				    |                         | TRACKNUMBER             | Track number (may be "X" or "X/Y")
+				    |                         | DISCNUMBER              | Disc number
+				    |                         | DATE                    | Release date (often just year)
+				    |                         | GENRE                   | Genre
+				    |                         | ALBUMARTIST             | Album artist (for compilations)
+				    |                         | COMMENT                 | Free-form comment
+				    |                         | MUSICBRAINZ_TRACKID     | MusicBrainz Recording MBID
+				    |                         | MUSICBRAINZ_ALBUMID     | MusicBrainz Release MBID
+				    |                         | ...                     | other Vorbis comments as found (case-insensitive by spec)
+				    |-------------------------+--------------------------------------------------------------
+				    | mp4                     | (M4A, AAC, MP4 files) nested json object with iTunes/MP4 atom names as keys:
+				    |                         | Key                     | Value description
+				    |                         |-------------------------+------------------------------------
+				    |                         | ©nam                    | Title
+				    |                         | ©ART                    | Artist
+				    |                         | ©alb                    | Album title
+				    |                         | aART                    | Album artist
+				    |                         | trkn                    | Track number (tuple: [track, total])
+				    |                         | disk                    | Disc number (tuple: [disc, total])
+				    |                         | ©day                    | Release date/year
+				    |                         | ©gen / gnre             | Genre (text or numeric ID)
+				    |                         | cpil                    | Compilation flag (boolean)
+				    |                         | ©wrt                    | Composer
+				    |                         | ----                    | iTunes-specific atoms stored with "----" prefix
+				    |                         | ...                     | other MP4 atoms as found
+				    |-------------------------+--------------------------------------------------------------
+				    | ape                     | (APE, Musepack, WavPack files) nested json object with APEv2 tag keys:
+				    |                         | Key                     | Value description
+				    |                         |-------------------------+------------------------------------
+				    |                         | Title                   | Track title
+				    |                         | Artist                  | Artist name
+				    |                         | Album                   | Album title
+				    |                         | Track                   | Track number
+				    |                         | Year                    | Release year
+				    |                         | Genre                   | Genre
+				    |                         | Album Artist            | Album artist
+				    |                         | Disc                    | Disc number
+				    |                         | Comment                 | Comment
+				    |                         | ...                     | other APEv2 tags as found (case-insensitive keys)
+				    |-------------------------+--------------------------------------------------------------
+				    | bwf                     | (Broadcast WAV files) nested json object with BWF/BEXT chunk fields:
+				    |                         | Key                     | Value description
+				    |                         |-------------------------+------------------------------------
+				    |                         | Description             | Free-form description (256 chars max)
+				    |                         | Originator              | Creator/originator name
+				    |                         | OriginatorReference     | Unique reference (e.g., facility code)
+				    |                         | OriginationDate         | Creation date (YYYY-MM-DD)
+				    |                         | OriginationTime         | Creation time (HH:MM:SS)
+				    |                         | TimeReference           | Sample count since midnight (for SMPTE sync)
+				    |                         | Version                 | BWF version number
+				    |                         | UMID                    | Unique Material Identifier (64 bytes hex)
+				    |                         | LoudnessValue           | Integrated loudness (EBU R 128)
+				    |                         | LoudnessRange           | Loudness range (EBU R 128)
+				    |                         | CodingHistory           | Signal chain/encoding history
+				    |                         | ...                     | other BEXT fields as found
+				    |-------------------------+--------------------------------------------------------------
+				    | wma                     | (WMA, ASF files) nested json object with ASF metadata attribute names:
+				    |                         | Key                     | Value description
+				    |                         |-------------------------+------------------------------------
+				    |                         | Title                   | Track title
+				    |                         | Author                  | Artist/author
+				    |                         | WM/AlbumTitle           | Album title
+				    |                         | WM/AlbumArtist          | Album artist
+				    |                         | WM/TrackNumber          | Track number
+				    |                         | WM/PartOfSet            | Disc number
+				    |                         | WM/Year                 | Release year
+				    |                         | WM/Genre                | Genre
+				    |                         | WM/Composer             | Composer
+				    |                         | Description             | Description/comment
+				    |                         | Copyright               | Copyright notice
+				    |                         | WM/Publisher            | Publisher/label
+				    |                         | WM/UniqueFileIdentifier | MusicBrainz Recording MBID (if present)
+				    |                         | ...                     | other ASF attributes as found
+--------------------+----------------------------------------------------------------------------------------
 				   
