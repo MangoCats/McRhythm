@@ -74,6 +74,8 @@
 
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
+use std::io::Write;
+use std::panic;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
@@ -3061,23 +3063,50 @@ async fn process_single_album(
             let total_editions = editions.len();
 
             s.spawn(move |_| {
-                let result = test_single_edition(
-                    edition_idx,
-                    edition,
-                    silence_cache,
-                    num_thresholds,
-                    num_min_durations,
-                    match_tolerance_secs,
-                    rms_profile,
-                    total_duration_secs,
-                    initial_durations,
-                    total_editions,
-                    perfect_match_found,
-                    perfect_match_time_ms,
-                    parallel_start_time,
-                    album_idx,
-                );
-                results_mutex.lock().unwrap().push(result);
+                // Wrap edition testing in catch_unwind to prevent silent crashes
+                let edition_result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                    test_single_edition(
+                        edition_idx,
+                        edition,
+                        silence_cache,
+                        num_thresholds,
+                        num_min_durations,
+                        match_tolerance_secs,
+                        rms_profile,
+                        total_duration_secs,
+                        initial_durations,
+                        total_editions,
+                        perfect_match_found,
+                        perfect_match_time_ms,
+                        parallel_start_time,
+                        album_idx,
+                    )
+                }));
+
+                match edition_result {
+                    Ok(result) => {
+                        // Use lock_poisoned helper to handle mutex poisoning gracefully
+                        match results_mutex.lock() {
+                            Ok(mut guard) => guard.push(result),
+                            Err(poisoned) => {
+                                error!("[A{}] Edition {}: Mutex poisoned, recovering...",
+                                    album_idx + 1, edition_idx + 1);
+                                poisoned.into_inner().push(result);
+                            }
+                        }
+                    }
+                    Err(panic_payload) => {
+                        let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                            s.to_string()
+                        } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                            s.clone()
+                        } else {
+                            "unknown panic".to_string()
+                        };
+                        error!("[A{}] Edition {}/{} PANICKED: {}",
+                            album_idx + 1, edition_idx + 1, total_editions, panic_msg);
+                    }
+                }
             });
 
             // Wait before feeding next edition (unless this is the last one)
@@ -3088,7 +3117,15 @@ async fn process_single_album(
     });
 
     // Extract results from mutex and sort by edition_idx for consistent output
-    let mut edition_results: Vec<EditionTestResult> = results_mutex.into_inner().unwrap();
+    // Handle poisoned mutex gracefully (can happen if a thread panicked)
+    let mut edition_results: Vec<EditionTestResult> = match results_mutex.into_inner() {
+        Ok(results) => results,
+        Err(poisoned) => {
+            warn!("[A{}] Results mutex was poisoned (a thread panicked), recovering results...",
+                album_idx + 1);
+            poisoned.into_inner()
+        }
+    };
     edition_results.sort_by_key(|r| r.edition_idx);
 
     info!("[A{}]   Completed: {} editions started, {} skipped", album_idx + 1, editions_started, editions_skipped);
@@ -3247,7 +3284,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_thread_ids(true)
         .init();
 
-    info!("=== Comprehensive Album Matcher (Run 19) ===");
+    // Install panic hook to ensure panics are logged before crash
+    panic::set_hook(Box::new(|panic_info| {
+        let location = panic_info.location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "unknown location".to_string());
+
+        let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "unknown panic payload".to_string()
+        };
+
+        // Log via tracing (may not flush)
+        error!("PANIC at {}: {}", location, message);
+
+        // Also write directly to stderr to ensure visibility
+        let _ = writeln!(std::io::stderr(), "\n!!! PANIC at {}: {}", location, message);
+        let _ = std::io::stderr().flush();
+
+        // Print backtrace if available
+        let backtrace = std::backtrace::Backtrace::capture();
+        if backtrace.status() == std::backtrace::BacktraceStatus::Captured {
+            let _ = writeln!(std::io::stderr(), "Backtrace:\n{}", backtrace);
+            let _ = std::io::stderr().flush();
+        }
+    }));
+
+    info!("=== Comprehensive Album Matcher (Run 20) ===");
     info!("ARCHITECTURE: Multi-album parallel processing with album-prefixed logging");
     info!("  - Each edition fully optimized (Stages 2-5) before trying next edition");
     info!("  - Early exit: stops as soon as ANY edition achieves 100% match");

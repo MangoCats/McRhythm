@@ -179,17 +179,104 @@ fileSystemMetadata | a json object which may include:
 -------------------+----------------------------------------------------------------------------------------
 hash               | BLOB(32) of the SHA-256 hash result
 -------------------+----------------------------------------------------------------------------------------
-internalMetadata   | a json object which may include ID3 and other tag info extracted from the file's data:
+internalMetadata   | a json object which may include tag info extracted from the file's data:
                    | Key                     | Value description
 				   |-------------------------+--------------------------------------------------------------
-				   | timeId3LastUpdated      | i64 Unix time (0 at Jan 1 1970) in microseconds when the ID3 metadata was last extracted from the file and copied here
-				   | id3                     | nested json object with standard ID3 tags' keys and values, for example (all are optional, more may be added):
+				   | timeTagsLastUpdated     | i64 Unix time (0 at Jan 1 1970) in microseconds when metadata was last extracted
+				   | format                  | string identifying the tag format found: "id3v2", "id3v1", "vorbis", "mp4", "ape", "bwf", "wma", or null if none
+				   |-------------------------+--------------------------------------------------------------
+				   | id3                     | (MP3 files) nested json object with ID3v2/ID3v1 frame IDs as keys:
 				   |                         | Key                     | Value description
 				   |                         |-------------------------+------------------------------------
-				   |                         | TIT2                    | Title        (the song name/content description)
-				   |                         | TPE1                    | Artist       (lead performer(s)/soloist(s))
-				   |                         | TALB                    | Album        (album/movie/show title)
-				   |                         | TRCK                    | Track number (track number/position in set, often in format "X/Y")
-				   |                         | ...                     | whatever other ID3 tags are found in the file
+				   |                         | TIT2                    | Title (song name)
+				   |                         | TPE1                    | Artist (lead performer)
+				   |                         | TALB                    | Album title
+				   |                         | TRCK                    | Track number (often "X/Y" format)
+				   |                         | TYER / TDRC             | Year / Recording date
+				   |                         | TCON                    | Genre
+				   |                         | TPOS                    | Disc number (often "X/Y" format)
+				   |                         | TPE2                    | Album artist
+				   |                         | TXXX                    | User-defined text (array of {description, value})
+				   |                         | ...                     | other ID3 frames as found
+				   |-------------------------+--------------------------------------------------------------
+				   | vorbis                  | (OGG, FLAC, Opus files) nested json object with Vorbis Comment field names as keys:
+				   |                         | Key                     | Value description
+				   |                         |-------------------------+------------------------------------
+				   |                         | TITLE                   | Track title
+				   |                         | ARTIST                  | Artist name
+				   |                         | ALBUM                   | Album title
+				   |                         | TRACKNUMBER             | Track number (may be "X" or "X/Y")
+				   |                         | DISCNUMBER              | Disc number
+				   |                         | DATE                    | Release date (often just year)
+				   |                         | GENRE                   | Genre
+				   |                         | ALBUMARTIST             | Album artist (for compilations)
+				   |                         | COMMENT                 | Free-form comment
+				   |                         | MUSICBRAINZ_TRACKID     | MusicBrainz Recording MBID
+				   |                         | MUSICBRAINZ_ALBUMID     | MusicBrainz Release MBID
+				   |                         | ...                     | other Vorbis comments as found (case-insensitive by spec)
+				   |-------------------------+--------------------------------------------------------------
+				   | mp4                     | (M4A, AAC, MP4 files) nested json object with iTunes/MP4 atom names as keys:
+				   |                         | Key                     | Value description
+				   |                         |-------------------------+------------------------------------
+				   |                         | ©nam                    | Title
+				   |                         | ©ART                    | Artist
+				   |                         | ©alb                    | Album title
+				   |                         | aART                    | Album artist
+				   |                         | trkn                    | Track number (tuple: [track, total])
+				   |                         | disk                    | Disc number (tuple: [disc, total])
+				   |                         | ©day                    | Release date/year
+				   |                         | ©gen / gnre             | Genre (text or numeric ID)
+				   |                         | cpil                    | Compilation flag (boolean)
+				   |                         | ©wrt                    | Composer
+				   |                         | ----                    | iTunes-specific atoms stored with "----" prefix
+				   |                         | ...                     | other MP4 atoms as found
+				   |-------------------------+--------------------------------------------------------------
+				   | ape                     | (APE, Musepack, WavPack files) nested json object with APEv2 tag keys:
+				   |                         | Key                     | Value description
+				   |                         |-------------------------+------------------------------------
+				   |                         | Title                   | Track title
+				   |                         | Artist                  | Artist name
+				   |                         | Album                   | Album title
+				   |                         | Track                   | Track number
+				   |                         | Year                    | Release year
+				   |                         | Genre                   | Genre
+				   |                         | Album Artist            | Album artist
+				   |                         | Disc                    | Disc number
+				   |                         | Comment                 | Comment
+				   |                         | ...                     | other APEv2 tags as found (case-insensitive keys)
+				   |-------------------------+--------------------------------------------------------------
+				   | bwf                     | (Broadcast WAV files) nested json object with BWF/BEXT chunk fields:
+				   |                         | Key                     | Value description
+				   |                         |-------------------------+------------------------------------
+				   |                         | Description             | Free-form description (256 chars max)
+				   |                         | Originator              | Creator/originator name
+				   |                         | OriginatorReference     | Unique reference (e.g., facility code)
+				   |                         | OriginationDate         | Creation date (YYYY-MM-DD)
+				   |                         | OriginationTime         | Creation time (HH:MM:SS)
+				   |                         | TimeReference           | Sample count since midnight (for SMPTE sync)
+				   |                         | Version                 | BWF version number
+				   |                         | UMID                    | Unique Material Identifier (64 bytes hex)
+				   |                         | LoudnessValue           | Integrated loudness (EBU R 128)
+				   |                         | LoudnessRange           | Loudness range (EBU R 128)
+				   |                         | CodingHistory           | Signal chain/encoding history
+				   |                         | ...                     | other BEXT fields as found
+				   |-------------------------+--------------------------------------------------------------
+				   | wma                     | (WMA, ASF files) nested json object with ASF metadata attribute names:
+				   |                         | Key                     | Value description
+				   |                         |-------------------------+------------------------------------
+				   |                         | Title                   | Track title
+				   |                         | Author                  | Artist/author
+				   |                         | WM/AlbumTitle           | Album title
+				   |                         | WM/AlbumArtist          | Album artist
+				   |                         | WM/TrackNumber          | Track number
+				   |                         | WM/PartOfSet            | Disc number
+				   |                         | WM/Year                 | Release year
+				   |                         | WM/Genre                | Genre
+				   |                         | WM/Composer             | Composer
+				   |                         | Description             | Description/comment
+				   |                         | Copyright               | Copyright notice
+				   |                         | WM/Publisher            | Publisher/label
+				   |                         | WM/UniqueFileIdentifier | MusicBrainz Recording MBID (if present)
+				   |                         | ...                     | other ASF attributes as found
 -------------------+----------------------------------------------------------------------------------------
 				   
