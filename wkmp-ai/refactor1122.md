@@ -1,0 +1,195 @@
+# wkmp-ai Major Refactoring 1122
+
+The results from album_matcher_19.rs have been very good so far.  wkmp-ai/examples/album_matcher_20.rs is a cleaned up version of 19, ready to test to confirm equivalent performance.
+
+The current project is to do a major refactoring of wkmp-ai to incorporate the algorithm, perhaps most of the code directly, into wkmp-ai.
+
+What's good to keep from the current wkmp-ai implementation:
+
+- The file scanner and magic byte reader.
+
+- The basic structure of the user interface with live updates via SSE showing the user how analysis is progressing.
+
+- Maybe the chromaprint / AcoustID code - it has worked well in the past, but is struggling now, probably due to difficulty in identifying passages to ID.
+
+- The concept of the single threaded database interface service.  I think the implementation is suffering from too much complex integration with overly complex passage identification code that doesn't work well.
+
+- The concepts of the zero-conf database and especially its settings table with default values.
+
+- Concept / parameter / enum and other designations in the documentation, where applicable to this implementation, should be carried over as default - though they should also be reviewed for self-consistency and changed when appropriate for the new implementation.
+
+The rest of the existing wkmp-ai implementation and documentation should be set aside for archival reference, but mostly ignored when the new implementation is ready to start.  New documentation shall be developed for wkmp-ai and shall be concise and complete on its own without reliance on existing wkmp-ai specific documentation.  General documentation that applies across wkmp, like SPEC017, shall be referred to as-is - or identified as a source of inconsistency / conflict to be resolved.
+
+-----
+
+## Guiding Principles
+
+- Imported audio files are "played where they lie" - they are not moved, renamed, touched, or modified in any way.  They are only read.  All information gathered about the imported files is recorded in the database.
+- This import process gathers data from remote databases, via internet and potentially other connections.  When this process is done, any information needed for future operations with the files shall all be locally stored in the database, this process' intent is to make the rest of the system free of network dependencies.
+
+-----
+
+## Foundational Elements
+
+- The main wkmp SQLite database is a central repository which all wkmp microservices use.
+- While wkmp-ai is a multi-threaded implementation to speed importing of large libraries of files, the SQLite database has a single threaded access design.  wkmp-ai devotes one specific db_access thread to handle database access operations by proxy for all other wkmp-ai threads.  The read and write operations are communicated to the db_access thread which enqueues them, and processes the database operation in FIFO order.  This enables direct monitoring of bottleneck statistics (how deep is the queue, what's the longest wait time, which operations are involved in major queue backups) and prevents ambiguities about what may or may not be a database access time issue.
+
+-----
+
+## Objectives
+
+The purpose of the wkmp-ai audio import process is to:
+
+- identify passages in audio files
+  - at what point in time (in the file) do they start?
+  - at what point in time (in the file) do they end?
+  - at what point in time (in the file) should they deny other tracks permission to continue playing over their beginning (lead-in point)?
+  - at what point in time (in the file) should they allow other tracks permission to start playing over their ending (lead-out point)?
+  - what is the song or other MusicBrainz MBID most appropriate for this passage, if any?
+- identify related MusicBrainz data and capture it in the local database
+  - album / release identities and data
+  - song identities and data
+  - artist identities and data
+  - much more...
+- retrieve and store AcousticBrainz high level characterizations of songs found in the passages found in the audio files
+
+While passages in general may contain zero, one, or more songs with MBIDs, the wkmp-ai process only identifies single song or zero song passages.
+  
+-----
+
+## Important related documents
+
+- REQ002 entity definitions
+- SPEC017 regarding time units of ticks for passage table references to time offsets in audio files
+- SPEC002 crossfade definitions
+- SPEC031 data driven schema maintenance: zero conf system design
+- REQ001 system level requirements
+
+- SPEC032 audio ingest architecture is a historical reference, it may help fill in some blanks in the new design, but is not in any way authoritative vs the new wkmp-ai design
+
+-----
+
+## Operational realities
+
+The audio files wkmp-ai works with:
+- may be in one of many formats (see: REQ001 REQ-CF-010)
+- may contain one song, a whole album of music, or other kinds of audio both musical, spoken, etc.
+- are occasionally corrupted, or the product of a glitchy extraction
+- while file names, folder names, ID3 tags and other sources of identity about the audio files are generally reliable, they are not 100% reliable and should always be cross checked / validated to the extent possible automatically
+- the automatic identification process should recognize when it has a low reliability conclusion about an audio file's contents' identity and bring this to the user's attention
+
+-----
+
+## Step 1 - Folder Scan
+
+The "new vision" is to start an import of audio files in a folder beginning with a scan / magic byte analysis which creates an in-memory mapping of:
+
+- The list of all files in the folder and its sub-folders
+- Classification of each file as:
+  1. audio by magic byte with    recognized audio filename extension
+  2. audio by magic byte without recognized audio filename extension
+  3. image by magic byte with    recognized image filename extension
+  4. image by magic byte without recognized image filename extension
+  5. other by magic byte without recognized audio or image filename extension
+  6. other by magic byte with    recognized audio filename extension
+  7. other by magic byte with    recognized image filename extension
+  
+- other means: not recognized by magic byte analysis as an audio or image file
+- Files of types 1., 3. and 5. "have proper extensions".
+- Files of other types "have improper extensions", and are shown to the user in a list/table showing their path/name/extension and describing the issue with each.
+
+- Files of types 3. and 5. are simply ignored by later wkmp-ai processes
+- wkmp-ai only works on files of type 1.
+- The in-memory list of verified audio files' paths is passed to Step 2.
+
+The folder scan is a very fast process, all files in the folder are scanned at-once to provide information to estimate time to complete the import process.  After the folder scan is complete, files of type 1 are worked on one by one, bringing each file to completion in part so that if the import process is interrupted at least some of the work of importing is in a complete, ready to use state in the database and future import work can "pick up where the previous import left off."
+
+## Step 2 - Known Files Check
+
+Proceeding file by file through the folder scan list:
+
+Determine if the file is already in the database or not.
+
+Lookup each file by path and name in the files table of the database.
+
+If the path/filename is present in the files table of the database: compare the file's filesystem metadata (size in bytes, last modified date) to the copy of the metadata for that path/filename in the database.  If the metadata is an exact match and the file's status is one of the complete statuses, then this file will not be processed any further.
+  
+Other files, whether not in the files table of the database or in the files table of the database with a not complete status, proceed to Step 3.
+
+## Step 3 - Hash computation
+
+Each file passed from step 2 to step 3 has the hash (SHA-256) of all its data computed (this is the currently processing file).  The files table is searched for any matches to this hash.
+
+If a hash match is found and that match has the currently processing file's path and filename, then it must have different filesystem metadata than the file currently has, otherwise this file would have stopped processing in step 2 - so: update the filesystem metadata in this file's entry in the database to match the current filesystem metadata of this file, update the "filesystem metadata last updated" record for this file, and then continue processing this file based on its entry's status in the database.
+
+If a hash match is found and that match has a different path/filename, if that hash match file's status is DUPLICATE, then it should point to the file it is a DUPLICATE of, the currently processing's status is also marked DUPLICATE and set to point at the "root" file that the other DUPLICATE file points at.  Once this is done, the currently processing file will not be processed any further.
+
+If the hash matched file's status is one of the other complete statuses, then this file's status is marked DUPLICATE, a pointer to the file-id of the hash matched file is recorded in this file's record, and this file will not be processed any further.
+
+If the hash matched file's status is not a complete status, it is ignored for the moment - when the currently processing file's status becomes one of the complete statuses it will search for matching hashes and update any which are not complete to be DUPLICATE pointing at the currently processing file.
+
+After handling any hash matches, if the currently processing file's path is found in the database, then that entry (with the matching path) is updated with this file's hash, metadata, metadata update time, and a status of HASH COMPUTED (a not complete status), and this file continues processing in Step 4.
+
+When the currently processing file's path is not found in the database, then a new entry is created with a new fileId, the currently processing file's path, this file's hash, metadata, metadata update time, and a status of HASH COMPUTED (a not complete status), and this file continues processing in Step 4.
+
+## Step 4 - Metadata extraction
+
+The currently processing file has its internal metadata (ID3 tags and others like: Vorbis Comments, MP4/iTunes Tags, APEv2, BWF, and WMA), if any, extracted and stored in the files table internalMetadata json object.
+
+timeId3LastUpdated in the internalMetadata object is populated with the time when the ID3 tags were extracted, whether any ID3 data was found or not.
+
+status is updated to METADATA EXTRACTED when this process is complete
+
+## Later steps
+
+will work through detection of whether a file has no audio, non-song audio, one song or multiple songs.
+
+passage segmentation of multi-song files
+
+start, end, lead-in and lead-out point identification
+
+storing all this in the database tables
+
+Chromaprint / AcoustID song identification
+
+Obtaining/recording AcousticBrainz high level descriptions for songs
+
+-----
+
+## Database schema notes
+
+The database includes:
+
+### Files table
+
+Entries in the Files table include (but are not limited to, and any key may have a value of NULL at any time):
+
+Column name / Key  | Value description
+-------------------+----------------------------------------------------------------------------------------
+fileId             | a unique identifier
+-------------------+----------------------------------------------------------------------------------------
+status             | an enum which includes: INGEST COMPLETE, DUPLICATE, HASH COMPUTED, NO AUDIO and others...
+-------------------+----------------------------------------------------------------------------------------
+fileSystemMetadata | a json object which may include:
+                   | Key                     | Value description
+				   |-------------------------+--------------------------------------------------------------
+				   | timeMetadataLastUpdated | i64 Unix time (0 at Jan 1 1970) in microseconds when this metadata was last copied here from the filesystem
+				   | size                    | Number of bytes in the file (not size on disk)
+				   | timeLastModified        | i64 Unix time (0 at Jan 1 1970) in microseconds, converted from the filesystem's time units
+-------------------+----------------------------------------------------------------------------------------
+hash               | BLOB(32) of the SHA-256 hash result
+-------------------+----------------------------------------------------------------------------------------
+internalMetadata   | a json object which may include ID3 and other tag info extracted from the file's data:
+                   | Key                     | Value description
+				   |-------------------------+--------------------------------------------------------------
+				   | timeId3LastUpdated      | i64 Unix time (0 at Jan 1 1970) in microseconds when the ID3 metadata was last extracted from the file and copied here
+				   | id3                     | nested json object with standard ID3 tags' keys and values, for example (all are optional, more may be added):
+				   |                         | Key                     | Value description
+				   |                         |-------------------------+------------------------------------
+				   |                         | TIT2                    | Title        (the song name/content description)
+				   |                         | TPE1                    | Artist       (lead performer(s)/soloist(s))
+				   |                         | TALB                    | Album        (album/movie/show title)
+				   |                         | TRCK                    | Track number (track number/position in set, often in format "X/Y")
+				   |                         | ...                     | whatever other ID3 tags are found in the file
+-------------------+----------------------------------------------------------------------------------------
+				   
