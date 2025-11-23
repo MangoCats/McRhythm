@@ -28,8 +28,8 @@ use futures::stream::{self, StreamExt};
 // ===== Configuration Constants =====
 
 // Default silence detection parameters
-const DEFAULT_THRESHOLD_DB: f64 = -57.0;
-const DEFAULT_MIN_DURATION_SECS: f64 = 0.9;
+const DEFAULT_THRESHOLD_DB: f64 = -50.0;
+const DEFAULT_MIN_DURATION_SECS: f64 = 3.0;
 
 // Track matching tolerance (seconds difference allowed for a track to be considered "matched")
 const MATCH_TOLERANCE_SECS: f64 = 10.0;
@@ -123,6 +123,10 @@ const EARLY_EXIT_GRACE_PERIOD_SECS: u64 = 20;
 // Staggered feed delay (seconds) between starting new edition tests
 // This allows earlier editions to find 100% before later ones even start
 const EDITION_FEED_DELAY_SECS: u64 = 4;
+
+// Heartbeat logging interval (seconds) during long-running operations
+// Logs query statistics periodically to show progress during MB API calls
+const HEARTBEAT_INTERVAL_SECS: u64 = 60;
 
 // Stage 4 penalty: Quiet spot detection is less reliable than silence-based detection.
 // Results from Stage 4 are de-rated by this percentage (100% Stage 4 becomes 75%).
@@ -483,7 +487,119 @@ struct OverSegmentedCandidate {
     track_count: usize,
 }
 
-// ===== Rate Limiting =====
+// ===== Query Statistics & Rate Limiting =====
+
+/// Thread-safe query statistics for heartbeat logging.
+/// Tracks MusicBrainz API activity to provide progress updates during long operations.
+#[derive(Debug)]
+struct QueryStats {
+    /// Total API queries attempted.
+    total_queries: AtomicU64,
+    /// Successful queries completed.
+    successful_queries: AtomicU64,
+    /// Failed queries (after all retries exhausted).
+    failed_queries: AtomicU64,
+    /// Total retry attempts across all queries.
+    retries: AtomicU64,
+    /// Number of rate limit waits performed.
+    rate_limit_waits: AtomicU64,
+    /// Current activity description for heartbeat display.
+    current_activity: std::sync::Mutex<String>,
+    /// Start time for elapsed calculation.
+    start_time: Instant,
+    /// Flag to signal heartbeat task to stop.
+    stop_flag: AtomicBool,
+}
+
+impl QueryStats {
+    fn new() -> Self {
+        Self {
+            total_queries: AtomicU64::new(0),
+            successful_queries: AtomicU64::new(0),
+            failed_queries: AtomicU64::new(0),
+            retries: AtomicU64::new(0),
+            rate_limit_waits: AtomicU64::new(0),
+            current_activity: std::sync::Mutex::new("initializing".to_string()),
+            start_time: Instant::now(),
+            stop_flag: AtomicBool::new(false),
+        }
+    }
+
+    fn record_query_start(&self) {
+        self.total_queries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_success(&self) {
+        self.successful_queries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_failure(&self) {
+        self.failed_queries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_retry(&self) {
+        self.retries.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_rate_wait(&self) {
+        self.rate_limit_waits.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn set_activity(&self, activity: &str) {
+        if let Ok(mut guard) = self.current_activity.lock() {
+            *guard = activity.to_string();
+        }
+    }
+
+    fn get_activity(&self) -> String {
+        self.current_activity.lock().map(|g| g.clone()).unwrap_or_default()
+    }
+
+    fn stop(&self) {
+        self.stop_flag.store(true, Ordering::Relaxed);
+    }
+
+    fn is_stopped(&self) -> bool {
+        self.stop_flag.load(Ordering::Relaxed)
+    }
+
+    fn log_heartbeat(&self, album_idx: usize) {
+        let elapsed = self.start_time.elapsed().as_secs();
+        let total = self.total_queries.load(Ordering::Relaxed);
+        let success = self.successful_queries.load(Ordering::Relaxed);
+        let failed = self.failed_queries.load(Ordering::Relaxed);
+        let retries = self.retries.load(Ordering::Relaxed);
+        let waits = self.rate_limit_waits.load(Ordering::Relaxed);
+        let activity = self.get_activity();
+
+        info!(
+            "[A{}] [HEARTBEAT] {}s elapsed | Queries: {} ({} ok, {} failed) | Retries: {} | Rate waits: {} | {}",
+            album_idx + 1, elapsed, total, success, failed, retries, waits, activity
+        );
+    }
+}
+
+/// Spawn a background heartbeat logging task.
+/// Logs query statistics every HEARTBEAT_INTERVAL_SECS until stopped.
+///
+/// # Arguments
+/// * `stats` - Arc-wrapped QueryStats to monitor
+/// * `album_idx` - Album index for log message prefix
+///
+/// # Returns
+/// JoinHandle for the spawned task (can be used to await completion)
+fn spawn_heartbeat_task(stats: Arc<QueryStats>, album_idx: usize) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let interval = Duration::from_secs(HEARTBEAT_INTERVAL_SECS);
+        loop {
+            sleep(interval).await;
+            if stats.is_stopped() {
+                break;
+            }
+            stats.log_heartbeat(album_idx);
+        }
+    })
+}
 
 /// Rate limiter for MusicBrainz API compliance.
 /// Enforces minimum delay between requests to avoid being blocked.
@@ -506,6 +622,10 @@ impl RateLimiter {
     }
 
     async fn wait(&self) {
+        self.wait_with_stats(None).await;
+    }
+
+    async fn wait_with_stats(&self, stats: Option<&QueryStats>) {
         // Hold the lock across the entire wait operation to serialize requests.
         // This ensures only one task can be checking/waiting/updating at a time.
         let mut last = self.last_request.lock().await;
@@ -516,6 +636,9 @@ impl RateLimiter {
         // Use 1.55s delay for safety margin to prevent 503 errors
         if elapsed < Duration::from_millis(MB_RATE_LIMIT_MS) {
             let wait_time = Duration::from_millis(MB_RATE_LIMIT_MS) - elapsed;
+            if let Some(s) = stats {
+                s.record_rate_wait();
+            }
             sleep(wait_time).await;
         }
 
@@ -529,7 +652,27 @@ impl RateLimiter {
 /// # Arguments
 /// * `log_prefix` - Prefix for log messages (e.g., "[A42]" for album 42)
 /// * `operation` - Async closure that performs the network operation
-async fn retry_with_backoff<F, Fut, T, E>(log_prefix: &str, mut operation: F) -> Result<T, E>
+async fn retry_with_backoff<F, Fut, T, E>(log_prefix: &str, operation: F) -> Result<T, E>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, E>>,
+    E: std::fmt::Display,
+{
+    retry_with_backoff_stats(log_prefix, None, operation).await
+}
+
+/// Retry a network operation with exponential backoff, tracking statistics.
+/// Attempts: immediate, +5s, +15s, +45s (then gives up)
+///
+/// # Arguments
+/// * `log_prefix` - Prefix for log messages (e.g., "[A42]" for album 42)
+/// * `stats` - Optional QueryStats to track retries and outcomes
+/// * `operation` - Async closure that performs the network operation
+async fn retry_with_backoff_stats<F, Fut, T, E>(
+    log_prefix: &str,
+    stats: Option<&QueryStats>,
+    mut operation: F,
+) -> Result<T, E>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T, E>>,
@@ -539,16 +682,31 @@ where
 
     for (attempt, &delay) in MB_RETRY_DELAYS_SECS.iter().enumerate() {
         if delay > 0 {
+            if let Some(s) = stats {
+                s.record_retry();
+            }
             warn!("{}    Retrying after {} seconds (attempt {}/{})...", log_prefix, delay, attempt + 1, max_attempts);
             sleep(Duration::from_secs(delay)).await;
         }
 
+        if let Some(s) = stats {
+            s.record_query_start();
+        }
+
         match operation().await {
-            Ok(result) => return Ok(result),
+            Ok(result) => {
+                if let Some(s) = stats {
+                    s.record_success();
+                }
+                return Ok(result);
+            }
             Err(e) => {
                 if attempt < max_attempts - 1 {
                     warn!("{}    Network error: {} - will retry", log_prefix, e);
                 } else {
+                    if let Some(s) = stats {
+                        s.record_failure();
+                    }
                     error!("{}    Network error: {} - giving up after {} attempts", log_prefix, e, max_attempts);
                     return Err(e);
                 }
@@ -1190,9 +1348,11 @@ async fn search_all_mb_strategies(
     album_variants: &[String],
     rate_limiter: &RateLimiter,
     album_idx: usize,
+    stats: Option<&QueryStats>,
 ) -> Vec<MBRelease> {
     let mut all_releases: Vec<MBRelease> = Vec::new();
     let mut seen_mbids = std::collections::HashSet::new();
+    let log_prefix = format!("[A{}]", album_idx + 1);
 
     for artist in artist_variants {
         for album in album_variants {
@@ -1204,16 +1364,20 @@ async fn search_all_mb_strategies(
                     break;
                 }
 
+                if let Some(s) = stats {
+                    s.set_activity(&format!("searching: {} / {} (strategy {}/{})",
+                        artist, album, i + 1, search_queries.len()));
+                }
+
                 let encoded_query = urlencoding::encode(query);
                 let search_url = format!(
                     "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
                     encoded_query
                 );
 
-                rate_limiter.wait().await;
-                let log_prefix = format!("[A{}]", album_idx + 1);
+                rate_limiter.wait_with_stats(stats).await;
                 debug!("{} MB query: {}", log_prefix, search_url);
-                let response = retry_with_backoff(&log_prefix, || async {
+                let response = retry_with_backoff_stats(&log_prefix, stats, || async {
                     client
                         .get(&search_url)
                         .send()
@@ -1304,7 +1468,7 @@ fn calculate_ndr_and_filter<'a>(
 
     let ndr_filtered_count = pre_filter_count - filtered_releases.len();
     if ndr_filtered_count > 0 {
-        warn!("[A{}]   Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
+        info!("[A{}]   Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
                  album_idx + 1, ndr_filtered_count, MAX_NAME_DISTANCE_RANK, filtered_releases.len());
     }
 
@@ -1325,8 +1489,13 @@ async fn fetch_release_track_details(
     score: f64,
     rate_limiter: &RateLimiter,
     album_idx: usize,
+    stats: Option<&QueryStats>,
 ) -> Option<(Vec<u32>, EditionMBID, String, String, usize, f64)> {
-    rate_limiter.wait().await;
+    if let Some(s) = stats {
+        s.set_activity(&format!("fetching details: {} (rank {})", release.title, rank));
+    }
+
+    rate_limiter.wait_with_stats(stats).await;
 
     let details_url = format!(
         "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
@@ -1334,7 +1503,7 @@ async fn fetch_release_track_details(
     );
     let log_prefix = format!("[A{}]", album_idx + 1);
     debug!("{} MB details: {}", log_prefix, details_url);
-    let details = retry_with_backoff(&log_prefix, || async {
+    let details = retry_with_backoff_stats(&log_prefix, stats, || async {
         client
             .get(&details_url)
             .send()
@@ -1407,6 +1576,7 @@ async fn comprehensive_musicbrainz_search(
     album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
     rate_limiter: &RateLimiter,
     album_idx: usize,            // Album index for log messages
+    stats: Option<&QueryStats>,  // Optional stats for heartbeat logging
 ) -> Result<Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
     info!("[A{}]   Fetching MusicBrainz data (comprehensive search)...", album_idx + 1);
 
@@ -1416,18 +1586,26 @@ async fn comprehensive_musicbrainz_search(
         .build()?;
 
     // Step 1: Search using all artist/album/strategy combinations
-    let all_releases = search_all_mb_strategies(&client, artist_variants, album_variants, rate_limiter, album_idx).await;
+    let all_releases = search_all_mb_strategies(&client, artist_variants, album_variants, rate_limiter, album_idx, stats).await;
     info!("[A{}]   Found {} unique releases across all search strategies", album_idx + 1, all_releases.len());
 
     // Step 2: Calculate NDR and filter releases (Run 15 optimization)
     let filtered_releases = calculate_ndr_and_filter(&all_releases, artist_variants, album_variants, album_idx);
 
+    if let Some(s) = stats {
+        s.set_activity(&format!("fetching track details for {} releases", filtered_releases.len()));
+    }
+
     // Step 3: Fetch track details for filtered releases
     let mut results: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)> = Vec::new();
     for (release, rank, score) in filtered_releases {
-        if let Some(result) = fetch_release_track_details(&client, release, rank, score, rate_limiter, album_idx).await {
+        if let Some(result) = fetch_release_track_details(&client, release, rank, score, rate_limiter, album_idx, stats).await {
             results.push(result);
         }
+    }
+
+    if let Some(s) = stats {
+        s.set_activity("MusicBrainz search complete");
     }
 
     Ok(results)
@@ -2911,6 +3089,10 @@ async fn process_single_album(
     // Start decode and MB lookup concurrently (MB doesn't need file_duration_secs)
     info!("[A{}]   Starting parallel: decode + MusicBrainz lookup...", album_idx + 1);
 
+    // Create query stats for heartbeat logging during MB lookups
+    let query_stats = Arc::new(QueryStats::new());
+    let heartbeat_handle = spawn_heartbeat_task(Arc::clone(&query_stats), album_idx);
+
     // Spawn decode task (CPU-bound)
     let album_idx_for_decode = album_idx;
     let decode_handle = tokio::task::spawn_blocking(move || {
@@ -2925,10 +3107,15 @@ async fn process_single_album(
         &album_variants_for_mb,
         &rate_limiter,
         album_idx,
+        Some(&query_stats),
     );
 
     // Wait for both decode and MB to complete in parallel
     let (decode_result, mb_result) = tokio::join!(decode_handle, mb_task);
+
+    // Stop heartbeat logging now that MB search is complete
+    query_stats.stop();
+    let _ = heartbeat_handle.await;
 
     // Process decode result
     let (samples, sample_rate) = match decode_result {
@@ -3413,12 +3600,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
 
-    info!("=== Comprehensive Album Matcher (Run 20) ===");
-    info!("ARCHITECTURE: Multi-album parallel processing with album-prefixed logging");
-    info!("  - Each edition fully optimized (Stages 2-5) before trying next edition");
-    info!("  - Early exit: stops as soon as ANY edition achieves 100% match");
-    info!("  - Editions sorted by likelihood (runtime + name similarity)");
-    info!("  - RUN 19: Parallel MB lookup + silence detection after decode");
+    info!("=== Comprehensive Album Matcher (Run 21) ===");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -3478,11 +3660,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let threshold_db: f64 = DEFAULT_THRESHOLD_DB;
     let min_duration_secs: f64 = DEFAULT_MIN_DURATION_SECS;
     let match_tolerance_secs = MATCH_TOLERANCE_SECS;
-
-    info!("Parameters:");
-    info!("  Threshold: {} dB", threshold_db);
-    info!("  Min duration: {} seconds", min_duration_secs);
-    info!("  Match tolerance: {} seconds\n", match_tolerance_secs);
 
     let rate_limiter = RateLimiter::new();
 
