@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "time"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 sqlx = { workspace = true }
@@ -48,6 +48,8 @@ urlencoding = "2.1"
 sha2 = "0.10"
 # String similarity (Levenshtein distance)
 strsim = "0.11"
+# Local time formatting for tracing
+time = { version = "0.3", features = ["local-offset", "macros", "formatting"] }
 # Audio decoding and resampling
 symphonia = { version = "0.5", features = ["all"] }
 rubato = "0.15"
