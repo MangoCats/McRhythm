@@ -1,4 +1,4 @@
-/// Comprehensive Album Matcher with Edition-by-Edition Processing (Run 19)
+/// Comprehensive Album Matcher with Edition-by-Edition Processing (Run 22 - Load Balanced)
 
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -3289,6 +3289,7 @@ async fn process_single_album(
         Ok(Err(e)) => {
             error!("[A{}] FAILED: {}", album_idx + 1, e);
             info!("[A{}] ", album_idx + 1);
+            query_stats.stop(); // Stop heartbeat before early return
             return ValidationResult::error(
                 &file_path, &artist, &album, 0,
                 format!("Decode failed: {}", e),
@@ -3297,6 +3298,7 @@ async fn process_single_album(
         Err(e) => {
             error!("[A{}] FAILED: Task panicked: {}", album_idx + 1, e);
             info!("[A{}] ", album_idx + 1);
+            query_stats.stop(); // Stop heartbeat before early return
             return ValidationResult::error(
                 &file_path, &artist, &album, 0,
                 format!("Decode task panicked: {}", e),
@@ -3338,6 +3340,7 @@ async fn process_single_album(
         Ok(cache) => cache,
         Err(e) => {
             error!("[A{}] FAILED: Silence detection task panicked: {}", album_idx + 1, e);
+            query_stats.stop(); // Stop heartbeat before early return
             return ValidationResult::error(
                 &file_path, &artist, &album, initial_durations.len(),
                 format!("Silence detection failed: {}", e),
@@ -3351,6 +3354,7 @@ async fn process_single_album(
             if releases.is_empty() {
                 error!("[A{}] FAILED: No releases found", album_idx + 1);
                 info!("[A{}] ", album_idx + 1);
+                query_stats.stop(); // Stop heartbeat before early return
                 return ValidationResult::error(
                     &file_path, &artist, &album, initial_durations.len(),
                     "MusicBrainz lookup failed: No releases found".to_string(),
@@ -3367,6 +3371,7 @@ async fn process_single_album(
                 Err(failure_msg) => {
                     info!("[A{}] {}", album_idx + 1, failure_msg);
                     info!("[A{}] ", album_idx + 1);
+                    query_stats.stop(); // Stop heartbeat before early return
                     return ValidationResult::error(
                         &file_path, &artist, &album, initial_durations.len(),
                         failure_msg,
@@ -3377,6 +3382,7 @@ async fn process_single_album(
         Err(e) => {
             error!("[A{}] FAILED: {}", album_idx + 1, e);
             info!("[A{}] ", album_idx + 1);
+            query_stats.stop(); // Stop heartbeat before early return
             return ValidationResult::error(
                 &file_path, &artist, &album, initial_durations.len(),
                 format!("MusicBrainz lookup failed: {}", e),
@@ -3785,7 +3791,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
 
-    info!("=== Comprehensive Album Matcher (Run 21) ===");
+    info!("=== Comprehensive Album Matcher (Run 22 - Load Balanced) ===");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -3837,6 +3843,86 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Combine: training files first, then additional files
     training_files.extend(additional_files.clone());
 
+    // === RUN 22: PRE-SCAN AND INTERLEAVE BY FILE SIZE ===
+    // Pre-scan file sizes and interleave: shortest, middle, longest, middle, repeat
+    // This spreads large files throughout processing to balance load
+    info!("=== Pre-scanning file sizes for load balancing ===");
+    let prescan_start = std::time::Instant::now();
+
+    let mut files_with_sizes: Vec<(PathBuf, u64)> = training_files
+        .into_iter()
+        .filter_map(|path| {
+            match std::fs::metadata(&path) {
+                Ok(meta) => Some((path, meta.len())),
+                Err(e) => {
+                    warn!("Could not get size for {}: {}", path.display(), e);
+                    Some((path, 0)) // Keep file but assume small
+                }
+            }
+        })
+        .collect();
+
+    // Sort by file size (ascending)
+    files_with_sizes.sort_by_key(|(_, size)| *size);
+
+    // Interleave: shortest, middle, longest, middle, repeat
+    // This spreads large files throughout the processing order with better distribution
+    use std::collections::VecDeque;
+
+    let mut remaining: VecDeque<(PathBuf, u64)> = files_with_sizes.iter().cloned().collect();
+    let mut interleaved: Vec<PathBuf> = Vec::with_capacity(remaining.len());
+
+    while !remaining.is_empty() {
+        // 1. Take shortest (front)
+        if let Some((path, _)) = remaining.pop_front() {
+            interleaved.push(path);
+        }
+        if remaining.is_empty() { break; }
+
+        // 2. Take middle of remaining
+        let mid_idx = remaining.len() / 2;
+        if let Some((path, _)) = remaining.remove(mid_idx) {
+            interleaved.push(path);
+        }
+        if remaining.is_empty() { break; }
+
+        // 3. Take longest (back)
+        if let Some((path, _)) = remaining.pop_back() {
+            interleaved.push(path);
+        }
+        if remaining.is_empty() { break; }
+
+        // 4. Take middle of remaining again
+        let mid_idx = remaining.len() / 2;
+        if let Some((path, _)) = remaining.remove(mid_idx) {
+            interleaved.push(path);
+        }
+    }
+
+    let training_files = interleaved;
+
+    // Log size distribution
+    let total_size: u64 = files_with_sizes.iter().map(|(_, s)| s).sum();
+    let min_size = files_with_sizes.first().map(|(_, s)| *s).unwrap_or(0);
+    let max_size = files_with_sizes.last().map(|(_, s)| *s).unwrap_or(0);
+    let avg_size = total_size / files_with_sizes.len().max(1) as u64;
+
+    info!("  Pre-scan completed in {:?}", prescan_start.elapsed());
+    info!("  File sizes: min={:.1}MB, max={:.1}MB, avg={:.1}MB, total={:.1}GB",
+        min_size as f64 / 1_000_000.0,
+        max_size as f64 / 1_000_000.0,
+        avg_size as f64 / 1_000_000.0,
+        total_size as f64 / 1_000_000_000.0);
+    info!("  Processing order: shortest/middle/longest/middle interleave for load balancing");
+
+    // Show first few files in new order
+    info!("  First 8 files (interleaved):");
+    for (i, path) in training_files.iter().take(8).enumerate() {
+        let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+        info!("    [{}] {:.1}MB - {}", i + 1, size as f64 / 1_000_000.0,
+            path.file_name().unwrap_or_default().to_string_lossy());
+    }
+
     info!("=== Parameter Validation ===");
     info!("Testing optimal parameters on {} albums from combined set", training_files.len());
     info!("  ({} training set + {} from long files list)\n", initial_count, additional_files.len());
@@ -3853,11 +3939,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let threshold_values: &'static [f64] = &STAGE2_THRESHOLD_VALUES;
     let min_duration_values: &'static [f64] = &STAGE2_MIN_DURATION_VALUES;
 
-    // === RUN 18: MULTI-ALBUM PARALLEL PROCESSING ===
+    // === RUN 22: MULTI-ALBUM PARALLEL PROCESSING + LOAD BALANCED FILE ORDER ===
     // Process up to MAX_CONCURRENT_ALBUMS albums concurrently
     // Each album does decode + MB lookup in parallel within itself
     // All albums share the same rate limiter for MB API compliance
-    info!("=== Run 19: Multi-Album Parallel Processing ===");
+    // Files are interleaved by size: shortest/middle/longest/middle pattern
+    info!("=== Run 22: Multi-Album Parallel + Load Balanced File Order ===");
     info!("  Max concurrent albums: {}", MAX_CONCURRENT_ALBUMS);
     info!("  Album-prefixed logging: [A{{num}}] for parallel debugging");
     info!("  Shared rate limiter ensures MB API compliance\n");
