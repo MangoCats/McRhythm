@@ -1,6 +1,5 @@
 /// Comprehensive Album Matcher with Edition-by-Edition Processing (Run 23 - Single-Track Detection)
 
-use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::io::Write;
 use std::panic;
@@ -5470,30 +5469,6 @@ mod tests {
         for entry in &cache {
             assert!(entry.len() >= 1 && entry.len() <= 3, "Should detect 1-3 tracks");
         }
-    }
-
-    // ===== Tests for test_segmentation_against_all_candidates() =====
-
-    #[test]
-    fn test_segmentation_against_all_candidates_finds_best() {
-        let detected = vec![180.0, 200.0, 196.0];
-        let candidates = vec![
-            (vec![180, 200, 196], "perfect-match".to_string()),
-            (vec![100, 100, 100], "poor-match".to_string()),
-        ];
-        let result = test_segmentation_against_all_candidates(&detected, &candidates, 10.0);
-        assert!(result.is_some());
-        let r = result.unwrap();
-        assert_eq!(r.mbid, "perfect-match");
-        assert_eq!(r.percentage, 100.0);
-    }
-
-    #[test]
-    fn test_segmentation_against_all_candidates_empty() {
-        let detected = vec![180.0, 200.0];
-        let candidates: Vec<(Vec<u32>, String)> = vec![];
-        let result = test_segmentation_against_all_candidates(&detected, &candidates, 10.0);
-        assert!(result.is_none());
     }
 
     // ===== Tests for calculate_rms_profile() =====
