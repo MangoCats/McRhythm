@@ -25,6 +25,7 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
+use tokio::sync::Mutex as TokioMutex;
 use strsim::{levenshtein, jaro_winkler};
 use rayon::prelude::*;
 use tracing::{debug, info, warn, error};
@@ -256,6 +257,34 @@ const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;      // Many gaps (counter-indicator)
 
 // Audio file extensions for directory scan
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav", "aac", "wma", "opus"];
+
+// =============================================================================
+// Run 24: AcoustID Track Verification Constants
+// =============================================================================
+// Chromaprint/AcoustID verification for successful album matches.
+// Validates each detected track against AcoustID to confirm recording MBIDs.
+
+// AcoustID API endpoint
+const ACOUSTID_API_URL: &str = "https://api.acoustid.org/v2/lookup";
+
+// Environment variable name for API key (loaded at runtime)
+// Register for free at https://acoustid.org/new-application
+const ACOUSTID_API_KEY_ENV_VAR: &str = "WKMP_ACOUSTID_API_KEY";
+
+// Rate limit: AcoustID allows 3 requests/second, we use ~2/sec for safety margin
+const ACOUSTID_RATE_LIMIT_MS: u64 = 550;
+
+// HTTP request timeout for AcoustID API calls
+const ACOUSTID_REQUEST_TIMEOUT_SECS: u64 = 10;
+
+// Minimum match percentage to trigger AcoustID verification.
+// Only albums with match_percentage >= this threshold will have tracks verified.
+// Below this threshold, the album match is too uncertain to warrant verification.
+const ACOUSTID_VERIFICATION_MIN_MATCH_PCT: f64 = 60.0;
+
+// Number of characters to display when logging MBIDs (truncated for readability).
+// Full MBIDs are 36 characters (UUID format), first 8 chars are usually sufficient for logs.
+const MBID_DISPLAY_LENGTH: usize = 8;
 
 // ===== End Configuration Constants =====
 
@@ -871,11 +900,22 @@ struct MBMedia {
     format: Option<String>,
 }
 
+/// MusicBrainz recording information (linked to a track).
+#[derive(Debug, Clone, Deserialize)]
+struct MBRecording {
+    /// MusicBrainz Recording MBID.
+    id: String,
+    /// Recording title.
+    title: Option<String>,
+}
+
 /// A single track on a medium.
 #[derive(Debug, Deserialize)]
 struct MBTrack {
     /// Track length in milliseconds.
     length: Option<u32>,
+    /// Linked recording (contains Recording MBID).
+    recording: Option<MBRecording>,
 }
 
 // ===== Edition Grouping Structures =====
@@ -902,6 +942,8 @@ struct Edition {
     track_count: usize,
     /// Track durations in seconds.
     durations: Vec<u32>,
+    /// Recording MBIDs for each track (same order as durations).
+    recording_mbids: Vec<String>,
     /// All MBIDs representing this edition.
     mbids: Vec<EditionMBID>,
     /// Signature for deduplication (e.g., "107,125,135,...").
@@ -1170,6 +1212,66 @@ struct ExtraTrack {
     description: String,
 }
 
+// ===== AcoustID Verification Structures (Run 24) =====
+// Configuration constants are at the top of the file in the Configuration Constants section.
+
+/// AcoustID API response structure
+#[derive(Debug, Clone, Deserialize)]
+struct AcoustIDLookupResponse {
+    status: String,
+    results: Vec<AcoustIDLookupResult>,
+}
+
+/// AcoustID lookup result
+#[derive(Debug, Clone, Deserialize)]
+struct AcoustIDLookupResult {
+    id: String,
+    score: f64,
+    recordings: Option<Vec<AcoustIDLookupRecording>>,
+}
+
+/// AcoustID recording information
+#[derive(Debug, Clone, Deserialize)]
+struct AcoustIDLookupRecording {
+    id: String,  // MusicBrainz Recording MBID
+    #[serde(default)]
+    title: Option<String>,
+}
+
+/// Result of AcoustID verification for a single track.
+#[derive(Debug, Clone, Serialize)]
+struct TrackVerification {
+    /// 1-based track index.
+    track_index: usize,
+    /// Expected Recording MBID from MusicBrainz edition.
+    expected_recording_mbid: String,
+    /// Recording MBID(s) returned by AcoustID lookup (may have multiple matches).
+    acoustid_recording_mbids: Vec<String>,
+    /// AcoustID confidence score (0.0-1.0, highest match).
+    acoustid_score: f64,
+    /// Whether expected MBID was found in AcoustID results.
+    mbid_match: bool,
+    /// Status: "matched", "mismatched", "no_acoustid_match", "fingerprint_failed", "skipped"
+    status: String,
+}
+
+/// Summary of AcoustID verification for an album.
+#[derive(Debug, Clone, Serialize)]
+struct AcoustIDVerificationSummary {
+    /// Total tracks in edition.
+    total_tracks: usize,
+    /// Tracks where expected MBID matched AcoustID.
+    matched_count: usize,
+    /// Tracks where AcoustID returned different MBID(s).
+    mismatched_count: usize,
+    /// Tracks where AcoustID found no matches.
+    no_match_count: usize,
+    /// Tracks where fingerprinting failed.
+    fingerprint_failed_count: usize,
+    /// Per-track verification results.
+    track_verifications: Vec<TrackVerification>,
+}
+
 /// Complete validation result for an album matching attempt.
 #[derive(Debug, Clone, Serialize)]
 struct ValidationResult {
@@ -1218,6 +1320,9 @@ struct ValidationResult {
     artist_mismatch: bool,
     /// Jaro-Winkler similarity score between source and matched artist (0.0-1.0).
     artist_similarity: f64,
+    /// AcoustID verification results (Run 24: chromaprint/AcoustID validation).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    acoustid_verification: Option<AcoustIDVerificationSummary>,
 }
 
 impl ValidationResult {
@@ -1252,6 +1357,7 @@ impl ValidationResult {
             matched_album: String::new(),
             artist_mismatch: false,
             artist_similarity: 0.0,
+            acoustid_verification: None,
         }
     }
 }
@@ -1847,6 +1953,390 @@ fn verify_album_match(source_album: &str, matched_album: &str) -> (f64, bool) {
     (similarity, is_acceptable)
 }
 
+// ===== Run 24: AcoustID Track Verification =====
+
+/// Rate limiter for AcoustID API (3 requests per second).
+struct AcoustIDRateLimiter {
+    last_request: TokioMutex<Option<Instant>>,
+}
+
+impl AcoustIDRateLimiter {
+    fn new() -> Self {
+        Self {
+            last_request: TokioMutex::new(None),
+        }
+    }
+
+    async fn wait(&self) {
+        let mut last = self.last_request.lock().await;
+        if let Some(last_time) = *last {
+            let elapsed = last_time.elapsed();
+            let min_interval = Duration::from_millis(ACOUSTID_RATE_LIMIT_MS);
+            if elapsed < min_interval {
+                let wait_time = min_interval - elapsed;
+                sleep(wait_time).await;
+            }
+        }
+        *last = Some(Instant::now());
+    }
+}
+
+/// Generate chromaprint fingerprint for audio samples using fpcalc.
+/// Returns (fingerprint, duration_seconds) or error message.
+async fn generate_chromaprint_fingerprint(
+    samples: &[f32],
+    sample_rate: u32,
+    num_channels: u8,
+) -> Result<(String, u64), String> {
+    // Create temporary WAV file for fpcalc
+    let temp_dir = std::env::temp_dir();
+    let temp_path = temp_dir.join(format!("wkmp_fp_{}.wav", std::process::id()));
+
+    // Write WAV file
+    if let Err(e) = write_wav_file(&temp_path, samples, sample_rate, num_channels) {
+        return Err(format!("Failed to write temp WAV: {}", e));
+    }
+
+    // Run fpcalc
+    let output = match tokio::process::Command::new("fpcalc")
+        .arg("-json")
+        .arg(&temp_path)
+        .output()
+        .await
+    {
+        Ok(o) => o,
+        Err(e) => {
+            let _ = std::fs::remove_file(&temp_path);
+            return Err(format!("fpcalc execution failed: {}", e));
+        }
+    };
+
+    // Clean up temp file
+    let _ = std::fs::remove_file(&temp_path);
+
+    if !output.status.success() {
+        return Err(format!("fpcalc failed: {}", String::from_utf8_lossy(&output.stderr)));
+    }
+
+    // Parse JSON output
+    let json_str = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&json_str)
+        .map_err(|e| format!("Failed to parse fpcalc JSON: {}", e))?;
+
+    let fingerprint = json["fingerprint"]
+        .as_str()
+        .ok_or_else(|| "No fingerprint in fpcalc output".to_string())?
+        .to_string();
+
+    let duration = json["duration"]
+        .as_f64()
+        .ok_or_else(|| "No duration in fpcalc output".to_string())? as u64;
+
+    Ok((fingerprint, duration))
+}
+
+/// Write samples to a WAV file.
+fn write_wav_file(path: &Path, samples: &[f32], sample_rate: u32, num_channels: u8) -> std::io::Result<()> {
+    use std::io::Write;
+
+    let file = std::fs::File::create(path)?;
+    let mut writer = std::io::BufWriter::new(file);
+
+    let num_samples = samples.len();
+    let byte_rate = sample_rate * num_channels as u32 * 2;  // 16-bit samples
+    let block_align = num_channels as u16 * 2;
+    let data_size = num_samples * 2;  // 16-bit samples
+    let file_size = 36 + data_size;
+
+    // RIFF header
+    writer.write_all(b"RIFF")?;
+    writer.write_all(&(file_size as u32).to_le_bytes())?;
+    writer.write_all(b"WAVE")?;
+
+    // fmt chunk
+    writer.write_all(b"fmt ")?;
+    writer.write_all(&16u32.to_le_bytes())?;  // chunk size
+    writer.write_all(&1u16.to_le_bytes())?;   // audio format (PCM)
+    writer.write_all(&(num_channels as u16).to_le_bytes())?;
+    writer.write_all(&sample_rate.to_le_bytes())?;
+    writer.write_all(&byte_rate.to_le_bytes())?;
+    writer.write_all(&block_align.to_le_bytes())?;
+    writer.write_all(&16u16.to_le_bytes())?;  // bits per sample
+
+    // data chunk
+    writer.write_all(b"data")?;
+    writer.write_all(&(data_size as u32).to_le_bytes())?;
+
+    // Convert f32 samples to i16 and write
+    for &sample in samples {
+        let clamped = sample.clamp(-1.0, 1.0);
+        let i16_sample = (clamped * 32767.0) as i16;
+        writer.write_all(&i16_sample.to_le_bytes())?;
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
+/// Resolve AcoustID API key from TOML config or environment variable.
+/// Priority: TOML config (~/.config/wkmp/wkmp-ai.toml) → Environment variable
+fn resolve_acoustid_api_key_for_example() -> Result<String, String> {
+    // Try TOML config first
+    // On Windows: %USERPROFILE%\.config\wkmp\wkmp-ai.toml
+    // On Unix: ~/.config/wkmp/wkmp-ai.toml
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .ok();
+
+    if let Some(home_path) = home {
+        let toml_path = PathBuf::from(home_path).join(".config/wkmp/wkmp-ai.toml");
+        if toml_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(&toml_path) {
+                if let Ok(config) = toml::from_str::<toml::Value>(&content) {
+                    if let Some(key) = config.get("acoustid_api_key").and_then(|v| v.as_str()) {
+                        if !key.trim().is_empty() {
+                            info!("AcoustID API key loaded from TOML config: {}", toml_path.display());
+                            return Ok(key.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fall back to environment variable
+    match std::env::var(ACOUSTID_API_KEY_ENV_VAR) {
+        Ok(key) => {
+            info!("AcoustID API key loaded from environment variable");
+            Ok(key)
+        }
+        Err(_) => Err(format!(
+            "AcoustID API key not configured. Please configure using one of:\n\
+             1. TOML config: ~/.config/wkmp/wkmp-ai.toml (acoustid_api_key = \"your-key\")\n\
+             2. Environment: {}=your-key-here\n\
+             \n\
+             Obtain API key at: https://acoustid.org/new-application",
+            ACOUSTID_API_KEY_ENV_VAR
+        ))
+    }
+}
+
+/// Query AcoustID API with a fingerprint.
+/// Requires AcoustID API key to be configured (TOML or environment variable).
+async fn lookup_acoustid(
+    client: &reqwest::Client,
+    fingerprint: &str,
+    duration_seconds: u64,
+    rate_limiter: &AcoustIDRateLimiter,
+) -> Result<Vec<String>, String> {
+    // Get API key from TOML config or environment variable
+    let api_key = resolve_acoustid_api_key_for_example()?;
+
+    rate_limiter.wait().await;
+
+    let duration_str = duration_seconds.to_string();
+    let params = [
+        ("client", api_key.as_str()),
+        ("meta", "recordings"),
+        ("duration", duration_str.as_str()),
+        ("fingerprint", fingerprint),
+    ];
+
+    let response = client
+        .post(ACOUSTID_API_URL)
+        .form(&params)
+        .timeout(Duration::from_secs(ACOUSTID_REQUEST_TIMEOUT_SECS))
+        .send()
+        .await
+        .map_err(|e| format!("AcoustID request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("AcoustID returned status: {}", response.status()));
+    }
+
+    let acoustid_response: AcoustIDLookupResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse AcoustID response: {}", e))?;
+
+    // Extract all recording MBIDs from results
+    let mut mbids: Vec<String> = Vec::new();
+    for result in acoustid_response.results {
+        if let Some(recordings) = result.recordings {
+            for recording in recordings {
+                if !mbids.contains(&recording.id) {
+                    mbids.push(recording.id);
+                }
+            }
+        }
+    }
+
+    Ok(mbids)
+}
+
+/// Verify tracks against AcoustID using chromaprint fingerprinting.
+///
+/// For each detected track:
+/// 1. Extract audio samples for that track
+/// 2. Generate chromaprint fingerprint
+/// 3. Query AcoustID for matching recording MBIDs
+/// 4. Compare against expected recording MBID from MusicBrainz edition
+async fn verify_tracks_with_acoustid(
+    pcm_samples: &[f32],
+    sample_rate: u32,
+    num_channels: u8,
+    detected_durations: &[f64],
+    expected_recording_mbids: &[String],
+    album_idx: usize,
+) -> AcoustIDVerificationSummary {
+    info!("[A{}]   🔬 Running AcoustID verification...", album_idx + 1);
+
+    let client = reqwest::Client::builder()
+        .user_agent("WKMP-AlbumMatcher/0.1 (https://github.com/wkmp)")
+        .build()
+        .unwrap();
+
+    let rate_limiter = AcoustIDRateLimiter::new();
+    let samples_per_second = sample_rate as usize * num_channels as usize;
+
+    let mut track_verifications = Vec::new();
+    let mut matched_count = 0;
+    let mut mismatched_count = 0;
+    let mut no_match_count = 0;
+    let mut fingerprint_failed_count = 0;
+
+    // Calculate track boundaries from durations
+    let mut current_sample = 0usize;
+
+    for (track_idx, &duration_secs) in detected_durations.iter().enumerate() {
+        let track_samples = (duration_secs * samples_per_second as f64) as usize;
+        let end_sample = (current_sample + track_samples).min(pcm_samples.len());
+
+        // Get expected recording MBID (if available)
+        let expected_mbid = if track_idx < expected_recording_mbids.len() {
+            expected_recording_mbids[track_idx].clone()
+        } else {
+            String::new()
+        };
+
+        // Skip if no expected MBID
+        if expected_mbid.is_empty() {
+            track_verifications.push(TrackVerification {
+                track_index: track_idx + 1,
+                expected_recording_mbid: expected_mbid,
+                acoustid_recording_mbids: Vec::new(),
+                acoustid_score: 0.0,
+                mbid_match: false,
+                status: "skipped".to_string(),
+            });
+            current_sample = end_sample;
+            continue;
+        }
+
+        // Extract track samples
+        let track_audio = &pcm_samples[current_sample..end_sample];
+
+        // Generate fingerprint
+        let fingerprint_result = generate_chromaprint_fingerprint(
+            track_audio,
+            sample_rate,
+            num_channels,
+        ).await;
+
+        let (fingerprint, duration) = match fingerprint_result {
+            Ok(fp) => fp,
+            Err(e) => {
+                warn!("[A{}]     Track {}: Fingerprint failed: {}", album_idx + 1, track_idx + 1, e);
+                track_verifications.push(TrackVerification {
+                    track_index: track_idx + 1,
+                    expected_recording_mbid: expected_mbid,
+                    acoustid_recording_mbids: Vec::new(),
+                    acoustid_score: 0.0,
+                    mbid_match: false,
+                    status: "fingerprint_failed".to_string(),
+                });
+                fingerprint_failed_count += 1;
+                current_sample = end_sample;
+                continue;
+            }
+        };
+
+        // Query AcoustID
+        let acoustid_mbids = match lookup_acoustid(&client, &fingerprint, duration, &rate_limiter).await {
+            Ok(mbids) => mbids,
+            Err(e) => {
+                warn!("[A{}]     Track {}: AcoustID lookup failed: {}", album_idx + 1, track_idx + 1, e);
+                track_verifications.push(TrackVerification {
+                    track_index: track_idx + 1,
+                    expected_recording_mbid: expected_mbid,
+                    acoustid_recording_mbids: Vec::new(),
+                    acoustid_score: 0.0,
+                    mbid_match: false,
+                    status: "no_acoustid_match".to_string(),
+                });
+                no_match_count += 1;
+                current_sample = end_sample;
+                continue;
+            }
+        };
+
+        if acoustid_mbids.is_empty() {
+            info!("[A{}]     Track {}: No AcoustID matches found", album_idx + 1, track_idx + 1);
+            track_verifications.push(TrackVerification {
+                track_index: track_idx + 1,
+                expected_recording_mbid: expected_mbid,
+                acoustid_recording_mbids: Vec::new(),
+                acoustid_score: 0.0,
+                mbid_match: false,
+                status: "no_acoustid_match".to_string(),
+            });
+            no_match_count += 1;
+            current_sample = end_sample;
+            continue;
+        }
+
+        // Check if expected MBID is in AcoustID results
+        let mbid_match = acoustid_mbids.contains(&expected_mbid);
+        let status = if mbid_match { "matched" } else { "mismatched" };
+
+        if mbid_match {
+            info!("[A{}]     Track {}: ✓ MBID verified ({})", album_idx + 1, track_idx + 1, &expected_mbid[..MBID_DISPLAY_LENGTH.min(expected_mbid.len())]);
+            matched_count += 1;
+        } else {
+            warn!("[A{}]     Track {}: ✗ MBID mismatch - expected {} got {:?}",
+                album_idx + 1, track_idx + 1,
+                &expected_mbid[..MBID_DISPLAY_LENGTH.min(expected_mbid.len())],
+                acoustid_mbids.iter().map(|m| &m[..MBID_DISPLAY_LENGTH.min(m.len())]).collect::<Vec<_>>());
+            mismatched_count += 1;
+        }
+
+        track_verifications.push(TrackVerification {
+            track_index: track_idx + 1,
+            expected_recording_mbid: expected_mbid,
+            acoustid_recording_mbids: acoustid_mbids,
+            acoustid_score: 1.0,  // Not provided by our simplified lookup
+            mbid_match,
+            status: status.to_string(),
+        });
+
+        current_sample = end_sample;
+    }
+
+    // Log summary
+    let total = track_verifications.len();
+    info!("[A{}]   🔬 AcoustID verification complete: {}/{} matched, {} mismatched, {} no-match, {} failed",
+        album_idx + 1, matched_count, total, mismatched_count, no_match_count, fingerprint_failed_count);
+
+    AcoustIDVerificationSummary {
+        total_tracks: total,
+        matched_count,
+        mismatched_count,
+        no_match_count,
+        fingerprint_failed_count,
+        track_verifications,
+    }
+}
+
 /// Search MusicBrainz using all combinations of artist/album variants and strategies.
 ///
 /// Iterates through all artist×album×strategy combinations, fetching releases
@@ -2026,7 +2516,7 @@ fn calculate_ndr_and_filter<'a>(
 /// and media format (CD detection).
 ///
 /// # Returns
-/// `Some((durations, mbid_info, artist, album, rank, score))` if successful, `None` if failed.
+/// `Some((durations, recording_mbids, mbid_info, artist, album, rank, score))` if successful, `None` if failed.
 async fn fetch_release_track_details(
     client: &reqwest::Client,
     release: &MBRelease,
@@ -2035,7 +2525,7 @@ async fn fetch_release_track_details(
     rate_limiter: &RateLimiter,
     album_idx: usize,
     stats: Option<&QueryStats>,
-) -> Option<(Vec<u32>, EditionMBID, String, String, usize, f64)> {
+) -> Option<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> {
     if let Some(s) = stats {
         s.set_activity(&format!("fetching details: {} (rank {})", release.title, rank));
     }
@@ -2064,13 +2554,20 @@ async fn fetch_release_track_details(
         Err(_) => return None,
     };
 
-    // Extract track durations and media format
+    // Extract track durations, recording MBIDs, and media format
     let mut durations = Vec::new();
+    let mut recording_mbids = Vec::new();
     let mut is_cd = false;
     for medium in &details.media {
         for track in &medium.tracks {
             if let Some(length_ms) = track.length {
                 durations.push(length_ms / 1000); // Convert to seconds
+                // Extract recording MBID (or empty string if not available)
+                let recording_mbid = track.recording
+                    .as_ref()
+                    .map(|r| r.id.clone())
+                    .unwrap_or_default();
+                recording_mbids.push(recording_mbid);
             }
         }
         if let Some(ref format) = medium.format {
@@ -2094,6 +2591,7 @@ async fn fetch_release_track_details(
 
     Some((
         durations,
+        recording_mbids,
         EditionMBID {
             mbid: release.id.clone(),
             country: release.country.clone(),
@@ -2115,14 +2613,14 @@ async fn fetch_release_track_details(
 /// 3. Fetch track details for filtered releases
 ///
 /// # Returns
-/// Vec of (durations, mbid_info, artist, album, name_distance_rank, name_distance_score)
+/// Vec of (durations, recording_mbids, mbid_info, artist, album, name_distance_rank, name_distance_score)
 async fn comprehensive_musicbrainz_search(
     artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
     album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
     rate_limiter: &RateLimiter,
     album_idx: usize,            // Album index for log messages
     stats: Option<&QueryStats>,  // Optional stats for heartbeat logging
-) -> Result<Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
+) -> Result<Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
     info!("[A{}]   Fetching MusicBrainz data (comprehensive search)...", album_idx + 1);
 
     let client = reqwest::Client::builder()
@@ -2142,7 +2640,7 @@ async fn comprehensive_musicbrainz_search(
     }
 
     // Step 3: Fetch track details for filtered releases
-    let mut results: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)> = Vec::new();
+    let mut results: Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> = Vec::new();
     for (release, rank, score) in filtered_releases {
         if let Some(result) = fetch_release_track_details(&client, release, rank, score, rate_limiter, album_idx, stats).await {
             results.push(result);
@@ -2159,10 +2657,10 @@ async fn comprehensive_musicbrainz_search(
 /// Group MBIDs into editions based on track count + duration pattern
 /// Multiple MBIDs can represent the same edition (e.g., US vs UK release of same album)
 /// Takes the best (lowest) name distance rank and its score among all MBIDs in an edition
-fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String, usize, f64)>, album_idx: usize) -> Vec<Edition> {
+fn group_into_editions(releases: Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)>, album_idx: usize) -> Vec<Edition> {
     let mut editions: Vec<Edition> = Vec::new();
 
-    for (durations, mbid_info, artist, album, rank, score) in releases {
+    for (durations, recording_mbids, mbid_info, artist, album, rank, score) in releases {
         // Create signature: "track_count:duration1,duration2,..."
         let signature = format!("{}:{}",
             durations.len(),
@@ -2183,6 +2681,7 @@ fn group_into_editions(releases: Vec<(Vec<u32>, EditionMBID, String, String, usi
             editions.push(Edition {
                 track_count: durations.len(),
                 durations: durations.clone(),
+                recording_mbids,
                 mbids: vec![mbid_info],
                 duration_signature: signature,
                 artist,
@@ -3600,10 +4099,43 @@ fn find_best_edition_result_with_artist_check<'a>(
 
     // Step 3: If winner has acceptable artist AND album match, use it
     if winner_name_ok {
+        // Log successful match with both JW and Levenshtein ratio scores
+        let norm_source_artist = normalize_artist_name(source_artist);
+        let norm_winner_artist = normalize_artist_name(winner_artist);
+        let artist_lev_ratio = levenshtein_ratio(&norm_source_artist, &norm_winner_artist);
+
+        // Normalize album names (same logic as verify_album_match)
+        let normalize_album = |s: &str| -> String {
+            let lower = s.to_lowercase();
+            lower.split('(').next().unwrap_or(&lower).trim().to_string()
+        };
+        let norm_source_album = normalize_album(source_album);
+        let norm_winner_album = normalize_album(winner_album);
+        let album_lev_ratio = levenshtein_ratio(&norm_source_album, &norm_winner_album);
+
+        info!("[A{}]   ✅ Name match OK:", album_idx + 1);
+        info!("[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
+            album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, artist_lev_ratio * 100.0);
+        info!("[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
+            album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, album_lev_ratio * 100.0);
+
         return (Some(winner), false, None);
     }
 
     // Step 4: Winner has name mismatch - evaluate runner-ups
+    // Calculate Levenshtein ratios for mismatch logging
+    let norm_source_artist = normalize_artist_name(source_artist);
+    let norm_winner_artist = normalize_artist_name(winner_artist);
+    let artist_lev_ratio = levenshtein_ratio(&norm_source_artist, &norm_winner_artist);
+
+    let normalize_album = |s: &str| -> String {
+        let lower = s.to_lowercase();
+        lower.split('(').next().unwrap_or(&lower).trim().to_string()
+    };
+    let norm_source_album = normalize_album(source_album);
+    let norm_winner_album = normalize_album(winner_album);
+    let album_lev_ratio = levenshtein_ratio(&norm_source_album, &norm_winner_album);
+
     let mismatch_type = match (winner_artist_ok, winner_album_ok) {
         (false, false) => "Artist+Album",
         (false, true) => "Artist",
@@ -3611,10 +4143,10 @@ fn find_best_edition_result_with_artist_check<'a>(
         (true, true) => unreachable!(),
     };
     info!("[A{}]   🔍 {} mismatch detected:", album_idx + 1, mismatch_type);
-    info!("[A{}]       Artist: '{}'→'{}' (sim={:.1}%, ok={})",
-        album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, winner_artist_ok);
-    info!("[A{}]       Album: '{}'→'{}' (sim={:.1}%, ok={})",
-        album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, winner_album_ok);
+    info!("[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
+        album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, artist_lev_ratio * 100.0, winner_artist_ok);
+    info!("[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
+        album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, album_lev_ratio * 100.0, winner_album_ok);
     info!("[A{}]       Evaluating runner-ups...", album_idx + 1);
 
     // Calculate how many runner-ups to evaluate: top 25%, minimum 3
@@ -3663,13 +4195,21 @@ fn find_best_edition_result_with_artist_check<'a>(
         let time_fit_delta = pct_ratio_term + error_ratio_term;
         let time_fit_acceptable = time_fit_delta >= TIME_FIT_DELTA_THRESHOLD;
 
-        debug!("[A{}]       Runner #{}: '{}' - '{}'",
+        // Calculate Levenshtein ratios for runner-up logging
+        let runner_norm_artist = normalize_artist_name(runner_artist);
+        let runner_artist_lev = levenshtein_ratio(&norm_source_artist, &runner_norm_artist);
+        let runner_norm_album = normalize_album(runner_album);
+        let runner_album_lev = levenshtein_ratio(&norm_source_album, &runner_norm_album);
+
+        info!("[A{}]       Runner #{}: '{}' - '{}'",
             album_idx + 1, rank + 1, runner_artist, runner_album);
-        debug!("[A{}]         Artist: sim={:.1}%, ok={}", album_idx + 1, runner_artist_sim * 100.0, runner_artist_ok);
-        debug!("[A{}]         Album: sim={:.1}%, ok={}", album_idx + 1, runner_album_sim * 100.0, runner_album_ok);
-        debug!("[A{}]         Combined: {:.1}% (winner: {:.1}%), better={}",
-            album_idx + 1, runner_combined_sim * 100.0, winner_combined_sim * 100.0, name_significantly_better);
-        debug!("[A{}]         Time: pct={:.1}%, err={:.2}s, delta={:.3}, acceptable={}",
+        info!("[A{}]         Artist: JW={:.1}%, Lev={:.1}%, ok={}",
+            album_idx + 1, runner_artist_sim * 100.0, runner_artist_lev * 100.0, runner_artist_ok);
+        info!("[A{}]         Album: JW={:.1}%, Lev={:.1}%, ok={}",
+            album_idx + 1, runner_album_sim * 100.0, runner_album_lev * 100.0, runner_album_ok);
+        info!("[A{}]         Combined: {:.1}% (winner: {:.1}%), name_ok={}, better={}",
+            album_idx + 1, runner_combined_sim * 100.0, winner_combined_sim * 100.0, runner_name_ok, name_significantly_better);
+        info!("[A{}]         Time: pct={:.1}%, err={:.2}s, delta={:.3}, acceptable={}",
             album_idx + 1, runner_pct, runner_error, time_fit_delta, time_fit_acceptable);
 
         // If both conditions met, promote this runner-up
@@ -4223,6 +4763,29 @@ async fn process_single_album(
         "Success".to_string()
     };
 
+    // Run 24: AcoustID verification for successful matches
+    // Note: decode_mp3 outputs mono samples (1 channel)
+    let acoustid_verification = if !artist_mismatch && best_percentage >= ACOUSTID_VERIFICATION_MIN_MATCH_PCT && best_edition_idx.is_some() {
+        let edition_idx = best_edition_idx.unwrap();
+        if edition_idx < editions.len() {
+            let edition = &editions[edition_idx];
+            // Verify tracks using chromaprint/AcoustID
+            let verification = verify_tracks_with_acoustid(
+                &samples,
+                sample_rate,
+                1,  // Mono output from decode_mp3
+                &best_durations,
+                &edition.recording_mbids,
+                album_idx,
+            ).await;
+            Some(verification)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     ValidationResult {
         album_path: file_path.to_string_lossy().to_string(),
         artist,
@@ -4246,6 +4809,7 @@ async fn process_single_album(
         matched_album: winning_album,
         artist_mismatch,
         artist_similarity,
+        acoustid_verification,
     }
 }
 
