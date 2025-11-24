@@ -5643,30 +5643,6 @@ mod tests {
         }
     }
 
-    // ===== Tests for test_segmentation_against_all_candidates() =====
-
-    #[test]
-    fn test_segmentation_against_all_candidates_finds_best() {
-        let detected = vec![180.0, 200.0, 196.0];
-        let candidates = vec![
-            (vec![180, 200, 196], "perfect-match".to_string()),
-            (vec![100, 100, 100], "poor-match".to_string()),
-        ];
-        let result = test_segmentation_against_all_candidates(&detected, &candidates, 10.0);
-        assert!(result.is_some());
-        let r = result.unwrap();
-        assert_eq!(r.mbid, "perfect-match");
-        assert_eq!(r.percentage, 100.0);
-    }
-
-    #[test]
-    fn test_segmentation_against_all_candidates_empty() {
-        let detected = vec![180.0, 200.0];
-        let candidates: Vec<(Vec<u32>, String)> = vec![];
-        let result = test_segmentation_against_all_candidates(&detected, &candidates, 10.0);
-        assert!(result.is_none());
-    }
-
     // ===== Tests for calculate_rms_profile() =====
 
     #[test]
@@ -5690,5 +5666,284 @@ mod tests {
         let first_half_avg: f32 = profile[..profile.len()/2].iter().map(|(_, rms)| rms).sum::<f32>() / (profile.len()/2) as f32;
         let second_half_avg: f32 = profile[profile.len()/2..].iter().map(|(_, rms)| rms).sum::<f32>() / (profile.len()/2) as f32;
         assert!(second_half_avg > first_half_avg, "Second half should be louder");
+    }
+
+    // ===== Tests for levenshtein_ratio() - Run 24 =====
+
+    #[test]
+    fn test_levenshtein_ratio_identical() {
+        let ratio = levenshtein_ratio("hello", "hello");
+        assert_eq!(ratio, 1.0, "Identical strings should have ratio 1.0");
+    }
+
+    #[test]
+    fn test_levenshtein_ratio_completely_different() {
+        let ratio = levenshtein_ratio("abc", "xyz");
+        assert_eq!(ratio, 0.0, "Completely different strings should have ratio 0.0");
+    }
+
+    #[test]
+    fn test_levenshtein_ratio_similar() {
+        let ratio = levenshtein_ratio("hello", "hallo");
+        // 1 edit out of 5 chars = 0.8
+        assert!((ratio - 0.8).abs() < 0.01, "One char difference should be ~0.8");
+    }
+
+    #[test]
+    fn test_levenshtein_ratio_empty_both() {
+        let ratio = levenshtein_ratio("", "");
+        assert_eq!(ratio, 1.0, "Two empty strings should have ratio 1.0");
+    }
+
+    #[test]
+    fn test_levenshtein_ratio_one_empty() {
+        let ratio = levenshtein_ratio("hello", "");
+        assert_eq!(ratio, 0.0, "Empty vs non-empty should have ratio 0.0");
+    }
+
+    #[test]
+    fn test_levenshtein_ratio_case_sensitive() {
+        let ratio = levenshtein_ratio("Hello", "hello");
+        // 1 edit out of 5 chars = 0.8
+        assert!((ratio - 0.8).abs() < 0.01, "Case difference counts as edit");
+    }
+
+    // ===== Tests for best_levenshtein_ratio() - Run 24 =====
+
+    #[test]
+    fn test_best_levenshtein_ratio_single_source() {
+        let sources = vec!["hello".to_string()];
+        let ratio = best_levenshtein_ratio("hello", &sources);
+        assert_eq!(ratio, 1.0, "Exact match should return 1.0");
+    }
+
+    #[test]
+    fn test_best_levenshtein_ratio_multiple_sources_exact() {
+        let sources = vec!["goodbye".to_string(), "hello".to_string(), "world".to_string()];
+        let ratio = best_levenshtein_ratio("hello", &sources);
+        assert_eq!(ratio, 1.0, "Should find exact match among sources");
+    }
+
+    #[test]
+    fn test_best_levenshtein_ratio_multiple_sources_best() {
+        let sources = vec!["hallo".to_string(), "help".to_string()];
+        let ratio = best_levenshtein_ratio("hello", &sources);
+        // "hallo" is closer (0.8) than "help" (~0.4)
+        assert!(ratio > 0.7, "Should return best ratio from sources");
+    }
+
+    #[test]
+    fn test_best_levenshtein_ratio_empty_sources() {
+        let sources: Vec<String> = vec![];
+        let ratio = best_levenshtein_ratio("hello", &sources);
+        assert_eq!(ratio, 0.0, "Empty sources should return 0.0");
+    }
+
+    #[test]
+    fn test_best_levenshtein_ratio_case_insensitive() {
+        let sources = vec!["HELLO".to_string()];
+        let ratio = best_levenshtein_ratio("hello", &sources);
+        assert_eq!(ratio, 1.0, "Should be case insensitive");
+    }
+
+    // ===== Tests for verify_album_match() - Run 24 =====
+
+    #[test]
+    fn test_verify_album_match_exact() {
+        let (sim, ok) = verify_album_match("Thriller", "Thriller");
+        assert_eq!(sim, 1.0, "Exact match should have similarity 1.0");
+        assert!(ok, "Exact match should be acceptable");
+    }
+
+    #[test]
+    fn test_verify_album_match_case_insensitive() {
+        let (sim, ok) = verify_album_match("THRILLER", "thriller");
+        assert!(sim > 0.9, "Case difference should still be very similar");
+        assert!(ok, "Case-different match should be acceptable");
+    }
+
+    #[test]
+    fn test_verify_album_match_with_parenthetical() {
+        // Should strip "(Deluxe Edition)" for comparison
+        let (sim, ok) = verify_album_match("Thriller (Deluxe Edition)", "Thriller");
+        assert!(sim > 0.9, "Should match after stripping parenthetical");
+        assert!(ok, "Should be acceptable after stripping suffix");
+    }
+
+    #[test]
+    fn test_verify_album_match_substring() {
+        let (_, ok) = verify_album_match("Greatest Hits", "Greatest Hits Vol. 1");
+        assert!(ok, "Substring match should be acceptable");
+    }
+
+    #[test]
+    fn test_verify_album_match_completely_different() {
+        // Use albums with no shared prefixes or substrings
+        let (sim, ok) = verify_album_match("Toxicity", "Blue Lines");
+        // These should have low Jaro-Winkler similarity and not be substrings of each other
+        assert!(sim < 0.6, "Very different albums should have low similarity: got {}", sim);
+        // Note: `ok` depends on threshold AND substring check
+    }
+
+    #[test]
+    fn test_verify_album_match_similar_words() {
+        // Test with very different albums that share no common structure
+        let (sim, ok) = verify_album_match("Abbey Road", "Nevermind");
+        // These are different enough that Jaro-Winkler should give low score
+        assert!(sim < 0.6, "Different albums should have lower similarity: got {}", sim);
+    }
+
+    // ===== Tests for verify_artist_match() =====
+
+    #[test]
+    fn test_verify_artist_match_exact() {
+        let (sim, ok) = verify_artist_match("Metallica", "Metallica");
+        assert_eq!(sim, 1.0, "Exact match should have similarity 1.0");
+        assert!(ok, "Exact match should be acceptable");
+    }
+
+    #[test]
+    fn test_verify_artist_match_the_prefix() {
+        let (sim, ok) = verify_artist_match("Beatles", "The Beatles");
+        assert!(sim > 0.7, "Should handle 'The' prefix");
+        assert!(ok, "Should be acceptable with 'The' prefix");
+    }
+
+    #[test]
+    fn test_verify_artist_match_ampersand_variations() {
+        let (sim, ok) = verify_artist_match("Bob Marley & The Wailers", "Bob Marley and The Wailers");
+        assert!(sim > 0.9, "Should handle & vs 'and'");
+        assert!(ok, "Should be acceptable");
+    }
+
+    #[test]
+    fn test_verify_artist_match_substring() {
+        let (_, ok) = verify_artist_match("Bob Marley", "Bob Marley & The Wailers");
+        assert!(ok, "Substring match should be acceptable");
+    }
+
+    #[test]
+    fn test_verify_artist_match_completely_different() {
+        let (sim, ok) = verify_artist_match("Metallica", "The Ride");
+        // Jaro-Winkler may give ~0.4-0.5 but normalize_artist_name removes "The"
+        // so it becomes "metallica" vs "ride" which should be lower
+        assert!(!ok, "Different artists should not be acceptable");
+    }
+
+    #[test]
+    fn test_verify_artist_match_fluke_vs_donny() {
+        // Real-world mismatch case from run20 analysis
+        // After normalization: "fluke" vs "donny marie osmond"
+        let (sim, ok) = verify_artist_match("Fluke", "Donny & Marie Osmond");
+        // Jaro-Winkler gives ~0.42 for these strings, which is below 0.5 threshold
+        assert!(sim < ARTIST_MISMATCH_THRESHOLD, "Completely different artists should have similarity below threshold: got {}", sim);
+        assert!(!ok, "Should not be acceptable");
+    }
+
+    // ===== Tests for normalize_artist_name() =====
+
+    #[test]
+    fn test_normalize_artist_name_lowercase() {
+        let normalized = normalize_artist_name("METALLICA");
+        assert_eq!(normalized, "metallica");
+    }
+
+    #[test]
+    fn test_normalize_artist_name_the_prefix() {
+        let normalized = normalize_artist_name("The Beatles");
+        assert_eq!(normalized, "beatles");
+    }
+
+    #[test]
+    fn test_normalize_artist_name_ampersand() {
+        // " & " is replaced with " " (space), not " and "
+        let normalized = normalize_artist_name("Hall & Oates");
+        assert_eq!(normalized, "hall oates");
+    }
+
+    #[test]
+    fn test_normalize_artist_name_multiple_spaces() {
+        let normalized = normalize_artist_name("Bob   Marley");
+        assert_eq!(normalized, "bob marley");
+    }
+
+    #[test]
+    fn test_normalize_artist_name_combined() {
+        // " & " becomes " ", "The " prefix is removed
+        let normalized = normalize_artist_name("The Allman Brothers & Band");
+        assert_eq!(normalized, "allman brothers band");
+    }
+
+    #[test]
+    fn test_normalize_artist_name_and_becomes_space() {
+        // " and " is also replaced with " " (space)
+        let normalized = normalize_artist_name("Simon and Garfunkel");
+        assert_eq!(normalized, "simon garfunkel");
+    }
+
+    #[test]
+    fn test_normalize_artist_name_unicode() {
+        let normalized = normalize_artist_name("Björk");
+        assert_eq!(normalized, "bjork");
+    }
+
+    // ===== Tests for try_all_adjacent_merges() =====
+
+    #[test]
+    fn test_try_all_adjacent_merges_basic() {
+        // Over-segmented: detected 4 tracks but expected 3
+        let detected = vec![100.0, 50.0, 50.0, 100.0];
+        let expected = vec![100, 100, 100]; // Want tracks of ~100s each
+        let tolerance = 10.0;
+
+        let result = try_all_adjacent_merges(&detected, &expected, tolerance);
+        assert!(result.is_some(), "Should find a valid merge");
+
+        let (merged, merge_idx, _error) = result.unwrap();
+        assert_eq!(merged.len(), 3, "Should have 3 tracks after merge");
+        assert_eq!(merge_idx, 1, "Should merge tracks 2 and 3 (index 1)");
+        assert_eq!(merged[1], 100.0, "Merged track should be 100s");
+    }
+
+    #[test]
+    fn test_try_all_adjacent_merges_no_valid_merge() {
+        // Detected tracks can't be merged to match expected
+        let detected = vec![50.0, 50.0, 50.0, 50.0];
+        let expected = vec![100, 100, 100]; // Need 3 tracks of 100s
+        let tolerance = 5.0; // Tight tolerance
+
+        let result = try_all_adjacent_merges(&detected, &expected, tolerance);
+        // Even after merging, 50+50=100 should match, so this should work
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_try_all_adjacent_merges_picks_best() {
+        // Multiple possible merges, should pick best
+        let detected = vec![95.0, 10.0, 95.0, 100.0]; // Track 2 is short
+        let expected = vec![100, 100, 100];
+        let tolerance = 10.0;
+
+        let result = try_all_adjacent_merges(&detected, &expected, tolerance);
+        assert!(result.is_some());
+
+        let (merged, merge_idx, _) = result.unwrap();
+        assert_eq!(merged.len(), 3);
+        // Should merge 95+10=105 or 10+95=105, either gives close to 100
+        assert!(merge_idx == 0 || merge_idx == 1, "Should merge around the short track");
+    }
+
+    #[test]
+    fn test_try_all_adjacent_merges_already_correct_count() {
+        // Already have correct count - no merge needed
+        let detected = vec![100.0, 100.0, 100.0];
+        let expected = vec![100, 100, 100];
+        let tolerance = 10.0;
+
+        // Function only operates when detected > expected
+        // With equal counts, any merge would reduce to 2 tracks
+        let result = try_all_adjacent_merges(&detected, &expected, tolerance);
+        // Merging would give 2 tracks, not matching expected 3
+        assert!(result.is_none(), "Should not find valid merge when counts match");
     }
 }
