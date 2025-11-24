@@ -5692,6 +5692,7 @@ mod tests {
             album: album.to_string(),
             track_count,
             durations: vec![180; track_count],
+            recording_mbids: vec!["test-recording-mbid".to_string(); track_count],
             mbids: vec![EditionMBID {
                 mbid: "test-mbid".to_string(),
                 country: Some("US".to_string()),
@@ -6028,6 +6029,7 @@ mod tests {
             album: "Album".to_string(),
             track_count: 10,
             durations: vec![180; 10],
+            recording_mbids: vec!["test-recording-mbid".to_string(); 10],
             mbids: vec![
                 EditionMBID {
                     mbid: "vinyl-uk".to_string(),
@@ -6088,6 +6090,7 @@ mod tests {
     fn test_group_into_editions_single() {
         let releases = vec![(
             vec![180, 200, 196],
+            vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
             EditionMBID {
                 mbid: "mbid1".to_string(),
                 country: Some("US".to_string()),
@@ -6109,6 +6112,7 @@ mod tests {
         let releases = vec![
             (
                 vec![180, 200, 196],
+                vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
                 EditionMBID { mbid: "mbid1".to_string(), country: Some("US".to_string()), status: Some("Official".to_string()), is_cd: true },
                 "Artist".to_string(),
                 "Album".to_string(),
@@ -6117,6 +6121,7 @@ mod tests {
             ),
             (
                 vec![180, 200, 196], // Same signature
+                vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
                 EditionMBID { mbid: "mbid2".to_string(), country: Some("UK".to_string()), status: Some("Official".to_string()), is_cd: true },
                 "Artist".to_string(),
                 "Album".to_string(),
@@ -6134,6 +6139,7 @@ mod tests {
         let releases = vec![
             (
                 vec![180, 200, 196],
+                vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
                 EditionMBID { mbid: "mbid1".to_string(), country: Some("US".to_string()), status: Some("Official".to_string()), is_cd: true },
                 "Artist".to_string(),
                 "Album".to_string(),
@@ -6142,6 +6148,7 @@ mod tests {
             ),
             (
                 vec![180, 200, 196, 300], // Different track count
+                vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string(), "rec4".to_string()],
                 EditionMBID { mbid: "mbid2".to_string(), country: Some("US".to_string()), status: Some("Official".to_string()), is_cd: true },
                 "Artist".to_string(),
                 "Album Deluxe".to_string(),
