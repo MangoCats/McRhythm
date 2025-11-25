@@ -1,26 +1,26 @@
-/// Comprehensive Album Matcher - Run 26: MusicBrainz API Caching
+/// Comprehensive Album Matcher - Run 27: Edition Ranking Enhancement
 ///
-/// Run 26 adds transparent caching layer for MusicBrainz API responses.
-/// Based on Run 25 (Combination A filter strategy).
+/// Run 27 enhances edition ranking to prefer match quality over track count.
+/// Based on Run 26 (MusicBrainz API caching).
 ///
-/// Caching Features:
-/// - Three cache modes: Disabled (--no-cache), ReadWrite (default), ReadOnly (--use-cache)
-/// - Search queries cached with SHA-256 hash keys
-/// - Release details cached with MBID keys
-/// - JSON format with pretty-printing (human-readable)
-/// - Graceful error handling with fallback to live API
+/// Ranking Enhancement:
+/// - When match quality differs significantly (>20%), always prefer higher match%
+/// - When match quality is similar (<20% diff), prefer editions with track counts closer to expected
+/// - Prevents compilations with extra tracks from beating standard editions with better matches
 ///
-/// Performance Impact:
-/// - First run (build cache): 30-60 minutes (unchanged, rate limiting)
-/// - Cached runs: <30 seconds (10-20× speedup, no rate limiting)
-/// - Algorithm tuning workflow: Build cache once, test 10+ variations in <5 minutes
+/// Example: For A14 (12-track album):
+/// - Run 26: Selected 17-track compilation (76.5% match) - many extra tracks
+/// - Run 27: Prefers 12-track standard (100% match) - correct track count + better quality
 ///
-/// Cache Structure:
-/// - ./cache/musicbrainz/searches/{hash}.json - Search query responses
-/// - ./cache/musicbrainz/releases/{mbid}.json - Release detail responses
-/// - ./cache/musicbrainz/metadata.json - Cache statistics
+/// Algorithm Change:
+/// - Modified winner selection sorting to add track count penalty
+/// - Editions with excess tracks need >20% better match to overcome standard editions
+/// - Preserves existing artist fallback and time-fit logic
 ///
-/// Implementation: PLAN026 (wip/PLAN026_musicbrainz_caching/)
+/// Inherited from Run 26:
+/// - MusicBrainz API caching (3 modes: Disabled, ReadWrite, ReadOnly)
+/// - Combination A filter strategy (lenient, fixes run 24d regressions)
+/// - Artist fallback algorithm (prevents wrong-artist matches)
 
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -418,8 +418,10 @@ impl MBClient {
     async fn search_releases(
         &self,
         query: &str,
+        album_idx: Option<usize>,
     ) -> Result<MBSearchResponse, Box<dyn std::error::Error>> {
         let cache_key = hash_query(query);
+        let prefix = album_idx.map(|idx| format!("[A{}] ", idx + 1)).unwrap_or_default();
 
         // Try cache first (unless Disabled mode)
         match self.config.mode {
@@ -430,7 +432,7 @@ impl MBClient {
                 match load_cached_search(&self.config.cache_dir, &cache_key) {
                     Ok(Some(response)) => {
                         // REQ-CACHE-070: Log cache hit
-                        info!("Cache hit: search query [{}]", &cache_key);
+                        info!("{}Cache hit: search query [{}]", prefix, &cache_key);
                         self.stats.record_search_hit();
                         return Ok(response);
                     }
@@ -448,12 +450,12 @@ impl MBClient {
                         }
 
                         // REQ-CACHE-070: Log cache miss
-                        info!("Cache miss: search query [{}]", &cache_key);
+                        info!("{}Cache miss: search query [{}]", prefix, &cache_key);
                     }
                     Err(e) => {
                         // REQ-CACHE-090: Cache corruption detected
-                        eprintln!("WARNING: Cache corruption detected: {}", e);
-                        println!("Falling back to live API query");
+                        eprintln!("{}WARNING: Cache corruption detected: {}", prefix, e);
+                        println!("{}Falling back to live API query", prefix);
                         self.stats.record_search_miss();
 
                         if matches!(self.config.mode, CacheMode::ReadOnly) {
@@ -495,8 +497,8 @@ impl MBClient {
                 &mb_response,
             ) {
                 // REQ-CACHE-090: Log cache write failure but continue
-                eprintln!("WARNING: Cache write failure: {}", e);
-                println!("Continuing without caching this query");
+                eprintln!("{}WARNING: Cache write failure: {}", prefix, e);
+                println!("{}Continuing without caching this query", prefix);
             }
         }
 
@@ -508,7 +510,10 @@ impl MBClient {
     async fn get_release_details(
         &self,
         mbid: &str,
+        album_idx: Option<usize>,
     ) -> Result<MBReleaseDetails, Box<dyn std::error::Error>> {
+        let prefix = album_idx.map(|idx| format!("[A{}] ", idx + 1)).unwrap_or_default();
+
         // Try cache first (unless Disabled mode)
         match self.config.mode {
             CacheMode::Disabled => {
@@ -518,7 +523,7 @@ impl MBClient {
                 match load_cached_release(&self.config.cache_dir, mbid) {
                     Ok(Some(details)) => {
                         // REQ-CACHE-070: Log cache hit
-                        info!("Cache hit: release {}", mbid);
+                        info!("{}Cache hit: release {}", prefix, mbid);
                         self.stats.record_release_hit();
                         return Ok(details);
                     }
@@ -536,12 +541,12 @@ impl MBClient {
                         }
 
                         // REQ-CACHE-070: Log cache miss
-                        info!("Cache miss: release {}", mbid);
+                        info!("{}Cache miss: release {}", prefix, mbid);
                     }
                     Err(e) => {
                         // REQ-CACHE-090: Cache corruption detected
-                        eprintln!("WARNING: Cache corruption detected: {}", e);
-                        println!("Falling back to live API query");
+                        eprintln!("{}WARNING: Cache corruption detected: {}", prefix, e);
+                        println!("{}Falling back to live API query", prefix);
                         self.stats.record_release_miss();
 
                         if matches!(self.config.mode, CacheMode::ReadOnly) {
@@ -579,8 +584,8 @@ impl MBClient {
             if let Err(e) = store_release_cache(&self.config.cache_dir, mbid, &details)
             {
                 // REQ-CACHE-090: Log cache write failure but continue
-                eprintln!("WARNING: Cache write failure: {}", e);
-                println!("Continuing without caching this release");
+                eprintln!("{}WARNING: Cache write failure: {}", prefix, e);
+                println!("{}Continuing without caching this release", prefix);
             }
         }
 
@@ -742,10 +747,20 @@ const ARTIST_FALLBACK_MIN_CANDIDATES: usize = 3;
 // Used for status reporting when no artist-matched runner-up was found
 const ARTIST_MISMATCH_MIN_MATCH_PCT: f64 = 95.0;
 
+// Run 27: Match quality threshold for edition ranking
+// When match% differs by more than this, always prefer higher match% regardless of track count
+// When match% differs by less than this, consider track count as tiebreaker
+const MATCH_QUALITY_THRESHOLD_PCT: f64 = 20.0;
+
+// Run 27: Track count penalty for edition ranking
+// Each extra track beyond expected reduces effective match% by this amount
+// Set to 4.0 so that 5 extra tracks = 20% penalty (needs >20% better match to overcome)
+const TRACK_COUNT_PENALTY_PER_TRACK: f64 = 4.0;
+
 // Run 18: Maximum concurrent albums to process in parallel
 // This enables parallel decode + MB lookup while respecting API rate limits
 // Memory impact: ~170MB PCM per album, so 8 albums ≈ 1400MB peak RAM
-const MAX_CONCURRENT_ALBUMS: usize = 16;
+const MAX_CONCURRENT_ALBUMS: usize = 6;
 
 // Early exit grace period (seconds) after first 100% match is found
 // Other threads have this much time to complete and contribute results
@@ -3039,7 +3054,7 @@ async fn search_all_mb_strategies(
                 // Note: MBClient handles rate limiting and retries internally
                 let response = retry_with_backoff_stats(&log_prefix, stats, || async {
                     mb_client
-                        .search_releases(query)
+                        .search_releases(query, Some(album_idx))
                         .await
                         .map_err(|e| format!("error querying MusicBrainz: {}", e))
                 }).await;
@@ -3206,7 +3221,7 @@ async fn fetch_release_track_details(
     // Note: MBClient handles rate limiting internally
     let details = retry_with_backoff_stats(&log_prefix, stats, || async {
         mb_client
-            .get_release_details(&release.id)
+            .get_release_details(&release.id, Some(album_idx))
             .await
             .map_err(|e| format!("error fetching details: {}", e))
     }).await;
@@ -4695,10 +4710,10 @@ fn filter_and_sort_editions(
     Ok(editions)
 }
 
-/// Run 22/24: Find best edition with artist+album verification fallback
+/// Run 22/24/27: Find best edition with artist+album verification fallback
 ///
 /// Algorithm:
-/// 1. Find best edition by time-fit (match% primary, mean error secondary)
+/// 1. Find best edition by time-fit (match% primary, track count penalty, mean error secondary)
 /// 2. Check if winner has acceptable artist AND album similarity (>= thresholds)
 /// 3. If not, evaluate top 25% (min 3) runner-ups sorted by time-fit
 /// 4. For each runner-up, check if:
@@ -4707,23 +4722,54 @@ fn filter_and_sort_editions(
 ///      where time_fit_delta = 10×(runner_pct/winner_pct - 1) + 1×(1 - runner_error/winner_error)
 /// 5. First qualifying runner-up becomes new winner
 ///
+/// Run 27 Enhancement: Track count penalty
+/// - Editions with extra tracks beyond expected count receive match% penalty
+/// - Penalty = TRACK_COUNT_PENALTY_PER_TRACK (4.0) per extra track
+/// - Example: 17-track edition (5 extra) needs 20% better match to beat 12-track edition
+///
 /// Returns: (best_result, was_fallback_used, rejected_original_winner)
 fn find_best_edition_result_with_artist_check<'a>(
     edition_results: &'a [EditionTestResult],
     editions: &[Edition],
     source_artist: &str,
     source_album: &str,
+    estimated_track_count: Option<usize>,
     album_idx: usize,
 ) -> (Option<&'a EditionTestResult>, bool, Option<(usize, f64, String, f64)>) {
-    // Step 1: Sort all editions by time-fit (match% desc, mean error asc)
+    // Step 1: Sort all editions by time-fit (match% adjusted for track count, then mean error)
     let mut sorted_results: Vec<&EditionTestResult> = edition_results
         .iter()
         .filter(|r| r.best_result.is_some())
         .collect();
 
     sorted_results.sort_by(|a, b| {
-        // Primary: higher match% is better
-        let pct_cmp = b.best_percentage.partial_cmp(&a.best_percentage)
+        // Run 27: Calculate adjusted match% penalizing extra tracks
+        let a_adjusted_pct = if let Some(expected_tracks) = estimated_track_count {
+            let a_edition = &editions[a.edition_idx];
+            let a_extra_tracks = if a_edition.track_count > expected_tracks {
+                a_edition.track_count - expected_tracks
+            } else {
+                0
+            };
+            a.best_percentage - (a_extra_tracks as f64 * TRACK_COUNT_PENALTY_PER_TRACK)
+        } else {
+            a.best_percentage
+        };
+
+        let b_adjusted_pct = if let Some(expected_tracks) = estimated_track_count {
+            let b_edition = &editions[b.edition_idx];
+            let b_extra_tracks = if b_edition.track_count > expected_tracks {
+                b_edition.track_count - expected_tracks
+            } else {
+                0
+            };
+            b.best_percentage - (b_extra_tracks as f64 * TRACK_COUNT_PENALTY_PER_TRACK)
+        } else {
+            b.best_percentage
+        };
+
+        // Primary: higher adjusted match% is better
+        let pct_cmp = b_adjusted_pct.partial_cmp(&a_adjusted_pct)
             .unwrap_or(std::cmp::Ordering::Equal);
         if pct_cmp != std::cmp::Ordering::Equal {
             return pct_cmp;
@@ -4738,7 +4784,29 @@ fn find_best_edition_result_with_artist_check<'a>(
         return (None, false, None);
     }
 
-    // Step 2: Get the winner (best by time-fit)
+    // Run 27: Log track count penalties if applied
+    if let Some(expected_tracks) = estimated_track_count {
+        let penalties: Vec<_> = sorted_results.iter().take(3).filter_map(|r| {
+            let edition = &editions[r.edition_idx];
+            if edition.track_count > expected_tracks {
+                let extra = edition.track_count - expected_tracks;
+                let penalty = extra as f64 * TRACK_COUNT_PENALTY_PER_TRACK;
+                Some((edition.track_count, extra, penalty, r.best_percentage))
+            } else {
+                None
+            }
+        }).collect();
+
+        if !penalties.is_empty() {
+            info!("[A{}]   Run 27: Track count penalties applied (expected: {} tracks)", album_idx + 1, expected_tracks);
+            for (tracks, extra, penalty, orig_pct) in penalties {
+                info!("[A{}]       {} tracks ({} extra) → {:.1}% penalty, adjusted {:.1}% → {:.1}%",
+                    album_idx + 1, tracks, extra, penalty, orig_pct, orig_pct - penalty);
+            }
+        }
+    }
+
+    // Step 2: Get the winner (best by time-fit, adjusted for track count)
     let winner = sorted_results[0];
     let winner_idx = winner.edition_idx;
 
@@ -5266,10 +5334,11 @@ async fn process_single_album(
         debug!("[{}] ", album_id);
     }
 
-    // Run 22/24: Find the best result with artist+album verification fallback
+    // Run 22/24/27: Find the best result with artist+album verification fallback
     // This prevents wrong-artist/album matches from winning when a correct match exists
+    // Run 27: Also considers track count penalty when ranking editions
     let (best_result_opt, used_artist_fallback, rejected_match) =
-        find_best_edition_result_with_artist_check(&edition_results, &editions, &artist, &album, album_idx);
+        find_best_edition_result_with_artist_check(&edition_results, &editions, &artist, &album, estimated_track_count, album_idx);
 
     // Extract best result into our tracking variables
     if let Some(best_edition_result) = best_result_opt {
