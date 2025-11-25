@@ -1,17 +1,26 @@
-/// Comprehensive Album Matcher - Run 25c: Combination A Filter Strategy
+/// Comprehensive Album Matcher - Run 26: MusicBrainz API Caching
 ///
-/// Run 25c changes (based on Run 24):
-/// - COMBINATION A: Special "Various Artists" handling + weighted combined score
-/// - For "Various Artists": requires album ratio >= 35% (ignores artist match)
-/// - For regular albums: weighted combined score >= 42% (artist 40% + album 60%)
-/// - Expected success rate: 94-95% (vs 92% in run 24d, 97.5% in run 23)
+/// Run 26 adds transparent caching layer for MusicBrainz API responses.
+/// Based on Run 25 (Combination A filter strategy).
 ///
-/// Rationale:
-/// - Run 24d's 50%/50% AND filter was too strict, causing 5.5% drop in success rate
-/// - Compilation albums need special handling (artist name is unreliable)
-/// - Weighted scoring allows trade-offs (weak artist can be compensated by strong album)
-/// - Query saturation 149% indicates queries bypass rate limiting somehow
-/// - This run adds diagnostic logging to understand the discrepancy
+/// Caching Features:
+/// - Three cache modes: Disabled (--no-cache), ReadWrite (default), ReadOnly (--use-cache)
+/// - Search queries cached with SHA-256 hash keys
+/// - Release details cached with MBID keys
+/// - JSON format with pretty-printing (human-readable)
+/// - Graceful error handling with fallback to live API
+///
+/// Performance Impact:
+/// - First run (build cache): 30-60 minutes (unchanged, rate limiting)
+/// - Cached runs: <30 seconds (10-20× speedup, no rate limiting)
+/// - Algorithm tuning workflow: Build cache once, test 10+ variations in <5 minutes
+///
+/// Cache Structure:
+/// - ./cache/musicbrainz/searches/{hash}.json - Search query responses
+/// - ./cache/musicbrainz/releases/{mbid}.json - Release detail responses
+/// - ./cache/musicbrainz/metadata.json - Cache statistics
+///
+/// Implementation: PLAN026 (wip/PLAN026_musicbrainz_caching/)
 
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -40,6 +49,555 @@ use tracing::{debug, info, warn, error};
 use tracing_subscriber::fmt::time::OffsetTime;
 use time::UtcOffset;
 use futures::stream::{self, StreamExt};
+
+// ===== Cache Data Structures (PLAN026) =====
+
+/// Cache mode configuration
+#[derive(Debug, Clone, Copy)]
+enum CacheMode {
+    /// Live API only, no caching
+    Disabled,
+    /// Cache hits use cache, misses query API and store (default)
+    ReadWrite,
+    /// Cache only, error on miss (for algorithm tuning)
+    ReadOnly,
+}
+
+/// Cache configuration
+#[derive(Debug, Clone)]
+struct CacheConfig {
+    mode: CacheMode,
+    cache_dir: PathBuf,
+}
+
+/// Cached search response
+#[derive(Serialize, Deserialize)]
+struct CachedSearch {
+    query: String,           // Original query string (for verification)
+    timestamp: String,       // ISO 8601 timestamp
+    response: MBSearchResponse,
+}
+
+/// Cached release details
+#[derive(Serialize, Deserialize)]
+struct CachedRelease {
+    mbid: String,           // Release MBID (for verification)
+    timestamp: String,      // ISO 8601 timestamp
+    details: MBReleaseDetails,
+}
+
+/// Cache metadata (cache/musicbrainz/metadata.json)
+#[derive(Serialize, Deserialize)]
+struct CacheMetadata {
+    version: String,         // "album_matcher_26"
+    created: String,         // ISO 8601 timestamp
+    search_count: usize,
+    release_count: usize,
+    last_updated: String,    // ISO 8601 timestamp
+}
+
+/// Cache statistics tracking
+#[derive(Debug, Default)]
+struct CacheStats {
+    search_hits: AtomicU64,
+    search_misses: AtomicU64,
+    release_hits: AtomicU64,
+    release_misses: AtomicU64,
+}
+
+impl CacheStats {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn record_search_hit(&self) {
+        self.search_hits.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_search_miss(&self) {
+        self.search_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_release_hit(&self) {
+        self.release_hits.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_release_miss(&self) {
+        self.release_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn total_hits(&self) -> u64 {
+        self.search_hits.load(Ordering::Relaxed) + self.release_hits.load(Ordering::Relaxed)
+    }
+
+    fn total_misses(&self) -> u64 {
+        self.search_misses.load(Ordering::Relaxed) + self.release_misses.load(Ordering::Relaxed)
+    }
+
+    fn hit_rate(&self) -> f64 {
+        let hits = self.total_hits();
+        let total = hits + self.total_misses();
+        if total == 0 {
+            0.0
+        } else {
+            (hits as f64) / (total as f64)
+        }
+    }
+}
+
+// ===== Cache Helper Functions (PLAN026) =====
+
+/// Hash query string for cache key using SHA-256 (first 16 hex chars)
+/// REQ-CACHE-020: Search Query Caching
+fn hash_query(query: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(query.as_bytes());
+    let result = hasher.finalize();
+    format!("{:x}", result)[..16].to_string()
+}
+
+/// Load cached search response from disk
+/// REQ-CACHE-020, REQ-CACHE-090
+/// Returns Ok(Some(response)) if cache hit, Ok(None) if cache miss, Err on corruption
+fn load_cached_search(
+    cache_dir: &Path,
+    key: &str,
+) -> Result<Option<MBSearchResponse>, String> {
+    let search_cache_dir = cache_dir.join("searches");
+    let cache_file = search_cache_dir.join(format!("{}.json", key));
+
+    if !cache_file.exists() {
+        return Ok(None); // Cache miss
+    }
+
+    // REQ-CACHE-090: Handle cache file read failures
+    let contents = std::fs::read_to_string(&cache_file)
+        .map_err(|e| format!("Cache file read failure: {}", e))?;
+
+    // REQ-CACHE-090: Handle corrupted cache (parse failure)
+    let cached: CachedSearch = serde_json::from_str(&contents)
+        .map_err(|e| format!("Cache file parse failure (corrupted): {}", e))?;
+
+    Ok(Some(cached.response))
+}
+
+/// Store search response in cache
+/// REQ-CACHE-020, REQ-CACHE-050, REQ-CACHE-130
+fn store_search_cache(
+    cache_dir: &Path,
+    key: &str,
+    query: &str,
+    response: &MBSearchResponse,
+) -> Result<(), String> {
+    let search_cache_dir = cache_dir.join("searches");
+
+    // REQ-CACHE-050: Ensure cache directory exists
+    std::fs::create_dir_all(&search_cache_dir)
+        .map_err(|e| format!("Cache directory creation failure: {}", e))?;
+
+    let cache_file = search_cache_dir.join(format!("{}.json", key));
+
+    let cached = CachedSearch {
+        query: query.to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        response: response.clone(),
+    };
+
+    // REQ-CACHE-130: Human-readable JSON format (pretty-print)
+    let json = serde_json::to_string_pretty(&cached)
+        .map_err(|e| format!("Cache serialization failure: {}", e))?;
+
+    // REQ-CACHE-090: Handle cache file write failures
+    std::fs::write(&cache_file, json)
+        .map_err(|e| format!("Cache file write failure: {}", e))?;
+
+    Ok(())
+}
+
+/// Load cached release details from disk
+/// REQ-CACHE-030, REQ-CACHE-090
+/// Returns Ok(Some(details)) if cache hit, Ok(None) if cache miss, Err on corruption
+fn load_cached_release(
+    cache_dir: &Path,
+    mbid: &str,
+) -> Result<Option<MBReleaseDetails>, String> {
+    let release_cache_dir = cache_dir.join("releases");
+    let cache_file = release_cache_dir.join(format!("{}.json", mbid));
+
+    if !cache_file.exists() {
+        return Ok(None); // Cache miss
+    }
+
+    // REQ-CACHE-090: Handle cache file read failures
+    let contents = std::fs::read_to_string(&cache_file)
+        .map_err(|e| format!("Cache file read failure: {}", e))?;
+
+    // REQ-CACHE-090: Handle corrupted cache (parse failure)
+    let cached: CachedRelease = serde_json::from_str(&contents)
+        .map_err(|e| format!("Cache file parse failure (corrupted): {}", e))?;
+
+    Ok(Some(cached.details))
+}
+
+/// Store release details in cache
+/// REQ-CACHE-030, REQ-CACHE-050, REQ-CACHE-130
+fn store_release_cache(
+    cache_dir: &Path,
+    mbid: &str,
+    details: &MBReleaseDetails,
+) -> Result<(), String> {
+    let release_cache_dir = cache_dir.join("releases");
+
+    // REQ-CACHE-050: Ensure cache directory exists
+    std::fs::create_dir_all(&release_cache_dir)
+        .map_err(|e| format!("Cache directory creation failure: {}", e))?;
+
+    let cache_file = release_cache_dir.join(format!("{}.json", mbid));
+
+    let cached = CachedRelease {
+        mbid: mbid.to_string(),
+        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+        details: details.clone(),
+    };
+
+    // REQ-CACHE-130: Human-readable JSON format (pretty-print)
+    let json = serde_json::to_string_pretty(&cached)
+        .map_err(|e| format!("Cache serialization failure: {}", e))?;
+
+    // REQ-CACHE-090: Handle cache file write failures
+    std::fs::write(&cache_file, json)
+        .map_err(|e| format!("Cache file write failure: {}", e))?;
+
+    Ok(())
+}
+
+/// Update cache metadata file
+/// REQ-CACHE-050, REQ-CACHE-080
+/// Note: Per HIGH-001 resolution, metadata updates on program exit only
+fn update_metadata(
+    cache_dir: &Path,
+    search_count: usize,
+    release_count: usize,
+) -> Result<(), String> {
+    // REQ-CACHE-050: Ensure cache directory exists
+    std::fs::create_dir_all(cache_dir)
+        .map_err(|e| format!("Cache directory creation failure: {}", e))?;
+
+    let metadata_file = cache_dir.join("metadata.json");
+    let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+
+    // Load existing metadata or create new
+    let metadata = if metadata_file.exists() {
+        let contents = std::fs::read_to_string(&metadata_file)
+            .map_err(|e| format!("Metadata file read failure: {}", e))?;
+        let mut meta: CacheMetadata = serde_json::from_str(&contents)
+            .unwrap_or_else(|_| CacheMetadata {
+                version: "album_matcher_26".to_string(),
+                created: now.clone(),
+                search_count: 0,
+                release_count: 0,
+                last_updated: now.clone(),
+            });
+        // Update counts and timestamp
+        meta.search_count = search_count;
+        meta.release_count = release_count;
+        meta.last_updated = now;
+        meta
+    } else {
+        CacheMetadata {
+            version: "album_matcher_26".to_string(),
+            created: now.clone(),
+            search_count,
+            release_count,
+            last_updated: now,
+        }
+    };
+
+    // Write metadata (pretty-print for human readability)
+    let json = serde_json::to_string_pretty(&metadata)
+        .map_err(|e| format!("Metadata serialization failure: {}", e))?;
+
+    std::fs::write(&metadata_file, json)
+        .map_err(|e| format!("Metadata file write failure: {}", e))?;
+
+    Ok(())
+}
+
+/// Print cache statistics report at end of run
+/// REQ-CACHE-080: Cache Statistics Report
+fn print_cache_statistics(config: &CacheConfig, stats: &CacheStats) {
+    println!("\n=== Cache Statistics ===");
+
+    let mode_str = match config.mode {
+        CacheMode::Disabled => "Disabled (no caching)",
+        CacheMode::ReadWrite => "ReadWrite (build cache, use cache on hits)",
+        CacheMode::ReadOnly => "ReadOnly (cache only, error on miss)",
+    };
+    println!("Cache Mode: {}", mode_str);
+
+    let search_hits = stats.search_hits.load(Ordering::Relaxed);
+    let search_misses = stats.search_misses.load(Ordering::Relaxed);
+    let release_hits = stats.release_hits.load(Ordering::Relaxed);
+    let release_misses = stats.release_misses.load(Ordering::Relaxed);
+
+    let search_total = search_hits + search_misses;
+    let release_total = release_hits + release_misses;
+
+    println!("Search queries: {} hits, {} misses, {} total",
+        search_hits, search_misses, search_total);
+    println!("Release details: {} hits, {} misses, {} total",
+        release_hits, release_misses, release_total);
+
+    let total_hits = search_hits + release_hits;
+    let total_requests = search_total + release_total;
+
+    if total_requests > 0 {
+        let hit_rate = (total_hits as f64 / total_requests as f64) * 100.0;
+        println!("Cache hit rate: {:.1}% ({}/{})", hit_rate, total_hits, total_requests);
+    } else {
+        println!("Cache hit rate: N/A (no requests)");
+    }
+
+    println!("Cache location: {}", config.cache_dir.display());
+
+    // Update metadata file with final counts
+    if matches!(config.mode, CacheMode::ReadWrite) {
+        if let Err(e) = update_metadata(&config.cache_dir, search_total as usize, release_total as usize) {
+            eprintln!("WARNING: Failed to update cache metadata: {}", e);
+        }
+    }
+
+    println!("========================\n");
+}
+
+// ===== MBClient: MusicBrainz API Wrapper with Caching (PLAN026) =====
+
+/// MusicBrainz API client with transparent caching
+/// REQ-CACHE-040, REQ-CACHE-110: Transparent API wrapper
+struct MBClient {
+    http_client: reqwest::Client,
+    rate_limiter: Arc<Mutex<RateLimiter>>,
+    config: CacheConfig,
+    stats: Arc<CacheStats>,
+}
+
+impl MBClient {
+    /// Create new MBClient with caching support
+    /// REQ-CACHE-110: MBClient constructor
+    fn new(config: CacheConfig, rate_limiter: Arc<Mutex<RateLimiter>>) -> Result<Self, String> {
+        // Create cache directory structure if ReadWrite or ReadOnly mode
+        match config.mode {
+            CacheMode::ReadWrite | CacheMode::ReadOnly => {
+                std::fs::create_dir_all(config.cache_dir.join("searches"))
+                    .map_err(|e| format!("Cache directory creation failure: {}", e))?;
+                std::fs::create_dir_all(config.cache_dir.join("releases"))
+                    .map_err(|e| format!("Cache directory creation failure: {}", e))?;
+            }
+            CacheMode::Disabled => {
+                // No cache directory needed
+            }
+        }
+
+        // Build HTTP client with timeout
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(MB_REQUEST_TIMEOUT_SECS))
+            .build()
+            .map_err(|e| format!("HTTP client creation failure: {}", e))?;
+
+        Ok(Self {
+            http_client,
+            rate_limiter,
+            config,
+            stats: Arc::new(CacheStats::new()),
+        })
+    }
+
+    /// Search for releases with transparent caching
+    /// REQ-CACHE-020, REQ-CACHE-040, REQ-CACHE-070
+    async fn search_releases(
+        &self,
+        query: &str,
+    ) -> Result<MBSearchResponse, Box<dyn std::error::Error>> {
+        let cache_key = hash_query(query);
+
+        // Try cache first (unless Disabled mode)
+        match self.config.mode {
+            CacheMode::Disabled => {
+                // Skip cache entirely
+            }
+            CacheMode::ReadWrite | CacheMode::ReadOnly => {
+                match load_cached_search(&self.config.cache_dir, &cache_key) {
+                    Ok(Some(response)) => {
+                        // REQ-CACHE-070: Log cache hit
+                        println!("Cache hit: search query [{}]", &cache_key);
+                        self.stats.record_search_hit();
+                        return Ok(response);
+                    }
+                    Ok(None) => {
+                        // Cache miss
+                        self.stats.record_search_miss();
+
+                        // REQ-CACHE-090: ReadOnly mode errors on cache miss
+                        if matches!(self.config.mode, CacheMode::ReadOnly) {
+                            return Err(format!(
+                                "Cache miss in read-only mode for query: {}",
+                                query
+                            )
+                            .into());
+                        }
+
+                        // REQ-CACHE-070: Log cache miss
+                        println!("Cache miss: search query [{}]", &cache_key);
+                    }
+                    Err(e) => {
+                        // REQ-CACHE-090: Cache corruption detected
+                        eprintln!("WARNING: Cache corruption detected: {}", e);
+                        println!("Falling back to live API query");
+                        self.stats.record_search_miss();
+
+                        if matches!(self.config.mode, CacheMode::ReadOnly) {
+                            return Err(format!(
+                                "Cache corruption in read-only mode: {}",
+                                e
+                            )
+                            .into());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Query live API (Disabled mode or ReadWrite cache miss)
+        // REQ-CACHE-040: Respect rate limiting
+        self.rate_limiter.lock().unwrap().wait_with_stats(None).await;
+
+        let url = format!(
+            "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
+            urlencoding::encode(query)
+        );
+
+        let response = self
+            .http_client
+            .get(&url)
+            .header("User-Agent", "WKMP-Album-Matcher/1.0")
+            .send()
+            .await?;
+
+        let mb_response: MBSearchResponse = response.json().await?;
+
+        // Store in cache if ReadWrite mode
+        if matches!(self.config.mode, CacheMode::ReadWrite) {
+            if let Err(e) = store_search_cache(
+                &self.config.cache_dir,
+                &cache_key,
+                query,
+                &mb_response,
+            ) {
+                // REQ-CACHE-090: Log cache write failure but continue
+                eprintln!("WARNING: Cache write failure: {}", e);
+                println!("Continuing without caching this query");
+            }
+        }
+
+        Ok(mb_response)
+    }
+
+    /// Get release details with transparent caching
+    /// REQ-CACHE-030, REQ-CACHE-040, REQ-CACHE-070
+    async fn get_release_details(
+        &self,
+        mbid: &str,
+    ) -> Result<MBReleaseDetails, Box<dyn std::error::Error>> {
+        // Try cache first (unless Disabled mode)
+        match self.config.mode {
+            CacheMode::Disabled => {
+                // Skip cache entirely
+            }
+            CacheMode::ReadWrite | CacheMode::ReadOnly => {
+                match load_cached_release(&self.config.cache_dir, mbid) {
+                    Ok(Some(details)) => {
+                        // REQ-CACHE-070: Log cache hit
+                        println!("Cache hit: release {}", mbid);
+                        self.stats.record_release_hit();
+                        return Ok(details);
+                    }
+                    Ok(None) => {
+                        // Cache miss
+                        self.stats.record_release_miss();
+
+                        // REQ-CACHE-090: ReadOnly mode errors on cache miss
+                        if matches!(self.config.mode, CacheMode::ReadOnly) {
+                            return Err(format!(
+                                "Cache miss in read-only mode for release: {}",
+                                mbid
+                            )
+                            .into());
+                        }
+
+                        // REQ-CACHE-070: Log cache miss
+                        println!("Cache miss: release {}", mbid);
+                    }
+                    Err(e) => {
+                        // REQ-CACHE-090: Cache corruption detected
+                        eprintln!("WARNING: Cache corruption detected: {}", e);
+                        println!("Falling back to live API query");
+                        self.stats.record_release_miss();
+
+                        if matches!(self.config.mode, CacheMode::ReadOnly) {
+                            return Err(format!(
+                                "Cache corruption in read-only mode: {}",
+                                e
+                            )
+                            .into());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Query live API (Disabled mode or ReadWrite cache miss)
+        // REQ-CACHE-040: Respect rate limiting
+        self.rate_limiter.lock().unwrap().wait_with_stats(None).await;
+
+        let url = format!(
+            "https://musicbrainz.org/ws/2/release/{}?inc=recordings+artist-credits&fmt=json",
+            mbid
+        );
+
+        let response = self
+            .http_client
+            .get(&url)
+            .header("User-Agent", "WKMP-Album-Matcher/1.0")
+            .send()
+            .await?;
+
+        let details: MBReleaseDetails = response.json().await?;
+
+        // Store in cache if ReadWrite mode
+        if matches!(self.config.mode, CacheMode::ReadWrite) {
+            if let Err(e) = store_release_cache(&self.config.cache_dir, mbid, &details)
+            {
+                // REQ-CACHE-090: Log cache write failure but continue
+                eprintln!("WARNING: Cache write failure: {}", e);
+                println!("Continuing without caching this release");
+            }
+        }
+
+        Ok(details)
+    }
+
+    /// Get cache statistics
+    /// REQ-CACHE-080: Cache statistics reporting
+    fn get_stats(&self) -> Arc<CacheStats> {
+        Arc::clone(&self.stats)
+    }
+
+    /// Get cache configuration
+    fn get_config(&self) -> &CacheConfig {
+        &self.config
+    }
+}
 
 // ===== Configuration Constants =====
 
@@ -850,7 +1408,7 @@ fn calculate_mbid_priority_score(is_cd: bool, country: Option<&str>, status: Opt
 // ===== MusicBrainz API Structures =====
 
 /// Response from MusicBrainz release search API.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MBSearchResponse {
     /// List of releases matching the search query.
     releases: Vec<MBRelease>,
@@ -860,7 +1418,7 @@ struct MBSearchResponse {
 ///
 /// Note: Some fields exist in the MusicBrainz JSON response but are not currently
 /// used by our matching algorithm. They are retained for API completeness.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct MBRelease {
     /// MusicBrainz release ID (MBID).
@@ -879,14 +1437,14 @@ struct MBRelease {
 }
 
 /// Artist credit entry linking an artist to a release.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MBArtistCredit {
     /// The artist information.
     artist: Option<MBArtist>,
 }
 
 /// MusicBrainz artist information.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MBArtist {
     /// Artist name.
     name: String,
@@ -896,7 +1454,7 @@ struct MBArtist {
 ///
 /// Note: Some fields exist in the MusicBrainz JSON response but are not currently
 /// used by our matching algorithm. They are retained for API completeness.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
 struct MBReleaseDetails {
     /// MusicBrainz release ID (MBID).
@@ -908,7 +1466,7 @@ struct MBReleaseDetails {
 }
 
 /// A single medium (disc) within a release.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MBMedia {
     /// Tracks on this medium.
     tracks: Vec<MBTrack>,
@@ -917,7 +1475,7 @@ struct MBMedia {
 }
 
 /// MusicBrainz recording information (linked to a track).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MBRecording {
     /// MusicBrainz Recording MBID.
     id: String,
@@ -926,7 +1484,7 @@ struct MBRecording {
 }
 
 /// A single track on a medium.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MBTrack {
     /// Track length in milliseconds.
     length: Option<u32>,
@@ -2450,10 +3008,9 @@ async fn verify_tracks_with_acoustid(
 /// # Returns
 /// Vector of unique releases (deduplicated by MBID).
 async fn search_all_mb_strategies(
-    client: &reqwest::Client,
+    mb_client: &MBClient,
     artist_variants: &[String],
     album_variants: &[String],
-    rate_limiter: &RateLimiter,
     album_idx: usize,
     stats: Option<&QueryStats>,
 ) -> Vec<MBRelease> {
@@ -2476,23 +3033,15 @@ async fn search_all_mb_strategies(
                         artist, album, i + 1, search_queries.len()));
                 }
 
-                let encoded_query = urlencoding::encode(query);
-                let search_url = format!(
-                    "https://musicbrainz.org/ws/2/release/?query={}&fmt=json&limit=100",
-                    encoded_query
-                );
+                debug!("{} MB query: {}", log_prefix, query);
 
-                rate_limiter.wait_with_stats(stats).await;
-                debug!("{} MB query: {}", log_prefix, search_url);
+                // REQ-CACHE-120: Use MBClient with transparent caching
+                // Note: MBClient handles rate limiting and retries internally
                 let response = retry_with_backoff_stats(&log_prefix, stats, || async {
-                    client
-                        .get(&search_url)
-                        .send()
+                    mb_client
+                        .search_releases(query)
                         .await
-                        .map_err(|e| format!("error sending request: {}", e))?
-                        .json::<MBSearchResponse>()
-                        .await
-                        .map_err(|e| format!("error parsing JSON: {}", e))
+                        .map_err(|e| format!("error querying MusicBrainz: {}", e))
                 }).await;
 
                 let response = match response {
@@ -2639,11 +3188,10 @@ fn calculate_ndr_and_filter<'a>(
 /// # Returns
 /// `Some((durations, recording_mbids, mbid_info, artist, album, rank, score))` if successful, `None` if failed.
 async fn fetch_release_track_details(
-    client: &reqwest::Client,
+    mb_client: &MBClient,
     release: &MBRelease,
     rank: usize,
     score: f64,
-    rate_limiter: &RateLimiter,
     album_idx: usize,
     stats: Option<&QueryStats>,
 ) -> Option<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> {
@@ -2651,23 +3199,16 @@ async fn fetch_release_track_details(
         s.set_activity(&format!("fetching details: {} (rank {})", release.title, rank));
     }
 
-    rate_limiter.wait_with_stats(stats).await;
-
-    let details_url = format!(
-        "https://musicbrainz.org/ws/2/release/{}?inc=recordings&fmt=json",
-        release.id
-    );
     let log_prefix = format!("[A{}]", album_idx + 1);
-    debug!("{} MB details: {}", log_prefix, details_url);
+    debug!("{} MB details: {}", log_prefix, release.id);
+
+    // REQ-CACHE-120: Use MBClient with transparent caching
+    // Note: MBClient handles rate limiting internally
     let details = retry_with_backoff_stats(&log_prefix, stats, || async {
-        client
-            .get(&details_url)
-            .send()
+        mb_client
+            .get_release_details(&release.id)
             .await
-            .map_err(|e| format!("error fetching details: {}", e))?
-            .json::<MBReleaseDetails>()
-            .await
-            .map_err(|e| format!("error parsing details: {}", e))
+            .map_err(|e| format!("error fetching details: {}", e))
     }).await;
 
     let details = match details {
@@ -2736,21 +3277,17 @@ async fn fetch_release_track_details(
 /// # Returns
 /// Vec of (durations, recording_mbids, mbid_info, artist, album, name_distance_rank, name_distance_score)
 async fn comprehensive_musicbrainz_search(
+    mb_client: &MBClient,
     artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
     album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
-    rate_limiter: &RateLimiter,
     album_idx: usize,            // Album index for log messages
     stats: Option<&QueryStats>,  // Optional stats for heartbeat logging
 ) -> Result<Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
     info!("[A{}]   Fetching MusicBrainz data (comprehensive search)...", album_idx + 1);
 
-    let client = reqwest::Client::builder()
-        .user_agent("WKMP-ParameterValidator/0.1 (https://github.com/yourusername/wkmp)")
-        .timeout(Duration::from_secs(MB_REQUEST_TIMEOUT_SECS))
-        .build()?;
-
     // Step 1: Search using all artist/album/strategy combinations
-    let all_releases = search_all_mb_strategies(&client, artist_variants, album_variants, rate_limiter, album_idx, stats).await;
+    // REQ-CACHE-120: Use MBClient for transparent caching
+    let all_releases = search_all_mb_strategies(mb_client, artist_variants, album_variants, album_idx, stats).await;
     info!("[A{}]   Found {} unique releases across all search strategies", album_idx + 1, all_releases.len());
 
     // Step 2: Calculate NDR and filter releases (Run 15 optimization)
@@ -2761,9 +3298,10 @@ async fn comprehensive_musicbrainz_search(
     }
 
     // Step 3: Fetch track details for filtered releases
+    // REQ-CACHE-120: Use MBClient for transparent caching
     let mut results: Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> = Vec::new();
     for (release, rank, score) in filtered_releases {
-        if let Some(result) = fetch_release_track_details(&client, release, rank, score, rate_limiter, album_idx, stats).await {
+        if let Some(result) = fetch_release_track_details(mb_client, release, rank, score, album_idx, stats).await {
             results.push(result);
         }
     }
@@ -4368,7 +4906,7 @@ async fn process_single_album(
     match_tolerance_secs: f64,
     threshold_values: &'static [f64],
     min_duration_values: &'static [f64],
-    rate_limiter: RateLimiter,
+    mb_client: Arc<MBClient>,
     acoustid_api_key: Option<String>,
 ) -> ValidationResult {
     // === STAGGERED START DELAY ===
@@ -4448,10 +4986,11 @@ async fn process_single_album(
 
     // Spawn MusicBrainz lookup concurrently (async, I/O-bound)
     // Can start before decode completes since MB search doesn't need file duration
+    // REQ-CACHE-120: Use MBClient for transparent caching
     let mb_task = comprehensive_musicbrainz_search(
+        &*mb_client,
         &artist_variants_for_mb,
         &album_variants_for_mb,
-        &rate_limiter,
         album_idx,
         Some(&query_stats),
     );
@@ -4989,7 +5528,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
 
-    info!("=== Comprehensive Album Matcher (Run 25 - Rate Limiter Diagnostics) ===");
+    // REQ-CACHE-060: Parse command-line arguments for cache mode
+    let args: Vec<String> = std::env::args().collect();
+    let cache_mode = if args.iter().any(|arg| arg == "--no-cache") {
+        CacheMode::Disabled
+    } else if args.iter().any(|arg| arg == "--use-cache") {
+        CacheMode::ReadOnly
+    } else {
+        CacheMode::ReadWrite // Default
+    };
+
+    // Create cache configuration
+    let cache_config = CacheConfig {
+        mode: cache_mode,
+        cache_dir: PathBuf::from("./cache/musicbrainz"),
+    };
+
+    let cache_mode_str = match cache_mode {
+        CacheMode::Disabled => "Disabled",
+        CacheMode::ReadWrite => "ReadWrite (default)",
+        CacheMode::ReadOnly => "ReadOnly",
+    };
+
+    info!("=== Comprehensive Album Matcher (Run 26 - MusicBrainz API Caching) ===");
+    info!("Cache Mode: {}", cache_mode_str);
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -5132,6 +5694,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rate_limiter = RateLimiter::new();
 
+    // REQ-CACHE-040, REQ-CACHE-110: Create MBClient with caching support
+    let mb_client = Arc::new(
+        MBClient::new(cache_config.clone(), Arc::new(Mutex::new(rate_limiter.clone())))
+            .expect("Failed to create MBClient")
+    );
+
     // Parameter grid for Stage 2 optimization (defined in configuration constants section)
     // Using 'static references so they can be passed to async tasks
     let threshold_values: &'static [f64] = &STAGE2_THRESHOLD_VALUES;
@@ -5163,7 +5731,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let results: Vec<ValidationResult> = stream::iter(training_files.into_iter().enumerate())
         .map(|(idx, file_path)| {
-            let rate_limiter = rate_limiter.clone();
+            let mb_client = Arc::clone(&mb_client);
             let acoustid_api_key = acoustid_api_key.clone();
             async move {
                 process_single_album(
@@ -5175,7 +5743,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     match_tolerance_secs,
                     threshold_values,
                     min_duration_values,
-                    rate_limiter,
+                    mb_client,
                     acoustid_api_key,
                 ).await
             }
@@ -5288,6 +5856,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!("\nDone!");
+
+    // REQ-CACHE-080: Print cache statistics report
+    print_cache_statistics(&cache_config, &*mb_client.get_stats());
+
     Ok(())
 }
 
