@@ -1,11 +1,15 @@
-/// Comprehensive Album Matcher with Edition-by-Edition Processing (Run 24 - Levenshtein Ratio Filtering)
+/// Comprehensive Album Matcher - Run 25: Rate Limiter Diagnostic Logging
 ///
-/// Run 24 changes:
-/// - Pre-NDR Levenshtein ratio filter: Requires artist ratio >= 0.5 AND album ratio >= 0.5
-///   before NDR ranking is calculated. Catches obvious mismatches early.
-/// - Enhanced artist+album verification: Both artist AND album similarity are now checked
-///   when evaluating the winning edition. If either is below threshold, runner-ups are
-///   evaluated for better name fit.
+/// Run 25 changes (based on Run 24):
+/// - Added detailed rate limiter logging with query sequence numbers
+/// - Logs elapsed time since last query for each rate limiter call
+/// - Logs wait/no-wait decisions and actual wait durations
+/// - Added atomic query counter to track global query sequence
+///
+/// Investigation context:
+/// - Run 24d showed actual query rate of ~1040ms (not configured 1550ms)
+/// - Query saturation 149% indicates queries bypass rate limiting somehow
+/// - This run adds diagnostic logging to understand the discrepancy
 
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
@@ -1101,6 +1105,8 @@ fn spawn_heartbeat_task(stats: Arc<QueryStats>, album_idx: usize) -> tokio::task
 struct RateLimiter {
     /// Timestamp of last API request, protected by async mutex for serialization.
     last_request: Arc<tokio::sync::Mutex<std::time::Instant>>,
+    /// Global query counter for debugging (atomic)
+    query_counter: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl RateLimiter {
@@ -1109,6 +1115,7 @@ impl RateLimiter {
             last_request: Arc::new(tokio::sync::Mutex::new(
                 std::time::Instant::now() - Duration::from_millis(MB_RATE_LIMIT_MS)
             )),
+            query_counter: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
     }
 
@@ -1117,19 +1124,30 @@ impl RateLimiter {
         // This ensures only one task can be checking/waiting/updating at a time.
         let mut last = self.last_request.lock().await;
 
+        let query_num = self.query_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
         let elapsed = last.elapsed();
+        let elapsed_ms = elapsed.as_millis();
 
         // MusicBrainz API limit: 1 req/sec
         // Use 1.55s delay for safety margin to prevent 503 errors
         if elapsed < Duration::from_millis(MB_RATE_LIMIT_MS) {
             let wait_time = Duration::from_millis(MB_RATE_LIMIT_MS) - elapsed;
+            let wait_ms = wait_time.as_millis();
+            debug!("[RATE_LIMITER] Query #{}: elapsed={}ms < limit={}ms, WAITING {}ms",
+                   query_num, elapsed_ms, MB_RATE_LIMIT_MS, wait_ms);
             if let Some(s) = stats {
                 s.record_rate_wait();
             }
             sleep(wait_time).await;
+            debug!("[RATE_LIMITER] Query #{}: wait complete, proceeding", query_num);
+        } else {
+            debug!("[RATE_LIMITER] Query #{}: elapsed={}ms >= limit={}ms, NO WAIT",
+                   query_num, elapsed_ms, MB_RATE_LIMIT_MS);
         }
 
-        *last = std::time::Instant::now();
+        let before_update = std::time::Instant::now();
+        *last = before_update;
+        debug!("[RATE_LIMITER] Query #{}: timestamp updated, releasing lock", query_num);
     }
 }
 
@@ -4946,7 +4964,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
 
-    info!("=== Comprehensive Album Matcher (Run 22 - Load Balanced) ===");
+    info!("=== Comprehensive Album Matcher (Run 25 - Rate Limiter Diagnostics) ===");
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
