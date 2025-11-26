@@ -363,116 +363,118 @@ pub(crate) async fn process_single_album(
 
     query_stats.set_activity(&format!("testing {} editions", editions.len()));
 
-    let results_mutex: Mutex<Vec<EditionTestResult>> = Mutex::new(Vec::new());
+    // Wrap shared data in Arc for rayon::spawn (no lifetime constraints like rayon::scope)
+    let silence_cache = Arc::new(silence_cache);
+    let rms_profile = Arc::new(rms_profile);
+    let initial_durations = Arc::new(initial_durations);
+    let perfect_match_found = Arc::new(perfect_match_found);
+    let perfect_match_time_ms = Arc::new(perfect_match_time_ms);
+
+    // Channel for collecting results (tokio channel for async-friendly receiving)
+    let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<EditionTestResult>(editions.len().max(1));
+
     let mut editions_started = 0;
     let mut editions_skipped = 0;
+    let total_editions = editions.len();
 
-    rayon::scope(|s| {
-        for (edition_idx, edition) in editions.iter().enumerate() {
-            if perfect_match_found.load(Ordering::Relaxed) {
-                editions_skipped = editions.len() - edition_idx;
-                info!(
-                    "[{}]   Stopping feed: 100% match found, {} editions not started",
-                    album_id, editions_skipped
-                );
-                break;
-            }
-
-            editions_started += 1;
-            query_stats.set_activity(&format!(
-                "edition {}/{}: {}",
-                edition_idx + 1,
-                editions.len(),
-                edition.album
-            ));
-
+    // Spawn editions onto rayon WITHOUT blocking scope - delay happens in async context
+    for (edition_idx, edition) in editions.iter().enumerate() {
+        if perfect_match_found.load(Ordering::Relaxed) {
+            editions_skipped = editions.len() - edition_idx;
             info!(
-                "[A{}]   Starting Edition {}/{}: {} - {}",
-                album_idx + 1,
-                edition_idx + 1,
-                editions.len(),
-                edition.artist,
-                edition.album
+                "[{}]   Stopping feed: 100% match found, {} editions not started",
+                album_id, editions_skipped
             );
-
-            let silence_cache = &silence_cache;
-            let rms_profile = &rms_profile;
-            let initial_durations = &initial_durations;
-            let perfect_match_found = &perfect_match_found;
-            let perfect_match_time_ms = &perfect_match_time_ms;
-            let results_mutex = &results_mutex;
-            let total_editions = editions.len();
-
-            s.spawn(move |_| {
-                let edition_result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                    test_single_edition(
-                        edition_idx,
-                        edition,
-                        silence_cache,
-                        num_thresholds,
-                        num_min_durations,
-                        match_tolerance_secs,
-                        rms_profile,
-                        total_duration_secs,
-                        initial_durations,
-                        total_editions,
-                        perfect_match_found,
-                        perfect_match_time_ms,
-                        parallel_start_time,
-                        album_idx,
-                    )
-                }));
-
-                match edition_result {
-                    Ok(result) => match results_mutex.lock() {
-                        Ok(mut guard) => guard.push(result),
-                        Err(poisoned) => {
-                            error!(
-                                "[A{}] Edition {}: Mutex poisoned, recovering...",
-                                album_idx + 1,
-                                edition_idx + 1
-                            );
-                            poisoned.into_inner().push(result);
-                        }
-                    },
-                    Err(panic_payload) => {
-                        let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
-                            s.to_string()
-                        } else if let Some(s) = panic_payload.downcast_ref::<String>() {
-                            s.clone()
-                        } else {
-                            "unknown panic".to_string()
-                        };
-                        error!(
-                            "[A{}] Edition {}/{} PANICKED: {}",
-                            album_idx + 1,
-                            edition_idx + 1,
-                            total_editions,
-                            panic_msg
-                        );
-                    }
-                }
-            });
-
-            if edition_idx < editions.len() - 1 {
-                std::thread::sleep(Duration::from_secs(EDITION_FEED_DELAY_SECS));
-            }
+            break;
         }
-    });
+
+        editions_started += 1;
+        query_stats.set_activity(&format!(
+            "edition {}/{}: {}",
+            edition_idx + 1,
+            editions.len(),
+            edition.album
+        ));
+
+        info!(
+            "[A{}]   Starting Edition {}/{}: {} - {}",
+            album_idx + 1,
+            edition_idx + 1,
+            editions.len(),
+            edition.artist,
+            edition.album
+        );
+
+        // Clone Arc handles for this spawn
+        let silence_cache = Arc::clone(&silence_cache);
+        let rms_profile = Arc::clone(&rms_profile);
+        let initial_durations = Arc::clone(&initial_durations);
+        let perfect_match_found = Arc::clone(&perfect_match_found);
+        let perfect_match_time_ms = Arc::clone(&perfect_match_time_ms);
+        let result_tx = result_tx.clone();
+        let edition = edition.clone();
+
+        rayon::spawn(move || {
+            let edition_result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                test_single_edition(
+                    edition_idx,
+                    &edition,
+                    &silence_cache,
+                    num_thresholds,
+                    num_min_durations,
+                    match_tolerance_secs,
+                    &rms_profile,
+                    total_duration_secs,
+                    &initial_durations,
+                    total_editions,
+                    &perfect_match_found,
+                    &perfect_match_time_ms,
+                    parallel_start_time,
+                    album_idx,
+                )
+            }));
+
+            match edition_result {
+                Ok(result) => {
+                    let _ = result_tx.blocking_send(result);
+                }
+                Err(panic_payload) => {
+                    let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "unknown panic".to_string()
+                    };
+                    error!(
+                        "[A{}] Edition {}/{} PANICKED: {}",
+                        album_idx + 1,
+                        edition_idx + 1,
+                        total_editions,
+                        panic_msg
+                    );
+                }
+            }
+        });
+
+        // Delay OUTSIDE rayon - async sleep doesn't block rayon threads
+        if edition_idx < editions.len() - 1 {
+            sleep(Duration::from_secs(EDITION_FEED_DELAY_SECS)).await;
+        }
+    }
+
+    // Drop our sender so the channel closes when all spawned tasks complete
+    drop(result_tx);
+
+    // Collect results asynchronously (doesn't block rayon threads)
+    let mut edition_results: Vec<EditionTestResult> = Vec::with_capacity(editions_started);
+    while let Some(result) = result_rx.recv().await {
+        edition_results.push(result);
+    }
 
     query_stats.stop();
-    let _ = futures::executor::block_on(heartbeat_handle);
+    let _ = heartbeat_handle.await;
 
-    let mut edition_results: Vec<EditionTestResult> = match results_mutex.into_inner() {
-        Ok(results) => results,
-        Err(poisoned) => {
-            warn!(
-                "[A{}] Results mutex was poisoned, recovering results...",
-                album_idx + 1
-            );
-            poisoned.into_inner()
-        }
-    };
     edition_results.sort_by_key(|r| r.edition_idx);
 
     info!(
