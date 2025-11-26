@@ -764,6 +764,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_timer(timer)
         .with_target(false)
         .with_level(true)
+        .with_file(true)
         .with_line_number(true)
         .with_thread_ids(true)
         .init();
@@ -794,7 +795,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }));
 
-    // Parse CLI arguments for cache mode
+    // Parse CLI arguments for cache mode and output file
     let args: Vec<String> = std::env::args().collect();
     let cache_mode = if args.iter().any(|arg| arg == "--no-cache") {
         CacheMode::Disabled
@@ -803,6 +804,19 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         CacheMode::ReadWrite
     };
+
+    // Parse output filename parameter (--output or -o)
+    let output_json = args
+        .iter()
+        .enumerate()
+        .find_map(|(i, arg)| {
+            if (arg == "--output" || arg == "-o") && i + 1 < args.len() {
+                Some(args[i + 1].clone())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "album_matcher_results.json".to_string());
 
     let cache_config = CacheConfig {
         mode: cache_mode,
@@ -817,6 +831,7 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("=== Comprehensive Album Matcher (Run 28 - Modular) ===");
     info!("Cache Mode: {}", cache_mode_str);
+    info!("Output JSON: {}", output_json);
 
     // Read training set
     let training_set_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\training_set.txt");
@@ -1003,12 +1018,12 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
     results.sort_by(|a, b| a.album_path.cmp(&b.album_path));
 
     // Write results
-    let output_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\album_matcher_results.json");
+    let output_path = PathBuf::from(&output_json);
     info!("\n=== Writing Results ===");
     info!("Output: {}", output_path.display());
 
     let json = serde_json::to_string_pretty(&results)?;
-    std::fs::write(output_path, json)?;
+    std::fs::write(&output_path, json)?;
 
     // Analysis
     info!("\n=== COMPREHENSIVE MATCHING ANALYSIS ===");
