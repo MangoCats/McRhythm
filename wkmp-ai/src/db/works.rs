@@ -7,6 +7,8 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 /// Work record (MusicBrainz musical work / composition)
+///
+/// PLAN026: Extended with am28 integration fields
 #[derive(Debug, Clone)]
 pub struct Work {
     /// Unique identifier (UUID)
@@ -15,6 +17,13 @@ pub struct Work {
     pub work_mbid: String,
     /// Work title (composition name)
     pub title: String,
+    // PLAN026: am28 integration fields
+    /// Composer/author name(s)
+    pub composer: Option<String>,
+    /// International Standard Musical Work Code
+    pub iswc: Option<String>,
+    /// Work type: 'Song', 'Symphony', 'Opera', etc.
+    pub work_type: Option<String>,
     /// Base selection probability (0.0-1.0+, default 1.0)
     pub base_probability: f64,
     /// Minimum cooldown period in seconds
@@ -32,9 +41,34 @@ impl Work {
             guid: Uuid::new_v4(),
             work_mbid,
             title,
+            composer: None,
+            iswc: None,
+            work_type: None,
             base_probability: 1.0,
             min_cooldown: 259200,   // 3 days in seconds
             ramping_cooldown: 604800, // 7 days in seconds
+            last_played_at: None,
+        }
+    }
+
+    /// Create new work with all am28 fields
+    pub fn new_with_details(
+        work_mbid: String,
+        title: String,
+        composer: Option<String>,
+        iswc: Option<String>,
+        work_type: Option<String>,
+    ) -> Self {
+        Self {
+            guid: Uuid::new_v4(),
+            work_mbid,
+            title,
+            composer,
+            iswc,
+            work_type,
+            base_probability: 1.0,
+            min_cooldown: 259200,
+            ramping_cooldown: 604800,
             last_played_at: None,
         }
     }
@@ -45,11 +79,15 @@ pub async fn save_work(pool: &SqlitePool, work: &Work) -> Result<()> {
     sqlx::query(
         r#"
         INSERT INTO works (
-            guid, work_mbid, title, base_probability, min_cooldown, ramping_cooldown,
+            guid, work_mbid, title, composer, iswc, work_type,
+            base_probability, min_cooldown, ramping_cooldown,
             last_played_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(work_mbid) DO UPDATE SET
             title = excluded.title,
+            composer = excluded.composer,
+            iswc = excluded.iswc,
+            work_type = excluded.work_type,
             base_probability = excluded.base_probability,
             min_cooldown = excluded.min_cooldown,
             ramping_cooldown = excluded.ramping_cooldown,
@@ -59,6 +97,9 @@ pub async fn save_work(pool: &SqlitePool, work: &Work) -> Result<()> {
     .bind(work.guid.to_string())
     .bind(&work.work_mbid)
     .bind(&work.title)
+    .bind(&work.composer)
+    .bind(&work.iswc)
+    .bind(&work.work_type)
     .bind(work.base_probability)
     .bind(work.min_cooldown)
     .bind(work.ramping_cooldown)
@@ -73,8 +114,8 @@ pub async fn save_work(pool: &SqlitePool, work: &Work) -> Result<()> {
 pub async fn load_work_by_mbid(pool: &SqlitePool, work_mbid: &str) -> Result<Option<Work>> {
     let row = sqlx::query(
         r#"
-        SELECT guid, work_mbid, title, base_probability, min_cooldown,
-               ramping_cooldown, last_played_at
+        SELECT guid, work_mbid, title, composer, iswc, work_type,
+               base_probability, min_cooldown, ramping_cooldown, last_played_at
         FROM works
         WHERE work_mbid = ?
         "#,
@@ -91,6 +132,9 @@ pub async fn load_work_by_mbid(pool: &SqlitePool, work_mbid: &str) -> Result<Opt
                 guid: Uuid::parse_str(&guid_str)?,
                 work_mbid: row.get("work_mbid"),
                 title: row.get("title"),
+                composer: row.get("composer"),
+                iswc: row.get("iswc"),
+                work_type: row.get("work_type"),
                 base_probability: row.get("base_probability"),
                 min_cooldown: row.get("min_cooldown"),
                 ramping_cooldown: row.get("ramping_cooldown"),

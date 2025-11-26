@@ -7,6 +7,8 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 /// Album record (MusicBrainz release)
+///
+/// PLAN026: Extended with am28 integration fields
 #[derive(Debug, Clone)]
 pub struct Album {
     /// Unique identifier (UUID)
@@ -17,6 +19,13 @@ pub struct Album {
     pub title: String,
     /// Release date in YYYY-MM-DD format
     pub release_date: Option<String>,
+    // PLAN026: am28 integration fields
+    /// Combined artist credit string (from MBArtistCredit)
+    pub artist_credit: Option<String>,
+    /// Release country (from EditionMBID.country)
+    pub country: Option<String>,
+    /// Release status: 'Official', 'Bootleg', etc.
+    pub status: Option<String>,
 }
 
 impl Album {
@@ -27,6 +36,29 @@ impl Album {
             album_mbid,
             title,
             release_date: None,
+            artist_credit: None,
+            country: None,
+            status: None,
+        }
+    }
+
+    /// Create new album with all am28 fields
+    pub fn new_with_details(
+        album_mbid: String,
+        title: String,
+        release_date: Option<String>,
+        artist_credit: Option<String>,
+        country: Option<String>,
+        status: Option<String>,
+    ) -> Self {
+        Self {
+            guid: Uuid::new_v4(),
+            album_mbid,
+            title,
+            release_date,
+            artist_credit,
+            country,
+            status,
         }
     }
 }
@@ -35,11 +67,14 @@ impl Album {
 pub async fn save_album(pool: &SqlitePool, album: &Album) -> Result<()> {
     sqlx::query(
         r#"
-        INSERT INTO albums (guid, album_mbid, title, release_date, created_at, updated_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO albums (guid, album_mbid, title, release_date, artist_credit, country, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT(album_mbid) DO UPDATE SET
             title = excluded.title,
             release_date = excluded.release_date,
+            artist_credit = excluded.artist_credit,
+            country = excluded.country,
+            status = excluded.status,
             updated_at = CURRENT_TIMESTAMP
         "#,
     )
@@ -47,6 +82,9 @@ pub async fn save_album(pool: &SqlitePool, album: &Album) -> Result<()> {
     .bind(&album.album_mbid)
     .bind(&album.title)
     .bind(&album.release_date)
+    .bind(&album.artist_credit)
+    .bind(&album.country)
+    .bind(&album.status)
     .execute(pool)
     .await?;
 
@@ -82,7 +120,7 @@ pub async fn batch_query_existing_albums(
 
     let query_str = format!(
         r#"
-        SELECT guid, album_mbid, title, release_date
+        SELECT guid, album_mbid, title, release_date, artist_credit, country, status
         FROM albums
         WHERE album_mbid IN ({})
         "#,
@@ -106,6 +144,9 @@ pub async fn batch_query_existing_albums(
             album_mbid: album_mbid.clone(),
             title: row.get("title"),
             release_date: row.get("release_date"),
+            artist_credit: row.get("artist_credit"),
+            country: row.get("country"),
+            status: row.get("status"),
         };
 
         albums.insert(album_mbid, album);
@@ -132,11 +173,14 @@ pub async fn batch_save_albums(
     for album in albums {
         sqlx::query(
             r#"
-            INSERT INTO albums (guid, album_mbid, title, release_date, created_at, updated_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO albums (guid, album_mbid, title, release_date, artist_credit, country, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ON CONFLICT(album_mbid) DO UPDATE SET
                 title = excluded.title,
                 release_date = excluded.release_date,
+                artist_credit = excluded.artist_credit,
+                country = excluded.country,
+                status = excluded.status,
                 updated_at = CURRENT_TIMESTAMP
             "#,
         )
@@ -144,6 +188,9 @@ pub async fn batch_save_albums(
         .bind(&album.album_mbid)
         .bind(&album.title)
         .bind(&album.release_date)
+        .bind(&album.artist_credit)
+        .bind(&album.country)
+        .bind(&album.status)
         .execute(&mut **tx)
         .await?;
     }
@@ -155,7 +202,7 @@ pub async fn batch_save_albums(
 pub async fn load_album_by_mbid(pool: &SqlitePool, album_mbid: &str) -> Result<Option<Album>> {
     let row = sqlx::query(
         r#"
-        SELECT guid, album_mbid, title, release_date
+        SELECT guid, album_mbid, title, release_date, artist_credit, country, status
         FROM albums
         WHERE album_mbid = ?
         "#,
@@ -173,6 +220,9 @@ pub async fn load_album_by_mbid(pool: &SqlitePool, album_mbid: &str) -> Result<O
                 album_mbid: row.get("album_mbid"),
                 title: row.get("title"),
                 release_date: row.get("release_date"),
+                artist_credit: row.get("artist_credit"),
+                country: row.get("country"),
+                status: row.get("status"),
             }))
         }
         None => Ok(None),

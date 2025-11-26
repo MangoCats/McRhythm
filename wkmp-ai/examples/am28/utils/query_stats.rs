@@ -203,9 +203,9 @@ impl QueryStats {
 ///
 /// # Lifecycle
 /// 1. Spawns background tokio task
-/// 2. Sleeps for HEARTBEAT_INTERVAL_SECS (120s)
-/// 3. Checks stop_flag via stats.is_stopped()
-/// 4. If not stopped, calls stats.log_heartbeat()
+/// 2. Checks stop_flag via stats.is_stopped() (responsive to stop signal)
+/// 3. Sleeps in 1-second increments, checking stop_flag between each
+/// 4. After HEARTBEAT_INTERVAL_SECS total, calls stats.log_heartbeat()
 /// 5. Repeats until stopped
 ///
 /// # Example
@@ -216,15 +216,27 @@ impl QueryStats {
 /// // ... perform work ...
 ///
 /// stats.stop();  // Signal task to exit
-/// heartbeat_handle.await?;  // Wait for graceful shutdown
+/// heartbeat_handle.await?;  // Wait for graceful shutdown (responds within ~1 second)
 /// ```
 pub(crate) fn spawn_heartbeat_task(stats: Arc<QueryStats>, album_idx: usize) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let interval = Duration::from_secs(HEARTBEAT_INTERVAL_SECS);
+        let check_interval = Duration::from_secs(1);
+        let heartbeat_interval_secs = HEARTBEAT_INTERVAL_SECS;
+
         loop {
-            sleep(interval).await;
+            // Sleep in 1-second increments, checking stop flag between each
+            // This allows responsive shutdown (within ~1 second) instead of waiting
+            // up to 120 seconds for the full interval to elapse
+            for _ in 0..heartbeat_interval_secs {
+                if stats.is_stopped() {
+                    return;
+                }
+                sleep(check_interval).await;
+            }
+
+            // After full interval, log heartbeat if not stopped
             if stats.is_stopped() {
-                break;
+                return;
             }
             stats.log_heartbeat(album_idx);
         }

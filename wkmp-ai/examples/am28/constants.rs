@@ -119,7 +119,7 @@ pub(crate) const SILENCE_RMS_EPSILON: f32 = 1e-10;
 
 /// Tolerance for track duration matching (seconds)
 /// Tracks within ±MATCH_TOLERANCE_SECS of expected duration are considered matches
-pub(crate) const MATCH_TOLERANCE_SECS: f64 = 3.0;
+pub(crate) const MATCH_TOLERANCE_SECS: f64 = 10.0;
 
 /// Grace period for short tracks (seconds)
 /// Additional tolerance allowed for tracks shorter than GRACE_PERIOD_THRESHOLD_SECS
@@ -229,7 +229,7 @@ pub(crate) const STAGGER_MULTIPLIER: u64 = 30;
 
 /// Maximum number of albums to process concurrently
 /// Used for both stagger calculation and tokio buffer_unordered limit
-pub(crate) const MAX_CONCURRENT_ALBUMS: usize = 6;
+pub(crate) const MAX_CONCURRENT_ALBUMS: usize = 16;
 
 // =============================================================================
 // Stage 4: Quiet Spot Detection Constants
