@@ -13,33 +13,33 @@
 //! - **Import Complete** (`import_complete`): Completion summary with return link
 //! - **Settings Page** (`settings`): Configuration interface
 
-use axum::{routing::get, Router};
 use crate::AppState;
+use axum::{routing::get, Router};
 
 // Module declarations
-mod static_assets;
-mod root;
-mod import_progress;
-mod segment_editor;
+mod file_report;
 mod import_complete;
+mod import_progress;
+mod root;
+mod segment_editor;
 mod settings;
-mod file_report; // PLAN027: File classification report
+mod static_assets; // PLAN027: File classification report
 
 // Re-export handler functions for router assembly
+use file_report::file_report_page;
+use import_complete::import_complete_page;
+use import_progress::import_progress_page;
+use root::root_page;
+use segment_editor::segment_editor_page;
+use settings::settings_page;
 use static_assets::{
-    serve_wkmp_sse_js,
-    serve_wkmp_ui_css,
+    serve_file_report_js, // PLAN027
     serve_import_progress_js,
     serve_settings_css,
     serve_settings_js,
-    serve_file_report_js, // PLAN027
-};
-use root::root_page;
-use import_progress::import_progress_page;
-use segment_editor::segment_editor_page;
-use import_complete::import_complete_page;
-use settings::settings_page;
-use file_report::file_report_page; // PLAN027
+    serve_wkmp_sse_js,
+    serve_wkmp_ui_css,
+}; // PLAN027
 
 /// Build UI routes
 pub fn ui_routes() -> Router<AppState> {

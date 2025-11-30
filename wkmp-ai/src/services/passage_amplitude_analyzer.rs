@@ -10,10 +10,10 @@ use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
-use crate::models::AmplitudeParameters;
-use crate::utils::retry_on_lock;
 use super::amplitude_analyzer::AmplitudeAnalyzer;
 use super::passage_recorder::PassageRecord;
+use crate::models::AmplitudeParameters;
+use crate::utils::retry_on_lock;
 
 /// SPEC017: 28,224,000 ticks per second
 const TICKS_PER_SECOND: i64 = 28_224_000;
@@ -131,7 +131,7 @@ impl PassageAmplitudeAnalyzer {
             // This prevents holding database locks during long-running amplitude analysis
             let (start_ticks, end_ticks): (i64, i64) = {
                 sqlx::query_as(
-                    "SELECT start_time_ticks, end_time_ticks FROM passages WHERE guid = ?"
+                    "SELECT start_time_ticks, end_time_ticks FROM passages WHERE guid = ?",
                 )
                 .bind(passage_record.passage_id.to_string())
                 .fetch_one(&self.db)
@@ -171,7 +171,12 @@ impl PassageAmplitudeAnalyzer {
             // **[IMPL001]** Pass yield interval to prevent Tokio work-stealing starvation
             let analysis = self
                 .analyzer
-                .analyze_file(file_path, start_seconds, end_seconds, self.yield_interval_ms)
+                .analyze_file(
+                    file_path,
+                    start_seconds,
+                    end_seconds,
+                    self.yield_interval_ms,
+                )
                 .await
                 .map_err(|e| Error::Internal(format!("Amplitude analysis failed: {}", e)))?;
 
@@ -187,8 +192,10 @@ impl PassageAmplitudeAnalyzer {
             // This can happen for very short passages (near minimum_passage_audio_duration_ticks threshold)
             // Reference: minimum_passage_audio_duration_ticks setting (default 2,822,400 ticks = 100ms)
             // **[SPEC017]** Conversion: ticks = seconds × 28,224,000 (tick rate)
-            let lead_in_duration_ticks = (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
-            let lead_out_duration_ticks = (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
+            let lead_in_duration_ticks =
+                (analysis.lead_in_duration * TICKS_PER_SECOND as f64) as i64;
+            let lead_out_duration_ticks =
+                (analysis.lead_out_duration * TICKS_PER_SECOND as f64) as i64;
 
             // Check if combined fade durations exceed passage duration
             if lead_in_duration_ticks + lead_out_duration_ticks > passage_duration_ticks {
@@ -213,26 +220,22 @@ impl PassageAmplitudeAnalyzer {
 
                 let db_ref = &self.db;
                 let passage_id_str = passage_record.passage_id.to_string();
-                retry_on_lock(
-                    "passage amplitude update",
-                    max_wait_ms as u64,
-                    || async {
-                        sqlx::query(
-                            r#"
+                retry_on_lock("passage amplitude update", max_wait_ms as u64, || async {
+                    sqlx::query(
+                        r#"
                             UPDATE passages
                             SET lead_in_start_ticks = NULL,
                                 lead_out_start_ticks = NULL,
                                 status = 'INGEST COMPLETE',
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE guid = ?
-                            "#
-                        )
-                        .bind(&passage_id_str)
-                        .execute(db_ref)
-                        .await
-                        .map_err(|e| Error::Database(e))
-                    }
-                )
+                            "#,
+                    )
+                    .bind(&passage_id_str)
+                    .execute(db_ref)
+                    .await
+                    .map_err(|e| Error::Database(e))
+                })
                 .await?;
 
                 results.push(PassageAmplitudeResult {
@@ -246,11 +249,13 @@ impl PassageAmplitudeAnalyzer {
 
             // Lead-in: absolute position = passage start + lead-in duration
             // Clamped to [start_ticks, end_ticks]
-            let lead_in_start_ticks = (start_ticks + lead_in_duration_ticks).clamp(start_ticks, end_ticks);
+            let lead_in_start_ticks =
+                (start_ticks + lead_in_duration_ticks).clamp(start_ticks, end_ticks);
 
             // Lead-out: absolute position = passage end - lead-out duration
             // Clamped to [start_ticks, end_ticks]
-            let lead_out_start_ticks = (end_ticks - lead_out_duration_ticks).clamp(start_ticks, end_ticks);
+            let lead_out_start_ticks =
+                (end_ticks - lead_out_duration_ticks).clamp(start_ticks, end_ticks);
 
             tracing::debug!(
                 passage_id = %passage_record.passage_id,
@@ -278,10 +283,8 @@ impl PassageAmplitudeAnalyzer {
             // Wrap UPDATE in retry logic
             let db_ref = &self.db;
             let passage_id_str = passage_record.passage_id.to_string();
-            if let Err(e) = retry_on_lock(
-                "passage amplitude update",
-                max_wait_ms as u64,
-                || async {
+            if let Err(e) =
+                retry_on_lock("passage amplitude update", max_wait_ms as u64, || async {
                     sqlx::query(
                         r#"
                         UPDATE passages
@@ -290,7 +293,7 @@ impl PassageAmplitudeAnalyzer {
                             status = 'INGEST COMPLETE',
                             updated_at = CURRENT_TIMESTAMP
                         WHERE guid = ?
-                        "#
+                        "#,
                     )
                     .bind(lead_in_start_ticks)
                     .bind(lead_out_start_ticks)
@@ -298,9 +301,9 @@ impl PassageAmplitudeAnalyzer {
                     .execute(db_ref)
                     .await
                     .map_err(|e| Error::Database(e))
-                }
-            )
-            .await {
+                })
+                .await
+            {
                 tracing::error!(
                     passage_id = %passage_record.passage_id,
                     start_ticks,
@@ -357,22 +360,20 @@ impl PassageAmplitudeAnalyzer {
 
 /// Get lead-in threshold from settings (default: 45.0 dB)
 async fn get_lead_in_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
-    let value: Option<f64> = sqlx::query_scalar(
-        "SELECT value FROM settings WHERE key = 'lead_in_threshold_dB'"
-    )
-    .fetch_optional(db)
-    .await?;
+    let value: Option<f64> =
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'lead_in_threshold_dB'")
+            .fetch_optional(db)
+            .await?;
 
     Ok(value.unwrap_or(45.0))
 }
 
 /// Get lead-out threshold from settings (default: 40.0 dB)
 async fn get_lead_out_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
-    let value: Option<f64> = sqlx::query_scalar(
-        "SELECT value FROM settings WHERE key = 'lead_out_threshold_dB'"
-    )
-    .fetch_optional(db)
-    .await?;
+    let value: Option<f64> =
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'lead_out_threshold_dB'")
+            .fetch_optional(db)
+            .await?;
 
     Ok(value.unwrap_or(40.0))
 }
@@ -395,7 +396,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -417,7 +418,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await

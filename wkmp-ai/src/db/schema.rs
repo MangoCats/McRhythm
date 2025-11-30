@@ -269,7 +269,10 @@ mod tests {
             .iter()
             .find(|c| c.name == "reimport_attempt_count")
             .unwrap();
-        assert!(counter_column.not_null, "reimport_attempt_count should be NOT NULL");
+        assert!(
+            counter_column.not_null,
+            "reimport_attempt_count should be NOT NULL"
+        );
         assert_eq!(
             counter_column.default_value,
             Some("0".to_string()),

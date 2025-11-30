@@ -2,11 +2,7 @@
 //!
 //! **[IMPL008]** POST /analyze/amplitude
 
-use axum::{
-    extract::State,
-    routing::post,
-    Json, Router,
-};
+use axum::{extract::State, routing::post, Json, Router};
 
 use crate::{
     error::ApiResult,

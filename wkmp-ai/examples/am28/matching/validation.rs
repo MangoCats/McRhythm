@@ -153,7 +153,8 @@ pub(crate) fn calculate_name_distance(
     let avg_artist_distance = avg_levenshtein(candidate_artist, source_artists);
 
     // Overall score: album name weighted 2x, artist name weighted 1x
-    (NAME_DISTANCE_ALBUM_WEIGHT * avg_album_distance + NAME_DISTANCE_ARTIST_WEIGHT * avg_artist_distance)
+    (NAME_DISTANCE_ALBUM_WEIGHT * avg_album_distance
+        + NAME_DISTANCE_ARTIST_WEIGHT * avg_artist_distance)
         / (NAME_DISTANCE_ALBUM_WEIGHT + NAME_DISTANCE_ARTIST_WEIGHT)
 }
 
@@ -299,12 +300,7 @@ pub(crate) fn verify_album_match(source_album: &str, matched_album: &str) -> (f6
     let normalize = |s: &str| -> String {
         let lower = s.to_lowercase();
         // Remove common suffixes in parentheses
-        let without_parens = lower
-            .split('(')
-            .next()
-            .unwrap_or(&lower)
-            .trim()
-            .to_string();
+        let without_parens = lower.split('(').next().unwrap_or(&lower).trim().to_string();
         without_parens
     };
 

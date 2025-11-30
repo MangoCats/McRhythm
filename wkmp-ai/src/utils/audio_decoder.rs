@@ -100,7 +100,12 @@ pub fn decode_audio_file(file_path: &Path) -> Result<DecodedAudio> {
 
     // Probe the media source
     let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
         .with_context(|| format!("Failed to probe audio file: {}", file_path.display()))?;
 
     let mut format = probed.format;
@@ -365,7 +370,10 @@ mod tests {
     fn test_decode_audio_file_not_found() {
         let result = decode_audio_file(Path::new("/nonexistent/file.mp3"));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Failed to open audio file"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Failed to open audio file"));
     }
 
     // NOTE: Real audio file tests would require test fixtures

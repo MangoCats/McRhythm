@@ -30,11 +30,11 @@
 //! - `constants`: MB_RATE_LIMIT_MS, MB_REQUEST_TIMEOUT_SECS, MB_RETRY_DELAYS_SECS
 
 use crate::constants::*;
+use crate::matching::edition::cmp_f64;
+use crate::matching::validation::{best_levenshtein_ratio, calculate_name_distance};
 use crate::musicbrainz::cache::*;
 use crate::types::*;
 use crate::utils::query_stats::QueryStats;
-use crate::matching::validation::{best_levenshtein_ratio, calculate_name_distance};
-use crate::matching::edition::cmp_f64;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -61,7 +61,7 @@ impl RateLimiter {
     pub(crate) fn new() -> Self {
         Self {
             last_request: Arc::new(tokio::sync::Mutex::new(
-                std::time::Instant::now() - Duration::from_millis(MB_RATE_LIMIT_MS)
+                std::time::Instant::now() - Duration::from_millis(MB_RATE_LIMIT_MS),
             )),
             query_counter: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
@@ -86,7 +86,10 @@ impl RateLimiter {
         // This ensures only one task can be checking/waiting/updating at a time.
         let mut last = self.last_request.lock().await;
 
-        let query_num = self.query_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let query_num = self
+            .query_counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1;
         let elapsed = last.elapsed();
         let elapsed_ms = elapsed.as_millis();
 
@@ -95,21 +98,31 @@ impl RateLimiter {
         if elapsed < Duration::from_millis(MB_RATE_LIMIT_MS) {
             let wait_time = Duration::from_millis(MB_RATE_LIMIT_MS) - elapsed;
             let wait_ms = wait_time.as_millis();
-            debug!("[RATE_LIMITER] Query #{}: elapsed={}ms < limit={}ms, WAITING {}ms",
-                   query_num, elapsed_ms, MB_RATE_LIMIT_MS, wait_ms);
+            debug!(
+                "[RATE_LIMITER] Query #{}: elapsed={}ms < limit={}ms, WAITING {}ms",
+                query_num, elapsed_ms, MB_RATE_LIMIT_MS, wait_ms
+            );
             if let Some(s) = stats {
                 s.record_rate_wait();
             }
             sleep(wait_time).await;
-            debug!("[RATE_LIMITER] Query #{}: wait complete, proceeding", query_num);
+            debug!(
+                "[RATE_LIMITER] Query #{}: wait complete, proceeding",
+                query_num
+            );
         } else {
-            debug!("[RATE_LIMITER] Query #{}: elapsed={}ms >= limit={}ms, NO WAIT",
-                   query_num, elapsed_ms, MB_RATE_LIMIT_MS);
+            debug!(
+                "[RATE_LIMITER] Query #{}: elapsed={}ms >= limit={}ms, NO WAIT",
+                query_num, elapsed_ms, MB_RATE_LIMIT_MS
+            );
         }
 
         let before_update = std::time::Instant::now();
         *last = before_update;
-        debug!("[RATE_LIMITER] Query #{}: timestamp updated, releasing lock", query_num);
+        debug!(
+            "[RATE_LIMITER] Query #{}: timestamp updated, releasing lock",
+            query_num
+        );
     }
 }
 
@@ -161,7 +174,13 @@ where
             if let Some(s) = stats {
                 s.record_retry();
             }
-            warn!("{}    Retrying after {} seconds (attempt {}/{})...", log_prefix, delay, attempt + 1, max_attempts);
+            warn!(
+                "{}    Retrying after {} seconds (attempt {}/{})...",
+                log_prefix,
+                delay,
+                attempt + 1,
+                max_attempts
+            );
             sleep(Duration::from_secs(delay)).await;
         }
 
@@ -183,7 +202,10 @@ where
                     if let Some(s) = stats {
                         s.record_failure();
                     }
-                    error!("{}    Network error: {} - giving up after {} attempts", log_prefix, e, max_attempts);
+                    error!(
+                        "{}    Network error: {} - giving up after {} attempts",
+                        log_prefix, e, max_attempts
+                    );
                     return Err(e);
                 }
             }
@@ -293,7 +315,9 @@ impl MBClient {
         album_idx: Option<usize>,
     ) -> Result<MBSearchResponse, Box<dyn std::error::Error>> {
         let cache_key = hash_query(query);
-        let prefix = album_idx.map(|idx| format!("[A{}] ", idx + 1)).unwrap_or_default();
+        let prefix = album_idx
+            .map(|idx| format!("[A{}] ", idx + 1))
+            .unwrap_or_default();
 
         // Try cache first (unless Disabled mode)
         match self.config.mode {
@@ -331,11 +355,7 @@ impl MBClient {
                         self.stats.record_search_miss();
 
                         if matches!(self.config.mode, CacheMode::ReadOnly) {
-                            return Err(format!(
-                                "Cache corruption in read-only mode: {}",
-                                e
-                            )
-                            .into());
+                            return Err(format!("Cache corruption in read-only mode: {}", e).into());
                         }
                     }
                 }
@@ -362,12 +382,9 @@ impl MBClient {
 
         // Store in cache if ReadWrite mode
         if matches!(self.config.mode, CacheMode::ReadWrite) {
-            if let Err(e) = store_search_cache(
-                &self.config.cache_dir,
-                &cache_key,
-                query,
-                &mb_response,
-            ) {
+            if let Err(e) =
+                store_search_cache(&self.config.cache_dir, &cache_key, query, &mb_response)
+            {
                 // REQ-CACHE-090: Log cache write failure but continue
                 eprintln!("{}WARNING: Cache write failure: {}", prefix, e);
                 println!("{}Continuing without caching this query", prefix);
@@ -405,7 +422,9 @@ impl MBClient {
         mbid: &str,
         album_idx: Option<usize>,
     ) -> Result<MBReleaseDetails, Box<dyn std::error::Error>> {
-        let prefix = album_idx.map(|idx| format!("[A{}] ", idx + 1)).unwrap_or_default();
+        let prefix = album_idx
+            .map(|idx| format!("[A{}] ", idx + 1))
+            .unwrap_or_default();
 
         // Try cache first (unless Disabled mode)
         match self.config.mode {
@@ -443,11 +462,7 @@ impl MBClient {
                         self.stats.record_release_miss();
 
                         if matches!(self.config.mode, CacheMode::ReadOnly) {
-                            return Err(format!(
-                                "Cache corruption in read-only mode: {}",
-                                e
-                            )
-                            .into());
+                            return Err(format!("Cache corruption in read-only mode: {}", e).into());
                         }
                     }
                 }
@@ -474,8 +489,7 @@ impl MBClient {
 
         // Store in cache if ReadWrite mode
         if matches!(self.config.mode, CacheMode::ReadWrite) {
-            if let Err(e) = store_release_cache(&self.config.cache_dir, mbid, &details)
-            {
+            if let Err(e) = store_release_cache(&self.config.cache_dir, mbid, &details) {
                 // REQ-CACHE-090: Log cache write failure but continue
                 eprintln!("{}WARNING: Cache write failure: {}", prefix, e);
                 println!("{}Continuing without caching this release", prefix);
@@ -528,7 +542,7 @@ fn split_camel_case(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
 
     for (i, &ch) in chars.iter().enumerate() {
-        if i > 0 && ch.is_uppercase() && chars[i-1].is_lowercase() {
+        if i > 0 && ch.is_uppercase() && chars[i - 1].is_lowercase() {
             result.push(' ');
         }
         result.push(ch);
@@ -589,35 +603,64 @@ fn generate_search_queries(artist: &str, album: &str) -> Vec<String> {
     let mut queries = Vec::new();
 
     // Strategy 1: Original query with type:album filter
-    queries.push(format!("type:album AND artist:{} AND release:{}", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{} AND release:{}",
+        artist, album
+    ));
 
     // Strategy 2: CamelCase split (most effective per test results)
     let album_spaced = split_camel_case(album);
     if album_spaced != album {
-        queries.push(format!("type:album AND artist:{} AND release:\"{}\"", artist, album_spaced));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:\"{}\"",
+            artist, album_spaced
+        ));
     }
 
     // Strategy 3: Fuzzy matching (catches punctuation differences like "Funk49" -> "Funk #49")
-    queries.push(format!("type:album AND artist:{}~ AND release:{}~", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{}~ AND release:{}~",
+        artist, album
+    ));
 
     // Strategy 4: Targeted wildcard for common misspellings (e.g., "Lizzie" -> "Lizz*")
     if let Some(artist_wildcard) = apply_wildcard_fixes(artist) {
         let album_variant = apply_wildcard_fixes(album).unwrap_or_else(|| album.to_string());
-        queries.push(format!("type:album AND artist:{} AND release:{}", artist_wildcard, album_variant));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_wildcard, album_variant
+        ));
     } else if let Some(album_wildcard) = apply_wildcard_fixes(album) {
-        queries.push(format!("type:album AND artist:{} AND release:{}", artist, album_wildcard));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist, album_wildcard
+        ));
     }
 
     // Strategy 5: Aggressive fuzzy search (~2 edits - more tolerant, catches more misspellings)
-    queries.push(format!("type:album AND artist:{}~2 AND release:{}~2", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{}~2 AND release:{}~2",
+        artist, album
+    ));
 
     // Strategy 6: Per-token fuzzy matching (handles multi-word names better)
     let artist_tokens: Vec<&str> = artist.split_whitespace().collect();
     let album_tokens: Vec<&str> = album.split_whitespace().collect();
     if artist_tokens.len() > 1 || album_tokens.len() > 1 {
-        let artist_fuzzy = artist_tokens.iter().map(|t| format!("{}~", t)).collect::<Vec<_>>().join(" ");
-        let album_fuzzy = album_tokens.iter().map(|t| format!("{}~", t)).collect::<Vec<_>>().join(" ");
-        queries.push(format!("type:album AND artist:({}) AND release:({})", artist_fuzzy, album_fuzzy));
+        let artist_fuzzy = artist_tokens
+            .iter()
+            .map(|t| format!("{}~", t))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let album_fuzzy = album_tokens
+            .iter()
+            .map(|t| format!("{}~", t))
+            .collect::<Vec<_>>()
+            .join(" ");
+        queries.push(format!(
+            "type:album AND artist:({}) AND release:({})",
+            artist_fuzzy, album_fuzzy
+        ));
     }
 
     // Strategy 7: Album-only fallback (last resort when artist name is problematic)
@@ -680,13 +723,22 @@ async fn search_all_mb_strategies(
 
             for (i, query) in search_queries.iter().enumerate() {
                 if all_releases.len() >= MB_MAX_RELEASES {
-                    info!("[A{}]   Reached {} release limit", album_idx + 1, MB_MAX_RELEASES);
+                    info!(
+                        "[A{}]   Reached {} release limit",
+                        album_idx + 1,
+                        MB_MAX_RELEASES
+                    );
                     break;
                 }
 
                 if let Some(s) = stats {
-                    s.set_activity(&format!("searching: {} / {} (strategy {}/{})",
-                        artist, album, i + 1, search_queries.len()));
+                    s.set_activity(&format!(
+                        "searching: {} / {} (strategy {}/{})",
+                        artist,
+                        album,
+                        i + 1,
+                        search_queries.len()
+                    ));
                 }
 
                 debug!("{} MB query: {}", log_prefix, query);
@@ -698,13 +750,20 @@ async fn search_all_mb_strategies(
                         .search_releases(query, Some(album_idx))
                         .await
                         .map_err(|e| format!("error querying MusicBrainz: {}", e))
-                }).await;
+                })
+                .await;
 
                 let response = match response {
                     Ok(r) => r,
                     Err(e) => {
-                        info!("  Strategy {}/{} for '{}' / '{}' FAILED: {}",
-                                 i + 1, search_queries.len(), artist, album, e);
+                        info!(
+                            "  Strategy {}/{} for '{}' / '{}' FAILED: {}",
+                            i + 1,
+                            search_queries.len(),
+                            artist,
+                            album,
+                            e
+                        );
                         continue;
                     }
                 };
@@ -760,9 +819,9 @@ fn calculate_ndr_and_filter<'a>(
 
     // Helper function to check if artist is "Various Artists"
     let is_various_artist = |artist: &str| -> bool {
-        artist.eq_ignore_ascii_case("Various") ||
-        artist.eq_ignore_ascii_case("Various Artists") ||
-        artist.starts_with("Various")
+        artist.eq_ignore_ascii_case("Various")
+            || artist.eq_ignore_ascii_case("Various Artists")
+            || artist.starts_with("Various")
     };
 
     // === Run 25c: Stage 1 - Combination A Filter ===
@@ -770,7 +829,8 @@ fn calculate_ndr_and_filter<'a>(
     let ratio_filtered: Vec<&MBRelease> = releases
         .iter()
         .filter(|release| {
-            let artist = release.artist_credit
+            let artist = release
+                .artist_credit
                 .as_ref()
                 .and_then(|credits| credits.first())
                 .and_then(|credit| credit.artist.as_ref())
@@ -804,13 +864,15 @@ fn calculate_ndr_and_filter<'a>(
     let mut releases_with_ndr: Vec<(&MBRelease, f64)> = ratio_filtered
         .into_iter()
         .map(|release| {
-            let artist = release.artist_credit
+            let artist = release
+                .artist_credit
                 .as_ref()
                 .and_then(|credits| credits.first())
                 .and_then(|credit| credit.artist.as_ref())
                 .map(|artist| artist.name.as_str())
                 .unwrap_or("Unknown Artist");
-            let score = calculate_name_distance(artist, &release.title, artist_variants, album_variants);
+            let score =
+                calculate_name_distance(artist, &release.title, artist_variants, album_variants);
             (release, score)
         })
         .collect();
@@ -829,8 +891,13 @@ fn calculate_ndr_and_filter<'a>(
 
     let ndr_filtered_count = pre_rank_filter_count - filtered_releases.len();
     if ndr_filtered_count > 0 {
-        info!("[A{}]   Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
-                 album_idx + 1, ndr_filtered_count, MAX_NAME_DISTANCE_RANK, filtered_releases.len());
+        info!(
+            "[A{}]   Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
+            album_idx + 1,
+            ndr_filtered_count,
+            MAX_NAME_DISTANCE_RANK,
+            filtered_releases.len()
+        );
     }
 
     filtered_releases
@@ -850,9 +917,20 @@ async fn fetch_release_track_details(
     score: f64,
     album_idx: usize,
     stats: Option<&QueryStats>,
-) -> Option<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> {
+) -> Option<(
+    Vec<u32>,
+    Vec<String>,
+    EditionMBID,
+    String,
+    String,
+    usize,
+    f64,
+)> {
     if let Some(s) = stats {
-        s.set_activity(&format!("fetching details: {} (rank {})", release.title, rank));
+        s.set_activity(&format!(
+            "fetching details: {} (rank {})",
+            release.title, rank
+        ));
     }
 
     let log_prefix = format!("[A{}]", album_idx + 1);
@@ -865,7 +943,8 @@ async fn fetch_release_track_details(
             .get_release_details(&release.id, Some(album_idx))
             .await
             .map_err(|e| format!("error fetching details: {}", e))
-    }).await;
+    })
+    .await;
 
     let details = match details {
         Ok(d) => d,
@@ -880,8 +959,9 @@ async fn fetch_release_track_details(
         for track in &medium.tracks {
             if let Some(length_ms) = track.length {
                 durations.push(length_ms / 1000); // Convert to seconds
-                // Extract recording MBID (or empty string if not available)
-                let recording_mbid = track.recording
+                                                  // Extract recording MBID (or empty string if not available)
+                let recording_mbid = track
+                    .recording
                     .as_ref()
                     .map(|r| r.id.clone())
                     .unwrap_or_default();
@@ -900,7 +980,8 @@ async fn fetch_release_track_details(
     }
 
     // Extract artist name
-    let artist = release.artist_credit
+    let artist = release
+        .artist_credit
         .as_ref()
         .and_then(|credits| credits.first())
         .and_then(|credit| credit.artist.as_ref())
@@ -934,30 +1015,64 @@ async fn fetch_release_track_details(
 /// Vec of (durations, recording_mbids, mbid_info, artist, album, name_distance_rank, name_distance_score)
 pub(crate) async fn comprehensive_musicbrainz_search(
     mb_client: &MBClient,
-    artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
-    album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
-    album_idx: usize,            // Album index for log messages
-    stats: Option<&QueryStats>,  // Optional stats for heartbeat logging
-) -> Result<Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
-    info!("[A{}]   Fetching MusicBrainz data (comprehensive search)...", album_idx + 1);
+    artist_variants: &[String], // e.g., ["Jessita Reyes", "Various"]
+    album_variants: &[String], // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
+    album_idx: usize,          // Album index for log messages
+    stats: Option<&QueryStats>, // Optional stats for heartbeat logging
+) -> Result<
+    Vec<(
+        Vec<u32>,
+        Vec<String>,
+        EditionMBID,
+        String,
+        String,
+        usize,
+        f64,
+    )>,
+    Box<dyn std::error::Error>,
+> {
+    info!(
+        "[A{}]   Fetching MusicBrainz data (comprehensive search)...",
+        album_idx + 1
+    );
 
     // Step 1: Search using all artist/album/strategy combinations
     // REQ-CACHE-120: Use MBClient for transparent caching
-    let all_releases = search_all_mb_strategies(mb_client, artist_variants, album_variants, album_idx, stats).await;
-    info!("[A{}]   Found {} unique releases across all search strategies", album_idx + 1, all_releases.len());
+    let all_releases =
+        search_all_mb_strategies(mb_client, artist_variants, album_variants, album_idx, stats)
+            .await;
+    info!(
+        "[A{}]   Found {} unique releases across all search strategies",
+        album_idx + 1,
+        all_releases.len()
+    );
 
     // Step 2: Calculate NDR and filter releases (Run 15 optimization)
-    let filtered_releases = calculate_ndr_and_filter(&all_releases, artist_variants, album_variants, album_idx);
+    let filtered_releases =
+        calculate_ndr_and_filter(&all_releases, artist_variants, album_variants, album_idx);
 
     if let Some(s) = stats {
-        s.set_activity(&format!("fetching track details for {} releases", filtered_releases.len()));
+        s.set_activity(&format!(
+            "fetching track details for {} releases",
+            filtered_releases.len()
+        ));
     }
 
     // Step 3: Fetch track details for filtered releases
     // REQ-CACHE-120: Use MBClient for transparent caching
-    let mut results: Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> = Vec::new();
+    let mut results: Vec<(
+        Vec<u32>,
+        Vec<String>,
+        EditionMBID,
+        String,
+        String,
+        usize,
+        f64,
+    )> = Vec::new();
     for (release, rank, score) in filtered_releases {
-        if let Some(result) = fetch_release_track_details(mb_client, release, rank, score, album_idx, stats).await {
+        if let Some(result) =
+            fetch_release_track_details(mb_client, release, rank, score, album_idx, stats).await
+        {
             results.push(result);
         }
     }

@@ -40,7 +40,7 @@ async fn create_test_app() -> (axum::Router, sqlx::SqlitePool) {
             started_at TEXT NOT NULL,
             ended_at TEXT
         );
-        "#
+        "#,
     )
     .execute(&pool)
     .await
@@ -79,7 +79,9 @@ fn create_test_audio_files() -> tempfile::TempDir {
     // Write 1 second of audio (440Hz sine wave)
     for t in 0..44100 {
         let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin();
-        writer.write_sample((sample * i16::MAX as f32) as i16).expect("Failed to write sample");
+        writer
+            .write_sample((sample * i16::MAX as f32) as i16)
+            .expect("Failed to write sample");
     }
     writer.finalize().expect("Failed to finalize WAV file");
 
@@ -371,7 +373,10 @@ async fn test_file_classification_no_session() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["error"]["message"].as_str().unwrap().contains("No import session found"));
+    assert!(json["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("No import session found"));
 }
 
 /// **[TC-CLASSIFY-API-002]** Test file classification endpoint returns 409 during SCANNING phase
@@ -391,7 +396,7 @@ async fn test_file_classification_during_scanning() {
             progress_current, progress_total, progress_percentage,
             current_operation, errors, started_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#
+        "#,
     )
     .bind(&session_id)
     .bind("\"SCANNING\"")
@@ -422,7 +427,10 @@ async fn test_file_classification_during_scanning() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["error"]["message"].as_str().unwrap().contains("SCANNING phase"));
+    assert!(json["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("SCANNING phase"));
 }
 
 /// **[TC-CLASSIFY-API-003]** Test file classification endpoint with invalid category parameter
@@ -445,7 +453,7 @@ async fn test_file_classification_invalid_category() {
             progress_current, progress_total, progress_percentage,
             current_operation, errors, started_at, ended_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#
+        "#,
     )
     .bind(&session_id)
     .bind("\"COMPLETED\"")
@@ -477,7 +485,10 @@ async fn test_file_classification_invalid_category() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["error"]["message"].as_str().unwrap().contains("Invalid category"));
+    assert!(json["error"]["message"]
+        .as_str()
+        .unwrap()
+        .contains("Invalid category"));
 }
 
 /// **[TC-CLASSIFY-API-004]** Test file classification endpoint pagination
@@ -500,7 +511,7 @@ async fn test_file_classification_pagination() {
             progress_current, progress_total, progress_percentage,
             current_operation, errors, started_at, ended_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        "#
+        "#,
     )
     .bind(&session_id)
     .bind("\"COMPLETED\"")
@@ -532,4 +543,3 @@ async fn test_file_classification_pagination() {
     // (runtime-only data, not persisted to DB)
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
-

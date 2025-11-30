@@ -22,13 +22,15 @@ use wkmp_common::events::EventBus;
 #[tokio::test]
 async fn test_set_api_key_success() {
     // tc_i_ui_001: Valid key updates database and TOML
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     let event_bus = EventBus::new(100);
     let state = AppState::new(pool.clone(), event_bus, 16);
@@ -72,13 +74,15 @@ async fn test_set_api_key_success() {
 #[tokio::test]
 async fn test_set_api_key_rejects_empty_key() {
     // tc_i_ui_002: Empty key rejected with 400
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     let event_bus = EventBus::new(100);
     let state = AppState::new(pool.clone(), event_bus, 16);
@@ -112,13 +116,15 @@ async fn test_set_api_key_rejects_empty_key() {
 #[tokio::test]
 async fn test_set_api_key_rejects_whitespace_key() {
     // tc_i_ui_003: Whitespace-only key rejected with 400
-    let pool = SqlitePoolOptions::new()
-        .connect(":memory:")
+    let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
+    // Initialize test database schema
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
         .await
         .unwrap();
-    // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     let event_bus = EventBus::new(100);
     let state = AppState::new(pool.clone(), event_bus, 16);

@@ -167,7 +167,10 @@ impl EssentiaClient {
     /// Analyze audio file and extract musical flavor
     ///
     /// **[AIA-COMP-010]** Local Essentia analysis as fallback
-    pub async fn analyze_file(&self, audio_path: &Path) -> Result<MusicalFlavorVector, EssentiaError> {
+    pub async fn analyze_file(
+        &self,
+        audio_path: &Path,
+    ) -> Result<MusicalFlavorVector, EssentiaError> {
         // Verify file exists
         if !audio_path.exists() {
             return Err(EssentiaError::FileNotFound(
@@ -176,7 +179,8 @@ impl EssentiaClient {
         }
 
         // Create temporary file path for JSON output
-        let temp_output = std::env::temp_dir().join(format!("essentia_{}.json", uuid::Uuid::new_v4()));
+        let temp_output =
+            std::env::temp_dir().join(format!("essentia_{}.json", uuid::Uuid::new_v4()));
 
         tracing::debug!(
             audio_file = %audio_path.display(),
@@ -191,12 +195,7 @@ impl EssentiaClient {
             let audio = audio_path.to_path_buf();
             let output_file = temp_output.clone();
 
-            move || {
-                Command::new(&binary)
-                    .arg(&audio)
-                    .arg(&output_file)
-                    .output()
-            }
+            move || Command::new(&binary).arg(&audio).arg(&output_file).output()
         })
         .await
         .map_err(|e| EssentiaError::ExecutionError(format!("Task join error: {}", e)))?

@@ -19,8 +19,8 @@
 
 pub mod boundary_detector;
 pub mod event_bridge;
-pub mod pipeline;  // PLAN024: 3-tier pipeline orchestrator
-pub mod storage;   // PLAN024: Database storage for processed passages
+pub mod pipeline; // PLAN024: 3-tier pipeline orchestrator
+pub mod storage; // PLAN024: Database storage for processed passages
 
 use crate::types::{ExtractionResult, ValidationResult};
 

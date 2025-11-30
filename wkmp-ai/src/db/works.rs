@@ -45,7 +45,7 @@ impl Work {
             iswc: None,
             work_type: None,
             base_probability: 1.0,
-            min_cooldown: 259200,   // 3 days in seconds
+            min_cooldown: 259200,     // 3 days in seconds
             ramping_cooldown: 604800, // 7 days in seconds
             last_played_at: None,
         }
@@ -173,8 +173,13 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_works_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_works_table(&pool)
+            .await
+            .unwrap();
 
         let work = Work::new("work-mbid-999".to_string(), "Test Composition".to_string());
 

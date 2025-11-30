@@ -29,8 +29,8 @@
 //! - `edition`: cmp_f64() for score comparison
 
 use crate::constants::*;
-use crate::types::{Edition, EditionMBID};
 use crate::matching::edition::cmp_f64;
+use crate::types::{Edition, EditionMBID};
 
 // =============================================================================
 // MBID Priority Scoring
@@ -143,7 +143,8 @@ pub(crate) fn select_best_mbid(edition: &Edition) -> String {
     }
 
     // Score each MBID using the established criteria
-    let mut scored: Vec<(&EditionMBID, f64)> = edition.mbids
+    let mut scored: Vec<(&EditionMBID, f64)> = edition
+        .mbids
         .iter()
         .map(|mbid_info| {
             let score = calculate_mbid_priority_score(

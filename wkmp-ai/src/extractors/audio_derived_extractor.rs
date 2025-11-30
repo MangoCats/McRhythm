@@ -354,7 +354,9 @@ impl SourceExtractor for AudioDerivedExtractor {
             Self::extract_features_sync(&samples_clone, sample_rate, num_channels, base_confidence)
         })
         .await
-        .map_err(|e| ExtractionError::Internal(format!("Feature extraction task panicked: {}", e)))??;
+        .map_err(|e| {
+            ExtractionError::Internal(format!("Feature extraction task panicked: {}", e))
+        })??;
 
         debug!(
             passage_id = %ctx.passage_id,
@@ -414,7 +416,10 @@ mod tests {
             .map(|i| (2.0 * std::f32::consts::PI * 440.0 * i as f32 / 44100.0).sin() * 0.5)
             .collect();
         let energy = AudioDerivedExtractor::compute_rms_energy(&samples);
-        assert!(energy > 0.5 && energy < 0.9, "Sine wave should have moderate energy");
+        assert!(
+            energy > 0.5 && energy < 0.9,
+            "Sine wave should have moderate energy"
+        );
     }
 
     #[test]
@@ -476,7 +481,10 @@ mod tests {
         };
 
         let result = extractor.extract(&ctx).await;
-        assert!(result.is_err(), "Should fail when no audio samples provided");
+        assert!(
+            result.is_err(),
+            "Should fail when no audio samples provided"
+        );
     }
 
     #[tokio::test]

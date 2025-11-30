@@ -5,11 +5,11 @@
 //! This module contains all shared data structures extracted from album_matcher_28.rs,
 //! organized by functional domain.
 
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use serde::{Deserialize, Serialize};
 
 // =============================================================================
 // Cache Types (PLAN026 - MusicBrainz Caching)
@@ -701,7 +701,7 @@ impl std::fmt::Display for SingleTrackConfidence {
 pub(crate) struct SingleTrackAnalysis {
     // Layer 1: Filename pattern
     pub(crate) filename_score: f64,
-    pub(crate) filename_match: Option<String>,  // The matched pattern, if any
+    pub(crate) filename_match: Option<String>, // The matched pattern, if any
 
     // Layer 2: Directory file count
     pub(crate) dir_count_score: f64,
@@ -709,14 +709,14 @@ pub(crate) struct SingleTrackAnalysis {
 
     // Layer 3: ID3 track tags
     pub(crate) id3_track_score: f64,
-    pub(crate) id3_track_info: Option<String>,  // e.g., "4/12" or "4/?"
+    pub(crate) id3_track_info: Option<String>, // e.g., "4/12" or "4/?"
 
     // Layer 4: Duration
     pub(crate) duration_score: f64,
     pub(crate) duration_mins: Option<f64>,
 
     // Layer 5: Silence gaps (post-decode only)
-    pub(crate) silence_gap_score: Option<f64>,  // None until post-decode
+    pub(crate) silence_gap_score: Option<f64>, // None until post-decode
     pub(crate) silence_gap_count: Option<usize>,
 
     // Aggregated results
@@ -771,13 +771,12 @@ impl SingleTrackAnalysis {
     /// Called after each layer updates to recalculate aggregates.
     /// Pre-decode includes layers 1-4, final includes all 5 layers.
     pub(crate) fn update_aggregates(&mut self) {
-        self.pre_decode_score = self.filename_score
-            + self.dir_count_score
-            + self.id3_track_score
-            + self.duration_score;
+        self.pre_decode_score =
+            self.filename_score + self.dir_count_score + self.id3_track_score + self.duration_score;
 
         self.final_score = self.pre_decode_score + self.silence_gap_score.unwrap_or(0.0);
         self.confidence = Self::compute_confidence(self.final_score);
-        self.is_likely_single_track = self.final_score >= crate::constants::SINGLE_TRACK_SCORE_THRESHOLD;
+        self.is_likely_single_track =
+            self.final_score >= crate::constants::SINGLE_TRACK_SCORE_THRESHOLD;
     }
 }

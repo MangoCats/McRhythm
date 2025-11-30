@@ -1,8 +1,8 @@
+use rayon::prelude::*;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use wkmp_ai::services::fingerprinter::Fingerprinter;
-use rayon::prelude::*;
 
 /// Test that parallel fingerprinting is thread-safe
 ///
@@ -53,7 +53,11 @@ fn test_parallel_fingerprinting_thread_safety() {
     println!("  Total:   {}", test_files.len());
 
     // Verify no crashes occurred (primary thread safety test)
-    assert_eq!(results.len(), test_files.len(), "All files should be processed");
+    assert_eq!(
+        results.len(),
+        test_files.len(),
+        "All files should be processed"
+    );
 
     // Thread safety is verified by no crashes occurring during parallel execution
     // Success count depends on whether test fixtures meet minimum duration requirement (10s)
@@ -91,7 +95,11 @@ fn test_parallel_fingerprinting_consistency() {
         .collect();
 
     // Compare results
-    for (idx, (seq, par)) in sequential_results.iter().zip(parallel_results.iter()).enumerate() {
+    for (idx, (seq, par)) in sequential_results
+        .iter()
+        .zip(parallel_results.iter())
+        .enumerate()
+    {
         match (seq, par) {
             (Some(seq_fp), Some(par_fp)) => {
                 assert_eq!(

@@ -17,7 +17,10 @@ impl WorkflowOrchestrator {
     /// **DEPRECATED:** Use `phase_processing_per_file()` instead
     ///
     /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
-    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use phase_processing_per_file() with per-file pipeline"
+    )]
     pub(super) async fn phase_analyzing(
         &self,
         mut session: ImportSession,
@@ -58,15 +61,21 @@ impl WorkflowOrchestrator {
                 let end_sec = wkmp_common::timing::ticks_to_seconds(passage.end_time_ticks);
 
                 // Analyze amplitude profile (disable yielding for old PLAN025 pipeline)
-                match self.amplitude_analyzer.analyze_file(&file_path, start_sec, end_sec, 0).await {
+                match self
+                    .amplitude_analyzer
+                    .analyze_file(&file_path, start_sec, end_sec, 0)
+                    .await
+                {
                     Ok(analysis) => {
                         // Calculate lead-in and lead-out start times relative to passage start
                         let lead_in_start_sec = start_sec + analysis.lead_in_duration;
                         let lead_out_start_sec = end_sec - analysis.lead_out_duration;
 
                         // Convert to ticks
-                        let lead_in_start_ticks = Some(wkmp_common::timing::seconds_to_ticks(lead_in_start_sec));
-                        let lead_out_start_ticks = Some(wkmp_common::timing::seconds_to_ticks(lead_out_start_sec));
+                        let lead_in_start_ticks =
+                            Some(wkmp_common::timing::seconds_to_ticks(lead_in_start_sec));
+                        let lead_out_start_ticks =
+                            Some(wkmp_common::timing::seconds_to_ticks(lead_out_start_sec));
 
                         // Update passage timing in database
                         crate::db::passages::update_passage_timing(
@@ -74,7 +83,8 @@ impl WorkflowOrchestrator {
                             passage.guid,
                             lead_in_start_ticks,
                             lead_out_start_ticks,
-                        ).await?;
+                        )
+                        .await?;
 
                         tracing::debug!(
                             passage_id = %passage.guid,
@@ -102,14 +112,22 @@ impl WorkflowOrchestrator {
             session.update_progress(
                 analyzed_count,
                 files.len(),
-                format!("Analyzing amplitude profile for file {} of {}", analyzed_count, files.len()),
+                format!(
+                    "Analyzing amplitude profile for file {} of {}",
+                    analyzed_count,
+                    files.len()
+                ),
             );
             crate::db::sessions::save_session(&self.db, &session).await?;
             self.broadcast_progress(&session, start_time);
         }
 
         // Final progress update
-        session.update_progress(analyzed_count, files.len(), "Amplitude analysis completed".to_string());
+        session.update_progress(
+            analyzed_count,
+            files.len(),
+            "Amplitude analysis completed".to_string(),
+        );
         crate::db::sessions::save_session(&self.db, &session).await?;
 
         Ok(session)

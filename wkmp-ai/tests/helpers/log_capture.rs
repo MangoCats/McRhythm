@@ -41,9 +41,7 @@ impl LogCapture {
 
     /// Check if any log message matches pattern
     pub fn contains(&self, pattern: &str) -> bool {
-        self.records()
-            .iter()
-            .any(|r| r.message.contains(pattern))
+        self.records().iter().any(|r| r.message.contains(pattern))
     }
 
     /// Count log messages matching pattern

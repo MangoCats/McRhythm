@@ -407,7 +407,10 @@ pub async fn segment_editor_page() -> impl IntoResponse {
     </div>
 </body>
 </html>
-        "#, version, &git_hash[..8], build_profile, build_timestamp
+        "#,
+        version,
+        &git_hash[..8],
+        build_profile,
+        build_timestamp
     ))
 }
-

@@ -131,7 +131,7 @@ impl TriagePath {
     /// Appropriate triage path based on duration thresholds
     pub fn from_duration(duration_seconds: f64) -> Self {
         const SINGLE_THRESHOLD_SECS: f64 = 12.0 * 60.0; // 12 minutes
-        const ALBUM_THRESHOLD_SECS: f64 = 25.0 * 60.0;  // 25 minutes
+        const ALBUM_THRESHOLD_SECS: f64 = 25.0 * 60.0; // 25 minutes
 
         if duration_seconds < SINGLE_THRESHOLD_SECS {
             TriagePath::SingleSong
@@ -308,7 +308,8 @@ impl ContentTypeClassifier {
         Self {
             acoustid_client,
             fingerprinter: super::fingerprinter::Fingerprinter::new(),
-            album_matcher: crate::matching::AlbumMatcher::new(),
+            album_matcher: crate::matching::AlbumMatcher::new()
+                .expect("Failed to create AlbumMatcher"),
         }
     }
 
@@ -352,9 +353,9 @@ impl ContentTypeClassifier {
             .iter()
             .filter(|r| r.score >= HIGH_CONFIDENCE_THRESHOLD)
             .filter_map(|r| {
-                r.recordings.as_ref().and_then(|recs| {
-                    recs.first().map(|rec| (r.score, rec.id.clone()))
-                })
+                r.recordings
+                    .as_ref()
+                    .and_then(|recs| recs.first().map(|rec| (r.score, rec.id.clone())))
             })
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -406,9 +407,7 @@ impl ContentTypeClassifier {
                         recording_mbid: None,
                         match_percentage: Some(result.match_percentage),
                         artist_verified: result.artist_verified,
-                        matching_stage: result
-                            .matching_stage
-                            .map(|s| s.as_str().to_string()),
+                        matching_stage: result.matching_stage.map(|s| s.as_str().to_string()),
                     }
                 } else if result.is_partial_album() {
                     ClassificationResult {
@@ -419,9 +418,7 @@ impl ContentTypeClassifier {
                         recording_mbid: None,
                         match_percentage: Some(result.match_percentage),
                         artist_verified: result.artist_verified,
-                        matching_stage: result
-                            .matching_stage
-                            .map(|s| s.as_str().to_string()),
+                        matching_stage: result.matching_stage.map(|s| s.as_str().to_string()),
                     }
                 } else {
                     // No album match found
@@ -445,14 +442,20 @@ impl ContentTypeClassifier {
         match triage {
             TriagePath::SingleSong => {
                 // Try single-song path only
-                match self.classify_single_song(audio_path, duration_seconds).await {
+                match self
+                    .classify_single_song(audio_path, duration_seconds)
+                    .await
+                {
                     Ok(result) => result,
                     Err(_) => ClassificationResult::not_in_musicbrainz(),
                 }
             }
             TriagePath::DualPath => {
                 // Try single-song first, fall through to album if no match
-                match self.classify_single_song(audio_path, duration_seconds).await {
+                match self
+                    .classify_single_song(audio_path, duration_seconds)
+                    .await
+                {
                     Ok(result) => result,
                     Err(_) => {
                         // Single-song failed, try album path
@@ -484,21 +487,29 @@ impl ContentTypeClassifier {
 
         match triage {
             TriagePath::SingleSong => {
-                match self.classify_single_song(audio_path, duration_seconds).await {
+                match self
+                    .classify_single_song(audio_path, duration_seconds)
+                    .await
+                {
                     Ok(result) => result,
                     Err(_) => ClassificationResult::not_in_musicbrainz(),
                 }
             }
             TriagePath::DualPath => {
-                match self.classify_single_song(audio_path, duration_seconds).await {
+                match self
+                    .classify_single_song(audio_path, duration_seconds)
+                    .await
+                {
                     Ok(result) => result,
                     Err(_) => {
-                        self.classify_album(audio_path, artist_hint, album_hint).await
+                        self.classify_album(audio_path, artist_hint, album_hint)
+                            .await
                     }
                 }
             }
             TriagePath::Album => {
-                self.classify_album(audio_path, artist_hint, album_hint).await
+                self.classify_album(audio_path, artist_hint, album_hint)
+                    .await
             }
         }
     }
@@ -533,18 +544,24 @@ mod tests {
         assert_eq!(TriagePath::from_duration(600.0), TriagePath::SingleSong); // 10 min
 
         // 12-25 minutes = dual path
-        assert_eq!(TriagePath::from_duration(720.0), TriagePath::DualPath);  // 12 min
+        assert_eq!(TriagePath::from_duration(720.0), TriagePath::DualPath); // 12 min
         assert_eq!(TriagePath::from_duration(1200.0), TriagePath::DualPath); // 20 min
 
         // > 25 minutes = album
-        assert_eq!(TriagePath::from_duration(1501.0), TriagePath::Album);    // 25+ min
-        assert_eq!(TriagePath::from_duration(3600.0), TriagePath::Album);    // 60 min
+        assert_eq!(TriagePath::from_duration(1501.0), TriagePath::Album); // 25+ min
+        assert_eq!(TriagePath::from_duration(3600.0), TriagePath::Album); // 60 min
     }
 
     #[test]
     fn test_match_confidence_from_value() {
-        assert_eq!(MatchConfidence::from_value(0.98), MatchConfidence::Excellent);
-        assert_eq!(MatchConfidence::from_value(0.95), MatchConfidence::Excellent);
+        assert_eq!(
+            MatchConfidence::from_value(0.98),
+            MatchConfidence::Excellent
+        );
+        assert_eq!(
+            MatchConfidence::from_value(0.95),
+            MatchConfidence::Excellent
+        );
         assert_eq!(MatchConfidence::from_value(0.80), MatchConfidence::Good);
         assert_eq!(MatchConfidence::from_value(0.60), MatchConfidence::Fair);
         assert_eq!(MatchConfidence::from_value(0.40), MatchConfidence::Poor);

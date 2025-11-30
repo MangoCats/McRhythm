@@ -20,8 +20,7 @@
 /// - -60dB: 5.2%
 /// - Others: rare
 pub const THRESHOLD_VALUES: [f64; 12] = [
-    -50.0, -58.0, -60.0, -62.0, -56.0, -52.0,
-    -54.0, -48.0, -40.0, -38.0, -34.0, -30.0,
+    -50.0, -58.0, -60.0, -62.0, -56.0, -52.0, -54.0, -48.0, -40.0, -38.0, -34.0, -30.0,
 ];
 
 /// Stage 2 Parameter Grid: Minimum silence duration values (seconds)
@@ -32,8 +31,7 @@ pub const THRESHOLD_VALUES: [f64; 12] = [
 /// - 0.5s: 8.8%
 /// - Others: less common
 pub const MIN_DURATION_VALUES: [f64; 15] = [
-    3.0, 2.0, 0.5, 1.5, 0.3, 0.8, 0.1, 4.0,
-    0.2, 2.5, 1.0, 0.4, 5.0, 3.5, 0.05,
+    3.0, 2.0, 0.5, 1.5, 0.3, 0.8, 0.1, 4.0, 0.2, 2.5, 1.0, 0.4, 5.0, 3.5, 0.05,
 ];
 
 /// Default silence detection threshold (dB) - most common parameter
@@ -49,8 +47,7 @@ pub const DEFAULT_THRESHOLD_IDX: usize = 0;
 pub const DEFAULT_MIN_DURATION_IDX: usize = 0;
 
 /// Total parameter combinations (12 × 15 = 180)
-pub const TOTAL_PARAM_COMBINATIONS: usize =
-    THRESHOLD_VALUES.len() * MIN_DURATION_VALUES.len();
+pub const TOTAL_PARAM_COMBINATIONS: usize = THRESHOLD_VALUES.len() * MIN_DURATION_VALUES.len();
 
 // =============================================================================
 // Silence Detection Constants
@@ -243,11 +240,7 @@ mod tests {
     #[test]
     fn test_min_duration_values_positive() {
         for duration in MIN_DURATION_VALUES {
-            assert!(
-                duration > 0.0,
-                "Duration {} must be positive",
-                duration
-            );
+            assert!(duration > 0.0, "Duration {} must be positive", duration);
         }
     }
 

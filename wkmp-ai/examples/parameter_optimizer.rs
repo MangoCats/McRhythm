@@ -1,3 +1,5 @@
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 /// Parameter Optimizer for Album Matching
 ///
 /// For each album in training_set.txt:
@@ -5,7 +7,6 @@
 /// 2. Search MusicBrainz for ground truth track durations
 /// 3. Run parameter sweep to find optimal silence detection parameters
 /// 4. Output results showing which parameters work best for each album
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,9 +16,7 @@ use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
-use parking_lot::Mutex;
 
 // MusicBrainz API structures
 #[derive(Debug, Deserialize)]
@@ -68,7 +67,9 @@ struct RateLimiter {
 impl RateLimiter {
     fn new() -> Self {
         Self {
-            last_request: Arc::new(Mutex::new(std::time::Instant::now() - Duration::from_secs(2))),
+            last_request: Arc::new(Mutex::new(
+                std::time::Instant::now() - Duration::from_secs(2),
+            )),
         }
     }
 
@@ -115,7 +116,8 @@ fn decode_mp3(path: &Path) -> Result<(Vec<f32>, u32), Box<dyn std::error::Error>
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
 
-    let probed = symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
+    let probed =
+        symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
     let mut format = probed.format;
 
     let track = format.default_track().ok_or("No default track")?;
@@ -139,60 +141,58 @@ fn decode_mp3(path: &Path) -> Result<(Vec<f32>, u32), Box<dyn std::error::Error>
         }
 
         match decoder.decode(&packet) {
-            Ok(decoded) => {
-                match decoded {
-                    AudioBufferRef::F32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample);
-                        }
-                    }
-                    AudioBufferRef::U8(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 128.0) / 128.0);
-                        }
-                    }
-                    AudioBufferRef::U16(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 32768.0) / 32768.0);
-                        }
-                    }
-                    AudioBufferRef::U24(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample.inner() as f32 - 8388608.0) / 8388608.0);
-                        }
-                    }
-                    AudioBufferRef::U32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 2147483648.0) / 2147483648.0);
-                        }
-                    }
-                    AudioBufferRef::S8(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 128.0);
-                        }
-                    }
-                    AudioBufferRef::S16(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 32768.0);
-                        }
-                    }
-                    AudioBufferRef::S24(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample.inner() as f32 / 8388608.0);
-                        }
-                    }
-                    AudioBufferRef::S32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 2147483648.0);
-                        }
-                    }
-                    AudioBufferRef::F64(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32);
-                        }
+            Ok(decoded) => match decoded {
+                AudioBufferRef::F32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample);
                     }
                 }
-            }
+                AudioBufferRef::U8(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 128.0) / 128.0);
+                    }
+                }
+                AudioBufferRef::U16(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 32768.0) / 32768.0);
+                    }
+                }
+                AudioBufferRef::U24(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample.inner() as f32 - 8388608.0) / 8388608.0);
+                    }
+                }
+                AudioBufferRef::U32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 2147483648.0) / 2147483648.0);
+                    }
+                }
+                AudioBufferRef::S8(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 128.0);
+                    }
+                }
+                AudioBufferRef::S16(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 32768.0);
+                    }
+                }
+                AudioBufferRef::S24(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample.inner() as f32 / 8388608.0);
+                    }
+                }
+                AudioBufferRef::S32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 2147483648.0);
+                    }
+                }
+                AudioBufferRef::F64(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32);
+                    }
+                }
+            },
             Err(_e) => {
                 continue;
             }
@@ -419,13 +419,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("=== Album Parameter Optimization ===");
-    println!("Processing {} albums from training set\n", training_files.len());
+    println!(
+        "Processing {} albums from training set\n",
+        training_files.len()
+    );
 
     // Parameter ranges to test
     let thresholds = vec![-50.0, -52.0, -55.0, -57.0, -60.0];
     let min_durations = vec![0.3, 0.4, 0.5, 0.8, 1.0, 1.5, 2.0];
 
-    println!("Testing {} parameter combinations per album", thresholds.len() * min_durations.len());
+    println!(
+        "Testing {} parameter combinations per album",
+        thresholds.len() * min_durations.len()
+    );
     println!("  Thresholds: {:?} dB", thresholds);
     println!("  Min durations: {:?} seconds\n", min_durations);
 
@@ -447,23 +453,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Get expected durations from MusicBrainz
         print!("  Fetching MusicBrainz data... ");
-        let (expected_durations, mbid) = match get_expected_durations(&artist, &album, &rate_limiter).await {
-            Ok(data) => {
-                println!("Found {} tracks", data.0.len());
-                data
-            }
-            Err(e) => {
-                println!("FAILED: {}\n", e);
-                continue;
-            }
-        };
+        let (expected_durations, mbid) =
+            match get_expected_durations(&artist, &album, &rate_limiter).await {
+                Ok(data) => {
+                    println!("Found {} tracks", data.0.len());
+                    data
+                }
+                Err(e) => {
+                    println!("FAILED: {}\n", e);
+                    continue;
+                }
+            };
 
         // Decode MP3
         print!("  Decoding... ");
         let (samples, sample_rate) = match decode_mp3(file_path) {
             Ok((s, sr)) => {
                 let duration_mins = s.len() as f64 / sr as f64 / 60.0;
-                println!("Done! {} samples at {} Hz ({:.2} mins)", s.len(), sr, duration_mins);
+                println!(
+                    "Done! {} samples at {} Hz ({:.2} mins)",
+                    s.len(),
+                    sr,
+                    duration_mins
+                );
                 (s, sr)
             }
             Err(e) => {
@@ -473,7 +485,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // Run parameter sweep
-        println!("  Testing {} parameter combinations...", thresholds.len() * min_durations.len());
+        println!(
+            "  Testing {} parameter combinations...",
+            thresholds.len() * min_durations.len()
+        );
 
         let mut best_score = f64::MAX;
         let mut best_threshold = -60.0;
@@ -482,7 +497,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         for &threshold in &thresholds {
             for &min_duration in &min_durations {
-                let detected_durations = get_track_durations(&samples, sample_rate, threshold, min_duration);
+                let detected_durations =
+                    get_track_durations(&samples, sample_rate, threshold, min_duration);
                 let score = calculate_score(&detected_durations, &expected_durations);
 
                 if score < best_score {
@@ -494,8 +510,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        println!("  BEST: threshold={} dB, min_duration={} s, detected={} tracks, score={:.2}",
-            best_threshold, best_min_duration, best_detected_tracks, best_score);
+        println!(
+            "  BEST: threshold={} dB, min_duration={} s, detected={} tracks, score={:.2}",
+            best_threshold, best_min_duration, best_detected_tracks, best_score
+        );
 
         results.push(OptimizationResult {
             album_path: file_path.to_string_lossy().to_string(),
@@ -513,7 +531,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Write results
-    let output_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\parameter_optimization_results.json");
+    let output_path =
+        Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\parameter_optimization_results.json");
     println!("\n=== Writing Results ===");
     println!("Output: {}", output_path.display());
 
@@ -528,14 +547,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Threshold distribution
         let mut threshold_counts = std::collections::HashMap::new();
         for result in &results {
-            *threshold_counts.entry(result.best_threshold_db as i32).or_insert(0) += 1;
+            *threshold_counts
+                .entry(result.best_threshold_db as i32)
+                .or_insert(0) += 1;
         }
 
         println!("\nOptimal Threshold Distribution:");
         let mut threshold_vec: Vec<_> = threshold_counts.iter().collect();
         threshold_vec.sort_by_key(|(k, _)| *k);
         for (threshold, count) in threshold_vec {
-            println!("  {} dB: {} albums ({:.1}%)", threshold, count, (*count as f64 / results.len() as f64) * 100.0);
+            println!(
+                "  {} dB: {} albums ({:.1}%)",
+                threshold,
+                count,
+                (*count as f64 / results.len() as f64) * 100.0
+            );
         }
 
         // Min duration distribution
@@ -550,19 +576,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         duration_vec.sort_by_key(|(k, _)| *k);
         for (duration_key, count) in duration_vec {
             let duration = *duration_key as f32 / 10.0;
-            println!("  {:.1} s: {} albums ({:.1}%)", duration, count, (*count as f64 / results.len() as f64) * 100.0);
+            println!(
+                "  {:.1} s: {} albums ({:.1}%)",
+                duration,
+                count,
+                (*count as f64 / results.len() as f64) * 100.0
+            );
         }
 
         // Score statistics
         let scores: Vec<f64> = results.iter().map(|r| r.best_score).collect();
         let avg_score = scores.iter().sum::<f64>() / scores.len() as f64;
-        let perfect_matches = results.iter().filter(|r| r.best_detected_tracks == r.expected_tracks).count();
+        let perfect_matches = results
+            .iter()
+            .filter(|r| r.best_detected_tracks == r.expected_tracks)
+            .count();
 
         println!("\nScore Statistics:");
         println!("  Average best score: {:.2}", avg_score);
-        println!("  Perfect track count matches: {}/{} ({:.1}%)",
-            perfect_matches, results.len(),
-            (perfect_matches as f64 / results.len() as f64) * 100.0);
+        println!(
+            "  Perfect track count matches: {}/{} ({:.1}%)",
+            perfect_matches,
+            results.len(),
+            (perfect_matches as f64 / results.len() as f64) * 100.0
+        );
     }
 
     println!("\nDone!");

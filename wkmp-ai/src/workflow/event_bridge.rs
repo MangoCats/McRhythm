@@ -52,7 +52,8 @@ pub async fn bridge_workflow_events(
                     current: processed_passages,
                     total: total_passages.max(1), // Avoid division by zero
                     percentage: 0.0,
-                    current_operation: format!("Starting file: {}",
+                    current_operation: format!(
+                        "Starting file: {}",
                         std::path::Path::new(&file_path)
                             .file_name()
                             .and_then(|n| n.to_str())
@@ -108,18 +109,18 @@ pub async fn bridge_workflow_events(
                 total_passages: total,
             } => {
                 total_passages = total;
-                info!(
-                    "Bridge: Passage {} of {} started",
-                    passage_index + 1,
-                    total
-                );
+                info!("Bridge: Passage {} of {} started", passage_index + 1, total);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
                     state: "EXTRACTING".to_string(),
                     current: passage_index,
                     total,
                     percentage: (passage_index as f32 / total as f32) * 100.0,
-                    current_operation: format!("Processing passage {} of {}", passage_index + 1, total),
+                    current_operation: format!(
+                        "Processing passage {} of {}",
+                        passage_index + 1,
+                        total
+                    ),
                     elapsed_seconds: start_time.elapsed().as_secs(),
                     estimated_remaining_seconds: None,
                     phases: Vec::new(),
@@ -185,7 +186,10 @@ pub async fn bridge_workflow_events(
             }
 
             WorkflowEvent::ValidationStarted { passage_index } => {
-                debug!("Bridge: Validation started for passage {}", passage_index + 1);
+                debug!(
+                    "Bridge: Validation started for passage {}",
+                    passage_index + 1
+                );
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
                     state: "VALIDATING".to_string(),
@@ -226,14 +230,13 @@ pub async fn bridge_workflow_events(
                     percentage: (processed_passages as f32 / total_passages as f32) * 100.0,
                     current_operation: format!(
                         "Completed passage {} of {} (quality: {:.0}%)",
-                        processed_passages,
-                        total_passages,
-                        quality_score
+                        processed_passages, total_passages, quality_score
                     ),
                     elapsed_seconds: start_time.elapsed().as_secs(),
                     estimated_remaining_seconds: {
                         if processed_passages > 0 {
-                            let avg_time_per_passage = start_time.elapsed().as_secs() / processed_passages as u64;
+                            let avg_time_per_passage =
+                                start_time.elapsed().as_secs() / processed_passages as u64;
                             let remaining = total_passages.saturating_sub(processed_passages);
                             Some(avg_time_per_passage * remaining as u64)
                         } else {
@@ -283,16 +286,22 @@ pub async fn bridge_workflow_events(
                 passage_index,
                 message,
             } => {
-                error!("Bridge: Workflow error - passage {:?}: {}", passage_index, message);
+                error!(
+                    "Bridge: Workflow error - passage {:?}: {}",
+                    passage_index, message
+                );
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
                     state: "ERROR".to_string(),
                     current: passage_index.unwrap_or(0),
                     total: total_passages.max(1),
-                    percentage: (passage_index.unwrap_or(0) as f32 / total_passages.max(1) as f32) * 100.0,
+                    percentage: (passage_index.unwrap_or(0) as f32 / total_passages.max(1) as f32)
+                        * 100.0,
                     current_operation: format!(
                         "Error{}: {}",
-                        passage_index.map(|i| format!(" in passage {}", i + 1)).unwrap_or_default(),
+                        passage_index
+                            .map(|i| format!(" in passage {}", i + 1))
+                            .unwrap_or_default(),
                         message
                     ),
                     elapsed_seconds: start_time.elapsed().as_secs(),

@@ -127,19 +127,22 @@ impl FileClassification {
     /// Sort all file lists alphabetically by path (case-insensitive)
     pub fn sort_all(&mut self) {
         self.audio_files.sort_by(|a, b| {
-            a.path.to_string_lossy().to_lowercase().cmp(
-                &b.path.to_string_lossy().to_lowercase()
-            )
+            a.path
+                .to_string_lossy()
+                .to_lowercase()
+                .cmp(&b.path.to_string_lossy().to_lowercase())
         });
         self.image_files.sort_by(|a, b| {
-            a.path.to_string_lossy().to_lowercase().cmp(
-                &b.path.to_string_lossy().to_lowercase()
-            )
+            a.path
+                .to_string_lossy()
+                .to_lowercase()
+                .cmp(&b.path.to_string_lossy().to_lowercase())
         });
         self.other_files.sort_by(|a, b| {
-            a.path.to_string_lossy().to_lowercase().cmp(
-                &b.path.to_string_lossy().to_lowercase()
-            )
+            a.path
+                .to_string_lossy()
+                .to_lowercase()
+                .cmp(&b.path.to_string_lossy().to_lowercase())
         });
     }
 
@@ -147,16 +150,24 @@ impl FileClassification {
     ///
     /// Should be called after files are added/modified to update statistics
     pub fn update_verification_stats(&mut self) {
-        self.audio_confirmed = self.audio_files.iter()
+        self.audio_confirmed = self
+            .audio_files
+            .iter()
             .filter(|f| f.verification_status == VerificationStatus::Confirmed)
             .count();
-        self.audio_denied = self.audio_files.iter()
+        self.audio_denied = self
+            .audio_files
+            .iter()
             .filter(|f| f.verification_status == VerificationStatus::Denied)
             .count();
-        self.image_confirmed = self.image_files.iter()
+        self.image_confirmed = self
+            .image_files
+            .iter()
             .filter(|f| f.verification_status == VerificationStatus::Confirmed)
             .count();
-        self.image_denied = self.image_files.iter()
+        self.image_denied = self
+            .image_files
+            .iter()
             .filter(|f| f.verification_status == VerificationStatus::Denied)
             .count();
     }
@@ -165,10 +176,7 @@ impl FileClassification {
     pub fn verification_summary(&self) -> String {
         format!(
             "Audio: {} confirmed, {} denied | Images: {} confirmed, {} denied",
-            self.audio_confirmed,
-            self.audio_denied,
-            self.image_confirmed,
-            self.image_denied
+            self.audio_confirmed, self.audio_denied, self.image_confirmed, self.image_denied
         )
     }
 }
@@ -182,7 +190,9 @@ mod systemtime_serde {
     where
         S: Serializer,
     {
-        let duration = time.duration_since(UNIX_EPOCH).map_err(serde::ser::Error::custom)?;
+        let duration = time
+            .duration_since(UNIX_EPOCH)
+            .map_err(serde::ser::Error::custom)?;
         serializer.serialize_u64(duration.as_secs())
     }
 
@@ -234,7 +244,6 @@ pub enum ImportState {
     // Preserved for backward compatibility with existing database sessions
     // **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
     // ========================================
-
     /// **DEPRECATED:** Batch metadata extraction phase (replaced by Processing)
     #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
     Extracting,
@@ -423,19 +432,38 @@ impl PhaseProgress {
 
     /// Generate summary text for completed phase
     pub fn summary(&self) -> Option<String> {
-        if self.status != PhaseStatus::Completed && self.status != PhaseStatus::CompletedWithWarnings {
+        if self.status != PhaseStatus::Completed
+            && self.status != PhaseStatus::CompletedWithWarnings
+        {
             return None;
         }
 
         Some(match self.phase {
             ImportState::Scanning => format!("{} files found", self.progress_total),
-            ImportState::Extracting => format!("{}/{} extracted", self.progress_current, self.progress_total),
+            ImportState::Extracting => format!(
+                "{}/{} extracted",
+                self.progress_current, self.progress_total
+            ),
             ImportState::Segmenting => format!("{} passages detected", self.progress_total),
-            ImportState::Fingerprinting => format!("{}/{} fingerprinted", self.progress_current, self.progress_total),
-            ImportState::Identifying => format!("{}/{} identified", self.progress_current, self.progress_total),
-            ImportState::Analyzing => format!("{}/{} analyzed", self.progress_current, self.progress_total),
-            ImportState::Flavoring => format!("{}/{} characterized", self.progress_current, self.progress_total),
-            _ => format!("{}/{} processed", self.progress_current, self.progress_total),
+            ImportState::Fingerprinting => format!(
+                "{}/{} fingerprinted",
+                self.progress_current, self.progress_total
+            ),
+            ImportState::Identifying => format!(
+                "{}/{} identified",
+                self.progress_current, self.progress_total
+            ),
+            ImportState::Analyzing => {
+                format!("{}/{} analyzed", self.progress_current, self.progress_total)
+            }
+            ImportState::Flavoring => format!(
+                "{}/{} characterized",
+                self.progress_current, self.progress_total
+            ),
+            _ => format!(
+                "{}/{} processed",
+                self.progress_current, self.progress_total
+            ),
         })
     }
 }
@@ -470,10 +498,7 @@ pub struct ImportProgress {
 
 impl ImportSession {
     /// Create new import session
-    pub fn new(
-        root_folder: String,
-        parameters: crate::models::ImportParameters,
-    ) -> Self {
+    pub fn new(root_folder: String, parameters: crate::models::ImportParameters) -> Self {
         let mut progress = ImportProgress::default();
         // **[REQ-AIA-UI-001]** Initialize all 6 phases on session creation
         progress.initialize_phases();
@@ -631,7 +656,9 @@ impl From<PhaseStatus> for wkmp_common::events::PhaseStatusData {
             PhaseStatus::InProgress => wkmp_common::events::PhaseStatusData::InProgress,
             PhaseStatus::Completed => wkmp_common::events::PhaseStatusData::Completed,
             PhaseStatus::Failed => wkmp_common::events::PhaseStatusData::Failed,
-            PhaseStatus::CompletedWithWarnings => wkmp_common::events::PhaseStatusData::CompletedWithWarnings,
+            PhaseStatus::CompletedWithWarnings => {
+                wkmp_common::events::PhaseStatusData::CompletedWithWarnings
+            }
         }
     }
 }

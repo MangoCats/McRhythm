@@ -55,7 +55,7 @@ impl PassageFinalizer {
 
         // Validate all passages have status = 'INGEST COMPLETE'
         let pending_passages: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM passages WHERE file_id = ? AND status != 'INGEST COMPLETE'"
+            "SELECT COUNT(*) FROM passages WHERE file_id = ? AND status != 'INGEST COMPLETE'",
         )
         .bind(file_id.to_string())
         .fetch_one(&self.db)
@@ -78,7 +78,7 @@ impl PassageFinalizer {
             JOIN songs ON passages.song_id = songs.guid
             WHERE passages.file_id = ?
               AND songs.status != 'FLAVOR READY'
-            "#
+            "#,
         )
         .bind(file_id.to_string())
         .fetch_one(&self.db)
@@ -94,12 +94,11 @@ impl PassageFinalizer {
         }
 
         // Get total passage count for result
-        let passages_validated: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM passages WHERE file_id = ?"
-        )
-        .bind(file_id.to_string())
-        .fetch_one(&self.db)
-        .await?;
+        let passages_validated: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM passages WHERE file_id = ?")
+                .bind(file_id.to_string())
+                .fetch_one(&self.db)
+                .await?;
 
         // If validation passed, mark file as complete
         let success = errors.is_empty();
@@ -110,7 +109,7 @@ impl PassageFinalizer {
                 SET status = 'INGEST COMPLETE',
                     updated_at = CURRENT_TIMESTAMP
                 WHERE guid = ?
-                "#
+                "#,
             )
             .bind(file_id.to_string())
             .execute(&self.db)
@@ -158,7 +157,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -174,7 +173,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -193,7 +192,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -227,12 +226,14 @@ mod tests {
             .unwrap();
 
         // Insert test song with FLAVOR READY
-        sqlx::query("INSERT INTO songs (guid, recording_mbid, status) VALUES (?, ?, 'FLAVOR READY')")
-            .bind(song_id.to_string())
-            .bind("mbid-123")
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO songs (guid, recording_mbid, status) VALUES (?, ?, 'FLAVOR READY')",
+        )
+        .bind(song_id.to_string())
+        .bind("mbid-123")
+        .execute(&pool)
+        .await
+        .unwrap();
 
         // Insert test passage with INGEST COMPLETE
         sqlx::query(

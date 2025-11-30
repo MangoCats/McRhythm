@@ -73,13 +73,13 @@ impl AmplitudeAnalyzer {
         end_time: f64,
         yield_interval_ms: u64,
     ) -> Result<AmplitudeAnalysisResult, AnalysisError> {
+        use std::fs::File;
+        use std::time::Instant;
         use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
         use symphonia::core::formats::FormatOptions;
         use symphonia::core::io::MediaSourceStream;
         use symphonia::core::meta::MetadataOptions;
         use symphonia::core::probe::Hint;
-        use std::fs::File;
-        use std::time::Instant;
 
         tracing::debug!(
             file = %file_path.display(),
@@ -90,8 +90,7 @@ impl AmplitudeAnalyzer {
         );
 
         // Open audio file
-        let file = File::open(file_path)
-            .map_err(|e| AnalysisError::ReadError(e.to_string()))?;
+        let file = File::open(file_path).map_err(|e| AnalysisError::ReadError(e.to_string()))?;
         let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
         let mut hint = Hint::new();
@@ -100,7 +99,12 @@ impl AmplitudeAnalyzer {
         }
 
         let probed = symphonia::default::get_probe()
-            .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+            .format(
+                &hint,
+                mss,
+                &FormatOptions::default(),
+                &MetadataOptions::default(),
+            )
             .map_err(|e| AnalysisError::UnsupportedFormat(e.to_string()))?;
 
         let mut format = probed.format;
@@ -151,7 +155,8 @@ impl AmplitudeAnalyzer {
                 Ok(packet) if packet.track_id() == track_id => {
                     match decoder.decode(&packet) {
                         Ok(decoded) => {
-                            let samples = self.extract_samples_mono(&decoded)
+                            let samples = self
+                                .extract_samples_mono(&decoded)
                                 .map_err(AnalysisError::AnalysisFailed)?;
                             let samples_len = samples.len();
 
@@ -207,8 +212,10 @@ impl AmplitudeAnalyzer {
 
         // Convert dB thresholds to linear amplitude (dB = 20 * log10(amplitude))
         // amplitude = 10^(dB/20)
-        let lead_in_threshold_linear = 10f64.powf(self.params.lead_in_threshold_db / 20.0) * peak_rms;
-        let lead_out_threshold_linear = 10f64.powf(self.params.lead_out_threshold_db / 20.0) * peak_rms;
+        let lead_in_threshold_linear =
+            10f64.powf(self.params.lead_in_threshold_db / 20.0) * peak_rms;
+        let lead_out_threshold_linear =
+            10f64.powf(self.params.lead_out_threshold_db / 20.0) * peak_rms;
 
         // **[ORIGINAL SPEC]** "25% of the total passage time" limit
         let max_lead_in_windows = (rms_profile.len() as f64 * 0.25).ceil() as usize;
@@ -217,9 +224,9 @@ impl AmplitudeAnalyzer {
         // Find lead-in: first point exceeding threshold, or 25% limit
         let lead_in_windows = rms_profile
             .iter()
-            .take(max_lead_in_windows)  // Only search first 25%
+            .take(max_lead_in_windows) // Only search first 25%
             .position(|&v| v as f64 > lead_in_threshold_linear)
-            .unwrap_or(max_lead_in_windows);  // Default to 25% if never found
+            .unwrap_or(max_lead_in_windows); // Default to 25% if never found
         let lead_in_duration = (lead_in_windows as f64 * 0.1).max(0.1);
 
         // Find lead-out: last point exceeding threshold in last 25%, measured from end
@@ -228,15 +235,14 @@ impl AmplitudeAnalyzer {
         let lead_out_windows = rms_profile[lead_out_search_start..]
             .iter()
             .rposition(|&v| v as f64 > lead_out_threshold_linear)
-            .map(|pos| pos + 1)  // Convert to count of windows from threshold point to end
-            .unwrap_or(max_lead_out_windows);  // If never found, use full 25%
+            .map(|pos| pos + 1) // Convert to count of windows from threshold point to end
+            .unwrap_or(max_lead_out_windows); // If never found, use full 25%
         let lead_out_duration = (lead_out_windows as f64 * 0.1).max(0.1);
 
         // Detect quick ramps (>50% change in <0.5s)
         let quick_ramp_up = self.detect_quick_ramp(&rms_profile[..10.min(rms_profile.len())]);
-        let quick_ramp_down = self.detect_quick_ramp(
-            &rms_profile[rms_profile.len().saturating_sub(10)..]
-        );
+        let quick_ramp_down =
+            self.detect_quick_ramp(&rms_profile[rms_profile.len().saturating_sub(10)..]);
 
         Ok(AmplitudeAnalysisResult {
             peak_rms,
@@ -249,7 +255,10 @@ impl AmplitudeAnalyzer {
     }
 
     /// Extract mono samples from decoded audio
-    fn extract_samples_mono(&self, buffer: &symphonia::core::audio::AudioBufferRef) -> Result<Vec<f32>, String> {
+    fn extract_samples_mono(
+        &self,
+        buffer: &symphonia::core::audio::AudioBufferRef,
+    ) -> Result<Vec<f32>, String> {
         use symphonia::core::audio::{AudioBufferRef, Signal};
 
         match buffer {
@@ -361,15 +370,15 @@ mod tests {
         // Write 1 second of audio (440Hz sine wave at constant amplitude)
         for t in 0..44100 {
             let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin();
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 1.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -406,15 +415,15 @@ mod tests {
                 1.0
             };
             let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * ramp;
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 2.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -451,25 +460,41 @@ mod tests {
                 let audio_t = t - (44100 / 2);
                 (audio_t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin()
             };
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 4.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 4.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
         assert!(analysis.peak_rms > 0.0);
         // Should detect lead-in close to 0.5 second (silence before audio)
-        assert!(analysis.lead_in_duration >= 0.4, "lead_in {} should be >= 0.4s", analysis.lead_in_duration);
-        assert!(analysis.lead_in_duration <= 0.6, "lead_in {} should be <= 0.6s", analysis.lead_in_duration);
+        assert!(
+            analysis.lead_in_duration >= 0.4,
+            "lead_in {} should be >= 0.4s",
+            analysis.lead_in_duration
+        );
+        assert!(
+            analysis.lead_in_duration <= 0.6,
+            "lead_in {} should be <= 0.6s",
+            analysis.lead_in_duration
+        );
         // Should detect lead-out close to 0.5 second (silence after audio)
-        assert!(analysis.lead_out_duration >= 0.4, "lead_out {} should be >= 0.4s", analysis.lead_out_duration);
-        assert!(analysis.lead_out_duration <= 0.6, "lead_out {} should be <= 0.6s", analysis.lead_out_duration);
+        assert!(
+            analysis.lead_out_duration >= 0.4,
+            "lead_out {} should be >= 0.4s",
+            analysis.lead_out_duration
+        );
+        assert!(
+            analysis.lead_out_duration <= 0.6,
+            "lead_out {} should be <= 0.6s",
+            analysis.lead_out_duration
+        );
     }
 
     #[tokio::test]
@@ -499,9 +524,7 @@ mod tests {
 
         // Analyze the file (should convert to mono)
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 1.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -538,15 +561,15 @@ mod tests {
         // Write 1 second of audio
         for t in 0..44100 {
             let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin();
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze the file
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 1.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 1.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -586,7 +609,9 @@ mod tests {
             // Write 1 second of audio
             for t in 0..44100 {
                 let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin();
-                writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+                writer
+                    .write_sample((sample * i16::MAX as f32) as i16)
+                    .unwrap();
             }
             writer.finalize().unwrap();
 
@@ -633,36 +658,49 @@ mod tests {
             }
             // Gradual fade-out over last 1 second (25%)
             else if t >= fade_out_start {
-                let fade_progress = (t - fade_out_start) as f32 / (total_samples - fade_out_start) as f32;
+                let fade_progress =
+                    (t - fade_out_start) as f32 / (total_samples - fade_out_start) as f32;
                 amplitude *= 1.0 - fade_progress;
             }
 
-            let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * amplitude;
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            let sample =
+                (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * amplitude;
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze with default parameters
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 4.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 4.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
 
         // Lead-in should be capped at 25% of 4 seconds = 1.0 second (or less if threshold met earlier)
-        assert!(analysis.lead_in_duration <= 1.05, "lead_in {} exceeds 25% limit (1.0s)", analysis.lead_in_duration);
+        assert!(
+            analysis.lead_in_duration <= 1.05,
+            "lead_in {} exceeds 25% limit (1.0s)",
+            analysis.lead_in_duration
+        );
 
         // Lead-out should be capped at 25% of 4 seconds = 1.0 second (or less if threshold met earlier)
-        assert!(analysis.lead_out_duration <= 1.05, "lead_out {} exceeds 25% limit (1.0s)", analysis.lead_out_duration);
+        assert!(
+            analysis.lead_out_duration <= 1.05,
+            "lead_out {} exceeds 25% limit (1.0s)",
+            analysis.lead_out_duration
+        );
 
         // CRITICAL: lead_in + lead_out should be <= 50% of passage (2.0 seconds for 4s passage)
         // This ensures CHECK constraint lead_in_start_ticks <= lead_out_start_ticks is satisfied
-        assert!(analysis.lead_in_duration + analysis.lead_out_duration <= 2.1,
-                "lead_in {} + lead_out {} = {} exceeds 50% limit (2.0s)",
-                analysis.lead_in_duration, analysis.lead_out_duration,
-                analysis.lead_in_duration + analysis.lead_out_duration);
+        assert!(
+            analysis.lead_in_duration + analysis.lead_out_duration <= 2.1,
+            "lead_in {} + lead_out {} = {} exceeds 50% limit (2.0s)",
+            analysis.lead_in_duration,
+            analysis.lead_out_duration,
+            analysis.lead_in_duration + analysis.lead_out_duration
+        );
     }
 
     #[tokio::test]
@@ -684,15 +722,15 @@ mod tests {
         // Write 2 seconds of quiet audio
         for t in 0..(44100 * 2) {
             let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * 0.0001;
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze
         let analyzer = AmplitudeAnalyzer::default();
-        let result = analyzer
-            .analyze_file(temp_file.path(), 0.0, 2.0, 100)
-            .await;
+        let result = analyzer.analyze_file(temp_file.path(), 0.0, 2.0, 100).await;
 
         assert!(result.is_ok());
         let analysis = result.unwrap();
@@ -704,9 +742,12 @@ mod tests {
         assert!(analysis.lead_out_duration <= 0.55);
 
         // Combined should be <= 1.0s (50% of 2s passage)
-        assert!(analysis.lead_in_duration + analysis.lead_out_duration <= 1.05,
-                "lead_in {} + lead_out {} exceeds 50%",
-                analysis.lead_in_duration, analysis.lead_out_duration);
+        assert!(
+            analysis.lead_in_duration + analysis.lead_out_duration <= 1.05,
+            "lead_in {} + lead_out {} exceeds 50%",
+            analysis.lead_in_duration,
+            analysis.lead_out_duration
+        );
     }
 
     #[tokio::test]
@@ -729,18 +770,21 @@ mod tests {
         // then constant 100% for second second
         for t in 0..(44100 * 2) {
             let amplitude = if t < 44100 {
-                0.1 + (0.9 * t as f32 / 44100.0)  // Linear ramp 10% -> 100%
+                0.1 + (0.9 * t as f32 / 44100.0) // Linear ramp 10% -> 100%
             } else {
-                1.0  // Full amplitude
+                1.0 // Full amplitude
             };
-            let sample = (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * amplitude;
-            writer.write_sample((sample * i16::MAX as f32) as i16).unwrap();
+            let sample =
+                (t as f32 * 440.0 * 2.0 * std::f32::consts::PI / 44100.0).sin() * amplitude;
+            writer
+                .write_sample((sample * i16::MAX as f32) as i16)
+                .unwrap();
         }
         writer.finalize().unwrap();
 
         // Analyze with HIGH threshold (should result in longer lead-in)
         let mut params_high = AmplitudeParameters::default();
-        params_high.lead_in_threshold_db = -3.0;  // Very high threshold (just 3dB below peak)
+        params_high.lead_in_threshold_db = -3.0; // Very high threshold (just 3dB below peak)
         let analyzer_high = AmplitudeAnalyzer::new(params_high);
         let result_high = analyzer_high
             .analyze_file(temp_file.path(), 0.0, 2.0, 100)
@@ -749,7 +793,7 @@ mod tests {
 
         // Analyze with LOW threshold (should result in shorter lead-in)
         let mut params_low = AmplitudeParameters::default();
-        params_low.lead_in_threshold_db = -20.0;  // Low threshold (20dB below peak)
+        params_low.lead_in_threshold_db = -20.0; // Low threshold (20dB below peak)
         let analyzer_low = AmplitudeAnalyzer::new(params_low);
         let result_low = analyzer_low
             .analyze_file(temp_file.path(), 0.0, 2.0, 100)
@@ -757,8 +801,11 @@ mod tests {
             .unwrap();
 
         // High threshold should produce longer lead-in than low threshold
-        assert!(result_high.lead_in_duration > result_low.lead_in_duration,
-                "High threshold lead-in {} should be > low threshold lead-in {}",
-                result_high.lead_in_duration, result_low.lead_in_duration);
+        assert!(
+            result_high.lead_in_duration > result_low.lead_in_duration,
+            "High threshold lead-in {} should be > low threshold lead-in {}",
+            result_high.lead_in_duration,
+            result_low.lead_in_duration
+        );
     }
 }

@@ -87,21 +87,14 @@ async fn test_integrated_import_workflow() -> Result<()> {
     let total_files = 100;
 
     // Create import session
-    let session = ImportSession::new(
-        "/test/import".to_string(),
-        ImportParameters::default(),
-    );
+    let session = ImportSession::new("/test/import".to_string(), ImportParameters::default());
     let session_id = session.session_id;
     wkmp_ai::db::sessions::save_session(&db, &session).await?;
 
     // **[PLAN028]** Initialize performance optimization components
     let write_queue = Arc::new(WriteQueue::new(db.clone()));
-    let progress_manager = ProgressManager::new(
-        session_id,
-        event_bus.clone(),
-        db.clone(),
-        total_files,
-    );
+    let progress_manager =
+        ProgressManager::new(session_id, event_bus.clone(), db.clone(), total_files);
 
     // Simulate processing 100 files
     for file_index in 0..total_files {
@@ -266,10 +259,7 @@ async fn test_write_queue_backpressure() -> Result<()> {
     let passage_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM passages")
         .fetch_one(&db)
         .await?;
-    assert_eq!(
-        passage_count,
-        (batch_count * passages_per_batch) as i64
-    );
+    assert_eq!(passage_count, (batch_count * passages_per_batch) as i64);
 
     // Cleanup
     write_queue.shutdown().await?;

@@ -6,14 +6,14 @@
 //! Uses atomic transactions to ensure data consistency.
 //! **[ARCH-ERRH-070]** Retry logic for transient database lock errors.
 
+use crate::utils::{begin_monitored, retry_on_lock};
 use sqlx::{Pool, Sqlite};
+use std::collections::HashMap;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
-use crate::utils::{retry_on_lock, begin_monitored};
-use std::collections::HashMap;
 
-use super::passage_song_matcher::{PassageSongMatch, ConfidenceLevel};
 use super::passage_segmenter::PassageBoundary;
+use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
 
 /// Recording result for a passage
 #[derive(Debug, Clone)]
@@ -413,17 +413,19 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
         .unwrap();
 
         // Insert ai_database_max_lock_wait_ms setting
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')")
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         // Create files table
         sqlx::query(
@@ -435,7 +437,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -454,7 +456,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -474,7 +476,7 @@ mod tests {
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            "#
+            "#,
         )
         .execute(&pool)
         .await
@@ -531,11 +533,12 @@ mod tests {
         assert_eq!(count, 1);
 
         // Verify song was created
-        let song_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM songs WHERE recording_mbid = ?")
-            .bind("mbid-123")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let song_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM songs WHERE recording_mbid = ?")
+                .bind("mbid-123")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         assert_eq!(song_count, 1);
     }
@@ -571,13 +574,12 @@ mod tests {
         assert_eq!(result.stats.songs_created, 0);
 
         // Verify passage has NULL song_id
-        let song_id: Option<String> = sqlx::query_scalar(
-            "SELECT song_id FROM passages WHERE file_id = ?"
-        )
-        .bind(file_id.to_string())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let song_id: Option<String> =
+            sqlx::query_scalar("SELECT song_id FROM passages WHERE file_id = ?")
+                .bind(file_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         assert_eq!(song_id, None);
     }
@@ -623,17 +625,18 @@ mod tests {
         assert_eq!(result2.stats.songs_reused, 1);
 
         // Verify only one song exists
-        let song_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM songs WHERE recording_mbid = ?")
-            .bind("mbid-reuse")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let song_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM songs WHERE recording_mbid = ?")
+                .bind("mbid-reuse")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         assert_eq!(song_count, 1);
 
         // Verify both passages reference the same song
         let passages: Vec<(String,)> = sqlx::query_as(
-            "SELECT song_id FROM passages WHERE file_id = ? ORDER BY start_time_ticks"
+            "SELECT song_id FROM passages WHERE file_id = ? ORDER BY start_time_ticks",
         )
         .bind(file_id.to_string())
         .fetch_all(&pool)

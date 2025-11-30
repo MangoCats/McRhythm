@@ -158,7 +158,10 @@ mod tests {
         let selector = FolderSelector::new(root.clone());
         let result = selector.validate_selection(&root).unwrap();
 
-        assert_eq!(result, SelectionResult::ValidRoot(root.canonicalize().unwrap()));
+        assert_eq!(
+            result,
+            SelectionResult::ValidRoot(root.canonicalize().unwrap())
+        );
     }
 
     #[test]

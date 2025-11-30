@@ -32,7 +32,7 @@
 //! - `musicbrainz::api`: MBClient (primary consumer)
 
 use crate::types::*;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
@@ -167,8 +167,7 @@ pub(crate) fn store_search_cache(
         .map_err(|e| format!("Cache serialization failure: {}", e))?;
 
     // REQ-CACHE-090: Handle cache file write failures
-    std::fs::write(&cache_file, json)
-        .map_err(|e| format!("Cache file write failure: {}", e))?;
+    std::fs::write(&cache_file, json).map_err(|e| format!("Cache file write failure: {}", e))?;
 
     Ok(())
 }
@@ -268,8 +267,7 @@ pub(crate) fn store_release_cache(
         .map_err(|e| format!("Cache serialization failure: {}", e))?;
 
     // REQ-CACHE-090: Handle cache file write failures
-    std::fs::write(&cache_file, json)
-        .map_err(|e| format!("Cache file write failure: {}", e))?;
+    std::fs::write(&cache_file, json).map_err(|e| format!("Cache file write failure: {}", e))?;
 
     Ok(())
 }
@@ -322,8 +320,8 @@ pub(crate) fn update_metadata(
     let metadata = if metadata_file.exists() {
         let contents = std::fs::read_to_string(&metadata_file)
             .map_err(|e| format!("Metadata file read failure: {}", e))?;
-        let mut meta: CacheMetadata = serde_json::from_str(&contents)
-            .unwrap_or_else(|_| CacheMetadata {
+        let mut meta: CacheMetadata =
+            serde_json::from_str(&contents).unwrap_or_else(|_| CacheMetadata {
                 version: "album_matcher_26".to_string(),
                 created: now.clone(),
                 search_count: 0,
@@ -399,17 +397,24 @@ pub(crate) fn print_cache_statistics(config: &CacheConfig, stats: &CacheStats) {
     let search_total = search_hits + search_misses;
     let release_total = release_hits + release_misses;
 
-    println!("Search queries: {} hits, {} misses, {} total",
-        search_hits, search_misses, search_total);
-    println!("Release details: {} hits, {} misses, {} total",
-        release_hits, release_misses, release_total);
+    println!(
+        "Search queries: {} hits, {} misses, {} total",
+        search_hits, search_misses, search_total
+    );
+    println!(
+        "Release details: {} hits, {} misses, {} total",
+        release_hits, release_misses, release_total
+    );
 
     let total_hits = search_hits + release_hits;
     let total_requests = search_total + release_total;
 
     if total_requests > 0 {
         let hit_rate = (total_hits as f64 / total_requests as f64) * 100.0;
-        println!("Cache hit rate: {:.1}% ({}/{})", hit_rate, total_hits, total_requests);
+        println!(
+            "Cache hit rate: {:.1}% ({}/{})",
+            hit_rate, total_hits, total_requests
+        );
     } else {
         println!("Cache hit rate: N/A (no requests)");
     }
@@ -418,7 +423,11 @@ pub(crate) fn print_cache_statistics(config: &CacheConfig, stats: &CacheStats) {
 
     // Update metadata file with final counts
     if matches!(config.mode, CacheMode::ReadWrite) {
-        if let Err(e) = update_metadata(&config.cache_dir, search_total as usize, release_total as usize) {
+        if let Err(e) = update_metadata(
+            &config.cache_dir,
+            search_total as usize,
+            release_total as usize,
+        ) {
             eprintln!("WARNING: Failed to update cache metadata: {}", e);
         }
     }

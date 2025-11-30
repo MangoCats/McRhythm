@@ -126,10 +126,7 @@ impl PassageSongMatcher {
         fingerprint_result: &FingerprintResult,
         metadata: &MergedMetadata,
     ) -> SongMatchResult {
-        tracing::debug!(
-            passage_count = passages.len(),
-            "Matching passages to songs"
-        );
+        tracing::debug!(passage_count = passages.len(), "Matching passages to songs");
 
         let mut matches = Vec::new();
 
@@ -206,11 +203,8 @@ impl PassageSongMatcher {
         let best_candidate = &fingerprint.candidates[0];
 
         // Calculate metadata match score
-        let metadata_score = self.calculate_metadata_score(
-            &best_candidate.title,
-            &metadata.artist,
-            &metadata.title,
-        );
+        let metadata_score =
+            self.calculate_metadata_score(&best_candidate.title, &metadata.artist, &metadata.title);
 
         // Combine evidence
         let evidence = Evidence {
@@ -379,8 +373,8 @@ impl Default for PassageSongMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::passage_fingerprinter::MBIDCandidate;
+    use super::*;
 
     #[test]
     fn test_confidence_level_from_score() {

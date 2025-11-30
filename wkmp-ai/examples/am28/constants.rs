@@ -29,18 +29,18 @@
 /// **CRITICAL:** This specific ordering is required for early-exit optimization.
 /// Reordering will break performance characteristics (TEST-FUNC-002a).
 pub(crate) const STAGE2_THRESHOLD_VALUES: [f64; 12] = [
-    -50.0,  // Rank 1: Most common (53.9% of successful albums)
-    -58.0,  // Rank 2: Second most common (15.5%)
-    -60.0,  // Rank 3: Third (5.2%)
-    -62.0,  // Rank 4: Fourth (3.1%)
-    -56.0,  // Rank 5: Appears in top 20 (rank 16)
-    -52.0,  // Rank 6: Appears in top 20 (rank 20)
-    -54.0,  // Rank 7: Not in top 20, but was DEFAULT in Run 27
-    -48.0,  // Rank 8: Not in top 20 (rare)
-    -40.0,  // Rank 9: Not in top 20 (rare)
-    -38.0,  // Rank 10: Not in top 20 (rare)
-    -34.0,  // Rank 11: Not in top 20 (rare)
-    -30.0   // Rank 12: Not in top 20 (rare)
+    -50.0, // Rank 1: Most common (53.9% of successful albums)
+    -58.0, // Rank 2: Second most common (15.5%)
+    -60.0, // Rank 3: Third (5.2%)
+    -62.0, // Rank 4: Fourth (3.1%)
+    -56.0, // Rank 5: Appears in top 20 (rank 16)
+    -52.0, // Rank 6: Appears in top 20 (rank 20)
+    -54.0, // Rank 7: Not in top 20, but was DEFAULT in Run 27
+    -48.0, // Rank 8: Not in top 20 (rare)
+    -40.0, // Rank 9: Not in top 20 (rare)
+    -38.0, // Rank 10: Not in top 20 (rare)
+    -34.0, // Rank 11: Not in top 20 (rare)
+    -30.0, // Rank 12: Not in top 20 (rare)
 ];
 
 /// Stage 2 Parameter Grid: Min duration values (seconds) for silence detection sweep
@@ -61,21 +61,21 @@ pub(crate) const STAGE2_THRESHOLD_VALUES: [f64; 12] = [
 /// **CRITICAL:** This specific ordering is required for early-exit optimization.
 /// Reordering will break performance characteristics (TEST-FUNC-002b).
 pub(crate) const STAGE2_MIN_DURATION_VALUES: [f64; 15] = [
-    3.0,   // Rank 1: Very common, especially with -50dB (rank 1: 41 albums)
-    2.0,   // Rank 2: Very common (ranks 2,4,12,14: 49 albums total)
-    0.5,   // Rank 3: Common with -50dB (rank 3: 17 albums)
-    1.5,   // Rank 4: Moderate (ranks 5,8: 10 albums)
-    0.3,   // Rank 5: Moderate (ranks 7,10,16,17: 11 albums)
-    0.8,   // Rank 6: Moderate (ranks 11,19,20: 7 albums)
-    0.1,   // Rank 7: Moderate (ranks 9,18: 6 albums) - Note: same as 0.10
-    4.0,   // Rank 8: Low frequency (rank 15: 3 albums)
-    0.2,   // Rank 9: Low frequency (rank 13: 3 albums)
-    2.5,   // Rank 10: Not in top 20 (rare)
-    1.0,   // Rank 11: Not in top 20 (rare)
-    0.4,   // Rank 12: Not in top 20 (rare)
-    5.0,   // Rank 13: Not in top 20 (rare)
-    3.5,   // Rank 14: Not in top 20 (rare)
-    0.05   // Rank 15: Not in top 20 (very rare)
+    3.0,  // Rank 1: Very common, especially with -50dB (rank 1: 41 albums)
+    2.0,  // Rank 2: Very common (ranks 2,4,12,14: 49 albums total)
+    0.5,  // Rank 3: Common with -50dB (rank 3: 17 albums)
+    1.5,  // Rank 4: Moderate (ranks 5,8: 10 albums)
+    0.3,  // Rank 5: Moderate (ranks 7,10,16,17: 11 albums)
+    0.8,  // Rank 6: Moderate (ranks 11,19,20: 7 albums)
+    0.1,  // Rank 7: Moderate (ranks 9,18: 6 albums) - Note: same as 0.10
+    4.0,  // Rank 8: Low frequency (rank 15: 3 albums)
+    0.2,  // Rank 9: Low frequency (rank 13: 3 albums)
+    2.5,  // Rank 10: Not in top 20 (rare)
+    1.0,  // Rank 11: Not in top 20 (rare)
+    0.4,  // Rank 12: Not in top 20 (rare)
+    5.0,  // Rank 13: Not in top 20 (rare)
+    3.5,  // Rank 14: Not in top 20 (rare)
+    0.05, // Rank 15: Not in top 20 (very rare)
 ];
 
 /// Default silence detection threshold (dB) - most common parameter
@@ -197,7 +197,8 @@ pub(crate) const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
 pub(crate) const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
 
 /// Audio file extensions for directory scanning
-pub(crate) const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav", "aac", "wma", "opus"];
+pub(crate) const AUDIO_EXTENSIONS: &[&str] =
+    &["mp3", "flac", "m4a", "ogg", "wav", "aac", "wma", "opus"];
 
 // =============================================================================
 // MusicBrainz API Rate Limiting and Retry Constants
@@ -405,4 +406,3 @@ pub(crate) const ACOUSTID_VERIFICATION_MIN_MATCH_PCT: f64 = 60.0;
 /// Delay between feeding editions to rayon thread pool (seconds)
 /// Staggered feeding prevents all editions starting simultaneously
 pub(crate) const EDITION_FEED_DELAY_SECS: u64 = 4;
-

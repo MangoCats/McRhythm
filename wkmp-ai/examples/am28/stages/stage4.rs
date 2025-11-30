@@ -36,9 +36,9 @@
 //! - `matching::candidate`: test_segmentation_against_single_edition()
 
 use crate::constants::*;
+use crate::matching::candidate::test_segmentation_against_single_edition;
 use crate::silence_detection::calculate_rms;
 use crate::types::CandidateTestResult;
-use crate::matching::candidate::test_segmentation_against_single_edition;
 use tracing::info;
 
 // =============================================================================
@@ -68,10 +68,7 @@ use tracing::info;
 /// let rms_profile = calculate_rms_profile(&samples, 44100);
 /// // Profile contains (time, rms) pairs every 0.25s
 /// ```
-pub(crate) fn calculate_rms_profile(
-    samples: &[f32],
-    sample_rate: u32,
-) -> Vec<(f64, f32)> {
+pub(crate) fn calculate_rms_profile(samples: &[f32], sample_rate: u32) -> Vec<(f64, f32)> {
     let window_samples = (sample_rate as f64 * QUIET_SPOT_WINDOW_SECS) as usize;
     let step_samples = (sample_rate as f64 * QUIET_SPOT_WINDOW_STEP_SECS) as usize;
 
@@ -163,7 +160,8 @@ pub(crate) fn find_edition_guided_boundaries(
         let search_end = (expected_pos + dynamic_radius).min(total_duration_secs);
 
         // Find RMS values within search window
-        let candidates: Vec<_> = rms_profile.iter()
+        let candidates: Vec<_> = rms_profile
+            .iter()
             .filter(|(pos, _)| *pos >= search_start && *pos <= search_end)
             .collect();
 
@@ -186,7 +184,9 @@ pub(crate) fn find_edition_guided_boundaries(
 
             // Score = RMS in dB + penalty for distance from expected
             let distance = (pos - expected_pos).abs();
-            let distance_penalty = (distance / dynamic_radius) * QUIET_SPOT_PROXIMITY_PENALTY * QUIET_SPOT_DISTANCE_PENALTY_MULTIPLIER;
+            let distance_penalty = (distance / dynamic_radius)
+                * QUIET_SPOT_PROXIMITY_PENALTY
+                * QUIET_SPOT_DISTANCE_PENALTY_MULTIPLIER;
             let score = rms_db + distance_penalty;
 
             if score < best_score {
@@ -232,10 +232,7 @@ pub(crate) fn find_edition_guided_boundaries(
 /// let durations = boundaries_to_durations(&boundaries, 616.0);
 /// // Returns [182.0, 243.0, 191.0] (3 tracks)
 /// ```
-pub(crate) fn boundaries_to_durations(
-    boundaries: &[f64],
-    total_duration_secs: f64,
-) -> Vec<f64> {
+pub(crate) fn boundaries_to_durations(boundaries: &[f64], total_duration_secs: f64) -> Vec<f64> {
     let mut durations = Vec::new();
     let mut prev_pos = 0.0;
 
@@ -309,7 +306,7 @@ pub(crate) fn run_stage4_single_edition(
     edition_id: &str,
     tolerance: f64,
     current_best_percentage: f64,
-    rms_profile: &[(f64, f32)],  // Pre-calculated RMS profile (time, rms)
+    rms_profile: &[(f64, f32)], // Pre-calculated RMS profile (time, rms)
     total_duration_secs: f64,
     edition_idx: usize,
     total_editions: usize,
@@ -325,11 +322,8 @@ pub(crate) fn run_stage4_single_edition(
     }
 
     // Find quiet spots near expected boundaries for this edition
-    let detected_boundaries = find_edition_guided_boundaries(
-        rms_profile,
-        expected_durations,
-        total_duration_secs,
-    );
+    let detected_boundaries =
+        find_edition_guided_boundaries(rms_profile, expected_durations, total_duration_secs);
 
     // Convert boundaries to track durations
     let guided_durations = boundaries_to_durations(&detected_boundaries, total_duration_secs);
@@ -343,8 +337,13 @@ pub(crate) fn run_stage4_single_edition(
     );
 
     if result.percentage > current_best_percentage {
-        info!("[A{}]       [Edition {}/{}] New best: {:.1}% via guided quiet spots",
-            album_idx + 1, edition_idx + 1, total_editions, result.percentage);
+        info!(
+            "[A{}]       [Edition {}/{}] New best: {:.1}% via guided quiet spots",
+            album_idx + 1,
+            edition_idx + 1,
+            total_editions,
+            result.percentage
+        );
         Some(result)
     } else {
         None

@@ -67,9 +67,8 @@ use std::path::Path;
 use tracing::{info, warn};
 
 /// Regex for detecting track number prefix in filenames
-static TRACK_NUMBER_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(SINGLE_TRACK_FILENAME_PATTERN).expect("Invalid track number regex")
-});
+static TRACK_NUMBER_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(SINGLE_TRACK_FILENAME_PATTERN).expect("Invalid track number regex"));
 
 // =============================================================================
 // Single-Track Discriminator Implementation
@@ -155,7 +154,10 @@ impl SingleTrackDiscriminator {
             Err(_) => return (0.0, None),
         };
 
-        let tag = match tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+        let tag = match tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag())
+        {
             Some(t) => t,
             None => return (0.0, None),
         };
@@ -167,12 +169,8 @@ impl SingleTrackDiscriminator {
             (Some(num), Some(total)) if total > SINGLE_TRACK_ID3_TOTAL_THRESHOLD => {
                 (SCORE_ID3_TRACK_TOTAL, Some(format!("{}/{}", num, total)))
             }
-            (Some(num), Some(total)) => {
-                (0.0, Some(format!("{}/{}", num, total)))
-            }
-            (Some(num), None) => {
-                (SCORE_ID3_TRACK_NUMBER_ONLY, Some(format!("{}/?", num)))
-            }
+            (Some(num), Some(total)) => (0.0, Some(format!("{}/{}", num, total))),
+            (Some(num), None) => (SCORE_ID3_TRACK_NUMBER_ONLY, Some(format!("{}/?", num))),
             _ => (0.0, None),
         }
     }
@@ -235,7 +233,10 @@ impl SingleTrackDiscriminator {
     /// 2. Directory file count
     /// 3. ID3 track number/total
     /// 4. Duration (if provided)
-    pub(crate) fn analyze_pre_decode(path: &Path, duration_mins: Option<f64>) -> SingleTrackAnalysis {
+    pub(crate) fn analyze_pre_decode(
+        path: &Path,
+        duration_mins: Option<f64>,
+    ) -> SingleTrackAnalysis {
         let mut analysis = SingleTrackAnalysis::new();
 
         // Layer 1: Filename pattern
@@ -271,7 +272,11 @@ impl SingleTrackDiscriminator {
     /// * `analysis` - Mutable reference to existing analysis
     /// * `duration_mins` - Decoded duration in minutes (more accurate than ID3)
     /// * `gap_count` - Number of silence gaps detected (N tracks = N-1 gaps)
-    pub(crate) fn update_post_decode(analysis: &mut SingleTrackAnalysis, duration_mins: f64, gap_count: usize) {
+    pub(crate) fn update_post_decode(
+        analysis: &mut SingleTrackAnalysis,
+        duration_mins: f64,
+        gap_count: usize,
+    ) {
         // Update duration if not already set or if decoded is more accurate
         if analysis.duration_mins.is_none() {
             analysis.duration_score = Self::check_duration(duration_mins);
@@ -294,45 +299,72 @@ impl SingleTrackDiscriminator {
     /// * `analysis` - Analysis results
     /// * `path` - File path (for filename display)
     pub(crate) fn log_pre_decode(album_id: &str, analysis: &SingleTrackAnalysis, path: &Path) {
-        info!("[{}] 🔍 Single-track analysis (pre-decode) for {:?}:", album_id, path.file_name().unwrap_or_default());
+        info!(
+            "[{}] 🔍 Single-track analysis (pre-decode) for {:?}:",
+            album_id,
+            path.file_name().unwrap_or_default()
+        );
 
         // Layer 1
         if let Some(ref matched) = analysis.filename_match {
-            info!("[{}]     Filename pattern: {:+.2} (matched \"{}\")",
-                album_id, analysis.filename_score, matched);
+            info!(
+                "[{}]     Filename pattern: {:+.2} (matched \"{}\")",
+                album_id, analysis.filename_score, matched
+            );
         } else {
-            info!("[{}]     Filename pattern: {:+.2} (no track number prefix)",
-                album_id, analysis.filename_score);
+            info!(
+                "[{}]     Filename pattern: {:+.2} (no track number prefix)",
+                album_id, analysis.filename_score
+            );
         }
 
         // Layer 2
-        info!("[{}]     Directory files:  {:+.2} ({} audio files in dir, threshold={})",
-            album_id, analysis.dir_count_score, analysis.dir_audio_files, SINGLE_TRACK_DIR_FILE_THRESHOLD);
+        info!(
+            "[{}]     Directory files:  {:+.2} ({} audio files in dir, threshold={})",
+            album_id,
+            analysis.dir_count_score,
+            analysis.dir_audio_files,
+            SINGLE_TRACK_DIR_FILE_THRESHOLD
+        );
 
         // Layer 3
         if let Some(ref info) = analysis.id3_track_info {
-            info!("[{}]     ID3 track tag:    {:+.2} (track {})",
-                album_id, analysis.id3_track_score, info);
+            info!(
+                "[{}]     ID3 track tag:    {:+.2} (track {})",
+                album_id, analysis.id3_track_score, info
+            );
         } else {
-            info!("[{}]     ID3 track tag:    {:+.2} (no track tag)",
-                album_id, analysis.id3_track_score);
+            info!(
+                "[{}]     ID3 track tag:    {:+.2} (no track tag)",
+                album_id, analysis.id3_track_score
+            );
         }
 
         // Layer 4
         if let Some(mins) = analysis.duration_mins {
-            info!("[{}]     Duration hint:    {:+.2} ({:.2} min, album threshold={} min)",
-                album_id, analysis.duration_score, mins, SINGLE_TRACK_MIN_ALBUM_DURATION_MINS);
+            info!(
+                "[{}]     Duration hint:    {:+.2} ({:.2} min, album threshold={} min)",
+                album_id, analysis.duration_score, mins, SINGLE_TRACK_MIN_ALBUM_DURATION_MINS
+            );
         } else {
-            info!("[{}]     Duration hint:    N/A (will check after decode)",
-                album_id);
+            info!(
+                "[{}]     Duration hint:    N/A (will check after decode)",
+                album_id
+            );
         }
 
         // Pre-decode summary
-        info!("[{}]     PRE-DECODE TOTAL: {:.2} ({} confidence{})",
+        info!(
+            "[{}]     PRE-DECODE TOTAL: {:.2} ({} confidence{})",
             album_id,
             analysis.pre_decode_score,
             analysis.confidence,
-            if analysis.is_likely_single_track { " - LIKELY SINGLE TRACK" } else { "" });
+            if analysis.is_likely_single_track {
+                " - LIKELY SINGLE TRACK"
+            } else {
+                ""
+            }
+        );
     }
 
     /// Log post-decode analysis update
@@ -343,24 +375,33 @@ impl SingleTrackDiscriminator {
     /// * `album_id` - Album identifier for logging (e.g., "A1")
     /// * `analysis` - Analysis results (after update_post_decode)
     pub(crate) fn log_post_decode(album_id: &str, analysis: &SingleTrackAnalysis) {
-        info!("[{}] 🔍 Single-track analysis (post-decode update):", album_id);
+        info!(
+            "[{}] 🔍 Single-track analysis (post-decode update):",
+            album_id
+        );
 
         // Layer 4 (if updated)
         if let Some(mins) = analysis.duration_mins {
-            info!("[{}]     Decoded duration: {:+.2} ({:.2} min)",
-                album_id, analysis.duration_score, mins);
+            info!(
+                "[{}]     Decoded duration: {:+.2} ({:.2} min)",
+                album_id, analysis.duration_score, mins
+            );
         }
 
         // Layer 5
         if let Some(score) = analysis.silence_gap_score {
             let count = analysis.silence_gap_count.unwrap_or(0);
-            info!("[{}]     Silence gaps:     {:+.2} ({} gaps detected, threshold={})",
-                album_id, score, count, SINGLE_TRACK_MIN_EXPECTED_GAPS);
+            info!(
+                "[{}]     Silence gaps:     {:+.2} ({} gaps detected, threshold={})",
+                album_id, score, count, SINGLE_TRACK_MIN_EXPECTED_GAPS
+            );
         }
 
         // Final summary
-        info!("[{}]     FINAL TOTAL:      {:.2} ({} confidence)",
-            album_id, analysis.final_score, analysis.confidence);
+        info!(
+            "[{}]     FINAL TOTAL:      {:.2} ({} confidence)",
+            album_id, analysis.final_score, analysis.confidence
+        );
 
         if analysis.is_likely_single_track {
             warn!("[{}]     ⚠️ SINGLE TRACK DETECTED - Results may be invalid (score={:.2} >= threshold={})",

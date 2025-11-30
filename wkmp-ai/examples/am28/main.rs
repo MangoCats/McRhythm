@@ -32,7 +32,6 @@ use tracing_subscriber::fmt::time::OffsetTime;
 
 use constants::*;
 use helpers::{classify_confidence, make_error_result};
-use utils::query_stats::{spawn_heartbeat_task, QueryStats};
 use matching::candidate::analyze_track_matching;
 use matching::edition::{
     cmp_f64, filter_and_sort_editions, find_best_edition_result_with_artist_check,
@@ -49,6 +48,7 @@ use single_track_discriminator::SingleTrackDiscriminator;
 use stages::stage4::calculate_rms_profile;
 use types::*;
 use utils::audio::decode_mp3;
+use utils::query_stats::{spawn_heartbeat_task, QueryStats};
 
 // =============================================================================
 // Process Single Album
@@ -96,7 +96,12 @@ pub(crate) async fn process_single_album(
     }
 
     let album_id = format!("A{}", album_idx + 1);
-    info!("[{}] === Album {}/{} ===", album_id, album_idx + 1, total_albums);
+    info!(
+        "[{}] === Album {}/{} ===",
+        album_id,
+        album_idx + 1,
+        total_albums
+    );
     info!("[{}] File: {}", album_id, file_path.display());
 
     if !file_path.exists() {
@@ -203,7 +208,8 @@ pub(crate) async fn process_single_album(
     };
 
     // Get initial track durations
-    let initial_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
+    let initial_durations =
+        get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
     let file_duration_secs = samples.len() as f64 / sample_rate as f64;
 
     // === SILENCE DETECTION (after decode) ===
@@ -251,7 +257,11 @@ pub(crate) async fn process_single_album(
     // === Single-Track Discriminator (Post-Decode Update) ===
     let duration_mins = file_duration_secs / 60.0;
     let gap_count = initial_durations.len().saturating_sub(1);
-    SingleTrackDiscriminator::update_post_decode(&mut single_track_analysis, duration_mins, gap_count);
+    SingleTrackDiscriminator::update_post_decode(
+        &mut single_track_analysis,
+        duration_mins,
+        gap_count,
+    );
     SingleTrackDiscriminator::log_post_decode(&album_id, &single_track_analysis);
 
     // Process MusicBrainz result
@@ -277,7 +287,11 @@ pub(crate) async fn process_single_album(
                 album_idx,
             ) {
                 Ok(filtered) => {
-                    info!("[{}] Found {} unique editions to test", album_id, filtered.len());
+                    info!(
+                        "[{}] Found {} unique editions to test",
+                        album_id,
+                        filtered.len()
+                    );
                     filtered
                 }
                 Err(failure_msg) => {
@@ -307,10 +321,17 @@ pub(crate) async fn process_single_album(
     };
 
     // Display edition information
-    info!("[{}]   Edition Details (sorted by match likelihood):", album_id);
+    info!(
+        "[{}]   Edition Details (sorted by match likelihood):",
+        album_id
+    );
     for (idx, edition) in editions.iter().enumerate() {
         let edition_duration: u32 = edition.durations.iter().sum();
-        let match_score = score_edition_match(edition, file_duration_secs, reconciled.estimated_track_count);
+        let match_score = score_edition_match(
+            edition,
+            file_duration_secs,
+            reconciled.estimated_track_count,
+        );
         info!(
             "[A{}]     [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s, NDR:{},{:.1})",
             album_idx + 1,
@@ -371,7 +392,8 @@ pub(crate) async fn process_single_album(
     let perfect_match_time_ms = Arc::new(perfect_match_time_ms);
 
     // Channel for collecting results (tokio channel for async-friendly receiving)
-    let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<EditionTestResult>(editions.len().max(1));
+    let (result_tx, mut result_rx) =
+        tokio::sync::mpsc::channel::<EditionTestResult>(editions.len().max(1));
 
     let mut editions_started = 0;
     let mut editions_skipped = 0;
@@ -627,7 +649,11 @@ pub(crate) async fn process_single_album(
         best_expected_durations.len(),
         best_percentage
     );
-    info!("[A{}]     Mean error: {:.2}s", album_idx + 1, best_mean_error);
+    info!(
+        "[A{}]     Mean error: {:.2}s",
+        album_idx + 1,
+        best_mean_error
+    );
     info!(
         "[A{}]     Confidence: {}",
         album_idx + 1,
@@ -637,7 +663,9 @@ pub(crate) async fn process_single_album(
     if let (Some(thresh), Some(min_dur)) = (best_threshold, best_min_duration) {
         info!(
             "[A{}]     Best parameters: {}dB, {}s",
-            album_idx + 1, thresh, min_dur
+            album_idx + 1,
+            thresh,
+            min_dur
         );
     }
 
@@ -679,7 +707,9 @@ pub(crate) async fn process_single_album(
             for et in &extra_tracks {
                 info!(
                     "[A{}]     Track {}: {:.1}s (no MusicBrainz match)",
-                    album_idx + 1, et.track_index, et.duration
+                    album_idx + 1,
+                    et.track_index,
+                    et.duration
                 );
             }
         }
@@ -687,7 +717,8 @@ pub(crate) async fn process_single_album(
         let missing_count = best_expected_durations.len() - best_durations.len();
         info!(
             "[A{}]   MusicBrainz tracks not found in file ({} missing):",
-            album_idx + 1, missing_count
+            album_idx + 1,
+            missing_count
         );
         for i in min_count..best_expected_durations.len() {
             info!(
@@ -787,7 +818,12 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         error!("PANIC at {}: {}", location, message);
-        let _ = writeln!(std::io::stderr(), "\n!!! PANIC at {}: {}", location, message);
+        let _ = writeln!(
+            std::io::stderr(),
+            "\n!!! PANIC at {}: {}",
+            location,
+            message
+        );
         let _ = std::io::stderr().flush();
 
         let backtrace = std::backtrace::Backtrace::capture();
@@ -1058,7 +1094,10 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("  album_extractor_4_guided:         {} albums", stage4);
         info!("  album_extractor_6_merging:        {} albums", stage5);
 
-        let excellent = results.iter().filter(|r| r.confidence == "Excellent").count();
+        let excellent = results
+            .iter()
+            .filter(|r| r.confidence == "Excellent")
+            .count();
         let good = results.iter().filter(|r| r.confidence == "Good").count();
         let fair = results.iter().filter(|r| r.confidence == "Fair").count();
         let poor = results
@@ -1099,7 +1138,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("  Match percentage: {:.1}%", avg_match_pct);
         info!("  Mean error: {:.2}s", avg_error);
 
-        let mut success_results: Vec<_> = results.iter().filter(|r| r.status == "Success").collect();
+        let mut success_results: Vec<_> =
+            results.iter().filter(|r| r.status == "Success").collect();
         success_results.sort_by(|a, b| cmp_f64(b.match_percentage, a.match_percentage));
 
         info!("\nBest 5 Albums:");

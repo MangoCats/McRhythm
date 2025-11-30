@@ -54,20 +54,17 @@ pub(crate) fn decode_mp3(
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
 
-    let probed = symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
+    let probed =
+        symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
     let mut format = probed.format;
 
     let track = format.default_track().ok_or("No default track")?;
     let track_id = track.id;
 
-    let sample_rate = track
-        .codec_params
-        .sample_rate
-        .ok_or("No sample rate")?;
+    let sample_rate = track.codec_params.sample_rate.ok_or("No sample rate")?;
 
     let decoder_opts = DecoderOptions::default();
-    let mut decoder =
-        symphonia::default::get_codecs().make(&track.codec_params, &decoder_opts)?;
+    let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &decoder_opts)?;
 
     let mut samples = Vec::new();
 

@@ -31,10 +31,12 @@
 //! - `constants`: SCORE_TRACK_COUNT_PENALTY, NAME_DISTANCE_SWAP_RATIO, ARTIST_FALLBACK_*, TRACK_COUNT_PENALTY_PER_TRACK
 
 use crate::constants::*;
+use crate::matching::validation::{
+    levenshtein_ratio, normalize_artist_name, verify_album_match, verify_artist_match,
+};
 use crate::types::{Edition, EditionTestResult};
-use crate::matching::validation::{verify_artist_match, verify_album_match, normalize_artist_name, levenshtein_ratio};
-use tracing::{info, warn};
 use std::cmp::Ordering;
+use tracing::{info, warn};
 
 // =============================================================================
 // Edition Scoring and Sorting
@@ -130,7 +132,9 @@ pub(crate) fn resort_by_name_similarity(editions: &mut [Edition]) {
         for i in 0..editions.len() - 1 {
             // Lower name_distance_score is better
             // Swap if current item's score is more than NAME_DISTANCE_SWAP_RATIO times worse than next item's score
-            if editions[i].name_distance_score > NAME_DISTANCE_SWAP_RATIO * editions[i + 1].name_distance_score {
+            if editions[i].name_distance_score
+                > NAME_DISTANCE_SWAP_RATIO * editions[i + 1].name_distance_score
+            {
                 editions.swap(i, i + 1);
                 swaps += 1;
             }
@@ -174,20 +178,36 @@ pub(crate) fn resort_by_name_similarity(editions: &mut [Edition]) {
 /// let editions = group_into_editions(releases, album_idx);
 /// ```
 pub(crate) fn group_into_editions(
-    releases: Vec<(Vec<u32>, Vec<String>, crate::types::EditionMBID, String, String, usize, f64)>,
-    album_idx: usize
+    releases: Vec<(
+        Vec<u32>,
+        Vec<String>,
+        crate::types::EditionMBID,
+        String,
+        String,
+        usize,
+        f64,
+    )>,
+    album_idx: usize,
 ) -> Vec<Edition> {
     let mut editions: Vec<Edition> = Vec::new();
 
     for (durations, recording_mbids, mbid_info, artist, album, rank, score) in releases {
         // Create signature: "track_count:duration1,duration2,..."
-        let signature = format!("{}:{}",
+        let signature = format!(
+            "{}:{}",
             durations.len(),
-            durations.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(",")
+            durations
+                .iter()
+                .map(|d| d.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
         );
 
         // Find existing edition with this signature
-        if let Some(edition) = editions.iter_mut().find(|e| e.duration_signature == signature) {
+        if let Some(edition) = editions
+            .iter_mut()
+            .find(|e| e.duration_signature == signature)
+        {
             // Add this MBID to existing edition
             edition.mbids.push(mbid_info);
             // Update to best (lowest) rank and corresponding score
@@ -211,7 +231,11 @@ pub(crate) fn group_into_editions(
         }
     }
 
-    info!("[A{}]   Grouped into {} unique editions", album_idx + 1, editions.len());
+    info!(
+        "[A{}]   Grouped into {} unique editions",
+        album_idx + 1,
+        editions.len()
+    );
 
     // Sort editions by track count (helps with display)
     editions.sort_by_key(|e| e.track_count);
@@ -272,8 +296,11 @@ pub(crate) fn filter_and_sort_editions(
         cmp_f64(score_a, score_b)
     });
 
-    info!("[A{}]   Sorted editions by likelihood (file: {:.0}s)",
-        album_idx + 1, file_duration_secs);
+    info!(
+        "[A{}]   Sorted editions by likelihood (file: {:.0}s)",
+        album_idx + 1,
+        file_duration_secs
+    );
 
     // Filter editions by runtime length (must be within 25% of file duration)
     let total_editions = editions.len();
@@ -288,13 +315,25 @@ pub(crate) fn filter_and_sort_editions(
 
     let runtime_filtered_count = total_editions - editions.len();
     if runtime_filtered_count > 0 {
-        info!("[A{}]   Filtered out {} editions (runtime >25% different from file)", album_idx + 1, runtime_filtered_count);
-        info!("[A{}]   Acceptable range: {:.0}s - {:.0}s", album_idx + 1, min_duration, max_duration);
+        info!(
+            "[A{}]   Filtered out {} editions (runtime >25% different from file)",
+            album_idx + 1,
+            runtime_filtered_count
+        );
+        info!(
+            "[A{}]   Acceptable range: {:.0}s - {:.0}s",
+            album_idx + 1,
+            min_duration,
+            max_duration
+        );
     }
 
     if editions.is_empty() {
         return Err(if runtime_filtered_count > 0 {
-            format!("FAILED: All editions filtered out ({} by runtime)", runtime_filtered_count)
+            format!(
+                "FAILED: All editions filtered out ({} by runtime)",
+                runtime_filtered_count
+            )
         } else {
             "FAILED: No valid editions (NDR filtering applied at release level)".to_string()
         });
@@ -376,7 +415,11 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
     source_album: &str,
     estimated_track_count: Option<usize>,
     album_idx: usize,
-) -> (Option<&'a EditionTestResult>, bool, Option<(usize, f64, String, f64)>) {
+) -> (
+    Option<&'a EditionTestResult>,
+    bool,
+    Option<(usize, f64, String, f64)>,
+) {
     // Step 1: Sort all editions by time-fit (match% adjusted for track count, then mean error)
     let mut sorted_results: Vec<&EditionTestResult> = edition_results
         .iter()
@@ -410,14 +453,23 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
         };
 
         // Primary: higher adjusted match% is better
-        let pct_cmp = b_adjusted_pct.partial_cmp(&a_adjusted_pct)
+        let pct_cmp = b_adjusted_pct
+            .partial_cmp(&a_adjusted_pct)
             .unwrap_or(Ordering::Equal);
         if pct_cmp != Ordering::Equal {
             return pct_cmp;
         }
         // Secondary: lower mean error is better
-        let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-        let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+        let a_error = a
+            .best_result
+            .as_ref()
+            .map(|r| r.mean_error)
+            .unwrap_or(f64::MAX);
+        let b_error = b
+            .best_result
+            .as_ref()
+            .map(|r| r.mean_error)
+            .unwrap_or(f64::MAX);
         cmp_f64(a_error, b_error)
     });
 
@@ -427,22 +479,37 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
 
     // Run 27: Log track count penalties if applied
     if let Some(expected_tracks) = estimated_track_count {
-        let penalties: Vec<_> = sorted_results.iter().take(3).filter_map(|r| {
-            let edition = &editions[r.edition_idx];
-            if edition.track_count > expected_tracks {
-                let extra = edition.track_count - expected_tracks;
-                let penalty = extra as f64 * TRACK_COUNT_PENALTY_PER_TRACK;
-                Some((edition.track_count, extra, penalty, r.best_percentage))
-            } else {
-                None
-            }
-        }).collect();
+        let penalties: Vec<_> = sorted_results
+            .iter()
+            .take(3)
+            .filter_map(|r| {
+                let edition = &editions[r.edition_idx];
+                if edition.track_count > expected_tracks {
+                    let extra = edition.track_count - expected_tracks;
+                    let penalty = extra as f64 * TRACK_COUNT_PENALTY_PER_TRACK;
+                    Some((edition.track_count, extra, penalty, r.best_percentage))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         if !penalties.is_empty() {
-            info!("[A{}]   Run 27: Track count penalties applied (expected: {} tracks)", album_idx + 1, expected_tracks);
+            info!(
+                "[A{}]   Run 27: Track count penalties applied (expected: {} tracks)",
+                album_idx + 1,
+                expected_tracks
+            );
             for (tracks, extra, penalty, orig_pct) in penalties {
-                info!("[A{}]       {} tracks ({} extra) → {:.1}% penalty, adjusted {:.1}% → {:.1}%",
-                    album_idx + 1, tracks, extra, penalty, orig_pct, orig_pct - penalty);
+                info!(
+                    "[A{}]       {} tracks ({} extra) → {:.1}% penalty, adjusted {:.1}% → {:.1}%",
+                    album_idx + 1,
+                    tracks,
+                    extra,
+                    penalty,
+                    orig_pct,
+                    orig_pct - penalty
+                );
             }
         }
     }
@@ -460,7 +527,11 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
     let (winner_artist_sim, winner_artist_ok) = verify_artist_match(source_artist, winner_artist);
     let (winner_album_sim, winner_album_ok) = verify_album_match(source_album, winner_album);
     let winner_pct = winner.best_percentage;
-    let winner_error = winner.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+    let winner_error = winner
+        .best_result
+        .as_ref()
+        .map(|r| r.mean_error)
+        .unwrap_or(f64::MAX);
 
     // Run 24: Check both artist AND album similarity
     let winner_name_ok = winner_artist_ok && winner_album_ok;
@@ -482,10 +553,22 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
         let album_lev_ratio = levenshtein_ratio(&norm_source_album, &norm_winner_album);
 
         info!("[A{}]   ✅ Name match OK:", album_idx + 1);
-        info!("[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
-            album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, artist_lev_ratio * 100.0);
-        info!("[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
-            album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, album_lev_ratio * 100.0);
+        info!(
+            "[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
+            album_idx + 1,
+            source_artist,
+            winner_artist,
+            winner_artist_sim * 100.0,
+            artist_lev_ratio * 100.0
+        );
+        info!(
+            "[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
+            album_idx + 1,
+            source_album,
+            winner_album,
+            winner_album_sim * 100.0,
+            album_lev_ratio * 100.0
+        );
 
         return (Some(winner), false, None);
     }
@@ -510,11 +593,29 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
         (true, false) => "Album",
         (true, true) => unreachable!(),
     };
-    info!("[A{}]   🔍 {} mismatch detected:", album_idx + 1, mismatch_type);
-    info!("[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
-        album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, artist_lev_ratio * 100.0, winner_artist_ok);
-    info!("[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
-        album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, album_lev_ratio * 100.0, winner_album_ok);
+    info!(
+        "[A{}]   🔍 {} mismatch detected:",
+        album_idx + 1,
+        mismatch_type
+    );
+    info!(
+        "[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
+        album_idx + 1,
+        source_artist,
+        winner_artist,
+        winner_artist_sim * 100.0,
+        artist_lev_ratio * 100.0,
+        winner_artist_ok
+    );
+    info!(
+        "[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
+        album_idx + 1,
+        source_album,
+        winner_album,
+        winner_album_sim * 100.0,
+        album_lev_ratio * 100.0,
+        winner_album_ok
+    );
     info!("[A{}]       Evaluating runner-ups...", album_idx + 1);
 
     // Calculate how many runner-ups to evaluate: top 25%, minimum 3
@@ -522,13 +623,23 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
         .max(ARTIST_FALLBACK_MIN_CANDIDATES)
         .min(sorted_results.len());
 
-    info!("[A{}]       Evaluating top {} of {} editions", album_idx + 1, num_candidates, sorted_results.len());
+    info!(
+        "[A{}]       Evaluating top {} of {} editions",
+        album_idx + 1,
+        num_candidates,
+        sorted_results.len()
+    );
 
     // Combined similarity for winner (average of artist and album)
     let winner_combined_sim = (winner_artist_sim + winner_album_sim) / 2.0;
 
     // Step 5: Check each runner-up
-    for (rank, runner) in sorted_results.iter().enumerate().skip(1).take(num_candidates - 1) {
+    for (rank, runner) in sorted_results
+        .iter()
+        .enumerate()
+        .skip(1)
+        .take(num_candidates - 1)
+    {
         let runner_idx = runner.edition_idx;
         if runner_idx >= editions.len() {
             continue;
@@ -536,10 +647,15 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
 
         let runner_artist = &editions[runner_idx].artist;
         let runner_album = &editions[runner_idx].album;
-        let (runner_artist_sim, runner_artist_ok) = verify_artist_match(source_artist, runner_artist);
+        let (runner_artist_sim, runner_artist_ok) =
+            verify_artist_match(source_artist, runner_artist);
         let (runner_album_sim, runner_album_ok) = verify_album_match(source_album, runner_album);
         let runner_pct = runner.best_percentage;
-        let runner_error = runner.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+        let runner_error = runner
+            .best_result
+            .as_ref()
+            .map(|r| r.mean_error)
+            .unwrap_or(f64::MAX);
 
         // Run 24: Combined similarity (average of artist and album)
         let runner_combined_sim = (runner_artist_sim + runner_album_sim) / 2.0;
@@ -550,7 +666,8 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
         let meets_min_similarity = runner_combined_sim >= ARTIST_FALLBACK_MIN_SIMILARITY;
         let meets_delta = runner_combined_sim > winner_combined_sim + ARTIST_FALLBACK_DELTA;
         let meets_ratio = runner_combined_sim > winner_combined_sim * ARTIST_FALLBACK_RATIO;
-        let name_significantly_better = runner_name_ok || (meets_min_similarity && (meets_delta || meets_ratio));
+        let name_significantly_better =
+            runner_name_ok || (meets_min_similarity && (meets_delta || meets_ratio));
 
         // Check time fit: "not significantly worse"
         // Formula: 10 × (runner_pct/winner_pct - 1) + 1 × (1 - runner_error/winner_error)
@@ -569,35 +686,103 @@ pub(crate) fn find_best_edition_result_with_artist_check<'a>(
         let runner_norm_album = normalize_album(runner_album);
         let runner_album_lev = levenshtein_ratio(&norm_source_album, &runner_norm_album);
 
-        info!("[A{}]       Runner #{}: '{}' - '{}'",
-            album_idx + 1, rank + 1, runner_artist, runner_album);
-        info!("[A{}]         Artist: JW={:.1}%, Lev={:.1}%, ok={}",
-            album_idx + 1, runner_artist_sim * 100.0, runner_artist_lev * 100.0, runner_artist_ok);
-        info!("[A{}]         Album: JW={:.1}%, Lev={:.1}%, ok={}",
-            album_idx + 1, runner_album_sim * 100.0, runner_album_lev * 100.0, runner_album_ok);
-        info!("[A{}]         Combined: {:.1}% (winner: {:.1}%), name_ok={}, better={}",
-            album_idx + 1, runner_combined_sim * 100.0, winner_combined_sim * 100.0, runner_name_ok, name_significantly_better);
-        info!("[A{}]         Time: pct={:.1}%, err={:.2}s, delta={:.3}, acceptable={}",
-            album_idx + 1, runner_pct, runner_error, time_fit_delta, time_fit_acceptable);
+        info!(
+            "[A{}]       Runner #{}: '{}' - '{}'",
+            album_idx + 1,
+            rank + 1,
+            runner_artist,
+            runner_album
+        );
+        info!(
+            "[A{}]         Artist: JW={:.1}%, Lev={:.1}%, ok={}",
+            album_idx + 1,
+            runner_artist_sim * 100.0,
+            runner_artist_lev * 100.0,
+            runner_artist_ok
+        );
+        info!(
+            "[A{}]         Album: JW={:.1}%, Lev={:.1}%, ok={}",
+            album_idx + 1,
+            runner_album_sim * 100.0,
+            runner_album_lev * 100.0,
+            runner_album_ok
+        );
+        info!(
+            "[A{}]         Combined: {:.1}% (winner: {:.1}%), name_ok={}, better={}",
+            album_idx + 1,
+            runner_combined_sim * 100.0,
+            winner_combined_sim * 100.0,
+            runner_name_ok,
+            name_significantly_better
+        );
+        info!(
+            "[A{}]         Time: pct={:.1}%, err={:.2}s, delta={:.3}, acceptable={}",
+            album_idx + 1,
+            runner_pct,
+            runner_error,
+            time_fit_delta,
+            time_fit_acceptable
+        );
 
         // If both conditions met, promote this runner-up
         if name_significantly_better && time_fit_acceptable {
-            info!("[A{}]   🎯 Name fallback: Promoting runner-up #{} over winner", album_idx + 1, rank + 1);
-            info!("[A{}]       Winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
-                album_idx + 1, winner_artist, winner_album, winner_artist_sim * 100.0, winner_album_sim * 100.0, winner_pct);
-            info!("[A{}]       Runner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
-                album_idx + 1, runner_artist, runner_album, runner_artist_sim * 100.0, runner_album_sim * 100.0, runner_pct);
-            info!("[A{}]       Time-fit delta: {:.3} (threshold: {:.1})",
-                album_idx + 1, time_fit_delta, TIME_FIT_DELTA_THRESHOLD);
+            info!(
+                "[A{}]   🎯 Name fallback: Promoting runner-up #{} over winner",
+                album_idx + 1,
+                rank + 1
+            );
+            info!(
+                "[A{}]       Winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
+                album_idx + 1,
+                winner_artist,
+                winner_album,
+                winner_artist_sim * 100.0,
+                winner_album_sim * 100.0,
+                winner_pct
+            );
+            info!(
+                "[A{}]       Runner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
+                album_idx + 1,
+                runner_artist,
+                runner_album,
+                runner_artist_sim * 100.0,
+                runner_album_sim * 100.0,
+                runner_pct
+            );
+            info!(
+                "[A{}]       Time-fit delta: {:.3} (threshold: {:.1})",
+                album_idx + 1,
+                time_fit_delta,
+                TIME_FIT_DELTA_THRESHOLD
+            );
 
-            return (Some(runner), true, Some((winner_idx, winner_pct, winner_artist.clone(), winner_artist_sim)));
+            return (
+                Some(runner),
+                true,
+                Some((
+                    winner_idx,
+                    winner_pct,
+                    winner_artist.clone(),
+                    winner_artist_sim,
+                )),
+            );
         }
     }
 
     // No suitable runner-up found - use original winner with warning
-    warn!("[A{}]   ⚠️ No suitable name-matched runner-up found", album_idx + 1);
-    warn!("[A{}]       Using original winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
-        album_idx + 1, winner_artist, winner_album, winner_artist_sim * 100.0, winner_album_sim * 100.0, winner_pct);
+    warn!(
+        "[A{}]   ⚠️ No suitable name-matched runner-up found",
+        album_idx + 1
+    );
+    warn!(
+        "[A{}]       Using original winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
+        album_idx + 1,
+        winner_artist,
+        winner_album,
+        winner_artist_sim * 100.0,
+        winner_album_sim * 100.0,
+        winner_pct
+    );
 
     (Some(winner), false, None)
 }

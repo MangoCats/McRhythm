@@ -56,8 +56,7 @@ pub async fn assert_no_column(pool: &SqlitePool, table_name: &str, column_name: 
     assert!(
         !has_col,
         "Table '{}' should NOT have column '{}', but it exists",
-        table_name,
-        column_name
+        table_name, column_name
     );
 }
 
@@ -67,8 +66,7 @@ pub async fn assert_has_column(pool: &SqlitePool, table_name: &str, column_name:
     assert!(
         has_col,
         "Table '{}' should have column '{}', but it doesn't exist",
-        table_name,
-        column_name
+        table_name, column_name
     );
 }
 
@@ -83,7 +81,9 @@ pub async fn get_table_names(pool: &SqlitePool) -> Result<Vec<String>> {
 }
 
 /// Create test WorkflowOrchestrator
-pub fn create_test_orchestrator(db_pool: sqlx::SqlitePool) -> wkmp_ai::services::WorkflowOrchestrator {
+pub fn create_test_orchestrator(
+    db_pool: sqlx::SqlitePool,
+) -> wkmp_ai::services::WorkflowOrchestrator {
     use wkmp_ai::services::WorkflowOrchestrator;
     use wkmp_common::events::EventBus;
 

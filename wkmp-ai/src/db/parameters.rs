@@ -48,7 +48,10 @@ pub async fn load_amplitude_parameters(pool: &SqlitePool) -> Result<AmplitudePar
         loaded_count += 1;
     }
 
-    tracing::info!("Loaded {} amplitude parameters from database (8 total)", loaded_count);
+    tracing::info!(
+        "Loaded {} amplitude parameters from database (8 total)",
+        loaded_count
+    );
     Ok(params)
 }
 
@@ -64,8 +67,18 @@ pub async fn save_amplitude_parameters(
     set_setting_f64(pool, "lead_out_threshold_db", params.lead_out_threshold_db).await?;
     set_setting_f64(pool, "quick_ramp_threshold", params.quick_ramp_threshold).await?;
     set_setting_f64(pool, "quick_ramp_duration_s", params.quick_ramp_duration_s).await?;
-    set_setting_f64(pool, "max_lead_in_duration_s", params.max_lead_in_duration_s).await?;
-    set_setting_f64(pool, "max_lead_out_duration_s", params.max_lead_out_duration_s).await?;
+    set_setting_f64(
+        pool,
+        "max_lead_in_duration_s",
+        params.max_lead_in_duration_s,
+    )
+    .await?;
+    set_setting_f64(
+        pool,
+        "max_lead_out_duration_s",
+        params.max_lead_out_duration_s,
+    )
+    .await?;
     set_setting_bool(pool, "apply_a_weighting", params.apply_a_weighting).await?;
 
     tracing::info!("Successfully saved all 8 amplitude parameters");

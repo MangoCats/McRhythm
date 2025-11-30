@@ -10,12 +10,14 @@
 //! - `ai_database_max_lock_wait_ms` - Total retry budget for lock contention
 //! - `ai_processing_thread_count` - Worker parallelism for import pipeline
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteSynchronous};
+use anyhow::{Context, Result};
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteSynchronous,
+};
 use sqlx::Row;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
-use anyhow::{Context, Result};
 
 /// Bootstrap configuration read from settings table at startup
 ///
@@ -134,26 +136,30 @@ impl WkmpAiBootstrapConfig {
         .context("Failed to read RESTART_REQUIRED parameters from settings table")?;
 
         // Parse parameters with validation using runtime query row access
-        let pool_size_str: String = row.try_get("pool_size")
+        let pool_size_str: String = row
+            .try_get("pool_size")
             .context("Failed to get pool_size from query result")?;
         let connection_pool_size: u32 = pool_size_str
             .parse()
             .context("Invalid ai_database_connection_pool_size (must be integer 1-500)")?;
 
-        let lock_retry_str: String = row.try_get("lock_retry")
+        let lock_retry_str: String = row
+            .try_get("lock_retry")
             .context("Failed to get lock_retry from query result")?;
         let lock_retry_ms: u64 = lock_retry_str
             .parse()
             .context("Invalid ai_database_lock_retry_ms (must be integer 50-5000)")?;
 
-        let max_wait_str: String = row.try_get("max_wait")
+        let max_wait_str: String = row
+            .try_get("max_wait")
             .context("Failed to get max_wait from query result")?;
         let max_lock_wait_ms: u64 = max_wait_str
             .parse()
             .context("Invalid ai_database_max_lock_wait_ms (must be integer 500-30000)")?;
 
         // Thread count: NULL triggers auto-detection
-        let thread_count_opt: Option<String> = row.try_get("thread_count")
+        let thread_count_opt: Option<String> = row
+            .try_get("thread_count")
             .context("Failed to get thread_count from query result")?;
 
         let processing_thread_count = if let Some(thread_count_str) = thread_count_opt {
@@ -276,14 +282,14 @@ impl WkmpAiBootstrapConfig {
             .max_connections(self.connection_pool_size)
             .min_connections(min_connections)
             .acquire_timeout(Duration::from_millis(self.max_lock_wait_ms))
-            .idle_timeout(Duration::from_secs(600))  // Keep connections alive for 10 minutes
+            .idle_timeout(Duration::from_secs(600)) // Keep connections alive for 10 minutes
             .connect_with(
                 SqliteConnectOptions::from_str(db_path.to_str().context("Invalid database path")?)
                     .context("Failed to parse database path")?
                     .busy_timeout(Duration::from_millis(self.lock_retry_ms))
                     .journal_mode(SqliteJournalMode::Wal)
                     .synchronous(SqliteSynchronous::Normal)
-                    .create_if_missing(true)
+                    .create_if_missing(true),
             )
             .await
             .context("Failed to create production database pool")?;
@@ -334,7 +340,7 @@ mod tests {
             .connect_with(
                 SqliteConnectOptions::from_str(db_path.to_str().unwrap())
                     .unwrap()
-                    .create_if_missing(true)
+                    .create_if_missing(true),
             )
             .await
             .unwrap();
@@ -346,7 +352,9 @@ mod tests {
         init_pool.close().await;
 
         // Bootstrap should succeed with defaults
-        let config = WkmpAiBootstrapConfig::from_database(&db_path).await.unwrap();
+        let config = WkmpAiBootstrapConfig::from_database(&db_path)
+            .await
+            .unwrap();
 
         // **[PLAN029]** Updated defaults for optimized pool configuration
         assert_eq!(config.connection_pool_size, 30);
@@ -367,7 +375,7 @@ mod tests {
             .connect_with(
                 SqliteConnectOptions::from_str(db_path.to_str().unwrap())
                     .unwrap()
-                    .create_if_missing(true)
+                    .create_if_missing(true),
             )
             .await
             .unwrap();
@@ -376,20 +384,26 @@ mod tests {
             .await
             .unwrap();
 
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '64')")
-            .execute(&init_pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '64')",
+        )
+        .execute(&init_pool)
+        .await
+        .unwrap();
 
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '500')")
-            .execute(&init_pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '500')",
+        )
+        .execute(&init_pool)
+        .await
+        .unwrap();
 
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '10000')")
-            .execute(&init_pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '10000')",
+        )
+        .execute(&init_pool)
+        .await
+        .unwrap();
 
         sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_processing_thread_count', '8')")
             .execute(&init_pool)
@@ -399,7 +413,9 @@ mod tests {
         init_pool.close().await;
 
         // Bootstrap should read custom values
-        let config = WkmpAiBootstrapConfig::from_database(&db_path).await.unwrap();
+        let config = WkmpAiBootstrapConfig::from_database(&db_path)
+            .await
+            .unwrap();
 
         assert_eq!(config.connection_pool_size, 64);
         assert_eq!(config.lock_retry_ms, 500);
@@ -418,7 +434,7 @@ mod tests {
             max_lock_wait_ms: 1000,
             processing_thread_count: 2,
             memory_usage_threshold_bytes: 1073741824, // 1GB for testing
-            event_bus_capacity: 100, // Small capacity for testing
+            event_bus_capacity: 100,                  // Small capacity for testing
         };
 
         let pool = config.create_pool(&db_path).await.unwrap();

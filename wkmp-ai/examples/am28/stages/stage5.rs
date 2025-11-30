@@ -36,8 +36,8 @@
 //! - `types`: CandidateTestResult
 //! - `matching::candidate`: analyze_track_matching(), test_segmentation_against_single_edition()
 
-use crate::types::CandidateTestResult;
 use crate::matching::candidate::analyze_track_matching;
+use crate::types::CandidateTestResult;
 use tracing::info;
 
 // =============================================================================
@@ -198,10 +198,12 @@ pub(crate) fn run_stage5_single_edition(
 
         let mean_merged_error = best_merge_error / merged_matches.len() as f64;
 
-        info!("      Merged tracks {} + {} -> {:.1}%",
+        info!(
+            "      Merged tracks {} + {} -> {:.1}%",
             best_merge_index + 1,
             best_merge_index + 2,
-            merged_percentage);
+            merged_percentage
+        );
 
         let result = CandidateTestResult {
             percentage: merged_percentage,

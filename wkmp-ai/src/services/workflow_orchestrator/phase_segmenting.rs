@@ -17,7 +17,10 @@ impl WorkflowOrchestrator {
     /// **DEPRECATED:** Use `phase_processing_per_file()` instead
     ///
     /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
-    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use phase_processing_per_file() with per-file pipeline"
+    )]
     pub(super) async fn phase_segmenting(
         &self,
         mut session: ImportSession,
@@ -60,7 +63,7 @@ impl WorkflowOrchestrator {
             let duration_sec = if let Some(ticks) = file.duration_ticks {
                 wkmp_common::timing::ticks_to_seconds(ticks)
             } else {
-                180.0  // Default 180 seconds if duration unknown
+                180.0 // Default 180 seconds if duration unknown
             };
 
             // Create passage spanning entire file
@@ -90,7 +93,7 @@ impl WorkflowOrchestrator {
 
                 // Link passage to song if fingerprinting identified one
                 if let Ok(Some(row)) = sqlx::query_as::<_, (String,)>(
-                    "SELECT song_id FROM temp_file_songs WHERE file_id = ?"
+                    "SELECT song_id FROM temp_file_songs WHERE file_id = ?",
                 )
                 .bind(file.guid.to_string())
                 .fetch_optional(&self.db)
@@ -103,7 +106,9 @@ impl WorkflowOrchestrator {
                             song_guid,
                             passage.start_time_ticks,
                             passage.end_time_ticks,
-                        ).await {
+                        )
+                        .await
+                        {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
@@ -116,7 +121,7 @@ impl WorkflowOrchestrator {
 
                 // Link passage to albums if fingerprinting identified any
                 if let Ok(rows) = sqlx::query_as::<_, (String,)>(
-                    "SELECT album_id FROM temp_file_albums WHERE file_id = ?"
+                    "SELECT album_id FROM temp_file_albums WHERE file_id = ?",
                 )
                 .bind(file.guid.to_string())
                 .fetch_all(&self.db)
@@ -128,7 +133,9 @@ impl WorkflowOrchestrator {
                                 &self.db,
                                 passage.guid,
                                 album_guid,
-                            ).await {
+                            )
+                            .await
+                            {
                                 tracing::warn!(
                                     session_id = %session.session_id,
                                     file = %file.path,

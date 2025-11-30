@@ -114,7 +114,10 @@ async fn test_workflow_with_empty_config() {
     let result = processor.process_file(&wav_path).await;
 
     // Verify no fatal errors
-    assert!(result.is_ok(), "Workflow should complete even with no extractors");
+    assert!(
+        result.is_ok(),
+        "Workflow should complete even with no extractors"
+    );
 
     let passages = result.unwrap();
     // Should have at least 1 passage (may be whole file if no clear boundaries)
@@ -139,16 +142,13 @@ async fn test_workflow_with_audio_derived_only() {
     let wav_path = generate_test_wav(5.0);
 
     // Process the file in background
-    let process_handle = tokio::spawn(async move {
-        processor.process_file(&wav_path).await
-    });
+    let process_handle = tokio::spawn(async move { processor.process_file(&wav_path).await });
 
     // Collect events
     let mut events = Vec::new();
-    while let Ok(event) = tokio::time::timeout(
-        std::time::Duration::from_millis(100),
-        event_rx.recv()
-    ).await {
+    while let Ok(event) =
+        tokio::time::timeout(std::time::Duration::from_millis(100), event_rx.recv()).await
+    {
         if let Some(e) = event {
             events.push(e);
         } else {
@@ -170,8 +170,10 @@ async fn test_workflow_with_audio_derived_only() {
     let passage = &passages[0];
     // Note: Audio-derived extractor may return empty characteristics for pure silence
     // Just verify fusion completed successfully
-    assert!(passage.fusion.flavor.completeness >= 0.0,
-            "Fusion should complete with valid completeness score");
+    assert!(
+        passage.fusion.flavor.completeness >= 0.0,
+        "Fusion should complete with valid completeness score"
+    );
 }
 
 #[tokio::test]
@@ -191,21 +193,30 @@ async fn test_event_bridge_integration() {
     ));
 
     // Send workflow events
-    workflow_tx.send(WorkflowEvent::FileStarted {
-        file_path: "/test/file.mp3".to_string(),
-        timestamp: 0,
-    }).await.unwrap();
+    workflow_tx
+        .send(WorkflowEvent::FileStarted {
+            file_path: "/test/file.mp3".to_string(),
+            timestamp: 0,
+        })
+        .await
+        .unwrap();
 
-    workflow_tx.send(WorkflowEvent::PassageStarted {
-        passage_index: 0,
-        total_passages: 1,
-    }).await.unwrap();
+    workflow_tx
+        .send(WorkflowEvent::PassageStarted {
+            passage_index: 0,
+            total_passages: 1,
+        })
+        .await
+        .unwrap();
 
-    workflow_tx.send(WorkflowEvent::PassageCompleted {
-        passage_index: 0,
-        quality_score: 85.0,
-        validation_status: "Pass".to_string(),
-    }).await.unwrap();
+    workflow_tx
+        .send(WorkflowEvent::PassageCompleted {
+            passage_index: 0,
+            quality_score: 85.0,
+            validation_status: "Pass".to_string(),
+        })
+        .await
+        .unwrap();
 
     // Drop sender to complete bridge
     drop(workflow_tx);
@@ -226,7 +237,9 @@ async fn test_event_bridge_integration() {
     use wkmp_common::events::WkmpEvent;
     for event in &wkmp_events {
         match event {
-            WkmpEvent::ImportProgressUpdate { session_id: sid, .. } => {
+            WkmpEvent::ImportProgressUpdate {
+                session_id: sid, ..
+            } => {
                 assert_eq!(sid, &session_id, "Event should have correct session ID");
             }
             _ => panic!("Expected ImportProgressUpdate events"),
@@ -250,19 +263,33 @@ async fn test_boundary_detection_short_file() {
     assert!(boundaries.is_ok(), "Boundary detection should succeed");
 
     let boundaries = boundaries.unwrap();
-    assert!(!boundaries.is_empty(), "Should detect at least one passage (whole-file fallback)");
+    assert!(
+        !boundaries.is_empty(),
+        "Should detect at least one passage (whole-file fallback)"
+    );
 
     // Verify boundaries have sensible values (SPEC017: times in ticks)
     for boundary in &boundaries {
-        assert!(boundary.start_time >= 0, "Start time should be non-negative");
-        assert!(boundary.end_time > boundary.start_time, "End should be after start");
-        assert!(boundary.confidence > 0.0 && boundary.confidence <= 1.0,
-                "Confidence should be in [0, 1]");
+        assert!(
+            boundary.start_time >= 0,
+            "Start time should be non-negative"
+        );
+        assert!(
+            boundary.end_time > boundary.start_time,
+            "End should be after start"
+        );
+        assert!(
+            boundary.confidence > 0.0 && boundary.confidence <= 1.0,
+            "Confidence should be in [0, 1]"
+        );
     }
 
     // First boundary should start near 0 (< 1 second in ticks: 28,224,000)
     const TICK_RATE: i64 = 28_224_000;
-    assert!(boundaries[0].start_time < TICK_RATE, "First passage should start near 0");
+    assert!(
+        boundaries[0].start_time < TICK_RATE,
+        "First passage should start near 0"
+    );
 }
 
 #[tokio::test]

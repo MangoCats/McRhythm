@@ -72,12 +72,12 @@ pub struct ID3GenreMapper {
 /// Genre characteristics (flavor values for a specific genre)
 #[derive(Debug, Clone)]
 struct GenreCharacteristics {
-    tempo: f32,         // 0.0 = slow, 1.0 = fast
-    energy: f32,        // 0.0 = calm, 1.0 = energetic
-    danceability: f32,  // 0.0 = not danceable, 1.0 = very danceable
-    acoustic: f32,      // 0.0 = electronic, 1.0 = acoustic
-    happy: f32,         // 0.0 = sad, 1.0 = happy
-    aggressive: f32,    // 0.0 = peaceful, 1.0 = aggressive
+    tempo: f32,        // 0.0 = slow, 1.0 = fast
+    energy: f32,       // 0.0 = calm, 1.0 = energetic
+    danceability: f32, // 0.0 = not danceable, 1.0 = very danceable
+    acoustic: f32,     // 0.0 = electronic, 1.0 = acoustic
+    happy: f32,        // 0.0 = sad, 1.0 = happy
+    aggressive: f32,   // 0.0 = peaceful, 1.0 = aggressive
 }
 
 impl ID3GenreMapper {
@@ -97,114 +97,268 @@ impl ID3GenreMapper {
         let mut mappings = HashMap::new();
 
         // Rock/Metal
-        mappings.insert("rock".to_string(), GenreCharacteristics {
-            tempo: 0.65, energy: 0.75, danceability: 0.50,
-            acoustic: 0.30, happy: 0.60, aggressive: 0.50,
-        });
-        mappings.insert("metal".to_string(), GenreCharacteristics {
-            tempo: 0.80, energy: 0.95, danceability: 0.40,
-            acoustic: 0.10, happy: 0.40, aggressive: 0.90,
-        });
-        mappings.insert("punk".to_string(), GenreCharacteristics {
-            tempo: 0.85, energy: 0.90, danceability: 0.50,
-            acoustic: 0.20, happy: 0.50, aggressive: 0.70,
-        });
+        mappings.insert(
+            "rock".to_string(),
+            GenreCharacteristics {
+                tempo: 0.65,
+                energy: 0.75,
+                danceability: 0.50,
+                acoustic: 0.30,
+                happy: 0.60,
+                aggressive: 0.50,
+            },
+        );
+        mappings.insert(
+            "metal".to_string(),
+            GenreCharacteristics {
+                tempo: 0.80,
+                energy: 0.95,
+                danceability: 0.40,
+                acoustic: 0.10,
+                happy: 0.40,
+                aggressive: 0.90,
+            },
+        );
+        mappings.insert(
+            "punk".to_string(),
+            GenreCharacteristics {
+                tempo: 0.85,
+                energy: 0.90,
+                danceability: 0.50,
+                acoustic: 0.20,
+                happy: 0.50,
+                aggressive: 0.70,
+            },
+        );
 
         // Electronic/Dance
-        mappings.insert("electronic".to_string(), GenreCharacteristics {
-            tempo: 0.70, energy: 0.75, danceability: 0.80,
-            acoustic: 0.05, happy: 0.65, aggressive: 0.30,
-        });
-        mappings.insert("house".to_string(), GenreCharacteristics {
-            tempo: 0.70, energy: 0.75, danceability: 0.90,
-            acoustic: 0.00, happy: 0.75, aggressive: 0.20,
-        });
-        mappings.insert("techno".to_string(), GenreCharacteristics {
-            tempo: 0.75, energy: 0.80, danceability: 0.85,
-            acoustic: 0.00, happy: 0.60, aggressive: 0.40,
-        });
-        mappings.insert("trance".to_string(), GenreCharacteristics {
-            tempo: 0.75, energy: 0.80, danceability: 0.85,
-            acoustic: 0.00, happy: 0.80, aggressive: 0.25,
-        });
-        mappings.insert("edm".to_string(), GenreCharacteristics {
-            tempo: 0.75, energy: 0.85, danceability: 0.90,
-            acoustic: 0.00, happy: 0.85, aggressive: 0.30,
-        });
+        mappings.insert(
+            "electronic".to_string(),
+            GenreCharacteristics {
+                tempo: 0.70,
+                energy: 0.75,
+                danceability: 0.80,
+                acoustic: 0.05,
+                happy: 0.65,
+                aggressive: 0.30,
+            },
+        );
+        mappings.insert(
+            "house".to_string(),
+            GenreCharacteristics {
+                tempo: 0.70,
+                energy: 0.75,
+                danceability: 0.90,
+                acoustic: 0.00,
+                happy: 0.75,
+                aggressive: 0.20,
+            },
+        );
+        mappings.insert(
+            "techno".to_string(),
+            GenreCharacteristics {
+                tempo: 0.75,
+                energy: 0.80,
+                danceability: 0.85,
+                acoustic: 0.00,
+                happy: 0.60,
+                aggressive: 0.40,
+            },
+        );
+        mappings.insert(
+            "trance".to_string(),
+            GenreCharacteristics {
+                tempo: 0.75,
+                energy: 0.80,
+                danceability: 0.85,
+                acoustic: 0.00,
+                happy: 0.80,
+                aggressive: 0.25,
+            },
+        );
+        mappings.insert(
+            "edm".to_string(),
+            GenreCharacteristics {
+                tempo: 0.75,
+                energy: 0.85,
+                danceability: 0.90,
+                acoustic: 0.00,
+                happy: 0.85,
+                aggressive: 0.30,
+            },
+        );
 
         // Hip-Hop/Rap
-        mappings.insert("hip-hop".to_string(), GenreCharacteristics {
-            tempo: 0.55, energy: 0.70, danceability: 0.75,
-            acoustic: 0.10, happy: 0.55, aggressive: 0.50,
-        });
-        mappings.insert("rap".to_string(), GenreCharacteristics {
-            tempo: 0.60, energy: 0.70, danceability: 0.70,
-            acoustic: 0.10, happy: 0.50, aggressive: 0.55,
-        });
+        mappings.insert(
+            "hip-hop".to_string(),
+            GenreCharacteristics {
+                tempo: 0.55,
+                energy: 0.70,
+                danceability: 0.75,
+                acoustic: 0.10,
+                happy: 0.55,
+                aggressive: 0.50,
+            },
+        );
+        mappings.insert(
+            "rap".to_string(),
+            GenreCharacteristics {
+                tempo: 0.60,
+                energy: 0.70,
+                danceability: 0.70,
+                acoustic: 0.10,
+                happy: 0.50,
+                aggressive: 0.55,
+            },
+        );
 
         // Jazz/Blues
-        mappings.insert("jazz".to_string(), GenreCharacteristics {
-            tempo: 0.50, energy: 0.45, danceability: 0.40,
-            acoustic: 0.70, happy: 0.60, aggressive: 0.15,
-        });
-        mappings.insert("blues".to_string(), GenreCharacteristics {
-            tempo: 0.40, energy: 0.40, danceability: 0.35,
-            acoustic: 0.60, happy: 0.30, aggressive: 0.20,
-        });
+        mappings.insert(
+            "jazz".to_string(),
+            GenreCharacteristics {
+                tempo: 0.50,
+                energy: 0.45,
+                danceability: 0.40,
+                acoustic: 0.70,
+                happy: 0.60,
+                aggressive: 0.15,
+            },
+        );
+        mappings.insert(
+            "blues".to_string(),
+            GenreCharacteristics {
+                tempo: 0.40,
+                energy: 0.40,
+                danceability: 0.35,
+                acoustic: 0.60,
+                happy: 0.30,
+                aggressive: 0.20,
+            },
+        );
 
         // Classical
-        mappings.insert("classical".to_string(), GenreCharacteristics {
-            tempo: 0.50, energy: 0.50, danceability: 0.10,
-            acoustic: 0.95, happy: 0.50, aggressive: 0.30,
-        });
+        mappings.insert(
+            "classical".to_string(),
+            GenreCharacteristics {
+                tempo: 0.50,
+                energy: 0.50,
+                danceability: 0.10,
+                acoustic: 0.95,
+                happy: 0.50,
+                aggressive: 0.30,
+            },
+        );
 
         // Pop
-        mappings.insert("pop".to_string(), GenreCharacteristics {
-            tempo: 0.65, energy: 0.70, danceability: 0.75,
-            acoustic: 0.30, happy: 0.80, aggressive: 0.20,
-        });
+        mappings.insert(
+            "pop".to_string(),
+            GenreCharacteristics {
+                tempo: 0.65,
+                energy: 0.70,
+                danceability: 0.75,
+                acoustic: 0.30,
+                happy: 0.80,
+                aggressive: 0.20,
+            },
+        );
 
         // Country
-        mappings.insert("country".to_string(), GenreCharacteristics {
-            tempo: 0.55, energy: 0.55, danceability: 0.50,
-            acoustic: 0.70, happy: 0.65, aggressive: 0.15,
-        });
+        mappings.insert(
+            "country".to_string(),
+            GenreCharacteristics {
+                tempo: 0.55,
+                energy: 0.55,
+                danceability: 0.50,
+                acoustic: 0.70,
+                happy: 0.65,
+                aggressive: 0.15,
+            },
+        );
 
         // Reggae
-        mappings.insert("reggae".to_string(), GenreCharacteristics {
-            tempo: 0.40, energy: 0.50, danceability: 0.65,
-            acoustic: 0.50, happy: 0.75, aggressive: 0.10,
-        });
+        mappings.insert(
+            "reggae".to_string(),
+            GenreCharacteristics {
+                tempo: 0.40,
+                energy: 0.50,
+                danceability: 0.65,
+                acoustic: 0.50,
+                happy: 0.75,
+                aggressive: 0.10,
+            },
+        );
 
         // Folk/Acoustic
-        mappings.insert("folk".to_string(), GenreCharacteristics {
-            tempo: 0.45, energy: 0.40, danceability: 0.30,
-            acoustic: 0.90, happy: 0.60, aggressive: 0.10,
-        });
-        mappings.insert("acoustic".to_string(), GenreCharacteristics {
-            tempo: 0.45, energy: 0.35, danceability: 0.25,
-            acoustic: 0.95, happy: 0.55, aggressive: 0.05,
-        });
+        mappings.insert(
+            "folk".to_string(),
+            GenreCharacteristics {
+                tempo: 0.45,
+                energy: 0.40,
+                danceability: 0.30,
+                acoustic: 0.90,
+                happy: 0.60,
+                aggressive: 0.10,
+            },
+        );
+        mappings.insert(
+            "acoustic".to_string(),
+            GenreCharacteristics {
+                tempo: 0.45,
+                energy: 0.35,
+                danceability: 0.25,
+                acoustic: 0.95,
+                happy: 0.55,
+                aggressive: 0.05,
+            },
+        );
 
         // R&B/Soul
-        mappings.insert("r&b".to_string(), GenreCharacteristics {
-            tempo: 0.50, energy: 0.55, danceability: 0.65,
-            acoustic: 0.30, happy: 0.60, aggressive: 0.20,
-        });
-        mappings.insert("soul".to_string(), GenreCharacteristics {
-            tempo: 0.50, energy: 0.55, danceability: 0.60,
-            acoustic: 0.40, happy: 0.65, aggressive: 0.15,
-        });
+        mappings.insert(
+            "r&b".to_string(),
+            GenreCharacteristics {
+                tempo: 0.50,
+                energy: 0.55,
+                danceability: 0.65,
+                acoustic: 0.30,
+                happy: 0.60,
+                aggressive: 0.20,
+            },
+        );
+        mappings.insert(
+            "soul".to_string(),
+            GenreCharacteristics {
+                tempo: 0.50,
+                energy: 0.55,
+                danceability: 0.60,
+                acoustic: 0.40,
+                happy: 0.65,
+                aggressive: 0.15,
+            },
+        );
 
         // Ambient/Chill
-        mappings.insert("ambient".to_string(), GenreCharacteristics {
-            tempo: 0.20, energy: 0.20, danceability: 0.10,
-            acoustic: 0.20, happy: 0.50, aggressive: 0.05,
-        });
-        mappings.insert("chillout".to_string(), GenreCharacteristics {
-            tempo: 0.30, energy: 0.30, danceability: 0.20,
-            acoustic: 0.30, happy: 0.70, aggressive: 0.05,
-        });
+        mappings.insert(
+            "ambient".to_string(),
+            GenreCharacteristics {
+                tempo: 0.20,
+                energy: 0.20,
+                danceability: 0.10,
+                acoustic: 0.20,
+                happy: 0.50,
+                aggressive: 0.05,
+            },
+        );
+        mappings.insert(
+            "chillout".to_string(),
+            GenreCharacteristics {
+                tempo: 0.30,
+                energy: 0.30,
+                danceability: 0.20,
+                acoustic: 0.30,
+                happy: 0.70,
+                aggressive: 0.05,
+            },
+        );
 
         mappings
     }
@@ -229,7 +383,9 @@ impl ID3GenreMapper {
             })?;
 
         // Get primary tag
-        let tag = tagged_file.primary_tag().or_else(|| tagged_file.first_tag());
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
 
         let Some(tag) = tag else {
             return Err(ExtractionError::NotAvailable(
@@ -304,7 +460,10 @@ impl ID3GenreMapper {
 
         flavor_map.insert("genre_tempo".to_string(), characteristics.tempo);
         flavor_map.insert("genre_energy".to_string(), characteristics.energy);
-        flavor_map.insert("genre_danceability".to_string(), characteristics.danceability);
+        flavor_map.insert(
+            "genre_danceability".to_string(),
+            characteristics.danceability,
+        );
         flavor_map.insert("genre_acoustic".to_string(), characteristics.acoustic);
         flavor_map.insert("genre_happy".to_string(), characteristics.happy);
         flavor_map.insert("genre_aggressive".to_string(), characteristics.aggressive);
@@ -389,7 +548,10 @@ mod tests {
     #[test]
     fn test_genre_mappings_exist() {
         let mapper = ID3GenreMapper::new();
-        assert!(!mapper.genre_mappings.is_empty(), "Should have genre mappings");
+        assert!(
+            !mapper.genre_mappings.is_empty(),
+            "Should have genre mappings"
+        );
         assert!(mapper.genre_mappings.contains_key("rock"));
         assert!(mapper.genre_mappings.contains_key("metal"));
         assert!(mapper.genre_mappings.contains_key("electronic"));

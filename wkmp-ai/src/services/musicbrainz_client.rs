@@ -415,6 +415,197 @@ impl Default for MusicBrainzClient {
     }
 }
 
+// =============================================================================
+// Album Matching Extensions (PLAN030 Increment 12)
+// =============================================================================
+
+use crate::matching::types::{MBReleaseDetails, MBSearchResponse};
+
+impl MusicBrainzClient {
+    /// Lookup release by MBID with full track details
+    ///
+    /// **[PLAN030]** Fetches complete release information including
+    /// all media and track listings for album matching.
+    ///
+    /// # Arguments
+    /// * `release_mbid` - MusicBrainz Release MBID
+    ///
+    /// # Returns
+    /// Complete release details including track durations
+    pub async fn lookup_release(&self, release_mbid: &str) -> Result<MBReleaseDetails, MBError> {
+        // Rate limit
+        self.rate_limiter.wait().await;
+
+        // Query API with recordings included
+        let url = format!(
+            "{}/release/{}?inc=recordings+media&fmt=json",
+            MUSICBRAINZ_BASE_URL, release_mbid
+        );
+
+        tracing::debug!(mbid = %release_mbid, url = %url, "Fetching release details from MusicBrainz");
+
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+
+        let status = response.status();
+
+        if status == 404 {
+            return Err(MBError::RecordingNotFound(format!(
+                "Release not found: {}",
+                release_mbid
+            )));
+        }
+
+        if status == 503 {
+            return Err(MBError::RateLimitExceeded);
+        }
+
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(MBError::ApiError(status.as_u16(), error_text));
+        }
+
+        let details: MBReleaseDetails = response
+            .json()
+            .await
+            .map_err(|e| MBError::ParseError(e.to_string()))?;
+
+        tracing::info!(
+            mbid = %release_mbid,
+            title = %details.title,
+            tracks = details.media.iter().map(|m| m.tracks.len()).sum::<usize>(),
+            "Retrieved release details from MusicBrainz"
+        );
+
+        Ok(details)
+    }
+
+    /// Comprehensive album search with full track details
+    ///
+    /// **[PLAN030]** Searches for releases by artist/album and fetches
+    /// complete track listings for each result.
+    ///
+    /// # Arguments
+    /// * `artist` - Artist name (from metadata)
+    /// * `album` - Album/release title (from metadata)
+    /// * `limit` - Maximum releases to return (default 10)
+    ///
+    /// # Returns
+    /// Vector of releases with full track details for album matching
+    pub async fn comprehensive_search(
+        &self,
+        artist: &str,
+        album: &str,
+        limit: Option<usize>,
+    ) -> Result<Vec<MBReleaseDetails>, MBError> {
+        let limit = limit.unwrap_or(10).min(25);
+
+        // Build Lucene query with escaped values
+        let query = format!(
+            "artist:\"{}\" AND release:\"{}\"",
+            escape_lucene(artist),
+            escape_lucene(album)
+        );
+
+        tracing::debug!(artist = %artist, album = %album, query = %query, "Comprehensive MusicBrainz search");
+
+        // Search for releases
+        let search_response = self.search_releases(&query, Some(limit as u32)).await?;
+
+        // Fetch full details for each release
+        let mut details = Vec::with_capacity(search_response.releases.len());
+
+        for release in search_response.releases.iter().take(limit) {
+            match self.lookup_release(&release.id).await {
+                Ok(full_details) => details.push(full_details),
+                Err(e) => {
+                    tracing::warn!(
+                        release_id = %release.id,
+                        error = %e,
+                        "Failed to fetch release details, skipping"
+                    );
+                }
+            }
+        }
+
+        tracing::info!(
+            artist = %artist,
+            album = %album,
+            found = details.len(),
+            "Comprehensive search completed"
+        );
+
+        Ok(details)
+    }
+
+    /// Search releases and return basic search response
+    ///
+    /// **[PLAN030]** Wrapper returning MBSearchResponse type used by matching module.
+    pub async fn search_releases_for_matching(
+        &self,
+        artist: &str,
+        album: &str,
+        limit: Option<u32>,
+    ) -> Result<MBSearchResponse, MBError> {
+        let query = format!(
+            "artist:\"{}\" AND release:\"{}\"",
+            escape_lucene(artist),
+            escape_lucene(album)
+        );
+
+        let response = self.search_releases(&query, limit).await?;
+
+        // Convert to matching module types
+        let releases = response
+            .releases
+            .into_iter()
+            .map(|r| crate::matching::types::MBRelease {
+                id: r.id,
+                title: r.title,
+                artist_credit: r.artist_credit.map(|credits| {
+                    credits
+                        .into_iter()
+                        .map(|c| crate::matching::types::MBArtistCredit {
+                            name: c.name,
+                            artist: crate::matching::types::MBArtist {
+                                name: c.artist.name,
+                            },
+                        })
+                        .collect()
+                }),
+                country: None,
+                status: None,
+                packaging: None,
+            })
+            .collect();
+
+        Ok(MBSearchResponse { releases })
+    }
+}
+
+/// Escape special Lucene query characters
+///
+/// MusicBrainz uses Lucene for search queries. Special characters must
+/// be escaped to be treated as literals.
+pub fn escape_lucene(s: &str) -> String {
+    let special_chars = [
+        '+', '-', '&', '|', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', '*', '?', ':', '\\',
+        '/',
+    ];
+    let mut result = String::with_capacity(s.len() * 2);
+    for c in s.chars() {
+        if special_chars.contains(&c) {
+            result.push('\\');
+        }
+        result.push(c);
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,5 +643,119 @@ mod tests {
         assert!(first_elapsed < Duration::from_millis(100)); // Minimal delay
         assert!(second_elapsed >= Duration::from_millis(450)); // ~500ms wait
         assert!(third_elapsed >= Duration::from_millis(950)); // ~1000ms total
+    }
+
+    // =========================================================================
+    // PLAN030 Increment 12: MusicBrainz Integration Tests
+    // =========================================================================
+
+    /// TC-U-012-01: Verify Lucene query construction for comprehensive search
+    #[test]
+    fn test_comprehensive_search_query_format() {
+        // Test query construction with normal artist/album
+        let artist = "The Beatles";
+        let album = "Abbey Road";
+        let expected_query = "artist:\"The Beatles\" AND release:\"Abbey Road\"";
+
+        let query = format!(
+            "artist:\"{}\" AND release:\"{}\"",
+            escape_lucene(artist),
+            escape_lucene(album)
+        );
+
+        assert_eq!(query, expected_query);
+    }
+
+    /// TC-U-012-02: Verify special Lucene characters are escaped
+    #[test]
+    fn test_escape_lucene_special_chars() {
+        // Test each special character
+        assert_eq!(escape_lucene("+"), "\\+");
+        assert_eq!(escape_lucene("-"), "\\-");
+        assert_eq!(escape_lucene("&"), "\\&");
+        assert_eq!(escape_lucene("|"), "\\|");
+        assert_eq!(escape_lucene("!"), "\\!");
+        assert_eq!(escape_lucene("("), "\\(");
+        assert_eq!(escape_lucene(")"), "\\)");
+        assert_eq!(escape_lucene("{"), "\\{");
+        assert_eq!(escape_lucene("}"), "\\}");
+        assert_eq!(escape_lucene("["), "\\[");
+        assert_eq!(escape_lucene("]"), "\\]");
+        assert_eq!(escape_lucene("^"), "\\^");
+        assert_eq!(escape_lucene("\""), "\\\"");
+        assert_eq!(escape_lucene("~"), "\\~");
+        assert_eq!(escape_lucene("*"), "\\*");
+        assert_eq!(escape_lucene("?"), "\\?");
+        assert_eq!(escape_lucene(":"), "\\:");
+        assert_eq!(escape_lucene("\\"), "\\\\");
+        assert_eq!(escape_lucene("/"), "\\/");
+    }
+
+    /// TC-U-012-02: Verify normal text passes through unchanged
+    #[test]
+    fn test_escape_lucene_normal_text() {
+        assert_eq!(escape_lucene("The Beatles"), "The Beatles");
+        assert_eq!(escape_lucene("Abbey Road"), "Abbey Road");
+        assert_eq!(escape_lucene("Sgt. Pepper's"), "Sgt. Pepper's");
+    }
+
+    /// TC-U-012-02: Verify mixed text with special chars
+    #[test]
+    fn test_escape_lucene_mixed_text() {
+        // Artist names with special characters
+        assert_eq!(escape_lucene("AC/DC"), "AC\\/DC");
+        assert_eq!(escape_lucene("Guns N' Roses"), "Guns N' Roses");
+        assert_eq!(escape_lucene("R.E.M."), "R.E.M.");
+
+        // Album names with special characters
+        assert_eq!(escape_lucene("What's Going On?"), "What's Going On\\?");
+        assert_eq!(
+            escape_lucene("...And Justice for All"),
+            "...And Justice for All"
+        );
+        assert_eq!(
+            escape_lucene("(What's the Story) Morning Glory?"),
+            "\\(What's the Story\\) Morning Glory\\?"
+        );
+    }
+
+    /// TC-U-012-02: Verify query building with special characters escaped
+    #[test]
+    fn test_comprehensive_search_query_with_escaping() {
+        // AC/DC - Back in Black
+        let query = format!(
+            "artist:\"{}\" AND release:\"{}\"",
+            escape_lucene("AC/DC"),
+            escape_lucene("Back in Black")
+        );
+        assert_eq!(query, "artist:\"AC\\/DC\" AND release:\"Back in Black\"");
+
+        // Question mark in album
+        let query = format!(
+            "artist:\"{}\" AND release:\"{}\"",
+            escape_lucene("Marvin Gaye"),
+            escape_lucene("What's Going On?")
+        );
+        assert_eq!(
+            query,
+            "artist:\"Marvin Gaye\" AND release:\"What's Going On\\?\""
+        );
+    }
+
+    /// Test empty string handling
+    #[test]
+    fn test_escape_lucene_empty() {
+        assert_eq!(escape_lucene(""), "");
+    }
+
+    /// Test all special chars in one string
+    #[test]
+    fn test_escape_lucene_all_special() {
+        let all_special = "+-&|!(){}[]^\"~*?:\\/";
+        let escaped = escape_lucene(all_special);
+        assert_eq!(
+            escaped,
+            "\\+\\-\\&\\|\\!\\(\\)\\{\\}\\[\\]\\^\\\"\\~\\*\\?\\:\\\\\\/",
+        );
     }
 }

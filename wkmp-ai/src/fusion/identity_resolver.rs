@@ -17,7 +17,7 @@
 //! - Multiple sources with different MBIDs → conflict (no boost)
 //! - Single source → use base confidence (no agreement data)
 
-use crate::types::{Fusion, FusionError, FusionResult, FusedIdentity, IdentityExtraction};
+use crate::types::{FusedIdentity, Fusion, FusionError, FusionResult, IdentityExtraction};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use tracing::debug;
@@ -142,8 +142,7 @@ impl IdentityResolver {
             .into_iter()
             .map(|(mbid, sources)| {
                 let posterior = self.compute_posterior(&sources);
-                let source_names: Vec<String> =
-                    sources.iter().map(|s| s.source.clone()).collect();
+                let source_names: Vec<String> = sources.iter().map(|s| s.source.clone()).collect();
                 (mbid, posterior, source_names)
             })
             .collect();
@@ -320,7 +319,11 @@ mod tests {
 
         let posterior = resolver.compute_posterior(&[&source1, &source2]);
         // 1 - (1-0.9) * (1-0.6) = 1 - 0.1 * 0.4 = 1 - 0.04 = 0.96
-        assert!((posterior - 0.96).abs() < 0.001, "Expected ~0.96, got {}", posterior);
+        assert!(
+            (posterior - 0.96).abs() < 0.001,
+            "Expected ~0.96, got {}",
+            posterior
+        );
     }
 
     #[test]
@@ -344,7 +347,11 @@ mod tests {
 
         let posterior = resolver.compute_posterior(&[&source1, &source2, &source3]);
         // 1 - (1-0.9) * (1-0.8) * (1-0.7) = 1 - 0.1 * 0.2 * 0.3 = 1 - 0.006 = 0.994
-        assert!((posterior - 0.994).abs() < 0.001, "Expected ~0.994, got {}", posterior);
+        assert!(
+            (posterior - 0.994).abs() < 0.001,
+            "Expected ~0.994, got {}",
+            posterior
+        );
     }
 
     #[tokio::test]

@@ -27,7 +27,7 @@
 
 use crate::constants::UNKNOWN_VALUE;
 use crate::types::{
-    ID3Metadata, ReconciledMetadata, ReconciliationStrategy, MetadataConfidence, MetadataSource,
+    ID3Metadata, MetadataConfidence, MetadataSource, ReconciledMetadata, ReconciliationStrategy,
 };
 use lofty::prelude::*;
 use lofty::probe::Probe;
@@ -68,16 +68,15 @@ use tracing::info;
 /// ```
 pub(crate) fn extract_metadata_from_path(path: &Path) -> (String, String) {
     // Use path components for cross-platform compatibility
-    let components: Vec<_> = path.components()
+    let components: Vec<_> = path
+        .components()
         .filter_map(|c| c.as_os_str().to_str())
         .collect();
 
     if components.len() >= 2 {
         let artist = components[components.len() - 2].replace(", ", " ");
         let album_with_ext = components[components.len() - 1];
-        let album = album_with_ext
-            .trim_end_matches(".mp3")
-            .replace(", ", " ");
+        let album = album_with_ext.trim_end_matches(".mp3").replace(", ", " ");
 
         (artist, album)
     } else {
@@ -146,27 +145,50 @@ fn strings_match(a: &str, b: &str) -> bool {
 /// let (chosen, alt, src) = choose_artist("Queen", "Queen", "Greatest Hits");
 /// // Returns: ("Queen", "Queen", ID3) - compilation, prefer ID3
 /// ```
-fn choose_artist(id3_artist: &str, path_artist: &str, album: &str) -> (String, String, MetadataSource) {
+fn choose_artist(
+    id3_artist: &str,
+    path_artist: &str,
+    album: &str,
+) -> (String, String, MetadataSource) {
     // Heuristic 1: Avoid "Various Artists" if possible
     let id3_is_various = id3_artist.to_lowercase().contains("various");
     let path_is_various = path_artist.to_lowercase().contains("various");
 
     if id3_is_various && !path_is_various {
-        return (path_artist.to_string(), id3_artist.to_string(), MetadataSource::Path);
+        return (
+            path_artist.to_string(),
+            id3_artist.to_string(),
+            MetadataSource::Path,
+        );
     }
     if path_is_various && !id3_is_various {
-        return (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3);
+        return (
+            id3_artist.to_string(),
+            path_artist.to_string(),
+            MetadataSource::ID3,
+        );
     }
 
     // Heuristic 2: If album name suggests compilation, prefer ID3
     let album_lower = album.to_lowercase();
-    if album_lower.contains("greatest") || album_lower.contains("best of") ||
-       album_lower.contains("collection") || album_lower.contains("anthology") {
-        return (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3);
+    if album_lower.contains("greatest")
+        || album_lower.contains("best of")
+        || album_lower.contains("collection")
+        || album_lower.contains("anthology")
+    {
+        return (
+            id3_artist.to_string(),
+            path_artist.to_string(),
+            MetadataSource::ID3,
+        );
     }
 
     // Default: Prefer ID3
-    (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3)
+    (
+        id3_artist.to_string(),
+        path_artist.to_string(),
+        MetadataSource::ID3,
+    )
 }
 
 /// Choose between ID3 and path album using heuristics
@@ -195,16 +217,26 @@ fn choose_artist(id3_artist: &str, path_artist: &str, album: &str) -> (String, S
 /// ```
 fn choose_album(id3_album: &str, path_album: &str) -> (String, String, MetadataSource) {
     // Heuristic: Prefer ID3 if it contains more detail (edition, year, etc.)
-    let id3_has_detail = id3_album.contains('(') || id3_album.contains('[') ||
-                         id3_album.contains("Deluxe") || id3_album.contains("Edition") ||
-                         id3_album.len() > path_album.len() + 10;
+    let id3_has_detail = id3_album.contains('(')
+        || id3_album.contains('[')
+        || id3_album.contains("Deluxe")
+        || id3_album.contains("Edition")
+        || id3_album.len() > path_album.len() + 10;
 
     if id3_has_detail {
-        return (id3_album.to_string(), path_album.to_string(), MetadataSource::ID3);
+        return (
+            id3_album.to_string(),
+            path_album.to_string(),
+            MetadataSource::ID3,
+        );
     }
 
     // Default: Prefer ID3
-    (id3_album.to_string(), path_album.to_string(), MetadataSource::ID3)
+    (
+        id3_album.to_string(),
+        path_album.to_string(),
+        MetadataSource::ID3,
+    )
 }
 
 /// Extract ID3 tags using lofty (pure Rust, no external dependencies)
@@ -238,7 +270,9 @@ fn choose_album(id3_album: &str, path_album: &str) -> (String, String, MetadataS
 ///     Err(e) => eprintln!("ID3 extraction failed: {}", e),
 /// }
 /// ```
-pub(crate) fn extract_id3_tags(file_path: &Path) -> Result<ID3Metadata, Box<dyn std::error::Error>> {
+pub(crate) fn extract_id3_tags(
+    file_path: &Path,
+) -> Result<ID3Metadata, Box<dyn std::error::Error>> {
     let tagged_file = Probe::open(file_path)?
         .read()
         .map_err(|e| format!("Failed to read tags: {}", e))?;
@@ -270,23 +304,29 @@ pub(crate) fn extract_id3_tags(file_path: &Path) -> Result<ID3Metadata, Box<dyn 
     }
 
     // Extract standard fields using lofty's Accessor trait
-    let artist = tag.artist().map(|s| s.to_string())
-        .or_else(|| tag.get_string(&lofty::tag::ItemKey::AlbumArtist).map(String::from));
+    let artist = tag.artist().map(|s| s.to_string()).or_else(|| {
+        tag.get_string(&lofty::tag::ItemKey::AlbumArtist)
+            .map(String::from)
+    });
 
     let album = tag.album().map(|s| s.to_string());
 
-    let date = tag.year().map(|y| y.to_string())
-        .or_else(|| tag.get_string(&lofty::tag::ItemKey::RecordingDate).map(String::from));
+    let date = tag.year().map(|y| y.to_string()).or_else(|| {
+        tag.get_string(&lofty::tag::ItemKey::RecordingDate)
+            .map(String::from)
+    });
 
     let genre = tag.genre().map(|s| s.to_string());
 
     let comment = tag.comment().map(|s| s.to_string());
 
     // MusicBrainz IDs
-    let musicbrainz_albumid = tag.get_string(&lofty::tag::ItemKey::MusicBrainzReleaseId)
+    let musicbrainz_albumid = tag
+        .get_string(&lofty::tag::ItemKey::MusicBrainzReleaseId)
         .map(String::from);
 
-    let musicbrainz_artistid = tag.get_string(&lofty::tag::ItemKey::MusicBrainzArtistId)
+    let musicbrainz_artistid = tag
+        .get_string(&lofty::tag::ItemKey::MusicBrainzArtistId)
         .map(String::from);
 
     Ok(ID3Metadata {
@@ -349,7 +389,8 @@ pub(crate) fn reconcile_metadata(
             .and_then(|s| s.parse::<usize>().ok())
     });
 
-    let has_musicbrainz_ids = id3.musicbrainz_albumid.is_some() || id3.musicbrainz_artistid.is_some();
+    let has_musicbrainz_ids =
+        id3.musicbrainz_albumid.is_some() || id3.musicbrainz_artistid.is_some();
 
     match (&id3.artist, path_artist, &id3.album, path_album) {
         // Case 1: Both sources have both fields
@@ -391,7 +432,8 @@ pub(crate) fn reconcile_metadata(
                 }
                 (false, true) => {
                     // Album matches, artist conflicts
-                    let (chosen_artist, alt_artist, artist_src) = choose_artist(id3_artist, path_artist, id3_album);
+                    let (chosen_artist, alt_artist, artist_src) =
+                        choose_artist(id3_artist, path_artist, id3_album);
                     ReconciledMetadata {
                         artist: chosen_artist,
                         album: id3_album.clone(),
@@ -407,7 +449,8 @@ pub(crate) fn reconcile_metadata(
                 }
                 (false, false) => {
                     // Both conflict
-                    let (chosen_artist, alt_artist, artist_src) = choose_artist(id3_artist, path_artist, id3_album);
+                    let (chosen_artist, alt_artist, artist_src) =
+                        choose_artist(id3_artist, path_artist, id3_album);
                     let (chosen_album, alt_album, album_src) = choose_album(id3_album, path_album);
                     ReconciledMetadata {
                         artist: chosen_artist,
@@ -426,43 +469,43 @@ pub(crate) fn reconcile_metadata(
         }
 
         // Case 2: ID3 has both, path missing one or both
-        (Some(id3_artist), _, Some(id3_album), _) => {
-            ReconciledMetadata {
-                artist: id3_artist.clone(),
-                album: id3_album.clone(),
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::ID3,
-                album_source: MetadataSource::ID3,
-                alternate_artist: path_artist.clone(),
-                alternate_album: path_album.clone(),
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
+        (Some(id3_artist), _, Some(id3_album), _) => ReconciledMetadata {
+            artist: id3_artist.clone(),
+            album: id3_album.clone(),
+            strategy: ReconciliationStrategy::GapFill,
+            confidence: MetadataConfidence::Low,
+            artist_source: MetadataSource::ID3,
+            album_source: MetadataSource::ID3,
+            alternate_artist: path_artist.clone(),
+            alternate_album: path_album.clone(),
+            has_musicbrainz_ids,
+            estimated_track_count,
+        },
 
         // Case 3: Path has both, ID3 missing one or both
-        (_, Some(path_artist), _, Some(path_album)) => {
-            ReconciledMetadata {
-                artist: path_artist.clone(),
-                album: path_album.clone(),
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::Path,
-                album_source: MetadataSource::Path,
-                alternate_artist: id3.artist.clone(),
-                alternate_album: id3.album.clone(),
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
+        (_, Some(path_artist), _, Some(path_album)) => ReconciledMetadata {
+            artist: path_artist.clone(),
+            album: path_album.clone(),
+            strategy: ReconciliationStrategy::GapFill,
+            confidence: MetadataConfidence::Low,
+            artist_source: MetadataSource::Path,
+            album_source: MetadataSource::Path,
+            alternate_artist: id3.artist.clone(),
+            alternate_album: id3.album.clone(),
+            has_musicbrainz_ids,
+            estimated_track_count,
+        },
 
         // Case 4: Incomplete data - use what we have
         _ => {
-            let artist = id3.artist.clone()
+            let artist = id3
+                .artist
+                .clone()
                 .or_else(|| path_artist.clone())
                 .unwrap_or_else(|| UNKNOWN_VALUE.to_string());
-            let album = id3.album.clone()
+            let album = id3
+                .album
+                .clone()
                 .or_else(|| path_album.clone())
                 .unwrap_or_else(|| UNKNOWN_VALUE.to_string());
 
@@ -504,12 +547,21 @@ pub(crate) fn reconcile_metadata(
 pub(crate) fn log_reconciliation_decision(reconciled: &ReconciledMetadata, album_num: usize) {
     info!("[A{}]   Phase 0 Reconciliation:", album_num);
     info!("[A{}]     Strategy: {:?}", album_num, reconciled.strategy);
-    info!("[A{}]     Confidence: {:?}", album_num, reconciled.confidence);
-    info!("[A{}]     Artist: {} (source: {:?})", album_num, reconciled.artist, reconciled.artist_source);
+    info!(
+        "[A{}]     Confidence: {:?}",
+        album_num, reconciled.confidence
+    );
+    info!(
+        "[A{}]     Artist: {} (source: {:?})",
+        album_num, reconciled.artist, reconciled.artist_source
+    );
     if let Some(ref alt) = reconciled.alternate_artist {
         info!("[A{}]       Alternate: {}", album_num, alt);
     }
-    info!("[A{}]     Album: {} (source: {:?})", album_num, reconciled.album, reconciled.album_source);
+    info!(
+        "[A{}]     Album: {} (source: {:?})",
+        album_num, reconciled.album, reconciled.album_source
+    );
     if let Some(ref alt) = reconciled.alternate_album {
         info!("[A{}]       Alternate: {}", album_num, alt);
     }
@@ -517,7 +569,10 @@ pub(crate) fn log_reconciliation_decision(reconciled: &ReconciledMetadata, album
         info!("[A{}]     Has MusicBrainz IDs in tags: Yes", album_num);
     }
     if let Some(count) = reconciled.estimated_track_count {
-        info!("[A{}]     Estimated track count from ID3: {}", album_num, count);
+        info!(
+            "[A{}]     Estimated track count from ID3: {}",
+            album_num, count
+        );
     }
 }
 
@@ -574,8 +629,16 @@ pub(crate) fn extract_and_reconcile_metadata(file_path: &Path) -> ReconciledMeta
     };
 
     // Reconcile
-    let path_artist_opt = if path_artist != UNKNOWN_VALUE { Some(path_artist) } else { None };
-    let path_album_opt = if path_album != UNKNOWN_VALUE { Some(path_album) } else { None };
+    let path_artist_opt = if path_artist != UNKNOWN_VALUE {
+        Some(path_artist)
+    } else {
+        None
+    };
+    let path_album_opt = if path_album != UNKNOWN_VALUE {
+        Some(path_album)
+    } else {
+        None
+    };
 
     reconcile_metadata(&id3, &path_artist_opt, &path_album_opt)
 }

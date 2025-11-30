@@ -1,8 +1,9 @@
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 /// Parameter Validation for Album Matching
 ///
 /// Tests optimal parameters (-57dB, 0.9s) on all training set albums
 /// and analyzes track-by-track matching quality
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,9 +13,7 @@ use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
-use parking_lot::Mutex;
 
 // MusicBrainz API structures
 #[derive(Debug, Deserialize)]
@@ -69,7 +68,9 @@ struct RateLimiter {
 impl RateLimiter {
     fn new() -> Self {
         Self {
-            last_request: Arc::new(Mutex::new(std::time::Instant::now() - Duration::from_secs(2))),
+            last_request: Arc::new(Mutex::new(
+                std::time::Instant::now() - Duration::from_secs(2),
+            )),
         }
     }
 
@@ -107,7 +108,7 @@ struct ValidationResult {
     perfect_count_match: bool,
     track_matches: Vec<TrackMatch>,
     matched_tracks_count: usize, // Tracks within 10s tolerance
-    match_percentage: f64, // % of expected tracks that matched
+    match_percentage: f64,       // % of expected tracks that matched
     mean_error: f64,
     status: String,
 }
@@ -121,7 +122,8 @@ fn decode_mp3(path: &Path) -> Result<(Vec<f32>, u32), Box<dyn std::error::Error>
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
 
-    let probed = symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
+    let probed =
+        symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
     let mut format = probed.format;
 
     let track = format.default_track().ok_or("No default track")?;
@@ -145,60 +147,58 @@ fn decode_mp3(path: &Path) -> Result<(Vec<f32>, u32), Box<dyn std::error::Error>
         }
 
         match decoder.decode(&packet) {
-            Ok(decoded) => {
-                match decoded {
-                    AudioBufferRef::F32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample);
-                        }
-                    }
-                    AudioBufferRef::U8(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 128.0) / 128.0);
-                        }
-                    }
-                    AudioBufferRef::U16(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 32768.0) / 32768.0);
-                        }
-                    }
-                    AudioBufferRef::U24(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample.inner() as f32 - 8388608.0) / 8388608.0);
-                        }
-                    }
-                    AudioBufferRef::U32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 2147483648.0) / 2147483648.0);
-                        }
-                    }
-                    AudioBufferRef::S8(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 128.0);
-                        }
-                    }
-                    AudioBufferRef::S16(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 32768.0);
-                        }
-                    }
-                    AudioBufferRef::S24(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample.inner() as f32 / 8388608.0);
-                        }
-                    }
-                    AudioBufferRef::S32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 2147483648.0);
-                        }
-                    }
-                    AudioBufferRef::F64(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32);
-                        }
+            Ok(decoded) => match decoded {
+                AudioBufferRef::F32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample);
                     }
                 }
-            }
+                AudioBufferRef::U8(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 128.0) / 128.0);
+                    }
+                }
+                AudioBufferRef::U16(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 32768.0) / 32768.0);
+                    }
+                }
+                AudioBufferRef::U24(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample.inner() as f32 - 8388608.0) / 8388608.0);
+                    }
+                }
+                AudioBufferRef::U32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 2147483648.0) / 2147483648.0);
+                    }
+                }
+                AudioBufferRef::S8(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 128.0);
+                    }
+                }
+                AudioBufferRef::S16(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 32768.0);
+                    }
+                }
+                AudioBufferRef::S24(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample.inner() as f32 / 8388608.0);
+                    }
+                }
+                AudioBufferRef::S32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 2147483648.0);
+                    }
+                }
+                AudioBufferRef::F64(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32);
+                    }
+                }
+            },
             Err(_e) => {
                 continue;
             }
@@ -295,7 +295,11 @@ fn get_track_durations(
 }
 
 /// Compare detected tracks with expected, analyzing match quality
-fn analyze_track_matching(detected: &[f64], expected: &[u32], tolerance_secs: f64) -> (Vec<TrackMatch>, usize, f64) {
+fn analyze_track_matching(
+    detected: &[f64],
+    expected: &[u32],
+    tolerance_secs: f64,
+) -> (Vec<TrackMatch>, usize, f64) {
     let mut matches = Vec::new();
     let mut matched_count = 0;
 
@@ -334,7 +338,7 @@ fn split_camel_case(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
 
     for (i, &ch) in chars.iter().enumerate() {
-        if i > 0 && ch.is_uppercase() && chars[i-1].is_lowercase() {
+        if i > 0 && ch.is_uppercase() && chars[i - 1].is_lowercase() {
             result.push(' ');
         }
         result.push(ch);
@@ -356,23 +360,38 @@ fn generate_search_queries(artist: &str, album: &str) -> Vec<String> {
     let mut queries = Vec::new();
 
     // Strategy 1: Original query with type:album filter
-    queries.push(format!("type:album AND artist:{} AND release:{}", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{} AND release:{}",
+        artist, album
+    ));
 
     // Strategy 2: CamelCase split (most effective per test results)
     let album_spaced = split_camel_case(album);
     if album_spaced != album {
-        queries.push(format!("type:album AND artist:{} AND release:\"{}\"", artist, album_spaced));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:\"{}\"",
+            artist, album_spaced
+        ));
     }
 
     // Strategy 3: Fuzzy matching (catches punctuation differences like "Funk49" -> "Funk #49")
-    queries.push(format!("type:album AND artist:{}~ AND release:{}~", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{}~ AND release:{}~",
+        artist, album
+    ));
 
     // Strategy 4: Targeted wildcard for common misspellings (e.g., "Lizzie" -> "Lizz?")
     if let Some(artist_wildcard) = apply_wildcard_fixes(artist) {
         let album_variant = apply_wildcard_fixes(album).unwrap_or_else(|| album.to_string());
-        queries.push(format!("type:album AND artist:{} AND release:{}", artist_wildcard, album_variant));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_wildcard, album_variant
+        ));
     } else if let Some(album_wildcard) = apply_wildcard_fixes(album) {
-        queries.push(format!("type:album AND artist:{} AND release:{}", artist, album_wildcard));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist, album_wildcard
+        ));
     }
 
     queries
@@ -414,8 +433,12 @@ async fn get_expected_durations(
             .await?;
 
         if !response.releases.is_empty() {
-            println!("  MusicBrainz: Found {} results with search strategy {}/{}",
-                     response.releases.len(), i + 1, search_queries.len());
+            println!(
+                "  MusicBrainz: Found {} results with search strategy {}/{}",
+                response.releases.len(),
+                i + 1,
+                search_queries.len()
+            );
             search_response = Some(response);
             break;
         }
@@ -595,7 +618,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("=== Parameter Validation ===");
-    println!("Testing optimal parameters on {} albums from training set\n", training_files.len());
+    println!(
+        "Testing optimal parameters on {} albums from training set\n",
+        training_files.len()
+    );
 
     // Use optimal parameters from analysis
     let threshold_db = -57.0;
@@ -628,7 +654,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (samples, sample_rate) = match decode_mp3(file_path) {
             Ok((s, sr)) => {
                 let duration_mins = s.len() as f64 / sr as f64 / 60.0;
-                println!("Done! {} samples at {} Hz ({:.2} mins)", s.len(), sr, duration_mins);
+                println!(
+                    "Done! {} samples at {} Hz ({:.2} mins)",
+                    s.len(),
+                    sr,
+                    duration_mins
+                );
                 (s, sr)
             }
             Err(e) => {
@@ -654,15 +685,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Detect tracks
         print!("  Detecting tracks... ");
-        let detected_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
+        let detected_durations =
+            get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
         let detected_total: f64 = detected_durations.iter().sum();
-        println!("Found {} tracks ({:.1} mins total)", detected_durations.len(), detected_total / 60.0);
+        println!(
+            "Found {} tracks ({:.1} mins total)",
+            detected_durations.len(),
+            detected_total / 60.0
+        );
 
         // Get expected durations from MusicBrainz (using total duration + track count for better matching)
         print!("  Fetching MusicBrainz data... ");
-        let (expected_durations, mbid) = match get_expected_durations(&artist, &album, detected_durations.len(), detected_total, &rate_limiter).await {
+        let (expected_durations, mbid) = match get_expected_durations(
+            &artist,
+            &album,
+            detected_durations.len(),
+            detected_total,
+            &rate_limiter,
+        )
+        .await
+        {
             Ok(data) => {
-                println!("Found {} tracks (best match from {} candidates)", data.0.len(), "multiple");
+                println!(
+                    "Found {} tracks (best match from {} candidates)",
+                    data.0.len(),
+                    "multiple"
+                );
                 data
             }
             Err(e) => {
@@ -687,8 +735,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         // Analyze matching
-        let (track_matches, matched_count, match_percentage) =
-            analyze_track_matching(&detected_durations, &expected_durations, match_tolerance_secs);
+        let (track_matches, matched_count, match_percentage) = analyze_track_matching(
+            &detected_durations,
+            &expected_durations,
+            match_tolerance_secs,
+        );
 
         let perfect_count = detected_durations.len() == expected_durations.len();
 
@@ -698,12 +749,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             0.0
         };
 
-        println!("  Track count: {}/{} {}",
+        println!(
+            "  Track count: {}/{} {}",
             detected_durations.len(),
             expected_durations.len(),
             if perfect_count { "✓" } else { "✗" }
         );
-        println!("  Matched tracks: {}/{} ({:.1}%)",
+        println!(
+            "  Matched tracks: {}/{} ({:.1}%)",
             matched_count,
             expected_durations.len(),
             match_percentage
@@ -715,8 +768,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  First 5 tracks:");
             for (i, tm) in track_matches.iter().enumerate().take(5) {
                 let status = if tm.matches { "✓" } else { "✗" };
-                println!("    {}. {:6.1}s vs {:6}s  error={:5.1}s  {}",
-                    i + 1, tm.detected_duration, tm.expected_duration, tm.error, status);
+                println!(
+                    "    {}. {:6.1}s vs {:6}s  error={:5.1}s  {}",
+                    i + 1,
+                    tm.detected_duration,
+                    tm.expected_duration,
+                    tm.error,
+                    status
+                );
             }
         }
 
@@ -739,7 +798,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Write results
-    let output_path = Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\parameter_validation_results.json");
+    let output_path =
+        Path::new(r"C:\Users\Mango Cat\Dev\McRhythm\parameter_validation_results.json");
     println!("\n=== Writing Results ===");
     println!("Output: {}", output_path.display());
 
@@ -755,13 +815,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if successful > 0 {
         let perfect_counts = results.iter().filter(|r| r.perfect_count_match).count();
-        let excellent = results.iter().filter(|r| r.match_percentage >= 80.0).count();
-        let good = results.iter().filter(|r| r.match_percentage >= 60.0 && r.match_percentage < 80.0).count();
-        let fair = results.iter().filter(|r| r.match_percentage >= 40.0 && r.match_percentage < 60.0).count();
-        let poor = results.iter().filter(|r| r.match_percentage < 40.0 && r.status == "Success").count();
+        let excellent = results
+            .iter()
+            .filter(|r| r.match_percentage >= 80.0)
+            .count();
+        let good = results
+            .iter()
+            .filter(|r| r.match_percentage >= 60.0 && r.match_percentage < 80.0)
+            .count();
+        let fair = results
+            .iter()
+            .filter(|r| r.match_percentage >= 40.0 && r.match_percentage < 60.0)
+            .count();
+        let poor = results
+            .iter()
+            .filter(|r| r.match_percentage < 40.0 && r.status == "Success")
+            .count();
 
         println!("\nTrack Count Matches:");
-        println!("  Perfect: {}/{} ({:.1}%)", perfect_counts, successful, (perfect_counts as f64 / successful as f64) * 100.0);
+        println!(
+            "  Perfect: {}/{} ({:.1}%)",
+            perfect_counts,
+            successful,
+            (perfect_counts as f64 / successful as f64) * 100.0
+        );
 
         println!("\nMatch Quality Distribution:");
         println!("  Excellent (≥80%): {} albums", excellent);
@@ -770,36 +847,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  Poor (<40%):      {} albums", poor);
 
         // Average statistics
-        let avg_match_pct = results.iter()
+        let avg_match_pct = results
+            .iter()
             .filter(|r| r.status == "Success")
             .map(|r| r.match_percentage)
-            .sum::<f64>() / successful as f64;
+            .sum::<f64>()
+            / successful as f64;
 
-        let avg_error = results.iter()
+        let avg_error = results
+            .iter()
             .filter(|r| r.status == "Success" && r.mean_error > 0.0)
             .map(|r| r.mean_error)
-            .sum::<f64>() / successful as f64;
+            .sum::<f64>()
+            / successful as f64;
 
         println!("\nAverage Statistics:");
         println!("  Match percentage: {:.1}%", avg_match_pct);
         println!("  Mean error: {:.2}s", avg_error);
 
         // Show best and worst
-        let mut success_results: Vec<_> = results.iter().filter(|r| r.status == "Success").collect();
-        success_results.sort_by(|a, b| b.match_percentage.partial_cmp(&a.match_percentage).unwrap());
+        let mut success_results: Vec<_> =
+            results.iter().filter(|r| r.status == "Success").collect();
+        success_results
+            .sort_by(|a, b| b.match_percentage.partial_cmp(&a.match_percentage).unwrap());
 
         println!("\nBest 5 Albums:");
         for (i, result) in success_results.iter().take(5).enumerate() {
-            println!("  {}. {} - {} ({:.1}%, {}/{} tracks)",
-                i + 1, result.artist, result.album, result.match_percentage,
-                result.matched_tracks_count, result.expected_track_count);
+            println!(
+                "  {}. {} - {} ({:.1}%, {}/{} tracks)",
+                i + 1,
+                result.artist,
+                result.album,
+                result.match_percentage,
+                result.matched_tracks_count,
+                result.expected_track_count
+            );
         }
 
         println!("\nWorst 5 Albums:");
         for (i, result) in success_results.iter().rev().take(5).enumerate() {
-            println!("  {}. {} - {} ({:.1}%, {}/{} tracks)",
-                i + 1, result.artist, result.album, result.match_percentage,
-                result.matched_tracks_count, result.expected_track_count);
+            println!(
+                "  {}. {} - {} ({:.1}%, {}/{} tracks)",
+                i + 1,
+                result.artist,
+                result.album,
+                result.match_percentage,
+                result.matched_tracks_count,
+                result.expected_track_count
+            );
         }
     }
 

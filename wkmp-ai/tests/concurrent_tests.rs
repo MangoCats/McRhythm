@@ -27,8 +27,7 @@ async fn test_concurrent_toml_reads_safe() {
         acoustid_api_key: Some("concurrent-test-key".to_string()),
     };
 
-    wkmp_common::config::write_toml_config(&config, &toml_path)
-        .unwrap();
+    wkmp_common::config::write_toml_config(&config, &toml_path).unwrap();
 
     // Step 2: Spawn 10 concurrent tasks reading TOML
     let toml_path = Arc::new(toml_path);
@@ -42,8 +41,8 @@ async fn test_concurrent_toml_reads_safe() {
                 .await
                 .expect(&format!("Task {} failed to read TOML", i));
 
-            let parsed: TomlConfig = toml::from_str(&content)
-                .expect(&format!("Task {} failed to parse TOML", i));
+            let parsed: TomlConfig =
+                toml::from_str(&content).expect(&format!("Task {} failed to parse TOML", i));
 
             assert_eq!(
                 parsed.acoustid_api_key,
@@ -80,8 +79,13 @@ async fn test_concurrent_database_reads_safe() {
         .unwrap();
 
     // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await
+        .unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Set API key
     wkmp_ai::db::settings::set_acoustid_api_key(&pool, "db-concurrent-key".to_string())
@@ -134,8 +138,13 @@ async fn test_concurrent_database_writes_safe() {
         .unwrap();
 
     // Initialize test database schema
-    sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-    wkmp_common::db::init::create_settings_table(&pool).await.unwrap();
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await
+        .unwrap();
+    wkmp_common::db::init::create_settings_table(&pool)
+        .await
+        .unwrap();
 
     // Spawn 10 concurrent writes with different values
     let pool = Arc::new(pool);

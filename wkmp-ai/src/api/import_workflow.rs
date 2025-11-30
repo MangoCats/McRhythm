@@ -10,7 +10,11 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{error::{ApiError, ApiResult}, models::{ImportParameters, ImportSession, ImportState}, AppState};
+use crate::{
+    error::{ApiError, ApiResult},
+    models::{ImportParameters, ImportSession, ImportState},
+    AppState,
+};
 
 /// **[AIA-SEC-030]** POST /import/validate-acoustid request
 #[derive(Debug, Deserialize)]
@@ -182,7 +186,9 @@ pub async fn start_import(
             "Background import workflow task started"
         );
 
-        if let Err(e) = execute_import_workflow(state_clone, session_clone, cancel_token_clone).await {
+        if let Err(e) =
+            execute_import_workflow(state_clone, session_clone, cancel_token_clone).await
+        {
             tracing::error!(
                 session_id = %session_id_for_logging,
                 error = ?e,
@@ -209,9 +215,7 @@ pub async fn get_import_status(
     // **[AIA-WF-020]** Load session from database
     let session = crate::db::sessions::load_session(&state.db, session_id)
         .await?
-        .ok_or_else(|| {
-            ApiError::NotFound(format!("Import session not found: {}", session_id))
-        })?;
+        .ok_or_else(|| ApiError::NotFound(format!("Import session not found: {}", session_id)))?;
 
     tracing::debug!(session_id = %session_id, state = ?session.state, "Status query");
 
@@ -268,9 +272,7 @@ pub async fn cancel_import(
     // **[AIA-WF-020]** Load session from database
     let mut session = crate::db::sessions::load_session(&state.db, session_id)
         .await?
-        .ok_or_else(|| {
-            ApiError::NotFound(format!("Import session not found: {}", session_id))
-        })?;
+        .ok_or_else(|| ApiError::NotFound(format!("Import session not found: {}", session_id)))?;
 
     // Check if session is already terminal
     if session.is_terminal() {
@@ -315,7 +317,10 @@ pub async fn cancel_import(
         session_id: session.session_id,
         state: session.state,
         files_processed: session.progress.current,
-        files_skipped: session.progress.total.saturating_sub(session.progress.current),
+        files_skipped: session
+            .progress
+            .total
+            .saturating_sub(session.progress.current),
         cancelled_at: session.ended_at.unwrap_or_else(chrono::Utc::now),
     };
 
@@ -361,7 +366,10 @@ async fn execute_import_workflow(
 
     // Execute workflow with error handling
     // **[PLAN024]** Use new 3-tier hybrid fusion pipeline
-    match orchestrator.execute_import_plan024(session, cancel_token).await {
+    match orchestrator
+        .execute_import_plan024(session, cancel_token)
+        .await
+    {
         Ok(final_session) => {
             tracing::info!(
                 session_id = %session_id,
@@ -398,7 +406,7 @@ async fn execute_import_workflow(
                                SET state = '"FAILED"',
                                    ended_at = ?,
                                    current_operation = ?
-                               WHERE session_id = ?"#
+                               WHERE session_id = ?"#,
                         )
                         .bind(chrono::Utc::now().to_rfc3339())
                         .bind(format!("Import failed: {}", e))
@@ -426,7 +434,7 @@ async fn execute_import_workflow(
                            SET state = '"FAILED"',
                                ended_at = ?,
                                current_operation = ?
-                           WHERE session_id = ?"#
+                           WHERE session_id = ?"#,
                     )
                     .bind(chrono::Utc::now().to_rfc3339())
                     .bind(format!("Import failed: {}", e))

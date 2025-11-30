@@ -338,9 +338,16 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_files_table(&pool).await.unwrap();
-        wkmp_common::db::init::create_passages_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_passages_table(&pool)
+            .await
+            .unwrap();
 
         let file_id = Uuid::new_v4();
 
@@ -357,7 +364,9 @@ mod tests {
 
         let passage = Passage::new(file_id, 0.0, 180.0);
 
-        save_passage(&pool, &passage).await.expect("Failed to save passage");
+        save_passage(&pool, &passage)
+            .await
+            .expect("Failed to save passage");
 
         let count = count_passages_for_file(&pool, file_id)
             .await
@@ -614,14 +623,14 @@ mod tests {
         let original_passage = Passage {
             guid: Uuid::new_v4(),
             file_id,
-            start_time_ticks: seconds_to_ticks(10.0),         // Passage starts at 10s
+            start_time_ticks: seconds_to_ticks(10.0), // Passage starts at 10s
             fade_in_start_ticks: Some(seconds_to_ticks(12.0)), // Fade-in starts 2s after passage start
             lead_in_start_ticks: Some(seconds_to_ticks(11.0)), // Lead-in (crossfade overlap) at 11s (within passage)
             lead_out_start_ticks: Some(seconds_to_ticks(185.0)), // Lead-out (crossfade overlap) at 185s (within passage)
             fade_out_start_ticks: Some(seconds_to_ticks(188.0)), // Fade-out starts 2s before passage end
-            end_time_ticks: seconds_to_ticks(190.0),          // Passage ends at 190s
+            end_time_ticks: seconds_to_ticks(190.0),             // Passage ends at 190s
             fade_in_curve: Some("linear".to_string()),
-            fade_out_curve: Some("exponential".to_string()),  // Valid curve: exponential, cosine, linear, logarithmic, equal_power
+            fade_out_curve: Some("exponential".to_string()), // Valid curve: exponential, cosine, linear, logarithmic, equal_power
             title: Some("Test Track".to_string()),
             user_title: None,
             artist: Some("Test Artist".to_string()),
@@ -674,8 +683,7 @@ mod tests {
         // Verify tick values are correct (not seconds or milliseconds)
         // start_time = 10.0 seconds = 282,240,000 ticks
         assert_eq!(
-            loaded_passage.start_time_ticks,
-            282_240_000,
+            loaded_passage.start_time_ticks, 282_240_000,
             "start_time_ticks should be in ticks, not seconds"
         );
 

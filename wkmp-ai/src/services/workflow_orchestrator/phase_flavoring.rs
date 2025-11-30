@@ -19,7 +19,10 @@ impl WorkflowOrchestrator {
     /// **DEPRECATED:** Use `phase_processing_per_file()` instead
     ///
     /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
-    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use phase_processing_per_file() with per-file pipeline"
+    )]
     pub(super) async fn phase_flavoring(
         &self,
         mut session: ImportSession,
@@ -91,7 +94,9 @@ impl WorkflowOrchestrator {
                                         &self.db,
                                         passage.guid,
                                         flavor_json,
-                                    ).await {
+                                    )
+                                    .await
+                                    {
                                         tracing::warn!(
                                             passage_id = %passage.guid,
                                             error = ?e,
@@ -131,11 +136,14 @@ impl WorkflowOrchestrator {
                                         // Store Essentia-generated flavor vector
                                         match flavor.to_json() {
                                             Ok(flavor_json) => {
-                                                if let Err(e) = crate::db::passages::update_passage_flavor(
-                                                    &self.db,
-                                                    passage.guid,
-                                                    flavor_json,
-                                                ).await {
+                                                if let Err(e) =
+                                                    crate::db::passages::update_passage_flavor(
+                                                        &self.db,
+                                                        passage.guid,
+                                                        flavor_json,
+                                                    )
+                                                    .await
+                                                {
                                                     tracing::warn!(
                                                         passage_id = %passage.guid,
                                                         error = ?e,

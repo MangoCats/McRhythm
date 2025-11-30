@@ -137,7 +137,10 @@ pub async fn root_page() -> impl IntoResponse {
         </div>
     </header>
     <div class="content">"#,
-        version, &git_hash[..8], build_profile, build_timestamp
+        version,
+        &git_hash[..8],
+        build_profile,
+        build_timestamp
     );
 
     Html(format!(
@@ -180,4 +183,3 @@ pub async fn root_page() -> impl IntoResponse {
         html
     ))
 }
-

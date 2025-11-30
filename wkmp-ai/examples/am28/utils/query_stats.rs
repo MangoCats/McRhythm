@@ -137,7 +137,10 @@ impl QueryStats {
     /// # Returns
     /// Current activity string, or empty string if mutex is poisoned
     pub(crate) fn get_activity(&self) -> String {
-        self.current_activity.lock().map(|g| g.clone()).unwrap_or_default()
+        self.current_activity
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or_default()
     }
 
     /// Signal heartbeat task to stop logging
@@ -218,7 +221,10 @@ impl QueryStats {
 /// stats.stop();  // Signal task to exit
 /// heartbeat_handle.await?;  // Wait for graceful shutdown (responds within ~1 second)
 /// ```
-pub(crate) fn spawn_heartbeat_task(stats: Arc<QueryStats>, album_idx: usize) -> tokio::task::JoinHandle<()> {
+pub(crate) fn spawn_heartbeat_task(
+    stats: Arc<QueryStats>,
+    album_idx: usize,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         let check_interval = Duration::from_secs(1);
         let heartbeat_interval_secs = HEARTBEAT_INTERVAL_SECS;

@@ -6,7 +6,7 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 use wkmp_common::Result;
 
-use crate::models::{ImportSession, ImportState, ImportParameters, ImportProgress, ImportError};
+use crate::models::{ImportError, ImportParameters, ImportProgress, ImportSession, ImportState};
 use crate::utils::retry_on_lock;
 
 /// Save import session to database
@@ -17,8 +17,9 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
     let session_id = session.session_id.to_string();
     let state = serde_json::to_string(&session.state)
         .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize state: {}", e)))?;
-    let parameters = serde_json::to_string(&session.parameters)
-        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize parameters: {}", e)))?;
+    let parameters = serde_json::to_string(&session.parameters).map_err(|e| {
+        wkmp_common::Error::Internal(format!("Failed to serialize parameters: {}", e))
+    })?;
     let errors = serde_json::to_string(&session.errors)
         .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize errors: {}", e)))?;
     let started_at = session.started_at.to_rfc3339();
@@ -28,24 +29,23 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
     let progress_percentage = session.progress.percentage;
     let current_operation = session.progress.current_operation.clone();
     let root_folder = session.root_folder.clone();
-    let file_classification_data = serde_json::to_string(&session.file_classification)
-        .map_err(|e| wkmp_common::Error::Internal(format!("Failed to serialize file_classification: {}", e)))?;
+    let file_classification_data =
+        serde_json::to_string(&session.file_classification).map_err(|e| {
+            wkmp_common::Error::Internal(format!("Failed to serialize file_classification: {}", e))
+        })?;
 
     // Get max lock wait time from settings (default 5000ms)
     let max_wait_ms: i64 = sqlx::query_scalar(
-        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'",
     )
     .fetch_optional(pool)
     .await?
     .unwrap_or(5000);
 
     // Wrap in retry logic with unconstrained execution
-    retry_on_lock(
-        "save_session",
-        max_wait_ms as u64,
-        || async {
-            sqlx::query(
-                r#"
+    retry_on_lock("save_session", max_wait_ms as u64, || async {
+        sqlx::query(
+            r#"
                 INSERT INTO import_sessions (
                     session_id, state, root_folder, parameters,
                     progress_current, progress_total, progress_percentage,
@@ -61,26 +61,25 @@ pub async fn save_session(pool: &SqlitePool, session: &ImportSession) -> Result<
                     ended_at = excluded.ended_at,
                     file_classification_data = excluded.file_classification_data
                 "#,
-            )
-            .bind(&session_id)
-            .bind(&state)
-            .bind(&root_folder)
-            .bind(&parameters)
-            .bind(progress_current)
-            .bind(progress_total)
-            .bind(progress_percentage)
-            .bind(&current_operation)
-            .bind(&errors)
-            .bind(&started_at)
-            .bind(&ended_at)
-            .bind(&file_classification_data)
-            .execute(pool)
-            .await
-            .map_err(wkmp_common::Error::Database)?;
+        )
+        .bind(&session_id)
+        .bind(&state)
+        .bind(&root_folder)
+        .bind(&parameters)
+        .bind(progress_current)
+        .bind(progress_total)
+        .bind(progress_percentage)
+        .bind(&current_operation)
+        .bind(&errors)
+        .bind(&started_at)
+        .bind(&ended_at)
+        .bind(&file_classification_data)
+        .execute(pool)
+        .await
+        .map_err(wkmp_common::Error::Database)?;
 
-            Ok(())
-        }
-    )
+        Ok(())
+    })
     .await
 }
 
@@ -104,34 +103,45 @@ pub async fn load_session(pool: &SqlitePool, session_id: Uuid) -> Result<Option<
     match row {
         Some(row) => {
             let state: String = row.get("state");
-            let state: ImportState = serde_json::from_str(&state)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e)))?;
+            let state: ImportState = serde_json::from_str(&state).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e))
+            })?;
 
             let parameters: String = row.get("parameters");
-            let parameters: ImportParameters = serde_json::from_str(&parameters)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e)))?;
+            let parameters: ImportParameters = serde_json::from_str(&parameters).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e))
+            })?;
 
             let errors: String = row.get("errors");
-            let errors: Vec<ImportError> = serde_json::from_str(&errors)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e)))?;
+            let errors: Vec<ImportError> = serde_json::from_str(&errors).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e))
+            })?;
 
             let started_at: String = row.get("started_at");
             let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e)))?
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e))
+                })?
                 .with_timezone(&chrono::Utc);
 
             let ended_at: Option<String> = row.get("ended_at");
             let ended_at = ended_at
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
                 .transpose()
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e)))?
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e))
+                })?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
             // **[PLAN027]** Deserialize file_classification_data if present
             let file_classification_data: Option<String> = row.get("file_classification_data");
             let file_classification = if let Some(data) = file_classification_data {
-                serde_json::from_str(&data)
-                    .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize file_classification: {}", e)))?
+                serde_json::from_str(&data).map_err(|e| {
+                    wkmp_common::Error::Internal(format!(
+                        "Failed to deserialize file_classification: {}",
+                        e
+                    ))
+                })?
             } else {
                 crate::models::FileClassification::new()
             };
@@ -217,38 +227,50 @@ pub async fn get_active_session(pool: &SqlitePool) -> Result<Option<ImportSessio
     match row {
         Some(row) => {
             let session_id_str: String = row.get("session_id");
-            let session_id = Uuid::parse_str(&session_id_str)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse session_id: {}", e)))?;
+            let session_id = Uuid::parse_str(&session_id_str).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to parse session_id: {}", e))
+            })?;
 
             let state: String = row.get("state");
-            let state: ImportState = serde_json::from_str(&state)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e)))?;
+            let state: ImportState = serde_json::from_str(&state).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize state: {}", e))
+            })?;
 
             let parameters: String = row.get("parameters");
-            let parameters: ImportParameters = serde_json::from_str(&parameters)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e)))?;
+            let parameters: ImportParameters = serde_json::from_str(&parameters).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize parameters: {}", e))
+            })?;
 
             let errors: String = row.get("errors");
-            let errors: Vec<ImportError> = serde_json::from_str(&errors)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e)))?;
+            let errors: Vec<ImportError> = serde_json::from_str(&errors).map_err(|e| {
+                wkmp_common::Error::Internal(format!("Failed to deserialize errors: {}", e))
+            })?;
 
             let started_at: String = row.get("started_at");
             let started_at = chrono::DateTime::parse_from_rfc3339(&started_at)
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e)))?
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse started_at: {}", e))
+                })?
                 .with_timezone(&chrono::Utc);
 
             let ended_at: Option<String> = row.get("ended_at");
             let ended_at = ended_at
                 .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
                 .transpose()
-                .map_err(|e| wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e)))?
+                .map_err(|e| {
+                    wkmp_common::Error::Internal(format!("Failed to parse ended_at: {}", e))
+                })?
                 .map(|dt| dt.with_timezone(&chrono::Utc));
 
             // **[PLAN027]** Deserialize file_classification_data if present
             let file_classification_data: Option<String> = row.get("file_classification_data");
             let file_classification = if let Some(data) = file_classification_data {
-                serde_json::from_str(&data)
-                    .map_err(|e| wkmp_common::Error::Internal(format!("Failed to deserialize file_classification: {}", e)))?
+                serde_json::from_str(&data).map_err(|e| {
+                    wkmp_common::Error::Internal(format!(
+                        "Failed to deserialize file_classification: {}",
+                        e
+                    ))
+                })?
             } else {
                 crate::models::FileClassification::new()
             };

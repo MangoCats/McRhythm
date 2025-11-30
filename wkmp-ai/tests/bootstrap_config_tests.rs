@@ -11,10 +11,10 @@
 //! - Pool configuration matches settings
 //! - Startup sequence with real database
 
-use wkmp_ai::models::WkmpAiBootstrapConfig;
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
-use tempfile::TempDir;
 use std::path::PathBuf;
+use tempfile::TempDir;
+use wkmp_ai::models::WkmpAiBootstrapConfig;
 
 /// Helper: Create temporary database with settings table
 async fn create_test_database() -> (TempDir, PathBuf, SqlitePool) {
@@ -35,7 +35,7 @@ async fn create_test_database() -> (TempDir, PathBuf, SqlitePool) {
             key TEXT PRIMARY KEY,
             value TEXT
         )
-        "#
+        "#,
     )
     .execute(&pool)
     .await
@@ -58,18 +58,34 @@ async fn test_bootstrap_with_empty_database() {
         .expect("Bootstrap failed with empty database");
 
     // Verify defaults from IMPL016
-    assert_eq!(config.connection_pool_size, 96, "Default pool size should be 96");
-    assert_eq!(config.lock_retry_ms, 250, "Default lock retry should be 250ms");
-    assert_eq!(config.max_lock_wait_ms, 5000, "Default max wait should be 5000ms");
-    assert!(config.processing_thread_count() >= 1, "Thread count should be auto-detected (≥1)");
+    assert_eq!(
+        config.connection_pool_size, 96,
+        "Default pool size should be 96"
+    );
+    assert_eq!(
+        config.lock_retry_ms, 250,
+        "Default lock retry should be 250ms"
+    );
+    assert_eq!(
+        config.max_lock_wait_ms, 5000,
+        "Default max wait should be 5000ms"
+    );
+    assert!(
+        config.processing_thread_count() >= 1,
+        "Thread count should be auto-detected (≥1)"
+    );
 
     // Verify production pool can be created with defaults
-    let production_pool = config.create_pool(&db_path)
+    let production_pool = config
+        .create_pool(&db_path)
         .await
         .expect("Failed to create production pool with defaults");
 
     // Verify pool is functional
-    let conn = production_pool.acquire().await.expect("Failed to acquire connection");
+    let conn = production_pool
+        .acquire()
+        .await
+        .expect("Failed to acquire connection");
     drop(conn);
 
     production_pool.close().await;
@@ -81,20 +97,24 @@ async fn test_bootstrap_with_custom_configuration() {
     let (_temp_dir, db_path, init_pool) = create_test_database().await;
 
     // Insert custom configuration
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '64')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert pool size");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '64')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert pool size");
 
     sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '500')")
         .execute(&init_pool)
         .await
         .expect("Failed to insert lock retry");
 
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '10000')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert max wait");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '10000')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert max wait");
 
     sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_processing_thread_count', '8')")
         .execute(&init_pool)
@@ -112,10 +132,15 @@ async fn test_bootstrap_with_custom_configuration() {
     assert_eq!(config.connection_pool_size, 64, "Custom pool size not read");
     assert_eq!(config.lock_retry_ms, 500, "Custom lock retry not read");
     assert_eq!(config.max_lock_wait_ms, 10000, "Custom max wait not read");
-    assert_eq!(config.processing_thread_count(), 8, "Custom thread count not read");
+    assert_eq!(
+        config.processing_thread_count(),
+        8,
+        "Custom thread count not read"
+    );
 
     // Verify production pool created with custom configuration
-    let production_pool = config.create_pool(&db_path)
+    let production_pool = config
+        .create_pool(&db_path)
         .await
         .expect("Failed to create production pool with custom config");
 
@@ -128,10 +153,12 @@ async fn test_bootstrap_with_null_thread_count() {
     let (_temp_dir, db_path, init_pool) = create_test_database().await;
 
     // Insert other settings but leave thread_count NULL
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '32')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert pool size");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '32')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert pool size");
 
     init_pool.close().await;
 
@@ -150,7 +177,10 @@ async fn test_bootstrap_with_null_thread_count() {
     );
 
     // Verify other custom value read correctly
-    assert_eq!(config.connection_pool_size, 32, "Pool size should be custom value");
+    assert_eq!(
+        config.connection_pool_size, 32,
+        "Pool size should be custom value"
+    );
 }
 
 #[tokio::test]
@@ -168,12 +198,16 @@ async fn test_bootstrap_stage_separation() {
     // Verify we can create production pool (no connection conflicts)
 
     // Stage 2: Production
-    let production_pool = config.create_pool(&db_path)
+    let production_pool = config
+        .create_pool(&db_path)
         .await
         .expect("Production stage 2 failed");
 
     // Verify production pool works
-    let conn = production_pool.acquire().await.expect("Failed to acquire from production pool");
+    let conn = production_pool
+        .acquire()
+        .await
+        .expect("Failed to acquire from production pool");
     drop(conn);
 
     production_pool.close().await;
@@ -185,10 +219,12 @@ async fn test_bootstrap_interdependency_warning() {
     let (_temp_dir, db_path, init_pool) = create_test_database().await;
 
     // Set pool size too small for thread count
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '8')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert pool size");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '8')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert pool size");
 
     sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_processing_thread_count', '4')")
         .execute(&init_pool)
@@ -216,10 +252,12 @@ async fn test_bootstrap_invalid_values() {
     let (_temp_dir, db_path, init_pool) = create_test_database().await;
 
     // Insert invalid value (non-numeric)
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', 'invalid')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert invalid value");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', 'invalid')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert invalid value");
 
     init_pool.close().await;
 
@@ -229,7 +267,9 @@ async fn test_bootstrap_invalid_values() {
     assert!(result.is_err(), "Bootstrap should fail with invalid value");
     let error = result.unwrap_err();
     assert!(
-        error.to_string().contains("ai_database_connection_pool_size"),
+        error
+            .to_string()
+            .contains("ai_database_connection_pool_size"),
         "Error should mention parameter name, got: {}",
         error
     );
@@ -241,10 +281,12 @@ async fn test_production_pool_configuration() {
     let (_temp_dir, db_path, init_pool) = create_test_database().await;
 
     // Set specific configuration
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '16')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert pool size");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '16')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert pool size");
 
     sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '1000')")
         .execute(&init_pool)
@@ -259,7 +301,8 @@ async fn test_production_pool_configuration() {
         .expect("Bootstrap failed");
 
     // Create production pool
-    let production_pool = config.create_pool(&db_path)
+    let production_pool = config
+        .create_pool(&db_path)
         .await
         .expect("Failed to create production pool");
 
@@ -269,7 +312,9 @@ async fn test_production_pool_configuration() {
 
     // Acquire multiple connections (should succeed up to pool size)
     for i in 0..4 {
-        let conn = production_pool.acquire().await
+        let conn = production_pool
+            .acquire()
+            .await
             .expect(&format!("Failed to acquire connection {}", i));
         connections.push(conn);
     }
@@ -285,20 +330,24 @@ async fn test_full_startup_sequence_simulation() {
     let (_temp_dir, db_path, init_pool) = create_test_database().await;
 
     // Pre-populate with realistic configuration
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '96')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert pool size");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_connection_pool_size', '96')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert pool size");
 
     sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_lock_retry_ms', '250')")
         .execute(&init_pool)
         .await
         .expect("Failed to insert lock retry");
 
-    sqlx::query("INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')")
-        .execute(&init_pool)
-        .await
-        .expect("Failed to insert max wait");
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('ai_database_max_lock_wait_ms', '5000')",
+    )
+    .execute(&init_pool)
+    .await
+    .expect("Failed to insert max wait");
 
     // Leave thread_count NULL to test auto-detection
 
@@ -314,17 +363,27 @@ async fn test_full_startup_sequence_simulation() {
     let bootstrap_duration = start.elapsed();
 
     println!("Bootstrap duration: {:?}", bootstrap_duration);
-    assert!(bootstrap_duration.as_millis() < 100, "Bootstrap should complete in <100ms");
+    assert!(
+        bootstrap_duration.as_millis() < 100,
+        "Bootstrap should complete in <100ms"
+    );
 
     // Stage 2: Production pool
     let start = std::time::Instant::now();
-    let db_pool = bootstrap_config.create_pool(&db_path)
+    let db_pool = bootstrap_config
+        .create_pool(&db_path)
         .await
         .expect("Production pool creation failed");
     let production_duration = start.elapsed();
 
-    println!("Production pool creation duration: {:?}", production_duration);
-    assert!(production_duration.as_millis() < 200, "Production pool should create in <200ms");
+    println!(
+        "Production pool creation duration: {:?}",
+        production_duration
+    );
+    assert!(
+        production_duration.as_millis() < 200,
+        "Production pool should create in <200ms"
+    );
 
     // Verify pool configuration
     assert_eq!(bootstrap_config.connection_pool_size, 96);
@@ -336,15 +395,24 @@ async fn test_full_startup_sequence_simulation() {
     println!("Thread count: {}", _thread_count);
 
     // Verify pool functional
-    let conn = db_pool.acquire().await.expect("Failed to acquire connection");
+    let conn = db_pool
+        .acquire()
+        .await
+        .expect("Failed to acquire connection");
     drop(conn);
 
     db_pool.close().await;
 
     // Total startup overhead should be minimal
     let total_duration = bootstrap_duration + production_duration;
-    println!("Total two-stage initialization overhead: {:?}", total_duration);
-    assert!(total_duration.as_millis() < 300, "Total overhead should be <300ms");
+    println!(
+        "Total two-stage initialization overhead: {:?}",
+        total_duration
+    );
+    assert!(
+        total_duration.as_millis() < 300,
+        "Total overhead should be <300ms"
+    );
 }
 
 #[tokio::test]
@@ -365,7 +433,10 @@ async fn test_bootstrap_missing_settings_table() {
     // Bootstrap should fail gracefully with clear error
     let result = WkmpAiBootstrapConfig::from_database(&db_path).await;
 
-    assert!(result.is_err(), "Bootstrap should fail when settings table missing");
+    assert!(
+        result.is_err(),
+        "Bootstrap should fail when settings table missing"
+    );
     let error = result.unwrap_err();
     println!("Error with missing table: {}", error);
     // Error should be about missing table or failed query

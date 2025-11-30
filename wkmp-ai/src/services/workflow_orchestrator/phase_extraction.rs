@@ -17,7 +17,10 @@ impl WorkflowOrchestrator {
     /// **DEPRECATED:** Use `phase_processing_per_file()` instead
     ///
     /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
-    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use phase_processing_per_file() with per-file pipeline"
+    )]
     pub(super) async fn phase_extracting(
         &self,
         mut session: ImportSession,
@@ -25,7 +28,11 @@ impl WorkflowOrchestrator {
         _cancel_token: &tokio_util::sync::CancellationToken,
     ) -> Result<ImportSession> {
         session.transition_to(ImportState::Extracting);
-        session.update_progress(0, session.progress.total, "Extracting metadata...".to_string());
+        session.update_progress(
+            0,
+            session.progress.total,
+            "Extracting metadata...".to_string(),
+        );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
 
@@ -75,8 +82,15 @@ impl WorkflowOrchestrator {
                     // Update file duration if available
                     // REQ-F-003: Convert seconds to ticks before storing
                     if let Some(duration_seconds) = metadata.duration_seconds {
-                        let duration_ticks = wkmp_common::timing::seconds_to_ticks(duration_seconds);
-                        if let Err(e) = crate::db::files::update_file_duration(&self.db, file.guid, duration_ticks).await {
+                        let duration_ticks =
+                            wkmp_common::timing::seconds_to_ticks(duration_seconds);
+                        if let Err(e) = crate::db::files::update_file_duration(
+                            &self.db,
+                            file.guid,
+                            duration_ticks,
+                        )
+                        .await
+                        {
                             tracing::warn!(
                                 session_id = %session.session_id,
                                 file = %file.path,
@@ -96,7 +110,9 @@ impl WorkflowOrchestrator {
                                     metadata.title.clone(),
                                     metadata.artist.clone(),
                                     metadata.album.clone(),
-                                ).await {
+                                )
+                                .await
+                                {
                                     tracing::warn!(
                                         session_id = %session.session_id,
                                         passage_id = %passage.guid,
@@ -135,7 +151,11 @@ impl WorkflowOrchestrator {
             session.update_progress(
                 total_processed,
                 files.len(),
-                format!("Extracting metadata from file {} of {}", total_processed, files.len()),
+                format!(
+                    "Extracting metadata from file {} of {}",
+                    total_processed,
+                    files.len()
+                ),
             );
             crate::db::sessions::save_session(&self.db, &session).await?;
             self.broadcast_progress(&session, start_time);
@@ -145,7 +165,10 @@ impl WorkflowOrchestrator {
         session.update_progress(
             total_processed,
             total_processed,
-            format!("Extracted {} / Skipped {} unchanged files", extracted_count, skipped_count),
+            format!(
+                "Extracted {} / Skipped {} unchanged files",
+                extracted_count, skipped_count
+            ),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);

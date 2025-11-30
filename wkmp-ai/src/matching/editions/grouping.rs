@@ -72,21 +72,19 @@ pub fn group_into_editions(releases: &[MBReleaseDetails]) -> Vec<Edition> {
 
         let key = EditionKey::new(track_count, &durations_ms);
 
-        edition_map.entry(key).or_insert_with(|| {
-            Edition {
-                release_mbid: release.id.clone(),
-                title: release.title.clone(),
-                artist: extract_artist_from_release(release),
-                artist_credit: None,
-                country: release.country.clone(),
-                status: release.status.clone(),
-                track_count,
-                track_durations: durations_ms.iter().map(|ms| *ms as f64 / 1000.0).collect(),
-                recording_mbids,
-                name_distance_rank: None,
-                name_distance_score: None,
-                durations: durations_ms,
-            }
+        edition_map.entry(key).or_insert_with(|| Edition {
+            release_mbid: release.id.clone(),
+            title: release.title.clone(),
+            artist: extract_artist_from_release(release),
+            artist_credit: None,
+            country: release.country.clone(),
+            status: release.status.clone(),
+            track_count,
+            track_durations: durations_ms.iter().map(|ms| *ms as f64 / 1000.0).collect(),
+            recording_mbids,
+            name_distance_rank: None,
+            name_distance_score: None,
+            durations: durations_ms,
         });
     }
 
@@ -119,11 +117,7 @@ mod tests {
     use super::*;
     use crate::matching::types::{MBArtist, MBArtistCredit, MBMedia, MBRecording, MBTrack};
 
-    fn create_test_release(
-        id: &str,
-        title: &str,
-        track_durations_ms: &[u32],
-    ) -> MBReleaseDetails {
+    fn create_test_release(id: &str, title: &str, track_durations_ms: &[u32]) -> MBReleaseDetails {
         let tracks: Vec<MBTrack> = track_durations_ms
             .iter()
             .enumerate()

@@ -55,12 +55,9 @@ pub(crate) struct WindowDbProfile {
 ///
 /// # Returns
 /// WindowDbProfile containing dB values for all time windows
-pub(crate) fn compute_window_db_profile(
-    samples: &[f32],
-    sample_rate: u32,
-) -> WindowDbProfile {
+pub(crate) fn compute_window_db_profile(samples: &[f32], sample_rate: u32) -> WindowDbProfile {
     // Use finest window (25ms) for best temporal resolution
-    let rms_window_secs = RMS_WINDOW_SHORT_SECS;  // 0.025s
+    let rms_window_secs = RMS_WINDOW_SHORT_SECS; // 0.025s
     let window_size = (sample_rate as f64 * rms_window_secs) as usize;
     let window_step = (sample_rate as f64 * rms_window_secs * RMS_WINDOW_OVERLAP) as usize;
 
@@ -159,11 +156,11 @@ pub(crate) fn detect_silence(
 ) -> Vec<(usize, usize)> {
     // Adaptive RMS window sizing based on min_duration
     let rms_window_secs = if min_duration_secs <= RMS_WINDOW_THRESHOLD_SHORT {
-        RMS_WINDOW_SHORT_SECS  // 25ms for short durations
+        RMS_WINDOW_SHORT_SECS // 25ms for short durations
     } else if min_duration_secs <= RMS_WINDOW_THRESHOLD_MEDIUM {
-        RMS_WINDOW_MEDIUM_SECS  // 50ms for medium durations
+        RMS_WINDOW_MEDIUM_SECS // 50ms for medium durations
     } else {
-        RMS_WINDOW_STANDARD_SECS  // 100ms for long durations
+        RMS_WINDOW_STANDARD_SECS // 100ms for long durations
     };
 
     let window_size = (sample_rate as f64 * rms_window_secs) as usize;
@@ -383,5 +380,8 @@ pub(crate) fn precompute_silence_cache(
     results.sort_by_key(|(idx, _)| *idx);
 
     // Extract just the durations in order
-    results.into_iter().map(|(_, durations)| durations).collect()
+    results
+        .into_iter()
+        .map(|(_, durations)| durations)
+        .collect()
 }

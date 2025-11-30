@@ -63,10 +63,7 @@ fn ticks_to_samples(ticks: i64, sample_rate: u32) -> usize {
 ///
 /// # Returns
 /// * Vec of audio samples for this passage (interleaved if stereo)
-pub fn extract_passage_samples(
-    file_audio: &FileAudioData,
-    boundary: &PassageBoundary,
-) -> Vec<f32> {
+pub fn extract_passage_samples(file_audio: &FileAudioData, boundary: &PassageBoundary) -> Vec<f32> {
     let start_sample = ticks_to_samples(boundary.start_time, file_audio.sample_rate);
     let end_sample = ticks_to_samples(boundary.end_time, file_audio.sample_rate);
 
@@ -121,12 +118,12 @@ pub async fn detect_boundaries_with_audio(file_path: &Path) -> Result<FileAudioD
 
 /// Synchronous boundary detection implementation (runs on blocking thread pool)
 fn detect_boundaries_sync(file_path: &Path) -> Result<Vec<PassageBoundary>> {
+    use std::fs::File;
     use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
     use symphonia::core::formats::FormatOptions;
     use symphonia::core::io::MediaSourceStream;
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
-    use std::fs::File;
 
     info!("Detecting passage boundaries in {:?}", file_path);
 
@@ -139,8 +136,12 @@ fn detect_boundaries_sync(file_path: &Path) -> Result<Vec<PassageBoundary>> {
         hint.with_extension(ext.to_str().unwrap_or(""));
     }
 
-    let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())?;
+    let probed = symphonia::default::get_probe().format(
+        &hint,
+        mss,
+        &FormatOptions::default(),
+        &MetadataOptions::default(),
+    )?;
 
     let mut format = probed.format;
     let track = format
@@ -152,27 +153,27 @@ fn detect_boundaries_sync(file_path: &Path) -> Result<Vec<PassageBoundary>> {
     let track_id = track.id;
     let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
 
-    let mut decoder = symphonia::default::get_codecs()
-        .make(&track.codec_params, &DecoderOptions::default())?;
+    let mut decoder =
+        symphonia::default::get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
 
     // Decode all samples and calculate energy
     let mut all_samples = Vec::new();
     loop {
         match format.next_packet() {
-            Ok(packet) if packet.track_id() == track_id => {
-                match decoder.decode(&packet) {
-                    Ok(decoded) => {
-                        let samples = extract_samples_f32(&decoded)?;
-                        all_samples.extend(samples);
-                    }
-                    Err(e) => {
-                        debug!("Decode error (continuing): {}", e);
-                        continue;
-                    }
+            Ok(packet) if packet.track_id() == track_id => match decoder.decode(&packet) {
+                Ok(decoded) => {
+                    let samples = extract_samples_f32(&decoded)?;
+                    all_samples.extend(samples);
                 }
-            }
+                Err(e) => {
+                    debug!("Decode error (continuing): {}", e);
+                    continue;
+                }
+            },
             Ok(_) => continue,
-            Err(symphonia::core::errors::Error::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+            Err(symphonia::core::errors::Error::IoError(e))
+                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
                 break;
             }
             Err(e) => {
@@ -268,14 +269,17 @@ fn detect_boundaries_sync(file_path: &Path) -> Result<Vec<PassageBoundary>> {
 ///
 /// **[AIA-PERF-046]** Returns decoded audio to eliminate re-decoding for extractors
 fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> {
+    use std::fs::File;
     use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};
     use symphonia::core::formats::FormatOptions;
     use symphonia::core::io::MediaSourceStream;
     use symphonia::core::meta::MetadataOptions;
     use symphonia::core::probe::Hint;
-    use std::fs::File;
 
-    info!("Detecting passage boundaries with audio caching in {:?}", file_path);
+    info!(
+        "Detecting passage boundaries with audio caching in {:?}",
+        file_path
+    );
 
     // Open audio file with symphonia
     let file = File::open(file_path)?;
@@ -286,8 +290,12 @@ fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> 
         hint.with_extension(ext.to_str().unwrap_or(""));
     }
 
-    let probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())?;
+    let probed = symphonia::default::get_probe().format(
+        &hint,
+        mss,
+        &FormatOptions::default(),
+        &MetadataOptions::default(),
+    )?;
 
     let mut format = probed.format;
     let track = format
@@ -298,29 +306,33 @@ fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> 
 
     let track_id = track.id;
     let sample_rate = track.codec_params.sample_rate.unwrap_or(44100);
-    let num_channels = track.codec_params.channels.map(|c| c.count() as u8).unwrap_or(2);
+    let num_channels = track
+        .codec_params
+        .channels
+        .map(|c| c.count() as u8)
+        .unwrap_or(2);
 
-    let mut decoder = symphonia::default::get_codecs()
-        .make(&track.codec_params, &DecoderOptions::default())?;
+    let mut decoder =
+        symphonia::default::get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
 
     // Decode all samples
     let mut all_samples = Vec::new();
     loop {
         match format.next_packet() {
-            Ok(packet) if packet.track_id() == track_id => {
-                match decoder.decode(&packet) {
-                    Ok(decoded) => {
-                        let samples = extract_samples_f32(&decoded)?;
-                        all_samples.extend(samples);
-                    }
-                    Err(e) => {
-                        debug!("Decode error (continuing): {}", e);
-                        continue;
-                    }
+            Ok(packet) if packet.track_id() == track_id => match decoder.decode(&packet) {
+                Ok(decoded) => {
+                    let samples = extract_samples_f32(&decoded)?;
+                    all_samples.extend(samples);
                 }
-            }
+                Err(e) => {
+                    debug!("Decode error (continuing): {}", e);
+                    continue;
+                }
+            },
             Ok(_) => continue,
-            Err(symphonia::core::errors::Error::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+            Err(symphonia::core::errors::Error::IoError(e))
+                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
                 break;
             }
             Err(e) => {
@@ -330,7 +342,12 @@ fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> 
         }
     }
 
-    debug!("Decoded {} samples at {}Hz ({} channels)", all_samples.len(), sample_rate, num_channels);
+    debug!(
+        "Decoded {} samples at {}Hz ({} channels)",
+        all_samples.len(),
+        sample_rate,
+        num_channels
+    );
 
     // Calculate RMS energy in windows
     let window_size = (sample_rate as f64 * 0.1) as usize; // 100ms windows
@@ -407,9 +424,11 @@ fn detect_boundaries_with_audio_sync(file_path: &Path) -> Result<FileAudioData> 
         }
     }
 
-    info!("Detected {} passage boundaries with audio cache ({:.1} MB)",
-          boundaries.len(),
-          (all_samples.len() * std::mem::size_of::<f32>()) as f64 / 1_048_576.0);
+    info!(
+        "Detected {} passage boundaries with audio cache ({:.1} MB)",
+        boundaries.len(),
+        (all_samples.len() * std::mem::size_of::<f32>()) as f64 / 1_048_576.0
+    );
 
     Ok(FileAudioData {
         boundaries,

@@ -106,10 +106,7 @@ impl MetadataMerger {
                     new_metadata.artist.or(old_artist),
                     new_metadata.title.or(old_title),
                     new_metadata.album.or(old_album),
-                    new_metadata
-                        .track_number
-                        .map(|t| t as i64)
-                        .or(old_track),
+                    new_metadata.track_number.map(|t| t as i64).or(old_track),
                     new_metadata.year.map(|y| y as i64).or(old_year),
                 )
             } else {
@@ -234,4 +231,3 @@ mod tests {
         // Just verify it can be created without panic
     }
 }
-

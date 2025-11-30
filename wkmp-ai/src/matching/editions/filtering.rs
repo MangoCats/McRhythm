@@ -29,8 +29,12 @@ pub fn filter_and_sort_editions(
     let mut scored: Vec<(Edition, f64)> = editions
         .into_iter()
         .map(|mut edition| {
-            let score =
-                calculate_name_distance(&edition.artist, &edition.title, source_artist, source_album);
+            let score = calculate_name_distance(
+                &edition.artist,
+                &edition.title,
+                source_artist,
+                source_album,
+            );
             edition.name_distance_score = Some(score);
             (edition, score)
         })
@@ -104,7 +108,8 @@ mod tests {
 
     #[test]
     fn test_calculate_name_distance_exact() {
-        let score = calculate_name_distance("The Beatles", "Abbey Road", "The Beatles", "Abbey Road");
+        let score =
+            calculate_name_distance("The Beatles", "Abbey Road", "The Beatles", "Abbey Road");
         assert!(score > 0.99);
     }
 
@@ -124,8 +129,12 @@ mod tests {
 
     #[test]
     fn test_calculate_name_distance_different() {
-        let score =
-            calculate_name_distance("The Beatles", "Abbey Road", "Led Zeppelin", "Physical Graffiti");
+        let score = calculate_name_distance(
+            "The Beatles",
+            "Abbey Road",
+            "Led Zeppelin",
+            "Physical Graffiti",
+        );
         // Should be low (but Jaro-Winkler may give higher scores for strings with common letters)
         // The key is it should be significantly lower than exact/partial matches
         assert!(score < 0.7);

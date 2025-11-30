@@ -814,10 +814,8 @@ impl SingleTrackAnalysis {
 
     /// Update pre_decode_score, final_score, confidence, and is_likely_single_track
     pub fn update_aggregates(&mut self, single_track_threshold: f64) {
-        self.pre_decode_score = self.filename_score
-            + self.dir_count_score
-            + self.id3_track_score
-            + self.duration_score;
+        self.pre_decode_score =
+            self.filename_score + self.dir_count_score + self.id3_track_score + self.duration_score;
 
         self.final_score = self.pre_decode_score + self.silence_gap_score.unwrap_or(0.0);
         self.confidence = Self::compute_confidence(self.final_score);

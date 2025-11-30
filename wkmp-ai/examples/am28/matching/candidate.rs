@@ -13,7 +13,7 @@
 //! - `types`: TrackMatch, CandidateTestResult (data structures)
 //! - `stages`: All stages use test_segmentation_against_single_edition()
 
-use crate::types::{TrackMatch, CandidateTestResult};
+use crate::types::{CandidateTestResult, TrackMatch};
 
 // =============================================================================
 // Core Track Matching Logic
@@ -148,11 +148,8 @@ pub(crate) fn test_segmentation_against_single_edition(
     edition_id: &str,
     tolerance: f64,
 ) -> CandidateTestResult {
-    let (matches, matched_count, percentage) = analyze_track_matching(
-        detected_durations,
-        expected_durations,
-        tolerance,
-    );
+    let (matches, matched_count, percentage) =
+        analyze_track_matching(detected_durations, expected_durations, tolerance);
 
     // Calculate mean error for matched tracks
     let mean_error = if matched_count > 0 {

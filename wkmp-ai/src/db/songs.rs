@@ -43,7 +43,7 @@ impl Song {
             lyrics: None,
             base_probability: 1.0,
             min_cooldown: 604800,      // 7 days in seconds
-            ramping_cooldown: 1209600,  // 14 days in seconds
+            ramping_cooldown: 1209600, // 14 days in seconds
             last_played_at: None,
         }
     }
@@ -279,8 +279,12 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        sqlx::query(r#"
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS songs (
                 guid TEXT PRIMARY KEY,
                 recording_mbid TEXT UNIQUE NOT NULL,
@@ -295,9 +299,16 @@ mod tests {
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        "#).execute(&pool).await.unwrap();
+        "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
-        let song = Song::new("recording-mbid-123".to_string(), Some("Test Song".to_string()));
+        let song = Song::new(
+            "recording-mbid-123".to_string(),
+            Some("Test Song".to_string()),
+        );
 
         save_song(&pool, &song).await.expect("Failed to save song");
 

@@ -20,11 +20,11 @@
 //! - ✅ TASK-014: Flavor Synthesizer
 
 // Module declarations (implemented fusers)
+pub mod flavor_synthesizer;
 pub mod identity_resolver; // TASK-012 ✅
-pub mod metadata_fuser;    // TASK-013 ✅
-pub mod flavor_synthesizer; // TASK-014 ✅
+pub mod metadata_fuser; // TASK-013 ✅ // TASK-014 ✅
 
 // Re-exports for convenience
+pub use flavor_synthesizer::FlavorSynthesizer;
 pub use identity_resolver::IdentityResolver;
 pub use metadata_fuser::MetadataFuser;
-pub use flavor_synthesizer::FlavorSynthesizer;

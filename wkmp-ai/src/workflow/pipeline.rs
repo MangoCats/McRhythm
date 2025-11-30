@@ -139,7 +139,10 @@ impl Pipeline {
             })
             .await;
 
-            match self.process_passage_with_audio(file_path, boundary, i, &file_audio).await {
+            match self
+                .process_passage_with_audio(file_path, boundary, i, &file_audio)
+                .await
+            {
                 Ok(passage) => {
                     self.emit_event(WorkflowEvent::PassageCompleted {
                         passage_index: i,
@@ -203,7 +206,8 @@ impl Pipeline {
         );
 
         // Extract passage-specific audio samples from cached file audio
-        let passage_samples = super::boundary_detector::extract_passage_samples(file_audio, boundary);
+        let passage_samples =
+            super::boundary_detector::extract_passage_samples(file_audio, boundary);
 
         debug!(
             "Extracted {} samples for passage {} ({:.1} MB)",
@@ -221,14 +225,16 @@ impl Pipeline {
 
         // PASS 1: Extraction (Tier 1) with audio samples
         debug!("Pass 1: Running all extractors with cached audio");
-        let mut extraction_results = self.extract_with_audio(
-            file_path,
-            boundary,
-            passage_index,
-            &passage_samples,
-            file_audio.sample_rate,
-            file_audio.num_channels,
-        ).await?;
+        let mut extraction_results = self
+            .extract_with_audio(
+                file_path,
+                boundary,
+                passage_index,
+                &passage_samples,
+                file_audio.sample_rate,
+                file_audio.num_channels,
+            )
+            .await?;
 
         // PASS 1 FUSION: Fuse to obtain Recording MBID
         debug!("Pass 1 Fusion: Fusing extraction results to obtain MBID");
@@ -273,8 +279,12 @@ impl Pipeline {
                         // Add MusicBrainz result to extraction results
                         extraction_results.push(musicbrainz_result);
 
-                        self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "completed")
-                            .await;
+                        self.emit_extraction_progress(
+                            passage_index,
+                            "MusicBrainz-Pass2",
+                            "completed",
+                        )
+                        .await;
                     }
                     Err(e) => {
                         warn!(
@@ -384,8 +394,12 @@ impl Pipeline {
                         // Add MusicBrainz result to extraction results
                         extraction_results.push(musicbrainz_result);
 
-                        self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "completed")
-                            .await;
+                        self.emit_extraction_progress(
+                            passage_index,
+                            "MusicBrainz-Pass2",
+                            "completed",
+                        )
+                        .await;
                     }
                     Err(e) => {
                         warn!(
@@ -432,7 +446,10 @@ impl Pipeline {
         sample_rate: u32,
         num_channels: u8,
     ) -> Result<Vec<ExtractionResult>> {
-        debug!("Phase 1: Extraction for passage {} with cached audio", passage_index);
+        debug!(
+            "Phase 1: Extraction for passage {} with cached audio",
+            passage_index
+        );
 
         // Create passage context with cached audio samples
         let ctx = PassageContext {
@@ -483,7 +500,6 @@ impl Pipeline {
         ctx: &PassageContext,
         passage_index: usize,
     ) -> Result<Vec<ExtractionResult>> {
-
         let mut results = Vec::new();
 
         // Extractor 1: ID3 tags
@@ -760,12 +776,7 @@ impl Pipeline {
     }
 
     /// Emit extraction progress event
-    async fn emit_extraction_progress(
-        &self,
-        passage_index: usize,
-        extractor: &str,
-        status: &str,
-    ) {
+    async fn emit_extraction_progress(&self, passage_index: usize, extractor: &str, status: &str) {
         self.emit_event(WorkflowEvent::ExtractionProgress {
             passage_index,
             extractor: extractor.to_string(),

@@ -63,14 +63,14 @@ impl PassageFingerprinter {
     /// If `api_key` is None, fingerprinting will be skipped
     /// (per [AIA-SEC-030]: user acknowledged lack of API key)
     pub fn new(api_key: Option<String>, db: Pool<Sqlite>) -> Result<Self> {
-        let acoustid_client = if let Some(key) = api_key {
-            Some(
-                AcoustIDClient::new(key, db)
-                    .map_err(|e| Error::Internal(format!("AcoustID client creation failed: {}", e)))?,
-            )
-        } else {
-            None
-        };
+        let acoustid_client =
+            if let Some(key) = api_key {
+                Some(AcoustIDClient::new(key, db).map_err(|e| {
+                    Error::Internal(format!("AcoustID client creation failed: {}", e))
+                })?)
+            } else {
+                None
+            };
 
         Ok(Self {
             fingerprinter: Fingerprinter::new(),
@@ -147,23 +147,24 @@ impl PassageFingerprinter {
             }
 
             // Generate Chromaprint fingerprint (CPU-intensive, uses spawn_blocking internally)
-            let fingerprint = match self
-                .fingerprinter
-                .fingerprint_segment(file_path, start_seconds, end_seconds)
-            {
-                Ok(fp) => fp,
-                Err(e) => {
-                    tracing::warn!(
-                        passage_idx = idx,
-                        error = ?e,
-                        "Fingerprint generation failed"
-                    );
-                    return Ok(FingerprintResult::Failed(format!(
-                        "Fingerprint generation failed for passage {}: {}",
-                        idx, e
-                    )));
-                }
-            };
+            let fingerprint =
+                match self
+                    .fingerprinter
+                    .fingerprint_segment(file_path, start_seconds, end_seconds)
+                {
+                    Ok(fp) => fp,
+                    Err(e) => {
+                        tracing::warn!(
+                            passage_idx = idx,
+                            error = ?e,
+                            "Fingerprint generation failed"
+                        );
+                        return Ok(FingerprintResult::Failed(format!(
+                            "Fingerprint generation failed for passage {}: {}",
+                            idx, e
+                        )));
+                    }
+                };
 
             tracing::debug!(
                 passage_idx = idx,
@@ -172,10 +173,7 @@ impl PassageFingerprinter {
             );
 
             // Query AcoustID API (rate-limited, async)
-            let response = match acoustid
-                .lookup(&fingerprint, duration_seconds as u64)
-                .await
-            {
+            let response = match acoustid.lookup(&fingerprint, duration_seconds as u64).await {
                 Ok(resp) => resp,
                 Err(e) => {
                     tracing::warn!(
@@ -217,9 +215,7 @@ impl PassageFingerprinter {
 }
 
 /// Extract MBID candidates from AcoustID results
-fn extract_candidates(
-    results: &[super::acoustid_client::AcoustIDResult],
-) -> Vec<MBIDCandidate> {
+fn extract_candidates(results: &[super::acoustid_client::AcoustIDResult]) -> Vec<MBIDCandidate> {
     let mut candidates = Vec::new();
 
     for result in results {
@@ -236,7 +232,11 @@ fn extract_candidates(
     }
 
     // Sort by score descending
-    candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    candidates.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     candidates
 }
@@ -254,8 +254,7 @@ mod tests {
     #[tokio::test]
     async fn test_fingerprinter_creation_with_key() {
         let pool = setup_test_db().await;
-        let _fingerprinter =
-            PassageFingerprinter::new(Some("test_key".to_string()), pool).unwrap();
+        let _fingerprinter = PassageFingerprinter::new(Some("test_key".to_string()), pool).unwrap();
         // Just verify it can be created without panic
     }
 

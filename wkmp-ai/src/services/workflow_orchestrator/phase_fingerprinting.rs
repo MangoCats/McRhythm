@@ -21,7 +21,10 @@ impl WorkflowOrchestrator {
     /// **DEPRECATED:** Use `phase_processing_per_file()` instead
     ///
     /// **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
-    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use phase_processing_per_file() with per-file pipeline"
+    )]
     pub(super) async fn phase_fingerprinting(
         &self,
         mut session: ImportSession,
@@ -32,7 +35,10 @@ impl WorkflowOrchestrator {
 
         // **[REQ-AIA-UI-003]** Initialize sub-task counters for fingerprinting phase
         use crate::models::import_session::SubTaskStatus;
-        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+        if let Some(phase) = session
+            .progress
+            .get_phase_mut(crate::models::ImportState::Fingerprinting)
+        {
             phase.subtasks = vec![
                 SubTaskStatus::new("Chromaprint"),
                 SubTaskStatus::new("AcoustID"),
@@ -93,7 +99,9 @@ impl WorkflowOrchestrator {
 
                 tracing::debug!(
                     "Progress check: {}/{} (last: {})",
-                    current_count, total_files, last_count
+                    current_count,
+                    total_files,
+                    last_count
                 );
 
                 if current_count == total_files {
@@ -131,7 +139,12 @@ impl WorkflowOrchestrator {
                     updated_session.update_progress(
                         current_count,
                         total_files,
-                        format!("Fingerprinting: {}/{} ({:.0}%)", current_count, total_files, (current_count as f64 / total_files as f64) * 100.0)
+                        format!(
+                            "Fingerprinting: {}/{} ({:.0}%)",
+                            current_count,
+                            total_files,
+                            (current_count as f64 / total_files as f64) * 100.0
+                        ),
                     );
 
                     // Save to database (non-blocking, best-effort)
@@ -145,10 +158,13 @@ impl WorkflowOrchestrator {
                         current: current_count,
                         total: total_files,
                         percentage: (current_count as f32 / total_files as f32) * 100.0,
-                        current_operation: format!("Fingerprinting {}/{} ({:.1} files/sec)", current_count, total_files, rate),
+                        current_operation: format!(
+                            "Fingerprinting {}/{} ({:.1} files/sec)",
+                            current_count, total_files, rate
+                        ),
                         elapsed_seconds: elapsed_secs,
                         estimated_remaining_seconds: Some(eta_secs),
-                        phases: vec![], // Not tracking phases in parallel section
+                        phases: vec![],     // Not tracking phases in parallel section
                         current_file: None, // Parallel processing, no single "current" file
                         phase_statistics: vec![], // **[PLAN024]** Empty for now (legacy code)
                         timestamp: chrono::Utc::now(),
@@ -171,36 +187,44 @@ impl WorkflowOrchestrator {
 
         tracing::debug!("Starting parallel fingerprinting in spawn_blocking");
 
-        let fingerprint_results: Vec<(usize, Option<String>)> = tokio::task::spawn_blocking(move || {
-            tracing::debug!("Rayon parallel fingerprinting starting");
-            let results: Vec<(usize, Option<String>)> = files_for_processing
-                .par_iter()
-                .enumerate()
-                .map(|(idx, file)| {
-                    if idx % 100 == 0 {
-                        tracing::debug!("Processing file {}/{}", idx, files_for_processing.len());
-                    }
+        let fingerprint_results: Vec<(usize, Option<String>)> =
+            tokio::task::spawn_blocking(move || {
+                tracing::debug!("Rayon parallel fingerprinting starting");
+                let results: Vec<(usize, Option<String>)> = files_for_processing
+                    .par_iter()
+                    .enumerate()
+                    .map(|(idx, file)| {
+                        if idx % 100 == 0 {
+                            tracing::debug!(
+                                "Processing file {}/{}",
+                                idx,
+                                files_for_processing.len()
+                            );
+                        }
 
-                    let file_path = root_path_owned.join(&file.path);
-                    let fingerprint = fingerprinter.fingerprint_file(&file_path).ok();
+                        let file_path = root_path_owned.join(&file.path);
+                        let fingerprint = fingerprinter.fingerprint_file(&file_path).ok();
 
-                    // Update counters
-                    processed_counter.fetch_add(1, Ordering::Relaxed);
-                    if fingerprint.is_some() {
-                        success_counter.fetch_add(1, Ordering::Relaxed);
-                    } else {
-                        failure_counter.fetch_add(1, Ordering::Relaxed);
-                    }
+                        // Update counters
+                        processed_counter.fetch_add(1, Ordering::Relaxed);
+                        if fingerprint.is_some() {
+                            success_counter.fetch_add(1, Ordering::Relaxed);
+                        } else {
+                            failure_counter.fetch_add(1, Ordering::Relaxed);
+                        }
 
-                    (idx, fingerprint)
-                })
-                .collect();
+                        (idx, fingerprint)
+                    })
+                    .collect();
 
-            tracing::debug!("Rayon parallel fingerprinting completed: {} results", results.len());
-            results
-        })
-        .await
-        .expect("Fingerprinting task panicked");
+                tracing::debug!(
+                    "Rayon parallel fingerprinting completed: {} results",
+                    results.len()
+                );
+                results
+            })
+            .await
+            .expect("Fingerprinting task panicked");
 
         tracing::debug!("spawn_blocking completed, waiting for progress task");
 
@@ -222,9 +246,15 @@ impl WorkflowOrchestrator {
         );
 
         // Update counters for Chromaprint phase
-        let chromaprint_success = fingerprint_results.iter().filter(|(_, fp)| fp.is_some()).count();
+        let chromaprint_success = fingerprint_results
+            .iter()
+            .filter(|(_, fp)| fp.is_some())
+            .count();
         let chromaprint_failed = fingerprint_results.len() - chromaprint_success;
-        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+        if let Some(phase) = session
+            .progress
+            .get_phase_mut(crate::models::ImportState::Fingerprinting)
+        {
             if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "Chromaprint") {
                 subtask.success_count = chromaprint_success;
                 subtask.failure_count = chromaprint_failed;
@@ -259,7 +289,7 @@ impl WorkflowOrchestrator {
             let duration = if let Some(ticks) = file.duration_ticks {
                 wkmp_common::timing::ticks_to_seconds(ticks) as u64
             } else {
-                120  // Default 120 seconds if duration unknown
+                120 // Default 120 seconds if duration unknown
             };
 
             // Query AcoustID if client available
@@ -271,8 +301,13 @@ impl WorkflowOrchestrator {
                             if let Some(ref recordings) = top_result.recordings {
                                 if let Some(recording) = recordings.first() {
                                     // **[REQ-AIA-UI-003]** Increment AcoustID success counter (found)
-                                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                    if let Some(phase) = session
+                                        .progress
+                                        .get_phase_mut(crate::models::ImportState::Fingerprinting)
+                                    {
+                                        if let Some(subtask) =
+                                            phase.subtasks.iter_mut().find(|s| s.name == "AcoustID")
+                                        {
                                             subtask.success_count += 1;
                                         }
                                     }
@@ -281,60 +316,79 @@ impl WorkflowOrchestrator {
                                     if let Some(ref mb) = self.mb_client {
                                         match mb.lookup_recording(&recording.id).await {
                                             Ok(mb_recording) => {
-                                            // **[REQ-AIA-UI-003]** Increment MusicBrainz success counter
-                                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "MusicBrainz") {
-                                                    subtask.success_count += 1;
+                                                // **[REQ-AIA-UI-003]** Increment MusicBrainz success counter
+                                                if let Some(phase) = session.progress.get_phase_mut(
+                                                    crate::models::ImportState::Fingerprinting,
+                                                ) {
+                                                    if let Some(subtask) = phase
+                                                        .subtasks
+                                                        .iter_mut()
+                                                        .find(|s| s.name == "MusicBrainz")
+                                                    {
+                                                        subtask.success_count += 1;
+                                                    }
                                                 }
-                                            }
-                                            // Save song with MusicBrainz title (may update existing if recording_mbid exists)
-                                            let song = crate::db::songs::Song::new(
-                                                recording.id.clone(),
-                                                Some(mb_recording.title.clone())
-                                            );
-                                            if let Err(e) = crate::db::songs::save_song(&self.db, &song).await {
-                                                tracing::error!(
-                                                    song_id = %song.guid,
-                                                    recording_mbid = %recording.id,
-                                                    file_path = %file.path,
-                                                    error = ?e,
-                                                    "FK constraint failed when saving song"
+                                                // Save song with MusicBrainz title (may update existing if recording_mbid exists)
+                                                let song = crate::db::songs::Song::new(
+                                                    recording.id.clone(),
+                                                    Some(mb_recording.title.clone()),
                                                 );
-                                                return Err(e);
-                                            }
-
-                                            // Load the song back to get the actual guid (may differ if ON CONFLICT UPDATE occurred)
-                                            let song = match crate::db::songs::load_song_by_mbid(&self.db, &recording.id).await? {
-                                                Some(s) => s,
-                                                None => {
+                                                if let Err(e) =
+                                                    crate::db::songs::save_song(&self.db, &song)
+                                                        .await
+                                                {
                                                     tracing::error!(
+                                                        song_id = %song.guid,
                                                         recording_mbid = %recording.id,
                                                         file_path = %file.path,
-                                                        "Song not found after save"
-                                                    );
-                                                    continue;
-                                                }
-                                            };
-
-                                            // Save artists and link to song
-                                            for artist_credit in &mb_recording.artist_credit {
-                                                let artist = crate::db::artists::Artist::new(
-                                                    artist_credit.artist.id.clone(),
-                                                    artist_credit.artist.name.clone(),
-                                                );
-                                                if let Err(e) = crate::db::artists::save_artist(&self.db, &artist).await {
-                                                    tracing::error!(
-                                                        artist_id = %artist.guid,
-                                                        artist_mbid = %artist_credit.artist.id,
-                                                        file_path = %file.path,
                                                         error = ?e,
-                                                        "FK constraint failed when saving artist"
+                                                        "FK constraint failed when saving song"
                                                     );
                                                     return Err(e);
                                                 }
 
-                                                // Load artist back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
-                                                let artist = match crate::db::artists::load_artist_by_mbid(&self.db, &artist_credit.artist.id).await? {
+                                                // Load the song back to get the actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                let song =
+                                                    match crate::db::songs::load_song_by_mbid(
+                                                        &self.db,
+                                                        &recording.id,
+                                                    )
+                                                    .await?
+                                                    {
+                                                        Some(s) => s,
+                                                        None => {
+                                                            tracing::error!(
+                                                                recording_mbid = %recording.id,
+                                                                file_path = %file.path,
+                                                                "Song not found after save"
+                                                            );
+                                                            continue;
+                                                        }
+                                                    };
+
+                                                // Save artists and link to song
+                                                for artist_credit in &mb_recording.artist_credit {
+                                                    let artist = crate::db::artists::Artist::new(
+                                                        artist_credit.artist.id.clone(),
+                                                        artist_credit.artist.name.clone(),
+                                                    );
+                                                    if let Err(e) = crate::db::artists::save_artist(
+                                                        &self.db, &artist,
+                                                    )
+                                                    .await
+                                                    {
+                                                        tracing::error!(
+                                                            artist_id = %artist.guid,
+                                                            artist_mbid = %artist_credit.artist.id,
+                                                            file_path = %file.path,
+                                                            error = ?e,
+                                                            "FK constraint failed when saving artist"
+                                                        );
+                                                        return Err(e);
+                                                    }
+
+                                                    // Load artist back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                    let artist = match crate::db::artists::load_artist_by_mbid(&self.db, &artist_credit.artist.id).await? {
                                                     Some(a) => a,
                                                     None => {
                                                         tracing::warn!(
@@ -346,40 +400,54 @@ impl WorkflowOrchestrator {
                                                     }
                                                 };
 
-                                                // Link song to artist (equal weight)
-                                                let weight = 1.0 / mb_recording.artist_credit.len() as f64;
-                                                if let Err(e) = crate::db::artists::link_song_to_artist(&self.db, song.guid, artist.guid, weight).await {
-                                                    tracing::error!(
-                                                        song_id = %song.guid,
-                                                        artist_id = %artist.guid,
-                                                        file_path = %file.path,
-                                                        error = ?e,
-                                                        "FK constraint failed when linking song to artist"
-                                                    );
-                                                    return Err(e);
-                                                }
-                                            }
-
-                                            // Save album if available
-                                            if let Some(ref releases) = mb_recording.releases {
-                                                if let Some(release) = releases.first() {
-                                                    let album = crate::db::albums::Album::new(
-                                                        release.id.clone(),
-                                                        release.title.clone(),
-                                                    );
-                                                    if let Err(e) = crate::db::albums::save_album(&self.db, &album).await {
+                                                    // Link song to artist (equal weight)
+                                                    let weight = 1.0
+                                                        / mb_recording.artist_credit.len() as f64;
+                                                    if let Err(e) =
+                                                        crate::db::artists::link_song_to_artist(
+                                                            &self.db,
+                                                            song.guid,
+                                                            artist.guid,
+                                                            weight,
+                                                        )
+                                                        .await
+                                                    {
                                                         tracing::error!(
-                                                            album_id = %album.guid,
-                                                            album_mbid = %release.id,
+                                                            song_id = %song.guid,
+                                                            artist_id = %artist.guid,
                                                             file_path = %file.path,
                                                             error = ?e,
-                                                            "FK constraint failed when saving album"
+                                                            "FK constraint failed when linking song to artist"
                                                         );
                                                         return Err(e);
                                                     }
+                                                }
 
-                                                    // Load album back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
-                                                    let album = match crate::db::albums::load_album_by_mbid(&self.db, &release.id).await? {
+                                                // Save album if available
+                                                if let Some(ref releases) = mb_recording.releases {
+                                                    if let Some(release) = releases.first() {
+                                                        let album = crate::db::albums::Album::new(
+                                                            release.id.clone(),
+                                                            release.title.clone(),
+                                                        );
+                                                        if let Err(e) =
+                                                            crate::db::albums::save_album(
+                                                                &self.db, &album,
+                                                            )
+                                                            .await
+                                                        {
+                                                            tracing::error!(
+                                                                album_id = %album.guid,
+                                                                album_mbid = %release.id,
+                                                                file_path = %file.path,
+                                                                error = ?e,
+                                                                "FK constraint failed when saving album"
+                                                            );
+                                                            return Err(e);
+                                                        }
+
+                                                        // Load album back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                        let album = match crate::db::albums::load_album_by_mbid(&self.db, &release.id).await? {
                                                         Some(a) => a,
                                                         None => {
                                                             tracing::warn!(
@@ -391,9 +459,9 @@ impl WorkflowOrchestrator {
                                                         }
                                                     };
 
-                                                    // Store file → album mapping for later passage linking
-                                                    // (passages don't exist yet - they're created in segmenting phase)
-                                                    if let Err(e) = sqlx::query(
+                                                        // Store file → album mapping for later passage linking
+                                                        // (passages don't exist yet - they're created in segmenting phase)
+                                                        if let Err(e) = sqlx::query(
                                                         "INSERT INTO temp_file_albums (file_id, album_id) VALUES (?, ?)
                                                          ON CONFLICT(file_id, album_id) DO NOTHING"
                                                     )
@@ -411,31 +479,40 @@ impl WorkflowOrchestrator {
                                                         );
                                                         return Err(e.into());
                                                     }
+                                                    }
                                                 }
-                                            }
 
-                                            // Save work if available
-                                            if let Some(ref relations) = mb_recording.relations {
-                                                for relation in relations {
-                                                    if relation.relation_type == "performance" || relation.relation_type == "cover" {
-                                                        if let Some(ref work) = relation.work {
-                                                            let db_work = crate::db::works::Work::new(
-                                                                work.id.clone(),
-                                                                work.title.clone(),
-                                                            );
-                                                            if let Err(e) = crate::db::works::save_work(&self.db, &db_work).await {
-                                                                tracing::error!(
-                                                                    work_id = %db_work.guid,
-                                                                    work_mbid = %work.id,
-                                                                    file_path = %file.path,
-                                                                    error = ?e,
-                                                                    "FK constraint failed when saving work"
-                                                                );
-                                                                return Err(e);
-                                                            }
+                                                // Save work if available
+                                                if let Some(ref relations) = mb_recording.relations
+                                                {
+                                                    for relation in relations {
+                                                        if relation.relation_type == "performance"
+                                                            || relation.relation_type == "cover"
+                                                        {
+                                                            if let Some(ref work) = relation.work {
+                                                                let db_work =
+                                                                    crate::db::works::Work::new(
+                                                                        work.id.clone(),
+                                                                        work.title.clone(),
+                                                                    );
+                                                                if let Err(e) =
+                                                                    crate::db::works::save_work(
+                                                                        &self.db, &db_work,
+                                                                    )
+                                                                    .await
+                                                                {
+                                                                    tracing::error!(
+                                                                        work_id = %db_work.guid,
+                                                                        work_mbid = %work.id,
+                                                                        file_path = %file.path,
+                                                                        error = ?e,
+                                                                        "FK constraint failed when saving work"
+                                                                    );
+                                                                    return Err(e);
+                                                                }
 
-                                                            // Load work back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
-                                                            let db_work = match crate::db::works::load_work_by_mbid(&self.db, &work.id).await? {
+                                                                // Load work back to get actual guid (may differ if ON CONFLICT UPDATE occurred)
+                                                                let db_work = match crate::db::works::load_work_by_mbid(&self.db, &work.id).await? {
                                                                 Some(w) => w,
                                                                 None => {
                                                                     tracing::warn!(
@@ -447,8 +524,8 @@ impl WorkflowOrchestrator {
                                                                 }
                                                             };
 
-                                                            // Link song to work
-                                                            if let Err(e) = crate::db::works::link_song_to_work(&self.db, song.guid, db_work.guid).await {
+                                                                // Link song to work
+                                                                if let Err(e) = crate::db::works::link_song_to_work(&self.db, song.guid, db_work.guid).await {
                                                                 tracing::error!(
                                                                     song_id = %song.guid,
                                                                     work_id = %db_work.guid,
@@ -458,14 +535,14 @@ impl WorkflowOrchestrator {
                                                                 );
                                                                 return Err(e);
                                                             }
+                                                            }
                                                         }
                                                     }
                                                 }
-                                            }
 
-                                            // Store file → song mapping for later passage linking
-                                            // (passages don't exist yet - they're created in segmenting phase)
-                                            if let Err(e) = sqlx::query(
+                                                // Store file → song mapping for later passage linking
+                                                // (passages don't exist yet - they're created in segmenting phase)
+                                                if let Err(e) = sqlx::query(
                                                 "INSERT INTO temp_file_songs (file_id, song_id) VALUES (?, ?)
                                                  ON CONFLICT(file_id) DO UPDATE SET song_id = excluded.song_id"
                                             )
@@ -484,11 +561,11 @@ impl WorkflowOrchestrator {
                                                 return Err(e.into());
                                             }
 
-                                            tracing::info!(
-                                                file = %file.path,
-                                                recording_mbid = %recording.id,
-                                                "Successfully fingerprinted and linked to MusicBrainz"
-                                            );
+                                                tracing::info!(
+                                                    file = %file.path,
+                                                    recording_mbid = %recording.id,
+                                                    "Successfully fingerprinted and linked to MusicBrainz"
+                                                );
                                             }
                                             Err(e) => {
                                                 // Log MusicBrainz lookup error
@@ -503,24 +580,39 @@ impl WorkflowOrchestrator {
                                     }
                                 } else {
                                     // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no recording in result)
-                                    if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                                        if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                    if let Some(phase) = session
+                                        .progress
+                                        .get_phase_mut(crate::models::ImportState::Fingerprinting)
+                                    {
+                                        if let Some(subtask) =
+                                            phase.subtasks.iter_mut().find(|s| s.name == "AcoustID")
+                                        {
                                             subtask.failure_count += 1;
                                         }
                                     }
                                 }
                             } else {
                                 // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no recordings field)
-                                if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                                    if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                                if let Some(phase) = session
+                                    .progress
+                                    .get_phase_mut(crate::models::ImportState::Fingerprinting)
+                                {
+                                    if let Some(subtask) =
+                                        phase.subtasks.iter_mut().find(|s| s.name == "AcoustID")
+                                    {
                                         subtask.failure_count += 1;
                                     }
                                 }
                             }
                         } else {
                             // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (no results)
-                            if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                                if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                            if let Some(phase) = session
+                                .progress
+                                .get_phase_mut(crate::models::ImportState::Fingerprinting)
+                            {
+                                if let Some(subtask) =
+                                    phase.subtasks.iter_mut().find(|s| s.name == "AcoustID")
+                                {
                                     subtask.failure_count += 1;
                                 }
                             }
@@ -529,8 +621,13 @@ impl WorkflowOrchestrator {
                     Err(e) => {
                         tracing::warn!("AcoustID lookup failed for {}: {}", file.path, e);
                         // **[REQ-AIA-UI-003]** Increment AcoustID failure counter (lookup error)
-                        if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
-                            if let Some(subtask) = phase.subtasks.iter_mut().find(|s| s.name == "AcoustID") {
+                        if let Some(phase) = session
+                            .progress
+                            .get_phase_mut(crate::models::ImportState::Fingerprinting)
+                        {
+                            if let Some(subtask) =
+                                phase.subtasks.iter_mut().find(|s| s.name == "AcoustID")
+                            {
                                 subtask.failure_count += 1;
                             }
                         }
@@ -552,7 +649,11 @@ impl WorkflowOrchestrator {
         }
 
         // Final progress update
-        session.update_progress(processed_count, files.len(), "Fingerprinting completed".to_string());
+        session.update_progress(
+            processed_count,
+            files.len(),
+            "Fingerprinting completed".to_string(),
+        );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
 

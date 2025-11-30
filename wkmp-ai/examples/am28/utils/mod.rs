@@ -10,14 +10,14 @@
 //! - `early_exit`: Early-exit coordination for parallel processing
 
 pub(crate) mod audio;
-pub(crate) mod fingerprint;
-pub(crate) mod timing;
-pub(crate) mod query_stats;
 pub(crate) mod early_exit;
+pub(crate) mod fingerprint;
+pub(crate) mod query_stats;
+pub(crate) mod timing;
 
 // Re-export key items
 pub use audio::*;
-pub use fingerprint::*;
-pub use timing::*;
-pub use query_stats::*;
 pub use early_exit::*;
+pub use fingerprint::*;
+pub use query_stats::*;
+pub use timing::*;

@@ -38,7 +38,9 @@ pub async fn set_acoustid_api_key(db: &Pool<Sqlite>, key: String) -> Result<()> 
 /// Previous default of 35dB was too insensitive for reliable track segmentation.
 /// **Traceability:** REQ-SPEC032-010 (Phase 4 SEGMENTING)
 pub async fn get_silence_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
-    get_setting(db, "silence_threshold_dB").await.map(|opt| opt.unwrap_or(60.0))
+    get_setting(db, "silence_threshold_dB")
+        .await
+        .map(|opt| opt.unwrap_or(60.0))
 }
 
 /// Get minimum silence duration in ticks (Phase 4)
@@ -50,7 +52,9 @@ pub async fn get_silence_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
 /// **Conversion:** 2000ms × 28224 ticks/ms = 56,448,000 ticks
 /// **Traceability:** REQ-SPEC032-010 (Phase 4 SEGMENTING)
 pub async fn get_silence_min_duration_ticks(db: &Pool<Sqlite>) -> Result<i64> {
-    get_setting(db, "silence_min_duration_ticks").await.map(|opt| opt.unwrap_or(56448000))
+    get_setting(db, "silence_min_duration_ticks")
+        .await
+        .map(|opt| opt.unwrap_or(56448000))
 }
 
 /// Get minimum passage audio duration in ticks (Phase 4)
@@ -58,7 +62,9 @@ pub async fn get_silence_min_duration_ticks(db: &Pool<Sqlite>) -> Result<i64> {
 /// **Default:** 2822400 ticks (100ms)
 /// **Traceability:** REQ-SPEC032-010 (Phase 4 NO AUDIO detection)
 pub async fn get_minimum_passage_audio_duration_ticks(db: &Pool<Sqlite>) -> Result<i64> {
-    get_setting(db, "minimum_passage_audio_duration_ticks").await.map(|opt| opt.unwrap_or(2822400))
+    get_setting(db, "minimum_passage_audio_duration_ticks")
+        .await
+        .map(|opt| opt.unwrap_or(2822400))
 }
 
 /// Get lead-in detection threshold (Phase 8)
@@ -66,7 +72,9 @@ pub async fn get_minimum_passage_audio_duration_ticks(db: &Pool<Sqlite>) -> Resu
 /// **Default:** 45.0 dB
 /// **Traceability:** REQ-SPEC032-014 (Phase 8 AMPLITUDE)
 pub async fn get_lead_in_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
-    get_setting(db, "lead_in_threshold_dB").await.map(|opt| opt.unwrap_or(45.0))
+    get_setting(db, "lead_in_threshold_dB")
+        .await
+        .map(|opt| opt.unwrap_or(45.0))
 }
 
 /// Get lead-out detection threshold (Phase 8)
@@ -74,7 +82,9 @@ pub async fn get_lead_in_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
 /// **Default:** 40.0 dB
 /// **Traceability:** REQ-SPEC032-014 (Phase 8 AMPLITUDE)
 pub async fn get_lead_out_threshold_db(db: &Pool<Sqlite>) -> Result<f64> {
-    get_setting(db, "lead_out_threshold_dB").await.map(|opt| opt.unwrap_or(40.0))
+    get_setting(db, "lead_out_threshold_dB")
+        .await
+        .map(|opt| opt.unwrap_or(40.0))
 }
 
 /// Get or auto-initialize processing thread count
@@ -109,17 +119,16 @@ where
     T: std::str::FromStr,
     T::Err: std::fmt::Display,
 {
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT value FROM settings WHERE key = ?"
-    )
-    .bind(key)
-    .fetch_optional(db)
-    .await
-    .map_err(Error::Database)?;
+    let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?")
+        .bind(key)
+        .fetch_optional(db)
+        .await
+        .map_err(Error::Database)?;
 
     match row {
         Some((value,)) => {
-            let parsed = value.parse::<T>()
+            let parsed = value
+                .parse::<T>()
                 .map_err(|e| Error::Config(format!("Parse setting failed: {}", e)))?;
             Ok(Some(parsed))
         }
@@ -134,7 +143,7 @@ where
 {
     sqlx::query(
         "INSERT INTO settings (key, value) VALUES (?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     )
     .bind(key)
     .bind(value.to_string())
@@ -162,7 +171,7 @@ mod tests {
             "CREATE TABLE settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
-            )"
+            )",
         )
         .execute(&pool)
         .await
@@ -176,10 +185,12 @@ mod tests {
         let pool = setup_test_db().await;
 
         // Insert test key directly
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('acoustid_api_key', 'test_key_123')")
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('acoustid_api_key', 'test_key_123')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         // Retrieve key
         let result = get_acoustid_api_key(&pool).await.unwrap();
@@ -229,10 +240,11 @@ mod tests {
         assert_eq!(result, Some("new_key".to_string()));
 
         // Verify no duplicate entries
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE key = 'acoustid_api_key'")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE key = 'acoustid_api_key'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count, 1, "Should have exactly one entry after update");
     }
 

@@ -118,7 +118,10 @@ impl WriteQueue {
 
         while let Some(operation) = rx.recv().await {
             match operation {
-                WriteOperation::SaveSession { session, response_tx } => {
+                WriteOperation::SaveSession {
+                    session,
+                    response_tx,
+                } => {
                     let result = crate::db::sessions::save_session(&db, &session).await;
 
                     if let Err(e) = &result {
@@ -133,7 +136,10 @@ impl WriteQueue {
                     let _ = response_tx.send(result.map_err(Into::into));
                 }
 
-                WriteOperation::RecordPassages { passages, response_tx } => {
+                WriteOperation::RecordPassages {
+                    passages,
+                    response_tx,
+                } => {
                     let result = Self::execute_record_passages_batch(&db, passages).await;
 
                     if let Err(e) = &result {
@@ -147,7 +153,11 @@ impl WriteQueue {
                     let _ = response_tx.send(result);
                 }
 
-                WriteOperation::UpdateFileStatus { file_id, status, response_tx } => {
+                WriteOperation::UpdateFileStatus {
+                    file_id,
+                    status,
+                    response_tx,
+                } => {
                     let result = Self::execute_update_file_status(&db, file_id, &status).await;
 
                     if let Err(e) = &result {
@@ -182,7 +192,10 @@ impl WriteQueue {
         let (response_tx, response_rx) = oneshot::channel();
 
         self.tx
-            .send(WriteOperation::SaveSession { session, response_tx })
+            .send(WriteOperation::SaveSession {
+                session,
+                response_tx,
+            })
             .await
             .map_err(|_| anyhow::anyhow!("Write queue channel closed"))?;
 
@@ -204,7 +217,10 @@ impl WriteQueue {
         let (response_tx, response_rx) = oneshot::channel();
 
         self.tx
-            .send(WriteOperation::RecordPassages { passages, response_tx })
+            .send(WriteOperation::RecordPassages {
+                passages,
+                response_tx,
+            })
             .await
             .map_err(|_| anyhow::anyhow!("Write queue channel closed"))?;
 
@@ -260,7 +276,10 @@ impl WriteQueue {
     /// Internal: Record passages batch to database
     ///
     /// **[REQ-PERF-007]** Batch insert in single transaction
-    async fn execute_record_passages_batch(db: &SqlitePool, passages: Vec<PassageData>) -> Result<Vec<Uuid>> {
+    async fn execute_record_passages_batch(
+        db: &SqlitePool,
+        passages: Vec<PassageData>,
+    ) -> Result<Vec<Uuid>> {
         let passage_count = passages.len();
         if passage_count == 0 {
             return Ok(Vec::new());
@@ -292,16 +311,17 @@ impl WriteQueue {
 
         tx.commit().await?;
 
-        tracing::debug!(
-            count = passage_count,
-            "Recorded passages batch"
-        );
+        tracing::debug!(count = passage_count, "Recorded passages batch");
 
         Ok(passage_ids)
     }
 
     /// Internal: Update file status in database
-    async fn execute_update_file_status(db: &SqlitePool, file_id: Uuid, status: &str) -> Result<()> {
+    async fn execute_update_file_status(
+        db: &SqlitePool,
+        file_id: Uuid,
+        status: &str,
+    ) -> Result<()> {
         sqlx::query(
             r#"
             UPDATE files

@@ -11,7 +11,7 @@
 //! **[AIA-MS-010]** Integrates with wkmp-ui via HTTP REST + SSE
 
 use anyhow::Result;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use wkmp_common::events::EventBus;
 
@@ -31,7 +31,7 @@ fn main() -> Result<()> {
                 .with_file(true)
                 .with_line_number(true)
                 .with_thread_ids(true)
-                .with_thread_names(true)
+                .with_thread_names(true),
         )
         .init();
 
@@ -50,7 +50,8 @@ fn main() -> Result<()> {
 
     // Step 2: Create root folder directory if missing [REQ-NF-036]
     let initializer = wkmp_common::config::RootFolderInitializer::new(root_folder);
-    initializer.ensure_directory_exists()
+    initializer
+        .ensure_directory_exists()
         .map_err(|e| anyhow::anyhow!("Failed to initialize root folder: {}", e))?;
 
     // Step 3: Get database path [REQ-NF-036]
@@ -64,7 +65,8 @@ fn main() -> Result<()> {
     // Need to use a temporary runtime for bootstrap config reading
     let bootstrap_runtime = tokio::runtime::Runtime::new()?;
     let bootstrap_config = bootstrap_runtime.block_on(async {
-        wkmp_ai::models::WkmpAiBootstrapConfig::from_database(&db_path).await
+        wkmp_ai::models::WkmpAiBootstrapConfig::from_database(&db_path)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to read bootstrap configuration: {}", e))
     })?;
 
@@ -84,8 +86,7 @@ fn main() -> Result<()> {
 
     info!(
         "Building Tokio runtime: worker_threads={}, max_blocking_threads={}",
-        ai_processing_thread_count,
-        max_blocking_threads
+        ai_processing_thread_count, max_blocking_threads
     );
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -94,37 +95,50 @@ fn main() -> Result<()> {
         .enable_all()
         .build()?;
 
-    runtime.block_on(async move {
-        run_async(db_path, bootstrap_config).await
-    })
+    runtime.block_on(async move { run_async(db_path, bootstrap_config).await })
 }
 
-async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::models::WkmpAiBootstrapConfig) -> Result<()> {
+async fn run_async(
+    db_path: std::path::PathBuf,
+    bootstrap_config: wkmp_ai::models::WkmpAiBootstrapConfig,
+) -> Result<()> {
     // Stage 2: Production - Create configured pool and initialize schema
     info!("Stage 2: Creating production database pool with configuration");
 
     // Create production pool with bootstrap configuration
-    let db_pool = bootstrap_config.create_pool(&db_path).await
+    let db_pool = bootstrap_config
+        .create_pool(&db_path)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to create production database pool: {}", e))?;
 
     // Initialize/verify schema using shared schema maintenance system **[AIA-DB-010]**
     // This runs all migrations, schema sync, and default settings initialization
     // Idempotent - safe to call on existing database
     info!("Initializing database schema");
-    wkmp_common::db::init::init_database_schema(&db_pool).await
+    wkmp_common::db::init::init_database_schema(&db_pool)
+        .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize database schema: {}", e))?;
 
-    info!("Database pool ready ({} connections, schema verified)", bootstrap_config.connection_pool_size);
+    info!(
+        "Database pool ready ({} connections, schema verified)",
+        bootstrap_config.connection_pool_size
+    );
 
     // Step 4: Determine TOML config path
     let toml_path = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
-        .map(|home| std::path::PathBuf::from(home).join(".config").join("wkmp").join("wkmp-ai.toml"))
+        .map(|home| {
+            std::path::PathBuf::from(home)
+                .join(".config")
+                .join("wkmp")
+                .join("wkmp-ai.toml")
+        })
         .unwrap_or_else(|_| std::path::PathBuf::from("wkmp-ai.toml"));
 
     // **[PLAN031 Task 2.4]** Use async file I/O for TOML config loading
     let toml_config = if toml_path.exists() {
-        let content = tokio::fs::read_to_string(&toml_path).await
+        let content = tokio::fs::read_to_string(&toml_path)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to read TOML config: {}", e))?;
         toml::from_str(&content)
             .map_err(|e| anyhow::anyhow!("Failed to parse TOML config: {}", e))?
@@ -149,13 +163,8 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
                 } else {
                     "TOML"
                 };
-                wkmp_ai::config::migrate_key_to_database(
-                    key.clone(),
-                    source,
-                    &db_pool,
-                    &toml_path,
-                )
-                .await?;
+                wkmp_ai::config::migrate_key_to_database(key.clone(), source, &db_pool, &toml_path)
+                    .await?;
             }
             key
         }
@@ -191,7 +200,10 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
     // Any session not in terminal state is from a previous run and will never complete
     match wkmp_ai::db::sessions::cleanup_stale_sessions(&db_pool).await {
         Ok(count) if count > 0 => {
-            info!("Cleaned up {} stale import session(s) from previous run", count);
+            info!(
+                "Cleaned up {} stale import session(s) from previous run",
+                count
+            );
         }
         Ok(_) => {
             info!("No stale import sessions to clean up");
@@ -229,7 +241,11 @@ async fn run_async(db_path: std::path::PathBuf, bootstrap_config: wkmp_ai::model
                     pool_size = state,
                     idle_connections = idle,
                     in_use_connections = in_use,
-                    utilization_pct = if state > 0 { (in_use as f64 / state as f64 * 100.0) as u32 } else { 0 },
+                    utilization_pct = if state > 0 {
+                        (in_use as f64 / state as f64 * 100.0) as u32
+                    } else {
+                        0
+                    },
                     "Pool utilization snapshot"
                 );
             }

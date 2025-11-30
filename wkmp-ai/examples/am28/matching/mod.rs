@@ -10,11 +10,11 @@
 
 pub(crate) mod candidate;
 pub(crate) mod edition;
-pub(crate) mod validation;
 pub(crate) mod mbid;
+pub(crate) mod validation;
 
 // Re-export key items
 pub use candidate::*;
 pub use edition::*;
-pub use validation::*;
 pub use mbid::*;
+pub use validation::*;

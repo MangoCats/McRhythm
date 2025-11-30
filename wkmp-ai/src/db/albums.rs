@@ -261,12 +261,19 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_albums_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_albums_table(&pool)
+            .await
+            .unwrap();
 
         let album = Album::new("release-mbid-789".to_string(), "Test Album".to_string());
 
-        save_album(&pool, &album).await.expect("Failed to save album");
+        save_album(&pool, &album)
+            .await
+            .expect("Failed to save album");
 
         let loaded = load_album_by_mbid(&pool, "release-mbid-789")
             .await

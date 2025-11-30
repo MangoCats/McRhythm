@@ -2,6 +2,7 @@
 //!
 //! **[AIA-DB-010]** Audio file persistence and deduplication
 
+use crate::utils::{begin_monitored, retry_on_lock};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
@@ -9,7 +10,6 @@ use sqlx::{Row, SqlitePool};
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
-use crate::utils::{retry_on_lock, begin_monitored};
 
 /// REQ-F-003: Audio file record (BREAKING CHANGE - duration migration)
 ///
@@ -52,7 +52,7 @@ impl AudioFile {
             guid: Uuid::new_v4(),
             path,
             hash,
-            duration_ticks: None,  // REQ-F-003: Changed from `duration: None`
+            duration_ticks: None, // REQ-F-003: Changed from `duration: None`
             format: None,
             sample_rate: None,
             channels: None,
@@ -116,7 +116,7 @@ pub async fn save_files_batch(pool: &SqlitePool, files: &[AudioFile]) -> Result<
 
     // Get max lock wait time from settings (default 5000ms)
     let max_wait_ms: i64 = sqlx::query_scalar(
-        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'",
     )
     .fetch_optional(pool)
     .await?
@@ -241,14 +241,14 @@ pub async fn load_file_by_path(pool: &SqlitePool, path: &str) -> Result<Option<A
             let guid = Uuid::parse_str(&guid_str)?;
 
             let mod_time_str: String = row.get("modification_time");
-            let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?
-                .with_timezone(&Utc);
+            let modification_time =
+                DateTime::parse_from_rfc3339(&mod_time_str)?.with_timezone(&Utc);
 
             Ok(Some(AudioFile {
                 guid,
                 path: row.get("path"),
                 hash: row.get("hash"),
-                duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+                duration_ticks: row.get("duration_ticks"), // REQ-F-003: Changed from duration
                 format: row.get("format"),
                 sample_rate: row.get("sample_rate"),
                 channels: row.get("channels"),
@@ -281,14 +281,14 @@ pub async fn load_file_by_hash(pool: &SqlitePool, hash: &str) -> Result<Option<A
             let guid = Uuid::parse_str(&guid_str)?;
 
             let mod_time_str: String = row.get("modification_time");
-            let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?
-                .with_timezone(&Utc);
+            let modification_time =
+                DateTime::parse_from_rfc3339(&mod_time_str)?.with_timezone(&Utc);
 
             Ok(Some(AudioFile {
                 guid,
                 path: row.get("path"),
                 hash: row.get("hash"),
-                duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+                duration_ticks: row.get("duration_ticks"), // REQ-F-003: Changed from duration
                 format: row.get("format"),
                 sample_rate: row.get("sample_rate"),
                 channels: row.get("channels"),
@@ -327,14 +327,13 @@ pub async fn load_all_files(pool: &SqlitePool) -> Result<Vec<AudioFile>> {
         let guid = Uuid::parse_str(&guid_str)?;
 
         let mod_time_str: String = row.get("modification_time");
-        let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?
-            .with_timezone(&Utc);
+        let modification_time = DateTime::parse_from_rfc3339(&mod_time_str)?.with_timezone(&Utc);
 
         files.push(AudioFile {
             guid,
             path: row.get("path"),
             hash: row.get("hash"),
-            duration_ticks: row.get("duration_ticks"),  // REQ-F-003: Changed from duration
+            duration_ticks: row.get("duration_ticks"), // REQ-F-003: Changed from duration
             format: row.get("format"),
             sample_rate: row.get("sample_rate"),
             channels: row.get("channels"),
@@ -348,7 +347,11 @@ pub async fn load_all_files(pool: &SqlitePool) -> Result<Vec<AudioFile>> {
 
 /// Update file duration
 /// REQ-F-003: Changed parameter from f64 seconds to i64 ticks
-pub async fn update_file_duration(pool: &SqlitePool, file_id: Uuid, duration_ticks: i64) -> Result<()> {
+pub async fn update_file_duration(
+    pool: &SqlitePool,
+    file_id: Uuid,
+    duration_ticks: i64,
+) -> Result<()> {
     sqlx::query(
         r#"
         UPDATE files
@@ -356,7 +359,7 @@ pub async fn update_file_duration(pool: &SqlitePool, file_id: Uuid, duration_tic
         WHERE guid = ?
         "#,
     )
-    .bind(duration_ticks)  // REQ-F-003: Changed from duration (f64) to duration_ticks (i64)
+    .bind(duration_ticks) // REQ-F-003: Changed from duration (f64) to duration_ticks (i64)
     .bind(file_id.to_string())
     .execute(pool)
     .await?;
@@ -375,8 +378,13 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_files_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .unwrap();
 
         let file = AudioFile::new(
             "test/music/track01.mp3".to_string(),
@@ -402,8 +410,13 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_files_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_files_table(&pool)
+            .await
+            .unwrap();
 
         let file = AudioFile::new(
             "test/music/track01.mp3".to_string(),

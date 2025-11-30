@@ -18,9 +18,9 @@ use super::WorkflowOrchestrator;
 use crate::models::{ImportSession, ImportState};
 use anyhow::{Context, Result};
 use chrono::Utc;
-use wkmp_common::path_normalization::normalize_path_for_db;
 use std::path::Path;
 use std::sync::Arc;
+use wkmp_common::path_normalization::normalize_path_for_db;
 
 impl WorkflowOrchestrator {
     /// Phase 1: SCANNING - Discover audio files and create basic file records
@@ -123,7 +123,9 @@ impl WorkflowOrchestrator {
 
         // **[AIA-CLASSIFY-040]** Extract ONLY confirmed audio files for processing
         // Only files with both valid audio extension AND confirmed magic bytes are processed
-        let audio_files: Vec<std::path::PathBuf> = classification.audio_files.iter()
+        let audio_files: Vec<std::path::PathBuf> = classification
+            .audio_files
+            .iter()
             .filter(|f| f.verification_status == crate::models::VerificationStatus::Confirmed)
             .map(|f| f.path.clone())
             .collect();
@@ -143,7 +145,10 @@ impl WorkflowOrchestrator {
         session.update_progress(
             0,
             confirmed_count,
-            format!("Creating minimal records for {} audio files", confirmed_count),
+            format!(
+                "Creating minimal records for {} audio files",
+                confirmed_count
+            ),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
 
@@ -211,11 +216,8 @@ impl WorkflowOrchestrator {
 
             // Create relative path
             // **[Path Normalization]** Normalize to forward slashes for database storage
-            let relative_path = normalize_path_for_db(
-                file_path
-                    .strip_prefix(root_path)
-                    .unwrap_or(file_path)
-            );
+            let relative_path =
+                normalize_path_for_db(file_path.strip_prefix(root_path).unwrap_or(file_path));
 
             // Create minimal file record (no hash, no metadata yet)
             // Hash and metadata will be computed in per-file pipeline
@@ -265,14 +267,17 @@ impl WorkflowOrchestrator {
             scan_stats.audio_files = classification.audio_files.len();
             scan_stats.image_files = classification.image_files.len();
             scan_stats.other_files = classification.other_files.len();
-            scan_stats.total_files = classification.audio_files.len() + classification.image_files.len() + classification.other_files.len();
+            scan_stats.total_files = classification.audio_files.len()
+                + classification.image_files.len()
+                + classification.other_files.len();
             scan_stats.magic_byte_analyzed = scan_stats.total_files; // All files analyzed by this point
             scan_stats.audio_confirmed = classification.audio_confirmed;
             scan_stats.image_confirmed = classification.image_confirmed;
             scan_stats.other_confirmed = classification.other_files.len(); // All other files are "confirmed"
             scan_stats.audio_unrecognized_ext = 0; // TODO: Track unrecognized audio extensions
             scan_stats.image_unrecognized_ext = 0; // TODO: Track unrecognized image extensions
-            scan_stats.misleading_extension = classification.audio_denied + classification.image_denied;
+            scan_stats.misleading_extension =
+                classification.audio_denied + classification.image_denied;
         }
 
         // Set total for PROCESSING phase (only confirmed files)

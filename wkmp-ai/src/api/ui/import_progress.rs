@@ -17,7 +17,8 @@ pub async fn import_progress_page() -> impl IntoResponse {
     let build_timestamp = env!("BUILD_TIMESTAMP");
     let build_profile = env!("BUILD_PROFILE");
 
-    let html = format!(r#"
+    let html = format!(
+        r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -616,8 +617,13 @@ pub async fn import_progress_page() -> impl IntoResponse {
     </div>
 </body>
 </html>
-        "#, version, &git_hash[..8], build_profile, build_timestamp, &default_root_escaped);
+        "#,
+        version,
+        &git_hash[..8],
+        build_profile,
+        build_timestamp,
+        &default_root_escaped
+    );
 
     Html(html)
 }
-

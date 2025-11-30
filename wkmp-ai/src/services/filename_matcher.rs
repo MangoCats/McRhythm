@@ -55,12 +55,11 @@ impl FilenameMatcher {
 
         // Query database for file by path
         let query_start = std::time::Instant::now();
-        let row: Option<(String, String)> = sqlx::query_as(
-            "SELECT guid, status FROM files WHERE path = ?",
-        )
-        .bind(&path_str)
-        .fetch_optional(&self.db)
-        .await?;
+        let row: Option<(String, String)> =
+            sqlx::query_as("SELECT guid, status FROM files WHERE path = ?")
+                .bind(&path_str)
+                .fetch_optional(&self.db)
+                .await?;
         let query_elapsed = query_start.elapsed();
 
         tracing::debug!(
@@ -270,13 +269,12 @@ mod tests {
             .unwrap();
 
         // Verify file was created
-        let (stored_guid, path, status): (String, String, String) = sqlx::query_as(
-            "SELECT guid, path, status FROM files WHERE guid = ?",
-        )
-        .bind(guid.to_string())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let (stored_guid, path, status): (String, String, String) =
+            sqlx::query_as("SELECT guid, path, status FROM files WHERE guid = ?")
+                .bind(guid.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         assert_eq!(stored_guid, guid.to_string());
         assert_eq!(path, "music/test.mp3");
@@ -301,12 +299,11 @@ mod tests {
             .unwrap();
 
         // Verify status was updated
-        let status: String =
-            sqlx::query_scalar("SELECT status FROM files WHERE guid = ?")
-                .bind(guid.to_string())
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let status: String = sqlx::query_scalar("SELECT status FROM files WHERE guid = ?")
+            .bind(guid.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
 
         assert_eq!(status, "PROCESSING");
     }

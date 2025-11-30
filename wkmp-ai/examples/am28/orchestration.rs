@@ -28,14 +28,12 @@
 //! - `utils::early_exit`: Early-exit coordination
 
 use crate::constants::STAGE4_PENALTY_PERCENT;
-use crate::types::{CandidateTestResult, Edition, EditionTestResult};
-use crate::types::SilenceCache;
 use crate::stages::{
-    run_stage2_single_edition_cached,
-    run_stage3_single_edition,
-    run_stage4_single_edition,
+    run_stage2_single_edition_cached, run_stage3_single_edition, run_stage4_single_edition,
     run_stage5_single_edition,
 };
+use crate::types::SilenceCache;
+use crate::types::{CandidateTestResult, Edition, EditionTestResult};
 use crate::utils::{should_exit_early, signal_perfect_match};
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::Instant;
@@ -195,7 +193,14 @@ pub(crate) fn test_single_edition(
     if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
         log_messages.push("    -> Skipped (early exit: grace period expired)".to_string());
         return make_edition_result(
-            edition_idx, 0.0, None, "skipped_early_exit", None, None, expected_durations, log_messages,
+            edition_idx,
+            0.0,
+            None,
+            "skipped_early_exit",
+            None,
+            None,
+            expected_durations,
+            log_messages,
         );
     }
 
@@ -236,8 +241,14 @@ pub(crate) fn test_single_edition(
                 log_messages.push("    -> 100% match in Stage 2!".to_string());
                 signal_perfect_match(perfect_match_found, perfect_match_time_ms, start_time);
                 return make_edition_result(
-                    edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-                    edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+                    edition_idx,
+                    edition_best_percentage,
+                    edition_best_result,
+                    edition_best_stage,
+                    edition_best_threshold,
+                    edition_best_min_duration,
+                    expected_durations,
+                    log_messages,
                 );
             }
         }
@@ -247,8 +258,14 @@ pub(crate) fn test_single_edition(
     if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
         log_messages.push("    -> Early exit before Stage 3 (grace period expired)".to_string());
         return make_edition_result(
-            edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-            edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+            edition_idx,
+            edition_best_percentage,
+            edition_best_result,
+            edition_best_stage,
+            edition_best_threshold,
+            edition_best_min_duration,
+            expected_durations,
+            log_messages,
         );
     }
 
@@ -282,8 +299,14 @@ pub(crate) fn test_single_edition(
                     log_messages.push("    -> 100% match in Stage 3!".to_string());
                     signal_perfect_match(perfect_match_found, perfect_match_time_ms, start_time);
                     return make_edition_result(
-                        edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-                        edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+                        edition_idx,
+                        edition_best_percentage,
+                        edition_best_result,
+                        edition_best_stage,
+                        edition_best_threshold,
+                        edition_best_min_duration,
+                        expected_durations,
+                        log_messages,
                     );
                 }
             }
@@ -294,8 +317,14 @@ pub(crate) fn test_single_edition(
     if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
         log_messages.push("    -> Early exit before Stage 4 (grace period expired)".to_string());
         return make_edition_result(
-            edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-            edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+            edition_idx,
+            edition_best_percentage,
+            edition_best_result,
+            edition_best_stage,
+            edition_best_threshold,
+            edition_best_min_duration,
+            expected_durations,
+            log_messages,
         );
     }
 
@@ -355,7 +384,13 @@ pub(crate) fn test_single_edition(
     ));
 
     make_edition_result(
-        edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-        edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+        edition_idx,
+        edition_best_percentage,
+        edition_best_result,
+        edition_best_stage,
+        edition_best_threshold,
+        edition_best_min_duration,
+        expected_durations,
+        log_messages,
     )
 }

@@ -45,9 +45,11 @@
 //! - `types`: SilenceCache, OverSegmentedCandidate, SingleEditionStage2Results
 //! - `matching::candidate`: test_segmentation_against_single_edition()
 
-use crate::constants::{STAGE2_THRESHOLD_VALUES, STAGE2_MIN_DURATION_VALUES};
-use crate::types::{SilenceCache, OverSegmentedCandidate, SingleEditionStage2Results, CandidateTestResult};
+use crate::constants::{STAGE2_MIN_DURATION_VALUES, STAGE2_THRESHOLD_VALUES};
 use crate::matching::candidate::test_segmentation_against_single_edition;
+use crate::types::{
+    CandidateTestResult, OverSegmentedCandidate, SilenceCache, SingleEditionStage2Results,
+};
 
 // =============================================================================
 // Stage 2: 180-Parameter Grid Search with Early-Exit
@@ -173,7 +175,9 @@ pub(crate) fn run_stage2_single_edition_cached(
                 tolerance,
             );
 
-            let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
+            let improved = best_result
+                .as_ref()
+                .map_or(true, |br| result.percentage > br.percentage);
 
             if improved && result.percentage > current_best_percentage {
                 // Suppress per-combination logging in cached version to reduce output noise

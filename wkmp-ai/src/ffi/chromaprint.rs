@@ -40,11 +40,8 @@ mod ffi {
             num_channels: c_int,
         ) -> c_int;
 
-        pub fn chromaprint_feed(
-            ctx: ChromaprintContextPtr,
-            data: *const i16,
-            size: c_int,
-        ) -> c_int;
+        pub fn chromaprint_feed(ctx: ChromaprintContextPtr, data: *const i16, size: c_int)
+            -> c_int;
 
         pub fn chromaprint_finish(ctx: ChromaprintContextPtr) -> c_int;
 
@@ -245,8 +242,7 @@ impl ChromaprintContext {
     fn get_fingerprint_raw(&self) -> Result<String> {
         let mut c_fingerprint: *mut c_char = std::ptr::null_mut();
 
-        let result =
-            unsafe { ffi::chromaprint_get_fingerprint(self.ctx, &mut c_fingerprint) };
+        let result = unsafe { ffi::chromaprint_get_fingerprint(self.ctx, &mut c_fingerprint) };
 
         if result == 0 {
             return Err(ChromaprintError::FingerprintGenerationFailed);
@@ -392,13 +388,13 @@ mod tests {
     #[test]
     fn test_audio_conversion_boundary_cases() {
         let test_cases = vec![
-            (0.0f32, 0i16),         // Zero
-            (1.0f32, 32767i16),     // Max positive
-            (-1.0f32, -32767i16),   // Max negative
-            (1.5f32, 32767i16),     // Clamp positive overflow
-            (-1.5f32, -32768i16),   // Clamp negative overflow
-            (0.5f32, 16383i16),     // Mid positive
-            (-0.5f32, -16383i16),   // Mid negative
+            (0.0f32, 0i16),       // Zero
+            (1.0f32, 32767i16),   // Max positive
+            (-1.0f32, -32767i16), // Max negative
+            (1.5f32, 32767i16),   // Clamp positive overflow
+            (-1.5f32, -32768i16), // Clamp negative overflow
+            (0.5f32, 16383i16),   // Mid positive
+            (-0.5f32, -16383i16), // Mid negative
         ];
 
         for (input, expected) in test_cases {
@@ -419,9 +415,7 @@ mod tests {
 
         // Generate fingerprint
         let mut ctx = ChromaprintContext::new().unwrap();
-        let fingerprint = ctx
-            .generate_fingerprint(&samples, sample_rate, 1)
-            .unwrap();
+        let fingerprint = ctx.generate_fingerprint(&samples, sample_rate, 1).unwrap();
 
         // Verify fingerprint is base64-encoded string
         assert!(!fingerprint.is_empty(), "Fingerprint should not be empty");
@@ -434,9 +428,7 @@ mod tests {
 
         // Fingerprint should be deterministic
         let mut ctx2 = ChromaprintContext::new().unwrap();
-        let fingerprint2 = ctx2
-            .generate_fingerprint(&samples, sample_rate, 1)
-            .unwrap();
+        let fingerprint2 = ctx2.generate_fingerprint(&samples, sample_rate, 1).unwrap();
         assert_eq!(
             fingerprint, fingerprint2,
             "Fingerprints should be deterministic"

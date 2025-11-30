@@ -65,11 +65,20 @@ async fn tc_http_002_root_route_serves_html() {
         .unwrap();
 
     // Then: Returns HTML
-    assert_eq!(response.status(), StatusCode::OK, "Root route should return 200 OK");
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "Root route should return 200 OK"
+    );
 
     let content_type = response.headers().get("content-type");
     assert!(
-        content_type.is_some() && content_type.unwrap().to_str().unwrap().contains("text/html"),
+        content_type.is_some()
+            && content_type
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("text/html"),
         "Root route should serve HTML"
     );
 }
@@ -189,11 +198,20 @@ async fn tc_http_006_health_endpoint_returns_json() {
         .unwrap();
 
     // Then: Returns 200 OK with JSON
-    assert_eq!(response.status(), StatusCode::OK, "/health should return 200 OK");
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "/health should return 200 OK"
+    );
 
     let content_type = response.headers().get("content-type");
     assert!(
-        content_type.is_some() && content_type.unwrap().to_str().unwrap().contains("application/json"),
+        content_type.is_some()
+            && content_type
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("application/json"),
         "/health should return JSON"
     );
 

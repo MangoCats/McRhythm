@@ -66,7 +66,8 @@ async fn tc_orch_001_execute_import_plan024_end_to_end() {
 
     // Verify: Import completed (or failed at decode step, which is acceptable for architecture test)
     assert!(
-        result.is_ok() || matches!(result, Err(ref e) if e.to_string().contains("decode") || e.to_string().contains("audio")),
+        result.is_ok()
+            || matches!(result, Err(ref e) if e.to_string().contains("decode") || e.to_string().contains("audio")),
         "Import should complete or fail at decode step: {:?}",
         result
     );
@@ -77,7 +78,9 @@ async fn tc_orch_001_execute_import_plan024_end_to_end() {
             println!("Import failed (expected for test files): {:?}", e);
             // Even if import failed, verify architecture compliance
             log_capture.assert_no_match("Extracting metadata from");
-            println!("✅ TC-ORCH-001 PASS: Architecture compliance verified despite decode failure");
+            println!(
+                "✅ TC-ORCH-001 PASS: Architecture compliance verified despite decode failure"
+            );
             return;
         }
     };
@@ -96,10 +99,7 @@ async fn tc_orch_001_execute_import_plan024_end_to_end() {
         .await
         .unwrap();
 
-    assert_eq!(
-        file_count, 3,
-        "Should have 3 file records in database"
-    );
+    assert_eq!(file_count, 3, "Should have 3 file records in database");
 
     // Verify: Progress format correct
     assert!(
@@ -217,7 +217,10 @@ async fn tc_orch_003_empty_directory() {
         .await;
 
     // Verify: Completes successfully
-    assert!(result.is_ok(), "Empty directory should be handled gracefully");
+    assert!(
+        result.is_ok(),
+        "Empty directory should be handled gracefully"
+    );
 
     let final_session = result.unwrap();
     assert_eq!(

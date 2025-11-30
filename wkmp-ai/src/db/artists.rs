@@ -33,7 +33,7 @@ impl Artist {
             artist_mbid,
             name,
             base_probability: 1.0,
-            min_cooldown: 7200,   // 2 hours in seconds
+            min_cooldown: 7200,      // 2 hours in seconds
             ramping_cooldown: 14400, // 4 hours in seconds
             last_played_at: None,
         }
@@ -245,12 +245,19 @@ mod tests {
             .expect("Failed to create in-memory database");
 
         // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON").execute(&pool).await.unwrap();
-        wkmp_common::db::init::create_artists_table(&pool).await.unwrap();
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await
+            .unwrap();
+        wkmp_common::db::init::create_artists_table(&pool)
+            .await
+            .unwrap();
 
         let artist = Artist::new("artist-mbid-456".to_string(), "Test Artist".to_string());
 
-        save_artist(&pool, &artist).await.expect("Failed to save artist");
+        save_artist(&pool, &artist)
+            .await
+            .expect("Failed to save artist");
 
         let loaded = load_artist_by_mbid(&pool, "artist-mbid-456")
             .await

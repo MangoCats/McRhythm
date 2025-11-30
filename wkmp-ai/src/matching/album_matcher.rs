@@ -17,14 +17,22 @@
 //! 5. Select best matching edition with artist verification
 
 use std::path::{Path, PathBuf};
+use tokio::task::spawn_blocking;
 use tracing::{debug, info, warn};
 
 use super::constants::{
-    DEFAULT_THRESHOLD_DB, DEFAULT_MIN_DURATION_SECS, MATCH_TOLERANCE_SECS,
-    MIN_ARTIST_SIMILARITY, STAGE4_PENALTY_PERCENT, EARLY_EXIT_GRACE_PERIOD_SECS,
-    THRESHOLD_VALUES, MIN_DURATION_VALUES,
+    DEFAULT_MIN_DURATION_SECS, DEFAULT_THRESHOLD_DB, EARLY_EXIT_GRACE_PERIOD_SECS,
+    MATCH_TOLERANCE_SECS, MIN_ARTIST_SIMILARITY, MIN_DURATION_VALUES, STAGE4_PENALTY_PERCENT,
+    THRESHOLD_VALUES,
 };
-use super::types::AlbumMatchResult;
+use super::editions::{calculate_name_distance, filter_and_sort_editions, group_into_editions};
+use super::metadata::extract_and_reconcile_metadata;
+use super::orchestrator::{run_orchestration, OrchestratorConfig};
+use super::silence_detection::precompute_silence_cache;
+use super::single_track::SingleTrackDiscriminator;
+use super::stages::stage4::RmsProfile;
+use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
+use crate::services::{MBError, MusicBrainzClient};
 
 /// Album matching error types
 #[derive(Debug)]
@@ -39,6 +47,17 @@ pub enum AlbumMatchError {
     NoCandidates,
     /// Internal processing error
     InternalError(String),
+    /// IO error
+    IoError(String),
+    /// Task join error
+    TaskJoinError(String),
+    /// Single track detected (not an album)
+    SingleTrackDetected {
+        /// Confidence level (0.0-1.0)
+        confidence: f64,
+        /// Detection stage (pre_decode or post_decode)
+        stage: String,
+    },
 }
 
 impl std::fmt::Display for AlbumMatchError {
@@ -49,7 +68,22 @@ impl std::fmt::Display for AlbumMatchError {
             AlbumMatchError::MusicBrainzError(s) => write!(f, "MusicBrainz error: {}", s),
             AlbumMatchError::NoCandidates => write!(f, "No MusicBrainz candidates found"),
             AlbumMatchError::InternalError(s) => write!(f, "Internal error: {}", s),
+            AlbumMatchError::IoError(s) => write!(f, "IO error: {}", s),
+            AlbumMatchError::TaskJoinError(s) => write!(f, "Task join error: {}", s),
+            AlbumMatchError::SingleTrackDetected { confidence, stage } => {
+                write!(
+                    f,
+                    "Single track detected (confidence: {:.2}, stage: {})",
+                    confidence, stage
+                )
+            }
         }
+    }
+}
+
+impl From<MBError> for AlbumMatchError {
+    fn from(err: MBError) -> Self {
+        AlbumMatchError::MusicBrainzError(err.to_string())
     }
 }
 
@@ -143,47 +177,49 @@ impl AlbumMatcherConfig {
 
 /// Album matcher service
 ///
-/// **[PLAN026]** Orchestrates album identification through am28 stages.
+/// **[PLAN026/PLAN030]** Orchestrates album identification through am28 stages.
 pub struct AlbumMatcher {
     /// Configuration
     config: AlbumMatcherConfig,
-    /// HTTP client for MusicBrainz API
-    http_client: reqwest::Client,
+    /// MusicBrainz API client
+    mb_client: MusicBrainzClient,
 }
 
 impl AlbumMatcher {
     /// Create new album matcher with default configuration
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, AlbumMatchError> {
         Self::with_config(AlbumMatcherConfig::default())
     }
 
     /// Create new album matcher with custom configuration
-    pub fn with_config(config: AlbumMatcherConfig) -> Self {
-        let http_client = reqwest::Client::builder()
-            .user_agent("WKMP/0.1.0 (https://github.com/wkmp/wkmp)")
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .expect("Failed to create HTTP client");
+    pub fn with_config(config: AlbumMatcherConfig) -> Result<Self, AlbumMatchError> {
+        let mb_client = MusicBrainzClient::new()
+            .map_err(|e| AlbumMatchError::MusicBrainzError(e.to_string()))?;
 
-        Self {
-            config,
-            http_client,
-        }
+        Ok(Self { config, mb_client })
+    }
+
+    /// Create new album matcher with provided MusicBrainz client
+    pub fn with_client(config: AlbumMatcherConfig, mb_client: MusicBrainzClient) -> Self {
+        Self { config, mb_client }
     }
 
     /// Match an album file against MusicBrainz
     ///
     /// **[REQ-ALG-004..014]** Full album matching workflow:
-    /// 1. Decode audio and detect track boundaries
-    /// 2. Extract metadata (ID3 tags + path)
-    /// 3. Search MusicBrainz for candidate releases
-    /// 4. Test editions through Stages 2-5
-    /// 5. Return best match with verification
+    /// 1. Extract metadata (ID3 tags + path)
+    /// 2. Pre-decode single-track check
+    /// 3. Decode audio and compute silence cache
+    /// 4. Post-decode single-track check
+    /// 5. Search MusicBrainz for candidate releases
+    /// 6. Group into editions and filter by name similarity
+    /// 7. Run multi-stage matching (Stages 2-5)
+    /// 8. Verify artist match and return result
     ///
     /// # Arguments
     /// * `audio_path` - Path to the audio file
-    /// * `artist_hint` - Artist name from metadata (for MusicBrainz search)
-    /// * `album_hint` - Album name from metadata (for MusicBrainz search)
+    /// * `artist_hint` - Artist name override (uses metadata if None)
+    /// * `album_hint` - Album name override (uses metadata if None)
     ///
     /// # Returns
     /// AlbumMatchResult with match details or error status
@@ -193,34 +229,222 @@ impl AlbumMatcher {
         artist_hint: Option<&str>,
         album_hint: Option<&str>,
     ) -> Result<AlbumMatchResult, AlbumMatchError> {
+        info!("Starting album match for: {}", audio_path.display());
+
+        // Step 1: Extract metadata from file
+        let metadata = extract_and_reconcile_metadata(audio_path);
+        let artist = artist_hint
+            .map(|s| s.to_string())
+            .unwrap_or(metadata.artist.clone());
+        let album = album_hint
+            .map(|s| s.to_string())
+            .unwrap_or(metadata.album.clone());
+
+        debug!("Metadata: artist={}, album={}", artist, album);
+
+        // Step 2: Pre-decode single-track analysis
+        let pre_analysis = SingleTrackDiscriminator::analyze_pre_decode(audio_path, None);
+
+        if pre_analysis.is_likely_single_track && pre_analysis.final_score >= 2.0 {
+            info!(
+                "Pre-decode single-track detection: score={:.2}, likely single track",
+                pre_analysis.final_score
+            );
+            return Ok(AlbumMatchResult::no_match(format!(
+                "Single track detected (pre-decode, confidence={:.2})",
+                pre_analysis.final_score
+            )));
+        }
+
+        // Step 3: PARALLEL decode + MusicBrainz lookup
+        // am28 pattern: Run CPU-bound decode and network I/O concurrently
         info!(
-            "Starting album match for: {}",
-            audio_path.display()
+            "Starting parallel: decode + MusicBrainz lookup for artist={}, album={}",
+            artist, album
         );
 
-        // TODO: Full am28 integration
-        // For now, return placeholder result indicating album path is not yet implemented
+        let file_path_owned = audio_path.to_path_buf();
+        let threshold_values = self.config.threshold_values().to_vec();
+        let min_duration_values = self.config.min_duration_values().to_vec();
+        let num_min_durations = min_duration_values.len();
+
+        // Spawn decode task (CPU-bound via spawn_blocking)
+        let decode_handle = spawn_blocking(move || {
+            decode_and_analyze(&file_path_owned, &threshold_values, &min_duration_values)
+        });
+
+        // Spawn MusicBrainz lookup (network I/O)
+        let mb_handle = self
+            .mb_client
+            .comprehensive_search(&artist, &album, Some(50));
+
+        // Wait for both to complete concurrently
+        let (decode_result, mb_result) = tokio::join!(decode_handle, mb_handle);
+
+        // Process decode result
+        let (samples, sample_rate, silence_cache, rms_profile) =
+            decode_result.map_err(|e| AlbumMatchError::TaskJoinError(e.to_string()))??;
+
+        let total_samples = samples.len();
+        let duration_secs = total_samples as f64 / sample_rate as f64;
 
         debug!(
-            "Album matching requested for artist={:?}, album={:?}",
-            artist_hint, album_hint
+            "Decoded {} samples at {}Hz ({:.1}s)",
+            total_samples, sample_rate, duration_secs
         );
 
-        // Placeholder: In full implementation, this would:
-        // 1. Call decode_audio() to get PCM samples
-        // 2. Call precompute_silence_cache() for all parameter combinations
-        // 3. Call comprehensive_musicbrainz_search() to get candidate releases
-        // 4. Call group_into_editions() to organize by track pattern
-        // 5. Call test_single_edition() for each edition through Stages 2-5
-        // 6. Select best result with artist verification
+        // Step 4: Post-decode single-track check using silence gap count
+        // Get silence gaps from default parameters
+        let default_idx = 6 * num_min_durations + 7; // Approximate middle of grid
+        let default_durations = silence_cache
+            .get(default_idx.min(silence_cache.len().saturating_sub(1)))
+            .cloned()
+            .unwrap_or_default();
+        let silence_gap_count = default_durations.len().saturating_sub(1);
 
-        warn!(
-            "Album matching not yet fully implemented - returning placeholder result"
+        let mut post_analysis = pre_analysis;
+        let duration_mins = duration_secs / 60.0;
+        SingleTrackDiscriminator::update_post_decode(
+            &mut post_analysis,
+            duration_mins,
+            silence_gap_count,
         );
 
-        Ok(AlbumMatchResult::no_match(
-            "Album matching not yet fully implemented (Increment 5 placeholder)".to_string(),
-        ))
+        if post_analysis.is_likely_single_track && post_analysis.final_score >= 2.5 {
+            info!(
+                "Post-decode single-track detection: score={:.2}, likely single track",
+                post_analysis.final_score
+            );
+            return Ok(AlbumMatchResult::no_match(format!(
+                "Single track detected (post-decode, confidence={:.2})",
+                post_analysis.final_score
+            )));
+        }
+
+        // Step 5: Process MusicBrainz result (already fetched in parallel)
+        let releases = mb_result?;
+
+        if releases.is_empty() {
+            warn!("No MusicBrainz candidates found");
+            return Ok(AlbumMatchResult::no_match(
+                "No MusicBrainz candidates found".to_string(),
+            ));
+        }
+
+        info!("Found {} MusicBrainz releases", releases.len());
+
+        // Step 6: Group into editions and filter by name similarity
+        let editions = group_into_editions(&releases);
+        let editions = filter_and_sort_editions(editions, &artist, &album, 20);
+
+        if editions.is_empty() {
+            warn!("No valid editions after filtering");
+            return Ok(AlbumMatchResult::no_match(
+                "No valid editions found".to_string(),
+            ));
+        }
+
+        info!(
+            "Testing {} editions (top by name similarity)",
+            editions.len()
+        );
+
+        // Step 7: Run multi-stage matching orchestration
+        let orchestrator_config = OrchestratorConfig {
+            min_match_percentage: 80.0,
+            tolerance_secs: self.config.match_tolerance_secs,
+            early_exit: self.config.enable_early_exit,
+            early_exit_grace: self.config.early_exit_grace_secs as usize,
+            quiet_spot_window_secs: 5.0,
+            max_merge_tracks: 3,
+        };
+
+        let result = run_orchestration(
+            &silence_cache,
+            &rms_profile,
+            total_samples,
+            &editions,
+            &orchestrator_config,
+        );
+
+        // Step 8: Verify artist match and build result
+        let artist_similarity = result
+            .matched_edition
+            .as_ref()
+            .map(|e| {
+                let sim = calculate_name_distance(&e.artist, &e.title, &artist, &album);
+                // Extract just the artist similarity (rough approximation)
+                sim
+            })
+            .unwrap_or(0.0);
+
+        let artist_verified = artist_similarity >= self.config.min_artist_similarity;
+
+        // Determine confidence level
+        let confidence = if result.success && result.match_percentage >= 100.0 && artist_verified {
+            "Excellent"
+        } else if result.success && result.match_percentage >= 90.0 && artist_verified {
+            "Good"
+        } else if result.success && result.match_percentage >= 80.0 {
+            "Fair"
+        } else {
+            "Poor"
+        };
+
+        // Build matched tracks list
+        let tracks = build_matched_tracks(&result, self.config.match_tolerance_secs);
+
+        // Calculate mean error
+        let mean_error = if !result.track_errors.is_empty() {
+            result.track_errors.iter().sum::<f64>() / result.track_errors.len() as f64
+        } else {
+            0.0
+        };
+
+        // Count matched tracks (within tolerance)
+        let matched_count = result
+            .track_errors
+            .iter()
+            .filter(|&e| *e <= self.config.match_tolerance_secs)
+            .count();
+
+        let album_result = AlbumMatchResult {
+            matched: result.success,
+            release_mbid: result
+                .matched_edition
+                .as_ref()
+                .map(|e| e.release_mbid.clone()),
+            matched_artist: result.matched_edition.as_ref().map(|e| e.artist.clone()),
+            matched_album: result.matched_edition.as_ref().map(|e| e.title.clone()),
+            matching_stage: Some(result.winning_stage),
+            match_percentage: result.match_percentage,
+            mean_error_seconds: mean_error,
+            matched_track_count: matched_count,
+            expected_track_count: result
+                .matched_edition
+                .as_ref()
+                .map(|e| e.track_count)
+                .unwrap_or(0),
+            detected_track_count: result.detected_durations.len(),
+            tracks,
+            confidence: confidence.to_string(),
+            artist_verified,
+            artist_similarity,
+            best_threshold_db: None, // Could extract from stage results if needed
+            best_min_duration_secs: None,
+            status: if result.success {
+                format!("Matched via {:?}", result.winning_stage)
+            } else {
+                "No match found".to_string()
+            },
+        };
+
+        info!(
+            "Album match complete: matched={}, stage={:?}, percentage={:.1}%",
+            album_result.matched, album_result.matching_stage, album_result.match_percentage
+        );
+
+        Ok(album_result)
     }
 
     /// Get configuration
@@ -229,10 +453,137 @@ impl AlbumMatcher {
     }
 }
 
-impl Default for AlbumMatcher {
-    fn default() -> Self {
-        Self::new()
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/// Decode audio file and compute analysis caches
+///
+/// Runs synchronously (intended for spawn_blocking)
+fn decode_and_analyze(
+    path: &Path,
+    threshold_values: &[f64],
+    min_duration_values: &[f64],
+) -> Result<(Vec<f32>, u32, SilenceCache, RmsProfile), AlbumMatchError> {
+    use symphonia::core::audio::SampleBuffer;
+    use symphonia::core::codecs::DecoderOptions;
+    use symphonia::core::formats::FormatOptions;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::meta::MetadataOptions;
+    use symphonia::core::probe::Hint;
+
+    // Open file
+    let file = std::fs::File::open(path).map_err(|e| AlbumMatchError::IoError(e.to_string()))?;
+
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
     }
+
+    // Probe format
+    let probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .map_err(|e| AlbumMatchError::DecodeError(e.to_string()))?;
+
+    let mut format = probed.format;
+    let track = format
+        .default_track()
+        .ok_or(AlbumMatchError::DecodeError("No default track".into()))?;
+
+    let sample_rate = track
+        .codec_params
+        .sample_rate
+        .ok_or(AlbumMatchError::DecodeError("No sample rate".into()))?;
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &DecoderOptions::default())
+        .map_err(|e| AlbumMatchError::DecodeError(e.to_string()))?;
+
+    let track_id = track.id;
+    let mut samples = Vec::new();
+
+    // Decode all packets
+    loop {
+        match format.next_packet() {
+            Ok(packet) if packet.track_id() == track_id => {
+                if let Ok(decoded) = decoder.decode(&packet) {
+                    let spec = decoded.spec();
+                    let channels = spec.channels.count();
+
+                    let mut sample_buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, *spec);
+                    sample_buf.copy_interleaved_ref(decoded);
+
+                    // Mix to mono
+                    for chunk in sample_buf.samples().chunks(channels) {
+                        let mono: f32 = chunk.iter().sum::<f32>() / channels as f32;
+                        samples.push(mono);
+                    }
+                }
+            }
+            Err(symphonia::core::errors::Error::IoError(_)) => break,
+            Err(_) => continue,
+            _ => continue,
+        }
+    }
+
+    if samples.is_empty() {
+        return Err(AlbumMatchError::DecodeError(
+            "No audio samples decoded".into(),
+        ));
+    }
+
+    // Compute silence cache
+    let silence_cache =
+        precompute_silence_cache(&samples, sample_rate, threshold_values, min_duration_values);
+
+    // Compute RMS profile for Stage 4
+    let rms_profile = RmsProfile::from_samples(&samples, sample_rate, 50.0);
+
+    Ok((samples, sample_rate, silence_cache, rms_profile))
+}
+
+/// Build matched tracks list from orchestration result
+fn build_matched_tracks(
+    result: &super::orchestrator::OrchestrationResult,
+    tolerance_secs: f64,
+) -> Vec<MatchedTrack> {
+    let edition = match &result.matched_edition {
+        Some(e) => e,
+        None => return Vec::new(),
+    };
+
+    let mut tracks = Vec::new();
+
+    for (i, (detected, expected_ms)) in result
+        .detected_durations
+        .iter()
+        .zip(edition.durations.iter())
+        .enumerate()
+    {
+        let expected_secs = *expected_ms as f64 / 1000.0;
+        let error = (detected - expected_secs).abs();
+
+        let recording_mbid = edition.recording_mbids.get(i).cloned().unwrap_or_default();
+
+        tracks.push(MatchedTrack {
+            track_number: i + 1,
+            disc_number: 1, // Simplified - could be enhanced for multi-disc
+            recording_mbid,
+            title: format!("Track {}", i + 1), // Could be enhanced with actual titles
+            detected_duration: *detected,
+            expected_duration: expected_secs,
+            timing_error: error,
+            within_tolerance: error <= tolerance_secs,
+        });
+    }
+
+    tracks
 }
 
 #[cfg(test)]
@@ -259,7 +610,7 @@ mod tests {
 
     #[test]
     fn test_album_matcher_creation() {
-        let matcher = AlbumMatcher::new();
+        let matcher = AlbumMatcher::new().expect("Failed to create matcher");
         assert_eq!(matcher.config().match_tolerance_secs, MATCH_TOLERANCE_SECS);
     }
 
@@ -284,5 +635,74 @@ mod tests {
         assert_eq!(config.threshold_values().len(), 2);
         assert_eq!(config.min_duration_values().len(), 3);
         assert_eq!(config.total_combinations(), 6);
+    }
+
+    // =========================================================================
+    // PLAN030 Increment 13: Additional Tests
+    // =========================================================================
+
+    /// TC-U-013-01: Verify config defaults
+    #[test]
+    fn test_config_defaults_complete() {
+        let config = AlbumMatcherConfig::default();
+
+        // Core defaults - uses MATCH_TOLERANCE_SECS from constants
+        assert_eq!(config.match_tolerance_secs, MATCH_TOLERANCE_SECS);
+        assert_eq!(config.min_artist_similarity, MIN_ARTIST_SIMILARITY);
+
+        // Stage enables
+        assert!(config.enable_stage3);
+        assert!(config.enable_stage4);
+        assert!(config.enable_stage5);
+
+        // Early exit
+        assert!(config.enable_early_exit);
+
+        // Grid size
+        assert_eq!(config.total_combinations(), 180);
+    }
+
+    /// TC-U-013-03: Verify error type conversion
+    #[test]
+    fn test_error_display() {
+        let errors = vec![
+            AlbumMatchError::DecodeError("test".into()),
+            AlbumMatchError::MetadataError("test".into()),
+            AlbumMatchError::MusicBrainzError("test".into()),
+            AlbumMatchError::NoCandidates,
+            AlbumMatchError::InternalError("test".into()),
+            AlbumMatchError::IoError("test".into()),
+            AlbumMatchError::TaskJoinError("test".into()),
+            AlbumMatchError::SingleTrackDetected {
+                confidence: 0.9,
+                stage: "pre_decode".into(),
+            },
+        ];
+
+        for error in errors {
+            // All errors should have Display implementation
+            let msg = format!("{}", error);
+            assert!(!msg.is_empty());
+        }
+    }
+
+    /// TC-U-013-04: Verify helper function for building matched tracks
+    #[test]
+    fn test_build_matched_tracks_empty() {
+        use super::super::orchestrator::OrchestrationResult;
+        use super::super::types::MatchingStage;
+
+        let result = OrchestrationResult {
+            winning_stage: MatchingStage::Stage2,
+            matched_edition: None,
+            match_percentage: 0.0,
+            detected_durations: vec![],
+            track_errors: vec![],
+            success: false,
+            stage_results: Default::default(),
+        };
+
+        let tracks = build_matched_tracks(&result, 3.0);
+        assert!(tracks.is_empty());
     }
 }

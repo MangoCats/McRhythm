@@ -88,7 +88,8 @@ impl MemoryMonitor {
             let memory_bytes = process.memory();
 
             // Update high water mark
-            self.high_water_mark.fetch_max(memory_bytes, Ordering::Relaxed);
+            self.high_water_mark
+                .fetch_max(memory_bytes, Ordering::Relaxed);
 
             // Classify memory status
             let critical_threshold = self.warning_threshold * 2;
@@ -200,10 +201,7 @@ impl MemoryMonitor {
                     }
                 }
                 MemoryStatus::Warning(bytes) => {
-                    tracing::info!(
-                        "Memory check: {}MB (warning level)",
-                        bytes / 1_000_000
-                    );
+                    tracing::info!("Memory check: {}MB (warning level)", bytes / 1_000_000);
                 }
                 MemoryStatus::Normal(bytes) => {
                     tracing::debug!("Memory check: {}MB (normal)", bytes / 1_000_000);
@@ -253,9 +251,9 @@ impl MemoryStatus {
     /// Get memory usage in bytes if available
     pub fn bytes(&self) -> Option<u64> {
         match self {
-            MemoryStatus::Normal(b)
-            | MemoryStatus::Warning(b)
-            | MemoryStatus::Critical(b) => Some(*b),
+            MemoryStatus::Normal(b) | MemoryStatus::Warning(b) | MemoryStatus::Critical(b) => {
+                Some(*b)
+            }
             MemoryStatus::Unknown => None,
         }
     }

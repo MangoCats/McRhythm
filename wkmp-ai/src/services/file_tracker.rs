@@ -473,7 +473,12 @@ mod tests {
         let result = if scores.is_empty() {
             0.0
         } else {
-            scores.iter().copied().fold(f32::INFINITY, f32::min).max(0.0).min(1.0)
+            scores
+                .iter()
+                .copied()
+                .fold(f32::INFINITY, f32::min)
+                .max(0.0)
+                .min(1.0)
         };
         assert_eq!(result, 0.75);
 
@@ -482,7 +487,12 @@ mod tests {
         let result = if scores.is_empty() {
             0.0
         } else {
-            scores.iter().copied().fold(f32::INFINITY, f32::min).max(0.0).min(1.0)
+            scores
+                .iter()
+                .copied()
+                .fold(f32::INFINITY, f32::min)
+                .max(0.0)
+                .min(1.0)
         };
         assert_eq!(result, 0.8);
 
@@ -491,13 +501,23 @@ mod tests {
         let result = if scores.is_empty() {
             0.0
         } else {
-            scores.iter().copied().fold(f32::INFINITY, f32::min).max(0.0).min(1.0)
+            scores
+                .iter()
+                .copied()
+                .fold(f32::INFINITY, f32::min)
+                .max(0.0)
+                .min(1.0)
         };
         assert_eq!(result, 0.0);
 
         // Test clamping
         let scores = vec![1.5, 0.9]; // Invalid score > 1.0
-        let result = scores.iter().copied().fold(f32::INFINITY, f32::min).max(0.0).min(1.0);
+        let result = scores
+            .iter()
+            .copied()
+            .fold(f32::INFINITY, f32::min)
+            .max(0.0)
+            .min(1.0);
         assert_eq!(result, 0.9);
     }
 

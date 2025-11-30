@@ -1,3 +1,7 @@
+use lofty::prelude::*;
+use lofty::probe::Probe;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 /// Comprehensive Album Matcher - Run 27: Edition Ranking Enhancement
 ///
 /// Run 27 enhances edition ranking to prefer match quality over track count.
@@ -21,34 +25,29 @@
 /// - MusicBrainz API caching (3 modes: Disabled, ReadWrite, ReadOnly)
 /// - Combination A filter strategy (lenient, fixes run 24d regressions)
 /// - Artist fallback algorithm (prevents wrong-artist matches)
-
 use std::cmp::Ordering as CmpOrdering;
 use std::collections::HashMap;
 use std::io::Write;
 use std::panic;
 use std::path::{Path, PathBuf};
-use lofty::prelude::*;
-use lofty::probe::Probe;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use strsim::{jaro_winkler, levenshtein};
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use serde::{Deserialize, Serialize};
-use tokio::time::sleep;
 use tokio::sync::Mutex as TokioMutex;
-use strsim::{levenshtein, jaro_winkler};
-use rayon::prelude::*;
+use tokio::time::sleep;
 // Audio fingerprinting via FFI to C Chromaprint library
 use chromaprint_sys_next as chromaprint_ffi;
-use tracing::{debug, info, warn, error};
-use tracing_subscriber::fmt::time::OffsetTime;
-use time::UtcOffset;
 use futures::stream::{self, StreamExt};
+use time::UtcOffset;
+use tracing::{debug, error, info, warn};
+use tracing_subscriber::fmt::time::OffsetTime;
 
 // ===== Cache Data Structures (PLAN026) =====
 
@@ -73,27 +72,27 @@ struct CacheConfig {
 /// Cached search response
 #[derive(Serialize, Deserialize)]
 struct CachedSearch {
-    query: String,           // Original query string (for verification)
-    timestamp: String,       // ISO 8601 timestamp
+    query: String,     // Original query string (for verification)
+    timestamp: String, // ISO 8601 timestamp
     response: MBSearchResponse,
 }
 
 /// Cached release details
 #[derive(Serialize, Deserialize)]
 struct CachedRelease {
-    mbid: String,           // Release MBID (for verification)
-    timestamp: String,      // ISO 8601 timestamp
+    mbid: String,      // Release MBID (for verification)
+    timestamp: String, // ISO 8601 timestamp
     details: MBReleaseDetails,
 }
 
 /// Cache metadata (cache/musicbrainz/metadata.json)
 #[derive(Serialize, Deserialize)]
 struct CacheMetadata {
-    version: String,         // "album_matcher_26"
-    created: String,         // ISO 8601 timestamp
+    version: String, // "album_matcher_26"
+    created: String, // ISO 8601 timestamp
     search_count: usize,
     release_count: usize,
-    last_updated: String,    // ISO 8601 timestamp
+    last_updated: String, // ISO 8601 timestamp
 }
 
 /// Cache statistics tracking
@@ -150,7 +149,7 @@ impl CacheStats {
 /// Hash query string for cache key using SHA-256 (first 16 hex chars)
 /// REQ-CACHE-020: Search Query Caching
 fn hash_query(query: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(query.as_bytes());
     let result = hasher.finalize();
@@ -160,10 +159,7 @@ fn hash_query(query: &str) -> String {
 /// Load cached search response from disk
 /// REQ-CACHE-020, REQ-CACHE-090
 /// Returns Ok(Some(response)) if cache hit, Ok(None) if cache miss, Err on corruption
-fn load_cached_search(
-    cache_dir: &Path,
-    key: &str,
-) -> Result<Option<MBSearchResponse>, String> {
+fn load_cached_search(cache_dir: &Path, key: &str) -> Result<Option<MBSearchResponse>, String> {
     let search_cache_dir = cache_dir.join("searches");
     let cache_file = search_cache_dir.join(format!("{}.json", key));
 
@@ -209,8 +205,7 @@ fn store_search_cache(
         .map_err(|e| format!("Cache serialization failure: {}", e))?;
 
     // REQ-CACHE-090: Handle cache file write failures
-    std::fs::write(&cache_file, json)
-        .map_err(|e| format!("Cache file write failure: {}", e))?;
+    std::fs::write(&cache_file, json).map_err(|e| format!("Cache file write failure: {}", e))?;
 
     Ok(())
 }
@@ -218,10 +213,7 @@ fn store_search_cache(
 /// Load cached release details from disk
 /// REQ-CACHE-030, REQ-CACHE-090
 /// Returns Ok(Some(details)) if cache hit, Ok(None) if cache miss, Err on corruption
-fn load_cached_release(
-    cache_dir: &Path,
-    mbid: &str,
-) -> Result<Option<MBReleaseDetails>, String> {
+fn load_cached_release(cache_dir: &Path, mbid: &str) -> Result<Option<MBReleaseDetails>, String> {
     let release_cache_dir = cache_dir.join("releases");
     let cache_file = release_cache_dir.join(format!("{}.json", mbid));
 
@@ -266,8 +258,7 @@ fn store_release_cache(
         .map_err(|e| format!("Cache serialization failure: {}", e))?;
 
     // REQ-CACHE-090: Handle cache file write failures
-    std::fs::write(&cache_file, json)
-        .map_err(|e| format!("Cache file write failure: {}", e))?;
+    std::fs::write(&cache_file, json).map_err(|e| format!("Cache file write failure: {}", e))?;
 
     Ok(())
 }
@@ -291,8 +282,8 @@ fn update_metadata(
     let metadata = if metadata_file.exists() {
         let contents = std::fs::read_to_string(&metadata_file)
             .map_err(|e| format!("Metadata file read failure: {}", e))?;
-        let mut meta: CacheMetadata = serde_json::from_str(&contents)
-            .unwrap_or_else(|_| CacheMetadata {
+        let mut meta: CacheMetadata =
+            serde_json::from_str(&contents).unwrap_or_else(|_| CacheMetadata {
                 version: "album_matcher_26".to_string(),
                 created: now.clone(),
                 search_count: 0,
@@ -344,17 +335,24 @@ fn print_cache_statistics(config: &CacheConfig, stats: &CacheStats) {
     let search_total = search_hits + search_misses;
     let release_total = release_hits + release_misses;
 
-    println!("Search queries: {} hits, {} misses, {} total",
-        search_hits, search_misses, search_total);
-    println!("Release details: {} hits, {} misses, {} total",
-        release_hits, release_misses, release_total);
+    println!(
+        "Search queries: {} hits, {} misses, {} total",
+        search_hits, search_misses, search_total
+    );
+    println!(
+        "Release details: {} hits, {} misses, {} total",
+        release_hits, release_misses, release_total
+    );
 
     let total_hits = search_hits + release_hits;
     let total_requests = search_total + release_total;
 
     if total_requests > 0 {
         let hit_rate = (total_hits as f64 / total_requests as f64) * 100.0;
-        println!("Cache hit rate: {:.1}% ({}/{})", hit_rate, total_hits, total_requests);
+        println!(
+            "Cache hit rate: {:.1}% ({}/{})",
+            hit_rate, total_hits, total_requests
+        );
     } else {
         println!("Cache hit rate: N/A (no requests)");
     }
@@ -363,7 +361,11 @@ fn print_cache_statistics(config: &CacheConfig, stats: &CacheStats) {
 
     // Update metadata file with final counts
     if matches!(config.mode, CacheMode::ReadWrite) {
-        if let Err(e) = update_metadata(&config.cache_dir, search_total as usize, release_total as usize) {
+        if let Err(e) = update_metadata(
+            &config.cache_dir,
+            search_total as usize,
+            release_total as usize,
+        ) {
             eprintln!("WARNING: Failed to update cache metadata: {}", e);
         }
     }
@@ -421,7 +423,9 @@ impl MBClient {
         album_idx: Option<usize>,
     ) -> Result<MBSearchResponse, Box<dyn std::error::Error>> {
         let cache_key = hash_query(query);
-        let prefix = album_idx.map(|idx| format!("[A{}] ", idx + 1)).unwrap_or_default();
+        let prefix = album_idx
+            .map(|idx| format!("[A{}] ", idx + 1))
+            .unwrap_or_default();
 
         // Try cache first (unless Disabled mode)
         match self.config.mode {
@@ -459,11 +463,7 @@ impl MBClient {
                         self.stats.record_search_miss();
 
                         if matches!(self.config.mode, CacheMode::ReadOnly) {
-                            return Err(format!(
-                                "Cache corruption in read-only mode: {}",
-                                e
-                            )
-                            .into());
+                            return Err(format!("Cache corruption in read-only mode: {}", e).into());
                         }
                     }
                 }
@@ -490,12 +490,9 @@ impl MBClient {
 
         // Store in cache if ReadWrite mode
         if matches!(self.config.mode, CacheMode::ReadWrite) {
-            if let Err(e) = store_search_cache(
-                &self.config.cache_dir,
-                &cache_key,
-                query,
-                &mb_response,
-            ) {
+            if let Err(e) =
+                store_search_cache(&self.config.cache_dir, &cache_key, query, &mb_response)
+            {
                 // REQ-CACHE-090: Log cache write failure but continue
                 eprintln!("{}WARNING: Cache write failure: {}", prefix, e);
                 println!("{}Continuing without caching this query", prefix);
@@ -512,7 +509,9 @@ impl MBClient {
         mbid: &str,
         album_idx: Option<usize>,
     ) -> Result<MBReleaseDetails, Box<dyn std::error::Error>> {
-        let prefix = album_idx.map(|idx| format!("[A{}] ", idx + 1)).unwrap_or_default();
+        let prefix = album_idx
+            .map(|idx| format!("[A{}] ", idx + 1))
+            .unwrap_or_default();
 
         // Try cache first (unless Disabled mode)
         match self.config.mode {
@@ -550,11 +549,7 @@ impl MBClient {
                         self.stats.record_release_miss();
 
                         if matches!(self.config.mode, CacheMode::ReadOnly) {
-                            return Err(format!(
-                                "Cache corruption in read-only mode: {}",
-                                e
-                            )
-                            .into());
+                            return Err(format!("Cache corruption in read-only mode: {}", e).into());
                         }
                     }
                 }
@@ -581,8 +576,7 @@ impl MBClient {
 
         // Store in cache if ReadWrite mode
         if matches!(self.config.mode, CacheMode::ReadWrite) {
-            if let Err(e) = store_release_cache(&self.config.cache_dir, mbid, &details)
-            {
+            if let Err(e) = store_release_cache(&self.config.cache_dir, mbid, &details) {
                 // REQ-CACHE-090: Log cache write failure but continue
                 eprintln!("{}WARNING: Cache write failure: {}", prefix, e);
                 println!("{}Continuing without caching this release", prefix);
@@ -614,20 +608,20 @@ const DEFAULT_MIN_DURATION_SECS: f64 = 3.0;
 const MATCH_TOLERANCE_SECS: f64 = 10.0;
 
 // MusicBrainz API configuration
-const MB_RATE_LIMIT_MS: u64 = 1550;          // Milliseconds between API requests (2x safety margin)
-const MB_REQUEST_TIMEOUT_SECS: u64 = 30;     // HTTP request timeout
-const MB_MAX_RELEASES: usize = 150;          // Maximum releases to fetch across all strategies
+const MB_RATE_LIMIT_MS: u64 = 1550; // Milliseconds between API requests (2x safety margin)
+const MB_REQUEST_TIMEOUT_SECS: u64 = 30; // HTTP request timeout
+const MB_MAX_RELEASES: usize = 150; // Maximum releases to fetch across all strategies
 const MB_RETRY_DELAYS_SECS: &[u64] = &[0, 5, 15, 45, 60]; // Backoff delays for retry attempts
 
 // Edition/MBID scoring weights (lower score = better match)
-const SCORE_CD_BONUS: f64 = -50.0;           // Bonus for CD releases
-const SCORE_OFFICIAL_BONUS: f64 = -40.0;     // Bonus for Official status
-const SCORE_US_BONUS: f64 = -30.0;           // Bonus for US releases
+const SCORE_CD_BONUS: f64 = -50.0; // Bonus for CD releases
+const SCORE_OFFICIAL_BONUS: f64 = -40.0; // Bonus for Official status
+const SCORE_US_BONUS: f64 = -30.0; // Bonus for US releases
 const SCORE_TRACK_COUNT_PENALTY: f64 = 60.0; // Seconds penalty per track count difference
 
 // Runtime filter tolerance (file duration must be within this % of edition duration)
-const RUNTIME_FILTER_MIN_RATIO: f64 = 0.75;  // 75% minimum
-const RUNTIME_FILTER_MAX_RATIO: f64 = 1.25;  // 125% maximum
+const RUNTIME_FILTER_MIN_RATIO: f64 = 0.75; // 75% minimum
+const RUNTIME_FILTER_MAX_RATIO: f64 = 1.25; // 125% maximum
 
 // Confidence level thresholds (match percentage)
 const CONFIDENCE_EXCELLENT_THRESHOLD: f64 = 80.0;
@@ -635,19 +629,19 @@ const CONFIDENCE_GOOD_THRESHOLD: f64 = 60.0;
 const CONFIDENCE_FAIR_THRESHOLD: f64 = 40.0;
 
 // Silence detection window sizing (adaptive based on min_duration)
-const RMS_WINDOW_SHORT_SECS: f64 = 0.025;    // 25ms for very short silences (≤0.3s)
-const RMS_WINDOW_MEDIUM_SECS: f64 = 0.05;    // 50ms for medium silences (0.3-0.6s)
-const RMS_WINDOW_STANDARD_SECS: f64 = 0.1;   // 100ms for longer silences (>0.6s)
-const RMS_WINDOW_OVERLAP: f64 = 0.5;         // 50% overlap between windows
+const RMS_WINDOW_SHORT_SECS: f64 = 0.025; // 25ms for very short silences (≤0.3s)
+const RMS_WINDOW_MEDIUM_SECS: f64 = 0.05; // 50ms for medium silences (0.3-0.6s)
+const RMS_WINDOW_STANDARD_SECS: f64 = 0.1; // 100ms for longer silences (>0.6s)
+const RMS_WINDOW_OVERLAP: f64 = 0.5; // 50% overlap between windows
 
 // Stage 4: Edition-guided quiet spot detection
-const QUIET_SPOT_WINDOW_SECS: f64 = 0.5;       // 500ms window for RMS calculation
+const QUIET_SPOT_WINDOW_SECS: f64 = 0.5; // 500ms window for RMS calculation
 const QUIET_SPOT_WINDOW_STEP_SECS: f64 = 0.25; // 250ms step between windows (50% overlap)
 const QUIET_SPOT_SEARCH_RADIUS_RATIO: f64 = 0.15; // 15% of expected track duration
-const QUIET_SPOT_SEARCH_RADIUS_MIN: f64 = 5.0;   // Minimum search radius
-const QUIET_SPOT_SEARCH_RADIUS_MAX: f64 = 20.0;  // Maximum search radius
-const QUIET_SPOT_PROXIMITY_PENALTY: f64 = 0.5;   // Penalty factor for distance from expected
-const QUIET_SPOT_TOP_EDITIONS: usize = 5;        // Try top N editions for guided search
+const QUIET_SPOT_SEARCH_RADIUS_MIN: f64 = 5.0; // Minimum search radius
+const QUIET_SPOT_SEARCH_RADIUS_MAX: f64 = 20.0; // Maximum search radius
+const QUIET_SPOT_PROXIMITY_PENALTY: f64 = 0.5; // Penalty factor for distance from expected
+const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
 
 // Name distance weighting for edition ranking
 const NAME_DISTANCE_ALBUM_WEIGHT: f64 = 1.414;
@@ -667,7 +661,7 @@ const NAME_DISTANCE_SWAP_RATIO: f64 = 1.732;
 
 // Adaptive RMS window sizing thresholds (for silence detection)
 // These define which RMS window size to use based on min_duration_secs
-const RMS_WINDOW_THRESHOLD_SHORT: f64 = 0.3;  // Use short window for ≤0.3s min duration
+const RMS_WINDOW_THRESHOLD_SHORT: f64 = 0.3; // Use short window for ≤0.3s min duration
 const RMS_WINDOW_THRESHOLD_MEDIUM: f64 = 0.6; // Use medium window for ≤0.6s min duration
 
 // Distance penalty multiplier for quiet spot scoring
@@ -790,14 +784,12 @@ const STAGE4_PENALTY_PERCENT: f64 = 25.0;
 // Stage 2 Parameter Grid: Threshold values (dB) for silence detection sweep
 // Run 13: Extended to -30dB, -34dB for albums with louder inter-track gaps
 const STAGE2_THRESHOLD_VALUES: [f64; 12] = [
-    -50.0, -58.0, -60.0, -54.0, -56.0, -38.0,
-    -52.0, -34.0, -30.0, -48.0, -40.0, -62.0
+    -50.0, -58.0, -60.0, -54.0, -56.0, -38.0, -52.0, -34.0, -30.0, -48.0, -40.0, -62.0,
 ];
 
 // Stage 2 Parameter Grid: Min duration values (seconds) for silence detection sweep
 const STAGE2_MIN_DURATION_VALUES: [f64; 15] = [
-    3.0, 2.0, 2.5, 4.0, 0.5, 1.5, 0.8, 1.0,
-    0.3, 0.2, 0.4, 0.10, 0.05, 5.0, 3.5
+    3.0, 2.0, 2.5, 4.0, 0.5, 1.5, 0.8, 1.0, 0.3, 0.2, 0.4, 0.10, 0.05, 5.0, 3.5,
 ];
 
 // Sentinel values for missing/unknown metadata
@@ -815,33 +807,33 @@ const VARIOUS_ARTISTS: &str = "Various Artists";
 const SINGLE_TRACK_FILENAME_PATTERN: &str = r"^(\d{1,2})\s*[-_\.]\s*";
 
 // Layer 2: Directory file count - many files = likely individual tracks
-const SINGLE_TRACK_DIR_FILE_THRESHOLD: usize = 4;  // >= 4 files = likely individual tracks
+const SINGLE_TRACK_DIR_FILE_THRESHOLD: usize = 4; // >= 4 files = likely individual tracks
 
 // Layer 3: ID3 track total - definitive when present
-const SINGLE_TRACK_ID3_TOTAL_THRESHOLD: u32 = 1;  // If total > 1, definitely single track
+const SINGLE_TRACK_ID3_TOTAL_THRESHOLD: u32 = 1; // If total > 1, definitely single track
 
 // Layer 4: Duration heuristics (minutes)
-const SINGLE_TRACK_MIN_ALBUM_DURATION_MINS: f64 = 20.0;  // Albums typically > 20 min
-const SINGLE_TRACK_TYPICAL_DURATION_MINS: f64 = 8.0;     // Single tracks typically < 8 min
+const SINGLE_TRACK_MIN_ALBUM_DURATION_MINS: f64 = 20.0; // Albums typically > 20 min
+const SINGLE_TRACK_TYPICAL_DURATION_MINS: f64 = 8.0; // Single tracks typically < 8 min
 
 // Layer 5: Silence gap count (post-decode)
-const SINGLE_TRACK_MIN_EXPECTED_GAPS: usize = 3;  // Albums typically have >= 4 tracks
+const SINGLE_TRACK_MIN_EXPECTED_GAPS: usize = 3; // Albums typically have >= 4 tracks
 
 // Score aggregation
-const SINGLE_TRACK_SCORE_THRESHOLD: f64 = 1.5;  // Score >= 1.5 = likely single track
+const SINGLE_TRACK_SCORE_THRESHOLD: f64 = 1.5; // Score >= 1.5 = likely single track
 
 // Individual layer scores (for logging and tuning)
-const SCORE_FILENAME_PATTERN: f64 = 1.0;        // Strong indicator when present
-const SCORE_DIR_FILES_HIGH: f64 = 0.8;          // Many files in directory
-const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;        // Some files (2-3)
-const SCORE_DIR_FILES_SINGLE: f64 = -0.5;       // Single file (counter-indicator)
-const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;         // Definitive when total > 1
-const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;   // Track number present but no total
-const SCORE_DURATION_SHORT: f64 = 0.7;          // Very short file
-const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;     // Shorter than typical album
-const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;  // Album-length file (counter-indicator)
-const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;        // Few silence gaps (definitive)
-const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;      // Many gaps (counter-indicator)
+const SCORE_FILENAME_PATTERN: f64 = 1.0; // Strong indicator when present
+const SCORE_DIR_FILES_HIGH: f64 = 0.8; // Many files in directory
+const SCORE_DIR_FILES_MEDIUM: f64 = 0.3; // Some files (2-3)
+const SCORE_DIR_FILES_SINGLE: f64 = -0.5; // Single file (counter-indicator)
+const SCORE_ID3_TRACK_TOTAL: f64 = 1.0; // Definitive when total > 1
+const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4; // Track number present but no total
+const SCORE_DURATION_SHORT: f64 = 0.7; // Very short file
+const SCORE_DURATION_SUSPICIOUS: f64 = 0.4; // Shorter than typical album
+const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3; // Album-length file (counter-indicator)
+const SCORE_SILENCE_GAPS_FEW: f64 = 1.0; // Few silence gaps (definitive)
+const SCORE_SILENCE_GAPS_MANY: f64 = -0.5; // Many gaps (counter-indicator)
 
 // Audio file extensions for directory scan
 const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav", "aac", "wma", "opus"];
@@ -926,12 +918,9 @@ struct WindowDbProfile {
 /// Single-pass dB profile computation.
 /// Scans the audio ONCE and stores dB for each window.
 /// This replaces 180 separate scans with 1 scan + 180 cheap filters.
-fn compute_window_db_profile(
-    samples: &[f32],
-    sample_rate: u32,
-) -> WindowDbProfile {
+fn compute_window_db_profile(samples: &[f32], sample_rate: u32) -> WindowDbProfile {
     // Use finest window (25ms) for best temporal resolution
-    let rms_window_secs = RMS_WINDOW_SHORT_SECS;  // 0.025s
+    let rms_window_secs = RMS_WINDOW_SHORT_SECS; // 0.025s
     let window_size = (sample_rate as f64 * rms_window_secs) as usize;
     let window_step = (sample_rate as f64 * rms_window_secs * RMS_WINDOW_OVERLAP) as usize;
 
@@ -1032,21 +1021,20 @@ fn gaps_to_track_durations(
 // Run 23: Single-Track Discriminator
 // =============================================================================
 
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 /// Regex for detecting track number prefix in filenames
-static TRACK_NUMBER_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(SINGLE_TRACK_FILENAME_PATTERN).expect("Invalid track number regex")
-});
+static TRACK_NUMBER_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(SINGLE_TRACK_FILENAME_PATTERN).expect("Invalid track number regex"));
 
 /// Confidence level for single-track detection
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum SingleTrackConfidence {
-    High,      // score >= 2.0 or definitive indicator
-    Medium,    // score >= 1.0
-    Low,       // score >= 0.5
-    Unlikely,  // score < 0.5
+    High,     // score >= 2.0 or definitive indicator
+    Medium,   // score >= 1.0
+    Low,      // score >= 0.5
+    Unlikely, // score < 0.5
 }
 
 impl std::fmt::Display for SingleTrackConfidence {
@@ -1065,14 +1053,14 @@ impl std::fmt::Display for SingleTrackConfidence {
 struct SingleTrackAnalysis {
     // Individual layer scores
     filename_score: f64,
-    filename_match: Option<String>,  // The matched pattern, if any
+    filename_match: Option<String>, // The matched pattern, if any
     dir_count_score: f64,
     dir_audio_files: usize,
     id3_track_score: f64,
-    id3_track_info: Option<String>,  // e.g., "4/12" or "4/?"
+    id3_track_info: Option<String>, // e.g., "4/12" or "4/?"
     duration_score: f64,
     duration_mins: Option<f64>,
-    silence_gap_score: Option<f64>,  // None until post-decode
+    silence_gap_score: Option<f64>, // None until post-decode
     silence_gap_count: Option<usize>,
 
     // Aggregated results
@@ -1115,10 +1103,8 @@ impl SingleTrackAnalysis {
     }
 
     fn update_aggregates(&mut self) {
-        self.pre_decode_score = self.filename_score
-            + self.dir_count_score
-            + self.id3_track_score
-            + self.duration_score;
+        self.pre_decode_score =
+            self.filename_score + self.dir_count_score + self.id3_track_score + self.duration_score;
 
         self.final_score = self.pre_decode_score + self.silence_gap_score.unwrap_or(0.0);
         self.confidence = Self::compute_confidence(self.final_score);
@@ -1184,7 +1170,10 @@ impl SingleTrackDiscriminator {
             Err(_) => return (0.0, None),
         };
 
-        let tag = match tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+        let tag = match tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag())
+        {
             Some(t) => t,
             None => return (0.0, None),
         };
@@ -1196,12 +1185,8 @@ impl SingleTrackDiscriminator {
             (Some(num), Some(total)) if total > SINGLE_TRACK_ID3_TOTAL_THRESHOLD => {
                 (SCORE_ID3_TRACK_TOTAL, Some(format!("{}/{}", num, total)))
             }
-            (Some(num), Some(total)) => {
-                (0.0, Some(format!("{}/{}", num, total)))
-            }
-            (Some(num), None) => {
-                (SCORE_ID3_TRACK_NUMBER_ONLY, Some(format!("{}/?", num)))
-            }
+            (Some(num), Some(total)) => (0.0, Some(format!("{}/{}", num, total))),
+            (Some(num), None) => (SCORE_ID3_TRACK_NUMBER_ONLY, Some(format!("{}/?", num))),
             _ => (0.0, None),
         }
     }
@@ -1256,7 +1241,11 @@ impl SingleTrackDiscriminator {
     }
 
     /// Update analysis with post-decode information
-    fn update_post_decode(analysis: &mut SingleTrackAnalysis, duration_mins: f64, gap_count: usize) {
+    fn update_post_decode(
+        analysis: &mut SingleTrackAnalysis,
+        duration_mins: f64,
+        gap_count: usize,
+    ) {
         // Update duration if not already set or if decoded is more accurate
         if analysis.duration_mins.is_none() {
             analysis.duration_score = Self::check_duration(duration_mins);
@@ -1272,67 +1261,103 @@ impl SingleTrackDiscriminator {
 
     /// Log pre-decode analysis results
     fn log_pre_decode(album_id: &str, analysis: &SingleTrackAnalysis, path: &Path) {
-        info!("[{}] 🔍 Single-track analysis (pre-decode) for {:?}:", album_id, path.file_name().unwrap_or_default());
+        info!(
+            "[{}] 🔍 Single-track analysis (pre-decode) for {:?}:",
+            album_id,
+            path.file_name().unwrap_or_default()
+        );
 
         // Layer 1
         if let Some(ref matched) = analysis.filename_match {
-            info!("[{}]     Filename pattern: {:+.2} (matched \"{}\")",
-                album_id, analysis.filename_score, matched);
+            info!(
+                "[{}]     Filename pattern: {:+.2} (matched \"{}\")",
+                album_id, analysis.filename_score, matched
+            );
         } else {
-            info!("[{}]     Filename pattern: {:+.2} (no track number prefix)",
-                album_id, analysis.filename_score);
+            info!(
+                "[{}]     Filename pattern: {:+.2} (no track number prefix)",
+                album_id, analysis.filename_score
+            );
         }
 
         // Layer 2
-        info!("[{}]     Directory files:  {:+.2} ({} audio files in dir, threshold={})",
-            album_id, analysis.dir_count_score, analysis.dir_audio_files, SINGLE_TRACK_DIR_FILE_THRESHOLD);
+        info!(
+            "[{}]     Directory files:  {:+.2} ({} audio files in dir, threshold={})",
+            album_id,
+            analysis.dir_count_score,
+            analysis.dir_audio_files,
+            SINGLE_TRACK_DIR_FILE_THRESHOLD
+        );
 
         // Layer 3
         if let Some(ref info) = analysis.id3_track_info {
-            info!("[{}]     ID3 track tag:    {:+.2} (track {})",
-                album_id, analysis.id3_track_score, info);
+            info!(
+                "[{}]     ID3 track tag:    {:+.2} (track {})",
+                album_id, analysis.id3_track_score, info
+            );
         } else {
-            info!("[{}]     ID3 track tag:    {:+.2} (no track tag)",
-                album_id, analysis.id3_track_score);
+            info!(
+                "[{}]     ID3 track tag:    {:+.2} (no track tag)",
+                album_id, analysis.id3_track_score
+            );
         }
 
         // Layer 4
         if let Some(mins) = analysis.duration_mins {
-            info!("[{}]     Duration hint:    {:+.2} ({:.2} min, album threshold={} min)",
-                album_id, analysis.duration_score, mins, SINGLE_TRACK_MIN_ALBUM_DURATION_MINS);
+            info!(
+                "[{}]     Duration hint:    {:+.2} ({:.2} min, album threshold={} min)",
+                album_id, analysis.duration_score, mins, SINGLE_TRACK_MIN_ALBUM_DURATION_MINS
+            );
         } else {
-            info!("[{}]     Duration hint:    N/A (will check after decode)",
-                album_id);
+            info!(
+                "[{}]     Duration hint:    N/A (will check after decode)",
+                album_id
+            );
         }
 
         // Pre-decode summary
-        info!("[{}]     PRE-DECODE TOTAL: {:.2} ({} confidence{})",
+        info!(
+            "[{}]     PRE-DECODE TOTAL: {:.2} ({} confidence{})",
             album_id,
             analysis.pre_decode_score,
             analysis.confidence,
-            if analysis.is_likely_single_track { " - LIKELY SINGLE TRACK" } else { "" });
+            if analysis.is_likely_single_track {
+                " - LIKELY SINGLE TRACK"
+            } else {
+                ""
+            }
+        );
     }
 
     /// Log post-decode analysis update
     fn log_post_decode(album_id: &str, analysis: &SingleTrackAnalysis) {
-        info!("[{}] 🔍 Single-track analysis (post-decode update):", album_id);
+        info!(
+            "[{}] 🔍 Single-track analysis (post-decode update):",
+            album_id
+        );
 
         // Layer 4 (if updated)
         if let Some(mins) = analysis.duration_mins {
-            info!("[{}]     Decoded duration: {:+.2} ({:.2} min)",
-                album_id, analysis.duration_score, mins);
+            info!(
+                "[{}]     Decoded duration: {:+.2} ({:.2} min)",
+                album_id, analysis.duration_score, mins
+            );
         }
 
         // Layer 5
         if let Some(score) = analysis.silence_gap_score {
             let count = analysis.silence_gap_count.unwrap_or(0);
-            info!("[{}]     Silence gaps:     {:+.2} ({} gaps detected, threshold={})",
-                album_id, score, count, SINGLE_TRACK_MIN_EXPECTED_GAPS);
+            info!(
+                "[{}]     Silence gaps:     {:+.2} ({} gaps detected, threshold={})",
+                album_id, score, count, SINGLE_TRACK_MIN_EXPECTED_GAPS
+            );
         }
 
         // Final summary
-        info!("[{}]     FINAL TOTAL:      {:.2} ({} confidence)",
-            album_id, analysis.final_score, analysis.confidence);
+        info!(
+            "[{}]     FINAL TOTAL:      {:.2} ({} confidence)",
+            album_id, analysis.final_score, analysis.confidence
+        );
 
         if analysis.is_likely_single_track {
             warn!("[{}]     ⚠️ SINGLE TRACK DETECTED - Results may be invalid (score={:.2} >= threshold={})",
@@ -1391,7 +1416,10 @@ fn precompute_silence_cache(
     results.sort_by_key(|(idx, _)| *idx);
 
     // Extract just the durations in order
-    results.into_iter().map(|(_, durations)| durations).collect()
+    results
+        .into_iter()
+        .map(|(_, durations)| durations)
+        .collect()
 }
 
 // ===== End Silence Detection Cache =====
@@ -1629,7 +1657,10 @@ impl QueryStats {
     }
 
     fn get_activity(&self) -> String {
-        self.current_activity.lock().map(|g| g.clone()).unwrap_or_default()
+        self.current_activity
+            .lock()
+            .map(|g| g.clone())
+            .unwrap_or_default()
     }
 
     fn stop(&self) {
@@ -1695,7 +1726,7 @@ impl RateLimiter {
     fn new() -> Self {
         Self {
             last_request: Arc::new(tokio::sync::Mutex::new(
-                std::time::Instant::now() - Duration::from_millis(MB_RATE_LIMIT_MS)
+                std::time::Instant::now() - Duration::from_millis(MB_RATE_LIMIT_MS),
             )),
             query_counter: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
@@ -1706,7 +1737,10 @@ impl RateLimiter {
         // This ensures only one task can be checking/waiting/updating at a time.
         let mut last = self.last_request.lock().await;
 
-        let query_num = self.query_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let query_num = self
+            .query_counter
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1;
         let elapsed = last.elapsed();
         let elapsed_ms = elapsed.as_millis();
 
@@ -1715,21 +1749,31 @@ impl RateLimiter {
         if elapsed < Duration::from_millis(MB_RATE_LIMIT_MS) {
             let wait_time = Duration::from_millis(MB_RATE_LIMIT_MS) - elapsed;
             let wait_ms = wait_time.as_millis();
-            debug!("[RATE_LIMITER] Query #{}: elapsed={}ms < limit={}ms, WAITING {}ms",
-                   query_num, elapsed_ms, MB_RATE_LIMIT_MS, wait_ms);
+            debug!(
+                "[RATE_LIMITER] Query #{}: elapsed={}ms < limit={}ms, WAITING {}ms",
+                query_num, elapsed_ms, MB_RATE_LIMIT_MS, wait_ms
+            );
             if let Some(s) = stats {
                 s.record_rate_wait();
             }
             sleep(wait_time).await;
-            debug!("[RATE_LIMITER] Query #{}: wait complete, proceeding", query_num);
+            debug!(
+                "[RATE_LIMITER] Query #{}: wait complete, proceeding",
+                query_num
+            );
         } else {
-            debug!("[RATE_LIMITER] Query #{}: elapsed={}ms >= limit={}ms, NO WAIT",
-                   query_num, elapsed_ms, MB_RATE_LIMIT_MS);
+            debug!(
+                "[RATE_LIMITER] Query #{}: elapsed={}ms >= limit={}ms, NO WAIT",
+                query_num, elapsed_ms, MB_RATE_LIMIT_MS
+            );
         }
 
         let before_update = std::time::Instant::now();
         *last = before_update;
-        debug!("[RATE_LIMITER] Query #{}: timestamp updated, releasing lock", query_num);
+        debug!(
+            "[RATE_LIMITER] Query #{}: timestamp updated, releasing lock",
+            query_num
+        );
     }
 }
 
@@ -1757,7 +1801,13 @@ where
             if let Some(s) = stats {
                 s.record_retry();
             }
-            warn!("{}    Retrying after {} seconds (attempt {}/{})...", log_prefix, delay, attempt + 1, max_attempts);
+            warn!(
+                "{}    Retrying after {} seconds (attempt {}/{})...",
+                log_prefix,
+                delay,
+                attempt + 1,
+                max_attempts
+            );
             sleep(Duration::from_secs(delay)).await;
         }
 
@@ -1779,7 +1829,10 @@ where
                     if let Some(s) = stats {
                         s.record_failure();
                     }
-                    error!("{}    Network error: {} - giving up after {} attempts", log_prefix, e, max_attempts);
+                    error!(
+                        "{}    Network error: {} - giving up after {} attempts",
+                        log_prefix, e, max_attempts
+                    );
                     return Err(e);
                 }
             }
@@ -1836,7 +1889,7 @@ struct AcoustIDLookupResult {
 /// AcoustID recording information
 #[derive(Debug, Clone, Deserialize)]
 struct AcoustIDLookupRecording {
-    id: String,  // MusicBrainz Recording MBID
+    id: String, // MusicBrainz Recording MBID
     #[serde(default)]
     title: Option<String>,
 }
@@ -2094,7 +2147,8 @@ fn decode_mp3(path: &Path) -> Result<(Vec<f32>, u32), Box<dyn std::error::Error 
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
 
-    let probed = symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
+    let probed =
+        symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
     let mut format = probed.format;
 
     let track = format.default_track().ok_or("No default track")?;
@@ -2118,60 +2172,58 @@ fn decode_mp3(path: &Path) -> Result<(Vec<f32>, u32), Box<dyn std::error::Error 
         }
 
         match decoder.decode(&packet) {
-            Ok(decoded) => {
-                match decoded {
-                    AudioBufferRef::F32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample);
-                        }
-                    }
-                    AudioBufferRef::U8(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 128.0) / 128.0);
-                        }
-                    }
-                    AudioBufferRef::U16(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 32768.0) / 32768.0);
-                        }
-                    }
-                    AudioBufferRef::U24(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample.inner() as f32 - 8388608.0) / 8388608.0);
-                        }
-                    }
-                    AudioBufferRef::U32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push((sample as f32 - 2147483648.0) / 2147483648.0);
-                        }
-                    }
-                    AudioBufferRef::S8(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 128.0);
-                        }
-                    }
-                    AudioBufferRef::S16(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 32768.0);
-                        }
-                    }
-                    AudioBufferRef::S24(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample.inner() as f32 / 8388608.0);
-                        }
-                    }
-                    AudioBufferRef::S32(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32 / 2147483648.0);
-                        }
-                    }
-                    AudioBufferRef::F64(buf) => {
-                        for &sample in buf.chan(0) {
-                            samples.push(sample as f32);
-                        }
+            Ok(decoded) => match decoded {
+                AudioBufferRef::F32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample);
                     }
                 }
-            }
+                AudioBufferRef::U8(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 128.0) / 128.0);
+                    }
+                }
+                AudioBufferRef::U16(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 32768.0) / 32768.0);
+                    }
+                }
+                AudioBufferRef::U24(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample.inner() as f32 - 8388608.0) / 8388608.0);
+                    }
+                }
+                AudioBufferRef::U32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push((sample as f32 - 2147483648.0) / 2147483648.0);
+                    }
+                }
+                AudioBufferRef::S8(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 128.0);
+                    }
+                }
+                AudioBufferRef::S16(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 32768.0);
+                    }
+                }
+                AudioBufferRef::S24(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample.inner() as f32 / 8388608.0);
+                    }
+                }
+                AudioBufferRef::S32(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32 / 2147483648.0);
+                    }
+                }
+                AudioBufferRef::F64(buf) => {
+                    for &sample in buf.chan(0) {
+                        samples.push(sample as f32);
+                    }
+                }
+            },
             Err(_e) => {
                 continue;
             }
@@ -2287,7 +2339,11 @@ fn get_track_durations(
 /// * `matches` - Per-track match details (duration, error, matched flag)
 /// * `matched_count` - Number of tracks within tolerance
 /// * `match_percentage` - Percentage of expected tracks that matched (0-100)
-fn analyze_track_matching(detected: &[f64], expected: &[u32], tolerance_secs: f64) -> (Vec<TrackMatch>, usize, f64) {
+fn analyze_track_matching(
+    detected: &[f64],
+    expected: &[u32],
+    tolerance_secs: f64,
+) -> (Vec<TrackMatch>, usize, f64) {
     let mut matches = Vec::new();
     let mut matched_count = 0;
 
@@ -2326,7 +2382,7 @@ fn split_camel_case(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
 
     for (i, &ch) in chars.iter().enumerate() {
-        if i > 0 && ch.is_uppercase() && chars[i-1].is_lowercase() {
+        if i > 0 && ch.is_uppercase() && chars[i - 1].is_lowercase() {
             result.push(' ');
         }
         result.push(ch);
@@ -2349,35 +2405,64 @@ fn generate_search_queries(artist: &str, album: &str) -> Vec<String> {
     let mut queries = Vec::new();
 
     // Strategy 1: Original query with type:album filter
-    queries.push(format!("type:album AND artist:{} AND release:{}", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{} AND release:{}",
+        artist, album
+    ));
 
     // Strategy 2: CamelCase split (most effective per test results)
     let album_spaced = split_camel_case(album);
     if album_spaced != album {
-        queries.push(format!("type:album AND artist:{} AND release:\"{}\"", artist, album_spaced));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:\"{}\"",
+            artist, album_spaced
+        ));
     }
 
     // Strategy 3: Fuzzy matching (catches punctuation differences like "Funk49" -> "Funk #49")
-    queries.push(format!("type:album AND artist:{}~ AND release:{}~", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{}~ AND release:{}~",
+        artist, album
+    ));
 
     // Strategy 4: Targeted wildcard for common misspellings (e.g., "Lizzie" -> "Lizz*")
     if let Some(artist_wildcard) = apply_wildcard_fixes(artist) {
         let album_variant = apply_wildcard_fixes(album).unwrap_or_else(|| album.to_string());
-        queries.push(format!("type:album AND artist:{} AND release:{}", artist_wildcard, album_variant));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_wildcard, album_variant
+        ));
     } else if let Some(album_wildcard) = apply_wildcard_fixes(album) {
-        queries.push(format!("type:album AND artist:{} AND release:{}", artist, album_wildcard));
+        queries.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist, album_wildcard
+        ));
     }
 
     // Strategy 5: Aggressive fuzzy search (~2 edits - more tolerant, catches more misspellings)
-    queries.push(format!("type:album AND artist:{}~2 AND release:{}~2", artist, album));
+    queries.push(format!(
+        "type:album AND artist:{}~2 AND release:{}~2",
+        artist, album
+    ));
 
     // Strategy 6: Per-token fuzzy matching (handles multi-word names better)
     let artist_tokens: Vec<&str> = artist.split_whitespace().collect();
     let album_tokens: Vec<&str> = album.split_whitespace().collect();
     if artist_tokens.len() > 1 || album_tokens.len() > 1 {
-        let artist_fuzzy = artist_tokens.iter().map(|t| format!("{}~", t)).collect::<Vec<_>>().join(" ");
-        let album_fuzzy = album_tokens.iter().map(|t| format!("{}~", t)).collect::<Vec<_>>().join(" ");
-        queries.push(format!("type:album AND artist:({}) AND release:({})", artist_fuzzy, album_fuzzy));
+        let artist_fuzzy = artist_tokens
+            .iter()
+            .map(|t| format!("{}~", t))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let album_fuzzy = album_tokens
+            .iter()
+            .map(|t| format!("{}~", t))
+            .collect::<Vec<_>>()
+            .join(" ");
+        queries.push(format!(
+            "type:album AND artist:({}) AND release:({})",
+            artist_fuzzy, album_fuzzy
+        ));
     }
 
     // Strategy 7: Album-only fallback (last resort when artist name is problematic)
@@ -2463,7 +2548,8 @@ fn calculate_name_distance(
     let avg_artist_distance = avg_levenshtein(candidate_artist, source_artists);
 
     // Overall score: album name weighted 2x, artist name weighted 1x
-    (NAME_DISTANCE_ALBUM_WEIGHT * avg_album_distance + NAME_DISTANCE_ARTIST_WEIGHT * avg_artist_distance)
+    (NAME_DISTANCE_ALBUM_WEIGHT * avg_album_distance
+        + NAME_DISTANCE_ARTIST_WEIGHT * avg_artist_distance)
         / (NAME_DISTANCE_ALBUM_WEIGHT + NAME_DISTANCE_ARTIST_WEIGHT)
 }
 
@@ -2559,12 +2645,7 @@ fn verify_album_match(source_album: &str, matched_album: &str) -> (f64, bool) {
     let normalize = |s: &str| -> String {
         let lower = s.to_lowercase();
         // Remove common suffixes in parentheses
-        let without_parens = lower
-            .split('(')
-            .next()
-            .unwrap_or(&lower)
-            .trim()
-            .to_string();
+        let without_parens = lower.split('(').next().unwrap_or(&lower).trim().to_string();
         without_parens
     };
 
@@ -2613,12 +2694,10 @@ impl AcoustIDRateLimiter {
 
 /// Generate chromaprint fingerprint using chromaprint-sys-next (FFI to C library).
 /// Returns (fingerprint_base64, duration_seconds) or error message.
-fn generate_fingerprint_ffi(
-    samples: &[f32],
-    sample_rate: u32,
-) -> Result<(String, u64), String> {
+fn generate_fingerprint_ffi(samples: &[f32], sample_rate: u32) -> Result<(String, u64), String> {
     // Convert f32 samples to i16
-    let samples_i16: Vec<i16> = samples.iter()
+    let samples_i16: Vec<i16> = samples
+        .iter()
         .map(|&s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
         .collect();
 
@@ -2638,11 +2717,8 @@ fn generate_fingerprint_ffi(
         }
 
         // Feed samples
-        let feed_result = chromaprint_ffi::chromaprint_feed(
-            ctx,
-            samples_i16.as_ptr(),
-            samples_i16.len() as i32
-        );
+        let feed_result =
+            chromaprint_ffi::chromaprint_feed(ctx, samples_i16.as_ptr(), samples_i16.len() as i32);
         if feed_result != 1 {
             chromaprint_ffi::chromaprint_free(ctx);
             return Err("chromaprint-sys-next: feed failed".to_string());
@@ -2730,7 +2806,7 @@ fn resolve_acoustid_api_key_for_example() -> Result<String, String> {
              \n\
              Obtain API key at: https://acoustid.org/new-application",
             ACOUSTID_API_KEY_ENV_VAR
-        ))
+        )),
     }
 }
 
@@ -2893,16 +2969,18 @@ async fn verify_tracks_with_acoustid(
         let track_audio = &pcm_samples[current_sample..end_sample];
 
         // Generate fingerprint (using chromaprint-sys-next FFI, no fpcalc)
-        let fingerprint_result = generate_chromaprint_fingerprint(
-            track_audio,
-            sample_rate,
-            num_channels,
-        );
+        let fingerprint_result =
+            generate_chromaprint_fingerprint(track_audio, sample_rate, num_channels);
 
         let (fingerprint, duration) = match fingerprint_result {
             Ok(fp) => fp,
             Err(e) => {
-                warn!("[A{}]     Track {}: Fingerprint failed: {}", album_idx + 1, track_idx + 1, e);
+                warn!(
+                    "[A{}]     Track {}: Fingerprint failed: {}",
+                    album_idx + 1,
+                    track_idx + 1,
+                    e
+                );
                 track_verifications.push(TrackVerification {
                     track_index: track_idx + 1,
                     expected_recording_mbid: expected_mbid,
@@ -2918,33 +2996,43 @@ async fn verify_tracks_with_acoustid(
         };
 
         // Query AcoustID
-        let acoustid_mbids = match lookup_acoustid(&client, &fingerprint, duration, &rate_limiter, api_key).await {
-            Ok(mbids) => mbids,
-            Err(e) => {
-                warn!("[A{}]     Track {}: AcoustID lookup failed: {}", album_idx + 1, track_idx + 1, e);
-                track_verifications.push(TrackVerification {
-                    track_index: track_idx + 1,
-                    expected_recording_mbid: expected_mbid,
-                    acoustid_recording_mbids: Vec::new(),
-                    acoustid_score: 0.0,
-                    mbid_match: false,
-                    status: "no_acoustid_match".to_string(),
-                });
-                no_match_count += 1;
-                current_sample = end_sample;
-                continue;
-            }
-        };
+        let acoustid_mbids =
+            match lookup_acoustid(&client, &fingerprint, duration, &rate_limiter, api_key).await {
+                Ok(mbids) => mbids,
+                Err(e) => {
+                    warn!(
+                        "[A{}]     Track {}: AcoustID lookup failed: {}",
+                        album_idx + 1,
+                        track_idx + 1,
+                        e
+                    );
+                    track_verifications.push(TrackVerification {
+                        track_index: track_idx + 1,
+                        expected_recording_mbid: expected_mbid,
+                        acoustid_recording_mbids: Vec::new(),
+                        acoustid_score: 0.0,
+                        mbid_match: false,
+                        status: "no_acoustid_match".to_string(),
+                    });
+                    no_match_count += 1;
+                    current_sample = end_sample;
+                    continue;
+                }
+            };
 
         if acoustid_mbids.is_empty() {
             // No fingerprint match - check if expected MBID exists in AcoustID database
-            let mbid_lookup = lookup_mbid_in_acoustid(&client, &expected_mbid, &rate_limiter, api_key).await;
+            let mbid_lookup =
+                lookup_mbid_in_acoustid(&client, &expected_mbid, &rate_limiter, api_key).await;
             let (diagnostic, status) = match mbid_lookup {
                 MbidLookupResult::ExistsWithFingerprints(count) => {
                     // MBID has fingerprints but our audio didn't match - different version/mastering
                     info!("[A{}]     Track {}: No match - MBID has {} fingerprint(s) in AcoustID but none matched (different version?)",
                         album_idx + 1, track_idx + 1, count);
-                    (format!("MBID exists ({} fp), no match", count), "no_match_different_version")
+                    (
+                        format!("MBID exists ({} fp), no match", count),
+                        "no_match_different_version",
+                    )
                 }
                 MbidLookupResult::NotInDatabase => {
                     // MBID not in AcoustID - recording needs fingerprints submitted
@@ -2954,12 +3042,21 @@ async fn verify_tracks_with_acoustid(
                 }
                 MbidLookupResult::LookupFailed(e) => {
                     // Lookup failed, fall back to generic message
-                    info!("[A{}]     Track {}: No AcoustID matches found (MBID lookup failed: {})",
-                        album_idx + 1, track_idx + 1, e);
+                    info!(
+                        "[A{}]     Track {}: No AcoustID matches found (MBID lookup failed: {})",
+                        album_idx + 1,
+                        track_idx + 1,
+                        e
+                    );
                     (format!("lookup failed: {}", e), "no_acoustid_match")
                 }
             };
-            debug!("[A{}]     Track {} diagnostic: {}", album_idx + 1, track_idx + 1, diagnostic);
+            debug!(
+                "[A{}]     Track {} diagnostic: {}",
+                album_idx + 1,
+                track_idx + 1,
+                diagnostic
+            );
             track_verifications.push(TrackVerification {
                 track_index: track_idx + 1,
                 expected_recording_mbid: expected_mbid,
@@ -2978,13 +3075,24 @@ async fn verify_tracks_with_acoustid(
         let status = if mbid_match { "matched" } else { "mismatched" };
 
         if mbid_match {
-            info!("[A{}]     Track {}: ✓ MBID verified ({})", album_idx + 1, track_idx + 1, &expected_mbid[..MBID_DISPLAY_LENGTH.min(expected_mbid.len())]);
+            info!(
+                "[A{}]     Track {}: ✓ MBID verified ({})",
+                album_idx + 1,
+                track_idx + 1,
+                &expected_mbid[..MBID_DISPLAY_LENGTH.min(expected_mbid.len())]
+            );
             matched_count += 1;
         } else {
-            warn!("[A{}]     Track {}: ✗ MBID mismatch - expected {} got {:?}",
-                album_idx + 1, track_idx + 1,
+            warn!(
+                "[A{}]     Track {}: ✗ MBID mismatch - expected {} got {:?}",
+                album_idx + 1,
+                track_idx + 1,
                 &expected_mbid[..MBID_DISPLAY_LENGTH.min(expected_mbid.len())],
-                acoustid_mbids.iter().map(|m| &m[..MBID_DISPLAY_LENGTH.min(m.len())]).collect::<Vec<_>>());
+                acoustid_mbids
+                    .iter()
+                    .map(|m| &m[..MBID_DISPLAY_LENGTH.min(m.len())])
+                    .collect::<Vec<_>>()
+            );
             mismatched_count += 1;
         }
 
@@ -2992,7 +3100,7 @@ async fn verify_tracks_with_acoustid(
             track_index: track_idx + 1,
             expected_recording_mbid: expected_mbid,
             acoustid_recording_mbids: acoustid_mbids,
-            acoustid_score: 1.0,  // Not provided by our simplified lookup
+            acoustid_score: 1.0, // Not provided by our simplified lookup
             mbid_match,
             status: status.to_string(),
         });
@@ -3039,13 +3147,22 @@ async fn search_all_mb_strategies(
 
             for (i, query) in search_queries.iter().enumerate() {
                 if all_releases.len() >= MB_MAX_RELEASES {
-                    info!("[A{}]   Reached {} release limit", album_idx + 1, MB_MAX_RELEASES);
+                    info!(
+                        "[A{}]   Reached {} release limit",
+                        album_idx + 1,
+                        MB_MAX_RELEASES
+                    );
                     break;
                 }
 
                 if let Some(s) = stats {
-                    s.set_activity(&format!("searching: {} / {} (strategy {}/{})",
-                        artist, album, i + 1, search_queries.len()));
+                    s.set_activity(&format!(
+                        "searching: {} / {} (strategy {}/{})",
+                        artist,
+                        album,
+                        i + 1,
+                        search_queries.len()
+                    ));
                 }
 
                 debug!("{} MB query: {}", log_prefix, query);
@@ -3057,13 +3174,20 @@ async fn search_all_mb_strategies(
                         .search_releases(query, Some(album_idx))
                         .await
                         .map_err(|e| format!("error querying MusicBrainz: {}", e))
-                }).await;
+                })
+                .await;
 
                 let response = match response {
                     Ok(r) => r,
                     Err(e) => {
-                        info!("  Strategy {}/{} for '{}' / '{}' FAILED: {}",
-                                 i + 1, search_queries.len(), artist, album, e);
+                        info!(
+                            "  Strategy {}/{} for '{}' / '{}' FAILED: {}",
+                            i + 1,
+                            search_queries.len(),
+                            artist,
+                            album,
+                            e
+                        );
                         continue;
                     }
                 };
@@ -3119,9 +3243,9 @@ fn calculate_ndr_and_filter<'a>(
 
     // Helper function to check if artist is "Various Artists"
     let is_various_artist = |artist: &str| -> bool {
-        artist.eq_ignore_ascii_case("Various") ||
-        artist.eq_ignore_ascii_case("Various Artists") ||
-        artist.starts_with("Various")
+        artist.eq_ignore_ascii_case("Various")
+            || artist.eq_ignore_ascii_case("Various Artists")
+            || artist.starts_with("Various")
     };
 
     // === Run 25c: Stage 1 - Combination A Filter ===
@@ -3129,7 +3253,8 @@ fn calculate_ndr_and_filter<'a>(
     let ratio_filtered: Vec<&MBRelease> = releases
         .iter()
         .filter(|release| {
-            let artist = release.artist_credit
+            let artist = release
+                .artist_credit
                 .as_ref()
                 .and_then(|credits| credits.first())
                 .and_then(|credit| credit.artist.as_ref())
@@ -3163,13 +3288,15 @@ fn calculate_ndr_and_filter<'a>(
     let mut releases_with_ndr: Vec<(&MBRelease, f64)> = ratio_filtered
         .into_iter()
         .map(|release| {
-            let artist = release.artist_credit
+            let artist = release
+                .artist_credit
                 .as_ref()
                 .and_then(|credits| credits.first())
                 .and_then(|credit| credit.artist.as_ref())
                 .map(|artist| artist.name.as_str())
                 .unwrap_or("Unknown Artist");
-            let score = calculate_name_distance(artist, &release.title, artist_variants, album_variants);
+            let score =
+                calculate_name_distance(artist, &release.title, artist_variants, album_variants);
             (release, score)
         })
         .collect();
@@ -3188,8 +3315,13 @@ fn calculate_ndr_and_filter<'a>(
 
     let ndr_filtered_count = pre_rank_filter_count - filtered_releases.len();
     if ndr_filtered_count > 0 {
-        info!("[A{}]   Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
-                 album_idx + 1, ndr_filtered_count, MAX_NAME_DISTANCE_RANK, filtered_releases.len());
+        info!(
+            "[A{}]   Early NDR filter: skipping {} releases (NDR > {}), fetching details for {}",
+            album_idx + 1,
+            ndr_filtered_count,
+            MAX_NAME_DISTANCE_RANK,
+            filtered_releases.len()
+        );
     }
 
     filtered_releases
@@ -3209,9 +3341,20 @@ async fn fetch_release_track_details(
     score: f64,
     album_idx: usize,
     stats: Option<&QueryStats>,
-) -> Option<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> {
+) -> Option<(
+    Vec<u32>,
+    Vec<String>,
+    EditionMBID,
+    String,
+    String,
+    usize,
+    f64,
+)> {
     if let Some(s) = stats {
-        s.set_activity(&format!("fetching details: {} (rank {})", release.title, rank));
+        s.set_activity(&format!(
+            "fetching details: {} (rank {})",
+            release.title, rank
+        ));
     }
 
     let log_prefix = format!("[A{}]", album_idx + 1);
@@ -3224,7 +3367,8 @@ async fn fetch_release_track_details(
             .get_release_details(&release.id, Some(album_idx))
             .await
             .map_err(|e| format!("error fetching details: {}", e))
-    }).await;
+    })
+    .await;
 
     let details = match details {
         Ok(d) => d,
@@ -3239,8 +3383,9 @@ async fn fetch_release_track_details(
         for track in &medium.tracks {
             if let Some(length_ms) = track.length {
                 durations.push(length_ms / 1000); // Convert to seconds
-                // Extract recording MBID (or empty string if not available)
-                let recording_mbid = track.recording
+                                                  // Extract recording MBID (or empty string if not available)
+                let recording_mbid = track
+                    .recording
                     .as_ref()
                     .map(|r| r.id.clone())
                     .unwrap_or_default();
@@ -3259,7 +3404,8 @@ async fn fetch_release_track_details(
     }
 
     // Extract artist name
-    let artist = release.artist_credit
+    let artist = release
+        .artist_credit
         .as_ref()
         .and_then(|credits| credits.first())
         .and_then(|credit| credit.artist.as_ref())
@@ -3293,30 +3439,64 @@ async fn fetch_release_track_details(
 /// Vec of (durations, recording_mbids, mbid_info, artist, album, name_distance_rank, name_distance_score)
 async fn comprehensive_musicbrainz_search(
     mb_client: &MBClient,
-    artist_variants: &[String],  // e.g., ["Jessita Reyes", "Various"]
-    album_variants: &[String],   // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
-    album_idx: usize,            // Album index for log messages
-    stats: Option<&QueryStats>,  // Optional stats for heartbeat logging
-) -> Result<Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)>, Box<dyn std::error::Error>> {
-    info!("[A{}]   Fetching MusicBrainz data (comprehensive search)...", album_idx + 1);
+    artist_variants: &[String], // e.g., ["Jessita Reyes", "Various"]
+    album_variants: &[String], // e.g., ["Native American Flute Lullabies", "NativeAmericanFluteLullabies"]
+    album_idx: usize,          // Album index for log messages
+    stats: Option<&QueryStats>, // Optional stats for heartbeat logging
+) -> Result<
+    Vec<(
+        Vec<u32>,
+        Vec<String>,
+        EditionMBID,
+        String,
+        String,
+        usize,
+        f64,
+    )>,
+    Box<dyn std::error::Error>,
+> {
+    info!(
+        "[A{}]   Fetching MusicBrainz data (comprehensive search)...",
+        album_idx + 1
+    );
 
     // Step 1: Search using all artist/album/strategy combinations
     // REQ-CACHE-120: Use MBClient for transparent caching
-    let all_releases = search_all_mb_strategies(mb_client, artist_variants, album_variants, album_idx, stats).await;
-    info!("[A{}]   Found {} unique releases across all search strategies", album_idx + 1, all_releases.len());
+    let all_releases =
+        search_all_mb_strategies(mb_client, artist_variants, album_variants, album_idx, stats)
+            .await;
+    info!(
+        "[A{}]   Found {} unique releases across all search strategies",
+        album_idx + 1,
+        all_releases.len()
+    );
 
     // Step 2: Calculate NDR and filter releases (Run 15 optimization)
-    let filtered_releases = calculate_ndr_and_filter(&all_releases, artist_variants, album_variants, album_idx);
+    let filtered_releases =
+        calculate_ndr_and_filter(&all_releases, artist_variants, album_variants, album_idx);
 
     if let Some(s) = stats {
-        s.set_activity(&format!("fetching track details for {} releases", filtered_releases.len()));
+        s.set_activity(&format!(
+            "fetching track details for {} releases",
+            filtered_releases.len()
+        ));
     }
 
     // Step 3: Fetch track details for filtered releases
     // REQ-CACHE-120: Use MBClient for transparent caching
-    let mut results: Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)> = Vec::new();
+    let mut results: Vec<(
+        Vec<u32>,
+        Vec<String>,
+        EditionMBID,
+        String,
+        String,
+        usize,
+        f64,
+    )> = Vec::new();
     for (release, rank, score) in filtered_releases {
-        if let Some(result) = fetch_release_track_details(mb_client, release, rank, score, album_idx, stats).await {
+        if let Some(result) =
+            fetch_release_track_details(mb_client, release, rank, score, album_idx, stats).await
+        {
             results.push(result);
         }
     }
@@ -3331,18 +3511,37 @@ async fn comprehensive_musicbrainz_search(
 /// Group MBIDs into editions based on track count + duration pattern
 /// Multiple MBIDs can represent the same edition (e.g., US vs UK release of same album)
 /// Takes the best (lowest) name distance rank and its score among all MBIDs in an edition
-fn group_into_editions(releases: Vec<(Vec<u32>, Vec<String>, EditionMBID, String, String, usize, f64)>, album_idx: usize) -> Vec<Edition> {
+fn group_into_editions(
+    releases: Vec<(
+        Vec<u32>,
+        Vec<String>,
+        EditionMBID,
+        String,
+        String,
+        usize,
+        f64,
+    )>,
+    album_idx: usize,
+) -> Vec<Edition> {
     let mut editions: Vec<Edition> = Vec::new();
 
     for (durations, recording_mbids, mbid_info, artist, album, rank, score) in releases {
         // Create signature: "track_count:duration1,duration2,..."
-        let signature = format!("{}:{}",
+        let signature = format!(
+            "{}:{}",
             durations.len(),
-            durations.iter().map(|d| d.to_string()).collect::<Vec<_>>().join(",")
+            durations
+                .iter()
+                .map(|d| d.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
         );
 
         // Find existing edition with this signature
-        if let Some(edition) = editions.iter_mut().find(|e| e.duration_signature == signature) {
+        if let Some(edition) = editions
+            .iter_mut()
+            .find(|e| e.duration_signature == signature)
+        {
             // Add this MBID to existing edition
             edition.mbids.push(mbid_info);
             // Update to best (lowest) rank and corresponding score
@@ -3366,7 +3565,11 @@ fn group_into_editions(releases: Vec<(Vec<u32>, Vec<String>, EditionMBID, String
         }
     }
 
-    info!("[A{}]   Grouped into {} unique editions", album_idx + 1, editions.len());
+    info!(
+        "[A{}]   Grouped into {} unique editions",
+        album_idx + 1,
+        editions.len()
+    );
 
     // Sort editions by track count (helps with display)
     editions.sort_by_key(|e| e.track_count);
@@ -3413,7 +3616,9 @@ fn resort_by_name_similarity(editions: &mut [Edition]) {
         for i in 0..editions.len() - 1 {
             // Lower name_distance_score is better
             // Swap if current item's score is more than NAME_DISTANCE_SWAP_RATIO times worse than next item's score
-            if editions[i].name_distance_score > NAME_DISTANCE_SWAP_RATIO * editions[i + 1].name_distance_score {
+            if editions[i].name_distance_score
+                > NAME_DISTANCE_SWAP_RATIO * editions[i + 1].name_distance_score
+            {
                 editions.swap(i, i + 1);
                 swaps += 1;
             }
@@ -3436,7 +3641,8 @@ fn select_best_mbid(edition: &Edition) -> String {
     }
 
     // Score each MBID using the established criteria
-    let mut scored: Vec<(&EditionMBID, f64)> = edition.mbids
+    let mut scored: Vec<(&EditionMBID, f64)> = edition
+        .mbids
         .iter()
         .map(|mbid_info| {
             let score = calculate_mbid_priority_score(
@@ -3457,16 +3663,15 @@ fn select_best_mbid(edition: &Edition) -> String {
 /// Expects pattern: ".../Artist/Album.mp3" (cross-platform)
 fn extract_metadata_from_path(path: &Path) -> (String, String) {
     // Use path components for cross-platform compatibility
-    let components: Vec<_> = path.components()
+    let components: Vec<_> = path
+        .components()
         .filter_map(|c| c.as_os_str().to_str())
         .collect();
 
     if components.len() >= 2 {
         let artist = components[components.len() - 2].replace(", ", " ");
         let album_with_ext = components[components.len() - 1];
-        let album = album_with_ext
-            .trim_end_matches(".mp3")
-            .replace(", ", " ");
+        let album = album_with_ext.trim_end_matches(".mp3").replace(", ", " ");
 
         (artist, album)
     } else {
@@ -3489,42 +3694,75 @@ fn strings_match(a: &str, b: &str) -> bool {
 }
 
 /// Choose between ID3 and path artist using heuristics
-fn choose_artist(id3_artist: &str, path_artist: &str, album: &str) -> (String, String, MetadataSource) {
+fn choose_artist(
+    id3_artist: &str,
+    path_artist: &str,
+    album: &str,
+) -> (String, String, MetadataSource) {
     // Heuristic 1: Avoid "Various Artists" if possible
     let id3_is_various = id3_artist.to_lowercase().contains("various");
     let path_is_various = path_artist.to_lowercase().contains("various");
 
     if id3_is_various && !path_is_various {
-        return (path_artist.to_string(), id3_artist.to_string(), MetadataSource::Path);
+        return (
+            path_artist.to_string(),
+            id3_artist.to_string(),
+            MetadataSource::Path,
+        );
     }
     if path_is_various && !id3_is_various {
-        return (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3);
+        return (
+            id3_artist.to_string(),
+            path_artist.to_string(),
+            MetadataSource::ID3,
+        );
     }
 
     // Heuristic 2: If album name suggests compilation, prefer ID3
     let album_lower = album.to_lowercase();
-    if album_lower.contains("greatest") || album_lower.contains("best of") ||
-       album_lower.contains("collection") || album_lower.contains("anthology") {
-        return (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3);
+    if album_lower.contains("greatest")
+        || album_lower.contains("best of")
+        || album_lower.contains("collection")
+        || album_lower.contains("anthology")
+    {
+        return (
+            id3_artist.to_string(),
+            path_artist.to_string(),
+            MetadataSource::ID3,
+        );
     }
 
     // Default: Prefer ID3
-    (id3_artist.to_string(), path_artist.to_string(), MetadataSource::ID3)
+    (
+        id3_artist.to_string(),
+        path_artist.to_string(),
+        MetadataSource::ID3,
+    )
 }
 
 /// Choose between ID3 and path album using heuristics
 fn choose_album(id3_album: &str, path_album: &str) -> (String, String, MetadataSource) {
     // Heuristic: Prefer ID3 if it contains more detail (edition, year, etc.)
-    let id3_has_detail = id3_album.contains('(') || id3_album.contains('[') ||
-                         id3_album.contains("Deluxe") || id3_album.contains("Edition") ||
-                         id3_album.len() > path_album.len() + 10;
+    let id3_has_detail = id3_album.contains('(')
+        || id3_album.contains('[')
+        || id3_album.contains("Deluxe")
+        || id3_album.contains("Edition")
+        || id3_album.len() > path_album.len() + 10;
 
     if id3_has_detail {
-        return (id3_album.to_string(), path_album.to_string(), MetadataSource::ID3);
+        return (
+            id3_album.to_string(),
+            path_album.to_string(),
+            MetadataSource::ID3,
+        );
     }
 
     // Default: Prefer ID3
-    (id3_album.to_string(), path_album.to_string(), MetadataSource::ID3)
+    (
+        id3_album.to_string(),
+        path_album.to_string(),
+        MetadataSource::ID3,
+    )
 }
 
 /// Extract ID3 tags using lofty (pure Rust, no external dependencies)
@@ -3560,23 +3798,29 @@ fn extract_id3_tags(file_path: &Path) -> Result<ID3Metadata, Box<dyn std::error:
     }
 
     // Extract standard fields using lofty's Accessor trait
-    let artist = tag.artist().map(|s| s.to_string())
-        .or_else(|| tag.get_string(&lofty::tag::ItemKey::AlbumArtist).map(String::from));
+    let artist = tag.artist().map(|s| s.to_string()).or_else(|| {
+        tag.get_string(&lofty::tag::ItemKey::AlbumArtist)
+            .map(String::from)
+    });
 
     let album = tag.album().map(|s| s.to_string());
 
-    let date = tag.year().map(|y| y.to_string())
-        .or_else(|| tag.get_string(&lofty::tag::ItemKey::RecordingDate).map(String::from));
+    let date = tag.year().map(|y| y.to_string()).or_else(|| {
+        tag.get_string(&lofty::tag::ItemKey::RecordingDate)
+            .map(String::from)
+    });
 
     let genre = tag.genre().map(|s| s.to_string());
 
     let comment = tag.comment().map(|s| s.to_string());
 
     // MusicBrainz IDs
-    let musicbrainz_albumid = tag.get_string(&lofty::tag::ItemKey::MusicBrainzReleaseId)
+    let musicbrainz_albumid = tag
+        .get_string(&lofty::tag::ItemKey::MusicBrainzReleaseId)
         .map(String::from);
 
-    let musicbrainz_artistid = tag.get_string(&lofty::tag::ItemKey::MusicBrainzArtistId)
+    let musicbrainz_artistid = tag
+        .get_string(&lofty::tag::ItemKey::MusicBrainzArtistId)
         .map(String::from);
 
     Ok(ID3Metadata {
@@ -3605,7 +3849,8 @@ fn reconcile_metadata(
             .and_then(|s| s.parse::<usize>().ok())
     });
 
-    let has_musicbrainz_ids = id3.musicbrainz_albumid.is_some() || id3.musicbrainz_artistid.is_some();
+    let has_musicbrainz_ids =
+        id3.musicbrainz_albumid.is_some() || id3.musicbrainz_artistid.is_some();
 
     match (&id3.artist, path_artist, &id3.album, path_album) {
         // Case 1: Both sources have both fields
@@ -3647,7 +3892,8 @@ fn reconcile_metadata(
                 }
                 (false, true) => {
                     // Album matches, artist conflicts
-                    let (chosen_artist, alt_artist, artist_src) = choose_artist(id3_artist, path_artist, id3_album);
+                    let (chosen_artist, alt_artist, artist_src) =
+                        choose_artist(id3_artist, path_artist, id3_album);
                     ReconciledMetadata {
                         artist: chosen_artist,
                         album: id3_album.clone(),
@@ -3663,7 +3909,8 @@ fn reconcile_metadata(
                 }
                 (false, false) => {
                     // Both conflict
-                    let (chosen_artist, alt_artist, artist_src) = choose_artist(id3_artist, path_artist, id3_album);
+                    let (chosen_artist, alt_artist, artist_src) =
+                        choose_artist(id3_artist, path_artist, id3_album);
                     let (chosen_album, alt_album, album_src) = choose_album(id3_album, path_album);
                     ReconciledMetadata {
                         artist: chosen_artist,
@@ -3682,43 +3929,43 @@ fn reconcile_metadata(
         }
 
         // Case 2: ID3 has both, path missing one or both
-        (Some(id3_artist), _, Some(id3_album), _) => {
-            ReconciledMetadata {
-                artist: id3_artist.clone(),
-                album: id3_album.clone(),
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::ID3,
-                album_source: MetadataSource::ID3,
-                alternate_artist: path_artist.clone(),
-                alternate_album: path_album.clone(),
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
+        (Some(id3_artist), _, Some(id3_album), _) => ReconciledMetadata {
+            artist: id3_artist.clone(),
+            album: id3_album.clone(),
+            strategy: ReconciliationStrategy::GapFill,
+            confidence: MetadataConfidence::Low,
+            artist_source: MetadataSource::ID3,
+            album_source: MetadataSource::ID3,
+            alternate_artist: path_artist.clone(),
+            alternate_album: path_album.clone(),
+            has_musicbrainz_ids,
+            estimated_track_count,
+        },
 
         // Case 3: Path has both, ID3 missing one or both
-        (_, Some(path_artist), _, Some(path_album)) => {
-            ReconciledMetadata {
-                artist: path_artist.clone(),
-                album: path_album.clone(),
-                strategy: ReconciliationStrategy::GapFill,
-                confidence: MetadataConfidence::Low,
-                artist_source: MetadataSource::Path,
-                album_source: MetadataSource::Path,
-                alternate_artist: id3.artist.clone(),
-                alternate_album: id3.album.clone(),
-                has_musicbrainz_ids,
-                estimated_track_count,
-            }
-        }
+        (_, Some(path_artist), _, Some(path_album)) => ReconciledMetadata {
+            artist: path_artist.clone(),
+            album: path_album.clone(),
+            strategy: ReconciliationStrategy::GapFill,
+            confidence: MetadataConfidence::Low,
+            artist_source: MetadataSource::Path,
+            album_source: MetadataSource::Path,
+            alternate_artist: id3.artist.clone(),
+            alternate_album: id3.album.clone(),
+            has_musicbrainz_ids,
+            estimated_track_count,
+        },
 
         // Case 4: Incomplete data - use what we have
         _ => {
-            let artist = id3.artist.clone()
+            let artist = id3
+                .artist
+                .clone()
                 .or_else(|| path_artist.clone())
                 .unwrap_or_else(|| UNKNOWN_VALUE.to_string());
-            let album = id3.album.clone()
+            let album = id3
+                .album
+                .clone()
                 .or_else(|| path_album.clone())
                 .unwrap_or_else(|| UNKNOWN_VALUE.to_string());
 
@@ -3742,12 +3989,21 @@ fn reconcile_metadata(
 fn log_reconciliation_decision(reconciled: &ReconciledMetadata, album_num: usize) {
     info!("[A{}]   Phase 0 Reconciliation:", album_num);
     info!("[A{}]     Strategy: {:?}", album_num, reconciled.strategy);
-    info!("[A{}]     Confidence: {:?}", album_num, reconciled.confidence);
-    info!("[A{}]     Artist: {} (source: {:?})", album_num, reconciled.artist, reconciled.artist_source);
+    info!(
+        "[A{}]     Confidence: {:?}",
+        album_num, reconciled.confidence
+    );
+    info!(
+        "[A{}]     Artist: {} (source: {:?})",
+        album_num, reconciled.artist, reconciled.artist_source
+    );
     if let Some(ref alt) = reconciled.alternate_artist {
         info!("[A{}]       Alternate: {}", album_num, alt);
     }
-    info!("[A{}]     Album: {} (source: {:?})", album_num, reconciled.album, reconciled.album_source);
+    info!(
+        "[A{}]     Album: {} (source: {:?})",
+        album_num, reconciled.album, reconciled.album_source
+    );
     if let Some(ref alt) = reconciled.alternate_album {
         info!("[A{}]       Alternate: {}", album_num, alt);
     }
@@ -3755,7 +4011,10 @@ fn log_reconciliation_decision(reconciled: &ReconciledMetadata, album_num: usize
         info!("[A{}]     Has MusicBrainz IDs in tags: Yes", album_num);
     }
     if let Some(count) = reconciled.estimated_track_count {
-        info!("[A{}]     Estimated track count from ID3: {}", album_num, count);
+        info!(
+            "[A{}]     Estimated track count from ID3: {}",
+            album_num, count
+        );
     }
 }
 
@@ -3786,8 +4045,16 @@ fn extract_and_reconcile_metadata(file_path: &Path) -> ReconciledMetadata {
     };
 
     // Reconcile
-    let path_artist_opt = if path_artist != UNKNOWN_VALUE { Some(path_artist) } else { None };
-    let path_album_opt = if path_album != UNKNOWN_VALUE { Some(path_album) } else { None };
+    let path_artist_opt = if path_artist != UNKNOWN_VALUE {
+        Some(path_artist)
+    } else {
+        None
+    };
+    let path_album_opt = if path_album != UNKNOWN_VALUE {
+        Some(path_album)
+    } else {
+        None
+    };
 
     reconcile_metadata(&id3, &path_artist_opt, &path_album_opt)
 }
@@ -3821,8 +4088,8 @@ fn assemble_segments_dp(
     for i in 1..=n {
         for j in 1..=k.min(i) {
             // Try all possible positions for the j-th track's start
-            for start in (j-1)..i {
-                if dp[start][j-1].0 == f64::INFINITY {
+            for start in (j - 1)..i {
+                if dp[start][j - 1].0 == f64::INFINITY {
                     continue;
                 }
 
@@ -3832,11 +4099,11 @@ fn assemble_segments_dp(
                 let duration_error = (track_duration - expected_duration).abs();
 
                 // Total error = previous error + this track's error
-                let total_error = dp[start][j-1].0 + duration_error;
+                let total_error = dp[start][j - 1].0 + duration_error;
 
                 // Update if this is better
                 if total_error < dp[i][j].0 {
-                    let mut new_splits = dp[start][j-1].1.clone();
+                    let mut new_splits = dp[start][j - 1].1.clone();
                     new_splits.push(start);
                     dp[i][j] = (total_error, new_splits);
                 }
@@ -3869,10 +4136,7 @@ fn assemble_segments_dp(
 
 /// Calculate RMS values across entire audio file for quiet spot detection
 /// Returns (position_secs, rms_value) pairs
-fn calculate_rms_profile(
-    samples: &[f32],
-    sample_rate: u32,
-) -> Vec<(f64, f32)> {
+fn calculate_rms_profile(samples: &[f32], sample_rate: u32) -> Vec<(f64, f32)> {
     let window_samples = (sample_rate as f64 * QUIET_SPOT_WINDOW_SECS) as usize;
     let step_samples = (sample_rate as f64 * QUIET_SPOT_WINDOW_STEP_SECS) as usize;
 
@@ -3929,7 +4193,8 @@ fn find_edition_guided_boundaries(
         let search_end = (expected_pos + dynamic_radius).min(total_duration_secs);
 
         // Find RMS values within search window
-        let candidates: Vec<_> = rms_profile.iter()
+        let candidates: Vec<_> = rms_profile
+            .iter()
             .filter(|(pos, _)| *pos >= search_start && *pos <= search_end)
             .collect();
 
@@ -3952,7 +4217,9 @@ fn find_edition_guided_boundaries(
 
             // Score = RMS in dB + penalty for distance from expected
             let distance = (pos - expected_pos).abs();
-            let distance_penalty = (distance / dynamic_radius) * QUIET_SPOT_PROXIMITY_PENALTY * QUIET_SPOT_DISTANCE_PENALTY_MULTIPLIER;
+            let distance_penalty = (distance / dynamic_radius)
+                * QUIET_SPOT_PROXIMITY_PENALTY
+                * QUIET_SPOT_DISTANCE_PENALTY_MULTIPLIER;
             let score = rms_db + distance_penalty;
 
             if score < best_score {
@@ -3970,10 +4237,7 @@ fn find_edition_guided_boundaries(
 }
 
 /// Convert detected boundary positions to track durations
-fn boundaries_to_durations(
-    boundaries: &[f64],
-    total_duration_secs: f64,
-) -> Vec<f64> {
+fn boundaries_to_durations(boundaries: &[f64], total_duration_secs: f64) -> Vec<f64> {
     let mut durations = Vec::new();
     let mut prev_pos = 0.0;
 
@@ -4031,11 +4295,8 @@ fn test_segmentation_against_single_edition(
     edition_id: &str,
     tolerance: f64,
 ) -> CandidateTestResult {
-    let (matches, matched_count, percentage) = analyze_track_matching(
-        detected_durations,
-        expected_durations,
-        tolerance,
-    );
+    let (matches, matched_count, percentage) =
+        analyze_track_matching(detected_durations, expected_durations, tolerance);
 
     // Calculate mean error for matched tracks
     let mean_error = if matched_count > 0 {
@@ -4114,7 +4375,10 @@ fn signal_perfect_match(
     start_time: Instant,
 ) {
     // Only set if not already set (compare_exchange ensures atomicity)
-    if perfect_match_found.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed).is_ok() {
+    if perfect_match_found
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
+        .is_ok()
+    {
         let elapsed_ms = start_time.elapsed().as_millis() as u64;
         perfect_match_time_ms.store(elapsed_ms, Ordering::SeqCst);
     }
@@ -4185,7 +4449,14 @@ fn test_single_edition(
     if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
         log_messages.push("    -> Skipped (early exit: grace period expired)".to_string());
         return make_edition_result(
-            edition_idx, 0.0, None, "skipped_early_exit", None, None, expected_durations, log_messages,
+            edition_idx,
+            0.0,
+            None,
+            "skipped_early_exit",
+            None,
+            None,
+            expected_durations,
+            log_messages,
         );
     }
 
@@ -4226,8 +4497,14 @@ fn test_single_edition(
                 log_messages.push("    -> 100% match in Stage 2!".to_string());
                 signal_perfect_match(perfect_match_found, perfect_match_time_ms, start_time);
                 return make_edition_result(
-                    edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-                    edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+                    edition_idx,
+                    edition_best_percentage,
+                    edition_best_result,
+                    edition_best_stage,
+                    edition_best_threshold,
+                    edition_best_min_duration,
+                    expected_durations,
+                    log_messages,
                 );
             }
         }
@@ -4237,8 +4514,14 @@ fn test_single_edition(
     if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
         log_messages.push("    -> Early exit before Stage 3 (grace period expired)".to_string());
         return make_edition_result(
-            edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-            edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+            edition_idx,
+            edition_best_percentage,
+            edition_best_result,
+            edition_best_stage,
+            edition_best_threshold,
+            edition_best_min_duration,
+            expected_durations,
+            log_messages,
         );
     }
 
@@ -4272,8 +4555,14 @@ fn test_single_edition(
                     log_messages.push("    -> 100% match in Stage 3!".to_string());
                     signal_perfect_match(perfect_match_found, perfect_match_time_ms, start_time);
                     return make_edition_result(
-                        edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-                        edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+                        edition_idx,
+                        edition_best_percentage,
+                        edition_best_result,
+                        edition_best_stage,
+                        edition_best_threshold,
+                        edition_best_min_duration,
+                        expected_durations,
+                        log_messages,
                     );
                 }
             }
@@ -4284,8 +4573,14 @@ fn test_single_edition(
     if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
         log_messages.push("    -> Early exit before Stage 4 (grace period expired)".to_string());
         return make_edition_result(
-            edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-            edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+            edition_idx,
+            edition_best_percentage,
+            edition_best_result,
+            edition_best_stage,
+            edition_best_threshold,
+            edition_best_min_duration,
+            expected_durations,
+            log_messages,
         );
     }
 
@@ -4345,8 +4640,14 @@ fn test_single_edition(
     ));
 
     make_edition_result(
-        edition_idx, edition_best_percentage, edition_best_result, edition_best_stage,
-        edition_best_threshold, edition_best_min_duration, expected_durations, log_messages,
+        edition_idx,
+        edition_best_percentage,
+        edition_best_result,
+        edition_best_stage,
+        edition_best_threshold,
+        edition_best_min_duration,
+        expected_durations,
+        log_messages,
     )
 }
 
@@ -4399,7 +4700,9 @@ fn run_stage2_single_edition_cached(
                 tolerance,
             );
 
-            let improved = best_result.as_ref().map_or(true, |br| result.percentage > br.percentage);
+            let improved = best_result
+                .as_ref()
+                .map_or(true, |br| result.percentage > br.percentage);
 
             if improved && result.percentage > current_best_percentage {
                 // Suppress per-combination logging in cached version to reduce output noise
@@ -4469,14 +4772,20 @@ fn run_stage3_single_edition(
     for candidate in over_segmented_candidates {
         // Check for early exit within the loop (grace period expired)
         if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
-            info!("      [Edition {}/{}] Early exit during Stage 3 assembly (tested {} so far)",
-                edition_idx + 1, total_editions, assemblies_tested);
+            info!(
+                "      [Edition {}/{}] Early exit during Stage 3 assembly (tested {} so far)",
+                edition_idx + 1,
+                total_editions,
+                assemblies_tested
+            );
             break;
         }
 
         // Only try assembly if candidate has more segments than target
         if candidate.durations.len() > expected_durations.len() {
-            if let Some(assembled_durations) = assemble_segments_dp(&candidate.durations, expected_durations) {
+            if let Some(assembled_durations) =
+                assemble_segments_dp(&candidate.durations, expected_durations)
+            {
                 assemblies_tested += 1;
 
                 let result = test_segmentation_against_single_edition(
@@ -4486,7 +4795,8 @@ fn run_stage3_single_edition(
                     tolerance,
                 );
 
-                let improved = best_result.as_ref()
+                let improved = best_result
+                    .as_ref()
                     .map_or(true, |br| result.percentage > br.percentage);
 
                 if improved && result.percentage > current_best_percentage {
@@ -4507,7 +4817,13 @@ fn run_stage3_single_edition(
     }
 
     if assemblies_tested > 0 {
-        info!("[A{}]       [Edition {}/{}] Tested {} assemblies", album_idx + 1, edition_idx + 1, total_editions, assemblies_tested);
+        info!(
+            "[A{}]       [Edition {}/{}] Tested {} assemblies",
+            album_idx + 1,
+            edition_idx + 1,
+            total_editions,
+            assemblies_tested
+        );
     }
 
     best_result
@@ -4520,7 +4836,7 @@ fn run_stage4_single_edition(
     edition_id: &str,
     tolerance: f64,
     current_best_percentage: f64,
-    rms_profile: &[(f64, f32)],  // Pre-calculated RMS profile (time, rms)
+    rms_profile: &[(f64, f32)], // Pre-calculated RMS profile (time, rms)
     total_duration_secs: f64,
     edition_idx: usize,
     total_editions: usize,
@@ -4535,11 +4851,8 @@ fn run_stage4_single_edition(
     }
 
     // Find quiet spots near expected boundaries for this edition
-    let detected_boundaries = find_edition_guided_boundaries(
-        rms_profile,
-        expected_durations,
-        total_duration_secs,
-    );
+    let detected_boundaries =
+        find_edition_guided_boundaries(rms_profile, expected_durations, total_duration_secs);
 
     // Convert boundaries to track durations
     let guided_durations = boundaries_to_durations(&detected_boundaries, total_duration_secs);
@@ -4553,8 +4866,13 @@ fn run_stage4_single_edition(
     );
 
     if result.percentage > current_best_percentage {
-        info!("[A{}]       [Edition {}/{}] New best: {:.1}% via guided quiet spots",
-            album_idx + 1, edition_idx + 1, total_editions, result.percentage);
+        info!(
+            "[A{}]       [Edition {}/{}] New best: {:.1}% via guided quiet spots",
+            album_idx + 1,
+            edition_idx + 1,
+            total_editions,
+            result.percentage
+        );
         Some(result)
     } else {
         None
@@ -4637,10 +4955,12 @@ fn run_stage5_single_edition(
 
         let mean_merged_error = best_merge_error / merged_matches.len() as f64;
 
-        info!("      Merged tracks {} + {} -> {:.1}%",
+        info!(
+            "      Merged tracks {} + {} -> {:.1}%",
             best_merge_index + 1,
             best_merge_index + 2,
-            merged_percentage);
+            merged_percentage
+        );
 
         let result = CandidateTestResult {
             percentage: merged_percentage,
@@ -4657,7 +4977,6 @@ fn run_stage5_single_edition(
         None
     }
 }
-
 
 /// Filter and sort editions by match likelihood.
 ///
@@ -4676,8 +4995,11 @@ fn filter_and_sort_editions(
         cmp_f64(score_a, score_b)
     });
 
-    info!("[A{}]   Sorted editions by likelihood (file: {:.0}s)",
-        album_idx + 1, file_duration_secs);
+    info!(
+        "[A{}]   Sorted editions by likelihood (file: {:.0}s)",
+        album_idx + 1,
+        file_duration_secs
+    );
 
     // Filter editions by runtime length (must be within 25% of file duration)
     let total_editions = editions.len();
@@ -4692,13 +5014,25 @@ fn filter_and_sort_editions(
 
     let runtime_filtered_count = total_editions - editions.len();
     if runtime_filtered_count > 0 {
-        info!("[A{}]   Filtered out {} editions (runtime >25% different from file)", album_idx + 1, runtime_filtered_count);
-        info!("[A{}]   Acceptable range: {:.0}s - {:.0}s", album_idx + 1, min_duration, max_duration);
+        info!(
+            "[A{}]   Filtered out {} editions (runtime >25% different from file)",
+            album_idx + 1,
+            runtime_filtered_count
+        );
+        info!(
+            "[A{}]   Acceptable range: {:.0}s - {:.0}s",
+            album_idx + 1,
+            min_duration,
+            max_duration
+        );
     }
 
     if editions.is_empty() {
         return Err(if runtime_filtered_count > 0 {
-            format!("FAILED: All editions filtered out ({} by runtime)", runtime_filtered_count)
+            format!(
+                "FAILED: All editions filtered out ({} by runtime)",
+                runtime_filtered_count
+            )
         } else {
             "FAILED: No valid editions (NDR filtering applied at release level)".to_string()
         });
@@ -4735,7 +5069,11 @@ fn find_best_edition_result_with_artist_check<'a>(
     source_album: &str,
     estimated_track_count: Option<usize>,
     album_idx: usize,
-) -> (Option<&'a EditionTestResult>, bool, Option<(usize, f64, String, f64)>) {
+) -> (
+    Option<&'a EditionTestResult>,
+    bool,
+    Option<(usize, f64, String, f64)>,
+) {
     // Step 1: Sort all editions by time-fit (match% adjusted for track count, then mean error)
     let mut sorted_results: Vec<&EditionTestResult> = edition_results
         .iter()
@@ -4769,14 +5107,23 @@ fn find_best_edition_result_with_artist_check<'a>(
         };
 
         // Primary: higher adjusted match% is better
-        let pct_cmp = b_adjusted_pct.partial_cmp(&a_adjusted_pct)
+        let pct_cmp = b_adjusted_pct
+            .partial_cmp(&a_adjusted_pct)
             .unwrap_or(std::cmp::Ordering::Equal);
         if pct_cmp != std::cmp::Ordering::Equal {
             return pct_cmp;
         }
         // Secondary: lower mean error is better
-        let a_error = a.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
-        let b_error = b.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+        let a_error = a
+            .best_result
+            .as_ref()
+            .map(|r| r.mean_error)
+            .unwrap_or(f64::MAX);
+        let b_error = b
+            .best_result
+            .as_ref()
+            .map(|r| r.mean_error)
+            .unwrap_or(f64::MAX);
         cmp_f64(a_error, b_error)
     });
 
@@ -4786,22 +5133,37 @@ fn find_best_edition_result_with_artist_check<'a>(
 
     // Run 27: Log track count penalties if applied
     if let Some(expected_tracks) = estimated_track_count {
-        let penalties: Vec<_> = sorted_results.iter().take(3).filter_map(|r| {
-            let edition = &editions[r.edition_idx];
-            if edition.track_count > expected_tracks {
-                let extra = edition.track_count - expected_tracks;
-                let penalty = extra as f64 * TRACK_COUNT_PENALTY_PER_TRACK;
-                Some((edition.track_count, extra, penalty, r.best_percentage))
-            } else {
-                None
-            }
-        }).collect();
+        let penalties: Vec<_> = sorted_results
+            .iter()
+            .take(3)
+            .filter_map(|r| {
+                let edition = &editions[r.edition_idx];
+                if edition.track_count > expected_tracks {
+                    let extra = edition.track_count - expected_tracks;
+                    let penalty = extra as f64 * TRACK_COUNT_PENALTY_PER_TRACK;
+                    Some((edition.track_count, extra, penalty, r.best_percentage))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         if !penalties.is_empty() {
-            info!("[A{}]   Run 27: Track count penalties applied (expected: {} tracks)", album_idx + 1, expected_tracks);
+            info!(
+                "[A{}]   Run 27: Track count penalties applied (expected: {} tracks)",
+                album_idx + 1,
+                expected_tracks
+            );
             for (tracks, extra, penalty, orig_pct) in penalties {
-                info!("[A{}]       {} tracks ({} extra) → {:.1}% penalty, adjusted {:.1}% → {:.1}%",
-                    album_idx + 1, tracks, extra, penalty, orig_pct, orig_pct - penalty);
+                info!(
+                    "[A{}]       {} tracks ({} extra) → {:.1}% penalty, adjusted {:.1}% → {:.1}%",
+                    album_idx + 1,
+                    tracks,
+                    extra,
+                    penalty,
+                    orig_pct,
+                    orig_pct - penalty
+                );
             }
         }
     }
@@ -4819,7 +5181,11 @@ fn find_best_edition_result_with_artist_check<'a>(
     let (winner_artist_sim, winner_artist_ok) = verify_artist_match(source_artist, winner_artist);
     let (winner_album_sim, winner_album_ok) = verify_album_match(source_album, winner_album);
     let winner_pct = winner.best_percentage;
-    let winner_error = winner.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+    let winner_error = winner
+        .best_result
+        .as_ref()
+        .map(|r| r.mean_error)
+        .unwrap_or(f64::MAX);
 
     // Run 24: Check both artist AND album similarity
     let winner_name_ok = winner_artist_ok && winner_album_ok;
@@ -4841,10 +5207,22 @@ fn find_best_edition_result_with_artist_check<'a>(
         let album_lev_ratio = levenshtein_ratio(&norm_source_album, &norm_winner_album);
 
         info!("[A{}]   ✅ Name match OK:", album_idx + 1);
-        info!("[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
-            album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, artist_lev_ratio * 100.0);
-        info!("[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
-            album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, album_lev_ratio * 100.0);
+        info!(
+            "[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
+            album_idx + 1,
+            source_artist,
+            winner_artist,
+            winner_artist_sim * 100.0,
+            artist_lev_ratio * 100.0
+        );
+        info!(
+            "[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%)",
+            album_idx + 1,
+            source_album,
+            winner_album,
+            winner_album_sim * 100.0,
+            album_lev_ratio * 100.0
+        );
 
         return (Some(winner), false, None);
     }
@@ -4869,11 +5247,29 @@ fn find_best_edition_result_with_artist_check<'a>(
         (true, false) => "Album",
         (true, true) => unreachable!(),
     };
-    info!("[A{}]   🔍 {} mismatch detected:", album_idx + 1, mismatch_type);
-    info!("[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
-        album_idx + 1, source_artist, winner_artist, winner_artist_sim * 100.0, artist_lev_ratio * 100.0, winner_artist_ok);
-    info!("[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
-        album_idx + 1, source_album, winner_album, winner_album_sim * 100.0, album_lev_ratio * 100.0, winner_album_ok);
+    info!(
+        "[A{}]   🔍 {} mismatch detected:",
+        album_idx + 1,
+        mismatch_type
+    );
+    info!(
+        "[A{}]       Artist: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
+        album_idx + 1,
+        source_artist,
+        winner_artist,
+        winner_artist_sim * 100.0,
+        artist_lev_ratio * 100.0,
+        winner_artist_ok
+    );
+    info!(
+        "[A{}]       Album: '{}'→'{}' (JW={:.1}%, Lev={:.1}%, ok={})",
+        album_idx + 1,
+        source_album,
+        winner_album,
+        winner_album_sim * 100.0,
+        album_lev_ratio * 100.0,
+        winner_album_ok
+    );
     info!("[A{}]       Evaluating runner-ups...", album_idx + 1);
 
     // Calculate how many runner-ups to evaluate: top 25%, minimum 3
@@ -4881,13 +5277,23 @@ fn find_best_edition_result_with_artist_check<'a>(
         .max(ARTIST_FALLBACK_MIN_CANDIDATES)
         .min(sorted_results.len());
 
-    info!("[A{}]       Evaluating top {} of {} editions", album_idx + 1, num_candidates, sorted_results.len());
+    info!(
+        "[A{}]       Evaluating top {} of {} editions",
+        album_idx + 1,
+        num_candidates,
+        sorted_results.len()
+    );
 
     // Combined similarity for winner (average of artist and album)
     let winner_combined_sim = (winner_artist_sim + winner_album_sim) / 2.0;
 
     // Step 5: Check each runner-up
-    for (rank, runner) in sorted_results.iter().enumerate().skip(1).take(num_candidates - 1) {
+    for (rank, runner) in sorted_results
+        .iter()
+        .enumerate()
+        .skip(1)
+        .take(num_candidates - 1)
+    {
         let runner_idx = runner.edition_idx;
         if runner_idx >= editions.len() {
             continue;
@@ -4895,10 +5301,15 @@ fn find_best_edition_result_with_artist_check<'a>(
 
         let runner_artist = &editions[runner_idx].artist;
         let runner_album = &editions[runner_idx].album;
-        let (runner_artist_sim, runner_artist_ok) = verify_artist_match(source_artist, runner_artist);
+        let (runner_artist_sim, runner_artist_ok) =
+            verify_artist_match(source_artist, runner_artist);
         let (runner_album_sim, runner_album_ok) = verify_album_match(source_album, runner_album);
         let runner_pct = runner.best_percentage;
-        let runner_error = runner.best_result.as_ref().map(|r| r.mean_error).unwrap_or(f64::MAX);
+        let runner_error = runner
+            .best_result
+            .as_ref()
+            .map(|r| r.mean_error)
+            .unwrap_or(f64::MAX);
 
         // Run 24: Combined similarity (average of artist and album)
         let runner_combined_sim = (runner_artist_sim + runner_album_sim) / 2.0;
@@ -4909,7 +5320,8 @@ fn find_best_edition_result_with_artist_check<'a>(
         let meets_min_similarity = runner_combined_sim >= ARTIST_FALLBACK_MIN_SIMILARITY;
         let meets_delta = runner_combined_sim > winner_combined_sim + ARTIST_FALLBACK_DELTA;
         let meets_ratio = runner_combined_sim > winner_combined_sim * ARTIST_FALLBACK_RATIO;
-        let name_significantly_better = runner_name_ok || (meets_min_similarity && (meets_delta || meets_ratio));
+        let name_significantly_better =
+            runner_name_ok || (meets_min_similarity && (meets_delta || meets_ratio));
 
         // Check time fit: "not significantly worse"
         // Formula: 10 × (runner_pct/winner_pct - 1) + 1 × (1 - runner_error/winner_error)
@@ -4928,35 +5340,103 @@ fn find_best_edition_result_with_artist_check<'a>(
         let runner_norm_album = normalize_album(runner_album);
         let runner_album_lev = levenshtein_ratio(&norm_source_album, &runner_norm_album);
 
-        info!("[A{}]       Runner #{}: '{}' - '{}'",
-            album_idx + 1, rank + 1, runner_artist, runner_album);
-        info!("[A{}]         Artist: JW={:.1}%, Lev={:.1}%, ok={}",
-            album_idx + 1, runner_artist_sim * 100.0, runner_artist_lev * 100.0, runner_artist_ok);
-        info!("[A{}]         Album: JW={:.1}%, Lev={:.1}%, ok={}",
-            album_idx + 1, runner_album_sim * 100.0, runner_album_lev * 100.0, runner_album_ok);
-        info!("[A{}]         Combined: {:.1}% (winner: {:.1}%), name_ok={}, better={}",
-            album_idx + 1, runner_combined_sim * 100.0, winner_combined_sim * 100.0, runner_name_ok, name_significantly_better);
-        info!("[A{}]         Time: pct={:.1}%, err={:.2}s, delta={:.3}, acceptable={}",
-            album_idx + 1, runner_pct, runner_error, time_fit_delta, time_fit_acceptable);
+        info!(
+            "[A{}]       Runner #{}: '{}' - '{}'",
+            album_idx + 1,
+            rank + 1,
+            runner_artist,
+            runner_album
+        );
+        info!(
+            "[A{}]         Artist: JW={:.1}%, Lev={:.1}%, ok={}",
+            album_idx + 1,
+            runner_artist_sim * 100.0,
+            runner_artist_lev * 100.0,
+            runner_artist_ok
+        );
+        info!(
+            "[A{}]         Album: JW={:.1}%, Lev={:.1}%, ok={}",
+            album_idx + 1,
+            runner_album_sim * 100.0,
+            runner_album_lev * 100.0,
+            runner_album_ok
+        );
+        info!(
+            "[A{}]         Combined: {:.1}% (winner: {:.1}%), name_ok={}, better={}",
+            album_idx + 1,
+            runner_combined_sim * 100.0,
+            winner_combined_sim * 100.0,
+            runner_name_ok,
+            name_significantly_better
+        );
+        info!(
+            "[A{}]         Time: pct={:.1}%, err={:.2}s, delta={:.3}, acceptable={}",
+            album_idx + 1,
+            runner_pct,
+            runner_error,
+            time_fit_delta,
+            time_fit_acceptable
+        );
 
         // If both conditions met, promote this runner-up
         if name_significantly_better && time_fit_acceptable {
-            info!("[A{}]   🎯 Name fallback: Promoting runner-up #{} over winner", album_idx + 1, rank + 1);
-            info!("[A{}]       Winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
-                album_idx + 1, winner_artist, winner_album, winner_artist_sim * 100.0, winner_album_sim * 100.0, winner_pct);
-            info!("[A{}]       Runner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
-                album_idx + 1, runner_artist, runner_album, runner_artist_sim * 100.0, runner_album_sim * 100.0, runner_pct);
-            info!("[A{}]       Time-fit delta: {:.3} (threshold: {:.1})",
-                album_idx + 1, time_fit_delta, TIME_FIT_DELTA_THRESHOLD);
+            info!(
+                "[A{}]   🎯 Name fallback: Promoting runner-up #{} over winner",
+                album_idx + 1,
+                rank + 1
+            );
+            info!(
+                "[A{}]       Winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
+                album_idx + 1,
+                winner_artist,
+                winner_album,
+                winner_artist_sim * 100.0,
+                winner_album_sim * 100.0,
+                winner_pct
+            );
+            info!(
+                "[A{}]       Runner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
+                album_idx + 1,
+                runner_artist,
+                runner_album,
+                runner_artist_sim * 100.0,
+                runner_album_sim * 100.0,
+                runner_pct
+            );
+            info!(
+                "[A{}]       Time-fit delta: {:.3} (threshold: {:.1})",
+                album_idx + 1,
+                time_fit_delta,
+                TIME_FIT_DELTA_THRESHOLD
+            );
 
-            return (Some(runner), true, Some((winner_idx, winner_pct, winner_artist.clone(), winner_artist_sim)));
+            return (
+                Some(runner),
+                true,
+                Some((
+                    winner_idx,
+                    winner_pct,
+                    winner_artist.clone(),
+                    winner_artist_sim,
+                )),
+            );
         }
     }
 
     // No suitable runner-up found - use original winner with warning
-    warn!("[A{}]   ⚠️ No suitable name-matched runner-up found", album_idx + 1);
-    warn!("[A{}]       Using original winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
-        album_idx + 1, winner_artist, winner_album, winner_artist_sim * 100.0, winner_album_sim * 100.0, winner_pct);
+    warn!(
+        "[A{}]   ⚠️ No suitable name-matched runner-up found",
+        album_idx + 1
+    );
+    warn!(
+        "[A{}]       Using original winner: '{}' - '{}' (artist={:.1}%, album={:.1}%, pct={:.1}%)",
+        album_idx + 1,
+        winner_artist,
+        winner_album,
+        winner_artist_sim * 100.0,
+        winner_album_sim * 100.0,
+        winner_pct
+    );
 
     (Some(winner), false, None)
 }
@@ -4985,28 +5465,42 @@ async fn process_single_album(
     if STAGGER_MULTIPLIER > 0 && stagger_position > 0 && album_idx < MAX_CONCURRENT_ALBUMS {
         let stagger_delay_ms = stagger_position as u64 * STAGGER_MULTIPLIER * MB_RATE_LIMIT_MS;
         let stagger_delay_secs = stagger_delay_ms / 1000;
-        info!("[A{}] Staggered start: waiting {}s ({} position × {} multiplier × {}ms rate limit)...",
-            album_idx + 1, stagger_delay_secs, stagger_position, STAGGER_MULTIPLIER, MB_RATE_LIMIT_MS);
+        info!(
+            "[A{}] Staggered start: waiting {}s ({} position × {} multiplier × {}ms rate limit)...",
+            album_idx + 1,
+            stagger_delay_secs,
+            stagger_position,
+            STAGGER_MULTIPLIER,
+            MB_RATE_LIMIT_MS
+        );
         sleep(Duration::from_millis(stagger_delay_ms)).await;
     }
 
     // Create album_id early for consistent logging throughout
     let album_id = format!("A{}", album_idx + 1);
 
-    info!("[{}] === Album {}/{} ===", album_id, album_idx + 1, total_albums);
+    info!(
+        "[{}] === Album {}/{} ===",
+        album_id,
+        album_idx + 1,
+        total_albums
+    );
     info!("[{}] File: {}", album_id, file_path.display());
 
     if !file_path.exists() {
         error!("[{}]   ERROR: File not found\n", album_id);
         return ValidationResult::error(
-            &file_path, UNKNOWN_VALUE, UNKNOWN_VALUE, 0,
+            &file_path,
+            UNKNOWN_VALUE,
+            UNKNOWN_VALUE,
+            0,
             "File not found".to_string(),
         );
     }
 
     // === PHASE 0: ID3 Tag Extraction & Reconciliation ===
     let reconciled = extract_and_reconcile_metadata(&file_path);
-    log_reconciliation_decision(&reconciled, album_idx + 1);  // TODO: refactor function to take album_id
+    log_reconciliation_decision(&reconciled, album_idx + 1); // TODO: refactor function to take album_id
 
     // === RUN 23: Single-Track Discriminator (Pre-Decode) ===
     let mut single_track_analysis = SingleTrackDiscriminator::analyze_pre_decode(&file_path, None);
@@ -5039,7 +5533,10 @@ async fn process_single_album(
 
     // === RUN 19: TRUE PARALLEL DECODE + MUSICBRAINZ ===
     // Start decode and MB lookup concurrently (MB doesn't need file_duration_secs)
-    info!("[{}]   Starting parallel: decode + MusicBrainz lookup...", album_id);
+    info!(
+        "[{}]   Starting parallel: decode + MusicBrainz lookup...",
+        album_id
+    );
 
     // Create query stats for heartbeat logging during MB lookups
     let query_stats = Arc::new(QueryStats::new());
@@ -5073,25 +5570,42 @@ async fn process_single_album(
     let (samples, sample_rate) = match decode_result {
         Ok(Ok((s, sr))) => {
             let duration_mins = s.len() as f64 / sr as f64 / 60.0;
-            info!("[{}]   Decoded: {} samples at {} Hz ({:.2} mins)", album_id, s.len(), sr, duration_mins);
+            info!(
+                "[{}]   Decoded: {} samples at {} Hz ({:.2} mins)",
+                album_id,
+                s.len(),
+                sr,
+                duration_mins
+            );
             (s, sr)
         }
         Ok(Err(e)) => {
             return make_error_result(
-                &query_stats, &file_path, &artist, &album, 0, &album_id,
+                &query_stats,
+                &file_path,
+                &artist,
+                &album,
+                0,
+                &album_id,
                 format!("Decode failed: {}", e),
             );
         }
         Err(e) => {
             return make_error_result(
-                &query_stats, &file_path, &artist, &album, 0, &album_id,
+                &query_stats,
+                &file_path,
+                &artist,
+                &album,
+                0,
+                &album_id,
                 format!("Decode task panicked: {}", e),
             );
         }
     };
 
     // Get initial track durations for MusicBrainz lookup
-    let initial_durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
+    let initial_durations =
+        get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
 
     // Calculate file characteristics for edition sorting/filtering
     let file_duration_secs = samples.len() as f64 / sample_rate as f64;
@@ -5105,17 +5619,23 @@ async fn process_single_album(
 
     // Spawn silence detection on blocking thread pool (CPU-bound with rayon)
     let silence_task = tokio::task::spawn_blocking(move || {
-        info!("[A{}]   Single-pass silence detection (1 scan → {} param combinations, {} threads)...",
+        info!(
+            "[A{}]   Single-pass silence detection (1 scan → {} param combinations, {} threads)...",
             album_idx_for_silence + 1,
             threshold_values_clone.len() * min_duration_values_clone.len(),
-            rayon::current_num_threads());
+            rayon::current_num_threads()
+        );
         let cache = precompute_silence_cache(
             &samples_for_silence,
             sample_rate,
             &threshold_values_clone,
             &min_duration_values_clone,
         );
-        info!("[A{}]   Silence cache ready ({} entries)", album_idx_for_silence + 1, cache.len());
+        info!(
+            "[A{}]   Silence cache ready ({} entries)",
+            album_idx_for_silence + 1,
+            cache.len()
+        );
         cache
     });
 
@@ -5124,7 +5644,12 @@ async fn process_single_album(
         Ok(cache) => cache,
         Err(e) => {
             return make_error_result(
-                &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
+                &query_stats,
+                &file_path,
+                &artist,
+                &album,
+                initial_durations.len(),
+                &album_id,
                 format!("Silence detection failed: {}", e),
             );
         }
@@ -5133,8 +5658,12 @@ async fn process_single_album(
     // === RUN 23: Single-Track Discriminator (Post-Decode Update) ===
     // Update analysis with decoded duration and silence gap count
     let duration_mins = file_duration_secs / 60.0;
-    let gap_count = initial_durations.len().saturating_sub(1);  // N tracks = N-1 gaps
-    SingleTrackDiscriminator::update_post_decode(&mut single_track_analysis, duration_mins, gap_count);
+    let gap_count = initial_durations.len().saturating_sub(1); // N tracks = N-1 gaps
+    SingleTrackDiscriminator::update_post_decode(
+        &mut single_track_analysis,
+        duration_mins,
+        gap_count,
+    );
     SingleTrackDiscriminator::log_post_decode(&album_id, &single_track_analysis);
 
     // Process MusicBrainz result
@@ -5142,21 +5671,40 @@ async fn process_single_album(
         Ok(releases) => {
             if releases.is_empty() {
                 return make_error_result(
-                    &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
+                    &query_stats,
+                    &file_path,
+                    &artist,
+                    &album,
+                    initial_durations.len(),
+                    &album_id,
                     "MusicBrainz lookup failed: No releases found".to_string(),
                 );
             }
 
             // Group releases into unique editions and filter/sort
             let editions = group_into_editions(releases, album_idx);
-            match filter_and_sort_editions(editions, file_duration_secs, estimated_track_count, album_idx) {
+            match filter_and_sort_editions(
+                editions,
+                file_duration_secs,
+                estimated_track_count,
+                album_idx,
+            ) {
                 Ok(filtered) => {
-                    info!("[{}] Found {} unique editions to test", album_id, filtered.len());
+                    info!(
+                        "[{}] Found {} unique editions to test",
+                        album_id,
+                        filtered.len()
+                    );
                     filtered
                 }
                 Err(failure_msg) => {
                     return make_error_result(
-                        &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
+                        &query_stats,
+                        &file_path,
+                        &artist,
+                        &album,
+                        initial_durations.len(),
+                        &album_id,
                         failure_msg,
                     );
                 }
@@ -5164,18 +5712,27 @@ async fn process_single_album(
         }
         Err(e) => {
             return make_error_result(
-                &query_stats, &file_path, &artist, &album, initial_durations.len(), &album_id,
+                &query_stats,
+                &file_path,
+                &artist,
+                &album,
+                initial_durations.len(),
+                &album_id,
                 format!("MusicBrainz lookup failed: {}", e),
             );
         }
     };
 
     // Display edition information
-    info!("[{}]   Edition Details (sorted by match likelihood):", album_id);
+    info!(
+        "[{}]   Edition Details (sorted by match likelihood):",
+        album_id
+    );
     for (idx, edition) in editions.iter().enumerate() {
         let edition_duration: u32 = edition.durations.iter().sum();
         let match_score = score_edition_match(edition, file_duration_secs, estimated_track_count);
-        info!("[A{}]     [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s, NDR:{},{:.1})",
+        info!(
+            "[A{}]     [{}] {} - {} ({} tracks, {}s, {} MBIDs, score: {:.0}s, NDR:{},{:.1})",
             album_idx + 1,
             idx,
             edition.artist,
@@ -5215,9 +5772,17 @@ async fn process_single_album(
     let perfect_match_time_ms = AtomicU64::new(0);
     let parallel_start_time = Instant::now();
 
-    info!("[{}]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===", album_id);
-    info!("[{}]   Testing {} editions through Stages 2-5 ({}s between feeds, {}s grace period)...\n",
-        album_id, editions.len(), EDITION_FEED_DELAY_SECS, EARLY_EXIT_GRACE_PERIOD_SECS);
+    info!(
+        "[{}]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===",
+        album_id
+    );
+    info!(
+        "[{}]   Testing {} editions through Stages 2-5 ({}s between feeds, {}s grace period)...\n",
+        album_id,
+        editions.len(),
+        EDITION_FEED_DELAY_SECS,
+        EARLY_EXIT_GRACE_PERIOD_SECS
+    );
 
     // Update heartbeat activity for edition testing phase
     query_stats.set_activity(&format!("testing {} editions", editions.len()));
@@ -5232,18 +5797,31 @@ async fn process_single_album(
             // Check if we should stop feeding new editions
             if perfect_match_found.load(Ordering::Relaxed) {
                 editions_skipped = editions.len() - edition_idx;
-                info!("[{}]   Stopping feed: 100% match found, {} editions not started", album_id, editions_skipped);
+                info!(
+                    "[{}]   Stopping feed: 100% match found, {} editions not started",
+                    album_id, editions_skipped
+                );
                 break;
             }
 
             editions_started += 1;
 
             // Update heartbeat activity to show current edition
-            query_stats.set_activity(&format!("edition {}/{}: {}",
-                edition_idx + 1, editions.len(), edition.album));
+            query_stats.set_activity(&format!(
+                "edition {}/{}: {}",
+                edition_idx + 1,
+                editions.len(),
+                edition.album
+            ));
 
-            info!("[A{}]   Starting Edition {}/{}: {} - {}",
-                album_idx + 1, edition_idx + 1, editions.len(), edition.artist, edition.album);
+            info!(
+                "[A{}]   Starting Edition {}/{}: {} - {}",
+                album_idx + 1,
+                edition_idx + 1,
+                editions.len(),
+                edition.artist,
+                edition.album
+            );
 
             // Clone references for the closure
             let silence_cache = &silence_cache;
@@ -5281,8 +5859,11 @@ async fn process_single_album(
                         match results_mutex.lock() {
                             Ok(mut guard) => guard.push(result),
                             Err(poisoned) => {
-                                error!("[A{}] Edition {}: Mutex poisoned, recovering...",
-                                    album_idx + 1, edition_idx + 1);
+                                error!(
+                                    "[A{}] Edition {}: Mutex poisoned, recovering...",
+                                    album_idx + 1,
+                                    edition_idx + 1
+                                );
                                 poisoned.into_inner().push(result);
                             }
                         }
@@ -5295,8 +5876,13 @@ async fn process_single_album(
                         } else {
                             "unknown panic".to_string()
                         };
-                        error!("[A{}] Edition {}/{} PANICKED: {}",
-                            album_idx + 1, edition_idx + 1, total_editions, panic_msg);
+                        error!(
+                            "[A{}] Edition {}/{} PANICKED: {}",
+                            album_idx + 1,
+                            edition_idx + 1,
+                            total_editions,
+                            panic_msg
+                        );
                     }
                 }
             });
@@ -5317,14 +5903,19 @@ async fn process_single_album(
     let mut edition_results: Vec<EditionTestResult> = match results_mutex.into_inner() {
         Ok(results) => results,
         Err(poisoned) => {
-            warn!("[A{}] Results mutex was poisoned (a thread panicked), recovering results...",
-                album_idx + 1);
+            warn!(
+                "[A{}] Results mutex was poisoned (a thread panicked), recovering results...",
+                album_idx + 1
+            );
             poisoned.into_inner()
         }
     };
     edition_results.sort_by_key(|r| r.edition_idx);
 
-    info!("[{}]   Completed: {} editions started, {} skipped", album_id, editions_started, editions_skipped);
+    info!(
+        "[{}]   Completed: {} editions started, {} skipped",
+        album_id, editions_started, editions_skipped
+    );
 
     // Print all log messages in order (debug level - verbose edition-by-edition details)
     for result in &edition_results {
@@ -5338,7 +5929,14 @@ async fn process_single_album(
     // This prevents wrong-artist/album matches from winning when a correct match exists
     // Run 27: Also considers track count penalty when ranking editions
     let (best_result_opt, used_artist_fallback, rejected_match) =
-        find_best_edition_result_with_artist_check(&edition_results, &editions, &artist, &album, estimated_track_count, album_idx);
+        find_best_edition_result_with_artist_check(
+            &edition_results,
+            &editions,
+            &artist,
+            &album,
+            estimated_track_count,
+            album_idx,
+        );
 
     // Extract best result into our tracking variables
     if let Some(best_edition_result) = best_result_opt {
@@ -5358,7 +5956,8 @@ async fn process_single_album(
     }
 
     // Count how many 100% matches we found
-    let perfect_match_count = edition_results.iter()
+    let perfect_match_count = edition_results
+        .iter()
         .filter(|r| r.best_percentage >= 100.0)
         .count();
 
@@ -5409,38 +6008,86 @@ async fn process_single_album(
         warn!("[{}]   ⚠️  ARTIST MISMATCH in final result:", album_id);
         warn!("[{}]       Source artist: '{}'", album_id, artist);
         warn!("[{}]       Matched artist: '{}'", album_id, winning_artist);
-        warn!("[A{}]       Similarity: {:.1}% (threshold: {:.1}%)",
-              album_idx + 1, artist_similarity * 100.0, ARTIST_MISMATCH_THRESHOLD * 100.0);
+        warn!(
+            "[A{}]       Similarity: {:.1}% (threshold: {:.1}%)",
+            album_idx + 1,
+            artist_similarity * 100.0,
+            ARTIST_MISMATCH_THRESHOLD * 100.0
+        );
 
         if best_percentage < ARTIST_MISMATCH_MIN_MATCH_PCT {
-            warn!("[A{}]       ❌ LOW CONFIDENCE: {:.1}% track match < {:.1}% threshold",
-                  album_idx + 1, best_percentage, ARTIST_MISMATCH_MIN_MATCH_PCT);
+            warn!(
+                "[A{}]       ❌ LOW CONFIDENCE: {:.1}% track match < {:.1}% threshold",
+                album_idx + 1,
+                best_percentage,
+                ARTIST_MISMATCH_MIN_MATCH_PCT
+            );
         }
     } else if used_artist_fallback {
         // Artist fallback was used - we chose an artist-matched edition over a higher-scoring mismatched one
-        info!("[A{}]   ✅ Artist verification: Matched (fallback was used)", album_idx + 1);
+        info!(
+            "[A{}]   ✅ Artist verification: Matched (fallback was used)",
+            album_idx + 1
+        );
     }
 
     // Log rejected match info if applicable
     if let Some((rejected_idx, rejected_pct, rejected_artist, rejected_sim)) = &rejected_match {
-        info!("[A{}]   📊 Rejected original winner (artist mismatch):", album_idx + 1);
-        info!("[A{}]       Edition {}: '{}' (sim={:.1}%, pct={:.1}%)",
-            album_idx + 1, rejected_idx + 1, rejected_artist, rejected_sim * 100.0, rejected_pct);
+        info!(
+            "[A{}]   📊 Rejected original winner (artist mismatch):",
+            album_idx + 1
+        );
+        info!(
+            "[A{}]       Edition {}: '{}' (sim={:.1}%, pct={:.1}%)",
+            album_idx + 1,
+            rejected_idx + 1,
+            rejected_artist,
+            rejected_sim * 100.0,
+            rejected_pct
+        );
     }
 
     info!("[A{}]   FINAL RESULT:", album_idx + 1);
     info!("[A{}]     Artist: {}", album_idx + 1, winning_artist);
     info!("[A{}]     Album: {}", album_idx + 1, winning_album);
     info!("[A{}]     Matching stage: {}", album_idx + 1, best_stage);
-    info!("[A{}]     MusicBrainz: https://musicbrainz.org/release/{}", album_idx + 1, best_mbid);
-    info!("[A{}]     Track count: {}/{} {}", album_idx + 1, best_durations.len(), best_expected_durations.len(),
-        if perfect_count { "✓" } else { "✗" });
-    info!("[A{}]     Matched tracks: {}/{} ({:.1}%)", album_idx + 1, best_matched_count, best_expected_durations.len(), best_percentage);
-    info!("[A{}]     Mean error: {:.2}s", album_idx + 1, best_mean_error);
-    info!("[A{}]     Confidence: {}", album_idx + 1, classify_confidence(best_percentage));
+    info!(
+        "[A{}]     MusicBrainz: https://musicbrainz.org/release/{}",
+        album_idx + 1,
+        best_mbid
+    );
+    info!(
+        "[A{}]     Track count: {}/{} {}",
+        album_idx + 1,
+        best_durations.len(),
+        best_expected_durations.len(),
+        if perfect_count { "✓" } else { "✗" }
+    );
+    info!(
+        "[A{}]     Matched tracks: {}/{} ({:.1}%)",
+        album_idx + 1,
+        best_matched_count,
+        best_expected_durations.len(),
+        best_percentage
+    );
+    info!(
+        "[A{}]     Mean error: {:.2}s",
+        album_idx + 1,
+        best_mean_error
+    );
+    info!(
+        "[A{}]     Confidence: {}",
+        album_idx + 1,
+        classify_confidence(best_percentage)
+    );
 
     if let (Some(thresh), Some(min_dur)) = (best_threshold, best_min_duration) {
-        info!("[A{}]     Best parameters: {}dB, {}s", album_idx + 1, thresh, min_dur);
+        info!(
+            "[A{}]     Best parameters: {}dB, {}s",
+            album_idx + 1,
+            thresh,
+            min_dur
+        );
     }
 
     // Show all track matches (debug level - verbose per-track details)
@@ -5448,8 +6095,15 @@ async fn process_single_album(
         info!("[A{}]   All tracks:", album_idx + 1);
         for (i, tm) in best_matches.iter().enumerate() {
             let status = if tm.matches { "✓" } else { "✗" };
-            info!("[A{}]     {}. {:6.1}s vs {:6}s  error={:5.1}s  {}",
-                album_idx + 1, i + 1, tm.detected_duration, tm.expected_duration, tm.error, status);
+            info!(
+                "[A{}]     {}. {:6.1}s vs {:6}s  error={:5.1}s  {}",
+                album_idx + 1,
+                i + 1,
+                tm.detected_duration,
+                tm.expected_duration,
+                tm.error,
+                status
+            );
         }
     }
 
@@ -5467,16 +6121,34 @@ async fn process_single_album(
         }
 
         if !extra_tracks.is_empty() {
-            info!("[A{}]   Extra tracks detected ({} beyond expected count):", album_idx + 1, extra_tracks.len());
+            info!(
+                "[A{}]   Extra tracks detected ({} beyond expected count):",
+                album_idx + 1,
+                extra_tracks.len()
+            );
             for et in &extra_tracks {
-                info!("[A{}]     Track {}: {:.1}s (no MusicBrainz match)", album_idx + 1, et.track_index, et.duration);
+                info!(
+                    "[A{}]     Track {}: {:.1}s (no MusicBrainz match)",
+                    album_idx + 1,
+                    et.track_index,
+                    et.duration
+                );
             }
         }
     } else if best_durations.len() < best_expected_durations.len() {
         let missing_count = best_expected_durations.len() - best_durations.len();
-        info!("[A{}]   MusicBrainz tracks not found in file ({} missing):", album_idx + 1, missing_count);
+        info!(
+            "[A{}]   MusicBrainz tracks not found in file ({} missing):",
+            album_idx + 1,
+            missing_count
+        );
         for i in min_count..best_expected_durations.len() {
-            info!("[A{}]     Track {}: {}s (expected but not detected in file)", album_idx + 1, i + 1, best_expected_durations[i]);
+            info!(
+                "[A{}]     Track {}: {}s (expected but not detected in file)",
+                album_idx + 1,
+                i + 1,
+                best_expected_durations[i]
+            );
         }
     }
 
@@ -5495,7 +6167,11 @@ async fn process_single_album(
 
     // Run 24: AcoustID verification for successful matches
     // Note: decode_mp3 outputs mono samples (1 channel)
-    let acoustid_verification = if !artist_mismatch && best_percentage >= ACOUSTID_VERIFICATION_MIN_MATCH_PCT && best_edition_idx.is_some() && acoustid_api_key.is_some() {
+    let acoustid_verification = if !artist_mismatch
+        && best_percentage >= ACOUSTID_VERIFICATION_MIN_MATCH_PCT
+        && best_edition_idx.is_some()
+        && acoustid_api_key.is_some()
+    {
         let edition_idx = best_edition_idx.unwrap();
         if edition_idx < editions.len() {
             let edition = &editions[edition_idx];
@@ -5503,12 +6179,13 @@ async fn process_single_album(
             let verification = verify_tracks_with_acoustid(
                 &samples,
                 sample_rate,
-                1,  // Mono output from decode_mp3
+                1, // Mono output from decode_mp3
                 &best_durations,
                 &edition.recording_mbids,
                 album_idx,
                 acoustid_api_key.as_ref().unwrap(),
-            ).await;
+            )
+            .await;
             Some(verification)
         } else {
             None
@@ -5548,8 +6225,7 @@ async fn process_single_album(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // IMPORTANT: Get local time offset BEFORE any threads spawn (Unix security restriction)
     // Must be done at very start of main, before tokio runtime is fully active
-    let local_offset = UtcOffset::current_local_offset()
-        .unwrap_or(UtcOffset::UTC);
+    let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
 
     // Create timer with local time + timezone offset (e.g., 2025-11-23T06:14:41.496667-05:00)
     let timer = OffsetTime::new(
@@ -5570,7 +6246,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Install panic hook to ensure panics are logged before crash
     panic::set_hook(Box::new(|panic_info| {
-        let location = panic_info.location()
+        let location = panic_info
+            .location()
             .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
             .unwrap_or_else(|| "unknown location".to_string());
 
@@ -5586,7 +6263,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         error!("PANIC at {}: {}", location, message);
 
         // Also write directly to stderr to ensure visibility
-        let _ = writeln!(std::io::stderr(), "\n!!! PANIC at {}: {}", location, message);
+        let _ = writeln!(
+            std::io::stderr(),
+            "\n!!! PANIC at {}: {}",
+            location,
+            message
+        );
         let _ = std::io::stderr().flush();
 
         // Print backtrace if available
@@ -5652,10 +6334,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut additional_files = Vec::new();
 
     // Create a set of training file paths for efficient lookup
-    let training_paths: std::collections::HashSet<PathBuf> = training_files
-        .iter()
-        .cloned()
-        .collect();
+    let training_paths: std::collections::HashSet<PathBuf> =
+        training_files.iter().cloned().collect();
 
     for line in long_files_content.lines() {
         if let Some(path_start) = line.find("] ") {
@@ -5706,20 +6386,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some((path, _)) = remaining.pop_front() {
             interleaved.push(path);
         }
-        if remaining.is_empty() { break; }
+        if remaining.is_empty() {
+            break;
+        }
 
         // 2. Take middle of remaining
         let mid_idx = remaining.len() / 2;
         if let Some((path, _)) = remaining.remove(mid_idx) {
             interleaved.push(path);
         }
-        if remaining.is_empty() { break; }
+        if remaining.is_empty() {
+            break;
+        }
 
         // 3. Take longest (back)
         if let Some((path, _)) = remaining.pop_back() {
             interleaved.push(path);
         }
-        if remaining.is_empty() { break; }
+        if remaining.is_empty() {
+            break;
+        }
 
         // 4. Take middle of remaining again
         let mid_idx = remaining.len() / 2;
@@ -5737,24 +6423,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let avg_size = total_size / files_with_sizes.len().max(1) as u64;
 
     info!("  Pre-scan completed in {:?}", prescan_start.elapsed());
-    info!("  File sizes: min={:.1}MB, max={:.1}MB, avg={:.1}MB, total={:.1}GB",
+    info!(
+        "  File sizes: min={:.1}MB, max={:.1}MB, avg={:.1}MB, total={:.1}GB",
         min_size as f64 / 1_000_000.0,
         max_size as f64 / 1_000_000.0,
         avg_size as f64 / 1_000_000.0,
-        total_size as f64 / 1_000_000_000.0);
+        total_size as f64 / 1_000_000_000.0
+    );
     info!("  Processing order: shortest/middle/longest/middle interleave for load balancing");
 
     // Show first few files in new order
     info!("  First 8 files (interleaved):");
     for (i, path) in training_files.iter().take(8).enumerate() {
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-        info!("    [{}] {:.1}MB - {}", i + 1, size as f64 / 1_000_000.0,
-            path.file_name().unwrap_or_default().to_string_lossy());
+        info!(
+            "    [{}] {:.1}MB - {}",
+            i + 1,
+            size as f64 / 1_000_000.0,
+            path.file_name().unwrap_or_default().to_string_lossy()
+        );
     }
 
     info!("=== Parameter Validation ===");
-    info!("Testing optimal parameters on {} albums from combined set", training_files.len());
-    info!("  ({} training set + {} from long files list)\n", initial_count, additional_files.len());
+    info!(
+        "Testing optimal parameters on {} albums from combined set",
+        training_files.len()
+    );
+    info!(
+        "  ({} training set + {} from long files list)\n",
+        initial_count,
+        additional_files.len()
+    );
 
     // Use optimal parameters from analysis
     let threshold_db: f64 = DEFAULT_THRESHOLD_DB;
@@ -5766,7 +6465,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // REQ-CACHE-040, REQ-CACHE-110: Create MBClient with caching support
     let mb_client = Arc::new(
         MBClient::new(cache_config.clone(), Arc::new(rate_limiter.clone()))
-            .expect("Failed to create MBClient")
+            .expect("Failed to create MBClient"),
     );
 
     // Parameter grid for Stage 2 optimization (defined in configuration constants section)
@@ -5814,7 +6513,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     min_duration_values,
                     mb_client,
                     acoustid_api_key,
-                ).await
+                )
+                .await
             }
         })
         .buffer_unordered(MAX_CONCURRENT_ALBUMS)
@@ -5844,12 +6544,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if successful > 0 {
         // Matching stage breakdown
-        let stage1 = results.iter().filter(|r| r.matching_stage == "album_extractor_1_initial").count();
-        let stage2 = results.iter().filter(|r| r.matching_stage == "album_extractor_2_optimization").count();
-        let stage3 = results.iter().filter(|r| r.matching_stage == "album_extractor_3_assembly").count();
-        let stage4 = results.iter().filter(|r| r.matching_stage == "album_extractor_4_guided").count();
-        let stage5 = results.iter().filter(|r| r.matching_stage == "album_extractor_5_editions").count();
-        let stage6 = results.iter().filter(|r| r.matching_stage == "album_extractor_6_merging").count();
+        let stage1 = results
+            .iter()
+            .filter(|r| r.matching_stage == "album_extractor_1_initial")
+            .count();
+        let stage2 = results
+            .iter()
+            .filter(|r| r.matching_stage == "album_extractor_2_optimization")
+            .count();
+        let stage3 = results
+            .iter()
+            .filter(|r| r.matching_stage == "album_extractor_3_assembly")
+            .count();
+        let stage4 = results
+            .iter()
+            .filter(|r| r.matching_stage == "album_extractor_4_guided")
+            .count();
+        let stage5 = results
+            .iter()
+            .filter(|r| r.matching_stage == "album_extractor_5_editions")
+            .count();
+        let stage6 = results
+            .iter()
+            .filter(|r| r.matching_stage == "album_extractor_6_merging")
+            .count();
 
         info!("\nMatching Stage Results:");
         info!("  album_extractor_1_initial:        {} albums", stage1);
@@ -5860,10 +6578,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         info!("  album_extractor_6_merging:        {} albums", stage6);
 
         // Confidence level breakdown
-        let excellent = results.iter().filter(|r| r.confidence == "Excellent").count();
+        let excellent = results
+            .iter()
+            .filter(|r| r.confidence == "Excellent")
+            .count();
         let good = results.iter().filter(|r| r.confidence == "Good").count();
         let fair = results.iter().filter(|r| r.confidence == "Fair").count();
-        let poor = results.iter().filter(|r| r.confidence == "Poor" && r.status == "Success").count();
+        let poor = results
+            .iter()
+            .filter(|r| r.confidence == "Poor" && r.status == "Success")
+            .count();
 
         info!("\nConfidence Distribution:");
         info!("  Excellent (≥80%): {} albums", excellent);
@@ -5874,19 +6598,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Track count matches
         let perfect_counts = results.iter().filter(|r| r.perfect_count_match).count();
         info!("\nTrack Count Matches:");
-        info!("  Perfect: {}/{} ({:.1}%)", perfect_counts, successful,
-            (perfect_counts as f64 / successful as f64) * 100.0);
+        info!(
+            "  Perfect: {}/{} ({:.1}%)",
+            perfect_counts,
+            successful,
+            (perfect_counts as f64 / successful as f64) * 100.0
+        );
 
         // Average statistics
-        let avg_match_pct = results.iter()
+        let avg_match_pct = results
+            .iter()
             .filter(|r| r.status == "Success")
             .map(|r| r.match_percentage)
-            .sum::<f64>() / successful as f64;
+            .sum::<f64>()
+            / successful as f64;
 
-        let avg_error = results.iter()
+        let avg_error = results
+            .iter()
             .filter(|r| r.status == "Success" && r.mean_error > 0.0)
             .map(|r| r.mean_error)
-            .sum::<f64>() / successful as f64;
+            .sum::<f64>()
+            / successful as f64;
 
         info!("\nAverage Statistics:");
         info!("  Match percentage: {:.1}%", avg_match_pct);
@@ -5895,31 +6627,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Parameter effectiveness (for Stage 2 results)
         if stage2 > 0 {
             info!("\nParameter Optimization Details:");
-            for result in results.iter().filter(|r| r.matching_stage == "album_extractor_2_optimization") {
-                if let (Some(thresh), Some(min_dur)) = (result.best_threshold_db, result.best_min_duration_secs) {
-                    info!("  {} - {}: {}dB, {}s → {:.1}%",
-                        result.artist, result.album, thresh, min_dur, result.match_percentage);
+            for result in results
+                .iter()
+                .filter(|r| r.matching_stage == "album_extractor_2_optimization")
+            {
+                if let (Some(thresh), Some(min_dur)) =
+                    (result.best_threshold_db, result.best_min_duration_secs)
+                {
+                    info!(
+                        "  {} - {}: {}dB, {}s → {:.1}%",
+                        result.artist, result.album, thresh, min_dur, result.match_percentage
+                    );
                 }
             }
         }
 
         // Show best and worst
-        let mut success_results: Vec<_> = results.iter().filter(|r| r.status == "Success").collect();
+        let mut success_results: Vec<_> =
+            results.iter().filter(|r| r.status == "Success").collect();
         success_results.sort_by(|a, b| cmp_f64(b.match_percentage, a.match_percentage));
 
         info!("\nBest 5 Albums:");
         for (i, result) in success_results.iter().take(5).enumerate() {
-            info!("  {}. {} - {} ({:.1}%, {} via {})",
-                i + 1, result.artist, result.album, result.match_percentage,
-                result.confidence, result.matching_stage);
+            info!(
+                "  {}. {} - {} ({:.1}%, {} via {})",
+                i + 1,
+                result.artist,
+                result.album,
+                result.match_percentage,
+                result.confidence,
+                result.matching_stage
+            );
             info!("     MusicBrainz: {}", result.musicbrainz_url);
         }
 
         info!("\nWorst 5 Albums:");
         for (i, result) in success_results.iter().rev().take(5).enumerate() {
-            info!("  {}. {} - {} ({:.1}%, {} via {})",
-                i + 1, result.artist, result.album, result.match_percentage,
-                result.confidence, result.matching_stage);
+            info!(
+                "  {}. {} - {} ({:.1}%, {} via {})",
+                i + 1,
+                result.artist,
+                result.album,
+                result.match_percentage,
+                result.confidence,
+                result.matching_stage
+            );
             info!("     MusicBrainz: {}", result.musicbrainz_url);
         }
     }
@@ -5952,7 +6704,10 @@ mod tests {
         assert_eq!(matched_count, 3, "All tracks should match");
         assert_eq!(percentage, 100.0, "Should be 100% match");
         assert_eq!(matches.len(), 3, "Should have 3 match records");
-        assert!(matches.iter().all(|m| m.matches), "All matches should be true");
+        assert!(
+            matches.iter().all(|m| m.matches),
+            "All matches should be true"
+        );
     }
 
     #[test]
@@ -5965,9 +6720,15 @@ mod tests {
             analyze_track_matching(&detected, &expected, tolerance);
 
         assert_eq!(matched_count, 2, "Only 2 tracks should match");
-        assert_eq!(percentage, 66.666666666666664, "Should be ~66.67% match (2/3)");
+        assert_eq!(
+            percentage, 66.666666666666664,
+            "Should be ~66.67% match (2/3)"
+        );
         assert!(!matches[1].matches, "Middle track should not match");
-        assert!(matches[0].matches && matches[2].matches, "First and last should match");
+        assert!(
+            matches[0].matches && matches[2].matches,
+            "First and last should match"
+        );
     }
 
     #[test]
@@ -5999,7 +6760,10 @@ mod tests {
         assert_eq!(matches.len(), 2, "Should compare minimum count (2)");
         assert_eq!(matched_count, 2, "Both should match");
         // Percentage based on EXPECTED count (3), so 2/3 = 66.67%
-        assert_eq!(percentage, 66.666666666666664, "Should be ~66.67% (2/3 expected)");
+        assert_eq!(
+            percentage, 66.666666666666664,
+            "Should be ~66.67% (2/3 expected)"
+        );
     }
 
     #[test]
@@ -6026,7 +6790,10 @@ mod tests {
             analyze_track_matching(&detected, &expected, tolerance);
 
         // Middle track: 210.0 - 200 = 10.0, which equals tolerance
-        assert!(matches[1].matches, "Track at tolerance boundary should match");
+        assert!(
+            matches[1].matches,
+            "Track at tolerance boundary should match"
+        );
         assert_eq!(matched_count, 3, "All should match");
         assert_eq!(percentage, 100.0, "Should be 100%");
     }
@@ -6041,7 +6808,10 @@ mod tests {
             analyze_track_matching(&detected, &expected, tolerance);
 
         // Middle track: 210.1 - 200 = 10.1, which exceeds tolerance
-        assert!(!matches[1].matches, "Track just outside tolerance should not match");
+        assert!(
+            !matches[1].matches,
+            "Track just outside tolerance should not match"
+        );
         assert_eq!(matched_count, 2, "Only 2 should match");
         assert_eq!(percentage, 66.666666666666664, "Should be ~66.67%");
     }
@@ -6062,9 +6832,15 @@ mod tests {
 
     #[test]
     fn test_strings_match_with_punctuation() {
-        assert!(strings_match("The Dark Side of the Moon", "The Dark Side of the Moon"));
+        assert!(strings_match(
+            "The Dark Side of the Moon",
+            "The Dark Side of the Moon"
+        ));
         // Punctuation is filtered out, but "and" vs "&" remain different alphanumeric tokens
-        assert!(!strings_match("Crosby, Stills & Nash", "Crosby Stills and Nash"));
+        assert!(!strings_match(
+            "Crosby, Stills & Nash",
+            "Crosby Stills and Nash"
+        ));
         assert!(strings_match("Led Zeppelin IV", "Led Zeppelin IV"));
     }
 
@@ -6072,7 +6848,7 @@ mod tests {
     fn test_strings_match_whitespace_variations() {
         // Consecutive whitespace is NOT normalized - strings must match exactly after filtering
         assert!(!strings_match("Led  Zeppelin", "Led Zeppelin")); // Extra space makes them different
-        // Spaces are preserved when filtering, so "LedZeppelin" != "Led Zeppelin"
+                                                                  // Spaces are preserved when filtering, so "LedZeppelin" != "Led Zeppelin"
         assert!(!strings_match("LedZeppelin", "Led Zeppelin"));
     }
 
@@ -6094,13 +6870,20 @@ mod tests {
         let threshold_db = -40.0; // Higher threshold to ensure detection
         let min_duration_secs = 0.5;
 
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
+        let silence_regions =
+            detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
 
         // Should detect the entire file as one silence region (or possibly none if all zeros are skipped)
         // Allow for either outcome as implementation may handle edge case differently
-        assert!(silence_regions.len() <= 1, "Should detect at most one silence region");
+        assert!(
+            silence_regions.len() <= 1,
+            "Should detect at most one silence region"
+        );
         if silence_regions.len() == 1 {
-            assert!(silence_regions[0].0 <= 1000, "Silence should start near beginning");
+            assert!(
+                silence_regions[0].0 <= 1000,
+                "Silence should start near beginning"
+            );
         }
     }
 
@@ -6112,9 +6895,14 @@ mod tests {
         let threshold_db = -60.0;
         let min_duration_secs = 0.5;
 
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
+        let silence_regions =
+            detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
 
-        assert_eq!(silence_regions.len(), 0, "Should detect no silence in loud audio");
+        assert_eq!(
+            silence_regions.len(),
+            0,
+            "Should detect no silence in loud audio"
+        );
     }
 
     #[test]
@@ -6135,13 +6923,16 @@ mod tests {
         let threshold_db = -60.0;
         let min_duration_secs = 0.5;
 
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
+        let silence_regions =
+            detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
 
         // Should detect one silence region in the middle
         assert_eq!(silence_regions.len(), 1, "Should detect one silence region");
         // Silence should start around sample 48000 (allowing for window boundaries)
-        assert!(silence_regions[0].0 >= 40000 && silence_regions[0].0 <= 56000,
-                "Silence should start around the 1-second mark");
+        assert!(
+            silence_regions[0].0 >= 40000 && silence_regions[0].0 <= 56000,
+            "Silence should start around the 1-second mark"
+        );
     }
 
     #[test]
@@ -6162,10 +6953,15 @@ mod tests {
         let threshold_db = -60.0;
         let min_duration_secs = 0.5; // Require at least 0.5s of silence
 
-        let silence_regions = detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
+        let silence_regions =
+            detect_silence(&samples, sample_rate, threshold_db, min_duration_secs);
 
         // Brief silence should be filtered out
-        assert_eq!(silence_regions.len(), 0, "Should not detect silence shorter than minimum duration");
+        assert_eq!(
+            silence_regions.len(),
+            0,
+            "Should not detect silence shorter than minimum duration"
+        );
     }
 
     // ===== Tests for get_track_durations() =====
@@ -6181,7 +6977,10 @@ mod tests {
         let durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
 
         assert_eq!(durations.len(), 1, "Should detect one track");
-        assert!((durations[0] - 2.0).abs() < 0.1, "Track should be approximately 2 seconds");
+        assert!(
+            (durations[0] - 2.0).abs() < 0.1,
+            "Track should be approximately 2 seconds"
+        );
     }
 
     #[test]
@@ -6205,8 +7004,14 @@ mod tests {
         let durations = get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
 
         assert_eq!(durations.len(), 2, "Should detect two tracks");
-        assert!((durations[0] - 3.0).abs() < 0.2, "First track should be ~3 seconds");
-        assert!((durations[1] - 2.0).abs() < 0.2, "Second track should be ~2 seconds");
+        assert!(
+            (durations[0] - 3.0).abs() < 0.2,
+            "First track should be ~3 seconds"
+        );
+        assert!(
+            (durations[1] - 2.0).abs() < 0.2,
+            "Second track should be ~2 seconds"
+        );
     }
 
     #[test]
@@ -6226,7 +7031,10 @@ mod tests {
     #[test]
     fn test_split_camel_case_basic() {
         assert_eq!(split_camel_case("DaylightAgain"), "Daylight Again");
-        assert_eq!(split_camel_case("TransEuropeExpress"), "Trans Europe Express");
+        assert_eq!(
+            split_camel_case("TransEuropeExpress"),
+            "Trans Europe Express"
+        );
     }
 
     #[test]
@@ -6270,7 +7078,10 @@ mod tests {
         let tolerance = 10.0;
 
         let result = test_segmentation_against_single_edition(
-            &detected, &expected, "test_edition", tolerance
+            &detected,
+            &expected,
+            "test_edition",
+            tolerance,
         );
 
         assert_eq!(result.matched_count, 3);
@@ -6285,9 +7096,8 @@ mod tests {
         let expected = vec![180, 200, 196];
         let tolerance = 10.0;
 
-        let result = test_segmentation_against_single_edition(
-            &detected, &expected, "edition_1", tolerance
-        );
+        let result =
+            test_segmentation_against_single_edition(&detected, &expected, "edition_1", tolerance);
 
         assert_eq!(result.matched_count, 2);
         assert!((result.percentage - 66.67).abs() < 1.0);
@@ -6307,9 +7117,18 @@ mod tests {
         let assembled = result.unwrap();
         assert_eq!(assembled.len(), 3, "Should produce 3 tracks");
         // Check that assembled durations are close to expected
-        assert!((assembled[0] - 180.0).abs() < 15.0, "First track should be ~180s");
-        assert!((assembled[1] - 200.0).abs() < 15.0, "Second track should be ~200s");
-        assert!((assembled[2] - 196.0).abs() < 15.0, "Third track should be ~196s");
+        assert!(
+            (assembled[0] - 180.0).abs() < 15.0,
+            "First track should be ~180s"
+        );
+        assert!(
+            (assembled[1] - 200.0).abs() < 15.0,
+            "Second track should be ~200s"
+        );
+        assert!(
+            (assembled[2] - 196.0).abs() < 15.0,
+            "Third track should be ~196s"
+        );
     }
 
     #[test]
@@ -6333,7 +7152,10 @@ mod tests {
 
         let result = assemble_segments_dp(&detected, &expected);
 
-        assert!(result.is_none(), "Should return None when fewer segments than targets");
+        assert!(
+            result.is_none(),
+            "Should return None when fewer segments than targets"
+        );
     }
 
     #[test]
@@ -6360,9 +7182,18 @@ mod tests {
         let durations = boundaries_to_durations(&boundaries, total_duration);
 
         assert_eq!(durations.len(), 3);
-        assert!((durations[0] - 180.0).abs() < 0.01, "First track: 0 to 180 = 180s");
-        assert!((durations[1] - 200.0).abs() < 0.01, "Second track: 180 to 380 = 200s");
-        assert!((durations[2] - 196.0).abs() < 0.01, "Third track: 380 to 576 = 196s");
+        assert!(
+            (durations[0] - 180.0).abs() < 0.01,
+            "First track: 0 to 180 = 180s"
+        );
+        assert!(
+            (durations[1] - 200.0).abs() < 0.01,
+            "Second track: 180 to 380 = 200s"
+        );
+        assert!(
+            (durations[2] - 196.0).abs() < 0.01,
+            "Third track: 380 to 576 = 196s"
+        );
     }
 
     #[test]
@@ -6437,9 +7268,7 @@ mod tests {
 
     #[test]
     fn test_resort_by_name_similarity_single_item() {
-        let mut editions = vec![
-            create_test_edition("Artist", "Album", 10, 5.0),
-        ];
+        let mut editions = vec![create_test_edition("Artist", "Album", 10, 5.0)];
         resort_by_name_similarity(&mut editions);
         assert_eq!(editions.len(), 1);
         assert!((editions[0].name_distance_score - 5.0).abs() < 0.01);
@@ -6459,12 +7288,19 @@ mod tests {
         resort_by_name_similarity(&mut editions);
 
         // Should NOT swap because 3.4 is not > NAME_DISTANCE_SWAP_RATIO * 2.0 = 3.464
-        assert!((editions[0].name_distance_score - original_first).abs() < 0.01,
-            "Should not swap when ratio <= NAME_DISTANCE_SWAP_RATIO");
+        assert!(
+            (editions[0].name_distance_score - original_first).abs() < 0.01,
+            "Should not swap when ratio <= NAME_DISTANCE_SWAP_RATIO"
+        );
     }
 
     // Helper function to create test editions
-    fn create_test_edition(artist: &str, album: &str, track_count: usize, name_distance_score: f64) -> Edition {
+    fn create_test_edition(
+        artist: &str,
+        album: &str,
+        track_count: usize,
+        name_distance_score: f64,
+    ) -> Edition {
         Edition {
             artist: artist.to_string(),
             album: album.to_string(),
@@ -6496,7 +7332,10 @@ mod tests {
     fn test_calculate_rms_constant_signal() {
         let samples = vec![0.5; 1000];
         let rms = calculate_rms(&samples);
-        assert!((rms - 0.5).abs() < 0.01, "RMS of constant 0.5 should be 0.5");
+        assert!(
+            (rms - 0.5).abs() < 0.01,
+            "RMS of constant 0.5 should be 0.5"
+        );
     }
 
     #[test]
@@ -6507,14 +7346,20 @@ mod tests {
             .collect();
         let rms = calculate_rms(&samples);
         let expected = 1.0 / std::f32::consts::SQRT_2;
-        assert!((rms - expected).abs() < 0.01, "Sine wave RMS should be 1/sqrt(2)");
+        assert!(
+            (rms - expected).abs() < 0.01,
+            "Sine wave RMS should be 1/sqrt(2)"
+        );
     }
 
     #[test]
     fn test_calculate_rms_empty() {
         let samples: Vec<f32> = vec![];
         let rms = calculate_rms(&samples);
-        assert!(rms.is_nan() || rms == 0.0, "Empty samples should return NaN or 0");
+        assert!(
+            rms.is_nan() || rms == 0.0,
+            "Empty samples should return NaN or 0"
+        );
     }
 
     // ===== Tests for calculate_db() =====
@@ -6546,7 +7391,10 @@ mod tests {
         let samples = vec![0.001; 1000];
         let db = calculate_db(&samples);
         // 20 * log10(0.001) = -60 dB
-        assert!((db - (-60.0)).abs() < 1.0, "0.001 amplitude should be ~-60dB");
+        assert!(
+            (db - (-60.0)).abs() < 1.0,
+            "0.001 amplitude should be ~-60dB"
+        );
     }
 
     // ===== Tests for calculate_mbid_priority_score() =====
@@ -6699,7 +7547,9 @@ mod tests {
     fn test_generate_search_queries_basic() {
         let queries = generate_search_queries("The Beatles", "Abbey Road");
         // First query is: "type:album AND artist:{} AND release:{}"
-        assert!(queries.iter().any(|q| q.contains("artist:The Beatles") && q.contains("release:Abbey Road")));
+        assert!(queries
+            .iter()
+            .any(|q| q.contains("artist:The Beatles") && q.contains("release:Abbey Road")));
     }
 
     #[test]
@@ -6720,7 +7570,8 @@ mod tests {
     fn test_calculate_name_distance_exact_match() {
         let source_artists = vec!["Beatles".to_string()];
         let source_albums = vec!["Abbey Road".to_string()];
-        let distance = calculate_name_distance("Beatles", "Abbey Road", &source_artists, &source_albums);
+        let distance =
+            calculate_name_distance("Beatles", "Abbey Road", &source_artists, &source_albums);
         assert!((distance - 0.0).abs() < 0.01, "Exact match should be 0");
     }
 
@@ -6728,7 +7579,8 @@ mod tests {
     fn test_calculate_name_distance_different() {
         let source_artists = vec!["Pink Floyd".to_string()];
         let source_albums = vec!["The Wall".to_string()];
-        let distance = calculate_name_distance("Beatles", "Abbey Road", &source_artists, &source_albums);
+        let distance =
+            calculate_name_distance("Beatles", "Abbey Road", &source_artists, &source_albums);
         assert!(distance > 5.0, "Different names should have high distance");
     }
 
@@ -6737,11 +7589,13 @@ mod tests {
         // Album difference should be weighted more (NAME_DISTANCE_ALBUM_WEIGHT = 1.414)
         let source_artists_b = vec!["B".to_string()];
         let source_albums_same = vec!["Same".to_string()];
-        let distance_artist = calculate_name_distance("A", "Same", &source_artists_b, &source_albums_same);
+        let distance_artist =
+            calculate_name_distance("A", "Same", &source_artists_b, &source_albums_same);
 
         let source_artists_same = vec!["Same".to_string()];
         let source_albums_b = vec!["B".to_string()];
-        let distance_album = calculate_name_distance("Same", "A", &source_artists_same, &source_albums_b);
+        let distance_album =
+            calculate_name_distance("Same", "A", &source_artists_same, &source_albums_b);
         assert!(distance_album > distance_artist, "Album diff weighted more");
     }
 
@@ -6848,7 +7702,10 @@ mod tests {
         let score_exact = score_edition_match(&edition, 1800.0, None);
         let score_wrong = score_edition_match(&edition, 3000.0, None); // 1200s off
         assert!(score_wrong > score_exact, "Wrong duration should penalize");
-        assert!((score_wrong - 1200.0).abs() < 10.0, "Penalty should be ~1200s");
+        assert!(
+            (score_wrong - 1200.0).abs() < 10.0,
+            "Penalty should be ~1200s"
+        );
     }
 
     #[test]
@@ -6858,8 +7715,14 @@ mod tests {
         let score_no_estimate = score_edition_match(&edition, 1800.0, None);
         let score_exact_tracks = score_edition_match(&edition, 1800.0, Some(10));
         let score_wrong_tracks = score_edition_match(&edition, 1800.0, Some(15));
-        assert!((score_no_estimate - score_exact_tracks).abs() < 1.0, "Exact track count = no penalty");
-        assert!(score_wrong_tracks > score_exact_tracks, "Wrong track count should add penalty");
+        assert!(
+            (score_no_estimate - score_exact_tracks).abs() < 1.0,
+            "Exact track count = no penalty"
+        );
+        assert!(
+            score_wrong_tracks > score_exact_tracks,
+            "Wrong track count should add penalty"
+        );
     }
 
     // ===== Tests for group_into_editions() =====
@@ -6891,7 +7754,12 @@ mod tests {
             (
                 vec![180, 200, 196],
                 vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
-                EditionMBID { mbid: "mbid1".to_string(), country: Some("US".to_string()), status: Some("Official".to_string()), is_cd: true },
+                EditionMBID {
+                    mbid: "mbid1".to_string(),
+                    country: Some("US".to_string()),
+                    status: Some("Official".to_string()),
+                    is_cd: true,
+                },
                 "Artist".to_string(),
                 "Album".to_string(),
                 1_usize,
@@ -6900,7 +7768,12 @@ mod tests {
             (
                 vec![180, 200, 196], // Same signature
                 vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
-                EditionMBID { mbid: "mbid2".to_string(), country: Some("UK".to_string()), status: Some("Official".to_string()), is_cd: true },
+                EditionMBID {
+                    mbid: "mbid2".to_string(),
+                    country: Some("UK".to_string()),
+                    status: Some("Official".to_string()),
+                    is_cd: true,
+                },
                 "Artist".to_string(),
                 "Album".to_string(),
                 2_usize,
@@ -6918,7 +7791,12 @@ mod tests {
             (
                 vec![180, 200, 196],
                 vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string()],
-                EditionMBID { mbid: "mbid1".to_string(), country: Some("US".to_string()), status: Some("Official".to_string()), is_cd: true },
+                EditionMBID {
+                    mbid: "mbid1".to_string(),
+                    country: Some("US".to_string()),
+                    status: Some("Official".to_string()),
+                    is_cd: true,
+                },
                 "Artist".to_string(),
                 "Album".to_string(),
                 1_usize,
@@ -6926,8 +7804,18 @@ mod tests {
             ),
             (
                 vec![180, 200, 196, 300], // Different track count
-                vec!["rec1".to_string(), "rec2".to_string(), "rec3".to_string(), "rec4".to_string()],
-                EditionMBID { mbid: "mbid2".to_string(), country: Some("US".to_string()), status: Some("Official".to_string()), is_cd: true },
+                vec![
+                    "rec1".to_string(),
+                    "rec2".to_string(),
+                    "rec3".to_string(),
+                    "rec4".to_string(),
+                ],
+                EditionMBID {
+                    mbid: "mbid2".to_string(),
+                    country: Some("US".to_string()),
+                    status: Some("Official".to_string()),
+                    is_cd: true,
+                },
                 "Artist".to_string(),
                 "Album Deluxe".to_string(),
                 2_usize,
@@ -6935,7 +7823,11 @@ mod tests {
             ),
         ];
         let editions = group_into_editions(releases, 0);
-        assert_eq!(editions.len(), 2, "Different signatures = different editions");
+        assert_eq!(
+            editions.len(),
+            2,
+            "Different signatures = different editions"
+        );
     }
 
     // ===== Tests for should_exit_early() and signal_perfect_match() =====
@@ -6967,7 +7859,10 @@ mod tests {
         signal_perfect_match(&found, &time_ms, start);
         assert!(found.load(Ordering::SeqCst), "Flag should be set");
         // Time should have been updated (could be 0 or more, but was MAX before)
-        assert!(time_ms.load(Ordering::SeqCst) < u64::MAX, "Time should have been set");
+        assert!(
+            time_ms.load(Ordering::SeqCst) < u64::MAX,
+            "Time should have been set"
+        );
     }
 
     // ===== Tests for precompute_silence_cache() =====
@@ -6988,7 +7883,10 @@ mod tests {
         assert_eq!(cache.len(), 4);
         // Each should detect 2 tracks (split by the silence)
         for entry in &cache {
-            assert!(entry.len() >= 1 && entry.len() <= 3, "Should detect 1-3 tracks");
+            assert!(
+                entry.len() >= 1 && entry.len() <= 3,
+                "Should detect 1-3 tracks"
+            );
         }
     }
 
@@ -7000,7 +7898,10 @@ mod tests {
         let profile = calculate_rms_profile(&samples, 48000);
         assert!(!profile.is_empty());
         for (_timestamp, rms) in &profile {
-            assert!((*rms - 0.5).abs() < 0.1, "Uniform signal should have uniform RMS");
+            assert!(
+                (*rms - 0.5).abs() < 0.1,
+                "Uniform signal should have uniform RMS"
+            );
         }
     }
 
@@ -7012,9 +7913,20 @@ mod tests {
         let profile = calculate_rms_profile(&samples, 48000);
         assert!(profile.len() >= 2);
         // First windows should be quieter than last windows
-        let first_half_avg: f32 = profile[..profile.len()/2].iter().map(|(_, rms)| rms).sum::<f32>() / (profile.len()/2) as f32;
-        let second_half_avg: f32 = profile[profile.len()/2..].iter().map(|(_, rms)| rms).sum::<f32>() / (profile.len()/2) as f32;
-        assert!(second_half_avg > first_half_avg, "Second half should be louder");
+        let first_half_avg: f32 = profile[..profile.len() / 2]
+            .iter()
+            .map(|(_, rms)| rms)
+            .sum::<f32>()
+            / (profile.len() / 2) as f32;
+        let second_half_avg: f32 = profile[profile.len() / 2..]
+            .iter()
+            .map(|(_, rms)| rms)
+            .sum::<f32>()
+            / (profile.len() / 2) as f32;
+        assert!(
+            second_half_avg > first_half_avg,
+            "Second half should be louder"
+        );
     }
 
     // ===== Tests for levenshtein_ratio() - Run 24 =====
@@ -7028,14 +7940,20 @@ mod tests {
     #[test]
     fn test_levenshtein_ratio_completely_different() {
         let ratio = levenshtein_ratio("abc", "xyz");
-        assert_eq!(ratio, 0.0, "Completely different strings should have ratio 0.0");
+        assert_eq!(
+            ratio, 0.0,
+            "Completely different strings should have ratio 0.0"
+        );
     }
 
     #[test]
     fn test_levenshtein_ratio_similar() {
         let ratio = levenshtein_ratio("hello", "hallo");
         // 1 edit out of 5 chars = 0.8
-        assert!((ratio - 0.8).abs() < 0.01, "One char difference should be ~0.8");
+        assert!(
+            (ratio - 0.8).abs() < 0.01,
+            "One char difference should be ~0.8"
+        );
     }
 
     #[test]
@@ -7068,7 +7986,11 @@ mod tests {
 
     #[test]
     fn test_best_levenshtein_ratio_multiple_sources_exact() {
-        let sources = vec!["goodbye".to_string(), "hello".to_string(), "world".to_string()];
+        let sources = vec![
+            "goodbye".to_string(),
+            "hello".to_string(),
+            "world".to_string(),
+        ];
         let ratio = best_levenshtein_ratio("hello", &sources);
         assert_eq!(ratio, 1.0, "Should find exact match among sources");
     }
@@ -7130,7 +8052,11 @@ mod tests {
         // Use albums with no shared prefixes or substrings
         let (sim, ok) = verify_album_match("Toxicity", "Blue Lines");
         // These should have low Jaro-Winkler similarity and not be substrings of each other
-        assert!(sim < 0.6, "Very different albums should have low similarity: got {}", sim);
+        assert!(
+            sim < 0.6,
+            "Very different albums should have low similarity: got {}",
+            sim
+        );
         // Note: `ok` depends on threshold AND substring check
     }
 
@@ -7139,7 +8065,11 @@ mod tests {
         // Test with very different albums that share no common structure
         let (sim, ok) = verify_album_match("Abbey Road", "Nevermind");
         // These are different enough that Jaro-Winkler should give low score
-        assert!(sim < 0.6, "Different albums should have lower similarity: got {}", sim);
+        assert!(
+            sim < 0.6,
+            "Different albums should have lower similarity: got {}",
+            sim
+        );
     }
 
     // ===== Tests for verify_artist_match() =====
@@ -7160,7 +8090,8 @@ mod tests {
 
     #[test]
     fn test_verify_artist_match_ampersand_variations() {
-        let (sim, ok) = verify_artist_match("Bob Marley & The Wailers", "Bob Marley and The Wailers");
+        let (sim, ok) =
+            verify_artist_match("Bob Marley & The Wailers", "Bob Marley and The Wailers");
         assert!(sim > 0.9, "Should handle & vs 'and'");
         assert!(ok, "Should be acceptable");
     }
@@ -7185,7 +8116,11 @@ mod tests {
         // After normalization: "fluke" vs "donny marie osmond"
         let (sim, ok) = verify_artist_match("Fluke", "Donny & Marie Osmond");
         // Jaro-Winkler gives ~0.42 for these strings, which is below 0.5 threshold
-        assert!(sim < ARTIST_MISMATCH_THRESHOLD, "Completely different artists should have similarity below threshold: got {}", sim);
+        assert!(
+            sim < ARTIST_MISMATCH_THRESHOLD,
+            "Completely different artists should have similarity below threshold: got {}",
+            sim
+        );
         assert!(!ok, "Should not be acceptable");
     }
 
@@ -7279,7 +8214,10 @@ mod tests {
         let (merged, merge_idx, _) = result.unwrap();
         assert_eq!(merged.len(), 3);
         // Should merge 95+10=105 or 10+95=105, either gives close to 100
-        assert!(merge_idx == 0 || merge_idx == 1, "Should merge around the short track");
+        assert!(
+            merge_idx == 0 || merge_idx == 1,
+            "Should merge around the short track"
+        );
     }
 
     #[test]
@@ -7293,7 +8231,10 @@ mod tests {
         // With equal counts, any merge would reduce to 2 tracks
         let result = try_all_adjacent_merges(&detected, &expected, tolerance);
         // Merging would give 2 tracks, not matching expected 3
-        assert!(result.is_none(), "Should not find valid merge when counts match");
+        assert!(
+            result.is_none(),
+            "Should not find valid merge when counts match"
+        );
     }
 
     // ===== Fingerprint Tests =====
@@ -7314,11 +8255,19 @@ mod tests {
             .collect();
 
         let result = super::generate_fingerprint_ffi(&samples, sample_rate);
-        assert!(result.is_ok(), "chromaprint-sys-next should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "chromaprint-sys-next should succeed: {:?}",
+            result.err()
+        );
 
         let (fingerprint, duration) = result.unwrap();
         assert!(!fingerprint.is_empty(), "Fingerprint should not be empty");
         assert_eq!(duration, 5, "Duration should be ~5 seconds");
-        println!("chromaprint-sys-next (FFI): {} chars, duration={}s", fingerprint.len(), duration);
+        println!(
+            "chromaprint-sys-next (FFI): {} chars, duration={}s",
+            fingerprint.len(),
+            duration
+        );
     }
 }

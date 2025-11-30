@@ -122,7 +122,9 @@ impl MetadataExtractor {
         .to_string();
 
         // Try to get primary tag
-        let tag = tagged_file.primary_tag().or_else(|| tagged_file.first_tag());
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
 
         let (artist, title, album, track_number, year) = if let Some(tag) = tag {
             let artist = tag.artist().map(|s| s.to_string());
@@ -163,7 +165,10 @@ impl MetadataExtractor {
     }
 
     /// Extract metadata from multiple files
-    pub fn extract_batch(&self, file_paths: &[impl AsRef<Path>]) -> Vec<Result<AudioMetadata, MetadataError>> {
+    pub fn extract_batch(
+        &self,
+        file_paths: &[impl AsRef<Path>],
+    ) -> Vec<Result<AudioMetadata, MetadataError>> {
         file_paths
             .iter()
             .map(|path| self.extract(path.as_ref()))

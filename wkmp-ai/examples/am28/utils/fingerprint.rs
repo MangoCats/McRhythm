@@ -63,11 +63,8 @@ pub(crate) fn generate_chromaprint_fingerprint(
         }
 
         // Feed samples
-        let feed_result = chromaprint_ffi::chromaprint_feed(
-            ctx,
-            samples_i16.as_ptr(),
-            samples_i16.len() as i32,
-        );
+        let feed_result =
+            chromaprint_ffi::chromaprint_feed(ctx, samples_i16.as_ptr(), samples_i16.len() as i32);
         if feed_result != 1 {
             chromaprint_ffi::chromaprint_free(ctx);
             return Err("chromaprint-sys-next: feed failed".to_string());
@@ -82,8 +79,7 @@ pub(crate) fn generate_chromaprint_fingerprint(
 
         // Get compressed fingerprint (base64, compatible with AcoustID API)
         let mut fingerprint_ptr: *mut std::os::raw::c_char = std::ptr::null_mut();
-        let get_result =
-            chromaprint_ffi::chromaprint_get_fingerprint(ctx, &mut fingerprint_ptr);
+        let get_result = chromaprint_ffi::chromaprint_get_fingerprint(ctx, &mut fingerprint_ptr);
         if get_result != 1 || fingerprint_ptr.is_null() {
             chromaprint_ffi::chromaprint_free(ctx);
             return Err("chromaprint-sys-next: get_fingerprint failed".to_string());
@@ -122,10 +118,7 @@ pub(crate) fn resolve_acoustid_api_key() -> Result<String, String> {
         if toml_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&toml_path) {
                 if let Ok(config) = toml::from_str::<toml::Value>(&content) {
-                    if let Some(key) = config
-                        .get("acoustid_api_key")
-                        .and_then(|v| v.as_str())
-                    {
+                    if let Some(key) = config.get("acoustid_api_key").and_then(|v| v.as_str()) {
                         if !key.trim().is_empty() {
                             return Ok(key.to_string());
                         }

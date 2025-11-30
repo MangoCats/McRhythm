@@ -94,12 +94,7 @@ impl ProgressManager {
     /// * `event_bus` - Event bus for SSE broadcasting
     /// * `db` - Database pool for periodic sync
     /// * `total_files` - Total number of files to process
-    pub fn new(
-        session_id: Uuid,
-        event_bus: EventBus,
-        db: SqlitePool,
-        total_files: usize,
-    ) -> Self {
+    pub fn new(session_id: Uuid, event_bus: EventBus, db: SqlitePool, total_files: usize) -> Self {
         let now = Instant::now();
         let state = ProgressState {
             session_id,
@@ -256,7 +251,17 @@ impl ProgressManager {
     /// **[REQ-PERF-002]** SSE decoupled from database operations
     /// **[REQ-PERF-006]** <1 second latency for real-time updates
     async fn broadcast_sse(&self) {
-        let (session_id, state_str, current, total, percentage, current_operation, current_file, phase_statistics, elapsed_seconds) = {
+        let (
+            session_id,
+            state_str,
+            current,
+            total,
+            percentage,
+            current_operation,
+            current_file,
+            phase_statistics,
+            elapsed_seconds,
+        ) = {
             let state = self.state.read();
             let elapsed = state.start_time.elapsed().as_secs();
             let percentage = if state.files_total > 0 {
@@ -378,7 +383,11 @@ impl ProgressManager {
     /// Get current progress state (for debugging/monitoring)
     pub fn get_progress(&self) -> (usize, usize, String) {
         let state = self.state.read();
-        (state.files_processed, state.files_total, state.current_operation.clone())
+        (
+            state.files_processed,
+            state.files_total,
+            state.current_operation.clone(),
+        )
     }
 
     /// Check if state is dirty (needs sync)
@@ -477,12 +486,17 @@ mod tests {
             crate::models::ImportParameters::default(),
         );
         let session_id = session.session_id; // Capture the generated UUID
-        crate::db::sessions::save_session(&db, &session).await.unwrap();
+        crate::db::sessions::save_session(&db, &session)
+            .await
+            .unwrap();
 
         let manager = ProgressManager::new(session_id, event_bus, db.clone(), 1000);
 
         // Update progress
-        manager.update_progress(100, "Processing files".to_string()).await.unwrap();
+        manager
+            .update_progress(100, "Processing files".to_string())
+            .await
+            .unwrap();
 
         // Verify in-memory state
         let (processed, total, operation) = manager.get_progress();
@@ -508,7 +522,9 @@ mod tests {
             crate::models::ImportParameters::default(),
         );
         let session_id = session.session_id; // Capture the generated UUID
-        crate::db::sessions::save_session(&db, &session).await.unwrap();
+        crate::db::sessions::save_session(&db, &session)
+            .await
+            .unwrap();
 
         let manager = ProgressManager::new(session_id, event_bus, db.clone(), 1000);
 
@@ -516,7 +532,10 @@ mod tests {
         assert!(!manager.is_dirty());
 
         // Update progress
-        manager.update_progress(100, "Processing".to_string()).await.unwrap();
+        manager
+            .update_progress(100, "Processing".to_string())
+            .await
+            .unwrap();
 
         // Should be dirty now
         assert!(manager.is_dirty());
@@ -544,12 +563,17 @@ mod tests {
             crate::models::ImportParameters::default(),
         );
         let session_id = session.session_id;
-        crate::db::sessions::save_session(&db, &session).await.unwrap();
+        crate::db::sessions::save_session(&db, &session)
+            .await
+            .unwrap();
 
         let manager = ProgressManager::new(session_id, event_bus, db.clone(), 1000);
 
         // Make state dirty
-        manager.update_progress(50, "Processing".to_string()).await.unwrap();
+        manager
+            .update_progress(50, "Processing".to_string())
+            .await
+            .unwrap();
         assert!(manager.is_dirty());
 
         // Record when we marked it dirty
@@ -588,12 +612,17 @@ mod tests {
             crate::models::ImportParameters::default(),
         );
         let session_id = session.session_id;
-        crate::db::sessions::save_session(&db, &session).await.unwrap();
+        crate::db::sessions::save_session(&db, &session)
+            .await
+            .unwrap();
 
         let manager = ProgressManager::new(session_id, event_bus, db.clone(), 1000);
 
         // Update progress to make dirty
-        manager.update_progress(75, "Almost done".to_string()).await.unwrap();
+        manager
+            .update_progress(75, "Almost done".to_string())
+            .await
+            .unwrap();
 
         assert!(manager.is_dirty());
 

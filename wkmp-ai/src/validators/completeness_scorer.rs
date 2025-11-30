@@ -179,10 +179,7 @@ impl CompletenessScorer {
     /// Scoring:
     /// - Critical fields (title, artist): 0.5 each (required for basic functionality)
     /// - Optional fields (album, MBID): bonus 0.1 each (enhance quality)
-    fn score_metadata(
-        &self,
-        metadata: &crate::types::FusedMetadata,
-    ) -> (f32, Vec<String>) {
+    fn score_metadata(&self, metadata: &crate::types::FusedMetadata) -> (f32, Vec<String>) {
         let mut score = 0.0_f32;
         let mut issues = Vec::new();
 
@@ -225,10 +222,7 @@ impl CompletenessScorer {
     /// - MBID with low confidence (<0.5): 0.7
     /// - MBID with medium confidence (0.5-0.8): 0.85
     /// - MBID with high confidence (≥0.8): 1.0
-    fn score_identity(
-        &self,
-        identity: &crate::types::FusedIdentity,
-    ) -> (f32, Vec<String>) {
+    fn score_identity(&self, identity: &crate::types::FusedIdentity) -> (f32, Vec<String>) {
         let mut issues = Vec::new();
 
         let score = if let Some(ref _mbid) = identity.recording_mbid {
@@ -256,10 +250,7 @@ impl CompletenessScorer {
     /// Scoring:
     /// - Uses flavor.completeness field directly (0.0-1.0)
     /// - Issues generated if below minimum threshold
-    fn score_flavor(
-        &self,
-        flavor: &crate::types::FusedFlavor,
-    ) -> (f32, Vec<String>) {
+    fn score_flavor(&self, flavor: &crate::types::FusedFlavor) -> (f32, Vec<String>) {
         let mut issues = Vec::new();
 
         let score = flavor.completeness;
@@ -454,7 +445,11 @@ mod tests {
         assert!(validation.score >= 0.6 && validation.score < 0.75);
         assert_eq!(validation.status, ValidationStatus::Warning);
         assert_eq!(
-            validation.issues.iter().filter(|i| i.contains("Missing metadata")).count(),
+            validation
+                .issues
+                .iter()
+                .filter(|i| i.contains("Missing metadata"))
+                .count(),
             2
         );
     }
@@ -473,10 +468,7 @@ mod tests {
         // Expected: 0.4 (metadata) + 0.0 (identity) + 0.24 (flavor 0.8*0.3) = 0.64
         assert!(validation.score < 0.75); // Below pass threshold
         assert!(!validation.issues.is_empty());
-        assert!(validation
-            .issues
-            .iter()
-            .any(|issue| issue.contains("MBID")));
+        assert!(validation.issues.iter().any(|issue| issue.contains("MBID")));
     }
 
     #[tokio::test]

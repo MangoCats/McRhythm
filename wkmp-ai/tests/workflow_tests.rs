@@ -3,14 +3,11 @@
 //! Requirements: AIA-WF-010 (State Machine), AIA-WF-020 (Session Management)
 
 use uuid::Uuid;
-use wkmp_ai::models::{ImportSession, ImportState, ImportParameters};
+use wkmp_ai::models::{ImportParameters, ImportSession, ImportState};
 
 /// Helper function to create test session
 fn create_test_session() -> ImportSession {
-    ImportSession::new(
-        "/test/music".to_string(),
-        ImportParameters::default(),
-    )
+    ImportSession::new("/test/music".to_string(), ImportParameters::default())
 }
 
 /// TC-WF-001: SCANNING → EXTRACTING Transition
@@ -186,7 +183,10 @@ fn tc_wf_009_session_state_persistence() {
     let session = create_test_session();
 
     // Then: Session data persisted in-memory structure
-    assert!(session.session_id.to_string().len() > 0, "UUID should be set");
+    assert!(
+        session.session_id.to_string().len() > 0,
+        "UUID should be set"
+    );
     assert_eq!(session.state, ImportState::Scanning);
     assert!(session.started_at.timestamp() > 0);
     assert!(session.ended_at.is_none());

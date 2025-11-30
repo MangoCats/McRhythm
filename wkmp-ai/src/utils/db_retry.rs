@@ -87,9 +87,7 @@ where
             Err(err) => {
                 // Check if this is a database lock error
                 let is_lock_error = match &err {
-                    Error::Database(db_err) => {
-                        db_err.to_string().contains("database is locked")
-                    }
+                    Error::Database(db_err) => db_err.to_string().contains("database is locked"),
                     _ => false,
                 };
 
@@ -145,10 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_succeeds_first_attempt() {
-        let result = retry_on_lock("test_op", 5000, || async {
-            Ok::<i32, Error>(42)
-        })
-        .await;
+        let result = retry_on_lock("test_op", 5000, || async { Ok::<i32, Error>(42) }).await;
 
         assert_eq!(result.unwrap(), 42);
     }
@@ -194,9 +189,7 @@ mod tests {
 
         let result = retry_on_lock("test_op", 5000, || {
             attempts += 1;
-            async move {
-                Err::<i32, Error>(Error::Internal("other error".to_string()))
-            }
+            async move { Err::<i32, Error>(Error::Internal("other error".to_string())) }
         })
         .await;
 

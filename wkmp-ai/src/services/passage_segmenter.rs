@@ -107,8 +107,7 @@ impl PassageSegmenter {
 
         // Convert thresholds to formats needed by SilenceDetector
         let silence_threshold_db_f32 = -(silence_threshold_db as f32); // Negate: settings use positive dB, detector uses negative
-        let silence_min_duration_sec =
-            silence_min_duration_ticks as f32 / TICKS_PER_SECOND as f32;
+        let silence_min_duration_sec = silence_min_duration_ticks as f32 / TICKS_PER_SECOND as f32;
 
         tracing::debug!(
             silence_threshold_db,
@@ -263,10 +262,12 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('silence_min_duration_ticks', '56448000')") // 2000ms = 2.0s
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('silence_min_duration_ticks', '56448000')",
+        ) // 2000ms = 2.0s
+        .execute(&pool)
+        .await
+        .unwrap();
         sqlx::query("INSERT INTO settings (key, value) VALUES ('minimum_passage_audio_duration_ticks', '2822400')") // 100ms
             .execute(&pool)
             .await
@@ -301,7 +302,8 @@ mod tests {
             samples.push(0.0);
         }
 
-        let duration_ticks = ((samples.len() as f32 / sample_rate as f32) * TICKS_PER_SECOND as f32) as i64;
+        let duration_ticks =
+            ((samples.len() as f32 / sample_rate as f32) * TICKS_PER_SECOND as f32) as i64;
 
         // Insert test file
         sqlx::query(

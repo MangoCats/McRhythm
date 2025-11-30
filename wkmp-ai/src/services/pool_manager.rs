@@ -250,10 +250,6 @@ mod tests {
             stats.avg_wait_ms
         );
 
-        Arc::try_unwrap(pool_manager)
-            .ok()
-            .unwrap()
-            .shutdown()
-            .await;
+        Arc::try_unwrap(pool_manager).ok().unwrap().shutdown().await;
     }
 }

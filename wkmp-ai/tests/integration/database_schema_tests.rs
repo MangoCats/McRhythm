@@ -167,7 +167,11 @@ async fn tc_db_004_audio_file_insert_without_session_id() {
     let result = wkmp_ai::db::files::save_file(&pool, &file).await;
 
     // Verify: INSERT succeeded
-    assert!(result.is_ok(), "AudioFile INSERT should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "AudioFile INSERT should succeed: {:?}",
+        result
+    );
 
     // Verify: Record persisted
     let path: String = sqlx::query_scalar("SELECT path FROM files WHERE guid = ?")

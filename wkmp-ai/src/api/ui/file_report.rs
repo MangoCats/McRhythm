@@ -13,7 +13,8 @@ pub async fn file_report_page() -> impl IntoResponse {
     let build_timestamp = env!("BUILD_TIMESTAMP");
     let build_profile = env!("BUILD_PROFILE");
 
-    let html = format!(r#"
+    let html = format!(
+        r#"
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -245,7 +246,9 @@ pub async fn file_report_page() -> impl IntoResponse {
     <script src="/static/file-report.js"></script>
 </body>
 </html>
-"#, version, git_hash, build_timestamp, build_profile);
+"#,
+        version, git_hash, build_timestamp, build_profile
+    );
 
     Html(html)
 }

@@ -131,8 +131,9 @@ fn systemtime_to_iso8601(time: SystemTime) -> String {
     use std::time::UNIX_EPOCH;
     match time.duration_since(UNIX_EPOCH) {
         Ok(duration) => {
-            let datetime = chrono::DateTime::<chrono::Utc>::from_timestamp(duration.as_secs() as i64, 0)
-                .unwrap_or_else(|| chrono::Utc::now());
+            let datetime =
+                chrono::DateTime::<chrono::Utc>::from_timestamp(duration.as_secs() as i64, 0)
+                    .unwrap_or_else(|| chrono::Utc::now());
             datetime.to_rfc3339()
         }
         Err(_) => chrono::Utc::now().to_rfc3339(),
@@ -200,8 +201,9 @@ pub async fn get_file_classification(
 
     let file_classification_data: Option<String> = session.get("file_classification_data");
     let file_classification = if let Some(data) = file_classification_data {
-        serde_json::from_str::<crate::models::FileClassification>(&data)
-            .map_err(|e| ApiError::Internal(format!("Failed to deserialize file_classification: {}", e)))?
+        serde_json::from_str::<crate::models::FileClassification>(&data).map_err(|e| {
+            ApiError::Internal(format!("Failed to deserialize file_classification: {}", e))
+        })?
     } else {
         crate::models::FileClassification::new()
     };
@@ -209,18 +211,19 @@ pub async fn get_file_classification(
     // Check if SCANNING has completed
     if import_state == ImportState::Scanning {
         return Err(ApiError::Conflict(
-            "Import still in SCANNING phase, classification report not yet available".to_string()
+            "Import still in SCANNING phase, classification report not yet available".to_string(),
         ));
     }
 
     // Check if classification data is available
     if file_classification.scan_completed_at.is_none() {
         return Err(ApiError::NotFound(
-            "File classification data not available for this session".to_string()
+            "File classification data not available for this session".to_string(),
         ));
     }
 
-    let scan_completed_at = file_classification.scan_completed_at
+    let scan_completed_at = file_classification
+        .scan_completed_at
         .map(|dt| dt.to_rfc3339())
         .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
 
@@ -256,10 +259,8 @@ pub async fn get_file_classification(
         let end = (start + limit).min(files.len());
         let has_more = end < files.len();
 
-        let paginated_files: Vec<FileInfoResponse> = files[start..end]
-            .iter()
-            .map(convert_file_info)
-            .collect();
+        let paginated_files: Vec<FileInfoResponse> =
+            files[start..end].iter().map(convert_file_info).collect();
 
         let response = SingleCategoryResponse {
             session_id,
@@ -280,19 +281,22 @@ pub async fn get_file_classification(
         })?))
     } else {
         // Return all categories (first 500 files each, per spec)
-        let audio_files: Vec<FileInfoResponse> = file_classification.audio_files
+        let audio_files: Vec<FileInfoResponse> = file_classification
+            .audio_files
             .iter()
             .take(limit)
             .map(convert_file_info)
             .collect();
 
-        let image_files: Vec<FileInfoResponse> = file_classification.image_files
+        let image_files: Vec<FileInfoResponse> = file_classification
+            .image_files
             .iter()
             .take(limit)
             .map(convert_file_info)
             .collect();
 
-        let other_files: Vec<FileInfoResponse> = file_classification.other_files
+        let other_files: Vec<FileInfoResponse> = file_classification
+            .other_files
             .iter()
             .take(limit)
             .map(convert_file_info)
@@ -327,6 +331,8 @@ pub async fn get_file_classification(
 
 /// Build file classification routes
 pub fn file_classification_routes() -> Router<AppState> {
-    Router::new()
-        .route("/api/import/file-classification", get(get_file_classification))
+    Router::new().route(
+        "/api/import/file-classification",
+        get(get_file_classification),
+    )
 }

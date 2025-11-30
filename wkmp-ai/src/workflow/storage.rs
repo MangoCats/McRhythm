@@ -4,11 +4,11 @@
 //! SPEC017 Compliance: Stores passage times as INTEGER ticks, not REAL seconds
 
 use super::{ProcessedPassage, TICK_RATE};
+use crate::utils::begin_monitored;
 use anyhow::{Context, Result};
 use sqlx::SqlitePool;
 use tracing::{debug, info};
 use uuid::Uuid;
-use crate::utils::begin_monitored;
 
 /// Look up file GUID by file path
 ///
@@ -59,28 +59,52 @@ pub async fn store_passage(
         .metadata
         .title
         .as_ref()
-        .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+        .map(|cv| {
+            (
+                Some(cv.value.clone()),
+                Some(cv.source.clone()),
+                cv.confidence,
+            )
+        })
         .unwrap_or((None, None, 0.0));
 
     let (artist, artist_source, artist_confidence) = fusion
         .metadata
         .artist
         .as_ref()
-        .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+        .map(|cv| {
+            (
+                Some(cv.value.clone()),
+                Some(cv.source.clone()),
+                cv.confidence,
+            )
+        })
         .unwrap_or((None, None, 0.0));
 
     let (album, album_source, album_confidence) = fusion
         .metadata
         .album
         .as_ref()
-        .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+        .map(|cv| {
+            (
+                Some(cv.value.clone()),
+                Some(cv.source.clone()),
+                cv.confidence,
+            )
+        })
         .unwrap_or((None, None, 0.0));
 
     let (recording_mbid, mbid_source, mbid_confidence) = fusion
         .metadata
         .recording_mbid
         .as_ref()
-        .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+        .map(|cv| {
+            (
+                Some(cv.value.clone()),
+                Some(cv.source.clone()),
+                cv.confidence,
+            )
+        })
         .unwrap_or((None, None, 0.0));
 
     // Serialize JSON fields
@@ -326,7 +350,7 @@ pub async fn store_passages_batch(
 
     // Get max lock wait time from settings (default 5000ms)
     let _max_wait_ms: i64 = sqlx::query_scalar(
-        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'"
+        "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_max_lock_wait_ms'",
     )
     .fetch_optional(db)
     .await
@@ -353,28 +377,52 @@ pub async fn store_passages_batch(
             .metadata
             .title
             .as_ref()
-            .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+            .map(|cv| {
+                (
+                    Some(cv.value.clone()),
+                    Some(cv.source.clone()),
+                    cv.confidence,
+                )
+            })
             .unwrap_or((None, None, 0.0));
 
         let (artist, artist_source, artist_confidence) = fusion
             .metadata
             .artist
             .as_ref()
-            .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+            .map(|cv| {
+                (
+                    Some(cv.value.clone()),
+                    Some(cv.source.clone()),
+                    cv.confidence,
+                )
+            })
             .unwrap_or((None, None, 0.0));
 
         let (album, album_source, album_confidence) = fusion
             .metadata
             .album
             .as_ref()
-            .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+            .map(|cv| {
+                (
+                    Some(cv.value.clone()),
+                    Some(cv.source.clone()),
+                    cv.confidence,
+                )
+            })
             .unwrap_or((None, None, 0.0));
 
         let (recording_mbid, mbid_source, mbid_confidence) = fusion
             .metadata
             .recording_mbid
             .as_ref()
-            .map(|cv| (Some(cv.value.clone()), Some(cv.source.clone()), cv.confidence))
+            .map(|cv| {
+                (
+                    Some(cv.value.clone()),
+                    Some(cv.source.clone()),
+                    cv.confidence,
+                )
+            })
             .unwrap_or((None, None, 0.0));
 
         // Serialize JSON fields
@@ -521,7 +569,9 @@ pub async fn store_passages_batch(
         passage_ids.push(passage_id);
     }
 
-    tx.commit().await.map_err(|e| anyhow::anyhow!("Failed to commit transaction: {}", e))?;
+    tx.commit()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to commit transaction: {}", e))?;
 
     info!(
         "Stored {} passages from {} in transaction",
@@ -535,12 +585,12 @@ pub async fn store_passages_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::ValidationResult;
     use crate::types::{
         ConfidenceValue, ExtractionResult, FlavorExtraction, FusedFlavor, FusedIdentity,
         FusedMetadata, MetadataExtraction, ValidationStatus,
     };
     use crate::workflow::{FusedPassage, PassageBoundary, ProcessedPassage};
-    use crate::types::ValidationResult;
     use sqlx::sqlite::SqlitePoolOptions;
     use std::collections::HashMap;
 
@@ -613,11 +663,7 @@ mod tests {
         // Create mock extraction results
         let metadata_extraction = MetadataExtraction {
             title: Some(ConfidenceValue::new("Test Song".to_string(), 0.95, "id3")),
-            artist: Some(ConfidenceValue::new(
-                "Test Artist".to_string(),
-                0.95,
-                "id3",
-            )),
+            artist: Some(ConfidenceValue::new("Test Artist".to_string(), 0.95, "id3")),
             album: Some(ConfidenceValue::new("Test Album".to_string(), 0.90, "id3")),
             recording_mbid: Some(ConfidenceValue::new(
                 "12345678-1234-1234-1234-123456789abc".to_string(),
@@ -771,12 +817,18 @@ mod tests {
         assert_eq!(row.3, end_ticks);
 
         // Verify metadata fields
-        let row: (Option<String>, Option<String>, Option<String>, Option<String>) =
-            sqlx::query_as("SELECT title, artist, album, recording_mbid FROM passages WHERE guid = ?")
-                .bind(&passage_id)
-                .fetch_one(&db)
-                .await
-                .expect("Failed to fetch metadata");
+        let row: (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        ) = sqlx::query_as(
+            "SELECT title, artist, album, recording_mbid FROM passages WHERE guid = ?",
+        )
+        .bind(&passage_id)
+        .fetch_one(&db)
+        .await
+        .expect("Failed to fetch metadata");
 
         assert_eq!(row.0, Some("Test Song".to_string()));
         assert_eq!(row.1, Some("Test Artist".to_string()));
@@ -801,12 +853,13 @@ mod tests {
         assert!((row.3 - 0.95).abs() < 0.01);
 
         // Verify validation data
-        let row: (String, f64) =
-            sqlx::query_as("SELECT validation_status, overall_quality_score FROM passages WHERE guid = ?")
-                .bind(&passage_id)
-                .fetch_one(&db)
-                .await
-                .expect("Failed to fetch validation data");
+        let row: (String, f64) = sqlx::query_as(
+            "SELECT validation_status, overall_quality_score FROM passages WHERE guid = ?",
+        )
+        .bind(&passage_id)
+        .fetch_one(&db)
+        .await
+        .expect("Failed to fetch validation data");
 
         assert_eq!(row.0, "Pass");
         assert!((row.1 - 0.92).abs() < 0.01);
@@ -858,10 +911,9 @@ mod tests {
         ];
 
         // Store all passages in transaction
-        let passage_ids =
-            store_passages_batch(&db, file_path, &passages, &import_session_id)
-                .await
-                .expect("Failed to store passages batch");
+        let passage_ids = store_passages_batch(&db, file_path, &passages, &import_session_id)
+            .await
+            .expect("Failed to store passages batch");
 
         assert_eq!(passage_ids.len(), 3);
 
@@ -874,22 +926,22 @@ mod tests {
         assert_eq!(count, 3);
 
         // Verify correct time boundaries
-        let times: Vec<(i64, i64)> =
-            sqlx::query_as("SELECT start_time_ticks, end_time_ticks FROM passages ORDER BY start_time_ticks")
-                .fetch_all(&db)
-                .await
-                .expect("Failed to fetch times");
+        let times: Vec<(i64, i64)> = sqlx::query_as(
+            "SELECT start_time_ticks, end_time_ticks FROM passages ORDER BY start_time_ticks",
+        )
+        .fetch_all(&db)
+        .await
+        .expect("Failed to fetch times");
 
         assert_eq!(times[0], (0, 180 * TICK_RATE));
         assert_eq!(times[1], (180 * TICK_RATE, 360 * TICK_RATE));
         assert_eq!(times[2], (360 * TICK_RATE, 540 * TICK_RATE));
 
         // Verify provenance logs for all passages
-        let provenance_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM import_provenance")
-                .fetch_one(&db)
-                .await
-                .expect("Failed to count provenance logs");
+        let provenance_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM import_provenance")
+            .fetch_one(&db)
+            .await
+            .expect("Failed to count provenance logs");
 
         assert_eq!(provenance_count, 6); // 3 passages × 2 extractions each
     }

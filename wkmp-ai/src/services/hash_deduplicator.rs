@@ -5,12 +5,12 @@
 //! Calculates SHA-256 hash of file content, detects duplicate hashes,
 //! and creates bidirectional links between duplicate files.
 
+use crate::utils::{begin_monitored, retry_on_lock};
 use sha2::{Digest, Sha256};
 use sqlx::{Pool, Sqlite};
 use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
-use crate::utils::{retry_on_lock, begin_monitored};
 
 /// Hash deduplication result
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,13 +109,12 @@ impl HashDeduplicator {
         tracing::debug!(hash = %hash, file_id = %current_file_id, "Checking for duplicate hash");
 
         // Query database for files with same hash (excluding current file)
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT guid FROM files WHERE hash = ? AND guid != ? LIMIT 1",
-        )
-        .bind(hash)
-        .bind(current_file_id.to_string())
-        .fetch_optional(&self.db)
-        .await?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT guid FROM files WHERE hash = ? AND guid != ? LIMIT 1")
+                .bind(hash)
+                .bind(current_file_id.to_string())
+                .fetch_optional(&self.db)
+                .await?;
 
         match row {
             None => {
@@ -145,13 +144,11 @@ impl HashDeduplicator {
     ///
     /// **Traceability:** [REQ-SPEC032-009]
     pub async fn update_file_hash(&self, file_id: Uuid, hash: &str) -> Result<()> {
-        sqlx::query(
-            "UPDATE files SET hash = ?, updated_at = CURRENT_TIMESTAMP WHERE guid = ?",
-        )
-        .bind(hash)
-        .bind(file_id.to_string())
-        .execute(&self.db)
-        .await?;
+        sqlx::query("UPDATE files SET hash = ?, updated_at = CURRENT_TIMESTAMP WHERE guid = ?")
+            .bind(hash)
+            .bind(file_id.to_string())
+            .execute(&self.db)
+            .await?;
 
         tracing::debug!(file_id = %file_id, hash = %hash, "Updated file hash");
 
@@ -288,11 +285,7 @@ impl HashDeduplicator {
     /// 5. If unique: Return Unique
     ///
     /// **Traceability:** [REQ-SPEC032-009]
-    pub async fn process_file_hash(
-        &self,
-        file_id: Uuid,
-        file_path: &Path,
-    ) -> Result<HashResult> {
+    pub async fn process_file_hash(&self, file_id: Uuid, file_path: &Path) -> Result<HashResult> {
         // Calculate hash
         let hash = self.calculate_hash(file_path).await?;
 
@@ -366,10 +359,7 @@ mod tests {
         temp_file.write_all(b"test content").unwrap();
         temp_file.flush().unwrap();
 
-        let hash = deduplicator
-            .calculate_hash(temp_file.path())
-            .await
-            .unwrap();
+        let hash = deduplicator.calculate_hash(temp_file.path()).await.unwrap();
 
         // Verify hash is SHA-256 hex string (64 characters)
         assert_eq!(hash.len(), 64);
@@ -454,12 +444,11 @@ mod tests {
             .unwrap();
 
         // Verify hash was updated
-        let stored_hash: String =
-            sqlx::query_scalar("SELECT hash FROM files WHERE guid = ?")
-                .bind(file_id.to_string())
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let stored_hash: String = sqlx::query_scalar("SELECT hash FROM files WHERE guid = ?")
+            .bind(file_id.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
 
         assert_eq!(stored_hash, "abc123");
     }
@@ -502,36 +491,33 @@ mod tests {
             .unwrap();
 
         // Verify original file has duplicate in matching_hashes
-        let original_matches: String = sqlx::query_scalar(
-            "SELECT matching_hashes FROM files WHERE guid = ?",
-        )
-        .bind(original_id.to_string())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let original_matches: String =
+            sqlx::query_scalar("SELECT matching_hashes FROM files WHERE guid = ?")
+                .bind(original_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         let original_array: Vec<String> = serde_json::from_str(&original_matches).unwrap();
         assert!(original_array.contains(&duplicate_id.to_string()));
 
         // Verify duplicate file has original in matching_hashes
-        let duplicate_matches: String = sqlx::query_scalar(
-            "SELECT matching_hashes FROM files WHERE guid = ?",
-        )
-        .bind(duplicate_id.to_string())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let duplicate_matches: String =
+            sqlx::query_scalar("SELECT matching_hashes FROM files WHERE guid = ?")
+                .bind(duplicate_id.to_string())
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         let duplicate_array: Vec<String> = serde_json::from_str(&duplicate_matches).unwrap();
         assert!(duplicate_array.contains(&original_id.to_string()));
 
         // Verify duplicate file has DUPLICATE HASH status
-        let status: String =
-            sqlx::query_scalar("SELECT status FROM files WHERE guid = ?")
-                .bind(duplicate_id.to_string())
-                .fetch_one(&pool)
-                .await
-                .unwrap();
+        let status: String = sqlx::query_scalar("SELECT status FROM files WHERE guid = ?")
+            .bind(duplicate_id.to_string())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
 
         assert_eq!(status, "DUPLICATE HASH");
     }

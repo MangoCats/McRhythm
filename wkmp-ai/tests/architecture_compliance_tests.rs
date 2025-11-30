@@ -2,5 +2,5 @@
 //!
 //! Tests that verify SPEC032 per-file pipeline architecture
 
-mod helpers;
 mod architecture;
+mod helpers;

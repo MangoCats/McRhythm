@@ -176,7 +176,9 @@ fn choose_album(id3_album: &str, path_album: &str) -> (String, String, MetadataS
 /// - Standard: artist, album, date, genre, comment
 /// - MusicBrainz: album ID, artist ID
 /// - All tags: Complete HashMap for debugging
-pub(crate) fn extract_id3_tags(file_path: &Path) -> Result<ID3Metadata, Box<dyn std::error::Error>> {
+pub(crate) fn extract_id3_tags(
+    file_path: &Path,
+) -> Result<ID3Metadata, Box<dyn std::error::Error>> {
     let tagged_file = Probe::open(file_path)?
         .read()
         .map_err(|e| format!("Failed to read tags: {}", e))?;
@@ -208,20 +210,17 @@ pub(crate) fn extract_id3_tags(file_path: &Path) -> Result<ID3Metadata, Box<dyn 
     }
 
     // Extract standard fields using lofty's Accessor trait
-    let artist = tag
-        .artist()
-        .map(|s| s.to_string())
-        .or_else(|| tag.get_string(&lofty::tag::ItemKey::AlbumArtist).map(String::from));
+    let artist = tag.artist().map(|s| s.to_string()).or_else(|| {
+        tag.get_string(&lofty::tag::ItemKey::AlbumArtist)
+            .map(String::from)
+    });
 
     let album = tag.album().map(|s| s.to_string());
 
-    let date = tag
-        .year()
-        .map(|y| y.to_string())
-        .or_else(|| {
-            tag.get_string(&lofty::tag::ItemKey::RecordingDate)
-                .map(String::from)
-        });
+    let date = tag.year().map(|y| y.to_string()).or_else(|| {
+        tag.get_string(&lofty::tag::ItemKey::RecordingDate)
+            .map(String::from)
+    });
 
     let genre = tag.genre().map(|s| s.to_string());
 
@@ -529,7 +528,10 @@ mod tests {
     #[test]
     fn test_strings_match_basic() {
         assert!(strings_match("The Beatles", "the beatles"));
-        assert!(strings_match("Bob Marley & The Wailers", "Bob Marley  The Wailers"));
+        assert!(strings_match(
+            "Bob Marley & The Wailers",
+            "Bob Marley  The Wailers"
+        ));
         assert!(!strings_match("Beatles", "Rolling Stones"));
     }
 

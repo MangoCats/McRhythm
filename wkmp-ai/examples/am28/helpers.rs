@@ -8,9 +8,7 @@
 //! - Common helper functions
 
 use crate::constants::{
-    CONFIDENCE_EXCELLENT_THRESHOLD,
-    CONFIDENCE_GOOD_THRESHOLD,
-    CONFIDENCE_FAIR_THRESHOLD,
+    CONFIDENCE_EXCELLENT_THRESHOLD, CONFIDENCE_FAIR_THRESHOLD, CONFIDENCE_GOOD_THRESHOLD,
 };
 use crate::types::ValidationResult;
 use crate::utils::query_stats::QueryStats;

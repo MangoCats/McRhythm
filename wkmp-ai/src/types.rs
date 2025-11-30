@@ -415,8 +415,7 @@ pub trait Validation: Send + Sync {
     ///
     /// # Errors
     /// Returns `ValidationError` if validation fails
-    async fn validate(&self, input: &Self::Input)
-        -> Result<ValidationResult, ValidationError>;
+    async fn validate(&self, input: &Self::Input) -> Result<ValidationResult, ValidationError>;
 }
 
 /// Validation result

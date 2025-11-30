@@ -150,9 +150,7 @@ impl PatternAnalyzer {
     pub fn analyze(&self, segments: &[Segment]) -> Result<PatternMetadata, PatternError> {
         // Validate input
         if segments.is_empty() {
-            return Err(PatternError::InvalidInput(
-                "Empty segment list".to_string(),
-            ));
+            return Err(PatternError::InvalidInput("Empty segment list".to_string()));
         }
 
         // REQ-PATT-020: Track count detection
@@ -179,12 +177,8 @@ impl PatternAnalyzer {
         };
 
         // REQ-PATT-040: Source media classification
-        let (likely_source_media, confidence) = self.classify_source_media(
-            track_count,
-            mean_gap,
-            gap_std_dev,
-            gap_pattern,
-        );
+        let (likely_source_media, confidence) =
+            self.classify_source_media(track_count, mean_gap, gap_std_dev, gap_pattern);
 
         Ok(PatternMetadata {
             track_count,
@@ -298,10 +292,7 @@ mod tests {
     #[test]
     fn tc_u_patt_010_01_accepts_segment_list() {
         let analyzer = PatternAnalyzer::new();
-        let segments = vec![
-            Segment::new(0.0, 180.0),
-            Segment::new(182.0, 360.0),
-        ];
+        let segments = vec![Segment::new(0.0, 180.0), Segment::new(182.0, 360.0)];
 
         let result = analyzer.analyze(&segments);
         assert!(result.is_ok(), "Analyzer should accept valid segment list");
@@ -380,10 +371,10 @@ mod tests {
         // Vinyl-like: variable gaps (1s, 5s, 2s, 8s)
         let segments = vec![
             Segment::new(0.0, 180.0),
-            Segment::new(181.0, 360.0),   // 1s gap
-            Segment::new(365.0, 540.0),   // 5s gap
-            Segment::new(542.0, 720.0),   // 2s gap
-            Segment::new(728.0, 900.0),   // 8s gap
+            Segment::new(181.0, 360.0), // 1s gap
+            Segment::new(365.0, 540.0), // 5s gap
+            Segment::new(542.0, 720.0), // 2s gap
+            Segment::new(728.0, 900.0), // 8s gap
         ];
 
         let result = analyzer.analyze(&segments).unwrap();
@@ -406,7 +397,10 @@ mod tests {
 
         let result = analyzer.analyze(&segments).unwrap();
         assert_eq!(result.likely_source_media, SourceMedia::CD);
-        assert!(result.confidence >= 0.8, "CD classification should have high confidence");
+        assert!(
+            result.confidence >= 0.8,
+            "CD classification should have high confidence"
+        );
     }
 
     /// **[TC-U-PATT-040-02]** Unit test: Verify source media classification (Vinyl)
@@ -426,7 +420,10 @@ mod tests {
 
         let result = analyzer.analyze(&segments).unwrap();
         assert_eq!(result.likely_source_media, SourceMedia::Vinyl);
-        assert!(result.confidence >= 0.6, "Vinyl classification should have medium-high confidence");
+        assert!(
+            result.confidence >= 0.6,
+            "Vinyl classification should have medium-high confidence"
+        );
     }
 
     /// **[TC-U-PATT-010-03]** Unit test: Verify empty segment list rejected

@@ -87,7 +87,9 @@ impl ID3Extractor {
             })?;
 
         // Get primary tag (ID3v2 preferred, falls back to others)
-        let tag = tagged_file.primary_tag().or_else(|| tagged_file.first_tag());
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
 
         let Some(tag) = tag else {
             debug!(file = ?file_path, "No tags found in audio file");
@@ -153,21 +155,18 @@ impl ID3Extractor {
     }
 
     fn extract_title(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
-        tag.title().map(|title| {
-            ConfidenceValue::new(title.to_string(), self.base_confidence, "ID3")
-        })
+        tag.title()
+            .map(|title| ConfidenceValue::new(title.to_string(), self.base_confidence, "ID3"))
     }
 
     fn extract_artist(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
-        tag.artist().map(|artist| {
-            ConfidenceValue::new(artist.to_string(), self.base_confidence, "ID3")
-        })
+        tag.artist()
+            .map(|artist| ConfidenceValue::new(artist.to_string(), self.base_confidence, "ID3"))
     }
 
     fn extract_album(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
-        tag.album().map(|album| {
-            ConfidenceValue::new(album.to_string(), self.base_confidence, "ID3")
-        })
+        tag.album()
+            .map(|album| ConfidenceValue::new(album.to_string(), self.base_confidence, "ID3"))
     }
 
     fn extract_musicbrainz_recording_id(&self, tag: &Tag) -> Option<ConfidenceValue<String>> {
@@ -185,11 +184,7 @@ impl ID3Extractor {
                 if is_valid_mbid(mbid) {
                     debug!(mbid = %mbid, "Found MusicBrainz Recording ID in ID3 tags");
                     // Higher confidence when MBID is present (0.9 - authoritative)
-                    return Some(ConfidenceValue::new(
-                        mbid.to_string(),
-                        0.9,
-                        "ID3-MBID",
-                    ));
+                    return Some(ConfidenceValue::new(mbid.to_string(), 0.9, "ID3-MBID"));
                 } else {
                     warn!(mbid = %mbid, "Invalid MusicBrainz Recording ID format in ID3 tags");
                 }
@@ -246,7 +241,7 @@ impl SourceExtractor for ID3Extractor {
 
         Ok(ExtractionResult {
             metadata: Some(metadata),
-            identity: None,      // ID3 extractor doesn't perform identity resolution
+            identity: None,       // ID3 extractor doesn't perform identity resolution
             musical_flavor: None, // Musical flavor comes from other extractors
         })
     }
@@ -280,8 +275,7 @@ fn is_valid_mbid(mbid: &str) -> bool {
     }
 
     // Verify all characters are hex digits or hyphens
-    mbid.chars()
-        .all(|c| c.is_ascii_hexdigit() || c == '-')
+    mbid.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
 }
 
 // ============================================================================

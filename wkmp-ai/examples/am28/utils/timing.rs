@@ -43,9 +43,8 @@ use tracing::info;
 /// - Album 6: 0s delay (position 0, starts when Album 0 finishes)
 pub(crate) fn calculate_stagger_delay(album_idx: usize) -> (bool, u64, usize) {
     let stagger_position = album_idx % MAX_CONCURRENT_ALBUMS;
-    let should_stagger = STAGGER_MULTIPLIER > 0
-        && stagger_position > 0
-        && album_idx < MAX_CONCURRENT_ALBUMS;
+    let should_stagger =
+        STAGGER_MULTIPLIER > 0 && stagger_position > 0 && album_idx < MAX_CONCURRENT_ALBUMS;
 
     let delay_ms = if should_stagger {
         stagger_position as u64 * STAGGER_MULTIPLIER * MB_RATE_LIMIT_MS

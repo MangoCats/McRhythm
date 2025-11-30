@@ -2,7 +2,10 @@
 //!
 //! Embeds and serves CSS/JS files at compile time
 
-use axum::{http::StatusCode, response::{IntoResponse, Response}};
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 
 // Embed static files at compile time (same pattern as wkmp-dr)
 const WKMP_SSE_JS: &str = include_str!("../../../../wkmp-common/static/wkmp-sse.js");

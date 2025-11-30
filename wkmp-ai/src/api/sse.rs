@@ -89,6 +89,6 @@ pub async fn import_event_stream(
     Sse::new(stream).keep_alive(
         axum::response::sse::KeepAlive::new()
             .interval(Duration::from_secs(15))
-            .text("heartbeat")
+            .text("heartbeat"),
     )
 }

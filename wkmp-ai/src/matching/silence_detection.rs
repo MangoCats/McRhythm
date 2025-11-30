@@ -16,8 +16,8 @@
 use rayon::prelude::*;
 
 use super::constants::{
-    RMS_WINDOW_OVERLAP, RMS_WINDOW_SHORT_SECS, RMS_WINDOW_MEDIUM_SECS, RMS_WINDOW_STANDARD_SECS,
-    RMS_WINDOW_THRESHOLD_SHORT, RMS_WINDOW_THRESHOLD_MEDIUM, SILENCE_DB_FLOOR, SILENCE_RMS_EPSILON,
+    RMS_WINDOW_MEDIUM_SECS, RMS_WINDOW_OVERLAP, RMS_WINDOW_SHORT_SECS, RMS_WINDOW_STANDARD_SECS,
+    RMS_WINDOW_THRESHOLD_MEDIUM, RMS_WINDOW_THRESHOLD_SHORT, SILENCE_DB_FLOOR, SILENCE_RMS_EPSILON,
 };
 use super::types::SilenceCache;
 
@@ -367,7 +367,10 @@ pub fn precompute_silence_cache(
     results.sort_by_key(|(idx, _)| *idx);
 
     // Extract just the durations in order
-    results.into_iter().map(|(_, durations)| durations).collect()
+    results
+        .into_iter()
+        .map(|(_, durations)| durations)
+        .collect()
 }
 
 #[cfg(test)]

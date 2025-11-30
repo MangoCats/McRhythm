@@ -9,22 +9,34 @@ use wkmp_ai::models::{FileClassification, FileInfo};
 /// **[TC-CLASSIFY-001]** Test audio file classification by extension
 #[test]
 fn test_audio_file_extensions() {
-    let audio_extensions = ["mp3", "flac", "ogg", "m4a", "aac", "opus", "wav", "MP3", "FLAC"];
+    let audio_extensions = [
+        "mp3", "flac", "ogg", "m4a", "aac", "opus", "wav", "MP3", "FLAC",
+    ];
 
     for ext in &audio_extensions {
         let path = PathBuf::from(format!("test.{}", ext));
-        assert!(is_audio_extension(&path), "Extension {} should be classified as audio", ext);
+        assert!(
+            is_audio_extension(&path),
+            "Extension {} should be classified as audio",
+            ext
+        );
     }
 }
 
 /// **[TC-CLASSIFY-002]** Test image file classification by extension
 #[test]
 fn test_image_file_extensions() {
-    let image_extensions = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif", "JPG", "PNG"];
+    let image_extensions = [
+        "jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif", "JPG", "PNG",
+    ];
 
     for ext in &image_extensions {
         let path = PathBuf::from(format!("test.{}", ext));
-        assert!(is_image_extension(&path), "Extension {} should be classified as image", ext);
+        assert!(
+            is_image_extension(&path),
+            "Extension {} should be classified as image",
+            ext
+        );
     }
 }
 
@@ -35,8 +47,16 @@ fn test_other_file_extensions() {
 
     for ext in &other_extensions {
         let path = PathBuf::from(format!("test.{}", ext));
-        assert!(!is_audio_extension(&path), "Extension {} should not be audio", ext);
-        assert!(!is_image_extension(&path), "Extension {} should not be image", ext);
+        assert!(
+            !is_audio_extension(&path),
+            "Extension {} should not be audio",
+            ext
+        );
+        assert!(
+            !is_image_extension(&path),
+            "Extension {} should not be image",
+            ext
+        );
     }
 }
 
@@ -53,8 +73,18 @@ fn test_case_insensitive_extensions() {
 
     for (filename, should_be_audio, should_be_image) in test_cases {
         let path = PathBuf::from(filename);
-        assert_eq!(is_audio_extension(&path), should_be_audio, "Failed for {}", filename);
-        assert_eq!(is_image_extension(&path), should_be_image, "Failed for {}", filename);
+        assert_eq!(
+            is_audio_extension(&path),
+            should_be_audio,
+            "Failed for {}",
+            filename
+        );
+        assert_eq!(
+            is_image_extension(&path),
+            should_be_image,
+            "Failed for {}",
+            filename
+        );
     }
 }
 
@@ -68,8 +98,14 @@ fn test_files_without_extension() {
     ];
 
     for path in paths {
-        assert!(!is_audio_extension(&path), "File without extension should not be audio");
-        assert!(!is_image_extension(&path), "File without extension should not be image");
+        assert!(
+            !is_audio_extension(&path),
+            "File without extension should not be audio"
+        );
+        assert!(
+            !is_image_extension(&path),
+            "File without extension should not be image"
+        );
     }
 }
 
@@ -146,20 +182,25 @@ fn test_file_classification_sorting() {
     classification.sort_all();
 
     // Verify audio files are sorted by path
-    assert_eq!(classification.audio_files[0].path, PathBuf::from("a_first.mp3"));
-    assert_eq!(classification.audio_files[1].path, PathBuf::from("m_middle.mp3"));
-    assert_eq!(classification.audio_files[2].path, PathBuf::from("z_last.mp3"));
+    assert_eq!(
+        classification.audio_files[0].path,
+        PathBuf::from("a_first.mp3")
+    );
+    assert_eq!(
+        classification.audio_files[1].path,
+        PathBuf::from("m_middle.mp3")
+    );
+    assert_eq!(
+        classification.audio_files[2].path,
+        PathBuf::from("z_last.mp3")
+    );
 }
 
 // Helper functions mirroring the implementation in file_scanner.rs
 
-const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "ogg", "m4a", "aac", "opus", "wav",
-];
+const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "m4a", "aac", "opus", "wav"];
 
-const IMAGE_EXTENSIONS: &[&str] = &[
-    "jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif",
-];
+const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif"];
 
 fn is_audio_extension(path: &PathBuf) -> bool {
     path.extension()

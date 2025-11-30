@@ -118,7 +118,10 @@ impl ConfidenceAssessor {
     ///
     /// # Errors
     /// Returns error if evidence scores are out of range (must be 0.0-1.0)
-    pub fn assess_single_segment(&self, evidence: Evidence) -> Result<ConfidenceResult, ConfidenceError> {
+    pub fn assess_single_segment(
+        &self,
+        evidence: Evidence,
+    ) -> Result<ConfidenceResult, ConfidenceError> {
         // Validate evidence scores
         if evidence.metadata_score < 0.0 || evidence.metadata_score > 1.0 {
             return Err(ConfidenceError::InvalidInput(format!(
@@ -174,7 +177,10 @@ impl ConfidenceAssessor {
     ///
     /// # Returns
     /// Confidence result with score and decision
-    pub fn assess_multi_segment(&self, evidence: Evidence) -> Result<ConfidenceResult, ConfidenceError> {
+    pub fn assess_multi_segment(
+        &self,
+        evidence: Evidence,
+    ) -> Result<ConfidenceResult, ConfidenceError> {
         // For multi-segment, use similar weighting but adjust for album-level matching
         // Metadata weight slightly higher (album structure evidence)
         let metadata_weight = 0.35;
@@ -246,7 +252,10 @@ mod tests {
         };
 
         let result = assessor.assess_single_segment(evidence_high).unwrap();
-        assert!(result.confidence > 0.9, "High evidence should yield high confidence");
+        assert!(
+            result.confidence > 0.9,
+            "High evidence should yield high confidence"
+        );
         assert_eq!(result.decision, Decision::Accept);
     }
 
@@ -263,7 +272,10 @@ mod tests {
         };
 
         let result = assessor.assess_multi_segment(evidence_medium).unwrap();
-        assert!(result.confidence >= 0.70, "Medium evidence should yield medium confidence");
+        assert!(
+            result.confidence >= 0.70,
+            "Medium evidence should yield medium confidence"
+        );
     }
 
     /// **[TC-U-CONF-010-03]** Unit test: Verify decision thresholds
@@ -309,14 +321,17 @@ mod tests {
 
         // Test that fingerprint weight (60%) dominates
         let evidence = Evidence {
-            metadata_score: 0.3,  // Low metadata
+            metadata_score: 0.3,     // Low metadata
             fingerprint_score: 0.95, // High fingerprint
             duration_match: 1.0,
         };
 
         let result = assessor.assess_single_segment(evidence).unwrap();
         // Expected: 0.3*0.3 + 0.95*0.6 + 1.0*0.1 = 0.09 + 0.57 + 0.1 = 0.76
-        assert!(result.confidence > 0.7, "High fingerprint should dominate confidence");
+        assert!(
+            result.confidence > 0.7,
+            "High fingerprint should dominate confidence"
+        );
         assert_eq!(result.decision, Decision::Review); // 0.76 is in Review range
     }
 
@@ -347,8 +362,14 @@ mod tests {
             fingerprint_score: 0.85,
             duration_match: 0.85,
         };
-        let result = assessor.assess_single_segment(evidence_boundary_accept).unwrap();
-        assert_eq!(result.decision, Decision::Accept, "Confidence at 0.85 should Accept");
+        let result = assessor
+            .assess_single_segment(evidence_boundary_accept)
+            .unwrap();
+        assert_eq!(
+            result.decision,
+            Decision::Accept,
+            "Confidence at 0.85 should Accept"
+        );
 
         // Test exact Review threshold (0.60)
         let evidence_boundary_review = Evidence {
@@ -356,7 +377,13 @@ mod tests {
             fingerprint_score: 0.6,
             duration_match: 0.6,
         };
-        let result_review = assessor.assess_single_segment(evidence_boundary_review).unwrap();
-        assert_eq!(result_review.decision, Decision::Review, "Confidence at 0.60 should Review");
+        let result_review = assessor
+            .assess_single_segment(evidence_boundary_review)
+            .unwrap();
+        assert_eq!(
+            result_review.decision,
+            Decision::Review,
+            "Confidence at 0.60 should Review"
+        );
     }
 }

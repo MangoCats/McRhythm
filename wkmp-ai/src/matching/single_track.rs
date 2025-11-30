@@ -60,9 +60,8 @@ use super::constants::{
 use super::types::SingleTrackAnalysis;
 
 /// Regex for detecting track number prefix in filenames
-static TRACK_NUMBER_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(SINGLE_TRACK_FILENAME_PATTERN).expect("Invalid track number regex")
-});
+static TRACK_NUMBER_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(SINGLE_TRACK_FILENAME_PATTERN).expect("Invalid track number regex"));
 
 // =============================================================================
 // Single-Track Discriminator Implementation
@@ -148,7 +147,10 @@ impl SingleTrackDiscriminator {
             Err(_) => return (0.0, None),
         };
 
-        let tag = match tagged_file.primary_tag().or_else(|| tagged_file.first_tag()) {
+        let tag = match tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag())
+        {
             Some(t) => t,
             None => return (0.0, None),
         };
@@ -309,7 +311,10 @@ impl SingleTrackDiscriminator {
         // Layer 2
         info!(
             "[{}]     Directory files:  {:+.2} ({} audio files in dir, threshold={})",
-            album_id, analysis.dir_count_score, analysis.dir_audio_files, SINGLE_TRACK_DIR_FILE_THRESHOLD
+            album_id,
+            analysis.dir_count_score,
+            analysis.dir_audio_files,
+            SINGLE_TRACK_DIR_FILE_THRESHOLD
         );
 
         // Layer 3
@@ -360,10 +365,7 @@ impl SingleTrackDiscriminator {
     /// * `album_id` - Album identifier for logging (e.g., "A1")
     /// * `analysis` - Analysis results (after update_post_decode)
     pub fn log_post_decode(album_id: &str, analysis: &SingleTrackAnalysis) {
-        info!(
-            "[{}] Single-track analysis (post-decode update):",
-            album_id
-        );
+        info!("[{}] Single-track analysis (post-decode update):", album_id);
 
         // Layer 4 (if updated)
         if let Some(mins) = analysis.duration_mins {

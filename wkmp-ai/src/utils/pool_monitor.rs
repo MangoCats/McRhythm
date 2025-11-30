@@ -29,7 +29,8 @@ impl<'c> MonitoredTransaction<'c> {
         let elapsed = self.acquired_at.elapsed();
         let tx = self.tx.take().expect("Transaction already consumed");
 
-        tx.commit().await
+        tx.commit()
+            .await
             .map_err(|e| wkmp_common::Error::Database(e))?;
 
         // **[AIA-METRICS-011]** Alert on long-held connections (>2 seconds)
@@ -63,7 +64,8 @@ impl<'c> MonitoredTransaction<'c> {
         let elapsed = self.acquired_at.elapsed();
         let tx = self.tx.take().expect("Transaction already consumed");
 
-        tx.rollback().await
+        tx.rollback()
+            .await
             .map_err(|e| wkmp_common::Error::Database(e))?;
 
         let held_ms = elapsed.as_millis();
@@ -133,12 +135,11 @@ pub async fn begin_monitored<'c>(
 ) -> Result<MonitoredTransaction<'c>> {
     let start = Instant::now();
 
-    tracing::debug!(
-        caller = caller,
-        "Connection acquisition requested"
-    );
+    tracing::debug!(caller = caller, "Connection acquisition requested");
 
-    let tx = pool.begin().await
+    let tx = pool
+        .begin()
+        .await
         .map_err(|e| wkmp_common::Error::Database(e))?;
 
     let wait_ms = start.elapsed().as_millis();
@@ -158,11 +159,7 @@ pub async fn begin_monitored<'c>(
             "Connection acquisition slower than expected (>500ms)"
         );
     } else {
-        tracing::debug!(
-            caller = caller,
-            wait_ms = wait_ms,
-            "Connection acquired"
-        );
+        tracing::debug!(caller = caller, wait_ms = wait_ms, "Connection acquired");
     }
 
     Ok(MonitoredTransaction::new(tx, caller, Instant::now()))

@@ -43,8 +43,8 @@
 //! - `matching::candidate`: test_segmentation_against_single_edition()
 //! - `utils::early_exit`: should_exit_early(), grace period coordination
 
-use crate::types::{OverSegmentedCandidate, CandidateTestResult};
 use crate::matching::candidate::test_segmentation_against_single_edition;
+use crate::types::{CandidateTestResult, OverSegmentedCandidate};
 use crate::utils::early_exit::should_exit_early;
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::Instant;
@@ -128,8 +128,8 @@ fn assemble_segments_dp(
     for i in 1..=n {
         for j in 1..=k.min(i) {
             // Try all possible positions for the j-th track's start
-            for start in (j-1)..i {
-                if dp[start][j-1].0 == f64::INFINITY {
+            for start in (j - 1)..i {
+                if dp[start][j - 1].0 == f64::INFINITY {
                     continue;
                 }
 
@@ -139,11 +139,11 @@ fn assemble_segments_dp(
                 let duration_error = (track_duration - expected_duration).abs();
 
                 // Total error = previous error + this track's error
-                let total_error = dp[start][j-1].0 + duration_error;
+                let total_error = dp[start][j - 1].0 + duration_error;
 
                 // Update if this is better
                 if total_error < dp[i][j].0 {
-                    let mut new_splits = dp[start][j-1].1.clone();
+                    let mut new_splits = dp[start][j - 1].1.clone();
                     new_splits.push(start);
                     dp[i][j] = (total_error, new_splits);
                 }
@@ -278,14 +278,20 @@ pub(crate) fn run_stage3_single_edition(
     for candidate in over_segmented_candidates {
         // Check for early exit within the loop (grace period expired)
         if should_exit_early(perfect_match_found, perfect_match_time_ms, start_time) {
-            info!("      [Edition {}/{}] Early exit during Stage 3 assembly (tested {} so far)",
-                edition_idx + 1, total_editions, assemblies_tested);
+            info!(
+                "      [Edition {}/{}] Early exit during Stage 3 assembly (tested {} so far)",
+                edition_idx + 1,
+                total_editions,
+                assemblies_tested
+            );
             break;
         }
 
         // Only try assembly if candidate has more segments than target
         if candidate.durations.len() > expected_durations.len() {
-            if let Some(assembled_durations) = assemble_segments_dp(&candidate.durations, expected_durations) {
+            if let Some(assembled_durations) =
+                assemble_segments_dp(&candidate.durations, expected_durations)
+            {
                 assemblies_tested += 1;
 
                 let result = test_segmentation_against_single_edition(
@@ -295,7 +301,8 @@ pub(crate) fn run_stage3_single_edition(
                     tolerance,
                 );
 
-                let improved = best_result.as_ref()
+                let improved = best_result
+                    .as_ref()
                     .map_or(true, |br| result.percentage > br.percentage);
 
                 if improved && result.percentage > current_best_percentage {
@@ -317,7 +324,13 @@ pub(crate) fn run_stage3_single_edition(
     }
 
     if assemblies_tested > 0 {
-        info!("[A{}]       [Edition {}/{}] Tested {} assemblies", album_idx + 1, edition_idx + 1, total_editions, assemblies_tested);
+        info!(
+            "[A{}]       [Edition {}/{}] Tested {} assemblies",
+            album_idx + 1,
+            edition_idx + 1,
+            total_editions,
+            assemblies_tested
+        );
     }
 
     best_result

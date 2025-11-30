@@ -68,7 +68,10 @@ pub struct ProcessingStats {
 
 impl ProcessingStats {
     pub fn display_string(&self) -> String {
-        format!("Processing {} to {} of {}", self.completed, self.started, self.total)
+        format!(
+            "Processing {} to {} of {}",
+            self.completed, self.started, self.total
+        )
     }
 }
 
@@ -83,7 +86,10 @@ pub struct FilenameMatchingStats {
 
 impl FilenameMatchingStats {
     pub fn display_string(&self) -> String {
-        format!("{} completed filenames found", self.completed_filenames_found)
+        format!(
+            "{} completed filenames found",
+            self.completed_filenames_found
+        )
     }
 }
 
@@ -100,7 +106,10 @@ pub struct HashingStats {
 
 impl HashingStats {
     pub fn display_string(&self) -> String {
-        format!("{} hashes computed, {} matches found", self.hashes_computed, self.matches_found)
+        format!(
+            "{} hashes computed, {} matches found",
+            self.hashes_computed, self.matches_found
+        )
     }
 }
 
@@ -143,7 +152,10 @@ impl SegmentingStats {
     pub fn display_string(&self) -> String {
         format!(
             "{} files, {} potential passages, {} finalized passages, {} songs identified",
-            self.files_processed, self.potential_passages, self.finalized_passages, self.songs_identified
+            self.files_processed,
+            self.potential_passages,
+            self.finalized_passages,
+            self.songs_identified
         )
     }
 }
@@ -202,7 +214,6 @@ pub struct RecordingStats {
     pub recorded_passages: Vec<wkmp_common::events::RecordedPassageInfo>,
 }
 
-
 impl RecordingStats {
     pub fn display_lines(&self) -> Vec<String> {
         self.recorded_passages
@@ -227,7 +238,6 @@ pub struct AmplitudeStats {
     /// List of analyzed passages with timing information
     pub analyzed_passages: Vec<wkmp_common::events::AnalyzedPassageInfo>,
 }
-
 
 impl AmplitudeStats {
     pub fn display_lines(&self) -> Vec<String> {
@@ -353,7 +363,12 @@ impl ImportStatistics {
     }
 
     /// Record segmentation results (Phase 4)
-    pub fn record_segmentation(&self, potential_passages: usize, finalized_passages: usize, songs_identified: usize) {
+    pub fn record_segmentation(
+        &self,
+        potential_passages: usize,
+        finalized_passages: usize,
+        songs_identified: usize,
+    ) {
         let mut stats = self.segmenting.lock().unwrap();
         stats.files_processed += 1;
         stats.potential_passages += potential_passages;
@@ -369,13 +384,7 @@ impl ImportStatistics {
     }
 
     /// Record song matching results (Phase 6)
-    pub fn record_song_matching(
-        &self,
-        high: usize,
-        medium: usize,
-        low: usize,
-        zero_song: usize,
-    ) {
+    pub fn record_song_matching(&self, high: usize, medium: usize, low: usize, zero_song: usize) {
         let mut stats = self.song_matching.lock().unwrap();
         stats.high_confidence += high;
         stats.medium_confidence += medium;
@@ -386,10 +395,12 @@ impl ImportStatistics {
     /// Add recorded passage (Phase 7)
     pub fn add_recorded_passage(&self, song_title: Option<String>, file_path: String) {
         let mut stats = self.recording.lock().unwrap();
-        stats.recorded_passages.push(wkmp_common::events::RecordedPassageInfo {
-            song_title,
-            file_path,
-        });
+        stats
+            .recorded_passages
+            .push(wkmp_common::events::RecordedPassageInfo {
+                song_title,
+                file_path,
+            });
     }
 
     /// Add analyzed passage (Phase 8)
@@ -401,12 +412,14 @@ impl ImportStatistics {
         lead_out_ms: u64,
     ) {
         let mut stats = self.amplitude.lock().unwrap();
-        stats.analyzed_passages.push(wkmp_common::events::AnalyzedPassageInfo {
-            song_title,
-            passage_length_seconds,
-            lead_in_ms,
-            lead_out_ms,
-        });
+        stats
+            .analyzed_passages
+            .push(wkmp_common::events::AnalyzedPassageInfo {
+                song_title,
+                passage_length_seconds,
+                lead_in_ms,
+                lead_out_ms,
+            });
     }
 
     /// Record flavoring result (Phase 9)
@@ -484,7 +497,10 @@ mod tests {
             low_confidence: 5,
             no_confidence: 3,
         };
-        assert_eq!(stats.display_string(), "42 high, 10 medium, 5 low, 3 no confidence");
+        assert_eq!(
+            stats.display_string(),
+            "42 high, 10 medium, 5 low, 3 no confidence"
+        );
     }
 
     #[test]
@@ -504,30 +520,39 @@ mod tests {
     #[test]
     fn test_recording_stats_display() {
         let mut stats = RecordingStats::default();
-        stats.recorded_passages.push(wkmp_common::events::RecordedPassageInfo {
-            song_title: Some("Bohemian Rhapsody".to_string()),
-            file_path: "Queen/A Night at the Opera/01.mp3".to_string(),
-        });
-        stats.recorded_passages.push(wkmp_common::events::RecordedPassageInfo {
-            song_title: None,
-            file_path: "Unknown/Track.mp3".to_string(),
-        });
+        stats
+            .recorded_passages
+            .push(wkmp_common::events::RecordedPassageInfo {
+                song_title: Some("Bohemian Rhapsody".to_string()),
+                file_path: "Queen/A Night at the Opera/01.mp3".to_string(),
+            });
+        stats
+            .recorded_passages
+            .push(wkmp_common::events::RecordedPassageInfo {
+                song_title: None,
+                file_path: "Unknown/Track.mp3".to_string(),
+            });
 
         let lines = stats.display_lines();
         assert_eq!(lines.len(), 2);
-        assert_eq!(lines[0], "Bohemian Rhapsody in Queen/A Night at the Opera/01.mp3");
+        assert_eq!(
+            lines[0],
+            "Bohemian Rhapsody in Queen/A Night at the Opera/01.mp3"
+        );
         assert_eq!(lines[1], "unidentified passage in Unknown/Track.mp3");
     }
 
     #[test]
     fn test_amplitude_stats_display() {
         let mut stats = AmplitudeStats::default();
-        stats.analyzed_passages.push(wkmp_common::events::AnalyzedPassageInfo {
-            song_title: Some("Stairway to Heaven".to_string()),
-            passage_length_seconds: 482.3,
-            lead_in_ms: 1200,
-            lead_out_ms: 800,
-        });
+        stats
+            .analyzed_passages
+            .push(wkmp_common::events::AnalyzedPassageInfo {
+                song_title: Some("Stairway to Heaven".to_string()),
+                passage_length_seconds: 482.3,
+                lead_in_ms: 1200,
+                lead_out_ms: 800,
+            });
 
         let lines = stats.display_lines();
         assert_eq!(lines.len(), 1);

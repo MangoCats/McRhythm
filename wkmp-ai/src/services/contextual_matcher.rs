@@ -70,8 +70,9 @@ impl ContextualMatcher {
     /// # Errors
     /// Returns error if MusicBrainz client initialization fails
     pub fn new() -> Result<Self, ContextualMatcherError> {
-        let mb_client = MusicBrainzClient::new()
-            .map_err(|e| ContextualMatcherError::MusicBrainzFailed(format!("Client init failed: {}", e)))?;
+        let mb_client = MusicBrainzClient::new().map_err(|e| {
+            ContextualMatcherError::MusicBrainzFailed(format!("Client init failed: {}", e))
+        })?;
 
         Ok(Self {
             mb_client,
@@ -139,12 +140,7 @@ impl ContextualMatcher {
             .into_iter()
             .filter_map(|rec| {
                 // Extract artist name from artist credits
-                let rec_artist = rec
-                    .artist_credit
-                    .as_ref()?
-                    .first()?
-                    .name
-                    .clone();
+                let rec_artist = rec.artist_credit.as_ref()?.first()?.name.clone();
 
                 // Calculate fuzzy similarity scores
                 let artist_sim = self.fuzzy_similarity(artist, &rec_artist);
@@ -156,22 +152,26 @@ impl ContextualMatcher {
                 }
 
                 // Check duration match if provided
-                let duration_match = if let (Some(dur), Some(rec_dur)) = (duration_seconds, rec.length) {
-                    if self.duration_matches(dur, rec_dur as f32 / 1000.0) {
-                        1.0
+                let duration_match =
+                    if let (Some(dur), Some(rec_dur)) = (duration_seconds, rec.length) {
+                        if self.duration_matches(dur, rec_dur as f32 / 1000.0) {
+                            1.0
+                        } else {
+                            0.0
+                        }
                     } else {
-                        0.0
-                    }
-                } else {
-                    0.5 // Neutral score if duration not available
-                };
+                        0.5 // Neutral score if duration not available
+                    };
 
                 // Calculate combined match score
                 let match_score = self.calculate_match_score(artist_sim, title_sim, duration_match);
 
                 // Extract release info if available
                 let (release, release_mbid) = if let Some(releases) = &rec.releases {
-                    releases.first().map(|r| (Some(r.title.clone()), Some(r.id.clone()))).unwrap_or((None, None))
+                    releases
+                        .first()
+                        .map(|r| (Some(r.title.clone()), Some(r.id.clone())))
+                        .unwrap_or((None, None))
                 } else {
                     (None, None)
                 };
@@ -273,12 +273,7 @@ impl ContextualMatcher {
             .into_iter()
             .filter_map(|rel| {
                 // Extract artist name from artist credits
-                let rel_artist = rel
-                    .artist_credit
-                    .as_ref()?
-                    .first()?
-                    .name
-                    .clone();
+                let rel_artist = rel.artist_credit.as_ref()?.first()?.name.clone();
 
                 // Calculate fuzzy similarity scores
                 let artist_sim = self.fuzzy_similarity(artist, &rel_artist);
@@ -307,7 +302,7 @@ impl ContextualMatcher {
                 // For multi-segment, we return the release as a candidate
                 // The recording_mbid will be the release MBID (not a specific recording)
                 Some(MatchCandidate {
-                    recording_mbid: rel.id.clone(), // Using release MBID here
+                    recording_mbid: rel.id.clone(),          // Using release MBID here
                     title: format!("{} (Album)", rel.title), // Mark as album
                     artist: rel_artist,
                     release: Some(rel.title),
@@ -412,7 +407,10 @@ mod tests {
         };
 
         let score = matcher.calculate_match_score(0.9, 0.85, 1.0);
-        assert!(score >= 0.0 && score <= 1.0, "Match score should be 0.0-1.0");
+        assert!(
+            score >= 0.0 && score <= 1.0,
+            "Match score should be 0.0-1.0"
+        );
         assert!(score > 0.8, "High similarity should yield high score");
     }
 
@@ -427,16 +425,28 @@ mod tests {
 
         // Test fuzzy similarity calculation
         let sim_exact = matcher.fuzzy_similarity("The Beatles", "The Beatles");
-        assert!(sim_exact > 0.99, "Exact match should have very high similarity");
+        assert!(
+            sim_exact > 0.99,
+            "Exact match should have very high similarity"
+        );
 
         let sim_fuzzy = matcher.fuzzy_similarity("The Beatles", "beatles");
-        assert!(sim_fuzzy > 0.75, "Case-insensitive partial match should have good similarity");
+        assert!(
+            sim_fuzzy > 0.75,
+            "Case-insensitive partial match should have good similarity"
+        );
 
         let sim_close = matcher.fuzzy_similarity("The Beatles", "The Beatle");
-        assert!(sim_close > 0.90, "Very similar strings should exceed threshold");
+        assert!(
+            sim_close > 0.90,
+            "Very similar strings should exceed threshold"
+        );
 
         let sim_different = matcher.fuzzy_similarity("The Beatles", "Led Zeppelin");
-        assert!(sim_different < 0.7, "Different names should have lower similarity than close matches");
+        assert!(
+            sim_different < 0.7,
+            "Different names should have lower similarity than close matches"
+        );
     }
 
     /// **[TC-U-CTXM-030-01]** Unit test: Verify multi-segment album detection
@@ -467,10 +477,22 @@ mod tests {
         };
 
         // Test duration matching with ±10% tolerance
-        assert!(matcher.duration_matches(180.0, 180.0), "Exact duration should match");
-        assert!(matcher.duration_matches(180.0, 175.0), "Within 10% should match");
-        assert!(matcher.duration_matches(180.0, 195.0), "Within 10% should match");
-        assert!(!matcher.duration_matches(180.0, 200.0), "Beyond 10% should not match");
+        assert!(
+            matcher.duration_matches(180.0, 180.0),
+            "Exact duration should match"
+        );
+        assert!(
+            matcher.duration_matches(180.0, 175.0),
+            "Within 10% should match"
+        );
+        assert!(
+            matcher.duration_matches(180.0, 195.0),
+            "Within 10% should match"
+        );
+        assert!(
+            !matcher.duration_matches(180.0, 200.0),
+            "Beyond 10% should not match"
+        );
     }
 
     /// **[TC-U-CTXM-010-03]** Unit test: Verify empty input rejected

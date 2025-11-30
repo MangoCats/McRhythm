@@ -3,7 +3,6 @@
 /// Usage: cargo run --example long_file_finder [--min-duration SECONDS] [--path PATH]
 ///
 /// Default: 30 minutes (1800 seconds), scans ~/Music
-
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -63,7 +62,11 @@ fn main() {
     }
 
     println!("Scanning: {}", scan_path.display());
-    println!("Minimum duration: {} minutes ({} seconds)\n", min_duration_secs / 60, min_duration_secs);
+    println!(
+        "Minimum duration: {} minutes ({} seconds)\n",
+        min_duration_secs / 60,
+        min_duration_secs
+    );
 
     let mut long_files = Vec::new();
     scan_directory(&scan_path, min_duration_secs, &mut long_files);
@@ -71,14 +74,24 @@ fn main() {
     // Sort by duration (longest first)
     long_files.sort_by(|a, b| b.1.cmp(&a.1));
 
-    println!("\nFound {} files longer than {} minutes:\n", long_files.len(), min_duration_secs / 60);
+    println!(
+        "\nFound {} files longer than {} minutes:\n",
+        long_files.len(),
+        min_duration_secs / 60
+    );
     for (path, duration_secs) in long_files {
         let hours = duration_secs / 3600;
         let minutes = (duration_secs % 3600) / 60;
         let seconds = duration_secs % 60;
 
         if hours > 0 {
-            println!("[{:02}:{:02}:{:02}] {}", hours, minutes, seconds, path.display());
+            println!(
+                "[{:02}:{:02}:{:02}] {}",
+                hours,
+                minutes,
+                seconds,
+                path.display()
+            );
         } else {
             println!("[{:02}:{:02}] {}", minutes, seconds, path.display());
         }
@@ -143,13 +156,12 @@ fn get_audio_duration(path: &Path) -> Result<u64, Box<dyn std::error::Error>> {
     let format_opts = FormatOptions::default();
     let metadata_opts = MetadataOptions::default();
 
-    let probed = symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
+    let probed =
+        symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts)?;
     let format = probed.format;
 
     // Get the default track
-    let track = format
-        .default_track()
-        .ok_or("No default track found")?;
+    let track = format.default_track().ok_or("No default track found")?;
 
     // Calculate duration from time base and duration
     if let Some(time_base) = track.codec_params.time_base {

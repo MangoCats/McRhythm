@@ -100,9 +100,7 @@ pub async fn set_acoustid_api_key(
     // Write to database (authoritative)
     crate::db::settings::set_acoustid_api_key(&state.db, payload.api_key.clone())
         .await
-        .map_err(|e| {
-            ApiError::Internal(format!("Failed to save API key to database: {}", e))
-        })?;
+        .map_err(|e| ApiError::Internal(format!("Failed to save API key to database: {}", e)))?;
 
     info!("AcoustID API key configured via Web UI");
 
@@ -166,7 +164,7 @@ mod tests {
             "CREATE TABLE settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
-            )"
+            )",
         )
         .execute(&pool)
         .await
@@ -186,10 +184,12 @@ mod tests {
         let pool = setup_test_db().await;
 
         // Insert test key
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('acoustid_api_key', 'test_key_123')")
-            .execute(&pool)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('acoustid_api_key', 'test_key_123')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
         let state = create_test_state(pool);
         let app = settings_routes().with_state(state);

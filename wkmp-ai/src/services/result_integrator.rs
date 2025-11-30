@@ -86,10 +86,12 @@ impl ResultIntegrator {
         &self,
         recording_mbid: &str,
         title: Option<&str>,
-        _artist_name: Option<&str>,  // Reserved for future Artist entity creation
+        _artist_name: Option<&str>, // Reserved for future Artist entity creation
     ) -> Result<Option<Uuid>> {
         // Check if song already exists
-        if let Some(existing) = crate::db::songs::load_song_by_mbid(&self.pool, recording_mbid).await? {
+        if let Some(existing) =
+            crate::db::songs::load_song_by_mbid(&self.pool, recording_mbid).await?
+        {
             debug!(
                 recording_mbid = %recording_mbid,
                 song_id = %existing.guid,
@@ -100,10 +102,7 @@ impl ResultIntegrator {
 
         // Create new song
         // Note: artist_name not stored in Song entity - only recording_mbid and title
-        let song = Song::new(
-            recording_mbid.to_string(),
-            title.map(|s| s.to_string()),
-        );
+        let song = Song::new(recording_mbid.to_string(), title.map(|s| s.to_string()));
 
         crate::db::songs::save_song(&self.pool, &song).await?;
 
@@ -132,7 +131,9 @@ impl ResultIntegrator {
         status: Option<&str>,
     ) -> Result<Uuid> {
         // Check if album already exists
-        if let Some(existing) = crate::db::albums::load_album_by_mbid(&self.pool, release_mbid).await? {
+        if let Some(existing) =
+            crate::db::albums::load_album_by_mbid(&self.pool, release_mbid).await?
+        {
             debug!(
                 release_mbid = %release_mbid,
                 album_id = %existing.guid,
@@ -166,11 +167,7 @@ impl ResultIntegrator {
     /// Link passage to album
     ///
     /// **[REQ-DB-007]** Creates passage_albums relationship
-    pub async fn link_passage_to_album(
-        &self,
-        passage_id: Uuid,
-        album_id: Uuid,
-    ) -> Result<()> {
+    pub async fn link_passage_to_album(&self, passage_id: Uuid, album_id: Uuid) -> Result<()> {
         crate::db::albums::link_passage_to_album(&self.pool, passage_id, album_id).await?;
 
         debug!(
@@ -270,13 +267,15 @@ impl ResultIntegrator {
                 // Create album from release MBID
                 if let Some(ref release_mbid) = result.release_mbid {
                     let album_title = title.unwrap_or("Unknown Album");
-                    let new_album_id = self.ensure_album(
-                        release_mbid,
-                        album_title,
-                        None, // artist_credit - would come from AlbumMatchResult
-                        None, // country
-                        None, // status
-                    ).await?;
+                    let new_album_id = self
+                        .ensure_album(
+                            release_mbid,
+                            album_title,
+                            None, // artist_credit - would come from AlbumMatchResult
+                            None, // country
+                            None, // status
+                        )
+                        .await?;
                     album_id = Some(new_album_id);
                 }
             }

@@ -130,17 +130,24 @@ impl AcoustIDClient {
             ])
             .send()
             .await
-            .map_err(|e| ExtractionError::Network(format!("API key validation request failed: {}", e)))?;
+            .map_err(|e| {
+                ExtractionError::Network(format!("API key validation request failed: {}", e))
+            })?;
 
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
 
         // Parse JSON response
-        let json_response: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| ExtractionError::Api(format!("Failed to parse AcoustID response: {}", e)))?;
+        let json_response: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            ExtractionError::Api(format!("Failed to parse AcoustID response: {}", e))
+        })?;
 
         // Check error code
-        if let Some(error_code) = json_response.get("error").and_then(|e| e.get("code")).and_then(|c| c.as_i64()) {
+        if let Some(error_code) = json_response
+            .get("error")
+            .and_then(|e| e.get("code"))
+            .and_then(|c| c.as_i64())
+        {
             match error_code {
                 3 => {
                     // Error 3 = "invalid fingerprint"
@@ -151,13 +158,13 @@ impl AcoustIDClient {
                 5 => {
                     // Error 5 = "invalid API key"
                     return Err(ExtractionError::Api(
-                        "AcoustID API key is invalid (error code 5)".to_string()
+                        "AcoustID API key is invalid (error code 5)".to_string(),
                     ));
                 }
                 6 => {
                     // Error 6 = "invalid format" (could be API key format issue)
                     return Err(ExtractionError::Api(
-                        "AcoustID API key has invalid format (error code 6)".to_string()
+                        "AcoustID API key has invalid format (error code 6)".to_string(),
                     ));
                 }
                 _ => {
@@ -165,7 +172,11 @@ impl AcoustIDClient {
                     return Err(ExtractionError::Api(format!(
                         "AcoustID validation failed with error code {}: {}",
                         error_code,
-                        json_response.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str()).unwrap_or("unknown error")
+                        json_response
+                            .get("error")
+                            .and_then(|e| e.get("message"))
+                            .and_then(|m| m.as_str())
+                            .unwrap_or("unknown error")
                     )));
                 }
             }
@@ -253,7 +264,11 @@ impl AcoustIDClient {
             .results
             .into_iter()
             .filter(|r| r.score >= self.min_score)
-            .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal));
+            .max_by(|a, b| {
+                a.score
+                    .partial_cmp(&b.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
         let Some(result) = best_match else {
             return Err(ExtractionError::NotAvailable(
@@ -542,7 +557,10 @@ mod tests {
         };
 
         let result = client.extract(&ctx).await;
-        assert!(result.is_err(), "Should fail when no audio samples provided");
+        assert!(
+            result.is_err(),
+            "Should fail when no audio samples provided"
+        );
     }
 
     #[tokio::test]
@@ -561,7 +579,10 @@ mod tests {
         };
 
         let result = client.extract(&ctx).await;
-        assert!(result.is_err(), "Should fail when sample rate not specified");
+        assert!(
+            result.is_err(),
+            "Should fail when sample rate not specified"
+        );
     }
 
     // Note: Testing actual AcoustID API queries requires:

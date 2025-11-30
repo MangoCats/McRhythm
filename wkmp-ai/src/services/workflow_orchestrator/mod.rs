@@ -23,7 +23,7 @@
 
 use crate::models::{ImportSession, ImportState};
 use crate::services::{
-    AcousticBrainzClient, AcoustIDClient, AmplitudeAnalyzer, EssentiaClient, FileScanner,
+    AcoustIDClient, AcousticBrainzClient, AmplitudeAnalyzer, EssentiaClient, FileScanner,
     Fingerprinter, MetadataExtractor, MusicBrainzClient, ProgressManager, WriteQueue,
 };
 use anyhow::Result;
@@ -36,12 +36,12 @@ use uuid::Uuid;
 use wkmp_common::events::{EventBus, FileProcessingStatus, FileState, WkmpEvent, WorkerActivity};
 
 // Phase modules (internal implementation)
-mod phase_scanning;
+mod phase_analyzing;
 mod phase_extraction;
 mod phase_fingerprinting;
-mod phase_segmenting;
-mod phase_analyzing;
 mod phase_flavoring;
+mod phase_scanning;
+mod phase_segmenting;
 mod statistics;
 
 /// Command for state transitions (event task → main task communication)
@@ -122,24 +122,23 @@ impl WorkflowOrchestrator {
         let mb_client = MusicBrainzClient::new().ok();
 
         // Initialize AcoustID client with provided API key (if available)
-        let acoustid_client = acoustid_api_key
-            .and_then(|key| {
-                if key.is_empty() {
-                    tracing::warn!("AcoustID API key is empty, fingerprinting disabled");
-                    None
-                } else {
-                    match AcoustIDClient::new(key, db.clone()) {
-                        Ok(client) => {
-                            tracing::info!("AcoustID client initialized with configured API key");
-                            Some(Arc::new(client))
-                        }
-                        Err(e) => {
-                            tracing::error!("Failed to initialize AcoustID client: {:?}", e);
-                            None
-                        }
+        let acoustid_client = acoustid_api_key.and_then(|key| {
+            if key.is_empty() {
+                tracing::warn!("AcoustID API key is empty, fingerprinting disabled");
+                None
+            } else {
+                match AcoustIDClient::new(key, db.clone()) {
+                    Ok(client) => {
+                        tracing::info!("AcoustID client initialized with configured API key");
+                        Some(Arc::new(client))
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to initialize AcoustID client: {:?}", e);
+                        None
                     }
                 }
-            });
+            }
+        });
 
         let acousticbrainz_client = AcousticBrainzClient::new().ok().map(Arc::new);
         let essentia_client = EssentiaClient::new().ok();
@@ -167,18 +166,20 @@ impl WorkflowOrchestrator {
             worker_activities: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             file_processing_states: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             max_workers: Arc::new(tokio::sync::RwLock::new(0)), // Will be set when processing starts
-            progress_manager: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
-            write_queue: parking_lot::Mutex::new(None),  // **[PLAN028]** Lazy initialized when import starts
-            pool_stats: Arc::new(parking_lot::RwLock::new(crate::services::pool_manager::PoolStatistics {
-                total_acquisitions: 0,
-                avg_wait_ms: 0,
-                max_wait_ms: 0,
-                slow_acquisitions: 0,
-            })),  // **[PLAN029]** Pool statistics tracking
-            memory_monitor: Arc::new(
-                crate::utils::MemoryMonitor::with_threshold(memory_usage_threshold_bytes)
-            ),  // **[IMPL016]** Memory monitoring with configurable threshold
-            processing_thread_count,  // **[PLAN031]** Configured worker thread count
+            progress_manager: parking_lot::Mutex::new(None), // **[PLAN028]** Lazy initialized when import starts
+            write_queue: parking_lot::Mutex::new(None), // **[PLAN028]** Lazy initialized when import starts
+            pool_stats: Arc::new(parking_lot::RwLock::new(
+                crate::services::pool_manager::PoolStatistics {
+                    total_acquisitions: 0,
+                    avg_wait_ms: 0,
+                    max_wait_ms: 0,
+                    slow_acquisitions: 0,
+                },
+            )), // **[PLAN029]** Pool statistics tracking
+            memory_monitor: Arc::new(crate::utils::MemoryMonitor::with_threshold(
+                memory_usage_threshold_bytes,
+            )), // **[IMPL016]** Memory monitoring with configurable threshold
+            processing_thread_count, // **[PLAN031]** Configured worker thread count
         }
     }
 
@@ -263,7 +264,9 @@ impl WorkflowOrchestrator {
         });
 
         // Phase 1: SCANNING - Discover audio files
-        session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        session = self
+            .phase_scanning(session, start_time, &cancel_token)
+            .await?;
         if cancel_token.is_cancelled() {
             return Ok(session); // Return early with Cancelled state
         }
@@ -271,7 +274,9 @@ impl WorkflowOrchestrator {
         // Phase 2: PROCESSING - Per-file pipeline (PLAN024)
         // **[AIA-ASYNC-020]** Per-file pipeline architecture with N workers
         // Each file goes through all 10 phases sequentially before moving to next file
-        session = self.phase_processing_per_file(session, start_time, &cancel_token).await?;
+        session = self
+            .phase_processing_per_file(session, start_time, &cancel_token)
+            .await?;
         if cancel_token.is_cancelled() {
             return Ok(session); // Return early with Cancelled state
         }
@@ -309,12 +314,13 @@ impl WorkflowOrchestrator {
         );
 
         // Broadcast completion event
-        self.event_bus.emit_lossy(WkmpEvent::ImportSessionCompleted {
-            session_id: session.session_id,
-            files_processed: session.progress.total,
-            duration_seconds,
-            timestamp: Utc::now(),
-        });
+        self.event_bus
+            .emit_lossy(WkmpEvent::ImportSessionCompleted {
+                session_id: session.session_id,
+                files_processed: session.progress.total,
+                duration_seconds,
+                timestamp: Utc::now(),
+            });
 
         Ok(session)
     }
@@ -352,7 +358,9 @@ impl WorkflowOrchestrator {
 
         // Phase 1: SCANNING - Discover audio files (reuse legacy implementation)
         tracing::debug!(session_id = %session.session_id, "Calling phase_scanning()");
-        session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        session = self
+            .phase_scanning(session, start_time, &cancel_token)
+            .await?;
         tracing::debug!(session_id = %session.session_id, "phase_scanning() returned");
         if cancel_token.is_cancelled() {
             return Ok(session);
@@ -361,7 +369,9 @@ impl WorkflowOrchestrator {
         // Phase 2: PROCESSING - Per-file pipeline (PLAN024)
         // **[AIA-ASYNC-020]** Per-file pipeline architecture with N workers
         // Each file goes through all 10 phases sequentially before moving to next file
-        session = self.phase_processing_per_file(session, start_time, &cancel_token).await?;
+        session = self
+            .phase_processing_per_file(session, start_time, &cancel_token)
+            .await?;
         if cancel_token.is_cancelled() {
             return Ok(session);
         }
@@ -385,12 +395,13 @@ impl WorkflowOrchestrator {
         );
 
         // Broadcast completion event
-        self.event_bus.emit_lossy(WkmpEvent::ImportSessionCompleted {
-            session_id: session.session_id,
-            files_processed: session.progress.total,
-            duration_seconds,
-            timestamp: Utc::now(),
-        });
+        self.event_bus
+            .emit_lossy(WkmpEvent::ImportSessionCompleted {
+                session_id: session.session_id,
+                files_processed: session.progress.total,
+                duration_seconds,
+                timestamp: Utc::now(),
+            });
 
         Ok(session)
     }
@@ -429,13 +440,17 @@ impl WorkflowOrchestrator {
         });
 
         // Phase 1: SCANNING - Discover audio files (reuse legacy implementation)
-        session = self.phase_scanning(session, start_time, &cancel_token).await?;
+        session = self
+            .phase_scanning(session, start_time, &cancel_token)
+            .await?;
         if cancel_token.is_cancelled() {
             return Ok(session);
         }
 
         // Phase 2: PROCESSING - PLAN025 per-file pipeline with 4 workers
-        session = self.phase_processing_plan025(session, start_time, &cancel_token).await?;
+        session = self
+            .phase_processing_plan025(session, start_time, &cancel_token)
+            .await?;
         if cancel_token.is_cancelled() {
             return Ok(session);
         }
@@ -459,12 +474,13 @@ impl WorkflowOrchestrator {
         );
 
         // Broadcast completion event
-        self.event_bus.emit_lossy(WkmpEvent::ImportSessionCompleted {
-            session_id: session.session_id,
-            files_processed: session.progress.total,
-            duration_seconds,
-            timestamp: Utc::now(),
-        });
+        self.event_bus
+            .emit_lossy(WkmpEvent::ImportSessionCompleted {
+                session_id: session.session_id,
+                files_processed: session.progress.total,
+                duration_seconds,
+                timestamp: Utc::now(),
+            });
 
         Ok(session)
     }
@@ -488,7 +504,10 @@ impl WorkflowOrchestrator {
     /// **DEPRECATED:** Use `phase_processing_per_file()` instead
     ///
     /// **[AIA-WF-020]** Batch-phase processing DEPRECATED as of corrective implementation
-    #[deprecated(since = "0.1.0", note = "Use phase_processing_per_file() with per-file pipeline")]
+    #[deprecated(
+        since = "0.1.0",
+        note = "Use phase_processing_per_file() with per-file pipeline"
+    )]
     async fn phase_processing_plan024(
         &self,
         mut session: ImportSession,
@@ -553,10 +572,10 @@ impl WorkflowOrchestrator {
             let mut passages_processed = 0;
 
             // Confidence breakdown
-            let mut high_confidence = 0;    // quality_score > 0.8
-            let mut medium_confidence = 0;  // 0.5 < quality_score ≤ 0.8
-            let mut low_confidence = 0;     // 0.2 < quality_score ≤ 0.5
-            let mut unidentified = 0;       // quality_score ≤ 0.2
+            let mut high_confidence = 0; // quality_score > 0.8
+            let mut medium_confidence = 0; // 0.5 < quality_score ≤ 0.8
+            let mut low_confidence = 0; // 0.2 < quality_score ≤ 0.5
+            let mut unidentified = 0; // quality_score ≤ 0.2
 
             while let Some(event) = event_rx.recv().await {
                 match event {
@@ -566,7 +585,10 @@ impl WorkflowOrchestrator {
 
                         if !segmenting_started {
                             segmenting_started = true;
-                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Segmenting)).await {
+                            if let Err(e) = state_tx
+                                .send(StateCommand::TransitionTo(ImportState::Segmenting))
+                                .await
+                            {
                                 tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Segmenting state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2A: SEGMENTING - Boundary detection started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:463");
@@ -577,28 +599,40 @@ impl WorkflowOrchestrator {
                     WorkflowEvent::ExtractionProgress { extractor, .. } => {
                         if extractor == "chromaprint" && !fingerprinting_started {
                             fingerprinting_started = true;
-                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Fingerprinting)).await {
+                            if let Err(e) = state_tx
+                                .send(StateCommand::TransitionTo(ImportState::Fingerprinting))
+                                .await
+                            {
                                 tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Fingerprinting state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2B: FINGERPRINTING - Chromaprint extraction started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:474");
                         }
                         if extractor == "acoustid" && !identifying_started {
                             identifying_started = true;
-                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Identifying)).await {
+                            if let Err(e) = state_tx
+                                .send(StateCommand::TransitionTo(ImportState::Identifying))
+                                .await
+                            {
                                 tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Identifying state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2C: IDENTIFYING - MusicBrainz resolution started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:481");
                         }
                         if extractor == "audio_derived" && !analyzing_started {
                             analyzing_started = true;
-                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Analyzing)).await {
+                            if let Err(e) = state_tx
+                                .send(StateCommand::TransitionTo(ImportState::Analyzing))
+                                .await
+                            {
                                 tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Analyzing state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2D: ANALYZING - Amplitude analysis started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:488");
                         }
                         if extractor == "essentia" && !flavoring_started {
                             flavoring_started = true;
-                            if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Flavoring)).await {
+                            if let Err(e) = state_tx
+                                .send(StateCommand::TransitionTo(ImportState::Flavoring))
+                                .await
+                            {
                                 tracing::warn!(session_id = %session_id, error = ?e, "Failed to send Flavoring state transition");
                             }
                             tracing::info!(session_id = %session_id, "Phase 2E: FLAVORING - Musical characteristics extraction started at wkmp-ai/src/services/workflow_orchestrator/mod.rs:495");
@@ -606,7 +640,11 @@ impl WorkflowOrchestrator {
                     }
 
                     // Track passage completion and confidence
-                    WorkflowEvent::PassageCompleted { passage_index, quality_score, validation_status } => {
+                    WorkflowEvent::PassageCompleted {
+                        passage_index,
+                        quality_score,
+                        validation_status,
+                    } => {
                         passages_processed += 1;
 
                         // Classify by confidence level
@@ -621,14 +659,17 @@ impl WorkflowOrchestrator {
                         }
 
                         // Send progress update command
-                        if let Err(e) = state_tx.send(StateCommand::UpdatePassageProgress {
-                            total_passages: total_passages_detected,
-                            processed: passages_processed,
-                            high_conf: high_confidence,
-                            medium_conf: medium_confidence,
-                            low_conf: low_confidence,
-                            unidentified: unidentified,
-                        }).await {
+                        if let Err(e) = state_tx
+                            .send(StateCommand::UpdatePassageProgress {
+                                total_passages: total_passages_detected,
+                                processed: passages_processed,
+                                high_conf: high_confidence,
+                                medium_conf: medium_confidence,
+                                low_conf: low_confidence,
+                                unidentified: unidentified,
+                            })
+                            .await
+                        {
                             tracing::warn!(session_id = %session_id, error = ?e, "Failed to send passage progress update");
                         }
 
@@ -643,11 +684,18 @@ impl WorkflowOrchestrator {
                         );
                     }
 
-                    WorkflowEvent::FileStarted { file_path, timestamp: _ } => {
+                    WorkflowEvent::FileStarted {
+                        file_path,
+                        timestamp: _,
+                    } => {
                         tracing::debug!(session_id = %session_id, file = %file_path, "File processing started");
                     }
 
-                    WorkflowEvent::FileCompleted { file_path, passages_processed, timestamp: _ } => {
+                    WorkflowEvent::FileCompleted {
+                        file_path,
+                        passages_processed,
+                        timestamp: _,
+                    } => {
                         tracing::info!(
                             session_id = %session_id,
                             file = %file_path,
@@ -656,7 +704,10 @@ impl WorkflowOrchestrator {
                         );
                     }
 
-                    WorkflowEvent::Error { passage_index, message } => {
+                    WorkflowEvent::Error {
+                        passage_index,
+                        message,
+                    } => {
                         tracing::warn!(
                             session_id = %session_id,
                             passage_index = ?passage_index,
@@ -699,7 +750,10 @@ impl WorkflowOrchestrator {
         session.update_progress(
             0,
             total_files,
-            format!("Processing {} files through hybrid fusion pipeline", total_files),
+            format!(
+                "Processing {} files through hybrid fusion pipeline",
+                total_files
+            ),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
@@ -739,7 +793,10 @@ impl WorkflowOrchestrator {
         broadcast_interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         // Helper function to spawn file processing task
-        let spawn_file_task = |idx: usize, file_path_str: String, root_folder: String, pipeline_ref: Arc<Pipeline>| {
+        let spawn_file_task = |idx: usize,
+                               file_path_str: String,
+                               root_folder: String,
+                               pipeline_ref: Arc<Pipeline>| {
             let absolute_path = std::path::PathBuf::from(&root_folder).join(&file_path_str);
             async move {
                 let result = pipeline_ref.process_file(&absolute_path).await;
@@ -754,7 +811,12 @@ impl WorkflowOrchestrator {
         // Seed initial batch of tasks
         for _ in 0..parallelism_level {
             if let Some((idx, file)) = file_iter.next() {
-                let task = spawn_file_task(idx, file.path.clone(), session.root_folder.clone(), Arc::clone(&pipeline));
+                let task = spawn_file_task(
+                    idx,
+                    file.path.clone(),
+                    session.root_folder.clone(),
+                    Arc::clone(&pipeline),
+                );
                 tasks.push(task);
             }
         }
@@ -1333,7 +1395,10 @@ impl WorkflowOrchestrator {
         session.update_progress(
             files_processed,
             total_files,
-            format!("PLAN024 pipeline completed - {} files processed", files_processed),
+            format!(
+                "PLAN024 pipeline completed - {} files processed",
+                files_processed
+            ),
         );
         crate::db::sessions::save_session(&self.db, &session).await?;
         self.broadcast_progress(&session, start_time);
@@ -1418,7 +1483,10 @@ impl WorkflowOrchestrator {
         session.update_progress(
             0,
             total_files,
-            format!("Processing {} files through segmentation-first pipeline", total_files),
+            format!(
+                "Processing {} files through segmentation-first pipeline",
+                total_files
+            ),
         );
         // **[PLAN028]** Use ProgressManager instead of direct database write + SSE broadcast
         // Clone to avoid holding lock across await
@@ -1426,8 +1494,12 @@ impl WorkflowOrchestrator {
         if let Some(pm) = pm_clone {
             pm.update_progress(
                 0,
-                format!("Processing {} files through segmentation-first pipeline", total_files),
-            ).await?;
+                format!(
+                    "Processing {} files through segmentation-first pipeline",
+                    total_files
+                ),
+            )
+            .await?;
         }
 
         // Thread-safe progress counter
@@ -1478,7 +1550,9 @@ impl WorkflowOrchestrator {
                         &file,
                         acoustid_client.clone(),
                         acousticbrainz_client.clone(),
-                    ).await {
+                    )
+                    .await
+                    {
                         Ok(passages_created) => {
                             tracing::info!(
                                 session_id = %session_id,
@@ -1534,7 +1608,8 @@ impl WorkflowOrchestrator {
             // Clone to avoid holding lock across await
             let pm_clone = self.progress_manager.lock().clone();
             if let Some(pm) = pm_clone {
-                pm.update_progress(processed, "Import cancelled by user".to_string()).await?;
+                pm.update_progress(processed, "Import cancelled by user".to_string())
+                    .await?;
                 pm.force_sync().await?;
                 pm.shutdown();
             }
@@ -1561,7 +1636,10 @@ impl WorkflowOrchestrator {
         session.update_progress(
             final_count,
             total_files,
-            format!("PLAN025 pipeline completed - {} files processed", final_count),
+            format!(
+                "PLAN025 pipeline completed - {} files processed",
+                final_count
+            ),
         );
 
         // **[PLAN028]** Force final sync and shutdown
@@ -1570,8 +1648,12 @@ impl WorkflowOrchestrator {
         if let Some(pm) = pm_clone {
             pm.update_progress(
                 final_count,
-                format!("PLAN025 pipeline completed - {} files processed", final_count),
-            ).await?;
+                format!(
+                    "PLAN025 pipeline completed - {} files processed",
+                    final_count
+                ),
+            )
+            .await?;
             pm.force_sync().await?;
             pm.shutdown();
         }
@@ -1664,15 +1746,13 @@ impl WorkflowOrchestrator {
         let duration_sec_f64 = if let Some(ticks) = file.duration_ticks {
             wkmp_common::timing::ticks_to_seconds(ticks)
         } else {
-            180.0  // Default 180 seconds
+            180.0 // Default 180 seconds
         };
 
-        let segments = vec![
-            SegmentBoundary {
-                start_seconds: 0.0,
-                end_seconds: duration_sec_f64 as f32,
-            }
-        ];
+        let segments = vec![SegmentBoundary {
+            start_seconds: 0.0,
+            end_seconds: duration_sec_f64 as f32,
+        }];
 
         tracing::debug!(
             session_id = %session_id,
@@ -1733,18 +1813,22 @@ impl WorkflowOrchestrator {
             if let Some(matcher) = contextual_matcher {
                 let match_candidates = if pattern_metadata.track_count == 1 {
                     // Single-segment: match by artist + title
-                    matcher.match_single_segment(
-                        metadata.artist.as_deref().unwrap_or(""),
-                        metadata.title.as_deref().unwrap_or(""),
-                        metadata.duration_seconds.map(|d| d as f32),
-                    ).await
+                    matcher
+                        .match_single_segment(
+                            metadata.artist.as_deref().unwrap_or(""),
+                            metadata.title.as_deref().unwrap_or(""),
+                            metadata.duration_seconds.map(|d| d as f32),
+                        )
+                        .await
                 } else {
                     // Multi-segment: match by album structure
-                    matcher.match_multi_segment(
-                        metadata.album.as_deref().unwrap_or(""),
-                        metadata.artist.as_deref().unwrap_or(""),
-                        &pattern_metadata,
-                    ).await
+                    matcher
+                        .match_multi_segment(
+                            metadata.album.as_deref().unwrap_or(""),
+                            metadata.artist.as_deref().unwrap_or(""),
+                            &pattern_metadata,
+                        )
+                        .await
                 };
 
                 match match_candidates {
@@ -1847,7 +1931,9 @@ impl WorkflowOrchestrator {
                 // Query AcoustID for each segment fingerprint
                 let mut acoustid_scores = Vec::new();
 
-                for (idx, (fingerprint, segment)) in segment_fingerprints.iter().zip(segments.iter()).enumerate() {
+                for (idx, (fingerprint, segment)) in
+                    segment_fingerprints.iter().zip(segments.iter()).enumerate()
+                {
                     let duration_seconds = (segment.end_seconds - segment.start_seconds) as u64;
 
                     match client.lookup(fingerprint, duration_seconds).await {
@@ -1899,7 +1985,8 @@ impl WorkflowOrchestrator {
                     );
                     0.0
                 } else {
-                    let avg_score = acoustid_scores.iter().sum::<f32>() / acoustid_scores.len() as f32;
+                    let avg_score =
+                        acoustid_scores.iter().sum::<f32>() / acoustid_scores.len() as f32;
                     tracing::info!(
                         session_id = %session_id,
                         matches = acoustid_scores.len(),
@@ -1981,12 +2068,15 @@ impl WorkflowOrchestrator {
 
         for (idx, segment) in segments.iter().enumerate() {
             // Old workflow (legacy): disable yielding
-            match amplitude_analyzer.analyze_file(
-                file_path,
-                segment.start_seconds as f64,
-                segment.end_seconds as f64,
-                0,
-            ).await {
+            match amplitude_analyzer
+                .analyze_file(
+                    file_path,
+                    segment.start_seconds as f64,
+                    segment.end_seconds as f64,
+                    0,
+                )
+                .await
+            {
                 Ok(result) => {
                     tracing::debug!(
                         session_id = %session_id,
@@ -2039,13 +2129,18 @@ impl WorkflowOrchestrator {
         );
 
         // Only query AcousticBrainz for Accept decisions with confirmed MBID
-        let musical_flavor = if matches!(confidence_result.decision, crate::services::Decision::Accept) {
+        let musical_flavor = if matches!(
+            confidence_result.decision,
+            crate::services::Decision::Accept
+        ) {
             if let Some(ref mbid) = best_mbid {
                 if let Some(ref ab_client) = acousticbrainz_client {
                     match ab_client.lookup_lowlevel(mbid).await {
                         Ok(lowlevel_data) => {
                             // Extract high-level musical features from AcousticBrainz data
-                            let flavor = crate::services::MusicalFlavorVector::from_acousticbrainz(&lowlevel_data);
+                            let flavor = crate::services::MusicalFlavorVector::from_acousticbrainz(
+                                &lowlevel_data,
+                            );
 
                             // Convert to JSON for database storage
                             match flavor.to_json() {
@@ -2135,12 +2230,12 @@ impl WorkflowOrchestrator {
                 use wkmp_common::timing::seconds_to_ticks;
 
                 // Calculate lead-in start: passage start + lead-in duration
-                let lead_in_start = passage.start_time_ticks
-                    + seconds_to_ticks(amplitude_result.lead_in_duration);
+                let lead_in_start =
+                    passage.start_time_ticks + seconds_to_ticks(amplitude_result.lead_in_duration);
 
                 // Calculate lead-out start: passage end - lead-out duration
-                let lead_out_start = passage.end_time_ticks
-                    - seconds_to_ticks(amplitude_result.lead_out_duration);
+                let lead_out_start =
+                    passage.end_time_ticks - seconds_to_ticks(amplitude_result.lead_out_duration);
 
                 // Ensure values stay within passage boundaries (database constraints)
                 if lead_in_start >= passage.start_time_ticks
@@ -2267,9 +2362,21 @@ impl WorkflowOrchestrator {
 
         // **[PLAN031 Task 2.5]** Extract statistics data in block scope to drop guards before await
         tracing::debug!("Acquiring all statistics Mutex locks for SSE conversion");
-        let (scanning, processing, filename_matching, hashing, extracting, segmenting,
-             fingerprinting, song_matching, recording, amplitude, flavoring,
-             passages_complete, files_complete) = {
+        let (
+            scanning,
+            processing,
+            filename_matching,
+            hashing,
+            extracting,
+            segmenting,
+            fingerprinting,
+            song_matching,
+            recording,
+            amplitude,
+            flavoring,
+            passages_complete,
+            files_complete,
+        ) = {
             let s1 = self.statistics.scanning.lock().unwrap().clone();
             let s2 = self.statistics.processing.lock().unwrap().clone();
             let s3 = self.statistics.filename_matching.lock().unwrap().clone();
@@ -2289,8 +2396,10 @@ impl WorkflowOrchestrator {
 
         // **[AIA-UI-010]** Get current worker activities with elapsed time calculation
         // **[PLAN031 Task 2.5]** Use async read lock (safe to await after guards dropped)
-        let worker_activities: Vec<WorkerActivity> = self.worker_activities
-            .read().await
+        let worker_activities: Vec<WorkerActivity> = self
+            .worker_activities
+            .read()
+            .await
             .values()
             .map(|activity| {
                 let mut activity = activity.clone();
@@ -2308,8 +2417,10 @@ impl WorkflowOrchestrator {
         );
 
         // **[File Processing Status]** Get current file processing states
-        let mut file_statuses: Vec<FileProcessingStatus> = self.file_processing_states
-            .read().await
+        let mut file_statuses: Vec<FileProcessingStatus> = self
+            .file_processing_states
+            .read()
+            .await
             .values()
             .cloned()
             .collect();
@@ -2438,7 +2549,8 @@ impl WorkflowOrchestrator {
         phase_name: &str,
     ) {
         let thread_id = format!("{:?}", std::thread::current().id());
-        let relative_path = file_path.strip_prefix(root_folder)
+        let relative_path = file_path
+            .strip_prefix(root_folder)
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| file_path.display().to_string());
 
@@ -2463,7 +2575,10 @@ impl WorkflowOrchestrator {
         };
 
         // **[PLAN031 Task 2.5]** Use async write lock
-        self.worker_activities.write().await.insert(thread_id, activity);
+        self.worker_activities
+            .write()
+            .await
+            .insert(thread_id, activity);
     }
 
     /// **[AIA-UI-010]** Update worker activity with passage timing (for passage-level phases)
@@ -2479,7 +2594,8 @@ impl WorkflowOrchestrator {
         passage_end_seconds: f64,
     ) {
         let thread_id = format!("{:?}", std::thread::current().id());
-        let relative_path = file_path.strip_prefix(root_folder)
+        let relative_path = file_path
+            .strip_prefix(root_folder)
             .map(|p| p.display().to_string())
             .unwrap_or_else(|_| file_path.display().to_string());
 
@@ -2506,7 +2622,10 @@ impl WorkflowOrchestrator {
         };
 
         // **[PLAN031 Task 2.5]** Use async write lock
-        self.worker_activities.write().await.insert(thread_id, activity);
+        self.worker_activities
+            .write()
+            .await
+            .insert(thread_id, activity);
     }
 
     /// **[AIA-UI-010]** Clear worker activity (worker now idle)
@@ -2542,13 +2661,15 @@ impl WorkflowOrchestrator {
         );
 
         // Phase 1: Filename Matching
-        self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 1, "Filename Matching")
+            .await;
         let phase1_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, "Phase 1: Filename Matching - START");
 
         // Calculate relative path from root folder
         let path_start = std::time::Instant::now();
-        let relative_path = file_path.strip_prefix(root_folder)
+        let relative_path = file_path
+            .strip_prefix(root_folder)
             .map_err(|e| anyhow::anyhow!("File path not under root folder: {}", e))?;
         let path_elapsed = path_start.elapsed();
 
@@ -2587,13 +2708,16 @@ impl WorkflowOrchestrator {
                 // Only path and modification time - hash/metadata/etc populated in later phases
                 let fs_start = std::time::Instant::now();
                 let metadata = std::fs::metadata(file_path)?;
-                let modification_time = metadata.modified()?
+                let modification_time = metadata
+                    .modified()?
                     .duration_since(std::time::UNIX_EPOCH)?
                     .as_secs() as i64;
                 let fs_elapsed = fs_start.elapsed();
 
                 let insert_start = std::time::Instant::now();
-                let guid = filename_matcher.create_file_record(relative_path, modification_time).await?;
+                let guid = filename_matcher
+                    .create_file_record(relative_path, modification_time)
+                    .await?;
                 let insert_elapsed = insert_start.elapsed();
 
                 tracing::debug!(
@@ -2607,17 +2731,23 @@ impl WorkflowOrchestrator {
         };
 
         // Phase 2: Hash Deduplication
-        self.set_worker_phase(file_path, root_folder, file_index, 2, "Hash Deduplication").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 2, "Hash Deduplication")
+            .await;
         let phase2_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 2: Hash Deduplication");
         let hash_deduplicator = crate::services::HashDeduplicator::new(self.db.clone());
-        let hash_result = hash_deduplicator.process_file_hash(file_id, file_path).await?;
+        let hash_result = hash_deduplicator
+            .process_file_hash(file_id, file_path)
+            .await?;
 
         // **[PLAN024]** Track hash computation
         self.statistics.increment_hashes_computed();
 
         match hash_result {
-            crate::services::HashResult::Duplicate { hash, original_file_id } => {
+            crate::services::HashResult::Duplicate {
+                hash,
+                original_file_id,
+            } => {
                 // **[PLAN024]** Track hash match (early exit)
                 self.statistics.increment_hash_matches();
 
@@ -2654,14 +2784,19 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 3: Metadata Extraction & Merging
-        self.set_worker_phase(file_path, root_folder, file_index, 3, "Metadata Extraction").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 3, "Metadata Extraction")
+            .await;
         let phase3_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 3: Metadata Extraction & Merging");
         let metadata_merger = crate::services::MetadataMerger::new(self.db.clone());
-        let merged_metadata = metadata_merger.extract_and_merge(file_id, file_path).await?;
+        let merged_metadata = metadata_merger
+            .extract_and_merge(file_id, file_path)
+            .await?;
 
         // **[PLAN024]** Track metadata extraction
-        let successful = merged_metadata.title.is_some() || merged_metadata.artist.is_some() || merged_metadata.album.is_some();
+        let successful = merged_metadata.title.is_some()
+            || merged_metadata.artist.is_some()
+            || merged_metadata.album.is_some();
         self.statistics.record_metadata_extraction(successful);
 
         tracing::info!(
@@ -2677,7 +2812,14 @@ impl WorkflowOrchestrator {
 
         // **[PLAN031 Fix 7]** Phase 4: Audio Decode + Passage Segmentation
         // Audio is decoded HERE (not before Phase 1) after early-exit opportunities
-        self.set_worker_phase(file_path, root_folder, file_index, 4, "Passage Segmentation").await;
+        self.set_worker_phase(
+            file_path,
+            root_folder,
+            file_index,
+            4,
+            "Passage Segmentation",
+        )
+        .await;
         let phase4_start = std::time::Instant::now();
         tracing::debug!(file = ?file_path, file_id = %file_id, "Phase 4: Decoding audio + Passage Segmentation");
 
@@ -2711,13 +2853,15 @@ impl WorkflowOrchestrator {
         tracing::debug!(file = ?file_path, "Starting passage segmentation");
         let segment_start = std::time::Instant::now();
         let passage_segmenter = crate::services::PassageSegmenter::new(self.db.clone());
-        let segment_result = passage_segmenter.segment_file(
-            file_id,
-            file_path,
-            &decoded.samples,
-            decoded.sample_rate as usize,
-            duration_ticks
-        ).await?;
+        let segment_result = passage_segmenter
+            .segment_file(
+                file_id,
+                file_path,
+                &decoded.samples,
+                decoded.sample_rate as usize,
+                duration_ticks,
+            )
+            .await?;
         let segment_elapsed = segment_start.elapsed();
 
         tracing::info!(
@@ -2763,7 +2907,8 @@ impl WorkflowOrchestrator {
         };
 
         // Phase 5: Per-Passage Fingerprinting
-        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
+            .await;
         let phase5_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2773,26 +2918,26 @@ impl WorkflowOrchestrator {
         );
 
         // Get API key from database settings
-        let api_key: Option<String> = sqlx::query_scalar(
-            "SELECT value FROM settings WHERE key = 'acoustid_api_key'"
-        )
-        .fetch_optional(&self.db)
-        .await?;
+        let api_key: Option<String> =
+            sqlx::query_scalar("SELECT value FROM settings WHERE key = 'acoustid_api_key'")
+                .fetch_optional(&self.db)
+                .await?;
 
-        let passage_fingerprinter = crate::services::PassageFingerprinter::new(
-            api_key,
-            self.db.clone(),
-        )?;
+        let passage_fingerprinter =
+            crate::services::PassageFingerprinter::new(api_key, self.db.clone())?;
         let fingerprint_results = passage_fingerprinter
             .fingerprint_passages(file_path, &passages)
             .await?;
 
         // **[PLAN024]** Track fingerprinting
         let (passages_fingerprinted, successful_matches) = match &fingerprint_results {
-            crate::services::FingerprintResult::Success(candidates) => (passages.len(), candidates.len()),
+            crate::services::FingerprintResult::Success(candidates) => {
+                (passages.len(), candidates.len())
+            }
             _ => (passages.len(), 0),
         };
-        self.statistics.record_fingerprinting(passages_fingerprinted, successful_matches);
+        self.statistics
+            .record_fingerprinting(passages_fingerprinted, successful_matches);
 
         tracing::info!(
             phase = "Fingerprinting",
@@ -2804,7 +2949,8 @@ impl WorkflowOrchestrator {
         );
 
         // Phase 6: Song Matching
-        self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching")
+            .await;
         let phase6_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2812,8 +2958,8 @@ impl WorkflowOrchestrator {
             "Phase 6: Song Matching"
         );
         let passage_song_matcher = crate::services::PassageSongMatcher::new();
-        let song_match_result = passage_song_matcher
-            .match_passages(&passages, &fingerprint_results, &merged_metadata);
+        let song_match_result =
+            passage_song_matcher.match_passages(&passages, &fingerprint_results, &merged_metadata);
 
         // **[PLAN024]** Track song matching
         self.statistics.record_song_matching(
@@ -2841,13 +2987,16 @@ impl WorkflowOrchestrator {
             seg_stats.files_processed += 1;
             seg_stats.potential_passages += passages.len();
             seg_stats.finalized_passages += song_match_result.matches.len();
-            seg_stats.songs_identified += song_match_result.matches.iter()
+            seg_stats.songs_identified += song_match_result
+                .matches
+                .iter()
                 .filter(|m| m.mbid.is_some())
                 .count();
         }
 
         // Phase 7: Recording
-        self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording")
+            .await;
         let phase7_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2872,29 +3021,30 @@ impl WorkflowOrchestrator {
         for passage_record in &recording_result.passages {
             let song_title = if let Some(ref song_id) = passage_record.song_id {
                 // Query database for song title
-                sqlx::query_scalar::<_, String>(
-                    "SELECT title FROM songs WHERE guid = ?"
-                )
-                .bind(song_id.to_string())
-                .fetch_optional(&self.db)
-                .await?
+                sqlx::query_scalar::<_, String>("SELECT title FROM songs WHERE guid = ?")
+                    .bind(song_id.to_string())
+                    .fetch_optional(&self.db)
+                    .await?
             } else {
                 None
             };
 
             let file_path_str = relative_path.to_string_lossy().to_string();
-            self.statistics.add_recorded_passage(song_title, file_path_str);
+            self.statistics
+                .add_recorded_passage(song_title, file_path_str);
         }
 
         // Phase 8: Amplitude Analysis
-        self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis")
+            .await;
         let phase8_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
             file_id = %file_id,
             "Phase 8: Amplitude Analysis"
         );
-        let passage_amplitude_analyzer = crate::services::PassageAmplitudeAnalyzer::new(self.db.clone()).await?;
+        let passage_amplitude_analyzer =
+            crate::services::PassageAmplitudeAnalyzer::new(self.db.clone()).await?;
         let amplitude_result = passage_amplitude_analyzer
             .analyze_passages(file_path, &recording_result.passages)
             .await?;
@@ -2914,14 +3064,15 @@ impl WorkflowOrchestrator {
                 "SELECT p.start_time_ticks, p.end_time_ticks, s.title
                  FROM passages p
                  LEFT JOIN songs s ON p.song_id = s.guid
-                 WHERE p.guid = ?"
+                 WHERE p.guid = ?",
             )
             .bind(passage_timing.passage_id.to_string())
             .fetch_optional(&self.db)
             .await?;
 
             if let Some((start_ticks, end_ticks, song_title)) = passage_info {
-                let passage_length_seconds = (end_ticks - start_ticks) as f64 / TICKS_PER_SECOND as f64;
+                let passage_length_seconds =
+                    (end_ticks - start_ticks) as f64 / TICKS_PER_SECOND as f64;
 
                 // **[SPEC032]** lead_in_start_ticks and lead_out_start_ticks are stored as ABSOLUTE positions
                 // (relative to file start). Compute durations by subtracting passage boundaries.
@@ -2929,13 +3080,15 @@ impl WorkflowOrchestrator {
                 // **Note:** For very short passages (near minimum_passage_audio_duration_ticks), these may be NULL
 
                 // Lead-in duration = absolute lead-in position - passage start position (or 0 if NULL)
-                let lead_in_duration_ticks = passage_timing.lead_in_start_ticks
+                let lead_in_duration_ticks = passage_timing
+                    .lead_in_start_ticks
                     .map(|ticks| (ticks - start_ticks).max(0))
                     .unwrap_or(0);
                 let lead_in_ms = (lead_in_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
 
                 // Lead-out duration = passage end position - absolute lead-out position (or 0 if NULL)
-                let lead_out_duration_ticks = passage_timing.lead_out_start_ticks
+                let lead_out_duration_ticks = passage_timing
+                    .lead_out_start_ticks
                     .map(|ticks| (end_ticks - ticks).max(0))
                     .unwrap_or(0);
                 let lead_out_ms = (lead_out_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
@@ -2952,7 +3105,8 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 9: Flavoring
-        self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching")
+            .await;
         let phase9_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -2978,7 +3132,8 @@ impl WorkflowOrchestrator {
         // We need to track each source type - the service should provide this detail
         // For now, use the aggregate counts from the flavor_result.stats
         for _ in 0..flavor_result.stats.acousticbrainz_count {
-            self.statistics.record_flavoring(false, Some("acousticbrainz"));
+            self.statistics
+                .record_flavoring(false, Some("acousticbrainz"));
         }
         for _ in 0..flavor_result.stats.essentia_count {
             self.statistics.record_flavoring(false, Some("essentia"));
@@ -2987,7 +3142,9 @@ impl WorkflowOrchestrator {
             self.statistics.record_flavoring(false, None);
         }
         // Pre-existing flavors are those songs_processed but not in the other categories
-        let pre_existing_count = flavor_result.stats.songs_processed
+        let pre_existing_count = flavor_result
+            .stats
+            .songs_processed
             .saturating_sub(flavor_result.stats.acousticbrainz_count)
             .saturating_sub(flavor_result.stats.essentia_count)
             .saturating_sub(flavor_result.stats.failed_count);
@@ -2996,7 +3153,8 @@ impl WorkflowOrchestrator {
         }
 
         // Phase 10: Finalization
-        self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization").await;
+        self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization")
+            .await;
         let phase10_start = std::time::Instant::now();
         tracing::debug!(
             file = ?file_path,
@@ -3093,11 +3251,10 @@ impl WorkflowOrchestrator {
         // Get list of audio files from SCANNING phase
         // NOTE: Files table doesn't have session_id per SPEC031 zero-conf
         // Get all files - per-file pipeline will handle status updates
-        let files: Vec<(String, String)> = sqlx::query_as(
-            "SELECT guid, path FROM files ORDER BY path"
-        )
-        .fetch_all(&self.db)
-        .await?;
+        let files: Vec<(String, String)> =
+            sqlx::query_as("SELECT guid, path FROM files ORDER BY path")
+                .fetch_all(&self.db)
+                .await?;
 
         let total_files = files.len();
         tracing::info!(
@@ -3185,7 +3342,10 @@ impl WorkflowOrchestrator {
             session.update_progress(
                 completed,
                 total_files,
-                format!("Processing {} to {} of {}", completed, processed, total_files),
+                format!(
+                    "Processing {} to {} of {}",
+                    completed, processed, total_files
+                ),
             );
 
             // Update current_file to show one of the in-progress files (for UI display)
@@ -3199,8 +3359,12 @@ impl WorkflowOrchestrator {
             if let Some(pm) = pm_clone {
                 pm.update_progress(
                     completed,
-                    format!("Processing {} to {} of {}", completed, processed, total_files),
-                ).await?;
+                    format!(
+                        "Processing {} to {} of {}",
+                        completed, processed, total_files
+                    ),
+                )
+                .await?;
 
                 // **[PLAN028]** Periodic database sync (every 100 files or on completion)
                 if completed % 100 == 0 || completed == total_files {
@@ -3225,7 +3389,9 @@ impl WorkflowOrchestrator {
                         self.cleanup_processing_state().await?;
 
                         // Re-check after cleanup
-                        if let MemoryStatus::Critical(bytes_after) = self.memory_monitor.check_memory() {
+                        if let MemoryStatus::Critical(bytes_after) =
+                            self.memory_monitor.check_memory()
+                        {
                             tracing::error!(
                                 "Memory still critical after cleanup ({}MB), continuing with caution",
                                 bytes_after / 1_000_000
@@ -3284,7 +3450,8 @@ impl WorkflowOrchestrator {
                 // Clone to avoid holding lock across await
                 let pm_clone = self.progress_manager.lock().clone();
                 if let Some(pm) = pm_clone {
-                    pm.update_progress(completed, "Import cancelled by user".to_string()).await?;
+                    pm.update_progress(completed, "Import cancelled by user".to_string())
+                        .await?;
                     pm.force_sync().await?;
                     pm.shutdown();
                 }
@@ -3352,11 +3519,7 @@ impl WorkflowOrchestrator {
 
         // **[PLAN031 Fix 7]** Call process_file_plan024 directly (audio decode moved to Phase 4)
         let result = self
-            .process_file_plan024(
-                &absolute_path,
-                root_path,
-                idx,
-            )
+            .process_file_plan024(&absolute_path, root_path, idx)
             .await;
 
         // **[File Processing Status]** Record final state and processing time
@@ -3457,7 +3620,10 @@ mod tests {
         // Actual parallelism is verified by integration test TC-I-PIPE-020-01
 
         // Assertion: If code compiles and this test runs, worker count is correct
-        assert!(true, "Pipeline concurrency verified: buffer_unordered(4) used for 4 workers");
+        assert!(
+            true,
+            "Pipeline concurrency verified: buffer_unordered(4) used for 4 workers"
+        );
     }
 
     /// **[TC-U-PIPE-020-02]** Unit test: Verify per-file processing (each file through all steps)
@@ -3485,6 +3651,9 @@ mod tests {
         // This is per-file processing (not batch phases)
         // Each worker calls process_file_plan025() for one file at a time
 
-        assert!(true, "Per-file architecture verified: All steps in single function");
+        assert!(
+            true,
+            "Per-file architecture verified: All steps in single function"
+        );
     }
 }

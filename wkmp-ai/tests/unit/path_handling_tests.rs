@@ -25,9 +25,7 @@ async fn tc_path_001_relative_to_absolute_conversion() {
     use wkmp_ai::db::files::AudioFile;
 
     // Setup: Create test database
-    let (_temp_db_dir, db_pool) = crate::helpers::db_utils::create_test_db()
-        .await
-        .unwrap();
+    let (_temp_db_dir, db_pool) = crate::helpers::db_utils::create_test_db().await.unwrap();
 
     // Setup: Define root folder and relative path
     let root_folder = PathBuf::from("/music/library");
@@ -174,9 +172,7 @@ async fn tc_path_005_special_characters_in_path() {
     use wkmp_ai::db::files::AudioFile;
 
     // Setup: Create test database
-    let (_temp_db_dir, db_pool) = crate::helpers::db_utils::create_test_db()
-        .await
-        .unwrap();
+    let (_temp_db_dir, db_pool) = crate::helpers::db_utils::create_test_db().await.unwrap();
 
     // Path with spaces, parentheses, apostrophes
     let relative_path = "Artist Name/Album (2024)/Track's Title.mp3";
@@ -221,9 +217,7 @@ async fn tc_path_006_long_path_handling() {
     use wkmp_ai::db::files::AudioFile;
 
     // Setup: Create test database
-    let (_temp_db_dir, db_pool) = crate::helpers::db_utils::create_test_db()
-        .await
-        .unwrap();
+    let (_temp_db_dir, db_pool) = crate::helpers::db_utils::create_test_db().await.unwrap();
 
     // Create very long path (>200 characters)
     let long_path = format!(
@@ -231,10 +225,7 @@ async fn tc_path_006_long_path_handling() {
         "SubFolder/".repeat(20)
     );
 
-    assert!(
-        long_path.len() > 200,
-        "Test path should be >200 characters"
-    );
+    assert!(long_path.len() > 200, "Test path should be >200 characters");
 
     // Create file record
     let file = AudioFile::new(long_path.clone(), "hash456".to_string(), chrono::Utc::now());

@@ -78,10 +78,7 @@ async fn tc_arch_001_no_batch_metadata_extraction() {
         // If SCANNING phase occurred, verify no metadata extraction during it
         // Check logs between SCANNING start and PROCESSING start
         let records = log_capture.records();
-        let all_logs: Vec<_> = records
-            .iter()
-            .map(|r| r.message.as_str())
-            .collect();
+        let all_logs: Vec<_> = records.iter().map(|r| r.message.as_str()).collect();
 
         let scanning_start = all_logs
             .iter()
@@ -218,7 +215,10 @@ async fn tc_arch_003_worker_pool_parallelism() {
     .await
     .unwrap();
 
-    assert_eq!(parallelism, "2", "Parallelism setting should be configurable");
+    assert_eq!(
+        parallelism, "2",
+        "Parallelism setting should be configurable"
+    );
 
     println!("✅ TC-ARCH-003 PASS: Worker pool parallelism configurable");
 }

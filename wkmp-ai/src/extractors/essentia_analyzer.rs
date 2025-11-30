@@ -153,10 +153,7 @@ impl EssentiaAnalyzer {
 
         // Create temporary output file for JSON
         let temp_dir = std::env::temp_dir();
-        let output_path = temp_dir.join(format!(
-            "essentia_{}.json",
-            uuid::Uuid::new_v4()
-        ));
+        let output_path = temp_dir.join(format!("essentia_{}.json", uuid::Uuid::new_v4()));
 
         // Execute Essentia command
         let output = Command::new(ESSENTIA_COMMAND)
@@ -166,9 +163,7 @@ impl EssentiaAnalyzer {
             .stderr(Stdio::piped())
             .output()
             .await
-            .map_err(|e| {
-                ExtractionError::Internal(format!("Failed to execute Essentia: {}", e))
-            })?;
+            .map_err(|e| ExtractionError::Internal(format!("Failed to execute Essentia: {}", e)))?;
 
         // Check exit status
         if !output.status.success() {
@@ -188,10 +183,8 @@ impl EssentiaAnalyzer {
         let _ = fs::remove_file(&output_path).await;
 
         // Parse JSON
-        let essentia_output: EssentiaOutput =
-            serde_json::from_str(&json_content).map_err(|e| {
-                ExtractionError::Parse(format!("Failed to parse Essentia JSON: {}", e))
-            })?;
+        let essentia_output: EssentiaOutput = serde_json::from_str(&json_content)
+            .map_err(|e| ExtractionError::Parse(format!("Failed to parse Essentia JSON: {}", e)))?;
 
         // Convert to FlavorExtraction
         let flavor = self.convert_to_flavor(essentia_output);

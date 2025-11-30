@@ -6,24 +6,20 @@
 //!
 //! Per [IMPL013](../../docs/IMPL013-file_scanner.md)
 
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
-use rayon::prelude::*;
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
 
 // **[AIA-CLASSIFY-020]** Audio format extensions (per REQ-PI-020)
-const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "ogg", "m4a", "aac", "opus", "wav"
-];
+const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "ogg", "m4a", "aac", "opus", "wav"];
 
 // **[AIA-CLASSIFY-020]** Image format extensions (per REQ-ART-020)
-const IMAGE_EXTENSIONS: &[&str] = &[
-    "jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif"
-];
+const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "bmp", "webp", "tiff", "tif"];
 
 /// Audio file scanner errors
 #[derive(Debug, Error)]
@@ -152,14 +148,12 @@ impl FileScanner {
         // Each thread reads different file independently (thread-safe I/O)
         let audio_files: Vec<PathBuf> = candidate_files
             .par_iter()
-            .filter_map(|path| {
-                match self.is_audio_file(path) {
-                    Ok(true) => Some(path.clone()),
-                    Ok(false) => None,
-                    Err(e) => {
-                        tracing::warn!("Error verifying {}: {}", path.display(), e);
-                        None
-                    }
+            .filter_map(|path| match self.is_audio_file(path) {
+                Ok(true) => Some(path.clone()),
+                Ok(false) => None,
+                Err(e) => {
+                    tracing::warn!("Error verifying {}: {}", path.display(), e);
+                    None
                 }
             })
             .collect();
@@ -342,8 +336,9 @@ impl FileScanner {
             [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, ..] => true,
 
             // GIF
-            [b'G', b'I', b'F', b'8', b'7', b'a', ..] |
-            [b'G', b'I', b'F', b'8', b'9', b'a', ..] => true,
+            [b'G', b'I', b'F', b'8', b'7', b'a', ..] | [b'G', b'I', b'F', b'8', b'9', b'a', ..] => {
+                true
+            }
 
             // BMP
             [b'B', b'M', ..] => true,
@@ -352,8 +347,7 @@ impl FileScanner {
             [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P'] => true,
 
             // TIFF (little-endian and big-endian)
-            [0x49, 0x49, 0x2A, 0x00, ..] |
-            [0x4D, 0x4D, 0x00, 0x2A, ..] => true,
+            [0x49, 0x49, 0x2A, 0x00, ..] | [0x4D, 0x4D, 0x00, 0x2A, ..] => true,
 
             _ => false,
         };
@@ -466,25 +460,28 @@ impl FileScanner {
                                         );
 
                                         // Extension says audio - verify with magic bytes
-                                        let verification_status = match self.verify_audio_magic_bytes(&path) {
+                                        let verification_status = match self
+                                            .verify_audio_magic_bytes(&path)
+                                        {
                                             Ok(true) => {
                                                 tracing::trace!(
                                                     file = %path.display(),
                                                     "Magic bytes CONFIRMED audio"
                                                 );
                                                 VerificationStatus::Confirmed
-                                            },
+                                            }
                                             Ok(false) => {
                                                 tracing::trace!(
                                                     file = %path.display(),
                                                     "Magic bytes DENIED audio (misleading extension)"
                                                 );
                                                 VerificationStatus::Denied
-                                            },
+                                            }
                                             Err(e) => {
                                                 tracing::warn!(
                                                     "Magic byte verification failed for {}: {}",
-                                                    path.display(), e
+                                                    path.display(),
+                                                    e
                                                 );
                                                 VerificationStatus::ExtensionOnly
                                             }
@@ -497,7 +494,6 @@ impl FileScanner {
                                             verification_status,
                                         );
                                         classification.audio_files.push(file_info);
-
                                     } else if self.is_image_extension(&ext_lower) {
                                         tracing::trace!(
                                             file = %path.display(),
@@ -506,25 +502,28 @@ impl FileScanner {
                                         );
 
                                         // Extension says image - verify with magic bytes
-                                        let verification_status = match self.verify_image_magic_bytes(&path) {
+                                        let verification_status = match self
+                                            .verify_image_magic_bytes(&path)
+                                        {
                                             Ok(true) => {
                                                 tracing::trace!(
                                                     file = %path.display(),
                                                     "Magic bytes CONFIRMED image"
                                                 );
                                                 VerificationStatus::Confirmed
-                                            },
+                                            }
                                             Ok(false) => {
                                                 tracing::trace!(
                                                     file = %path.display(),
                                                     "Magic bytes DENIED image (misleading extension)"
                                                 );
                                                 VerificationStatus::Denied
-                                            },
+                                            }
                                             Err(e) => {
                                                 tracing::warn!(
                                                     "Magic byte verification failed for {}: {}",
-                                                    path.display(), e
+                                                    path.display(),
+                                                    e
                                                 );
                                                 VerificationStatus::ExtensionOnly
                                             }
@@ -537,7 +536,6 @@ impl FileScanner {
                                             verification_status,
                                         );
                                         classification.image_files.push(file_info);
-
                                     } else {
                                         tracing::trace!(
                                             file = %path.display(),
@@ -546,7 +544,8 @@ impl FileScanner {
                                         );
 
                                         // Other extension - no verification needed
-                                        let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
+                                        let file_info =
+                                            FileInfo::new(path.clone(), size_bytes, modified_at);
                                         classification.other_files.push(file_info);
                                     }
                                 } else {
@@ -556,7 +555,8 @@ impl FileScanner {
                                     );
 
                                     // No extension → other
-                                    let file_info = FileInfo::new(path.clone(), size_bytes, modified_at);
+                                    let file_info =
+                                        FileInfo::new(path.clone(), size_bytes, modified_at);
                                     classification.other_files.push(file_info);
                                 }
 
@@ -575,7 +575,11 @@ impl FileScanner {
                                 }
                             }
                             Err(e) => {
-                                tracing::warn!("Error getting metadata for {}: {}", path.display(), e);
+                                tracing::warn!(
+                                    "Error getting metadata for {}: {}",
+                                    path.display(),
+                                    e
+                                );
                                 // Continue scanning, don't abort
                             }
                         }
@@ -618,7 +622,10 @@ impl FileScanner {
     }
 
     /// **[AIA-CLASSIFY-010]** Scan and classify ALL files (no progress callback)
-    pub fn scan_and_classify(&self, root_path: &Path) -> Result<crate::models::FileClassification, ScanError> {
+    pub fn scan_and_classify(
+        &self,
+        root_path: &Path,
+    ) -> Result<crate::models::FileClassification, ScanError> {
         self.scan_and_classify_with_progress(root_path, &mut |_, _, _, _| {})
     }
 

@@ -240,7 +240,7 @@ impl AcoustIDClient {
                 status: "ok".to_string(),
                 results: vec![AcoustIDResult {
                     id: String::new(), // Not cached
-                    score: 1.0, // Cached result assumed perfect match
+                    score: 1.0,        // Cached result assumed perfect match
                     recordings: Some(vec![AcoustIDRecording {
                         id: mbid,
                         title: None,
@@ -360,7 +360,7 @@ impl AcoustIDClient {
     ///
     /// **[REQ-CA-030]** Deterministic SHA-256 hashing for cache keys
     fn hash_fingerprint(&self, fingerprint: &str) -> String {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(fingerprint.as_bytes());
         format!("{:x}", hasher.finalize())
@@ -372,13 +372,12 @@ impl AcoustIDClient {
     async fn get_cached_mbid(&self, fingerprint: &str) -> Result<Option<String>, AcoustIDError> {
         let fingerprint_hash = self.hash_fingerprint(fingerprint);
 
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT mbid FROM acoustid_cache WHERE fingerprint_hash = ?"
-        )
-        .bind(&fingerprint_hash)
-        .fetch_optional(&self.db)
-        .await
-        .map_err(|e| AcoustIDError::NetworkError(format!("Database error: {}", e)))?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT mbid FROM acoustid_cache WHERE fingerprint_hash = ?")
+                .bind(&fingerprint_hash)
+                .fetch_optional(&self.db)
+                .await
+                .map_err(|e| AcoustIDError::NetworkError(format!("Database error: {}", e)))?;
 
         Ok(row.map(|(mbid,)| mbid))
     }
@@ -394,7 +393,7 @@ impl AcoustIDClient {
              VALUES (?, ?, datetime('now'))
              ON CONFLICT(fingerprint_hash) DO UPDATE SET
                 mbid = excluded.mbid,
-                cached_at = excluded.cached_at"
+                cached_at = excluded.cached_at",
         )
         .bind(&fingerprint_hash)
         .bind(mbid)
@@ -422,7 +421,7 @@ mod tests {
                 mbid TEXT NOT NULL,
                 cached_at TEXT NOT NULL DEFAULT (datetime('now')),
                 CHECK (length(fingerprint_hash) = 64)
-            )"
+            )",
         )
         .execute(&pool)
         .await

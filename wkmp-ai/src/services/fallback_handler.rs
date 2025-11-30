@@ -88,7 +88,10 @@ impl FallbackReason {
                 )
             }
             FallbackReason::AllStagesExhausted { stages_tried } => {
-                format!("All {} matching stages failed to find valid match", stages_tried)
+                format!(
+                    "All {} matching stages failed to find valid match",
+                    stages_tried
+                )
             }
             FallbackReason::FileTooShort { duration_secs } => {
                 format!("File too short for analysis ({:.1}s)", duration_secs)
@@ -202,12 +205,8 @@ impl FallbackHandler {
                 self.handle_metadata_only(file_id, &reason, original_metadata)
                     .await?
             }
-            FallbackStrategy::ManualReview => {
-                self.handle_manual_review(file_id, &reason).await?
-            }
-            FallbackStrategy::RelaxedRetry => {
-                self.handle_relaxed_retry(file_id, &reason).await?
-            }
+            FallbackStrategy::ManualReview => self.handle_manual_review(file_id, &reason).await?,
+            FallbackStrategy::RelaxedRetry => self.handle_relaxed_retry(file_id, &reason).await?,
             FallbackStrategy::Skip => self.handle_skip(file_id, &reason).await?,
         };
 
@@ -297,10 +296,7 @@ impl FallbackHandler {
             reason: reason.clone(),
             classification: Some(classification),
             needs_manual_review: true,
-            status_message: format!(
-                "File requires manual review. {}",
-                reason.description()
-            ),
+            status_message: format!("File requires manual review. {}", reason.description()),
         })
     }
 
@@ -344,11 +340,7 @@ impl FallbackHandler {
     /// Handle skip fallback
     ///
     /// Marks file as unprocessable.
-    async fn handle_skip(
-        &self,
-        file_id: Uuid,
-        reason: &FallbackReason,
-    ) -> Result<FallbackResult> {
+    async fn handle_skip(&self, file_id: Uuid, reason: &FallbackReason) -> Result<FallbackResult> {
         warn!(
             file_id = %file_id,
             reason = %reason.description(),
@@ -534,7 +526,10 @@ mod tests {
             total_tracks: Some(12),
             duration_secs: 240.0,
         };
-        assert_eq!(track_file.inferred_content_type(), ContentType::PartialAlbum);
+        assert_eq!(
+            track_file.inferred_content_type(),
+            ContentType::PartialAlbum
+        );
     }
 
     #[tokio::test]

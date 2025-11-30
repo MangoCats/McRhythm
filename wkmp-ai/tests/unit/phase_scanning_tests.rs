@@ -66,10 +66,7 @@ async fn tc_phase_001_scanning_no_processing() {
 
     // CRITICAL VERIFICATION: Assert NO metadata extraction during SCANNING
     let scanning_logs = log_capture.matching("SCANNING");
-    assert!(
-        !scanning_logs.is_empty(),
-        "Should have SCANNING phase logs"
-    );
+    assert!(!scanning_logs.is_empty(), "Should have SCANNING phase logs");
 
     // Verify no metadata extraction logs during SCANNING
     log_capture.assert_no_match("Extracting metadata from");
@@ -161,7 +158,10 @@ async fn tc_phase_002_scanning_empty_directory() {
         .await
         .unwrap();
 
-    assert_eq!(file_count, 0, "Should have 0 file records for empty directory");
+    assert_eq!(
+        file_count, 0,
+        "Should have 0 file records for empty directory"
+    );
 
     println!("✅ TC-PHASE-002 PASS: phase_scanning handles empty directory gracefully");
 }
