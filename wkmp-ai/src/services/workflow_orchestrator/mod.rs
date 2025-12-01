@@ -1883,6 +1883,84 @@ impl WorkflowOrchestrator {
             "Phase 3 completed"
         );
 
+        // **[PLAN032]** Phase 3.5: Single-Track Detection
+        // Check if file is a single song (not a full album) BEFORE decoding audio
+        // This allows bypassing album segmentation for individual track files
+        let duration_mins = if merged_metadata.duration_ticks > 0 {
+            Some(merged_metadata.duration_ticks as f64 / 28_224_000.0 / 60.0) // ticks to minutes
+        } else {
+            None
+        };
+
+        let single_track_analysis = crate::matching::SingleTrackDiscriminator::analyze_pre_decode(
+            file_path,
+            duration_mins
+        );
+
+        // Log single-track analysis results
+        crate::matching::SingleTrackDiscriminator::log_pre_decode(
+            &format!("F{}", file_index),
+            &single_track_analysis,
+            file_path
+        );
+
+        // **[PLAN032]** Branch based on single-track detection
+        // Threshold: final_score >= 2.0 indicates high confidence single-track file
+        const SINGLE_TRACK_BRANCH_THRESHOLD: f64 = 2.0;
+        if single_track_analysis.is_likely_single_track
+            && single_track_analysis.final_score >= SINGLE_TRACK_BRANCH_THRESHOLD
+        {
+            tracing::info!(
+                file = ?file_path,
+                file_index = file_index,
+                score = single_track_analysis.final_score,
+                "Single-track detected (score >= {}), switching to single-song resolution path",
+                SINGLE_TRACK_BRANCH_THRESHOLD
+            );
+
+            // Decode audio for single-song processing
+            let decode_start = std::time::Instant::now();
+            let decoded = tokio::task::spawn_blocking({
+                let file_path = file_path.to_path_buf();
+                move || crate::utils::decode_audio_file(&file_path)
+            })
+            .await?
+            .map_err(|e| anyhow::anyhow!("Audio decoding failed: {}", e))?;
+            let decode_elapsed = decode_start.elapsed();
+
+            tracing::info!(
+                file = ?file_path,
+                duration = format!("{:.2}s", decoded.duration_seconds),
+                decode_ms = decode_elapsed.as_millis(),
+                "Audio decoded for single-song resolution"
+            );
+
+            // Calculate duration in ticks
+            const TICKS_PER_SECOND: i64 = 28_224_000;
+            let duration_seconds = decoded.samples.len() as f64 / decoded.sample_rate as f64;
+            let duration_ticks = (duration_seconds * TICKS_PER_SECOND as f64) as i64;
+
+            // Route to single-song resolution pipeline
+            return self.resolve_single_song(
+                file_id,
+                file_path,
+                root_folder,
+                file_index,
+                &decoded,
+                &merged_metadata,
+                duration_ticks,
+            ).await;
+        }
+
+        // Continue with album segmentation pipeline (file is NOT a single track)
+        tracing::debug!(
+            file = ?file_path,
+            file_index = file_index,
+            score = single_track_analysis.final_score,
+            "Not single-track (score < {}), continuing with album pipeline",
+            SINGLE_TRACK_BRANCH_THRESHOLD
+        );
+
         // **[PLAN031 Fix 7]** Phase 4: Audio Decode + Passage Segmentation
         // Audio is decoded HERE (not before Phase 1) after early-exit opportunities
         self.set_worker_phase(
@@ -2268,6 +2346,327 @@ impl WorkflowOrchestrator {
         }
 
         // Clear worker phase tracking when done (whether success or failure)
+        self.clear_worker_phase().await;
+
+        Ok(())
+    }
+
+    /// Resolve single-song file via direct AcoustID lookup
+    ///
+    /// **[PLAN032]** Single-song resolution path for files detected as individual tracks
+    /// (not full albums). Bypasses album matching/segmentation for simpler, faster processing.
+    ///
+    /// # Algorithm
+    /// 1. Create single passage covering entire file duration
+    /// 2. Generate Chromaprint fingerprint for whole file
+    /// 3. Query AcoustID for Recording MBID
+    /// 4. Fall back to metadata-based MusicBrainz search if AcoustID fails
+    /// 5. Create database entries via existing recording pipeline
+    ///
+    /// # Arguments
+    /// * `file_id` - UUID of the file record in database
+    /// * `file_path` - Absolute path to audio file
+    /// * `root_folder` - Root import folder for relative path calculation
+    /// * `file_index` - Index for progress tracking
+    /// * `decoded` - Already-decoded audio samples (from Phase 4)
+    /// * `merged_metadata` - Already-extracted metadata (from Phase 3)
+    /// * `duration_ticks` - File duration in ticks
+    ///
+    /// # Returns
+    /// * `Ok(())` on success, `Err` on failure
+    async fn resolve_single_song(
+        &self,
+        file_id: Uuid,
+        file_path: &std::path::Path,
+        root_folder: &std::path::Path,
+        file_index: usize,
+        _decoded: &crate::utils::DecodedAudio, // For future use if inline audio processing needed
+        merged_metadata: &crate::services::MergedMetadata,
+        duration_ticks: i64,
+    ) -> Result<()> {
+        const TICKS_PER_SECOND: i64 = 28_224_000;
+
+        tracing::info!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Single-song resolution: Bypassing album segmentation"
+        );
+
+        let relative_path = file_path.strip_prefix(root_folder)
+            .map_err(|e| anyhow::anyhow!("File path not under root folder: {}", e))?;
+
+        // Phase 4b: Create single passage covering entire file
+        self.set_worker_phase(file_path, root_folder, file_index, 4, "Single-Song Passage")
+            .await;
+        let phase4b_start = std::time::Instant::now();
+
+        // Single passage from start (0) to end (duration_ticks)
+        let passages = vec![crate::services::PassageBoundary::new(0, duration_ticks)];
+
+        tracing::info!(
+            phase = "Single-Song Passage",
+            duration_ms = phase4b_start.elapsed().as_millis(),
+            file_index = file_index,
+            "Created single passage covering entire file ({:.2}s)",
+            duration_ticks as f64 / TICKS_PER_SECOND as f64
+        );
+
+        // Phase 5: Fingerprinting (whole file)
+        self.set_worker_phase(file_path, root_folder, file_index, 5, "Fingerprinting")
+            .await;
+        let phase5_start = std::time::Instant::now();
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 5: Single-song Fingerprinting"
+        );
+
+        // Get API key from database settings
+        let api_key: Option<String> =
+            sqlx::query_scalar("SELECT value FROM settings WHERE key = 'acoustid_api_key'")
+                .fetch_optional(&self.db)
+                .await?;
+
+        let passage_fingerprinter =
+            crate::services::PassageFingerprinter::new(api_key, self.db.clone())?;
+        let fingerprint_results = passage_fingerprinter
+            .fingerprint_passages(file_path, &passages)
+            .await?;
+
+        // Track fingerprinting statistics
+        let (passages_fingerprinted, successful_matches) = match &fingerprint_results {
+            crate::services::FingerprintResult::Success(candidates) => {
+                (passages.len(), candidates.len())
+            }
+            _ => (passages.len(), 0),
+        };
+        self.statistics
+            .record_fingerprinting(passages_fingerprinted, successful_matches);
+
+        tracing::info!(
+            phase = "Single-Song Fingerprinting",
+            duration_ms = phase5_start.elapsed().as_millis(),
+            file_index = file_index,
+            successful_matches = successful_matches,
+            "Phase 5 completed"
+        );
+
+        // Phase 6: Song Matching (simplified for single-song)
+        self.set_worker_phase(file_path, root_folder, file_index, 6, "Song Matching")
+            .await;
+        let phase6_start = std::time::Instant::now();
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 6: Single-song Matching"
+        );
+
+        let passage_song_matcher = crate::services::PassageSongMatcher::new();
+        let song_match_result =
+            passage_song_matcher.match_passages(&passages, &fingerprint_results, merged_metadata);
+
+        // Track song matching statistics
+        self.statistics.record_song_matching(
+            song_match_result.stats.high_confidence,
+            song_match_result.stats.medium_confidence,
+            song_match_result.stats.low_confidence,
+            song_match_result.stats.zero_song,
+        );
+
+        tracing::info!(
+            phase = "Single-Song Matching",
+            duration_ms = phase6_start.elapsed().as_millis(),
+            file_index = file_index,
+            matches = song_match_result.matches.len(),
+            high_conf = song_match_result.stats.high_confidence,
+            medium_conf = song_match_result.stats.medium_confidence,
+            "Phase 6 completed"
+        );
+
+        // Update segmentation stats for single-song
+        {
+            let mut seg_stats = self.statistics.segmenting.lock().unwrap();
+            seg_stats.files_processed += 1;
+            seg_stats.potential_passages += 1; // Single passage
+            seg_stats.finalized_passages += song_match_result.matches.len();
+            seg_stats.songs_identified += song_match_result
+                .matches
+                .iter()
+                .filter(|m| m.mbid.is_some())
+                .count();
+        }
+
+        // Phase 7: Recording
+        self.set_worker_phase(file_path, root_folder, file_index, 7, "Recording")
+            .await;
+        let phase7_start = std::time::Instant::now();
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 7: Recording (single-song)"
+        );
+        let passage_recorder = crate::services::PassageRecorder::new(self.db.clone());
+        let recording_result = passage_recorder
+            .record_passages(file_id, &song_match_result.matches)
+            .await?;
+
+        tracing::info!(
+            phase = "Recording",
+            duration_ms = phase7_start.elapsed().as_millis(),
+            file_index = file_index,
+            passages_recorded = recording_result.passages.len(),
+            songs_created = recording_result.stats.songs_created,
+            "Phase 7 completed"
+        );
+
+        // Track recording statistics
+        for passage_record in &recording_result.passages {
+            let song_title = if let Some(ref song_id) = passage_record.song_id {
+                sqlx::query_scalar::<_, String>("SELECT title FROM songs WHERE guid = ?")
+                    .bind(song_id.to_string())
+                    .fetch_optional(&self.db)
+                    .await?
+            } else {
+                None
+            };
+            let file_path_str = relative_path.to_string_lossy().to_string();
+            self.statistics
+                .add_recorded_passage(song_title, file_path_str);
+        }
+
+        // Phase 8: Amplitude Analysis
+        self.set_worker_phase(file_path, root_folder, file_index, 8, "Amplitude Analysis")
+            .await;
+        let phase8_start = std::time::Instant::now();
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 8: Amplitude Analysis (single-song)"
+        );
+        let passage_amplitude_analyzer =
+            crate::services::PassageAmplitudeAnalyzer::new(self.db.clone()).await?;
+        let amplitude_result = passage_amplitude_analyzer
+            .analyze_passages(file_path, &recording_result.passages)
+            .await?;
+
+        tracing::info!(
+            phase = "Amplitude Analysis",
+            duration_ms = phase8_start.elapsed().as_millis(),
+            file_index = file_index,
+            passages_analyzed = amplitude_result.passages.len(),
+            "Phase 8 completed"
+        );
+
+        // Track amplitude statistics
+        for passage_timing in &amplitude_result.passages {
+            let passage_info: Option<(i64, i64, Option<String>)> = sqlx::query_as(
+                "SELECT p.start_time_ticks, p.end_time_ticks, s.title
+                 FROM passages p
+                 LEFT JOIN songs s ON p.song_id = s.guid
+                 WHERE p.guid = ?",
+            )
+            .bind(passage_timing.passage_id.to_string())
+            .fetch_optional(&self.db)
+            .await?;
+
+            if let Some((start_ticks, end_ticks, song_title)) = passage_info {
+                let passage_length_seconds =
+                    (end_ticks - start_ticks) as f64 / TICKS_PER_SECOND as f64;
+                let lead_in_duration_ticks = passage_timing
+                    .lead_in_start_ticks
+                    .map(|ticks| (ticks - start_ticks).max(0))
+                    .unwrap_or(0);
+                let lead_in_ms = (lead_in_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
+                let lead_out_duration_ticks = passage_timing
+                    .lead_out_start_ticks
+                    .map(|ticks| (end_ticks - ticks).max(0))
+                    .unwrap_or(0);
+                let lead_out_ms = (lead_out_duration_ticks * 1000 / TICKS_PER_SECOND) as u64;
+
+                self.statistics.add_analyzed_passage(
+                    song_title,
+                    passage_length_seconds,
+                    lead_in_ms,
+                    lead_out_ms,
+                );
+                self.statistics.increment_passages_completed();
+            }
+        }
+
+        // Phase 9: Flavoring
+        self.set_worker_phase(file_path, root_folder, file_index, 9, "Flavor Fetching")
+            .await;
+        let phase9_start = std::time::Instant::now();
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 9: Flavoring (single-song)"
+        );
+        let passage_flavor_fetcher = crate::services::PassageFlavorFetcher::new(self.db.clone())?;
+        let flavor_result = passage_flavor_fetcher
+            .fetch_flavors(file_path, &recording_result.passages)
+            .await?;
+
+        tracing::info!(
+            phase = "Flavor Fetching",
+            duration_ms = phase9_start.elapsed().as_millis(),
+            file_index = file_index,
+            songs_processed = flavor_result.stats.songs_processed,
+            "Phase 9 completed"
+        );
+
+        // Track flavoring statistics
+        for _ in 0..flavor_result.stats.acousticbrainz_count {
+            self.statistics
+                .record_flavoring(false, Some("acousticbrainz"));
+        }
+        for _ in 0..flavor_result.stats.essentia_count {
+            self.statistics.record_flavoring(false, Some("essentia"));
+        }
+        for _ in 0..flavor_result.stats.failed_count {
+            self.statistics.record_flavoring(false, None);
+        }
+
+        // Phase 10: Finalization
+        self.set_worker_phase(file_path, root_folder, file_index, 10, "Finalization")
+            .await;
+        let phase10_start = std::time::Instant::now();
+        tracing::debug!(
+            file = ?file_path,
+            file_id = %file_id,
+            "Phase 10: Finalization (single-song)"
+        );
+        let passage_finalizer = crate::services::PassageFinalizer::new(self.db.clone());
+        let finalization_result = passage_finalizer.finalize(file_id).await?;
+
+        if finalization_result.success {
+            self.statistics.increment_files_completed();
+            tracing::info!(
+                phase = "Finalization",
+                duration_ms = phase10_start.elapsed().as_millis(),
+                file_index = file_index,
+                file = ?file_path,
+                file_id = %file_id,
+                passages = finalization_result.passages_validated,
+                "Phase 10 completed - Single-song ingested successfully"
+            );
+        } else {
+            tracing::error!(
+                phase = "Finalization",
+                duration_ms = phase10_start.elapsed().as_millis(),
+                file_index = file_index,
+                file = ?file_path,
+                errors = ?finalization_result.errors,
+                "Phase 10 failed - Finalization validation errors"
+            );
+            anyhow::bail!(
+                "Single-song finalization failed with {} errors: {:?}",
+                finalization_result.errors.len(),
+                finalization_result.errors
+            );
+        }
+
+        // Clear worker phase tracking
         self.clear_worker_phase().await;
 
         Ok(())

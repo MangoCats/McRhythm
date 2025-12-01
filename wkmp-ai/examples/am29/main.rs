@@ -212,35 +212,41 @@ pub(crate) async fn process_single_album(
         get_track_durations(&samples, sample_rate, threshold_db, min_duration_secs);
     let file_duration_secs = samples.len() as f64 / sample_rate as f64;
 
-    // === SILENCE DETECTION (after decode) ===
-    let samples_for_silence = samples.clone();
-    let album_idx_for_silence = album_idx;
+    // === SILENCE DETECTION + RMS PROFILE (combined to avoid samples.clone()) ===
+    // Run 29c: Memory optimization - compute both in single spawn_blocking to avoid
+    // cloning the ~440MB samples buffer. Previously peaked at 14GB with 16 concurrent albums.
     let threshold_values_clone = threshold_values.to_vec();
     let min_duration_values_clone = min_duration_values.to_vec();
 
-    let silence_task = tokio::task::spawn_blocking(move || {
+    let analysis_task = tokio::task::spawn_blocking(move || {
         info!(
             "[A{}]   Single-pass silence detection (1 scan → {} param combinations, {} threads)...",
-            album_idx_for_silence + 1,
+            album_idx + 1,
             threshold_values_clone.len() * min_duration_values_clone.len(),
             rayon::current_num_threads()
         );
         let cache = precompute_silence_cache(
-            &samples_for_silence,
+            &samples,
             sample_rate,
             &threshold_values_clone,
             &min_duration_values_clone,
         );
         info!(
             "[A{}]   Silence cache ready ({} entries)",
-            album_idx_for_silence + 1,
+            album_idx + 1,
             cache.len()
         );
-        cache
+
+        // Compute RMS profile in same task (Run 29c: avoid holding samples in outer scope)
+        let rms_profile = calculate_rms_profile(&samples, sample_rate);
+        let total_duration_secs = samples.len() as f64 / sample_rate as f64;
+
+        // samples is dropped here when task completes - frees ~440MB immediately
+        (cache, rms_profile, total_duration_secs)
     });
 
-    let silence_cache = match silence_task.await {
-        Ok(cache) => cache,
+    let (silence_cache, rms_profile, total_duration_secs) = match analysis_task.await {
+        Ok(result) => result,
         Err(e) => {
             return make_error_result(
                 &query_stats,
@@ -249,7 +255,7 @@ pub(crate) async fn process_single_album(
                 &album,
                 initial_durations.len(),
                 &album_id,
-                format!("Silence detection failed: {}", e),
+                format!("Audio analysis failed: {}", e),
             );
         }
     };
@@ -348,8 +354,7 @@ pub(crate) async fn process_single_album(
     }
 
     // === Edition-by-Edition Processing ===
-    let rms_profile = calculate_rms_profile(&samples, sample_rate);
-    let total_duration_secs = samples.len() as f64 / sample_rate as f64;
+    // Run 29c: rms_profile and total_duration_secs now computed in analysis_task above
 
     let mut best_durations: Vec<f64> = initial_durations.clone();
     let mut best_matches: Vec<TrackMatch> = Vec::new();

@@ -74,14 +74,13 @@ pub async fn init_database_schema(pool: &SqlitePool) -> Result<()> {
 
     // Apply configurable busy timeout from settings [ARCH-ERRH-070]
     // Use ai_database_lock_retry_ms (default 250ms) for SQLite busy_timeout
-    // This allows shorter lock waits before returning errors, enabling retry logic
-    // to handle contention with exponential backoff up to ai_database_max_lock_wait_ms
+    // Higher value allows SQLite to auto-retry internally during concurrent access
     let timeout_ms: i64 = sqlx::query_scalar(
         "SELECT CAST(value AS INTEGER) FROM settings WHERE key = 'ai_database_lock_retry_ms'"
     )
     .fetch_optional(pool)
     .await?
-    .unwrap_or(250);
+    .unwrap_or(30000);
 
     let pragma_sql = format!("PRAGMA busy_timeout = {}", timeout_ms);
     sqlx::query(&pragma_sql)
@@ -252,7 +251,10 @@ async fn init_default_settings(pool: &SqlitePool) -> Result<()> {
     // Application-layer retry timeout for database lock contention during parallel
     // file processing. Default: 5000ms (5 seconds)
     ensure_setting(pool, "ai_database_max_lock_wait_ms", "5000").await?;
-    ensure_setting(pool, "ai_database_lock_retry_ms", "250").await?;
+    // **[ARCH-PERF-030]** SQLite busy_timeout for lock contention
+    // Higher value allows SQLite to auto-retry internally before failing.
+    // 300ms (0.3s) accommodates heavy concurrent workloads like album matching.
+    ensure_setting(pool, "ai_database_lock_retry_ms", "300").await?;
     // **[IMPL001]** Long-running task yield interval
     // CPU-intensive operations (audio decoding, amplitude analysis) yield to Tokio
     // scheduler every N milliseconds to prevent work-stealing from starving other
