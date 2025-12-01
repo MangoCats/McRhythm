@@ -1,6 +1,9 @@
 //! Workflow State Machine Tests
 //! Test File: workflow_tests.rs
 //! Requirements: AIA-WF-010 (State Machine), AIA-WF-020 (Session Management)
+//!
+//! **PLAN024 Architecture:**
+//! - SCANNING → BULK_INSERTING → PROCESSING → COMPLETED
 
 use uuid::Uuid;
 use wkmp_ai::models::{ImportParameters, ImportSession, ImportState};
@@ -10,10 +13,10 @@ fn create_test_session() -> ImportSession {
     ImportSession::new("/test/music".to_string(), ImportParameters::default())
 }
 
-/// TC-WF-001: SCANNING → EXTRACTING Transition
+/// TC-WF-001: SCANNING → BULK_INSERTING Transition
 /// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_001_scanning_to_extracting() {
+fn tc_wf_001_scanning_to_bulk_inserting() {
     // Given: Import session in SCANNING state
     let mut session = create_test_session();
     assert_eq!(session.state, ImportState::Scanning);
@@ -21,104 +24,48 @@ fn tc_wf_001_scanning_to_extracting() {
     // When: Scanner emits completion event (N files found)
     let n_files = 10;
     session.update_progress(n_files, n_files, "Scanning complete".to_string());
-    let transition = session.transition_to(ImportState::Extracting);
+    let transition = session.transition_to(ImportState::BulkInserting);
 
-    // Then: Session transitions to EXTRACTING
-    assert_eq!(session.state, ImportState::Extracting);
+    // Then: Session transitions to BULK_INSERTING
+    assert_eq!(session.state, ImportState::BulkInserting);
     assert_eq!(transition.old_state, ImportState::Scanning);
-    assert_eq!(transition.new_state, ImportState::Extracting);
-
-    // Progress counter ready for extraction phase
-    session.update_progress(0, n_files, "Extracting metadata".to_string());
-    assert_eq!(session.progress.current, 0);
-    assert_eq!(session.progress.total, n_files);
+    assert_eq!(transition.new_state, ImportState::BulkInserting);
 }
 
-/// TC-WF-002: EXTRACTING → FINGERPRINTING Transition
+/// TC-WF-002: BULK_INSERTING → PROCESSING Transition
 /// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_002_extracting_to_fingerprinting() {
-    // Given: Import session in EXTRACTING state
+fn tc_wf_002_bulk_inserting_to_processing() {
+    // Given: Import session in BULK_INSERTING state
     let mut session = create_test_session();
-    session.state = ImportState::Extracting;
+    session.state = ImportState::BulkInserting;
     let n_files = 10;
-    session.update_progress(n_files, n_files, "Extraction complete".to_string());
+    session.update_progress(n_files, n_files, "Bulk insert complete".to_string());
 
-    // When: Extractor emits completion event
-    let transition = session.transition_to(ImportState::Fingerprinting);
+    // When: Bulk insert completes
+    let transition = session.transition_to(ImportState::Processing);
 
-    // Then: Session transitions to FINGERPRINTING
-    assert_eq!(session.state, ImportState::Fingerprinting);
-    assert_eq!(transition.old_state, ImportState::Extracting);
-    assert_eq!(transition.new_state, ImportState::Fingerprinting);
+    // Then: Session transitions to PROCESSING
+    assert_eq!(session.state, ImportState::Processing);
+    assert_eq!(transition.old_state, ImportState::BulkInserting);
+    assert_eq!(transition.new_state, ImportState::Processing);
 }
 
-/// TC-WF-003: FINGERPRINTING → SEGMENTING Transition
+/// TC-WF-003: PROCESSING → COMPLETED Transition
 /// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_003_fingerprinting_to_segmenting() {
-    // Given: Import session in FINGERPRINTING state
+fn tc_wf_003_processing_to_completed() {
+    // Given: Import session in PROCESSING state
     let mut session = create_test_session();
-    session.state = ImportState::Fingerprinting;
-
-    // When: Fingerprinter emits completion event
-    let transition = session.transition_to(ImportState::Segmenting);
-
-    // Then: Session transitions to SEGMENTING
-    assert_eq!(session.state, ImportState::Segmenting);
-    assert_eq!(transition.old_state, ImportState::Fingerprinting);
-    assert_eq!(transition.new_state, ImportState::Segmenting);
-}
-
-/// TC-WF-004: SEGMENTING → ANALYZING Transition
-/// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
-#[test]
-fn tc_wf_004_segmenting_to_analyzing() {
-    // Given: Import session in SEGMENTING state
-    let mut session = create_test_session();
-    session.state = ImportState::Segmenting;
-
-    // When: Segmenter emits completion event
-    let transition = session.transition_to(ImportState::Analyzing);
-
-    // Then: Session transitions to ANALYZING
-    assert_eq!(session.state, ImportState::Analyzing);
-    assert_eq!(transition.old_state, ImportState::Segmenting);
-    assert_eq!(transition.new_state, ImportState::Analyzing);
-}
-
-/// TC-WF-005: ANALYZING → FLAVORING Transition
-/// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
-#[test]
-fn tc_wf_005_analyzing_to_flavoring() {
-    // Given: Import session in ANALYZING state
-    let mut session = create_test_session();
-    session.state = ImportState::Analyzing;
-
-    // When: Amplitude analyzer emits completion event
-    let transition = session.transition_to(ImportState::Flavoring);
-
-    // Then: Session transitions to FLAVORING
-    assert_eq!(session.state, ImportState::Flavoring);
-    assert_eq!(transition.old_state, ImportState::Analyzing);
-    assert_eq!(transition.new_state, ImportState::Flavoring);
-}
-
-/// TC-WF-006: FLAVORING → COMPLETED Transition
-/// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
-#[test]
-fn tc_wf_006_flavoring_to_completed() {
-    // Given: Import session in FLAVORING state
-    let mut session = create_test_session();
-    session.state = ImportState::Flavoring;
+    session.state = ImportState::Processing;
     assert!(session.ended_at.is_none());
 
-    // When: Essentia runner emits completion event
+    // When: All files processed
     let transition = session.transition_to(ImportState::Completed);
 
     // Then: Session transitions to COMPLETED
     assert_eq!(session.state, ImportState::Completed);
-    assert_eq!(transition.old_state, ImportState::Flavoring);
+    assert_eq!(transition.old_state, ImportState::Processing);
     assert_eq!(transition.new_state, ImportState::Completed);
 
     // End time is set
@@ -126,18 +73,15 @@ fn tc_wf_006_flavoring_to_completed() {
     assert!(session.is_terminal());
 }
 
-/// TC-WF-007: Any State → CANCELLED Transition
+/// TC-WF-004: Any State → CANCELLED Transition
 /// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_007_any_state_to_cancelled() {
+fn tc_wf_004_any_state_to_cancelled() {
     // Test cancellation from multiple states
     let states = vec![
         ImportState::Scanning,
-        ImportState::Extracting,
-        ImportState::Fingerprinting,
-        ImportState::Segmenting,
-        ImportState::Analyzing,
-        ImportState::Flavoring,
+        ImportState::BulkInserting,
+        ImportState::Processing,
     ];
 
     for state in states {
@@ -157,13 +101,13 @@ fn tc_wf_007_any_state_to_cancelled() {
     }
 }
 
-/// TC-WF-008: Error → FAILED Transition
+/// TC-WF-005: Error → FAILED Transition
 /// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_008_error_to_failed() {
+fn tc_wf_005_error_to_failed() {
     // Given: Import session in any state with critical error
     let mut session = create_test_session();
-    session.state = ImportState::Extracting;
+    session.state = ImportState::Processing;
 
     // When: Component emits critical error event
     let transition = session.transition_to(ImportState::Failed);
@@ -175,10 +119,10 @@ fn tc_wf_008_error_to_failed() {
     assert!(session.is_terminal(), "Failed should be terminal");
 }
 
-/// TC-WF-009: Session State Persistence (In-Memory)
+/// TC-WF-006: Session State Persistence (In-Memory)
 /// **Requirement:** AIA-WF-020 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_009_session_state_persistence() {
+fn tc_wf_006_session_state_persistence() {
     // Given: New import session created
     let session = create_test_session();
 
@@ -195,10 +139,10 @@ fn tc_wf_009_session_state_persistence() {
     assert_eq!(session.root_folder, "/test/music");
 }
 
-/// TC-WF-010: Session UUID Generation
+/// TC-WF-007: Session UUID Generation
 /// **Requirement:** AIA-WF-020 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_010_session_uuid_generation() {
+fn tc_wf_007_session_uuid_generation() {
     // Given: Multiple import sessions created sequentially
     let session1 = create_test_session();
     let session2 = create_test_session();
@@ -213,10 +157,10 @@ fn tc_wf_010_session_uuid_generation() {
     assert!(Uuid::parse_str(&session1.session_id.to_string()).is_ok());
 }
 
-/// TC-WF-011: Progress Tracking
+/// TC-WF-008: Progress Tracking
 /// **Requirement:** AIA-WF-020 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_011_progress_tracking() {
+fn tc_wf_008_progress_tracking() {
     // Given: Import session with progress updates
     let mut session = create_test_session();
 
@@ -231,21 +175,18 @@ fn tc_wf_011_progress_tracking() {
     assert!(session.progress.elapsed_seconds >= 0);
 }
 
-/// TC-WF-012: Terminal States
+/// TC-WF-009: Terminal States
 /// **Requirement:** AIA-WF-010 | **Type:** Unit | **Priority:** P0
 #[test]
-fn tc_wf_012_terminal_states() {
+fn tc_wf_009_terminal_states() {
     // Test that terminal states are correctly identified
     let mut session = create_test_session();
 
     // Active states are not terminal
     let active_states = vec![
         ImportState::Scanning,
-        ImportState::Extracting,
-        ImportState::Fingerprinting,
-        ImportState::Segmenting,
-        ImportState::Analyzing,
-        ImportState::Flavoring,
+        ImportState::BulkInserting,
+        ImportState::Processing,
     ];
 
     for state in active_states {

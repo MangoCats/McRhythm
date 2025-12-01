@@ -33,7 +33,7 @@ async fn test_set_api_key_success() {
         .unwrap();
 
     let event_bus = EventBus::new(100);
-    let state = AppState::new(pool.clone(), event_bus, 16);
+    let state = AppState::new(pool.clone(), event_bus, 16, 1_073_741_824);
     let app = build_router(state);
 
     // Send request
@@ -85,7 +85,7 @@ async fn test_set_api_key_rejects_empty_key() {
         .unwrap();
 
     let event_bus = EventBus::new(100);
-    let state = AppState::new(pool.clone(), event_bus, 16);
+    let state = AppState::new(pool.clone(), event_bus, 16, 1_073_741_824);
     let app = build_router(state);
 
     // Send request with empty key
@@ -127,7 +127,7 @@ async fn test_set_api_key_rejects_whitespace_key() {
         .unwrap();
 
     let event_bus = EventBus::new(100);
-    let state = AppState::new(pool.clone(), event_bus, 16);
+    let state = AppState::new(pool.clone(), event_bus, 16, 1_073_741_824);
     let app = build_router(state);
 
     // Send request with whitespace-only key

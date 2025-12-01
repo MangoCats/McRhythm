@@ -38,13 +38,13 @@ async fn tc_path_001_relative_to_absolute_conversion() {
         chrono::Utc::now(),
     );
 
-    let guid = wkmp_ai::db::files::save_file(&db_pool, &file)
+    wkmp_ai::db::files::save_file(&db_pool, &file)
         .await
         .unwrap();
 
     // Verify: Database contains relative path (NOT absolute)
     let stored_path: String = sqlx::query_scalar("SELECT path FROM files WHERE guid = ?")
-        .bind(&guid)
+        .bind(&file.guid.to_string())
         .fetch_one(&db_pool)
         .await
         .unwrap();
@@ -184,13 +184,13 @@ async fn tc_path_005_special_characters_in_path() {
         chrono::Utc::now(),
     );
 
-    let guid = wkmp_ai::db::files::save_file(&db_pool, &file)
+    wkmp_ai::db::files::save_file(&db_pool, &file)
         .await
         .unwrap();
 
     // Verify: Path stored correctly
     let stored_path: String = sqlx::query_scalar("SELECT path FROM files WHERE guid = ?")
-        .bind(&guid)
+        .bind(&file.guid.to_string())
         .fetch_one(&db_pool)
         .await
         .unwrap();
@@ -230,13 +230,13 @@ async fn tc_path_006_long_path_handling() {
     // Create file record
     let file = AudioFile::new(long_path.clone(), "hash456".to_string(), chrono::Utc::now());
 
-    let guid = wkmp_ai::db::files::save_file(&db_pool, &file)
+    wkmp_ai::db::files::save_file(&db_pool, &file)
         .await
         .unwrap();
 
     // Verify: Full path stored without truncation
     let stored_path: String = sqlx::query_scalar("SELECT path FROM files WHERE guid = ?")
-        .bind(&guid)
+        .bind(&file.guid.to_string())
         .fetch_one(&db_pool)
         .await
         .unwrap();

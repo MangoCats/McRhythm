@@ -89,8 +89,16 @@ pub fn create_test_orchestrator(
 
     let event_bus = EventBus::new(100); // Capacity for event broadcast
     let acoustid_api_key = None; // No API key for tests
+    let memory_usage_threshold_bytes = 1_073_741_824; // 1GB
+    let processing_thread_count = 4;
 
-    WorkflowOrchestrator::new(db_pool, event_bus, acoustid_api_key)
+    WorkflowOrchestrator::new(
+        db_pool,
+        event_bus,
+        acoustid_api_key,
+        memory_usage_threshold_bytes,
+        processing_thread_count,
+    )
 }
 
 /// Seed database with test file records

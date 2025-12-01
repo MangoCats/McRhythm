@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 use std::time::SystemTime;
-use wkmp_ai::models::{FileClassification, FileInfo};
+use wkmp_ai::models::{FileClassification, FileInfo, VerificationStatus};
 
 /// **[TC-CLASSIFY-001]** Test audio file classification by extension
 #[test]
@@ -130,11 +130,13 @@ fn test_file_classification_total_sizes() {
         path: PathBuf::from("song1.mp3"),
         size_bytes: 1000,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
     classification.audio_files.push(FileInfo {
         path: PathBuf::from("song2.flac"),
         size_bytes: 2000,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
 
     // Add some image files
@@ -142,6 +144,7 @@ fn test_file_classification_total_sizes() {
         path: PathBuf::from("cover.jpg"),
         size_bytes: 500,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
 
     // Add some other files
@@ -149,6 +152,7 @@ fn test_file_classification_total_sizes() {
         path: PathBuf::from("notes.txt"),
         size_bytes: 100,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
 
     assert_eq!(classification.audio_total_size(), 3000);
@@ -166,16 +170,19 @@ fn test_file_classification_sorting() {
         path: PathBuf::from("z_last.mp3"),
         size_bytes: 1000,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
     classification.audio_files.push(FileInfo {
         path: PathBuf::from("a_first.mp3"),
         size_bytes: 2000,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
     classification.audio_files.push(FileInfo {
         path: PathBuf::from("m_middle.mp3"),
         size_bytes: 1500,
         modified_at: SystemTime::now(),
+        verification_status: VerificationStatus::ExtensionOnly,
     });
 
     // Sort all categories

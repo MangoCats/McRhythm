@@ -211,11 +211,8 @@ mod systemtime_serde {
 
 /// **[AIA-WF-010]** Import workflow state
 ///
-/// **PLAN024 Architecture (Current):**
+/// **PLAN024 Architecture:**
 /// - SCANNING → BULK_INSERTING → PROCESSING → COMPLETED
-///
-/// **Legacy Architecture (Deprecated):**
-/// - SCANNING → EXTRACTING → FINGERPRINTING → SEGMENTING → ANALYZING → FLAVORING → COMPLETED
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ImportState {
@@ -238,35 +235,6 @@ pub enum ImportState {
     Cancelled,
     /// Import failed with critical error
     Failed,
-
-    // ========================================
-    // DEPRECATED BATCH-PHASE STATES
-    // Preserved for backward compatibility with existing database sessions
-    // **[AIA-WF-020]** Batch phases DEPRECATED as of PLAN024
-    // ========================================
-    /// **DEPRECATED:** Batch metadata extraction phase (replaced by Processing)
-    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
-    Extracting,
-
-    /// **DEPRECATED:** Batch passage boundary detection phase (replaced by Processing)
-    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
-    Segmenting,
-
-    /// **DEPRECATED:** Batch fingerprinting phase (replaced by Processing)
-    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
-    Fingerprinting,
-
-    /// **DEPRECATED:** Batch music identification phase (replaced by Processing)
-    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
-    Identifying,
-
-    /// **DEPRECATED:** Batch amplitude analysis phase (replaced by Processing)
-    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
-    Analyzing,
-
-    /// **DEPRECATED:** Batch musical flavor extraction phase (replaced by Processing)
-    #[deprecated(since = "0.1.0", note = "Use Processing state with per-file pipeline")]
-    Flavoring,
 }
 
 impl ImportState {
@@ -275,12 +243,6 @@ impl ImportState {
         match self {
             ImportState::Scanning => "Finding files in directories",
             ImportState::BulkInserting => "Creating minimal records for confirmed audio files",
-            ImportState::Extracting => "Calculating hashes and extracting basic metadata",
-            ImportState::Segmenting => "Detecting silence and passage boundaries",
-            ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",
-            ImportState::Identifying => "Resolving music identity via MusicBrainz",
-            ImportState::Analyzing => "Analyzing amplitude for crossfade timing",
-            ImportState::Flavoring => "Extracting musical characteristics via Essentia",
             ImportState::Processing => "Processing passages through hybrid fusion pipeline",
             ImportState::Completed => "Import completed successfully",
             ImportState::Cancelled => "Import cancelled by user",
@@ -440,24 +402,8 @@ impl PhaseProgress {
 
         Some(match self.phase {
             ImportState::Scanning => format!("{} files found", self.progress_total),
-            ImportState::Extracting => format!(
-                "{}/{} extracted",
-                self.progress_current, self.progress_total
-            ),
-            ImportState::Segmenting => format!("{} passages detected", self.progress_total),
-            ImportState::Fingerprinting => format!(
-                "{}/{} fingerprinted",
-                self.progress_current, self.progress_total
-            ),
-            ImportState::Identifying => format!(
-                "{}/{} identified",
-                self.progress_current, self.progress_total
-            ),
-            ImportState::Analyzing => {
-                format!("{}/{} analyzed", self.progress_current, self.progress_total)
-            }
-            ImportState::Flavoring => format!(
-                "{}/{} characterized",
+            ImportState::Processing => format!(
+                "{}/{} processed",
                 self.progress_current, self.progress_total
             ),
             _ => format!(
