@@ -14,6 +14,7 @@ pub mod fusion; // PLAN024: Tier 2 fusion layer
 pub mod matching; // PLAN026 Increment 5: Album matching (am28 integration)
 pub mod models;
 pub mod services;
+pub mod testing; // PLAN031: Closed-loop algorithm improvement testing
 pub mod types; // PLAN024 TASK-004: Base traits and types
 pub mod utils; // PLAN024: Utility functions (audio decoding, etc.)
 pub mod validators; // PLAN024: Tier 3 validation layer
