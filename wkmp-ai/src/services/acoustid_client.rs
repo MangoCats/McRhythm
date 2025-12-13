@@ -14,8 +14,8 @@ const ACOUSTID_BASE_URL: &str = "https://api.acoustid.org/v2/lookup";
 const USER_AGENT: &str = "WKMP/0.1.0 (https://github.com/wkmp/wkmp)";
 const RATE_LIMIT_MS: u64 = 334; // 3 requests per second (~333ms between requests)
 
-// **[PLAN031 Fix 1]** Emergency kill switch and ultra-aggressive timeout
-const ACOUSTID_ENABLED: bool = false; // EMERGENCY: Disable entirely (725 timeouts in testV.log)
+// **[PLAN031 Fix 1]** Kill switch and aggressive timeout (re-enabled for PLAN032)
+const ACOUSTID_ENABLED: bool = true; // Re-enabled - use circuit breaker for timeout management
 const ACOUSTID_TIMEOUT_SECS: u64 = 1; // Down from 5s (PLAN030) -> 1s (PLAN031 emergency)
 const CIRCUIT_BREAKER_THRESHOLD: u32 = 3; // Open after 3 consecutive failures
 const CIRCUIT_BREAKER_COOLDOWN_SECS: u64 = 60; // Stay open for 60s before retry

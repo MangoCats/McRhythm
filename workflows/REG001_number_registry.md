@@ -2,7 +2,7 @@
 
 **Purpose:** Track document number assignments and maintain next-available counters
 **Maintained by:** /doc-name workflow (automated)
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-12-13
 
 ---
 
@@ -20,7 +20,7 @@
 | RPT | 001 | Reports & Analysis (/think outputs, research, investigations) |
 | DWI | 001 | Developer Work Instructions (workflow procedures, process documentation) |
 | TMPL | 001 | Templates (reusable document templates, patterns) |
-| PLAN | 026 | Implementation Plans (/plan outputs, project plans) |
+| PLAN | 027 | Implementation Plans (/plan outputs, project plans) |
 | LOG | 001 | Operational Logs (feedback logs, execution logs, metrics) |
 | REG | 003 | Registries (this file, archive index, category definitions) |
 

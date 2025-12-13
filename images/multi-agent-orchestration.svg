@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 480">
+  <defs>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <marker id="dataDown" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#60a5fa"/>
+    </marker>
+    <marker id="dataUp" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#34d399"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="700" height="480" fill="#1a1a2e"/>
+
+  <!-- Title -->
+  <text x="350" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#e2e8f0" text-anchor="middle">Multi-Agent Orchestration Pattern</text>
+
+  <!-- User/Input -->
+  <rect x="280" y="60" width="140" height="45" rx="8" fill="#374151" stroke="#6b7280" stroke-width="2"/>
+  <text x="350" y="80" font-family="Arial, sans-serif" font-size="11" fill="#9ca3af" text-anchor="middle">User Request</text>
+  <text x="350" y="95" font-family="Arial, sans-serif" font-size="13" fill="#e5e7eb" text-anchor="middle" font-weight="bold">"Build feature X"</text>
+
+  <!-- Arrow to Orchestrator -->
+  <path d="M350,105 L350,135" stroke="#60a5fa" stroke-width="2" fill="none" marker-end="url(#dataDown)"/>
+
+  <!-- ORCHESTRATOR (central, larger) -->
+  <rect x="225" y="145" width="250" height="90" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="3" filter="url(#glow2)"/>
+  <text x="350" y="175" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#93c5fd" text-anchor="middle">ORCHESTRATOR</text>
+  <text x="350" y="195" font-family="Arial, sans-serif" font-size="12" fill="#60a5fa" text-anchor="middle">(Larger Model)</text>
+  <text x="350" y="215" font-family="Arial, sans-serif" font-size="10" fill="#94a3b8" text-anchor="middle">Task decomposition | Delegation | Synthesis</text>
+  <text x="350" y="228" font-family="Arial, sans-serif" font-size="9" fill="#64748b" text-anchor="middle">Claude Opus, GPT-4, etc.</text>
+
+  <!-- Arrows from Orchestrator to Specialists -->
+  <path d="M260,235 L130,280" stroke="#60a5fa" stroke-width="2" fill="none" marker-end="url(#dataDown)"/>
+  <path d="M350,235 L350,280" stroke="#60a5fa" stroke-width="2" fill="none" marker-end="url(#dataDown)"/>
+  <path d="M440,235 L570,280" stroke="#60a5fa" stroke-width="2" fill="none" marker-end="url(#dataDown)"/>
+
+  <!-- SPECIALIST AGENTS (row of 3) -->
+
+  <!-- Specialist 1: Coding -->
+  <rect x="40" y="290" width="160" height="100" rx="10" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="120" y="320" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#c4b5fd" text-anchor="middle">Specialist Agent</text>
+  <text x="120" y="340" font-family="Arial, sans-serif" font-size="11" fill="#a78bfa" text-anchor="middle">Coding</text>
+  <line x1="60" y1="350" x2="180" y2="350" stroke="#4b5563" stroke-width="1"/>
+  <text x="120" y="368" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Smaller model</text>
+  <text x="120" y="382" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Focused context</text>
+
+  <!-- Specialist 2: Research -->
+  <rect x="270" y="290" width="160" height="100" rx="10" fill="#1e293b" stroke="#06b6d4" stroke-width="2"/>
+  <text x="350" y="320" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#67e8f9" text-anchor="middle">Research Agent</text>
+  <text x="350" y="340" font-family="Arial, sans-serif" font-size="11" fill="#22d3ee" text-anchor="middle">Documentation</text>
+  <line x1="290" y1="350" x2="410" y2="350" stroke="#4b5563" stroke-width="1"/>
+  <text x="350" y="368" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Retrieval + Summary</text>
+  <text x="350" y="382" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Context isolation</text>
+
+  <!-- Specialist 3: Verification -->
+  <rect x="500" y="290" width="160" height="100" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+  <text x="580" y="320" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#86efac" text-anchor="middle">Verification Agent</text>
+  <text x="580" y="340" font-family="Arial, sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">Review + Testing</text>
+  <line x1="520" y1="350" x2="640" y2="350" stroke="#4b5563" stroke-width="1"/>
+  <text x="580" y="368" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Fact-checking</text>
+  <text x="580" y="382" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Quality assurance</text>
+
+  <!-- Return arrows from Specialists to Orchestrator -->
+  <path d="M140,290 L270,243" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#dataUp)" stroke-dasharray="5,3"/>
+  <path d="M350,290 L350,243" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#dataUp)" stroke-dasharray="5,3"/>
+  <path d="M560,290 L430,243" stroke="#34d399" stroke-width="2" fill="none" marker-end="url(#dataUp)" stroke-dasharray="5,3"/>
+
+  <!-- Final output -->
+  <path d="M350,145 L350,415 L350,415" stroke="#34d399" stroke-width="1" stroke-dasharray="3,3" fill="none"/>
+  <rect x="260" y="415" width="180" height="45" rx="8" fill="#14532d" stroke="#22c55e" stroke-width="2"/>
+  <text x="350" y="435" font-family="Arial, sans-serif" font-size="11" fill="#86efac" text-anchor="middle">Synthesized Output</text>
+  <text x="350" y="452" font-family="Arial, sans-serif" font-size="13" fill="#bbf7d0" text-anchor="middle" font-weight="bold">Complete Solution</text>
+
+  <!-- Legend -->
+  <rect x="40" y="420" width="180" height="50" rx="6" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <line x1="55" y1="438" x2="85" y2="438" stroke="#60a5fa" stroke-width="2" marker-end="url(#dataDown)"/>
+  <text x="95" y="442" font-family="Arial, sans-serif" font-size="10" fill="#94a3b8">Task delegation</text>
+  <line x1="55" y1="458" x2="85" y2="458" stroke="#34d399" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="95" y="462" font-family="Arial, sans-serif" font-size="10" fill="#94a3b8">Results returned</text>
+
+  <!-- IBM quote -->
+  <text x="580" y="445" font-family="Arial, sans-serif" font-size="9" fill="#64748b" text-anchor="middle" font-style="italic">"Bigger model orchestrates,</text>
+  <text x="580" y="458" font-family="Arial, sans-serif" font-size="9" fill="#64748b" text-anchor="middle" font-style="italic">smaller models execute"</text>
+  <text x="580" y="470" font-family="Arial, sans-serif" font-size="8" fill="#4b5563" text-anchor="middle">- IBM AI Agents 2025</text>
+</svg>

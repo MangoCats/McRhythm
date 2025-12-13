@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 500">
+  <defs>
+    <marker id="cycleArrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+    </marker>
+    <marker id="docArrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#22c55e"/>
+    </marker>
+    <filter id="shadowFilter">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="600" height="500" fill="#1a1a2e"/>
+
+  <!-- Title -->
+  <text x="300" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#e2e8f0" text-anchor="middle">Compounding Engineering Cycle</text>
+  <text x="300" y="55" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">"Each unit of work makes the next easier"</text>
+
+  <!-- Central cycle visualization -->
+  <!-- Circular arrow path (background) -->
+  <circle cx="300" cy="250" r="120" fill="none" stroke="#374151" stroke-width="8" stroke-dasharray="20,10"/>
+
+  <!-- PLAN Node (top) -->
+  <g filter="url(#shadowFilter)">
+    <circle cx="300" cy="130" r="55" fill="#1e3a5f" stroke="#3b82f6" stroke-width="3"/>
+    <text x="300" y="120" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#93c5fd" text-anchor="middle">PLAN</text>
+    <text x="300" y="140" font-family="Arial, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Research</text>
+    <text x="300" y="153" font-family="Arial, sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">Specify</text>
+  </g>
+
+  <!-- IMPLEMENT Node (bottom-right) -->
+  <g filter="url(#shadowFilter)">
+    <circle cx="404" cy="310" r="55" fill="#312e81" stroke="#8b5cf6" stroke-width="3"/>
+    <text x="404" y="300" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#c4b5fd" text-anchor="middle">IMPLEMENT</text>
+    <text x="404" y="320" font-family="Arial, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">Code</text>
+    <text x="404" y="333" font-family="Arial, sans-serif" font-size="10" fill="#a78bfa" text-anchor="middle">Iterate</text>
+  </g>
+
+  <!-- REVIEW Node (bottom-left) -->
+  <g filter="url(#shadowFilter)">
+    <circle cx="196" cy="310" r="55" fill="#14532d" stroke="#22c55e" stroke-width="3"/>
+    <text x="196" y="300" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#86efac" text-anchor="middle">REVIEW</text>
+    <text x="196" y="320" font-family="Arial, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Test</text>
+    <text x="196" y="333" font-family="Arial, sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">Verify</text>
+  </g>
+
+  <!-- Curved arrows between nodes -->
+  <!-- PLAN -> IMPLEMENT -->
+  <path d="M345,160 Q420,200 430,260" fill="none" stroke="#8b5cf6" stroke-width="3" marker-end="url(#cycleArrow)"/>
+
+  <!-- IMPLEMENT -> REVIEW -->
+  <path d="M360,345 Q300,390 240,345" fill="none" stroke="#8b5cf6" stroke-width="3" marker-end="url(#cycleArrow)"/>
+
+  <!-- REVIEW -> PLAN (completing cycle) -->
+  <path d="M170,260 Q165,195 255,145" fill="none" stroke="#8b5cf6" stroke-width="3" marker-end="url(#cycleArrow)"/>
+
+  <!-- Documentation feedback loop -->
+  <rect x="460" y="100" width="120" height="80" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="520" y="125" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="#86efac" text-anchor="middle">Documentation</text>
+  <text x="520" y="145" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Plans become docs</text>
+  <text x="520" y="160" font-family="Arial, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Docs inform plans</text>
+  <text x="520" y="175" font-family="Arial, sans-serif" font-size="9" fill="#4ade80" text-anchor="middle" font-style="italic">Compounding effect</text>
+
+  <!-- Arrow from cycle to documentation -->
+  <path d="M350,130 L460,130" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#docArrow)"/>
+
+  <!-- Arrow from documentation back to cycle -->
+  <path d="M460,165 Q400,200 355,165" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,2" marker-end="url(#docArrow)"/>
+
+  <!-- Iteration counter visual -->
+  <g transform="translate(300, 250)">
+    <circle r="30" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+    <text y="5" font-family="Arial, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Cycle</text>
+    <text y="20" font-family="Arial, sans-serif" font-size="10" fill="#64748b" text-anchor="middle">n+1</text>
+  </g>
+
+  <!-- Key benefits at bottom -->
+  <rect x="50" y="410" width="500" height="75" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="300" y="435" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0" text-anchor="middle">Why It Compounds</text>
+
+  <g font-family="Arial, sans-serif" font-size="10" fill="#94a3b8">
+    <circle cx="85" cy="458" r="3" fill="#3b82f6"/>
+    <text x="95" y="462">Plans document patterns</text>
+
+    <circle cx="220" cy="458" r="3" fill="#8b5cf6"/>
+    <text x="230" y="462">Code creates reusable modules</text>
+
+    <circle cx="390" cy="458" r="3" fill="#22c55e"/>
+    <text x="400" y="462">Reviews catch issues early</text>
+  </g>
+
+  <text x="300" y="478" font-family="Arial, sans-serif" font-size="10" fill="#6b7280" text-anchor="middle" font-style="italic">Each cycle leaves artifacts that accelerate the next</text>
+</svg>

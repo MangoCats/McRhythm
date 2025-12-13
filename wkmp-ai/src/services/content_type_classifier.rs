@@ -23,8 +23,14 @@
 //! 3. Single-song path via Chromaprint → AcoustID
 //! 4. Album path via metadata → MusicBrainz Release → edition matching
 
+use crate::fusion::identity_resolver::IdentityResolver;
+use crate::services::metadata_extractor::AudioMetadata;
+use crate::services::recording_matcher::{RecordingCandidate, RecordingMatcher};
+use crate::types::{Fusion, IdentityExtraction};
 use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
 use std::fmt;
+use std::sync::Arc;
 
 /// Content type classification for audio files
 ///
@@ -231,6 +237,22 @@ impl ClassificationResult {
         }
     }
 
+    /// Create a single song classification result with custom matching stage
+    ///
+    /// **[SSI-MB-010]** Supports MusicBrainz fallback and multi-source fusion
+    pub fn single_song_with_stage(recording_mbid: String, confidence: f64, stage: &str) -> Self {
+        Self {
+            content_type: ContentType::SingleSong,
+            confidence: MatchConfidence::from_value(confidence),
+            confidence_value: confidence,
+            release_mbid: None,
+            recording_mbid: Some(recording_mbid),
+            match_percentage: Some(100.0),
+            artist_verified: true,
+            matching_stage: Some(stage.to_string()),
+        }
+    }
+
     /// Create a not-in-musicbrainz result
     pub fn not_in_musicbrainz() -> Self {
         Self {
@@ -270,6 +292,8 @@ pub enum ClassificationError {
     FingerprintError(String),
     /// AcoustID lookup failed
     AcoustIdError(String),
+    /// MusicBrainz lookup failed
+    MusicBrainzError(String),
     /// No match found
     NoMatch,
 }
@@ -279,6 +303,7 @@ impl std::fmt::Display for ClassificationError {
         match self {
             ClassificationError::FingerprintError(s) => write!(f, "Fingerprint error: {}", s),
             ClassificationError::AcoustIdError(s) => write!(f, "AcoustID error: {}", s),
+            ClassificationError::MusicBrainzError(s) => write!(f, "MusicBrainz error: {}", s),
             ClassificationError::NoMatch => write!(f, "No match found"),
         }
     }
@@ -291,26 +316,59 @@ impl std::error::Error for ClassificationError {}
 /// **[PLAN026]** Orchestrates Step 6: Content Type Determination
 ///
 /// Uses duration-based triage to route files to appropriate classification paths:
-/// - Single-song path: Chromaprint → AcoustID → SINGLE_SONG
+/// - Single-song path: Chromaprint → AcoustID → MusicBrainz recording search fallback
 /// - Album path: Metadata → MusicBrainz Release → Edition matching (Stages 2-5)
 pub struct ContentTypeClassifier {
     /// AcoustID client for single-song fingerprint matching
-    acoustid_client: std::sync::Arc<super::acoustid_client::AcoustIDClient>,
+    acoustid_client: Arc<super::acoustid_client::AcoustIDClient>,
     /// Fingerprinter for generating Chromaprint fingerprints
     fingerprinter: super::fingerprinter::Fingerprinter,
     /// Album matcher for album path classification (Stages 2-5)
     album_matcher: crate::matching::AlbumMatcher,
+    /// **[SSI-MB-010]** Recording matcher for MusicBrainz fallback
+    recording_matcher: RecordingMatcher,
+    /// Database pool for recording cache (optional)
+    db_pool: Option<SqlitePool>,
 }
 
 impl ContentTypeClassifier {
     /// Create new classifier with AcoustID client
-    pub fn new(acoustid_client: std::sync::Arc<super::acoustid_client::AcoustIDClient>) -> Self {
+    pub fn new(acoustid_client: Arc<super::acoustid_client::AcoustIDClient>) -> Self {
+        let mb_client = Arc::new(
+            super::musicbrainz_client::MusicBrainzClient::new()
+                .expect("Failed to create MusicBrainzClient"),
+        );
         Self {
             acoustid_client,
             fingerprinter: super::fingerprinter::Fingerprinter::new(),
             album_matcher: crate::matching::AlbumMatcher::new()
                 .expect("Failed to create AlbumMatcher"),
+            recording_matcher: RecordingMatcher::new(mb_client),
+            db_pool: None,
         }
+    }
+
+    /// Create classifier with database pool for caching
+    ///
+    /// **[SSI-INT-030]** Enables recording cache for MusicBrainz queries
+    pub fn with_db(acoustid_client: Arc<super::acoustid_client::AcoustIDClient>, db_pool: SqlitePool) -> Self {
+        let mb_client = Arc::new(
+            super::musicbrainz_client::MusicBrainzClient::new()
+                .expect("Failed to create MusicBrainzClient"),
+        );
+        Self {
+            acoustid_client,
+            fingerprinter: super::fingerprinter::Fingerprinter::new(),
+            album_matcher: crate::matching::AlbumMatcher::new()
+                .expect("Failed to create AlbumMatcher"),
+            recording_matcher: RecordingMatcher::new(mb_client),
+            db_pool: Some(db_pool),
+        }
+    }
+
+    /// Set database pool for recording cache
+    pub fn set_db_pool(&mut self, pool: SqlitePool) {
+        self.db_pool = Some(pool);
     }
 
     /// Triage file based on duration
@@ -371,6 +429,251 @@ impl ContentTypeClassifier {
                     // Low confidence matches exist but don't meet threshold
                     Err(ClassificationError::NoMatch)
                 }
+            }
+        }
+    }
+
+    /// Classify using single-song path with MusicBrainz fallback
+    ///
+    /// **[SSI-MB-010]** Enhanced single-song classification:
+    /// 1. Try AcoustID first
+    /// 2. If high confidence (≥0.80), return result
+    /// 3. If low confidence or failure, try MusicBrainz recording search
+    /// 4. Fuse results if both available
+    ///
+    /// # Arguments
+    /// * `audio_path` - Path to audio file
+    /// * `duration_seconds` - Audio duration for AcoustID
+    /// * `metadata` - Optional metadata for MusicBrainz fallback
+    pub async fn classify_single_song_with_fallback(
+        &self,
+        audio_path: &std::path::Path,
+        duration_seconds: f64,
+        metadata: Option<&AudioMetadata>,
+    ) -> Result<ClassificationResult, ClassificationError> {
+        // Step 1: Try AcoustID
+        let acoustid_result = self.classify_single_song(audio_path, duration_seconds).await;
+
+        // Step 2: If AcoustID succeeds with high confidence, use it
+        if let Ok(ref result) = acoustid_result {
+            if result.confidence_value >= HIGH_CONFIDENCE_THRESHOLD {
+                tracing::debug!(
+                    confidence = result.confidence_value,
+                    mbid = ?result.recording_mbid,
+                    "AcoustID high confidence match, using directly"
+                );
+                return Ok(result.clone());
+            }
+        }
+
+        // Step 3: Try MusicBrainz recording search as fallback
+        if let Some(meta) = metadata {
+            if let (Some(artist), Some(title)) = (&meta.artist, &meta.title) {
+                let mb_result = self
+                    .try_musicbrainz_fallback(artist, title, Some(duration_seconds))
+                    .await;
+
+                if let Ok(candidates) = mb_result {
+                    if let Some(best) = candidates.first() {
+                        // Have both AcoustID (low) and MB result - fuse them
+                        if let Ok(acoustid) = &acoustid_result {
+                            if acoustid.recording_mbid.is_some() {
+                                return Ok(self.fuse_results(acoustid, best));
+                            }
+                        }
+                        // Only MB result available
+                        tracing::info!(
+                            artist = %artist,
+                            title = %title,
+                            mbid = %best.mbid,
+                            similarity = best.similarity,
+                            "MusicBrainz fallback succeeded"
+                        );
+                        return Ok(ClassificationResult::single_song_with_stage(
+                            best.mbid.clone(),
+                            best.similarity,
+                            "musicbrainz_fallback",
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Step 4: Return AcoustID result if available (even low confidence)
+        if let Ok(result) = acoustid_result {
+            return Ok(result);
+        }
+
+        // Step 5: No match found
+        Ok(ClassificationResult::not_in_musicbrainz())
+    }
+
+    /// Try MusicBrainz recording search
+    ///
+    /// Uses cache if database pool is available.
+    async fn try_musicbrainz_fallback(
+        &self,
+        artist: &str,
+        title: &str,
+        duration_secs: Option<f64>,
+    ) -> Result<Vec<RecordingCandidate>, ClassificationError> {
+        tracing::debug!(
+            artist = %artist,
+            title = %title,
+            duration = ?duration_secs,
+            "Trying MusicBrainz recording search fallback"
+        );
+
+        let candidates = if let Some(pool) = &self.db_pool {
+            self.recording_matcher
+                .search_with_cache(artist, title, duration_secs, pool)
+                .await
+        } else {
+            self.recording_matcher
+                .search(artist, title, duration_secs)
+                .await
+        };
+
+        candidates.map_err(|e| ClassificationError::MusicBrainzError(e.to_string()))
+    }
+
+    /// Fuse AcoustID and MusicBrainz results
+    ///
+    /// **[SSI-FUS-010]** Bayesian-style fusion:
+    /// - If both agree on MBID: boost confidence using 1 - (1-c1)(1-c2)
+    /// - If disagree: prefer higher confidence
+    fn fuse_results(
+        &self,
+        acoustid: &ClassificationResult,
+        mb: &RecordingCandidate,
+    ) -> ClassificationResult {
+        // If they agree on MBID, boost confidence
+        if acoustid.recording_mbid.as_ref() == Some(&mb.mbid) {
+            let combined = 1.0 - (1.0 - acoustid.confidence_value) * (1.0 - mb.similarity);
+            tracing::info!(
+                mbid = %mb.mbid,
+                acoustid_conf = acoustid.confidence_value,
+                mb_conf = mb.similarity,
+                combined = combined,
+                "Sources agree - boosting confidence via Bayesian fusion"
+            );
+            return ClassificationResult::single_song_with_stage(
+                mb.mbid.clone(),
+                combined,
+                "multi_source_fusion",
+            );
+        }
+
+        // If they disagree, prefer higher confidence
+        if mb.similarity > acoustid.confidence_value {
+            tracing::info!(
+                acoustid_mbid = ?acoustid.recording_mbid,
+                mb_mbid = %mb.mbid,
+                "Sources disagree - preferring MusicBrainz (higher confidence)"
+            );
+            ClassificationResult::single_song_with_stage(
+                mb.mbid.clone(),
+                mb.similarity,
+                "musicbrainz_preferred",
+            )
+        } else {
+            tracing::info!(
+                acoustid_mbid = ?acoustid.recording_mbid,
+                mb_mbid = %mb.mbid,
+                "Sources disagree - preferring AcoustID (higher confidence)"
+            );
+            acoustid.clone()
+        }
+    }
+
+    /// Full multi-source fusion using IdentityResolver
+    ///
+    /// **[SSI-FUS-020]** Combines all available sources via IdentityResolver:
+    /// - Source 1: AcoustID fingerprint matching
+    /// - Source 2: MusicBrainz recording search
+    /// - Source 3: ID3 metadata implicit confidence (when sources agree)
+    ///
+    /// Uses Bayesian posterior: `P = 1 - (1-c1)(1-c2)...(1-cN)`
+    pub async fn classify_with_full_fusion(
+        &self,
+        audio_path: &std::path::Path,
+        duration_seconds: f64,
+        metadata: Option<&AudioMetadata>,
+    ) -> Result<ClassificationResult, ClassificationError> {
+        let mut sources: Vec<IdentityExtraction> = Vec::new();
+
+        // Source 1: AcoustID
+        if let Ok(acoustid_result) = self.classify_single_song(audio_path, duration_seconds).await {
+            if let Some(mbid) = &acoustid_result.recording_mbid {
+                sources.push(IdentityExtraction {
+                    recording_mbid: mbid.clone(),
+                    confidence: acoustid_result.confidence_value as f32,
+                    source: "AcoustID".to_string(),
+                });
+            }
+        }
+
+        // Source 2: MusicBrainz recording search
+        if let Some(meta) = metadata {
+            if let (Some(artist), Some(title)) = (&meta.artist, &meta.title) {
+                if let Ok(candidates) = self
+                    .try_musicbrainz_fallback(artist, title, Some(duration_seconds))
+                    .await
+                {
+                    if let Some(best) = candidates.first() {
+                        sources.push(IdentityExtraction {
+                            recording_mbid: best.mbid.clone(),
+                            confidence: best.similarity as f32,
+                            source: "MusicBrainz".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Source 3: ID3 metadata as implicit confidence when sources agree
+        if sources.len() >= 2 {
+            let first_mbid = &sources[0].recording_mbid;
+            let all_agree = sources.iter().all(|s| &s.recording_mbid == first_mbid);
+
+            if all_agree {
+                // ID3 metadata corroborates the match
+                sources.push(IdentityExtraction {
+                    recording_mbid: first_mbid.clone(),
+                    confidence: 0.70, // ID3 metadata implicit confidence
+                    source: "ID3".to_string(),
+                });
+            }
+        }
+
+        // Fuse all sources using IdentityResolver
+        if sources.is_empty() {
+            return Ok(ClassificationResult::not_in_musicbrainz());
+        }
+
+        let resolver = IdentityResolver::new();
+        match resolver.fuse(sources).await {
+            Ok(fusion_result) => {
+                if let Some(mbid) = fusion_result.output.recording_mbid {
+                    let confidence = fusion_result.confidence as f64;
+                    tracing::info!(
+                        mbid = %mbid,
+                        confidence,
+                        sources = ?fusion_result.sources,
+                        "Full multi-source fusion completed"
+                    );
+                    Ok(ClassificationResult::single_song_with_stage(
+                        mbid,
+                        confidence,
+                        "identity_resolver_fusion",
+                    ))
+                } else {
+                    Ok(ClassificationResult::not_in_musicbrainz())
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "IdentityResolver fusion failed");
+                Ok(ClassificationResult::identification_failed())
             }
         }
     }

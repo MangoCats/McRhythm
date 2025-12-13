@@ -406,6 +406,25 @@ pub(crate) fn run_stage4_single_edition(
         return None;
     }
 
+    // === LAYER 1b: Artist-Album Divergence Check (Run 29d) ===
+    // Reject when album matches well but artist doesn't - indicates wrong-artist match
+    // with coincidentally similar album name (e.g., "Anthology", "Live at...", "Atlas")
+    // Pattern: Different artists with same album name have HIGH album similarity but LOW artist
+    let min_artist_for_album = album_similarity * STAGE4_MIN_ARTIST_ALBUM_RATIO;
+    if artist_similarity < min_artist_for_album {
+        info!(
+            "[A{}]       [Edition {}/{}] Stage 4 SKIPPED: artist/album divergence - artist {:.1}% < album {:.1}% × {:.0}% = {:.1}%",
+            album_idx + 1,
+            edition_idx + 1,
+            total_editions,
+            artist_similarity * 100.0,
+            album_similarity * 100.0,
+            STAGE4_MIN_ARTIST_ALBUM_RATIO * 100.0,
+            min_artist_for_album * 100.0
+        );
+        return None;
+    }
+
     // Find quiet spots near expected boundaries for this edition
     let detected_boundaries =
         find_edition_guided_boundaries(rms_profile, expected_durations, total_duration_secs);

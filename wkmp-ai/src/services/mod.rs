@@ -21,6 +21,7 @@ pub mod metadata_extractor;
 pub mod metadata_merger; // PLAN024 Increment 8-9: Metadata extraction & merging (Phase 3)
 pub mod musicbrainz_client;
 pub mod passage_amplitude_analyzer; // PLAN024 Increment 17: Amplitude analysis (Phase 8)
+pub mod recording_matcher; // PLAN026 Increment 2: MusicBrainz recording search fallback
 pub mod passage_finalizer; // PLAN024 Increment 19: Finalization (Phase 10)
 pub mod passage_fingerprinter; // PLAN024 Increment 12-13: Per-passage fingerprinting (Phase 5)
 pub mod passage_flavor_fetcher; // PLAN024 Increment 18: Flavoring (Phase 9)
@@ -62,6 +63,7 @@ pub use hash_deduplicator::{HashDeduplicator, HashResult};
 pub use metadata_extractor::{AudioMetadata, MetadataError, MetadataExtractor};
 pub use metadata_merger::{MergedMetadata, MetadataMerger};
 pub use musicbrainz_client::{MBError, MBRecording, MusicBrainzClient};
+pub use recording_matcher::{RecordingCandidate, RecordingMatcher, RecordingMatcherConfig};
 pub use passage_amplitude_analyzer::{
     AmplitudeResult, AmplitudeStats, PassageAmplitudeAnalyzer, PassageAmplitudeResult,
 };

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 320">
+  <defs>
+    <linearGradient id="spectrumGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="50%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#f97316"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="700" height="320" fill="#1a1a2e"/>
+
+  <!-- Title -->
+  <text x="350" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#e2e8f0" text-anchor="middle">Workflows vs Tools Spectrum</text>
+
+  <!-- Main spectrum bar -->
+  <rect x="60" y="80" width="580" height="30" rx="15" fill="url(#spectrumGrad)" filter="url(#glow)"/>
+
+  <!-- Endpoints -->
+  <circle cx="75" cy="95" r="20" fill="#3b82f6" stroke="#60a5fa" stroke-width="3"/>
+  <text x="75" y="100" font-family="Arial, sans-serif" font-size="10" fill="white" text-anchor="middle">W</text>
+
+  <circle cx="625" cy="95" r="20" fill="#f97316" stroke="#fb923c" stroke-width="3"/>
+  <text x="625" y="100" font-family="Arial, sans-serif" font-size="10" fill="white" text-anchor="middle">T</text>
+
+  <!-- Labels -->
+  <text x="75" y="55" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#60a5fa" text-anchor="middle">WORKFLOWS</text>
+  <text x="625" y="55" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#fb923c" text-anchor="middle">TOOLS</text>
+
+  <!-- Workflow attributes (left side) -->
+  <g font-family="Arial, sans-serif" font-size="13" fill="#93c5fd">
+    <text x="60" y="145">Flexible</text>
+    <text x="60" y="170">Adaptable</text>
+    <text x="60" y="195">Non-deterministic</text>
+    <text x="60" y="220">&lt;100% reliable</text>
+    <text x="60" y="245">Context-aware</text>
+    <text x="60" y="270">Scales with complexity</text>
+  </g>
+
+  <!-- Tool attributes (right side) -->
+  <g font-family="Arial, sans-serif" font-size="13" fill="#fdba74" text-anchor="end">
+    <text x="640" y="145">Rigid</text>
+    <text x="640" y="170">Brittle</text>
+    <text x="640" y="195">Deterministic</text>
+    <text x="640" y="220">100% repeatable</text>
+    <text x="640" y="245">Format-sensitive</text>
+    <text x="640" y="270">Scales with data volume</text>
+  </g>
+
+  <!-- Connecting lines -->
+  <g stroke="#4b5563" stroke-width="1" stroke-dasharray="4,4">
+    <line x1="140" y1="140" x2="560" y2="140"/>
+    <line x1="155" y1="165" x2="540" y2="165"/>
+    <line x1="200" y1="190" x2="510" y2="190"/>
+    <line x1="175" y1="215" x2="500" y2="215"/>
+    <line x1="175" y1="240" x2="495" y2="240"/>
+    <line x1="215" y1="265" x2="475" y2="265"/>
+  </g>
+
+  <!-- Visual metaphors -->
+  <g transform="translate(75, 290)">
+    <path d="M-15,0 Q0,-10 15,0 Q0,10 -15,0" fill="#3b82f6" opacity="0.6"/>
+    <path d="M-10,0 Q0,-6 10,0 Q0,6 -10,0" fill="#60a5fa" opacity="0.8"/>
+  </g>
+  <text x="75" y="310" font-family="Arial, sans-serif" font-size="10" fill="#94a3b8" text-anchor="middle">flowing water</text>
+
+  <g transform="translate(625, 285)">
+    <circle cx="-8" cy="0" r="6" fill="none" stroke="#f97316" stroke-width="2"/>
+    <circle cx="8" cy="0" r="6" fill="none" stroke="#f97316" stroke-width="2"/>
+    <rect x="-2" y="-3" width="4" height="6" fill="#f97316"/>
+  </g>
+  <text x="625" y="310" font-family="Arial, sans-serif" font-size="10" fill="#94a3b8" text-anchor="middle">precision gears</text>
+</svg>

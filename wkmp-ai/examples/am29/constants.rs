@@ -437,3 +437,11 @@ pub(crate) const STAGE4_MIN_ACCEPTANCE_THRESHOLD: f64 = 85.0;
 
 /// Artist similarity level at which maximum acceptance threshold applies
 pub(crate) const STAGE4_HIGH_ARTIST_SIMILARITY: f64 = 0.80;
+
+/// Minimum ratio of artist similarity to album similarity (Run 29f: increased from 0.70)
+/// Rejects editions where album matches well but artist doesn't - indicates wrong-artist
+/// match with coincidentally similar album name (e.g., "Anthology", "Live at...", "Atlas")
+/// Rule: artist_similarity >= album_similarity × STAGE4_MIN_ARTIST_ALBUM_RATIO
+/// Run 29e: 0.70 allowed A71 "The Supremes - Anthology" (70% exactly at threshold)
+/// Run 29f: 0.80 should block such borderline cases
+pub(crate) const STAGE4_MIN_ARTIST_ALBUM_RATIO: f64 = 0.80;

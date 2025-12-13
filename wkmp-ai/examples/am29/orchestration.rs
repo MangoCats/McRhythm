@@ -27,7 +27,8 @@
 //! - `stages::stage5`: Extra track merging
 //! - `utils::early_exit`: Early-exit coordination
 
-use crate::constants::STAGE4_PENALTY_PERCENT;
+use crate::constants::{STAGE4_MIN_ARTIST_ALBUM_RATIO, STAGE4_PENALTY_PERCENT};
+use crate::matching::validation::best_jaro_winkler_ratio;
 use crate::stages::{
     run_stage2_single_edition_cached, run_stage3_single_edition, run_stage4_single_edition,
     run_stage5_single_edition,
@@ -37,6 +38,7 @@ use crate::types::{CandidateTestResult, Edition, EditionTestResult};
 use crate::utils::{should_exit_early, signal_perfect_match};
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::time::Instant;
+use tracing::info;
 
 // =============================================================================
 // Edition Result Construction
@@ -276,9 +278,10 @@ pub(crate) fn test_single_edition(
     }
 
     // === STAGE 3: Segment assembly for this edition ===
+    // Run 29e: Adds artist-album divergence check (same as Stage 4) to reject wrong-artist matches
     if !stage2_results.over_segmented_candidates.is_empty() {
         log_messages.push(format!(
-            "    Stage 3: Testing {} over-segmented assemblies...",
+            "    Stage 3: Testing {} over-segmented assemblies (with divergence check)...",
             stage2_results.over_segmented_candidates.len()
         ));
 
@@ -295,7 +298,30 @@ pub(crate) fn test_single_edition(
             start_time,
             album_idx,
         ) {
-            if result.percentage > edition_best_percentage {
+            // Stage 3 divergence check: artist_similarity >= album_similarity × 0.70
+            // Rejects wrong-artist matches where album name coincidentally matches (e.g., "Anthology", "Atlas")
+            let artist_similarity = best_jaro_winkler_ratio(&edition.artist, source_artists);
+            let album_similarity = best_jaro_winkler_ratio(&edition.album, source_albums);
+            let min_artist_ratio = album_similarity * STAGE4_MIN_ARTIST_ALBUM_RATIO;
+            let passes_divergence = artist_similarity >= min_artist_ratio;
+
+            if !passes_divergence {
+                info!(
+                    "[A{}] Stage 3 BLOCKED by divergence check: artist={:.1}% < album={:.1}% × {:.0}% = {:.1}% (edition: {} - {})",
+                    album_idx + 1,
+                    artist_similarity * 100.0,
+                    album_similarity * 100.0,
+                    STAGE4_MIN_ARTIST_ALBUM_RATIO * 100.0,
+                    min_artist_ratio * 100.0,
+                    edition.artist,
+                    edition.album
+                );
+                log_messages.push(format!(
+                    "    -> Stage 3 blocked by divergence check: artist={:.1}% < {:.1}% required",
+                    artist_similarity * 100.0,
+                    min_artist_ratio * 100.0
+                ));
+            } else if result.percentage > edition_best_percentage {
                 edition_best_percentage = result.percentage;
                 edition_best_durations = result.detected_durations.clone();
                 edition_best_stage = "album_extractor_3_assembly";
