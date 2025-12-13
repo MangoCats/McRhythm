@@ -10,6 +10,8 @@ I have noticed that some redirection prompts have a temporary effect with an age
 
 ### Productivity: A Nuanced Picture
 
+![AI Productivity by Context](images/productivity-quadrant.svg)
+
 AI-assisted coding productivity is highly context-dependent.  While [85% of developers](https://blog.jetbrains.com/research/2025/10/state-of-developer-ecosystem-2025/) now use AI tools and 88% save at least 1hr/week (JetBrains 2025), the actual gains vary dramatically:
 
 - **Greenfield/simple projects**: 30-40% faster
@@ -22,6 +24,8 @@ Net productivity typically averages 15-20% after accounting for error correction
 
 ## Workflows vs Tools
 
+![Workflows vs Tools Spectrum](images/workflows-vs-tools.svg)
+
 Synopsis: workflows are flexible and adaptable and less reliable than tools.  Tools scale to handle larger datasets and have deterministic repeatable output, but are inherently rigid - can be brittle.  Tools can be maintained and expanded, but can also balloon into meta-development projects.  Workflows can be powerful, but must be monitored carefully for appropriate output.
 
 ### Workflows
@@ -29,6 +33,8 @@ Synopsis: workflows are flexible and adaptable and less reliable than tools.  To
 Something the AI/LLM agents have defined to make interaction easier is the concept of "workflows" which are, essentially, a set of natural language prompts that capture commonly repeated prompts for certain "workflow" scenarios.  Like planning a refactoring, or researching an architectural design decision... These workflows are non-deterministic, flexible regarding their input data sources, and can be quite powerful, but at the same time are less than 100% reliable.  As an example, for a home project I asked Claude to extract a list of line segments and arcs from a floor plan description, which it did as a workflow.  The input is a well defined, but varied .scad file, and the output is a table of about 30 segments with about 6 parameters each.  In that table, the LLM based workflow made about 6 mistakes which had to be pointed out for it to correct.  Unfortunately, no matter how "rigorous" the workflow prompts are, the output is always a little variable and never quite 100% right on the first pass.  Unlike deterministic processes, different mistakes show up on different executions of the workflow.  The workflow can be improved, for instance: checking that all the arc sweeps add up to 360 degrees, and checking that the vectors define a closed loop, but somehow it always seems to accumulate more mistakes as the job gets larger.
 
 ### Quantifying Workflow Unreliability (2025 Research)
+
+![Trust vs Adoption Paradox](images/trust-vs-adoption.svg)
 
 Recent research provides hard numbers on workflow reliability:
 
@@ -46,6 +52,8 @@ In AI/LLM terms, Tools are specialized (deterministic) programs for specific tas
 
 ## Compounding Engineering
 
+![Compounding Engineering Cycle](images/compounding-cycle.svg)
+
 [Compounding Engineering](https://github.com/EveryInc/compounding-engineering-plugin/tree/main?tab=readme-ov-file#what-is-compounding-engineering) is a nice [idealistic philosophy](https://every.to/source-code/my-ai-had-already-fixed-the-code-before-i-saw-it) stating: **Each unit of engineering work should make subsequent units of work easier—not harder.**  At a high level it is described as a: Plan - Implement - Review process, which seems to fit well with the strengths and weaknesses of LLM/AI agent leveraged development.
 
 About a month ago, I developed two workflows: [/think](https://jax-mdt.visualstudio.com/_git/NIM_4.0?path=/DSP/.cursor/commands/think.md) and [/plan](https://jax-mdt.visualstudio.com/_git/NIM_4.0?path=/DSP/.cursor/commands/plan.md) to encourage Cursor to use multiple agents to execute "common" tasks during development, while also providing some aggressive guidance for context window management: keeping files small and focused, prioritizing risk reduction over effort reduction, etc.  /think was good for initial research and planning, and when a task is somewhat complex and under-defined, /think can help to make a more robust specification suitable for /plan.  /plan has been very helpful at translating specifications into detailed implementation plans which Cursor then seems relatively more successful at implementing than more interactive / free-form prompt sessions - especially for larger and more complex jobs.
@@ -53,6 +61,8 @@ About a month ago, I developed two workflows: [/think](https://jax-mdt.visualstu
 Others have been working along similar lines, the Claude community has been developing a much more extensive set of workflow commands as a plugin for Claude Code, which is similar enough to Cursor that you can ask Cursor to adapt the parts (or whole) of the [Compounding Engineering plugin](https://github.com/EveryInc/compounding-engineering-plugin) you may want to try in your project(s).
 
 ### TDD with Agentic Coding
+
+![TDD Agentic Flow](images/tdd-agentic-flow.svg)
 
 [Anthropic's best practices](https://www.anthropic.com/engineering/claude-code-best-practices) recommend test-driven development as particularly powerful with agentic coding for changes that are easily verifiable:
 
@@ -95,6 +105,8 @@ The key insight: patterns trade the one-time cost of learning conventions for th
 -----
 
 ## Cognitive Offloading and Skill Atrophy
+
+![Scaffold vs Substitute Framework](images/scaffold-vs-substitute.svg)
 
 A significant body of 2025 research warns about the risks of over-reliance on AI coding assistants.
 
@@ -269,6 +281,8 @@ After years of "prompt engineering" being the focus, 2025 has seen the emergence
 
 ### Context Rot and Attention Budget
 
+![Context Rot Curve](images/context-rot-curve.svg)
+
 Studies on needle-in-a-haystack benchmarks have uncovered **"context rot"**: as tokens in the context window increase, the model's ability to accurately recall information decreases. This happens across all models, though some degrade more gracefully than others ([JetBrains Research, NeurIPS 2025](https://blog.jetbrains.com/research/2025/12/efficient-context-management/)).
 
 Think of it this way: LLMs have an **"attention budget"** they draw on when parsing context, similar to how humans have limited working memory capacity. Context must be treated as a finite resource with diminishing marginal returns.
@@ -296,6 +310,8 @@ So, bear this in mind when asking an agent to do... anything.  I have noticed th
 Several sources have pointed to markdown formatted documents (.md) as one of the most efficient ways to communicate with agents.  The straightforward formatting of text "tokens" in .md documents communicates more directly to the models, using fewer context tokens to convey the same concepts, especially as compared to .xml and other more complex formats.
 
 ## Research Agents and Multi-Agent Systems
+
+![Multi-Agent Orchestration Pattern](images/multi-agent-orchestration.svg)
 
 Having said that, agents *can* read and "understand" (tokenize) a wide variety of file formats.  One way to optimize context focus is to use [multi-agent strategies](https://devops.com/cursor-2-0-brings-faster-ai-coding-and-multi-agent-workflows/): have some agents read and summarize low info-of-interest density documents for a primary agent to then read the summaries and synthesize from there.  The "research agents" could be reading websites, or even collections of local .md documents, anything that has a lot of distracting content that can be stripped away to keep the primary agent's context focused.  Just remember: the summarizers can and will miss important details from time to time, and the primary agent's capture of important concepts from the summaries will also be less than perfect.
 
