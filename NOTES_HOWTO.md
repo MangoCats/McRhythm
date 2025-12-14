@@ -17,9 +17,7 @@ When output falls short:
 
 ## Specification-First Development
 
-**The single most effective practice for quality AI-assisted development.**
-
-Research shows that models guided by formal specifications consistently produce more robust, maintainable, and feature-complete code. Natural language alone is [insufficiently precise](https://arxiv.org/html/2510.03862v1) for high-quality code synthesis.
+Models [guided by specifications](https://aws.amazon.com/blogs/storage/how-automated-reasoning-helps-us-innovate-at-s3-scale/) produce more robust, maintainable, and feature-complete code [more efficiently](https://developers.redhat.com/articles/2025/10/22/how-spec-driven-development-improves-ai-coding-quality#review__refine__and_remix).
 
 See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97Yt&t=47) (video presentation)
 
@@ -27,7 +25,7 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 
 1. **Specify** - Write clear requirements with [preconditions, postconditions](https://en.wikipedia.org/wiki/Design_by_contract), and [constraints](https://www.eiffel.org/doc/eiffel/ET-_Design_by_Contract_(tm),_Assertions_and_Exceptions)
 2. **Plan** - Have the agent create a detailed implementation plan from the specification
-3. **Implement** - Agent writes code to satisfy the specification
+3. **Implement** - Agent writes code according to plan to satisfy the specification
 4. **Verify** - Tests validate specification compliance
 5. **Review** - Human confirms correctness and quality
 
@@ -65,7 +63,7 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
    - One agent writes code
    - Another reviews and tests it
 
-This separation of concerns catches errors that a single-agent approach misses.
+This separation of concerns catches errors that a single-agent approach misses.  Incorporate TDD into plans of sufficient complexity to benefit from the formalism.
 
 ---
 
@@ -93,11 +91,11 @@ See: [Anthropic's guide to effective context engineering](https://www.anthropic.
 - Detailed output about recent topics, sparse on earlier topics
 - Agent "forgetting" earlier decisions
 
-**Solution:** Write summary documents during sessions, start fresh sessions for new tasks.
+**Solution:** Write summary documents during sessions, start fresh sessions for new tasks.  Refer back to relevant documents as needed.
 
 ### Multi-agent Application
 
-Each agent has its own context, which can be shaped appropriately to its task with pre-task assignment instructions.
+Each agent has its own context, which can be shaped appropriately to its own sub-task with agent specific instructions.
 
 ![Multi-Agent Orchestration Pattern](images/multi-agent-orchestration.svg)
 
@@ -114,13 +112,13 @@ Keep your software's operation visible - this enables both human review and agen
 - **Visible state** - Logs, graphs, status displays for intermediate processes
 - **Rich logging** - Timestamps, file/line numbers, thread IDs enable accurate diagnosis
 
-Agents can read logs to diagnose their own mistakes - but only if the logs capture sufficient detail.
+Agents can read logs to diagnose their own mistakes - but only when the logs capture sufficient detail.
 
 ---
 
 ## Design Patterns Reduce Cognitive Load
 
-Patterns provide pre-solved solutions to recurring problems. When agent recognizes a pattern, it skips inventing from scratch. ([design patterns catalog](https://refactoring.guru/design-patterns/))
+Patterns provide pre-solved solutions to recurring problems. When an agent recognizes a pattern, it skips inventing a solution from scratch. ([design patterns catalog](https://refactoring.guru/design-patterns/))
 
 ### Benefits for AI-Assisted Development
 
@@ -129,7 +127,7 @@ Patterns provide pre-solved solutions to recurring problems. When agent recogniz
 - **Reduced decisions** - Sensible defaults conserve capacity for novel problems
 - **Risk mitigation** - Battle-tested approaches reduce edge case issues
 
-**Key insight:** Patterns trade the one-time cost of learning conventions for repeated recognition-based problem solving.
+Patterns trade the one-time cost of learning conventions for repeated recognition-based problem solving.
 
 ---
 
@@ -150,14 +148,14 @@ Patterns provide pre-solved solutions to recurring problems. When agent recogniz
 
 - Use **tools** for tasks requiring precision and repeatability
 - Use **workflows** for tasks requiring flexibility and judgment
-- Keep tools under ~1000 lines to maintain agent maintainability
-- Monitor workflow output - different mistakes appear on different runs
+- Typically keep tools under ~1000 lines to maintain LLM agent maintainability
+- Monitor workflow outputs - different mistakes appear on different runs
 
 More [perspective on agents and tools](https://www.ibm.com/think/topics/compound-ai-systems) in AI systems.
 
 ---
 
-## Avoiding Technical Debt
+## Manage Technical Debt
 
 Agents declare "100% complete" while accumulating significant debt. Actively watch for:
 
@@ -168,19 +166,21 @@ Agents declare "100% complete" while accumulating significant debt. Actively wat
 - Documentation not synchronized with implementation
 - Hard-coded values that should reference configuration
 
-**Countermeasure:** Prompt "review for technical debt" even when agent claims completion.
+**Countermeasure:** Prompt "review for technical debt" periodically, especially just after an agent claims task complete.
 
 ---
 
-## Key Principles to Enforce
+## Key Principles to Reinforce
 
 ### DRY (Don't Repeat Yourself)
 
-Agents scatter copies of values, defaults, and concepts throughout code and documentation. This causes drift when the core concept changes.
+Agents scatter copies of values, defaults, and concepts throughout code and documentation. This leads to divergence (hanging on to old values/concepts) when implementation choices change.
 
-- Review new documents for repetition
+- Review new documents for repetition, prefer references to repetition.
 - Prompt agents to "DRY out" code and documentation
-- Define defaults and constants in single locations
+  - Also prompt to remove dead (and now irrelevant or potentially misleading) code, dead code and comments still get read into context and can influence future development choices.
+- Define and use parametric "helper functions" rather than repeating similar logic and processes multiple times.
+- Define defaults and constants in single locations.
 
 ### SSOT (Single Source of Truth)
 
@@ -189,15 +189,15 @@ Agents create local copies, buffers, and caches when they should reference the a
 - Clearly identify SSOT for each concept in specifications
 - Periodically prompt to "review for SSOT violations"
 - Refactor local copies to authoritative references
-- Watch for agents keeping [magic numbers](https://en.wikipedia.org/wiki/Magic_number_(programming) ) in sync manually instead of defining them in a central location
+- Watch for agents keeping [magic numbers](https://en.wikipedia.org/wiki/Magic_number_(programming) ) and other concepts in sync manually instead of defining them in a central location
 
 ### Replacement vs Additive
 
 Agents usually default to additive changes (add new code) rather than replacement (remove old code). This leaves obsolete, faulty and misleading information in the code where it becomes context during future operations.
 
 - Explicitly instruct replacement when appropriate
-- Verify old implementations are removed, not just augmented
-- Watch for functionality reverting to old behavior
+- Verify old implementations are removed, not just augmented or supplemented with alternative implementations
+- Watch for functionality reverting to deprecated behavior
 
 ---
 
@@ -207,7 +207,7 @@ Agents usually default to additive changes (add new code) rather than replacemen
 
 A [METR study (July 2025)](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) found experienced developers on familiar codebases were **19% slower** with AI tools.
 
-AI may slow you down in certain contexts:
+AI can slow down development and/or lower the quality of developement outputs, especially in these contexts:
 
 - **Familiar codebases** you've worked on for years
 - **Debugging emergencies** where preserved diagnostic skills matter
@@ -246,15 +246,18 @@ The critical question: Is AI strengthening your capabilities or replacing them?
 
 ## Process Discipline
 
-Using AI agents is no reason to abandon software development best practices. [Research shows](https://arxiv.org/html/2509.13942v1) Agile methods produce better quality code with LLMs compared to Waterfall. The firehose of AI output requires **more** rigorous process, not less:
+Using AI agents is no reason to abandon software development best practices. The firehose of AI output requires **more** rigorous process, not less:
 
 - Specifications before implementation
-- Tests before code
-- Review before merge
+- Robust test coverage
+  - Tests before code (TDD) when appropriate
+- Regular technical debt assessment and correction
 - Documentation synchronized with implementation
-- Regular technical debt assessment
+- Review before merge
 
-The same domain-specific processes that work for human developers work for AI-assisted development - they just need to be applied more frequently.
+The same domain-specific processes that ensure human developers' product quality also ensure AI-assisted development product quality.  Due to the speed at which agents produce code and documentation, the processes need to be applied more frequently.  
+
+Incidentally, [research shows](https://arxiv.org/html/2509.13942v1) Agile methods produce better quality code with LLMs compared to Waterfall. 
 
 ---
 
@@ -262,7 +265,7 @@ The same domain-specific processes that work for human developers work for AI-as
 
 ![Compounding Engineering Cycle](images/compounding-cycle.svg)
 
-Inspired by [Compounding Engineering](https://github.com/EveryInc/compounding-engineering-plugin): each unit of engineering work should make subsequent units easier.
+The goal of [Compounding Engineering](https://github.com/EveryInc/compounding-engineering-plugin) is for each unit of engineering work to make subsequent units easier.
 
 1. **Specify** - Clear requirements with acceptance criteria
 2. **Plan** - Detailed implementation plan from specification
@@ -272,7 +275,7 @@ Inspired by [Compounding Engineering](https://github.com/EveryInc/compounding-en
 6. **Review** - Human confirms quality, checks for debt
 7. **Document** - Keep docs synchronized with implementation
 
-Each step creates artifacts that inform subsequent work. Quality compounds when the process is followed consistently.  The plugin linked above was developed [with great enthusiasm](https://every.to/source-code/my-ai-had-already-fixed-the-code-before-i-saw-it) by its users.
+Each step creates artifacts that inform subsequent work. Quality compounds when the process is followed consistently, like a pro-active [CAPA](https://en.wikipedia.org/wiki/Corrective_and_preventive_action#Concepts) loop.  The plugin linked above was developed [with great enthusiasm](https://every.to/source-code/my-ai-had-already-fixed-the-code-before-i-saw-it) by its users.
 
 -----
 
