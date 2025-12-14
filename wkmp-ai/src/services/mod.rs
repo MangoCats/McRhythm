@@ -2,6 +2,7 @@
 //!
 //! **[AIA-COMP-010]** Component implementations
 
+pub mod accurate_duration; // SSI-DUR-020: Accurate duration via full decode with caching
 pub mod acousticbrainz_client;
 pub mod acoustid_client;
 pub mod amplitude_analyzer;

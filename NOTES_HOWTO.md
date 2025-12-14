@@ -13,6 +13,8 @@ When output falls short:
 - Provide examples of "good" patterns to follow
 - Give multiple, thorough prompts to align results with expectations
 
+When AI is still getting details wrong: fix the output yourself, clear the agent's context and have it start over with the corrected content.
+
 ---
 
 ## Specification-First Development
@@ -24,7 +26,7 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 ### The Workflow
 
 1. **Specify** - Write clear requirements; with [preconditions, postconditions](https://en.wikipedia.org/wiki/Design_by_contract), and [constraints](https://www.eiffel.org/doc/eiffel/ET-_Design_by_Contract_(tm),_Assertions_and_Exceptions) when appropriate
-2. **Plan** - Have the agent create a detailed implementation plan from the specification
+2. **Plan** - Have the agent create a detailed implementation plan from the specification; review the plan for correctness
 3. **Implement** - Agent writes code according to plan to satisfy the specification
 4. **Verify** - Tests validate specification compliance
 5. **Review** - Human confirms correctness and quality
@@ -46,7 +48,7 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 
 ## AI/LLM Agents write specifications too
 
-<img src="images/DoAllTheThingsMeme.png" alt="All the things" style="float:right; width:40%; margin-left:1em; margin-bottom:0.5em;"/>
+<img src="images/DoAllTheThingsMeme.png" alt="AI does All The Things" style="float:right; width:40%; margin-left:1em; margin-bottom:0.5em;"/>
 
 While human input and review is crucial at every step of the development process, don't overlook the fact that LLMs can also:
 
@@ -56,7 +58,7 @@ While human input and review is crucial at every step of the development process
 - update documentation
 - review the entire project for consistency, completeness and technical debt
 
-Never forget: every one of these powerful automated LLM based workflow processes comes with a built in non-zero error rate, and that errors left in the project will propagate and grow.  Thorough critical review is essential, but the power of the LLMs to draft an 80+% complete and correct framework should not be ignored.
+Never forget: every one of these automated LLM based workflow processes comes with a built in non-zero error rate, and that errors left in the project will propagate and grow.  Thorough critical review is essential to clean out these errors, but the power of the LLMs to draft an 80+% complete and correct framework should not be ignored.
 
 ---
 
@@ -265,14 +267,20 @@ The critical question: Is AI strengthening your capabilities or replacing them?
 
 Using AI agents is no reason to abandon software development best practices. The firehose of AI output requires **more** rigorous process, not less:
 
+![Checkpoints](images/checkpoint-pipeline.svg)
+
 - Specifications before implementation
 - Robust automated test coverage (reduces regressions)
   - Tests before code (TDD) when appropriate
 - Regular technical debt assessment and correction
-- Documentation synchronized with implementation
+- Documentation frequently synchronized with implementation
 - Review before merge
 
-The same domain-specific processes that ensure human developers' product quality also ensure AI-assisted development product quality.  Due to the speed at which agents produce code and documentation, the processes need to be applied more frequently.  
+The same domain-specific processes that ensure human developers' product quality also ensure AI-assisted development product quality.  Due to the speed at which agents produce code and documentation, the processes need to be applied more frequently.
+
+![Process Discipline](images/process-discipline.svg)
+
+The unavoidable human labor of review needs to happen much more frequently with AI agents generating code and documentation; whereas single human review happens naturally / invisibly as part of the work when a human is doing the development.
 
 Incidentally, [research shows](https://arxiv.org/html/2509.13942v1) Agile methods produce better quality code with LLMs compared to Waterfall. 
 

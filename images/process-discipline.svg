@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 280">
+  <style>
+    .stick-line { fill: none; stroke: #000; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .stick-fill { fill: #fffdf5; stroke: #000; stroke-width: 2; }
+    .stick-text { font-family: 'Comic Sans MS', 'Chalkboard', cursive; font-size: 11px; }
+    .label { font-family: 'Comic Sans MS', 'Chalkboard', cursive; font-size: 13px; font-weight: bold; }
+  </style>
+
+  <!-- Paper white background -->
+  <rect x="0" y="0" width="500" height="280" fill="#fffdf5"/>
+
+  <!-- Dividing line -->
+  <path d="M 250 40 L 250 260" stroke="#000" stroke-width="1" stroke-dasharray="5,5"/>
+
+  <!-- Labels -->
+  <text x="125" y="30" class="label" text-anchor="middle">Human Developer</text>
+  <text x="375" y="30" class="label" text-anchor="middle">AI + Human Review</text>
+
+  <!-- LEFT PANEL: Human writing and reviewing as one process -->
+
+  <!-- Desk -->
+  <path d="M 40 200 L 210 200" class="stick-line"/>
+  <path d="M 60 200 L 60 240" class="stick-line"/>
+  <path d="M 190 200 L 190 240" class="stick-line"/>
+
+  <!-- Small neat stack of reviewed documents -->
+  <rect x="160" y="175" width="35" height="5" class="stick-fill"/>
+  <rect x="160" y="168" width="35" height="5" class="stick-fill"/>
+  <rect x="160" y="161" width="35" height="5" class="stick-fill"/>
+  <text x="177" y="157" class="stick-text" text-anchor="middle" font-size="8">done</text>
+
+  <!-- Paper being written -->
+  <rect x="85" y="175" width="40" height="25" class="stick-fill"/>
+  <path d="M 90 182 L 115 182" stroke="#000" stroke-width="1"/>
+  <path d="M 90 187 L 110 187" stroke="#000" stroke-width="1"/>
+  <path d="M 90 192 L 105 192" stroke="#000" stroke-width="1"/>
+
+  <!-- Stick figure writing (side view, facing right) -->
+  <circle cx="95" cy="130" r="15" class="stick-fill"/>
+
+  <!-- Hair -->
+  <path d="M 83 120 Q 75 115 80 122" class="stick-line"/>
+  <path d="M 81 127 Q 72 125 77 130" class="stick-line"/>
+
+  <!-- Body leaning over desk -->
+  <path d="M 95 145 L 100 175" class="stick-line"/>
+
+  <!-- Arms - both on paper -->
+  <path d="M 97 155 L 110 175" class="stick-line"/>
+  <path d="M 97 158 L 85 178" class="stick-line"/>
+
+  <!-- Legs under desk -->
+  <path d="M 100 175 L 85 220" class="stick-line"/>
+  <path d="M 100 175 L 115 220" class="stick-line"/>
+
+  <!-- Checkmark floating (integrated review) -->
+  <path d="M 130 160 L 135 167 L 145 152" stroke="#000" stroke-width="2" fill="none"/>
+
+  <!-- Caption -->
+  <text x="125" y="255" class="stick-text" text-anchor="middle">writes + reviews</text>
+
+  <!-- RIGHT PANEL: AI outputting fast, human struggling to keep up -->
+
+  <!-- Computer/AI outputting -->
+  <rect x="280" y="120" width="50" height="40" class="stick-fill"/>
+  <rect x="285" y="125" width="40" height="28" fill="#e8e8e8" stroke="#000" stroke-width="1"/>
+  <text x="305" y="143" class="stick-text" text-anchor="middle" font-size="9">AI</text>
+
+  <!-- Monitor stand -->
+  <path d="M 305 160 L 305 170" class="stick-line"/>
+  <path d="M 290 170 L 320 170" class="stick-line"/>
+
+  <!-- Documents flying out of AI (motion lines) -->
+  <rect x="335" y="115" width="20" height="12" class="stick-fill" transform="rotate(15 345 121)"/>
+  <rect x="340" y="130" width="20" height="12" class="stick-fill" transform="rotate(-10 350 136)"/>
+  <rect x="338" y="148" width="20" height="12" class="stick-fill" transform="rotate(5 348 154)"/>
+
+  <!-- Motion lines -->
+  <path d="M 330 125 L 338 123" stroke="#000" stroke-width="1"/>
+  <path d="M 330 140 L 340 138" stroke="#000" stroke-width="1"/>
+  <path d="M 330 155 L 338 154" stroke="#000" stroke-width="1"/>
+
+  <!-- Tall stack of unreviewed documents -->
+  <rect x="390" y="185" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="178" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="171" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="164" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="157" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="150" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="143" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="136" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="129" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="122" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="115" width="35" height="5" class="stick-fill"/>
+  <rect x="390" y="108" width="35" height="5" class="stick-fill"/>
+  <text x="407" y="103" class="stick-text" text-anchor="middle" font-size="8">to review</text>
+
+  <!-- Desk for reviewer -->
+  <path d="M 360 200 L 470 200" class="stick-line"/>
+  <path d="M 375 200 L 375 240" class="stick-line"/>
+  <path d="M 455 200 L 455 240" class="stick-line"/>
+
+  <!-- Small reviewed stack -->
+  <rect x="440" y="190" width="20" height="4" class="stick-fill"/>
+  <rect x="440" y="184" width="20" height="4" class="stick-fill"/>
+
+  <!-- Human reviewer (overwhelmed, side view) -->
+  <circle cx="380" cy="150" r="12" class="stick-fill"/>
+
+  <!-- Hair - stressed/messy -->
+  <path d="M 370 142 Q 362 135 368 144" class="stick-line"/>
+  <path d="M 368 148 Q 358 145 365 150" class="stick-line"/>
+  <path d="M 372 138 Q 368 130 375 136" class="stick-line"/>
+
+  <!-- Body -->
+  <path d="M 380 162 L 382 195" class="stick-line"/>
+
+  <!-- Arms reaching toward stack -->
+  <path d="M 381 172 L 395 185" class="stick-line"/>
+  <path d="M 381 175 L 370 195" class="stick-line"/>
+
+  <!-- Legs -->
+  <path d="M 382 195 L 370 230" class="stick-line"/>
+  <path d="M 382 195 L 395 230" class="stick-line"/>
+
+  <!-- Sweat drops (stress) -->
+  <ellipse cx="392" cy="145" rx="2" ry="3" fill="#000"/>
+  <ellipse cx="395" cy="152" rx="2" ry="3" fill="#000"/>
+
+  <!-- Caption -->
+  <text x="375" y="255" class="stick-text" text-anchor="middle">AI writes, human reviews</text>
+  <text x="375" y="268" class="stick-text" text-anchor="middle" font-size="9">(more frequently!)</text>
+</svg>

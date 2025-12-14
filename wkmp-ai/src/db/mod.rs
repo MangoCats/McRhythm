@@ -8,6 +8,7 @@
 pub mod acoustid_cache; // SSI-CACHE-020: AcoustID response cache
 pub mod albums;
 pub mod artists;
+pub mod duration_cache; // SSI-DUR-010: Accurate duration cache for VBR MP3s
 pub mod files;
 pub mod fingerprint_cache; // SSI-CACHE-010: Chromaprint fingerprint cache
 pub mod parameters;
