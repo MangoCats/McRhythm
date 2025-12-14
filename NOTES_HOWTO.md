@@ -44,6 +44,22 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 
 ---
 
+## AI/LLM Agents write specifications too
+
+<img src="images/DoAllTheThingsMeme.png" alt="All the things" style="float:right; width:40%; margin-left:1em; margin-bottom:0.5em;"/>
+
+While human input and review is crucial at every step of the development process, don't overlook the fact that LLMs can also:
+
+- help to draft, review and improve specifications documents
+- review and critique implementation code, particularly with fresh agents and clear context windows
+- evaluate test coverage
+- update documentation
+- review the entire project for consistency, completeness and technical debt
+
+Never forget: every one of these powerful automated LLM based workflow processes comes with a built in non-zero error rate, and that errors left in the project will propagate and grow.  Thorough critical review is essential, but the power of the LLMs to draft an 80+% complete and correct framework should not be ignored.
+
+---
+
 ## Test-Driven Development with Agents
 
 ![TDD Agentic Flow](images/tdd-agentic-flow.svg)
