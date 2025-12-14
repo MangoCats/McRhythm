@@ -24,13 +24,20 @@
 //! 4. Album path via metadata → MusicBrainz Release → edition matching
 
 use crate::fusion::identity_resolver::IdentityResolver;
+use crate::services::acoustid_client::{AcoustIDRecording, AcoustIDResponse};
 use crate::services::metadata_extractor::AudioMetadata;
 use crate::services::recording_matcher::{RecordingCandidate, RecordingMatcher};
 use crate::types::{Fusion, IdentityExtraction};
+use crate::utils::string_similarity::jaro_winkler_similarity;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::fmt;
 use std::sync::Arc;
+
+/// Threshold below which both artist AND title mismatch indicates AcoustID error
+/// Based on cross-validation analysis: 6/25 disagreements are double-mismatch cases
+/// where AcoustID returns completely wrong recordings
+const DOUBLE_MISMATCH_THRESHOLD: f64 = 0.70;
 
 /// Content type classification for audio files
 ///
@@ -285,6 +292,138 @@ impl ClassificationResult {
 /// High confidence threshold for classification acceptance
 pub const HIGH_CONFIDENCE_THRESHOLD: f64 = 0.80;
 
+/// Result of validating AcoustID result against ID3 metadata
+#[derive(Debug, Clone)]
+pub struct ValidationResult {
+    /// Whether the validation passed (metadata agrees)
+    pub passed: bool,
+    /// Artist similarity score (0.0-1.0)
+    pub artist_similarity: f64,
+    /// Title similarity score (0.0-1.0)
+    pub title_similarity: f64,
+    /// The recording that was validated
+    pub recording: Option<AcoustIDRecording>,
+}
+
+impl ValidationResult {
+    /// Check if this is a double-mismatch (both artist AND title below threshold)
+    ///
+    /// Double-mismatch indicates likely AcoustID database error rather than
+    /// genuine match. Based on cross-validation: 6/25 disagreements are this type.
+    pub fn is_double_mismatch(&self) -> bool {
+        self.artist_similarity < DOUBLE_MISMATCH_THRESHOLD
+            && self.title_similarity < DOUBLE_MISMATCH_THRESHOLD
+    }
+}
+
+/// Validate an AcoustID response against ID3 metadata
+///
+/// **[SSI-VAL-030]** Double-mismatch rejection rule
+///
+/// Compares the best AcoustID recording against ID3 metadata using
+/// Jaro-Winkler similarity. If both artist AND title have similarity
+/// below DOUBLE_MISMATCH_THRESHOLD (0.70), the match is rejected as
+/// a likely AcoustID database error.
+///
+/// # Arguments
+/// * `response` - AcoustID lookup response
+/// * `id3_artist` - Artist from ID3 tags
+/// * `id3_title` - Title from ID3 tags
+///
+/// # Returns
+/// ValidationResult indicating whether the match should be accepted
+pub fn validate_acoustid_against_id3(
+    response: &AcoustIDResponse,
+    id3_artist: Option<&str>,
+    id3_title: Option<&str>,
+) -> ValidationResult {
+    // Find best scoring result with recordings
+    let best_result = response
+        .results
+        .iter()
+        .filter(|r| r.score >= HIGH_CONFIDENCE_THRESHOLD)
+        .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    let Some(result) = best_result else {
+        return ValidationResult {
+            passed: false,
+            artist_similarity: 0.0,
+            title_similarity: 0.0,
+            recording: None,
+        };
+    };
+
+    let Some(recordings) = &result.recordings else {
+        return ValidationResult {
+            passed: false,
+            artist_similarity: 0.0,
+            title_similarity: 0.0,
+            recording: None,
+        };
+    };
+
+    let Some(recording) = recordings.first() else {
+        return ValidationResult {
+            passed: false,
+            artist_similarity: 0.0,
+            title_similarity: 0.0,
+            recording: None,
+        };
+    };
+
+    // Extract artist name from AcoustID response
+    let acoustid_artist = recording
+        .artists
+        .as_ref()
+        .and_then(|artists| artists.first())
+        .map(|a| a.name.as_str());
+
+    let acoustid_title = recording.title.as_deref();
+
+    // Calculate similarities
+    // When ID3 metadata is missing, we can't validate - return 1.0 to avoid false rejection
+    let artist_similarity = match (id3_artist, acoustid_artist) {
+        (Some(id3), Some(aid)) => jaro_winkler_similarity(id3, aid),
+        (None, _) => 1.0, // ID3 missing = can't validate, assume no conflict
+        (_, None) => 1.0, // AcoustID missing = can't validate, assume no conflict
+    };
+
+    let title_similarity = match (id3_title, acoustid_title) {
+        (Some(id3), Some(aid)) => jaro_winkler_similarity(id3, aid),
+        (None, _) => 1.0, // ID3 missing = can't validate, assume no conflict
+        (_, None) => 1.0, // AcoustID missing = can't validate, assume no conflict
+    };
+
+    // Double-mismatch check: only trigger if BOTH have valid comparisons
+    // If either ID3 artist or title is missing, we can't reliably detect double-mismatch
+    let can_validate_artist = id3_artist.is_some() && acoustid_artist.is_some();
+    let can_validate_title = id3_title.is_some() && acoustid_title.is_some();
+
+    let is_double_mismatch = can_validate_artist
+        && can_validate_title
+        && artist_similarity < DOUBLE_MISMATCH_THRESHOLD
+        && title_similarity < DOUBLE_MISMATCH_THRESHOLD;
+
+    if is_double_mismatch {
+        tracing::warn!(
+            id3_artist = ?id3_artist,
+            id3_title = ?id3_title,
+            acoustid_artist = ?acoustid_artist,
+            acoustid_title = ?acoustid_title,
+            artist_sim = artist_similarity,
+            title_sim = title_similarity,
+            "DOUBLE-MISMATCH: Rejecting AcoustID result as likely database error"
+        );
+    }
+
+    ValidationResult {
+        passed: !is_double_mismatch,
+        artist_similarity,
+        title_similarity,
+        recording: Some(recording.clone()),
+    }
+}
+
 /// Classification error types
 #[derive(Debug)]
 pub enum ClassificationError {
@@ -433,19 +572,133 @@ impl ContentTypeClassifier {
         }
     }
 
-    /// Classify using single-song path with MusicBrainz fallback
+    /// Classify using single-song path with MusicBrainz fallback and ID3 validation
     ///
-    /// **[SSI-MB-010]** Enhanced single-song classification:
+    /// **[SSI-MB-010, SSI-VAL-030]** Enhanced single-song classification:
     /// 1. Try AcoustID first
-    /// 2. If high confidence (≥0.80), return result
-    /// 3. If low confidence or failure, try MusicBrainz recording search
-    /// 4. Fuse results if both available
+    /// 2. Validate AcoustID result against ID3 metadata (double-mismatch check)
+    /// 3. If validation fails, go directly to MusicBrainz fallback
+    /// 4. If high confidence AND validation passes, return result
+    /// 5. If low confidence or failure, try MusicBrainz recording search
+    /// 6. Fuse results if both available
     ///
     /// # Arguments
     /// * `audio_path` - Path to audio file
     /// * `duration_seconds` - Audio duration for AcoustID
-    /// * `metadata` - Optional metadata for MusicBrainz fallback
+    /// * `metadata` - Optional metadata for MusicBrainz fallback and validation
     pub async fn classify_single_song_with_fallback(
+        &self,
+        audio_path: &std::path::Path,
+        duration_seconds: f64,
+        metadata: Option<&AudioMetadata>,
+    ) -> Result<ClassificationResult, ClassificationError> {
+        // Step 1: Generate Chromaprint fingerprint and query AcoustID
+        let fingerprint = self
+            .fingerprinter
+            .fingerprint_file(audio_path)
+            .map_err(|e| ClassificationError::FingerprintError(e.to_string()))?;
+
+        let response = self
+            .acoustid_client
+            .lookup(&fingerprint, duration_seconds as u64)
+            .await
+            .map_err(|e| ClassificationError::AcoustIdError(e.to_string()))?;
+
+        // Step 2: Validate AcoustID result against ID3 metadata (double-mismatch check)
+        let validation = if let Some(meta) = metadata {
+            validate_acoustid_against_id3(
+                &response,
+                meta.artist.as_deref(),
+                meta.title.as_deref(),
+            )
+        } else {
+            // No metadata to validate against - assume pass
+            ValidationResult {
+                passed: true,
+                artist_similarity: 1.0,
+                title_similarity: 1.0,
+                recording: None,
+            }
+        };
+
+        // Step 3: If double-mismatch detected, skip AcoustID entirely
+        if validation.is_double_mismatch() {
+            tracing::info!(
+                artist_sim = validation.artist_similarity,
+                title_sim = validation.title_similarity,
+                "Double-mismatch detected - skipping AcoustID, using MusicBrainz fallback"
+            );
+            // Go directly to MusicBrainz fallback
+            return self.try_mb_fallback_only(metadata, duration_seconds).await;
+        }
+
+        // Step 4: Find best match from validated response
+        let best_match = response
+            .results
+            .iter()
+            .filter(|r| r.score >= HIGH_CONFIDENCE_THRESHOLD)
+            .filter_map(|r| {
+                r.recordings
+                    .as_ref()
+                    .and_then(|recs| recs.first().map(|rec| (r.score, rec.id.clone())))
+            })
+            .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Step 5: If AcoustID succeeds with high confidence, use it
+        if let Some((score, recording_mbid)) = best_match {
+            tracing::debug!(
+                confidence = score,
+                mbid = %recording_mbid,
+                artist_sim = validation.artist_similarity,
+                title_sim = validation.title_similarity,
+                "AcoustID match validated against ID3 metadata"
+            );
+            return Ok(ClassificationResult::single_song(recording_mbid, score));
+        }
+
+        // Step 6: No high-confidence match - try MusicBrainz fallback
+        self.try_mb_fallback_only(metadata, duration_seconds).await
+    }
+
+    /// Try MusicBrainz fallback only (after AcoustID failure or rejection)
+    async fn try_mb_fallback_only(
+        &self,
+        metadata: Option<&AudioMetadata>,
+        duration_seconds: f64,
+    ) -> Result<ClassificationResult, ClassificationError> {
+        if let Some(meta) = metadata {
+            if let (Some(artist), Some(title)) = (&meta.artist, &meta.title) {
+                let mb_result = self
+                    .try_musicbrainz_fallback(artist, title, Some(duration_seconds))
+                    .await;
+
+                if let Ok(candidates) = mb_result {
+                    if let Some(best) = candidates.first() {
+                        tracing::info!(
+                            artist = %artist,
+                            title = %title,
+                            mbid = %best.mbid,
+                            similarity = best.similarity,
+                            "MusicBrainz fallback succeeded"
+                        );
+                        return Ok(ClassificationResult::single_song_with_stage(
+                            best.mbid.clone(),
+                            best.similarity,
+                            "musicbrainz_fallback",
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(ClassificationResult::not_in_musicbrainz())
+    }
+
+    /// Legacy classify_single_song_with_fallback without double-mismatch check
+    ///
+    /// **Deprecated:** Use classify_single_song_with_fallback instead
+    #[allow(dead_code)]
+    async fn classify_single_song_with_fallback_legacy(
         &self,
         audio_path: &std::path::Path,
         duration_seconds: f64,
@@ -893,5 +1146,108 @@ mod tests {
         assert!(ContentType::MultipleSongs.requires_segmentation());
         assert!(!ContentType::SingleSong.requires_segmentation());
         assert!(!ContentType::NotInMusicbrainz.requires_segmentation());
+    }
+
+    // Tests for double-mismatch validation
+
+    fn make_test_response(artist: &str, title: &str, score: f64) -> AcoustIDResponse {
+        use crate::services::acoustid_client::{AcoustIDArtist, AcoustIDRecording, AcoustIDResult};
+
+        AcoustIDResponse {
+            status: "ok".to_string(),
+            results: vec![AcoustIDResult {
+                id: "test-id".to_string(),
+                score,
+                recordings: Some(vec![AcoustIDRecording {
+                    id: "mbid-123".to_string(),
+                    title: Some(title.to_string()),
+                    artists: Some(vec![AcoustIDArtist {
+                        id: "artist-mbid".to_string(),
+                        name: artist.to_string(),
+                    }]),
+                    duration: Some(180),
+                }]),
+            }],
+        }
+    }
+
+    #[test]
+    fn test_validation_passes_when_metadata_matches() {
+        let response = make_test_response("The Beatles", "Yesterday", 0.95);
+        let result = validate_acoustid_against_id3(&response, Some("The Beatles"), Some("Yesterday"));
+
+        assert!(result.passed);
+        assert!(!result.is_double_mismatch());
+        assert!(result.artist_similarity > 0.9);
+        assert!(result.title_similarity > 0.9);
+    }
+
+    #[test]
+    fn test_validation_passes_with_normalized_match() {
+        // "The Beatles" should match "Beatles" after normalization
+        let response = make_test_response("Beatles", "Yesterday", 0.95);
+        let result = validate_acoustid_against_id3(&response, Some("The Beatles"), Some("Yesterday"));
+
+        assert!(result.passed);
+        assert!(!result.is_double_mismatch());
+        assert!(result.artist_similarity > 0.9);
+    }
+
+    #[test]
+    fn test_validation_fails_on_double_mismatch() {
+        // Boston vs Metro Station - completely different
+        let response = make_test_response("Metro Station", "Shake It", 0.99);
+        let result = validate_acoustid_against_id3(&response, Some("Boston"), Some("Rock & Roll Band"));
+
+        assert!(!result.passed);
+        assert!(result.is_double_mismatch());
+        assert!(result.artist_similarity < 0.7);
+        assert!(result.title_similarity < 0.7);
+    }
+
+    #[test]
+    fn test_validation_passes_on_single_mismatch() {
+        // Same artist, different title - NOT a double mismatch
+        let response = make_test_response("The Beatles", "Hey Jude", 0.95);
+        let result = validate_acoustid_against_id3(
+            &response,
+            Some("The Beatles"),
+            Some("Yesterday"), // Different title
+        );
+
+        // Artist matches, so not a double mismatch
+        assert!(result.passed);
+        assert!(!result.is_double_mismatch());
+        assert!(result.artist_similarity > 0.9);
+        assert!(result.title_similarity < 0.7);
+    }
+
+    #[test]
+    fn test_validation_with_no_id3_metadata() {
+        let response = make_test_response("Any Artist", "Any Title", 0.95);
+        let result = validate_acoustid_against_id3(&response, None, None);
+
+        // No ID3 metadata means we can't validate - assume pass
+        assert!(result.passed);
+        assert!(!result.is_double_mismatch());
+    }
+
+    #[test]
+    fn test_validation_result_is_double_mismatch() {
+        let result = ValidationResult {
+            passed: false,
+            artist_similarity: 0.5,
+            title_similarity: 0.5,
+            recording: None,
+        };
+        assert!(result.is_double_mismatch());
+
+        let result = ValidationResult {
+            passed: true,
+            artist_similarity: 0.9,
+            title_similarity: 0.5,
+            recording: None,
+        };
+        assert!(!result.is_double_mismatch()); // Artist matches
     }
 }

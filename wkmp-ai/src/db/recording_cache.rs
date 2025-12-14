@@ -22,8 +22,9 @@
 
 use sqlx::SqlitePool;
 
-/// Cache time-to-live in days
-pub const CACHE_TTL_DAYS: i64 = 7;
+/// Cache time-to-live in days (730 days = 2 years)
+/// MusicBrainz recording data is stable, long TTL reduces API calls
+pub const CACHE_TTL_DAYS: i64 = 730;
 
 /// Cached recording lookup result
 #[derive(Debug, Clone)]

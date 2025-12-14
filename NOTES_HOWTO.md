@@ -23,16 +23,17 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 
 ### The Workflow
 
-1. **Specify** - Write clear requirements with [preconditions, postconditions](https://en.wikipedia.org/wiki/Design_by_contract), and [constraints](https://www.eiffel.org/doc/eiffel/ET-_Design_by_Contract_(tm),_Assertions_and_Exceptions)
+1. **Specify** - Write clear requirements; with [preconditions, postconditions](https://en.wikipedia.org/wiki/Design_by_contract), and [constraints](https://www.eiffel.org/doc/eiffel/ET-_Design_by_Contract_(tm),_Assertions_and_Exceptions) when appropriate
 2. **Plan** - Have the agent create a detailed implementation plan from the specification
 3. **Implement** - Agent writes code according to plan to satisfy the specification
 4. **Verify** - Tests validate specification compliance
 5. **Review** - Human confirms correctness and quality
+6. **Iterate** - Improve or expand the specification as needed, replan when modifications are extensive, then implement, verify and review the new specifications' features
 
 ### Why It Works
 
 - Explicit requirements eliminate ambiguity
-- Specifications provide verifiable acceptance criteria
+- Specifications provide verifiable and stable acceptance criteria
 - Plans derived from specs are more complete than ad-hoc implementations
 - Reduces "MVP drift" where agents quietly trim features
 
@@ -80,7 +81,7 @@ See: [Anthropic's guide to effective context engineering](https://www.anthropic.
 | Strategy | When to Use |
 |----------|-------------|
 | **Fresh context** | Starting new tasks or when stuck on bugs |
-| **Summary documents** | Capturing session state for later resumption |
+| **Summary documents** | Capturing session state for later resumption (in a fresh context) |
 | **Delegate reading** | Have research agents summarize docs for primary agent |
 | **Prune aggressively** | Remove verbose tool logs after they've served their purpose |
 
@@ -161,7 +162,7 @@ Agents declare "100% complete" while accumulating significant debt. Actively wat
 
 - TODO comments flagging unimplemented functionality
 - Stubbed functions that don't implement specified behavior
-- Missing or ineffective unit tests
+- Missing or ineffective unit and integration tests
 - Console warnings/errors during normal operation
 - Documentation not synchronized with implementation
 - Hard-coded values that should reference configuration
@@ -193,7 +194,7 @@ Agents create local copies, buffers, and caches when they should reference the a
 
 ### Replacement vs Additive
 
-Agents usually default to additive changes (add new code) rather than replacement (remove old code). This leaves obsolete, faulty and misleading information in the code where it becomes context during future operations.
+Agents usually default to additive changes (add new code) rather than replacement (remove old code). This leaves obsolete, faulty and misleading information in the code and documentation where it becomes context during future operations.
 
 - Explicitly instruct replacement when appropriate
 - Verify old implementations are removed, not just augmented or supplemented with alternative implementations
@@ -249,7 +250,7 @@ The critical question: Is AI strengthening your capabilities or replacing them?
 Using AI agents is no reason to abandon software development best practices. The firehose of AI output requires **more** rigorous process, not less:
 
 - Specifications before implementation
-- Robust test coverage
+- Robust automated test coverage (reduces regressions)
   - Tests before code (TDD) when appropriate
 - Regular technical debt assessment and correction
 - Documentation synchronized with implementation

@@ -5,9 +5,11 @@
 //! Database initialization is now handled by wkmp_common::db::init::init_database()
 //! per REQ-NF-037 to ensure all modules create the complete shared schema.
 
+pub mod acoustid_cache; // SSI-CACHE-020: AcoustID response cache
 pub mod albums;
 pub mod artists;
 pub mod files;
+pub mod fingerprint_cache; // SSI-CACHE-010: Chromaprint fingerprint cache
 pub mod parameters;
 pub mod passages;
 pub mod recording_cache; // PLAN026 Increment 3: MusicBrainz recording cache

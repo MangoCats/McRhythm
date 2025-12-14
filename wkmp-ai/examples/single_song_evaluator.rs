@@ -19,12 +19,16 @@
 //!   --verbose             Show per-file details
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::SqlitePool;
 use tracing::info;
 
+use wkmp_ai::db::{acoustid_cache, fingerprint_cache};
 use wkmp_ai::services::fingerprinter::Fingerprinter;
 use wkmp_ai::services::metadata_extractor::MetadataExtractor;
 use wkmp_ai::testing::import_harness::{ImportHarnessConfig, ImportTestHarness};
@@ -80,6 +84,12 @@ struct EvaluationStats {
     id3_missing: usize,              // No ID3 metadata to compare
 
     verified_ground_truth: usize,    // High confidence + agreement
+
+    // Cache statistics
+    fingerprint_cache_hits: usize,
+    fingerprint_cache_misses: usize,
+    acoustid_cache_hits: usize,
+    acoustid_cache_misses: usize,
 }
 
 impl EvaluationStats {
@@ -140,6 +150,24 @@ impl EvaluationStats {
             println!("  Agreement Rate:       {:.1}% (when AcoustID finds match)", agreement_rate);
             println!("  Verification Rate:    {:.1}% (usable as ground truth)",
                 self.verified_ground_truth as f64 / self.total_files as f64 * 100.0);
+        }
+
+        // Cache statistics
+        let fp_total = self.fingerprint_cache_hits + self.fingerprint_cache_misses;
+        let aid_total = self.acoustid_cache_hits + self.acoustid_cache_misses;
+        if fp_total > 0 || aid_total > 0 {
+            println!();
+            println!("CACHE STATISTICS:");
+            if fp_total > 0 {
+                println!("  Fingerprint Cache:  {:5} hits / {:5} misses ({:.1}% hit rate)",
+                    self.fingerprint_cache_hits, self.fingerprint_cache_misses,
+                    self.fingerprint_cache_hits as f64 / fp_total as f64 * 100.0);
+            }
+            if aid_total > 0 {
+                println!("  AcoustID Cache:     {:5} hits / {:5} misses ({:.1}% hit rate)",
+                    self.acoustid_cache_hits, self.acoustid_cache_misses,
+                    self.acoustid_cache_hits as f64 / aid_total as f64 * 100.0);
+            }
         }
 
         println!("{}", "═".repeat(70));
@@ -300,6 +328,26 @@ async fn main() -> Result<()> {
     let fingerprinter = Fingerprinter::new();
     let metadata_extractor = MetadataExtractor::new();
 
+    // Initialize cache database
+    let cache_db_path = config.root_folder.join("single_song_cache.db");
+    info!("Initializing cache database: {}", cache_db_path.display());
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect(&format!("sqlite:{}?mode=rwc", cache_db_path.display()))
+        .await
+        .context("Failed to create cache database")?;
+
+    // Ensure cache tables exist
+    fingerprint_cache::ensure_table(&pool).await?;
+    acoustid_cache::ensure_table(&pool).await?;
+
+    // Report existing cache stats
+    let fp_count = fingerprint_cache::get_stats(&pool).await.unwrap_or(0);
+    let (aid_total, aid_valid, _) = acoustid_cache::get_stats(&pool).await.unwrap_or((0, 0, 0));
+    info!("Cache contains {} fingerprints, {} AcoustID results", fp_count, aid_valid);
+
+    let pool = Arc::new(pool);
+
     // Discover single-song files
     let harness_config = ImportHarnessConfig::for_folder(config.root_folder.clone());
     info!("Discovering audio files...");
@@ -325,13 +373,26 @@ async fn main() -> Result<()> {
             println!("[{}/{}] Progress: {:.1}%", i + 1, files.len(), (i + 1) as f64 / files.len() as f64 * 100.0);
         }
 
-        let result = process_file(
+        let (result, fp_hit, aid_hit) = process_file(
             file_path,
             &fingerprinter,
             &metadata_extractor,
             &api_key,
             &config,
+            &pool,
         ).await;
+
+        // Update cache stats
+        if fp_hit {
+            stats.fingerprint_cache_hits += 1;
+        } else {
+            stats.fingerprint_cache_misses += 1;
+        }
+        if aid_hit {
+            stats.acoustid_cache_hits += 1;
+        } else {
+            stats.acoustid_cache_misses += 1;
+        }
 
         stats.total_files += 1;
 
@@ -387,7 +448,10 @@ async fn main() -> Result<()> {
         results.push(result);
 
         // Rate limiting - AcoustID has 3 req/sec limit
-        tokio::time::sleep(Duration::from_millis(350)).await;
+        // Only sleep if we actually made an API call (cache miss)
+        if !aid_hit {
+            tokio::time::sleep(Duration::from_millis(350)).await;
+        }
     }
 
     // Print report
@@ -431,14 +495,18 @@ async fn main() -> Result<()> {
 }
 
 /// Process a single file
+/// Returns (result, fingerprint_cache_hit, acoustid_cache_hit)
 async fn process_file(
     file_path: &Path,
     fingerprinter: &Fingerprinter,
     metadata_extractor: &MetadataExtractor,
     api_key: &str,
     _config: &Config,
-) -> CrossValidationResult {
+    pool: &SqlitePool,
+) -> (CrossValidationResult, bool, bool) {
     let start = Instant::now();
+    let mut fingerprint_cache_hit = false;
+    let mut acoustid_cache_hit = false;
 
     // Compute file hash
     let file_hash = ImportTestHarness::compute_file_hash(file_path)
@@ -454,61 +522,88 @@ async fn process_file(
     let id3_title = metadata.as_ref().and_then(|m| m.title.clone());
     let id3_album = metadata.as_ref().and_then(|m| m.album.clone());
 
-    // Generate fingerprint
-    let fingerprint = match fingerprinter.fingerprint_file(file_path) {
-        Ok(fp) => fp,
-        Err(e) => {
-            return CrossValidationResult {
-                file_path: file_path.to_string_lossy().to_string(),
-                file_hash,
-                duration_secs,
-                id3_artist,
-                id3_title,
-                id3_album,
-                acoustid_mbid: None,
-                acoustid_confidence: 0.0,
-                acoustid_artist: None,
-                acoustid_title: None,
-                artist_similarity: 0.0,
-                title_similarity: 0.0,
-                sources_agree: false,
-                verified_mbid: None,
-                verification_confidence: 0.0,
-                verification_method: "none".to_string(),
-                processing_time_ms: start.elapsed().as_millis() as u64,
-                error: Some(format!("Fingerprint error: {}", e)),
-            };
+    // Check fingerprint cache first
+    let fingerprint = if let Ok(Some(cached)) = fingerprint_cache::get_cached(pool, &file_hash).await {
+        fingerprint_cache_hit = true;
+        cached.fingerprint
+    } else {
+        // Generate fingerprint
+        match fingerprinter.fingerprint_file(file_path) {
+            Ok(fp) => {
+                // Cache the fingerprint
+                let _ = fingerprint_cache::cache_result(pool, &file_hash, &fp, duration_secs).await;
+                fp
+            }
+            Err(e) => {
+                return (CrossValidationResult {
+                    file_path: file_path.to_string_lossy().to_string(),
+                    file_hash,
+                    duration_secs,
+                    id3_artist,
+                    id3_title,
+                    id3_album,
+                    acoustid_mbid: None,
+                    acoustid_confidence: 0.0,
+                    acoustid_artist: None,
+                    acoustid_title: None,
+                    artist_similarity: 0.0,
+                    title_similarity: 0.0,
+                    sources_agree: false,
+                    verified_mbid: None,
+                    verification_confidence: 0.0,
+                    verification_method: "none".to_string(),
+                    processing_time_ms: start.elapsed().as_millis() as u64,
+                    error: Some(format!("Fingerprint error: {}", e)),
+                }, false, false);
+            }
         }
     };
 
-    // Query AcoustID directly (bypassing our client to avoid DB dependency)
-    let acoustid_result = query_acoustid_direct(api_key, &fingerprint, duration_secs as u64).await;
-
-    let (acoustid_mbid, acoustid_confidence, acoustid_artist, acoustid_title) = match acoustid_result {
-        Ok(r) => r,
-        Err(e) => {
-            return CrossValidationResult {
-                file_path: file_path.to_string_lossy().to_string(),
-                file_hash,
-                duration_secs,
-                id3_artist,
-                id3_title,
-                id3_album,
-                acoustid_mbid: None,
-                acoustid_confidence: 0.0,
-                acoustid_artist: None,
-                acoustid_title: None,
-                artist_similarity: 0.0,
-                title_similarity: 0.0,
-                sources_agree: false,
-                verified_mbid: None,
-                verification_confidence: 0.0,
-                verification_method: "none".to_string(),
-                processing_time_ms: start.elapsed().as_millis() as u64,
-                error: Some(format!("AcoustID error: {}", e)),
-            };
-        }
-    };
+    // Check AcoustID cache first
+    let (acoustid_mbid, acoustid_confidence, acoustid_artist, acoustid_title) =
+        if let Ok(Some(cached)) = acoustid_cache::get_cached(pool, &fingerprint, duration_secs as u64).await {
+            acoustid_cache_hit = true;
+            (cached.mbid, cached.score, cached.artist, cached.title)
+        } else {
+            // Query AcoustID API
+            match query_acoustid_direct(api_key, &fingerprint, duration_secs as u64).await {
+                Ok((mbid, score, artist, title)) => {
+                    // Cache the result
+                    let _ = acoustid_cache::cache_result(
+                        pool,
+                        &fingerprint,
+                        duration_secs as u64,
+                        mbid.as_deref(),
+                        score,
+                        artist.as_deref(),
+                        title.as_deref(),
+                    ).await;
+                    (mbid, score, artist, title)
+                }
+                Err(e) => {
+                    return (CrossValidationResult {
+                        file_path: file_path.to_string_lossy().to_string(),
+                        file_hash,
+                        duration_secs,
+                        id3_artist,
+                        id3_title,
+                        id3_album,
+                        acoustid_mbid: None,
+                        acoustid_confidence: 0.0,
+                        acoustid_artist: None,
+                        acoustid_title: None,
+                        artist_similarity: 0.0,
+                        title_similarity: 0.0,
+                        sources_agree: false,
+                        verified_mbid: None,
+                        verification_confidence: 0.0,
+                        verification_method: "none".to_string(),
+                        processing_time_ms: start.elapsed().as_millis() as u64,
+                        error: Some(format!("AcoustID error: {}", e)),
+                    }, fingerprint_cache_hit, false);
+                }
+            }
+        };
 
     // Cross-validate
     let (artist_sim, title_sim, sources_agree) = check_metadata_agreement(
@@ -529,7 +624,7 @@ async fn process_file(
             (None, 0.0, "unverified".to_string())
         };
 
-    CrossValidationResult {
+    (CrossValidationResult {
         file_path: file_path.to_string_lossy().to_string(),
         file_hash,
         duration_secs,
@@ -548,7 +643,7 @@ async fn process_file(
         verification_method,
         processing_time_ms: start.elapsed().as_millis() as u64,
         error: None,
-    }
+    }, fingerprint_cache_hit, acoustid_cache_hit)
 }
 
 /// Query AcoustID API directly using POST (fingerprints are too long for GET URLs)
