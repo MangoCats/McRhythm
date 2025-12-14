@@ -585,6 +585,7 @@ pub async fn store_passages_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::matching::ConfidenceTier;
     use crate::types::ValidationResult;
     use crate::types::{
         ConfidenceValue, ExtractionResult, FlavorExtraction, FusedFlavor, FusedIdentity,
@@ -670,6 +671,7 @@ mod tests {
                 0.98,
                 "musicbrainz",
             )),
+            isrc: None,
             additional: HashMap::new(),
         };
 
@@ -727,6 +729,7 @@ mod tests {
                 recording_mbid: Some("12345678-1234-1234-1234-123456789abc".to_string()),
                 confidence: 0.98,
                 posterior_probability: 0.95,
+                confidence_tier: ConfidenceTier::Tier2A,
                 conflicts: vec![],
             },
             flavor: FusedFlavor {

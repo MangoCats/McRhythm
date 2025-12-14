@@ -686,11 +686,36 @@ impl Pipeline {
         }
 
         // Fuser 1: Identity Resolver
+        // **[PLAN-EMBID-001]** Stage 0: Check for embedded MusicBrainz Recording ID first
+        // This prioritizes authoritative embedded identifiers over AcoustID fingerprinting
         let identity_fuser = IdentityResolver::new();
-        let identity_result = identity_fuser
-            .fuse(identity_extractions)
-            .await
-            .context("Identity fusion failed")?;
+        let identity_result = {
+            // Try Stage 0: Look for embedded MBID in ID3 metadata
+            let stage0_result = metadata_extractions
+                .iter()
+                .find_map(|metadata| identity_fuser.check_stage0(metadata));
+
+            if let Some(stage0_identity) = stage0_result {
+                // Stage 0 succeeded - use embedded MBID directly (Tier 1A or 1B)
+                info!(
+                    tier = %stage0_identity.confidence_tier.name(),
+                    mbid = ?stage0_identity.recording_mbid,
+                    "Stage 0 match: Using embedded MusicBrainz Recording ID"
+                );
+                crate::types::FusionResult {
+                    output: stage0_identity,
+                    confidence: 1.0,
+                    sources: vec!["ID3-Embedded".to_string()],
+                }
+            } else {
+                // Stage 0 failed - fall back to AcoustID-based Bayesian fusion
+                debug!("Stage 0 failed: No embedded MBID found, using AcoustID fusion");
+                identity_fuser
+                    .fuse(identity_extractions)
+                    .await
+                    .context("Identity fusion failed")?
+            }
+        };
 
         // Fuser 2: Metadata Fuser
         let metadata_fuser = MetadataFuser::new();

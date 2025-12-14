@@ -17,7 +17,10 @@
 //! - Multiple sources with different MBIDs → conflict (no boost)
 //! - Single source → use base confidence (no agreement data)
 
-use crate::types::{FusedIdentity, Fusion, FusionError, FusionResult, IdentityExtraction};
+use crate::matching::{assign_tier, ConfidenceTier};
+use crate::types::{
+    FusedIdentity, Fusion, FusionError, FusionResult, IdentityExtraction, MetadataExtraction,
+};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use tracing::debug;
@@ -76,6 +79,54 @@ impl IdentityResolver {
         }
     }
 
+    /// Check for Stage 0 match (embedded MusicBrainz Recording ID)
+    ///
+    /// Stage 0 uses embedded MB IDs from ID3 tags, which are authoritative
+    /// identifiers that should be prioritized over AcoustID fingerprinting.
+    ///
+    /// # Arguments
+    /// * `id3_metadata` - Metadata extracted from ID3 tags
+    ///
+    /// # Returns
+    /// * `Some(FusedIdentity)` - If embedded MB ID found (Tier 1A or 1B)
+    /// * `None` - If no embedded MB ID present (fall back to AcoustID)
+    pub fn check_stage0(&self, id3_metadata: &MetadataExtraction) -> Option<FusedIdentity> {
+        // Check for embedded MB Recording ID
+        let recording_mbid = id3_metadata.recording_mbid.as_ref()?;
+
+        // Validate MBID format (basic check - should be UUID format)
+        if recording_mbid.value.len() != 36 {
+            debug!(
+                mbid = %recording_mbid.value,
+                "Invalid MBID format in Stage 0 check"
+            );
+            return None;
+        }
+
+        // Determine tier based on ISRC presence
+        let has_isrc = id3_metadata.isrc.is_some();
+        let tier = if has_isrc {
+            ConfidenceTier::Tier1A
+        } else {
+            ConfidenceTier::Tier1B
+        };
+
+        debug!(
+            tier = %tier.name(),
+            mbid = %recording_mbid.value,
+            has_isrc = has_isrc,
+            "Stage 0 match found"
+        );
+
+        Some(FusedIdentity {
+            recording_mbid: Some(recording_mbid.value.clone()),
+            confidence: tier.confidence_score(),
+            posterior_probability: tier.confidence_score(),
+            confidence_tier: tier,
+            conflicts: vec![],
+        })
+    }
+
     /// Perform Bayesian fusion of MBID candidates
     ///
     /// # Arguments
@@ -97,6 +148,7 @@ impl IdentityResolver {
                 recording_mbid: None,
                 confidence: 0.0,
                 posterior_probability: 0.0,
+                confidence_tier: ConfidenceTier::Tier4,
                 conflicts: vec![],
             });
         }
@@ -118,6 +170,7 @@ impl IdentityResolver {
                 recording_mbid: None,
                 confidence: 0.0,
                 posterior_probability: 0.0,
+                confidence_tier: ConfidenceTier::Tier4,
                 conflicts: vec![],
             });
         }
@@ -177,10 +230,21 @@ impl IdentityResolver {
             );
         }
 
+        // Determine confidence tier based on posterior probability
+        // (This is AcoustID-based fusion, so Tier 2A/2B or Tier 4)
+        let confidence_tier = if *best_posterior >= 0.95 {
+            ConfidenceTier::Tier2A
+        } else if *best_posterior >= 0.80 {
+            ConfidenceTier::Tier2B
+        } else {
+            ConfidenceTier::Tier4
+        };
+
         debug!(
             recording_mbid = %best_mbid,
             posterior = best_posterior,
             source_count = sources.len(),
+            tier = %confidence_tier.name(),
             "Identity fusion complete"
         );
 
@@ -188,6 +252,7 @@ impl IdentityResolver {
             recording_mbid: Some(best_mbid.clone()),
             confidence: *best_posterior,
             posterior_probability: *best_posterior,
+            confidence_tier,
             conflicts,
         })
     }
@@ -363,6 +428,7 @@ mod tests {
         let fusion = result.unwrap();
         assert!(fusion.output.recording_mbid.is_none());
         assert_eq!(fusion.output.confidence, 0.0);
+        assert_eq!(fusion.output.confidence_tier, ConfidenceTier::Tier4);
     }
 
     #[tokio::test]
@@ -381,6 +447,8 @@ mod tests {
         assert_eq!(fusion.output.recording_mbid, Some("mbid-123".to_string()));
         assert_eq!(fusion.output.confidence, 0.9);
         assert_eq!(fusion.output.conflicts.len(), 0);
+        // 0.9 is in Tier2B range (0.80-0.95)
+        assert_eq!(fusion.output.confidence_tier, ConfidenceTier::Tier2B);
     }
 
     #[tokio::test]
@@ -406,6 +474,8 @@ mod tests {
         assert_eq!(fusion.output.recording_mbid, Some("mbid-123".to_string()));
         assert!((fusion.output.confidence - 0.96).abs() < 0.001);
         assert_eq!(fusion.output.conflicts.len(), 0);
+        // 0.96 is in Tier2A range (>= 0.95)
+        assert_eq!(fusion.output.confidence_tier, ConfidenceTier::Tier2A);
     }
 
     #[tokio::test]
@@ -433,6 +503,8 @@ mod tests {
         assert_eq!(fusion.output.confidence, 0.9);
         // Should report mbid-456 as conflict
         assert_eq!(fusion.output.conflicts.len(), 1);
+        // 0.9 is in Tier2B range (0.80-0.95)
+        assert_eq!(fusion.output.confidence_tier, ConfidenceTier::Tier2B);
     }
 
     #[tokio::test]
@@ -457,5 +529,114 @@ mod tests {
         let fusion = result.unwrap();
         assert_eq!(fusion.output.recording_mbid, Some("mbid-123".to_string()));
         assert_eq!(fusion.output.conflicts.len(), 0); // Low-confidence identity filtered out
+        // 0.9 is in Tier2B range (0.80-0.95)
+        assert_eq!(fusion.output.confidence_tier, ConfidenceTier::Tier2B);
+    }
+
+    // ========================================================================
+    // Stage 0 tests (Embedded MB ID matching)
+    // ========================================================================
+
+    #[test]
+    fn test_check_stage0_with_mbid_and_isrc() {
+        use crate::types::ConfidenceValue;
+        use std::collections::HashMap;
+
+        let resolver = IdentityResolver::new();
+        let metadata = MetadataExtraction {
+            title: None,
+            artist: None,
+            album: None,
+            recording_mbid: Some(ConfidenceValue::new(
+                "12345678-1234-1234-1234-123456789012".to_string(),
+                0.95,
+                "ID3",
+            )),
+            isrc: Some(ConfidenceValue::new("USRC12345678".to_string(), 0.95, "ID3")),
+            additional: HashMap::new(),
+        };
+
+        let result = resolver.check_stage0(&metadata);
+        assert!(result.is_some());
+
+        let fused = result.unwrap();
+        assert_eq!(
+            fused.recording_mbid,
+            Some("12345678-1234-1234-1234-123456789012".to_string())
+        );
+        assert_eq!(fused.confidence_tier, ConfidenceTier::Tier1A);
+        assert_eq!(fused.confidence, 1.0);
+    }
+
+    #[test]
+    fn test_check_stage0_with_mbid_only() {
+        use crate::types::ConfidenceValue;
+        use std::collections::HashMap;
+
+        let resolver = IdentityResolver::new();
+        let metadata = MetadataExtraction {
+            title: None,
+            artist: None,
+            album: None,
+            recording_mbid: Some(ConfidenceValue::new(
+                "12345678-1234-1234-1234-123456789012".to_string(),
+                0.95,
+                "ID3",
+            )),
+            isrc: None,
+            additional: HashMap::new(),
+        };
+
+        let result = resolver.check_stage0(&metadata);
+        assert!(result.is_some());
+
+        let fused = result.unwrap();
+        assert_eq!(
+            fused.recording_mbid,
+            Some("12345678-1234-1234-1234-123456789012".to_string())
+        );
+        assert_eq!(fused.confidence_tier, ConfidenceTier::Tier1B);
+        assert_eq!(fused.confidence, 0.98);
+    }
+
+    #[test]
+    fn test_check_stage0_no_mbid() {
+        use std::collections::HashMap;
+
+        let resolver = IdentityResolver::new();
+        let metadata = MetadataExtraction {
+            title: None,
+            artist: None,
+            album: None,
+            recording_mbid: None,
+            isrc: None,
+            additional: HashMap::new(),
+        };
+
+        let result = resolver.check_stage0(&metadata);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_stage0_invalid_mbid_format() {
+        use crate::types::ConfidenceValue;
+        use std::collections::HashMap;
+
+        let resolver = IdentityResolver::new();
+        let metadata = MetadataExtraction {
+            title: None,
+            artist: None,
+            album: None,
+            recording_mbid: Some(ConfidenceValue::new(
+                "not-a-valid-uuid".to_string(), // Invalid format
+                0.95,
+                "ID3",
+            )),
+            isrc: None,
+            additional: HashMap::new(),
+        };
+
+        let result = resolver.check_stage0(&metadata);
+        assert!(result.is_none()); // Should reject invalid MBID format
     }
 }

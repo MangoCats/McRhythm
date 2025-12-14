@@ -168,6 +168,7 @@ Patterns trade the one-time cost of learning conventions for repeated recognitio
 - Use **tools** for tasks requiring precision and repeatability
 - Use **workflows** for tasks requiring flexibility and judgment
 - Typically keep tools under ~1000 lines to maintain LLM agent maintainability
+- Keep workflows as compact and focused as possible to avoid context window overload
 - Monitor workflow outputs - different mistakes appear on different runs
 
 More [perspective on agents and tools](https://www.ibm.com/think/topics/compound-ai-systems) in AI systems.
@@ -185,7 +186,7 @@ Agents declare "100% complete" while accumulating significant debt. Actively wat
 - Documentation not synchronized with implementation
 - Hard-coded values that should reference configuration
 
-**Countermeasure:** Prompt "review for technical debt" periodically, especially just after an agent claims task complete.
+**Countermeasure:** Prompt "review for technical debt" periodically, especially just after an agent claims task complete.  Plan and execute technical debt cleanup often.
 
 ---
 

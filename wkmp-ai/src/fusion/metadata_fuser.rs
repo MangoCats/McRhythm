@@ -449,6 +449,7 @@ mod tests {
                 "MusicBrainz",
             )),
             recording_mbid: None,
+            isrc: None,
             additional: HashMap::new(),
         }];
 
@@ -488,6 +489,7 @@ mod tests {
                 )),
                 album: None,
                 recording_mbid: None,
+                isrc: None,
                 additional: HashMap::new(),
             },
             MetadataExtraction {
@@ -499,6 +501,7 @@ mod tests {
                 )),
                 album: Some(ConfidenceValue::new("Album Name".to_string(), 0.6, "ID3")),
                 recording_mbid: None,
+                isrc: None,
                 additional: HashMap::new(),
             },
         ];
@@ -533,6 +536,7 @@ mod tests {
             artist: Some(ConfidenceValue::new("Artist".to_string(), 0.9, "MB")),
             album: Some(ConfidenceValue::new("Album".to_string(), 0.9, "MB")),
             recording_mbid: Some(ConfidenceValue::new("mbid-123".to_string(), 0.9, "MB")),
+            isrc: None,
             additional: HashMap::new(),
         }];
 
@@ -545,6 +549,7 @@ mod tests {
             artist: Some(ConfidenceValue::new("Artist".to_string(), 0.9, "MB")),
             album: None,
             recording_mbid: None,
+            isrc: None,
             additional: HashMap::new(),
         }];
 

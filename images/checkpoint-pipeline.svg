@@ -53,10 +53,11 @@
   <path d="M 100 90 L 500 90" stroke="#000" stroke-width="2"/>
   <path d="M 100 100 L 500 100" stroke="#000" stroke-width="2"/>
 
-  <!-- Gate 1: SPEC -->
+  <!-- Gate 1: SPEC REVIEW -->
   <rect x="150" y="60" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 156 65 L 156 80 L 168 80" stroke="#090" stroke-width="2"/>
-  <text x="153" y="55" class="label" text-anchor="middle">Spec</text>
+  <text x="153" y="50" class="label" text-anchor="middle" font-size="8">Spec</text>
+  <text x="153" y="58" class="label" text-anchor="middle" font-size="8">Review</text>
   <!-- Gate keeper - arms down -->
   <circle cx="168" cy="68" r="5" class="stick-fill"/>
   <path d="M 168 73 L 168 85" class="stick-line"/>
@@ -65,10 +66,11 @@
   <path d="M 168 85 L 164 95" class="stick-line"/>
   <path d="M 168 85 L 172 95" class="stick-line"/>
 
-  <!-- Gate 2: TEST -->
+  <!-- Gate 2: TEST REVIEW -->
   <rect x="240" y="60" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 246 65 L 246 80 L 258 80" stroke="#090" stroke-width="2"/>
-  <text x="243" y="55" class="label" text-anchor="middle">Test</text>
+  <text x="243" y="50" class="label" text-anchor="middle" font-size="8">Test</text>
+  <text x="243" y="58" class="label" text-anchor="middle" font-size="8">Review</text>
   <!-- Gate keeper - arms down -->
   <circle cx="258" cy="68" r="5" class="stick-fill"/>
   <path d="M 258 73 L 258 85" class="stick-line"/>
@@ -77,10 +79,11 @@
   <path d="M 258 85 L 254 95" class="stick-line"/>
   <path d="M 258 85 L 262 95" class="stick-line"/>
 
-  <!-- Gate 3: REVIEW -->
+  <!-- Gate 3: TECH DEBT REDUCTION -->
   <rect x="330" y="60" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 336 65 L 336 80 L 348 80" stroke="#090" stroke-width="2"/>
-  <text x="333" y="55" class="label" text-anchor="middle">Review</text>
+  <text x="333" y="50" class="label" text-anchor="middle" font-size="8">Tech Debt</text>
+  <text x="333" y="58" class="label" text-anchor="middle" font-size="8">Reduction</text>
   <!-- Gate keeper - arms down -->
   <circle cx="348" cy="68" r="5" class="stick-fill"/>
   <path d="M 348 73 L 348 85" class="stick-line"/>
@@ -89,10 +92,11 @@
   <path d="M 348 85 L 344 95" class="stick-line"/>
   <path d="M 348 85 L 352 95" class="stick-line"/>
 
-  <!-- Gate 4: MERGE -->
+  <!-- Gate 4: IMPLEMENTATION REVIEW -->
   <rect x="420" y="60" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 426 65 L 426 80 L 438 80" stroke="#090" stroke-width="2"/>
-  <text x="423" y="55" class="label" text-anchor="middle">Merge</text>
+  <text x="423" y="50" class="label" text-anchor="middle" font-size="8">Implementation</text>
+  <text x="423" y="58" class="label" text-anchor="middle" font-size="8">Review</text>
   <!-- Gate keeper - arms down -->
   <circle cx="438" cy="68" r="5" class="stick-fill"/>
   <path d="M 438 73 L 438 85" class="stick-line"/>
@@ -169,10 +173,11 @@
   <path d="M 100 260 L 500 260" stroke="#000" stroke-width="2"/>
   <path d="M 100 270 L 500 270" stroke="#000" stroke-width="2"/>
 
-  <!-- Gate 1: SPEC - same gates -->
+  <!-- Gate 1: SPEC REVIEW - same gates -->
   <rect x="150" y="230" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 156 235 L 156 250 L 168 250" stroke="#c00" stroke-width="2"/>
-  <text x="153" y="225" class="label" text-anchor="middle">Spec</text>
+  <text x="153" y="220" class="label" text-anchor="middle" font-size="8">Spec</text>
+  <text x="153" y="228" class="label" text-anchor="middle" font-size="8">Review</text>
   <!-- Gate keeper - arms up (stressed) -->
   <circle cx="168" cy="238" r="5" class="stick-fill"/>
   <path d="M 168 243 L 168 255" class="stick-line"/>
@@ -181,10 +186,11 @@
   <path d="M 168 255 L 164 265" class="stick-line"/>
   <path d="M 168 255 L 172 265" class="stick-line"/>
 
-  <!-- Gate 2: TEST -->
+  <!-- Gate 2: TEST REVIEW -->
   <rect x="240" y="230" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 246 235 L 246 250 L 258 250" stroke="#c00" stroke-width="2"/>
-  <text x="243" y="225" class="label" text-anchor="middle">Test</text>
+  <text x="243" y="220" class="label" text-anchor="middle" font-size="8">Test</text>
+  <text x="243" y="228" class="label" text-anchor="middle" font-size="8">Review</text>
   <!-- Gate keeper - arms up (stressed) -->
   <circle cx="258" cy="238" r="5" class="stick-fill"/>
   <path d="M 258 243 L 258 255" class="stick-line"/>
@@ -193,10 +199,11 @@
   <path d="M 258 255 L 254 265" class="stick-line"/>
   <path d="M 258 255 L 262 265" class="stick-line"/>
 
-  <!-- Gate 3: REVIEW -->
+  <!-- Gate 3: TECH DEBT REDUCTION -->
   <rect x="330" y="230" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 336 235 L 336 250 L 348 250" stroke="#c00" stroke-width="2"/>
-  <text x="333" y="225" class="label" text-anchor="middle">Review</text>
+  <text x="333" y="220" class="label" text-anchor="middle" font-size="8">Tech Debt</text>
+  <text x="333" y="228" class="label" text-anchor="middle" font-size="8">Reduction</text>
   <!-- Gate keeper - arms up (stressed) -->
   <circle cx="348" cy="238" r="5" class="stick-fill"/>
   <path d="M 348 243 L 348 255" class="stick-line"/>
@@ -205,10 +212,11 @@
   <path d="M 348 255 L 344 265" class="stick-line"/>
   <path d="M 348 255 L 352 265" class="stick-line"/>
 
-  <!-- Gate 4: MERGE -->
+  <!-- Gate 4: IMPLEMENTATION REVIEW -->
   <rect x="420" y="230" width="6" height="40" fill="#888" stroke="#000" stroke-width="1"/>
   <path d="M 426 235 L 426 250 L 438 250" stroke="#c00" stroke-width="2"/>
-  <text x="423" y="225" class="label" text-anchor="middle">Merge</text>
+  <text x="423" y="220" class="label" text-anchor="middle" font-size="8">Implementation</text>
+  <text x="423" y="228" class="label" text-anchor="middle" font-size="8">Review</text>
   <!-- Gate keeper - arms up (stressed) -->
   <circle cx="438" cy="238" r="5" class="stick-fill"/>
   <path d="M 438 243 L 438 255" class="stick-line"/>
@@ -225,7 +233,7 @@
   <rect x="132" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="141" y="258" width="8" height="6" class="stick-fill"/>
 
-  <!-- Between Spec and Test - packed -->
+  <!-- Between Spec Review and Test Review - packed -->
   <rect x="160" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="169" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="178" y="258" width="8" height="6" class="stick-fill"/>
@@ -236,7 +244,7 @@
   <rect x="223" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="232" y="258" width="8" height="6" class="stick-fill"/>
 
-  <!-- Between Test and Review - packed -->
+  <!-- Between Test Review and Tech Debt Reduction - packed -->
   <rect x="250" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="259" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="268" y="258" width="8" height="6" class="stick-fill"/>
@@ -247,7 +255,7 @@
   <rect x="313" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="322" y="258" width="8" height="6" class="stick-fill"/>
 
-  <!-- Between Review and Merge - packed -->
+  <!-- Between Tech Debt Reduction and Implementation Review - packed -->
   <rect x="340" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="349" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="358" y="258" width="8" height="6" class="stick-fill"/>
@@ -258,11 +266,10 @@
   <rect x="403" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="412" y="258" width="8" height="6" class="stick-fill"/>
 
-  <!-- After Merge -->
+  <!-- After Implementation Review -->
   <rect x="430" y="258" width="8" height="6" class="stick-fill"/>
-  <rect x="445" y="258" width="8" height="6" class="stick-fill"/>
-  <rect x="460" y="258" width="8" height="6" class="stick-fill"/>
-  <rect x="475" y="258" width="8" height="6" class="stick-fill"/>
+  <rect x="450" y="258" width="8" height="6" class="stick-fill"/>
+  <rect x="470" y="258" width="8" height="6" class="stick-fill"/>
   <rect x="490" y="258" width="8" height="6" class="stick-fill"/>
 
   <!-- Caption -->

@@ -409,6 +409,7 @@ impl Validation for ConsistencyValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::matching::ConfidenceTier;
     use crate::types::{ConfidenceValue, FusedFlavor, FusedIdentity, FusedMetadata};
     use std::collections::HashMap;
 
@@ -418,6 +419,7 @@ mod tests {
                 recording_mbid: Some("test-mbid-123".to_string()),
                 confidence: 0.9,
                 posterior_probability: 0.95,
+                confidence_tier: ConfidenceTier::Tier2A,
                 conflicts: vec![],
             },
             metadata: FusedMetadata {

@@ -161,6 +161,8 @@ pub struct MetadataExtraction {
     pub album: Option<ConfidenceValue<String>>,
     /// MusicBrainz Recording MBID with confidence
     pub recording_mbid: Option<ConfidenceValue<String>>,
+    /// International Standard Recording Code (ISRC) with confidence
+    pub isrc: Option<ConfidenceValue<String>>,
     /// Additional metadata fields (e.g., "year", "genre")
     pub additional: HashMap<String, ConfidenceValue<String>>,
 }
@@ -322,6 +324,8 @@ pub struct FusedIdentity {
     pub confidence: f32,
     /// Bayesian posterior probability
     pub posterior_probability: f32,
+    /// Confidence tier indicating the source of identification
+    pub confidence_tier: crate::matching::ConfidenceTier,
     /// List of conflicting identifications
     pub conflicts: Vec<String>,
 }

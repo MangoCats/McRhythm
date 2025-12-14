@@ -86,6 +86,7 @@
 //! - [`orchestrator`]: Multi-stage orchestration with early-exit
 
 pub mod album_matcher;
+pub mod confidence_tier;
 pub mod constants;
 pub mod editions;
 pub mod metadata;
@@ -96,6 +97,7 @@ pub mod stages;
 pub mod types;
 
 pub use album_matcher::{AlbumMatchError, AlbumMatcher, AlbumMatcherConfig};
+pub use confidence_tier::{assign_tier, ConfidenceTier};
 pub use constants::*;
 pub use types::{
     AlbumMatchResult,

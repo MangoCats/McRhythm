@@ -110,7 +110,6 @@
   <!-- Hair - stressed/messy -->
   <path d="M 370 142 Q 362 135 368 144" class="stick-line"/>
   <path d="M 368 148 Q 358 145 365 150" class="stick-line"/>
-  <path d="M 372 138 Q 368 130 375 136" class="stick-line"/>
 
   <!-- Body -->
   <path d="M 380 162 L 382 195" class="stick-line"/>
@@ -123,11 +122,7 @@
   <path d="M 382 195 L 370 230" class="stick-line"/>
   <path d="M 382 195 L 395 230" class="stick-line"/>
 
-  <!-- Sweat drops (stress) -->
-  <ellipse cx="392" cy="145" rx="2" ry="3" fill="#000"/>
-  <ellipse cx="395" cy="152" rx="2" ry="3" fill="#000"/>
-
   <!-- Caption -->
-  <text x="375" y="255" class="stick-text" text-anchor="middle">AI writes, human reviews</text>
+  <text x="375" y="255" class="stick-text" text-anchor="middle" font-size="9">Human prompts, AI writes, human reviews</text>
   <text x="375" y="268" class="stick-text" text-anchor="middle" font-size="9">(more frequently!)</text>
 </svg>
