@@ -102,6 +102,7 @@ See: [Anthropic's guide to effective context engineering](https://www.anthropic.
 | **Summary documents** | Capturing session state for later resumption (in a fresh context) |
 | **Delegate reading** | Have research agents summarize docs for primary agent |
 | **Prune aggressively** | Remove verbose tool logs after they've served their purpose |
+| **Refactor logically** | Keep documentation and code logically segmented into small files |
 
 ### Warning Signs of Context Problems
 
