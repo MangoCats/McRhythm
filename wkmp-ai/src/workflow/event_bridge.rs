@@ -336,6 +336,143 @@ pub async fn bridge_workflow_events(
                     timestamp: Utc::now(),
                 })
             }
+
+            // **[PLAN_am30_integration]** Album matching events
+            WorkflowEvent::SingleTrackCheckCompleted {
+                file_path,
+                score,
+                is_single_track,
+            } => {
+                let classification = if is_single_track {
+                    "single track"
+                } else {
+                    "album"
+                };
+                info!(
+                    "Bridge: Single-track check completed: {} -> {} (score: {:.2})",
+                    std::path::Path::new(&file_path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&file_path),
+                    classification,
+                    score
+                );
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "ANALYZING".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Detected {} (score: {:.2})",
+                        classification, score
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingStarted { file_path } => {
+                info!("Bridge: Album matching started: {}", file_path);
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "ALBUM_MATCHING".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Matching album: {}",
+                        std::path::Path::new(&file_path)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(&file_path)
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingCompleted {
+                file_path,
+                matched,
+                track_count,
+                match_percentage,
+            } => {
+                let status = if matched { "matched" } else { "not matched" };
+                info!(
+                    "Bridge: Album matching completed: {} -> {} ({} tracks, {:.1}% match)",
+                    file_path, status, track_count, match_percentage
+                );
+                total_passages = track_count; // Update total for progress tracking
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: if matched {
+                        "ALBUM_MATCHED".to_string()
+                    } else {
+                        "ALBUM_NOT_MATCHED".to_string()
+                    },
+                    current: processed_passages,
+                    total: track_count,
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Album {}: {} tracks ({:.1}% match)",
+                        status, track_count, match_percentage
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingFailed { file_path, reason } => {
+                error!("Bridge: Album matching failed: {} - {}", file_path, reason);
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "ALBUM_MATCH_FAILED".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!("Album matching failed: {}", reason),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
+
+            WorkflowEvent::AlbumMatchingFallback { file_path, reason } => {
+                warn!("Bridge: Album matching fallback: {} - {}", file_path, reason);
+                Some(WkmpEvent::ImportProgressUpdate {
+                    session_id,
+                    state: "FALLBACK".to_string(),
+                    current: processed_passages,
+                    total: total_passages.max(1),
+                    percentage: 0.0,
+                    current_operation: format!(
+                        "Falling back to single-song processing: {}",
+                        reason
+                    ),
+                    elapsed_seconds: start_time.elapsed().as_secs(),
+                    estimated_remaining_seconds: None,
+                    phases: Vec::new(),
+                    current_file: Some(file_path),
+                    phase_statistics: vec![],
+                    timestamp: Utc::now(),
+                })
+            }
         };
 
         // Broadcast to EventBus

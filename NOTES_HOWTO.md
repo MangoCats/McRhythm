@@ -11,9 +11,9 @@ Mistakes and agent misunderstandings are common. Every piece of AI-generated cod
 When output falls short:
 - Describe the specific issues to the agent
 - Provide examples of "good" patterns to follow
-- Give multiple, thorough prompts to align results with expectations
+- Give multiple, thorough prompts (including document files when appropriate) to align results with expectations
 
-When AI is still getting details wrong: fix the output yourself, clear the agent's context and have it start over with the corrected content.
+When AI is still producing faulty output: fix the output yourself, clear the agent's context and have it read the corrected output before proceeding with further development.  Consider asking the agent to document its understanding of the solution, and review that document to ensure that future development is not based on hallucinations.
 
 ---
 
@@ -25,10 +25,10 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 
 ### The Workflow
 
-1. **Specify** - Write clear requirements; with [preconditions, postconditions](https://en.wikipedia.org/wiki/Design_by_contract), and [constraints](https://www.eiffel.org/doc/eiffel/ET-_Design_by_Contract_(tm),_Assertions_and_Exceptions) when appropriate
+1. **Specify** - Write clear requirements; with [preconditions, postconditions](https://en.wikipedia.org/wiki/Design_by_contract), and [constraints](https://www.eiffel.org/doc/eiffel/ET-_Design_by_Contract_(tm),_Assertions_and_Exceptions) when appropriate; note that .md markdown format files [are considered optimal](https://developers.cloudflare.com/workers-ai/features/markdown-conversion/) for communication with AI agents
 2. **Plan** - Have the agent create a detailed implementation plan from the specification; review the plan for correctness
 3. **Implement** - Agent writes code according to plan to satisfy the specification
-4. **Verify** - Tests validate specification compliance
+4. **Verify** - Tests (usually specified in the plan) validate specification compliance
 5. **Review** - Human confirms correctness and quality
 6. **Iterate** - Improve or expand the specification as needed, replan when modifications are extensive, then implement, verify and review the new specifications' features
 
@@ -50,15 +50,15 @@ See also: [Specification as Code](https://youtu.be/8rABwKRsec4?si=7JhAr_klMcKp97
 
 <img src="images/DoAllTheThingsMeme.png" alt="AI does All The Things" style="float:right; width:40%; margin-left:1em; margin-bottom:0.5em;"/>
 
-While human input and review is crucial at every step of the development process, don't overlook the fact that LLMs can also:
+While human input and review is crucial at every step of the development process, don't overlook the fact that LLMs [can also](https://arxiv.org/html/2508.00083v1):
 
 - help to draft, review and improve specifications documents
 - review and critique implementation code, particularly with fresh agents and clear context windows
-- evaluate test coverage
+- evaluate and expand test coverage
 - update documentation
 - review the entire project for consistency, completeness and technical debt
 
-Never forget: every one of these automated LLM based workflow processes comes with a built in non-zero error rate, and that errors left in the project will propagate and grow.  Thorough critical review is essential to clean out these errors, but the power of the LLMs to draft an 80+% complete and correct framework should not be ignored.
+Never forget: every one of these automated LLM based workflow processes comes with a built in non-zero error rate, and that errors left in the project will propagate and grow.  Thorough critical review is essential to clean out errors, but the power of LLMs to draft an 80+% complete and correct framework should not be ignored.
 
 ---
 
@@ -188,6 +188,8 @@ Agents declare "100% complete" while accumulating significant debt. Actively wat
 
 **Countermeasure:** Prompt "review for technical debt" periodically, especially just after an agent claims task complete.  Plan and execute technical debt cleanup often.
 
+The speed of LLM code refactoring and cleanup presents opportunity to address technical debt much more frequently and thoroughly than might be practiced with a traditional team of developers.  The speed of LLM writing unit and integration tests means that higher test coverage ratios are practical to achieve and technical debt refactorings can be executed with greater confidence that they will not cause functional regressions.
+
 ---
 
 ## Key Principles to Reinforce
@@ -266,7 +268,7 @@ The critical question: Is AI strengthening your capabilities or replacing them?
 
 ## Process Discipline
 
-Using AI agents is no reason to abandon software development best practices. The firehose of AI output requires **more** rigorous process, not less:
+Using AI agents is no reason to abandon software development best practices. The firehose of AI output requires a **more** rigorous and formalized process, not less:
 
 ![Checkpoints](images/checkpoint-pipeline.svg)
 
@@ -283,7 +285,7 @@ The same domain-specific processes that ensure human developers' product quality
 
 The unavoidable human labor of review needs to happen much more frequently with AI agents generating code and documentation; whereas single human review happens naturally / invisibly as part of the work when a human is doing the development.
 
-Incidentally, [research shows](https://arxiv.org/html/2509.13942v1) Agile methods produce better quality code with LLMs compared to Waterfall. 
+Incidentally, at least one [research study shows](https://arxiv.org/html/2509.13942v1) LLMs use more tokens, but also produce better quality code when using Agile methods vs Waterfall. 
 
 ---
 

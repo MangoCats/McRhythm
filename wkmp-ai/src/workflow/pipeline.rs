@@ -29,8 +29,12 @@ use crate::extractors::id3_extractor::ID3Extractor;
 use crate::extractors::id3_genre_mapper::ID3GenreMapper;
 use crate::extractors::musicbrainz_client::MusicBrainzClient;
 use crate::fusion::{FlavorSynthesizer, IdentityResolver, MetadataFuser};
+use crate::matching::{
+    AlbumMatchError, AlbumMatcher, AlbumMatchResult, ConfidenceTier, SingleTrackDiscriminator,
+}; // [PLAN_am30_integration]
 use crate::types::{
-    ExtractionResult, Fusion, PassageContext, SourceExtractor, Validation, ValidationResult,
+    ConfidenceValue, ExtractionResult, Fusion, FusedFlavor, FusedIdentity, FusedMetadata,
+    PassageContext, SourceExtractor, Validation, ValidationResult, ValidationStatus,
 };
 use crate::validators::{CompletenessScorer, ConsistencyValidator, QualityScorer};
 use anyhow::{Context, Result};
@@ -54,6 +58,17 @@ pub struct PipelineConfig {
     pub enable_audio_derived: bool,
     /// Minimum passage quality score to accept (0.0-1.0)
     pub min_quality_threshold: f32,
+
+    // --- Album Matching Configuration (PLAN_am30_integration) ---
+    /// Enable album detection and matching for full-album audio files
+    pub enable_album_matching: bool,
+    /// Single-track score threshold (scores >= this are treated as single tracks)
+    /// Default 1.5 from SINGLE_TRACK_SCORE_THRESHOLD
+    pub single_track_threshold: f64,
+    /// Match percentage threshold to accept album match (0-100)
+    pub album_match_min_percentage: f64,
+    /// Enable fallback to single-song processing if album match fails
+    pub album_match_fallback: bool,
 }
 
 impl Default for PipelineConfig {
@@ -65,6 +80,12 @@ impl Default for PipelineConfig {
             enable_essentia: true,
             enable_audio_derived: true,
             min_quality_threshold: 0.5,
+
+            // Album matching defaults (PLAN_am30_integration)
+            enable_album_matching: true,
+            single_track_threshold: 1.5, // From SINGLE_TRACK_SCORE_THRESHOLD
+            album_match_min_percentage: 80.0,
+            album_match_fallback: true,
         }
     }
 }
@@ -94,6 +115,10 @@ impl Pipeline {
 
     /// Process entire audio file (detect boundaries + process all passages)
     ///
+    /// **[PLAN_am30_integration]** Routes files to appropriate pipeline:
+    /// - Single-track files (score >= threshold): Original boundary detection + fusion pipeline
+    /// - Album files (score < threshold): AlbumMatcher pipeline
+    ///
     /// # Arguments
     /// * `file_path` - Path to audio file
     ///
@@ -109,6 +134,38 @@ impl Pipeline {
         })
         .await;
 
+        // **[PLAN_am30_integration]** Step 1: Detect file type (single track vs album)
+        if self.config.enable_album_matching {
+            let single_track_analysis =
+                SingleTrackDiscriminator::analyze_pre_decode(file_path, None);
+
+            // Use pre_decode_score for routing decision (no audio decoding yet)
+            let is_single_track =
+                single_track_analysis.pre_decode_score >= self.config.single_track_threshold;
+
+            self.emit_event(WorkflowEvent::SingleTrackCheckCompleted {
+                file_path: file_path.to_string_lossy().to_string(),
+                score: single_track_analysis.pre_decode_score,
+                is_single_track,
+            })
+            .await;
+
+            if !is_single_track {
+                // Likely an album - route to album processing
+                info!(
+                    "File appears to be an album (score={:.2} < threshold={})",
+                    single_track_analysis.pre_decode_score, self.config.single_track_threshold
+                );
+                return self.process_album_file(file_path).await;
+            } else {
+                info!(
+                    "File appears to be single track (score={:.2} >= threshold={})",
+                    single_track_analysis.pre_decode_score, self.config.single_track_threshold
+                );
+            }
+        }
+
+        // Continue with existing single-song processing...
         // Phase 0: Detect passage boundaries with audio caching
         // **[AIA-PERF-046]** Decode once, reuse audio for all passage extractors
         let file_audio = super::boundary_detector::detect_boundaries_with_audio(file_path)
@@ -808,6 +865,517 @@ impl Pipeline {
             status: status.to_string(),
         })
         .await;
+    }
+
+    // ========================================================================
+    // Album Processing (PLAN_am30_integration)
+    // ========================================================================
+
+    /// **[PLAN_am30_integration]** Process file as full album using AlbumMatcher
+    ///
+    /// Routes files identified as albums (by SingleTrackDiscriminator) to the
+    /// AlbumMatcher pipeline for multi-track identification and passage creation.
+    ///
+    /// # Arguments
+    /// * `file_path` - Path to audio file identified as a full album
+    ///
+    /// # Returns
+    /// * Vec of ProcessedPassage, one per track in the matched album
+    ///
+    /// # Fallback Behavior
+    /// If album matching fails and `album_match_fallback` is enabled,
+    /// falls back to single-song processing (boundary detection pipeline).
+    async fn process_album_file(&self, file_path: &Path) -> Result<Vec<ProcessedPassage>> {
+        info!("Processing file as album: {:?}", file_path);
+
+        // Step 1: Extract ID3 metadata for artist/album hints
+        let (artist_hint, album_hint) = self.extract_album_hints(file_path);
+
+        // Emit album matching started event
+        self.emit_event(WorkflowEvent::AlbumMatchingStarted {
+            file_path: file_path.to_string_lossy().to_string(),
+        })
+        .await;
+
+        // Step 2: Create AlbumMatcher and run matching
+        let album_matcher = match AlbumMatcher::new() {
+            Ok(matcher) => matcher,
+            Err(e) => {
+                error!("Failed to create AlbumMatcher: {}", e);
+                return self
+                    .album_match_fallback(file_path, &format!("Failed to create AlbumMatcher: {}", e))
+                    .await;
+            }
+        };
+
+        let match_result = album_matcher
+            .match_album(file_path, artist_hint.as_deref(), album_hint.as_deref())
+            .await;
+
+        match match_result {
+            Ok(result) if result.matched => {
+                info!(
+                    "Album matched: {} - {} ({:.1}% confidence, {} tracks)",
+                    result.matched_artist.as_deref().unwrap_or("Unknown"),
+                    result.matched_album.as_deref().unwrap_or("Unknown"),
+                    result.match_percentage,
+                    result.tracks.len()
+                );
+
+                // Check minimum match percentage
+                if result.match_percentage < self.config.album_match_min_percentage {
+                    warn!(
+                        "Album match percentage {:.1}% below threshold {:.1}%",
+                        result.match_percentage, self.config.album_match_min_percentage
+                    );
+                    if self.config.album_match_fallback {
+                        return self
+                            .album_match_fallback(
+                                file_path,
+                                &format!(
+                                    "Match percentage too low: {:.1}%",
+                                    result.match_percentage
+                                ),
+                            )
+                            .await;
+                    }
+                }
+
+                // Emit album matching completed event
+                self.emit_event(WorkflowEvent::AlbumMatchingCompleted {
+                    file_path: file_path.to_string_lossy().to_string(),
+                    matched: true,
+                    track_count: result.tracks.len(),
+                    match_percentage: result.match_percentage,
+                })
+                .await;
+
+                // Step 3: Convert to passages (Increment 4)
+                self.convert_album_to_passages(file_path, result).await
+            }
+            Ok(result) => {
+                // matched = false
+                let reason = format!(
+                    "No match found ({:.1}% confidence)",
+                    result.match_percentage
+                );
+                warn!("Album matching failed: {}", reason);
+
+                self.emit_event(WorkflowEvent::AlbumMatchingFailed {
+                    file_path: file_path.to_string_lossy().to_string(),
+                    reason: reason.clone(),
+                })
+                .await;
+
+                if self.config.album_match_fallback {
+                    self.album_match_fallback(file_path, &reason).await
+                } else {
+                    Err(anyhow::anyhow!("Album matching failed: {}", reason))
+                }
+            }
+            Err(AlbumMatchError::SingleTrackDetected { confidence, stage }) => {
+                // Post-decode check detected single track
+                info!(
+                    "Album post-decode check: single track detected (confidence={:.2}, stage={})",
+                    confidence, stage
+                );
+                // Process as single song - this is a successful classification, not a failure
+                self.process_as_single_song(file_path).await
+            }
+            Err(e) => {
+                // **[PLAN_am30_integration Increment 6]** Retry transient errors once
+                if self.is_retryable_error(&e) {
+                    warn!("Retryable error encountered, retrying once: {}", e);
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+                    // Create fresh matcher and retry
+                    if let Ok(retry_matcher) = AlbumMatcher::new() {
+                        match retry_matcher
+                            .match_album(file_path, artist_hint.as_deref(), album_hint.as_deref())
+                            .await
+                        {
+                            Ok(retry_result) if retry_result.matched => {
+                                info!("Retry succeeded: album matched");
+                                self.emit_event(WorkflowEvent::AlbumMatchingCompleted {
+                                    file_path: file_path.to_string_lossy().to_string(),
+                                    matched: true,
+                                    track_count: retry_result.tracks.len(),
+                                    match_percentage: retry_result.match_percentage,
+                                })
+                                .await;
+                                return self.convert_album_to_passages(file_path, retry_result).await;
+                            }
+                            Ok(_) => {
+                                info!("Retry completed but no match found");
+                            }
+                            Err(retry_err) => {
+                                warn!("Retry also failed: {}", retry_err);
+                            }
+                        }
+                    }
+                }
+
+                error!("Album matching error: {}", e);
+
+                self.emit_event(WorkflowEvent::AlbumMatchingFailed {
+                    file_path: file_path.to_string_lossy().to_string(),
+                    reason: e.to_string(),
+                })
+                .await;
+
+                if self.config.album_match_fallback {
+                    self.album_match_fallback(file_path, &e.to_string()).await
+                } else {
+                    Err(anyhow::anyhow!("Album matching failed: {}", e))
+                }
+            }
+        }
+    }
+
+    /// **[PLAN_am30_integration Increment 6]** Check if error is retryable (transient)
+    fn is_retryable_error(&self, error: &AlbumMatchError) -> bool {
+        matches!(
+            error,
+            AlbumMatchError::MusicBrainzError(_) | AlbumMatchError::IoError(_)
+        )
+    }
+
+    /// Extract artist and album hints from ID3 metadata
+    fn extract_album_hints(&self, file_path: &Path) -> (Option<String>, Option<String>) {
+        use crate::types::SourceExtractor;
+
+        let ctx = PassageContext {
+            passage_id: Uuid::new_v4(),
+            file_id: Uuid::new_v4(),
+            file_path: PathBuf::from(file_path),
+            start_time_ticks: 0,
+            end_time_ticks: 0,
+            audio_samples: None,
+            sample_rate: None,
+            num_channels: None,
+            import_session_id: Uuid::new_v4(),
+        };
+
+        // Use blocking extraction for hints (metadata only, fast)
+        let extractor = ID3Extractor::new();
+        let metadata_result =
+            std::thread::spawn(move || futures::executor::block_on(extractor.extract(&ctx)))
+                .join();
+
+        match metadata_result {
+            Ok(Ok(result)) => {
+                let artist = result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.artist.as_ref())
+                    .map(|cv| cv.value.clone());
+                let album = result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.album.as_ref())
+                    .map(|cv| cv.value.clone());
+                (artist, album)
+            }
+            Ok(Err(e)) => {
+                warn!("Failed to extract ID3 for album hints: {}", e);
+                (None, None)
+            }
+            Err(_) => {
+                warn!("ID3 extraction thread panicked");
+                (None, None)
+            }
+        }
+    }
+
+    /// **[PLAN_am30_integration]** Fallback to single-song processing when album matching fails
+    async fn album_match_fallback(
+        &self,
+        file_path: &Path,
+        reason: &str,
+    ) -> Result<Vec<ProcessedPassage>> {
+        warn!("Falling back to single-song processing: {}", reason);
+
+        self.emit_event(WorkflowEvent::AlbumMatchingFallback {
+            file_path: file_path.to_string_lossy().to_string(),
+            reason: reason.to_string(),
+        })
+        .await;
+
+        self.process_as_single_song(file_path).await
+    }
+
+    /// **[PLAN_am30_integration]** Convert AlbumMatchResult to passages
+    ///
+    /// Creates ProcessedPassage for each track in the matched album:
+    /// 1. Calculate track boundaries (start/end times in ticks)
+    /// 2. Create FusedIdentity with Recording MBID
+    /// 3. Create FusedMetadata from track info
+    /// 4. Create placeholder FusedFlavor (no AcousticBrainz data for album tracks)
+    /// 5. Create ValidationResult based on match quality
+    async fn convert_album_to_passages(
+        &self,
+        _file_path: &Path,
+        result: AlbumMatchResult,
+    ) -> Result<Vec<ProcessedPassage>> {
+        info!(
+            "Converting album match to {} passages",
+            result.tracks.len()
+        );
+
+        let mut passages = Vec::with_capacity(result.tracks.len());
+        let mut accumulated_time_secs = 0.0; // Track start time accumulator (seconds)
+
+        // Assign confidence tier based on match quality
+        let confidence_tier = self.assign_album_confidence_tier(&result);
+
+        for (i, track) in result.tracks.iter().enumerate() {
+            // Calculate boundary times (in seconds, then convert to ticks)
+            let start_secs = accumulated_time_secs;
+            let end_secs = accumulated_time_secs + track.detected_duration;
+            accumulated_time_secs = end_secs;
+
+            // Convert seconds to ticks (SPEC017: 28,224,000 ticks per second)
+            let start_ticks = (start_secs * super::TICK_RATE as f64) as i64;
+            let end_ticks = (end_secs * super::TICK_RATE as f64) as i64;
+
+            // Create boundary
+            let boundary = PassageBoundary {
+                start_time: start_ticks,
+                end_time: end_ticks,
+                confidence: if track.within_tolerance { 0.95 } else { 0.7 },
+            };
+
+            // Emit boundary event
+            self.emit_event(WorkflowEvent::BoundaryDetected {
+                passage_index: i,
+                start_time: start_ticks,
+                end_time: end_ticks,
+                confidence: boundary.confidence,
+            })
+            .await;
+
+            // Create FusedIdentity with Recording MBID
+            let identity = FusedIdentity {
+                recording_mbid: Some(track.recording_mbid.clone()),
+                confidence: (result.match_percentage / 100.0) as f32,
+                posterior_probability: (result.match_percentage / 100.0) as f32,
+                confidence_tier,
+                conflicts: vec![],
+            };
+
+            // Create FusedMetadata from track info
+            let metadata = FusedMetadata {
+                title: Some(ConfidenceValue::new(
+                    track.title.clone(),
+                    0.95,
+                    "AlbumMatcher",
+                )),
+                artist: result.matched_artist.as_ref().map(|a| {
+                    ConfidenceValue::new(a.clone(), 0.95, "AlbumMatcher")
+                }),
+                album: result.matched_album.as_ref().map(|a| {
+                    ConfidenceValue::new(a.clone(), 0.95, "AlbumMatcher")
+                }),
+                recording_mbid: Some(ConfidenceValue::new(
+                    track.recording_mbid.clone(),
+                    0.95,
+                    "AlbumMatcher",
+                )),
+                additional: {
+                    let mut map = std::collections::HashMap::new();
+                    if let Some(ref release_mbid) = result.release_mbid {
+                        map.insert(
+                            "release_mbid".to_string(),
+                            ConfidenceValue::new(release_mbid.clone(), 0.95, "AlbumMatcher"),
+                        );
+                    }
+                    map.insert(
+                        "track_number".to_string(),
+                        ConfidenceValue::new(
+                            track.track_number.to_string(),
+                            1.0,
+                            "AlbumMatcher",
+                        ),
+                    );
+                    map.insert(
+                        "disc_number".to_string(),
+                        ConfidenceValue::new(
+                            track.disc_number.to_string(),
+                            1.0,
+                            "AlbumMatcher",
+                        ),
+                    );
+                    map
+                },
+                metadata_completeness: 0.9, // High completeness from MusicBrainz
+            };
+
+            // Create placeholder FusedFlavor (no AcousticBrainz data for album tracks)
+            let flavor = FusedFlavor {
+                characteristics: std::collections::HashMap::new(),
+                confidence_map: std::collections::HashMap::new(),
+                source_blend: vec![],
+                completeness: 0.0, // No flavor data from album matching
+            };
+
+            // Create FusedPassage
+            let fusion = FusedPassage {
+                metadata,
+                identity,
+                flavor,
+            };
+
+            // Create ValidationResult based on track match quality
+            let validation_score = if track.within_tolerance {
+                0.9
+            } else {
+                // Lower score for tracks outside timing tolerance
+                0.6 + (1.0 - (track.timing_error / 10.0).min(0.4))
+            };
+
+            let validation = ValidationResult {
+                status: if track.within_tolerance {
+                    ValidationStatus::Pass
+                } else {
+                    ValidationStatus::Warning
+                },
+                score: validation_score as f32,
+                issues: if track.within_tolerance {
+                    vec![]
+                } else {
+                    vec![format!(
+                        "Track timing error: {:.1}s (expected {:.1}s, detected {:.1}s)",
+                        track.timing_error, track.expected_duration, track.detected_duration
+                    )]
+                },
+                report: serde_json::json!({
+                    "source": "AlbumMatcher",
+                    "track_number": track.track_number,
+                    "timing_error_secs": track.timing_error,
+                    "within_tolerance": track.within_tolerance,
+                    "match_percentage": result.match_percentage,
+                }),
+            };
+
+            // Emit passage events
+            self.emit_event(WorkflowEvent::PassageStarted {
+                passage_index: i,
+                total_passages: result.tracks.len(),
+            })
+            .await;
+
+            // Create ProcessedPassage
+            let passage = ProcessedPassage {
+                boundary,
+                extractions: vec![], // No raw extractions for album tracks
+                fusion,
+                validation: validation.clone(),
+            };
+
+            self.emit_event(WorkflowEvent::PassageCompleted {
+                passage_index: i,
+                quality_score: validation.score as f64,
+                validation_status: format!("{:?}", validation.status),
+            })
+            .await;
+
+            passages.push(passage);
+        }
+
+        info!(
+            "Created {} passages from album match ({:.1}% matched)",
+            passages.len(),
+            result.match_percentage
+        );
+
+        Ok(passages)
+    }
+
+    /// **[PLAN_am30_integration]** Assign confidence tier based on album match quality
+    fn assign_album_confidence_tier(&self, result: &AlbumMatchResult) -> ConfidenceTier {
+        // Album matching can achieve Tier2A-2B depending on match quality
+        // Cannot achieve Tier1A/1B (those require embedded MBID)
+        if result.match_percentage >= 95.0 && result.artist_verified {
+            ConfidenceTier::Tier2A // High confidence match
+        } else if result.match_percentage >= 80.0 {
+            ConfidenceTier::Tier2B // Good match
+        } else if result.match_percentage >= 60.0 {
+            ConfidenceTier::Tier3 // Partial match
+        } else {
+            ConfidenceTier::Tier4 // Low confidence
+        }
+    }
+
+    /// **[PLAN_am30_integration]** Process file using original single-song pipeline
+    ///
+    /// Extracts the original process_file() logic for reuse as fallback.
+    /// This is the boundary-detection-based pipeline for single tracks.
+    async fn process_as_single_song(&self, file_path: &Path) -> Result<Vec<ProcessedPassage>> {
+        info!("Processing file as single song: {:?}", file_path);
+
+        // Phase 0: Detect passage boundaries with audio caching
+        let file_audio = super::boundary_detector::detect_boundaries_with_audio(file_path)
+            .await
+            .context("Failed to detect passage boundaries")?;
+
+        info!("Detected {} passages", file_audio.boundaries.len());
+
+        // Emit boundary events
+        for (i, boundary) in file_audio.boundaries.iter().enumerate() {
+            self.emit_event(WorkflowEvent::BoundaryDetected {
+                passage_index: i,
+                start_time: boundary.start_time,
+                end_time: boundary.end_time,
+                confidence: boundary.confidence,
+            })
+            .await;
+        }
+
+        // Process each passage sequentially with cached audio
+        let mut processed_passages = Vec::new();
+        let total_passages = file_audio.boundaries.len();
+
+        for (i, boundary) in file_audio.boundaries.iter().enumerate() {
+            self.emit_event(WorkflowEvent::PassageStarted {
+                passage_index: i,
+                total_passages,
+            })
+            .await;
+
+            match self
+                .process_passage_with_audio(file_path, boundary, i, &file_audio)
+                .await
+            {
+                Ok(passage) => {
+                    self.emit_event(WorkflowEvent::PassageCompleted {
+                        passage_index: i,
+                        quality_score: passage.validation.score as f64,
+                        validation_status: format!("{:?}", passage.validation.status),
+                    })
+                    .await;
+                    processed_passages.push(passage);
+                }
+                Err(e) => {
+                    error!("Failed to process passage {}: {}", i, e);
+                    self.emit_event(WorkflowEvent::Error {
+                        passage_index: Some(i),
+                        message: format!("Passage processing failed: {}", e),
+                    })
+                    .await;
+                    // Continue with remaining passages (per-passage error isolation)
+                }
+            }
+        }
+
+        // Emit completion
+        self.emit_event(WorkflowEvent::FileCompleted {
+            file_path: file_path.to_string_lossy().to_string(),
+            passages_processed: processed_passages.len(),
+            timestamp: chrono::Utc::now().timestamp(),
+        })
+        .await;
+
+        Ok(processed_passages)
     }
 }
 
