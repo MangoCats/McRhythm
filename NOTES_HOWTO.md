@@ -13,7 +13,7 @@ When output falls short:
 - Provide examples of "good" patterns to follow
 - Give multiple, thorough prompts (including document files when appropriate) to align results with expectations
 
-When AI is still producing faulty output: fix the output yourself, clear the agent's context and have it read the corrected output before proceeding with further development.  Consider asking the agent to document its understanding of the solution, and review that document to ensure that future development is not based on hallucinations.
+When AI is still producing faulty output: fix it yourself, clear the agent's context and have it read the correct solution before proceeding with further development.  Consider asking the agent to document its understanding of the solution, and review that document to ensure that future development is not based on hallucinations.
 
 ---
 

@@ -15,7 +15,26 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 use tokio::sync::mpsc;
+use tracing::info;
+use tracing_subscriber::{fmt, EnvFilter};
 use wkmp_ai::workflow::{Pipeline, PipelineConfig, WorkflowEvent};
+
+/// Initialize tracing subscriber for test output (only once)
+fn init_tracing() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        let filter = EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("full_library_import_test=info,wkmp_ai=warn"));
+        fmt()
+            .with_env_filter(filter)
+            .with_target(false)
+            .with_thread_ids(false)
+            .with_file(false)
+            .with_line_number(false)
+            .init();
+    });
+}
 
 mod helpers;
 use helpers::audio_generator::{generate_test_library, generate_test_wav, AudioConfig};
@@ -417,6 +436,9 @@ async fn test_sequential_file_processing() -> Result<()> {
 
 /// Core import runner - processes files and collects metrics
 async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> Result<ImportMetrics> {
+    // Initialize tracing for per-file progress logging
+    init_tracing();
+
     let (tx, rx) = mpsc::channel(1000);
     let event_counts = Arc::new(std::sync::Mutex::new(EventCounts::default()));
     let errors = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -439,32 +461,69 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
     // Process all files
     let mut metrics = ImportMetrics::default();
     let overall_start = Instant::now();
+    let total_files = files.len();
 
-    for file in files {
+    for (file_index, file) in files.iter().enumerate() {
+        let file_name = file.file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        info!(
+            "File [{}/{}] STARTING: {}",
+            file_index + 1,
+            total_files,
+            file_name
+        );
+
         let file_start = Instant::now();
         let result = pipeline.process_file(file).await;
         let file_duration = file_start.elapsed();
 
-        metrics.file_timings.push((
-            file.file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string(),
-            file_duration,
-        ));
+        metrics.file_timings.push((file_name.clone(), file_duration));
 
         match result {
             Ok(passages) => {
                 metrics.files_processed += 1;
                 metrics.passages_created += passages.len();
+                info!(
+                    "File [{}/{}] COMPLETED: {} - {} passages in {:.2}s (elapsed: {:.1}s)",
+                    file_index + 1,
+                    total_files,
+                    file_name,
+                    passages.len(),
+                    file_duration.as_secs_f64(),
+                    overall_start.elapsed().as_secs_f64()
+                );
             }
             Err(e) => {
-                metrics.errors.push(format!(
-                    "{}: {}",
-                    file.file_name().unwrap_or_default().to_string_lossy(),
-                    e
-                ));
+                metrics.errors.push(format!("{}: {}", file_name, e));
+                info!(
+                    "File [{}/{}] FAILED: {} - {} (elapsed: {:.1}s)",
+                    file_index + 1,
+                    total_files,
+                    file_name,
+                    e,
+                    overall_start.elapsed().as_secs_f64()
+                );
             }
+        }
+
+        // Log progress every 10 files or at completion
+        if (file_index + 1) % 10 == 0 || file_index + 1 == total_files {
+            let elapsed = overall_start.elapsed();
+            let files_done = file_index + 1;
+            let avg_time = elapsed.as_secs_f64() / files_done as f64;
+            let remaining = total_files - files_done;
+            let eta_secs = remaining as f64 * avg_time;
+            info!(
+                "PROGRESS: {}/{} files ({:.1}%) - {:.2} files/sec - ETA: {:.1}min",
+                files_done,
+                total_files,
+                100.0 * files_done as f64 / total_files as f64,
+                files_done as f64 / elapsed.as_secs_f64(),
+                eta_secs / 60.0
+            );
         }
     }
 
