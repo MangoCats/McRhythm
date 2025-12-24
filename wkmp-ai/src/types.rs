@@ -140,7 +140,7 @@ pub trait SourceExtractor: Send + Sync {
 ///
 /// Each field is optional - extractors return only what they can provide.
 /// All outputs include confidence scores for downstream fusion.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExtractionResult {
     /// Metadata extraction (title, artist, album, etc.)
     pub metadata: Option<MetadataExtraction>,
@@ -151,7 +151,7 @@ pub struct ExtractionResult {
 }
 
 /// Metadata extraction result
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MetadataExtraction {
     /// Track title with confidence
     pub title: Option<ConfidenceValue<String>>,
@@ -168,7 +168,7 @@ pub struct MetadataExtraction {
 }
 
 /// Identity resolution result (MusicBrainz Recording MBID)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdentityExtraction {
     /// MusicBrainz Recording MBID
     pub recording_mbid: String,
@@ -179,7 +179,7 @@ pub struct IdentityExtraction {
 }
 
 /// Musical flavor extraction result
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlavorExtraction {
     /// Musical flavor characteristics (e.g., "danceability": 0.7)
     pub characteristics: HashMap<String, f32>,

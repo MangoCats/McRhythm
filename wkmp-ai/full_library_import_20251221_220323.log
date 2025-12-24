@@ -1,0 +1,101 @@
+[     0.007s] === Full Library Import Test Started ===
+Total files: 5
+Album matching: false
+Cache database: c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db (existing)
+[     0.007s] FILE_START [1/5] test_track_001.wav
+[     0.007s] EVENT FileStarted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_001.wav"
+[     0.347s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 987840000, confidence: 0.5, timestamp: 1766372603 }
+[     0.347s] EVENT PassageStarted: passage #0
+[     0.347s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766372603 }
+[     0.348s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766372603 }
+[     0.348s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766372603 }
+[     0.421s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766372604 }
+[     0.421s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766372604 }
+[     0.530s] FILE_COMPLETE [1/5] test_track_001.wav - 1 passages in 0.52s (total_elapsed: 0.5s)
+[     0.530s] FILE_START [2/5] test_track_002.wav
+[     0.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766372604 }
+[     0.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766372604 }
+[     0.530s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766372604 }
+[     0.530s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372604 }
+[     0.530s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372604 }
+[     0.530s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766372604 }
+[     0.530s] EVENT PassageCompleted: passage #0
+[     0.530s] EVENT FileCompleted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_001.wav"
+[     0.530s] EVENT FileStarted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_002.wav"
+[     0.876s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 987840000, confidence: 0.5, timestamp: 1766372604 }
+[     0.876s] EVENT PassageStarted: passage #0
+[     0.876s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766372604 }
+[     0.876s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766372604 }
+[     0.876s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766372604 }
+[     0.948s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766372604 }
+[     0.948s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766372604 }
+[     1.057s] FILE_COMPLETE [2/5] test_track_002.wav - 1 passages in 0.53s (total_elapsed: 1.1s)
+[     1.057s] FILE_START [3/5] test_track_003.wav
+[     1.057s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766372604 }
+[     1.057s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766372604 }
+[     1.057s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766372604 }
+[     1.057s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372604 }
+[     1.057s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372604 }
+[     1.057s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766372604 }
+[     1.057s] EVENT PassageCompleted: passage #0
+[     1.057s] EVENT FileCompleted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_002.wav"
+[     1.057s] EVENT FileStarted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_003.wav"
+[     1.400s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 987840000, confidence: 0.5, timestamp: 1766372605 }
+[     1.400s] EVENT PassageStarted: passage #0
+[     1.400s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766372605 }
+[     1.400s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766372605 }
+[     1.400s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766372605 }
+[     1.473s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766372605 }
+[     1.473s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766372605 }
+[     1.584s] FILE_COMPLETE [3/5] test_track_003.wav - 1 passages in 0.53s (total_elapsed: 1.6s)
+[     1.584s] FILE_START [4/5] test_track_004.wav
+[     1.584s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766372605 }
+[     1.584s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766372605 }
+[     1.584s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766372605 }
+[     1.584s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372605 }
+[     1.584s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372605 }
+[     1.584s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766372605 }
+[     1.584s] EVENT PassageCompleted: passage #0
+[     1.584s] EVENT FileCompleted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_003.wav"
+[     1.584s] EVENT FileStarted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_004.wav"
+[     1.919s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 987840000, confidence: 0.5, timestamp: 1766372605 }
+[     1.919s] EVENT PassageStarted: passage #0
+[     1.919s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766372605 }
+[     1.919s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766372605 }
+[     1.920s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766372605 }
+[     1.996s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766372605 }
+[     1.996s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766372605 }
+[     2.103s] FILE_COMPLETE [4/5] test_track_004.wav - 1 passages in 0.52s (total_elapsed: 2.1s)
+[     2.103s] FILE_START [5/5] test_track_005.wav
+[     2.103s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766372605 }
+[     2.103s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766372605 }
+[     2.103s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766372605 }
+[     2.103s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372605 }
+[     2.103s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372605 }
+[     2.103s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766372605 }
+[     2.103s] EVENT PassageCompleted: passage #0
+[     2.103s] EVENT FileCompleted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_004.wav"
+[     2.103s] EVENT FileStarted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_005.wav"
+[     2.434s] EVENT BoundaryDetected { passage_index: 0, start_time: 0, end_time: 987840000, confidence: 0.5, timestamp: 1766372606 }
+[     2.434s] EVENT PassageStarted: passage #0
+[     2.434s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "running", timestamp: 1766372606 }
+[     2.434s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3", status: "completed", timestamp: 1766372606 }
+[     2.434s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "running", timestamp: 1766372606 }
+[     2.508s] EVENT ExtractionProgress { passage_index: 0, extractor: "Chromaprint", status: "completed", timestamp: 1766372606 }
+[     2.508s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "running", timestamp: 1766372606 }
+[     2.613s] FILE_COMPLETE [5/5] test_track_005.wav - 1 passages in 0.51s (total_elapsed: 2.6s)
+[     2.613s] PROGRESS 5/5 (100.0%) - 1.92 files/sec - ETA: 0.0min
+[     2.613s] EVENT ExtractionProgress { passage_index: 0, extractor: "AudioDerived", status: "completed", timestamp: 1766372606 }
+[     2.613s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "running", timestamp: 1766372606 }
+[     2.613s] EVENT ExtractionProgress { passage_index: 0, extractor: "ID3GenreMapper", status: "failed", timestamp: 1766372606 }
+[     2.614s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372606 }
+[     2.614s] EVENT FusionStarted { passage_index: 0, timestamp: 1766372606 }
+[     2.614s] EVENT ValidationStarted { passage_index: 0, timestamp: 1766372606 }
+[     2.614s] EVENT PassageCompleted: passage #0
+[     2.614s] EVENT FileCompleted: "C:\\Users\\MANGOC~1\\AppData\\Local\\Temp\\.tmpn0pboe\\batch_1\\test_track_005.wav"
+[     2.615s] === Import Test Completed ===
+Total duration: 2.6s
+Files processed: 5/5
+Passages created: 5
+Recording cache: 0 entries
+MBID cache: 3148 entries

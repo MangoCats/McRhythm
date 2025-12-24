@@ -33,6 +33,7 @@ use super::single_track::SingleTrackDiscriminator;
 use super::stages::stage4::RmsProfile;
 use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
 use crate::services::{MBError, MusicBrainzClient};
+use crate::workflow::memory_tracker;
 
 /// Album matching error types
 #[derive(Debug)]
@@ -183,6 +184,8 @@ pub struct AlbumMatcher {
     config: AlbumMatcherConfig,
     /// MusicBrainz API client
     mb_client: MusicBrainzClient,
+    /// Optional database pool for MusicBrainz query caching
+    db_pool: Option<sqlx::SqlitePool>,
 }
 
 impl AlbumMatcher {
@@ -196,12 +199,33 @@ impl AlbumMatcher {
         let mb_client = MusicBrainzClient::new()
             .map_err(|e| AlbumMatchError::MusicBrainzError(e.to_string()))?;
 
-        Ok(Self { config, mb_client })
+        Ok(Self {
+            config,
+            mb_client,
+            db_pool: None,
+        })
     }
 
     /// Create new album matcher with provided MusicBrainz client
     pub fn with_client(config: AlbumMatcherConfig, mb_client: MusicBrainzClient) -> Self {
-        Self { config, mb_client }
+        Self {
+            config,
+            mb_client,
+            db_pool: None,
+        }
+    }
+
+    /// Create new album matcher with database pool for caching
+    pub fn with_pool(
+        config: AlbumMatcherConfig,
+        mb_client: MusicBrainzClient,
+        db_pool: sqlx::SqlitePool,
+    ) -> Self {
+        Self {
+            config,
+            mb_client,
+            db_pool: Some(db_pool),
+        }
     }
 
     /// Match an album file against MusicBrainz
@@ -274,9 +298,21 @@ impl AlbumMatcher {
         });
 
         // Spawn MusicBrainz lookup (network I/O)
-        let mb_handle = self
-            .mb_client
-            .comprehensive_search(&artist, &album, Some(50));
+        // Use cached version if database pool available
+        let mb_handle = {
+            let artist = artist.clone();
+            let album = album.clone();
+            let db_pool = self.db_pool.clone();
+            let mb_client = &self.mb_client;
+
+            async move {
+                if let Some(pool) = db_pool {
+                    mb_client.comprehensive_search_cached(&artist, &album, Some(50), &pool).await
+                } else {
+                    mb_client.comprehensive_search(&artist, &album, Some(50)).await
+                }
+            }
+        };
 
         // Wait for both to complete concurrently
         let (decode_result, mb_result) = tokio::join!(decode_handle, mb_handle);
@@ -284,6 +320,8 @@ impl AlbumMatcher {
         // Process decode result
         let (samples, sample_rate, silence_cache, rms_profile) =
             decode_result.map_err(|e| AlbumMatchError::TaskJoinError(e.to_string()))??;
+
+        let _tracking_id = memory_tracker::track_allocation(samples.len(), "album_matcher decode");
 
         let total_samples = samples.len();
         let duration_secs = total_samples as f64 / sample_rate as f64;
@@ -315,19 +353,33 @@ impl AlbumMatcher {
                 "Post-decode single-track detection: score={:.2}, likely single track",
                 post_analysis.final_score
             );
-            return Ok(AlbumMatchResult::no_match(format!(
-                "Single track detected (post-decode, confidence={:.2})",
-                post_analysis.final_score
-            )));
+            // **[IMPROVEMENT#1]** Preserve samples for fallback reuse
+            return Ok(AlbumMatchResult::no_match_with_audio(
+                format!(
+                    "Single track detected (post-decode, confidence={:.2})",
+                    post_analysis.final_score
+                ),
+                samples,
+                sample_rate,
+            ));
         }
 
         // Step 5: Process MusicBrainz result (already fetched in parallel)
         let releases = mb_result?;
 
         if releases.is_empty() {
-            warn!("No MusicBrainz candidates found");
-            return Ok(AlbumMatchResult::no_match(
+            // **[IMPROVEMENT#2]** Enhanced logging for diagnosis
+            warn!(
+                file = %audio_path.display(),
+                artist = %artist,
+                album = %album,
+                "No MusicBrainz candidates found"
+            );
+            // **[IMPROVEMENT#1]** Preserve samples for fallback reuse
+            return Ok(AlbumMatchResult::no_match_with_audio(
                 "No MusicBrainz candidates found".to_string(),
+                samples,
+                sample_rate,
             ));
         }
 
@@ -338,9 +390,17 @@ impl AlbumMatcher {
         let editions = filter_and_sort_editions(editions, &artist, &album, 20);
 
         if editions.is_empty() {
-            warn!("No valid editions after filtering");
-            return Ok(AlbumMatchResult::no_match(
+            // **[IMPROVEMENT#2]** Enhanced logging for diagnosis
+            warn!(
+                file = %audio_path.display(),
+                candidate_count = releases.len(),
+                "No valid editions after filtering"
+            );
+            // **[IMPROVEMENT#1]** Preserve samples for fallback reuse
+            return Ok(AlbumMatchResult::no_match_with_audio(
                 "No valid editions found".to_string(),
+                samples,
+                sample_rate,
             ));
         }
 
@@ -351,7 +411,10 @@ impl AlbumMatcher {
 
         // Step 7: Run multi-stage matching orchestration
         let orchestrator_config = OrchestratorConfig {
-            min_match_percentage: 80.0,
+            // **[PHASE1]** Lowered from 80.0% to 65.0% to capture high-confidence matches
+            // that were incorrectly rejected (22 files with 67-79% confidence).
+            // See IMPROVEMENT_PLAN_audio_decode_album_matching.md Phase 1.1
+            min_match_percentage: 65.0,
             tolerance_secs: self.config.match_tolerance_secs,
             early_exit: self.config.enable_early_exit,
             early_exit_grace: self.config.early_exit_grace_secs as usize,
@@ -437,6 +500,8 @@ impl AlbumMatcher {
             } else {
                 "No match found".to_string()
             },
+            // **[IMPROVEMENT#1]** Preserve samples for successful matches too (may be useful for future features)
+            decoded_audio: Some((samples, sample_rate)),
         };
 
         info!(

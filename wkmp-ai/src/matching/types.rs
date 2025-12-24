@@ -155,6 +155,10 @@ pub struct AlbumMatchResult {
     pub best_min_duration_secs: Option<f64>,
     /// Status message
     pub status: String,
+    /// **[IMPROVEMENT#1]** Decoded audio samples (preserved for fallback reuse)
+    /// When album matching fails, these samples can be reused by boundary detector
+    /// to avoid double-decode penalty. None if samples were not preserved.
+    pub decoded_audio: Option<(Vec<f32>, u32)>, // (samples, sample_rate)
 }
 
 impl AlbumMatchResult {
@@ -178,6 +182,31 @@ impl AlbumMatchResult {
             best_threshold_db: None,
             best_min_duration_secs: None,
             status,
+            decoded_audio: None, // **[IMPROVEMENT#1]** No samples on no-match by default
+        }
+    }
+
+    /// **[IMPROVEMENT#1]** Create a "no match" result with preserved decoded audio
+    pub fn no_match_with_audio(status: String, samples: Vec<f32>, sample_rate: u32) -> Self {
+        Self {
+            matched: false,
+            release_mbid: None,
+            matched_artist: None,
+            matched_album: None,
+            matching_stage: None,
+            match_percentage: 0.0,
+            mean_error_seconds: 0.0,
+            matched_track_count: 0,
+            expected_track_count: 0,
+            detected_track_count: 0,
+            tracks: Vec::new(),
+            confidence: "Poor".to_string(),
+            artist_verified: false,
+            artist_similarity: 0.0,
+            best_threshold_db: None,
+            best_min_duration_secs: None,
+            status,
+            decoded_audio: Some((samples, sample_rate)),
         }
     }
 

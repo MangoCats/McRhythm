@@ -24,10 +24,10 @@ use super::{FusedPassage, PassageBoundary, ProcessedPassage, WorkflowEvent};
 use crate::extractors::acoustid_client::AcoustIDClient;
 use crate::extractors::audio_derived_extractor::AudioDerivedExtractor;
 use crate::extractors::chromaprint_analyzer::ChromaprintAnalyzer;
-use crate::extractors::essentia_analyzer::EssentiaAnalyzer;
 use crate::extractors::id3_extractor::ID3Extractor;
 use crate::extractors::id3_genre_mapper::ID3GenreMapper;
-use crate::extractors::musicbrainz_client::MusicBrainzClient;
+use crate::extractors::musicbrainz_client::MusicBrainzClient as MBExtractor;
+use crate::services::MusicBrainzClient as MBService;
 use crate::fusion::{FlavorSynthesizer, IdentityResolver, MetadataFuser};
 use crate::matching::{
     AlbumMatchError, AlbumMatcher, AlbumMatchResult, ConfidenceTier, SingleTrackDiscriminator,
@@ -53,11 +53,16 @@ pub struct PipelineConfig {
     /// Enable MusicBrainz lookups (requires network access)
     pub enable_musicbrainz: bool,
     /// Enable Essentia audio analysis (requires Essentia library)
+    /// NOTE: Currently unused in Pass 1 extraction. Essentia runs in Phase 9 (Flavoring)
+    /// as a fallback when AcousticBrainz fails. This flag is reserved for future use
+    /// to allow disabling Essentia fallback entirely if needed.
     pub enable_essentia: bool,
     /// Enable audio-derived feature extraction
     pub enable_audio_derived: bool,
     /// Minimum passage quality score to accept (0.0-1.0)
     pub min_quality_threshold: f32,
+    /// Database pool for MusicBrainz query caching (optional)
+    pub db_pool: Option<sqlx::SqlitePool>,
 
     // --- Album Matching Configuration (PLAN_am30_integration) ---
     /// Enable album detection and matching for full-album audio files
@@ -80,6 +85,7 @@ impl Default for PipelineConfig {
             enable_essentia: true,
             enable_audio_derived: true,
             min_quality_threshold: 0.5,
+            db_pool: None,
 
             // Album matching defaults (PLAN_am30_integration)
             enable_album_matching: true,
@@ -181,6 +187,7 @@ impl Pipeline {
                 start_time: boundary.start_time,
                 end_time: boundary.end_time,
                 confidence: boundary.confidence,
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
         }
@@ -193,6 +200,7 @@ impl Pipeline {
             self.emit_event(WorkflowEvent::PassageStarted {
                 passage_index: i,
                 total_passages,
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
 
@@ -205,6 +213,7 @@ impl Pipeline {
                         passage_index: i,
                         quality_score: passage.validation.score as f64,
                         validation_status: format!("{:?}", passage.validation.status),
+                        timestamp: chrono::Utc::now().timestamp(),
                     })
                     .await;
 
@@ -326,33 +335,44 @@ impl Pipeline {
                 self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "running")
                     .await;
 
-                match MusicBrainzClient::new().extract_with_mbid(mbid, &ctx).await {
-                    Ok(musicbrainz_result) => {
-                        info!(
-                            passage_index = passage_index,
-                            "Pass 2: MusicBrainz extraction successful"
-                        );
+                let mb_client = MBExtractor::new();
+                {
+                        let mb_result = if let Some(ref pool) = self.config.db_pool {
+                            // Use cached version if database available
+                            mb_client.extract_with_mbid_cached(mbid, &ctx, pool).await
+                        } else {
+                            // Fall back to uncached version
+                            mb_client.extract_with_mbid(mbid, &ctx).await
+                        };
 
-                        // Add MusicBrainz result to extraction results
-                        extraction_results.push(musicbrainz_result);
+                        match mb_result {
+                            Ok(musicbrainz_result) => {
+                                info!(
+                                    passage_index = passage_index,
+                                    "Pass 2: MusicBrainz extraction successful"
+                                );
 
-                        self.emit_extraction_progress(
-                            passage_index,
-                            "MusicBrainz-Pass2",
-                            "completed",
-                        )
-                        .await;
+                                // Add MusicBrainz result to extraction results
+                                extraction_results.push(musicbrainz_result);
+
+                                self.emit_extraction_progress(
+                                    passage_index,
+                                    "MusicBrainz-Pass2",
+                                    "completed",
+                                )
+                                .await;
+                            }
+                            Err(e) => {
+                                warn!(
+                                    passage_index = passage_index,
+                                    error = ?e,
+                                    "Pass 2: MusicBrainz extraction failed (non-fatal)"
+                                );
+                                self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "failed")
+                                    .await;
+                            }
+                        }
                     }
-                    Err(e) => {
-                        warn!(
-                            passage_index = passage_index,
-                            error = ?e,
-                            "Pass 2: MusicBrainz extraction failed (non-fatal)"
-                        );
-                        self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "failed")
-                            .await;
-                    }
-                }
             } else {
                 debug!(
                     passage_index = passage_index,
@@ -441,33 +461,44 @@ impl Pipeline {
                 self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "running")
                     .await;
 
-                match MusicBrainzClient::new().extract_with_mbid(mbid, &ctx).await {
-                    Ok(musicbrainz_result) => {
-                        info!(
-                            passage_index = passage_index,
-                            "Pass 2: MusicBrainz extraction successful"
-                        );
+                let mb_client = MBExtractor::new();
+                {
+                        let mb_result = if let Some(ref pool) = self.config.db_pool {
+                            // Use cached version if database available
+                            mb_client.extract_with_mbid_cached(mbid, &ctx, pool).await
+                        } else {
+                            // Fall back to uncached version
+                            mb_client.extract_with_mbid(mbid, &ctx).await
+                        };
 
-                        // Add MusicBrainz result to extraction results
-                        extraction_results.push(musicbrainz_result);
+                        match mb_result {
+                            Ok(musicbrainz_result) => {
+                                info!(
+                                    passage_index = passage_index,
+                                    "Pass 2: MusicBrainz extraction successful"
+                                );
 
-                        self.emit_extraction_progress(
-                            passage_index,
-                            "MusicBrainz-Pass2",
-                            "completed",
-                        )
-                        .await;
+                                // Add MusicBrainz result to extraction results
+                                extraction_results.push(musicbrainz_result);
+
+                                self.emit_extraction_progress(
+                                    passage_index,
+                                    "MusicBrainz-Pass2",
+                                    "completed",
+                                )
+                                .await;
+                            }
+                            Err(e) => {
+                                warn!(
+                                    passage_index = passage_index,
+                                    error = ?e,
+                                    "Pass 2: MusicBrainz extraction failed (non-fatal)"
+                                );
+                                self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "failed")
+                                    .await;
+                            }
+                        }
                     }
-                    Err(e) => {
-                        warn!(
-                            passage_index = passage_index,
-                            error = ?e,
-                            "Pass 2: MusicBrainz extraction failed (non-fatal)"
-                        );
-                        self.emit_extraction_progress(passage_index, "MusicBrainz-Pass2", "failed")
-                            .await;
-                    }
-                }
             } else {
                 debug!(
                     passage_index = passage_index,
@@ -643,25 +674,12 @@ impl Pipeline {
         // Recording MBID which comes from fusion of ID3/AcoustID results.
         // See process_passage() for Pass 2 implementation.
 
-        // Extractor 5: Essentia (if enabled)
-        if self.config.enable_essentia {
-            self.emit_extraction_progress(passage_index, "Essentia", "running")
-                .await;
-            match EssentiaAnalyzer::new().extract(&ctx).await {
-                Ok(extraction) => {
-                    results.push(extraction);
-                    self.emit_extraction_progress(passage_index, "Essentia", "completed")
-                        .await;
-                }
-                Err(e) => {
-                    warn!("Essentia extraction failed: {}", e);
-                    self.emit_extraction_progress(passage_index, "Essentia", "failed")
-                        .await;
-                }
-            }
-        }
+        // Essentia: NOT included in Pass 1
+        // Essentia runs in Phase 9 (Flavoring) as fallback when AcousticBrainz API fails.
+        // Running it here would be wasteful since AcousticBrainz succeeds 99% of the time.
+        // See passage_flavor_fetcher.rs for the correct usage pattern.
 
-        // Extractor 6: Audio-derived features (if enabled)
+        // Extractor 5: Audio-derived features (if enabled)
         if self.config.enable_audio_derived {
             self.emit_extraction_progress(passage_index, "AudioDerived", "running")
                 .await;
@@ -702,7 +720,7 @@ impl Pipeline {
         let total_extractors = 3 // Always run: ID3, Chromaprint, ID3GenreMapper
             + if self.config.acoustid_api_key.is_some() { 1 } else { 0 }
             // MusicBrainz excluded - runs in Pass 2 (see process_passage)
-            + if self.config.enable_essentia { 1 } else { 0 }
+            // Essentia excluded - runs in Phase 9 (Flavoring) as AcousticBrainz fallback
             + if self.config.enable_audio_derived { 1 } else { 0 };
 
         info!(
@@ -722,7 +740,10 @@ impl Pipeline {
     ) -> Result<FusedPassage> {
         debug!("Phase 2: Fusion for passage {}", passage_index);
 
-        self.emit_event(WorkflowEvent::FusionStarted { passage_index })
+        self.emit_event(WorkflowEvent::FusionStarted {
+            passage_index,
+            timestamp: chrono::Utc::now().timestamp(),
+        })
             .await;
 
         // Collect extraction data by type from all results
@@ -805,7 +826,10 @@ impl Pipeline {
     ) -> Result<ValidationResult> {
         debug!("Phase 3: Validation for passage {}", passage_index);
 
-        self.emit_event(WorkflowEvent::ValidationStarted { passage_index })
+        self.emit_event(WorkflowEvent::ValidationStarted {
+            passage_index,
+            timestamp: chrono::Utc::now().timestamp(),
+        })
             .await;
 
         // Validator 1: Consistency Validator
@@ -863,6 +887,7 @@ impl Pipeline {
             passage_index,
             extractor: extractor.to_string(),
             status: status.to_string(),
+            timestamp: chrono::Utc::now().timestamp(),
         })
         .await;
     }
@@ -894,17 +919,34 @@ impl Pipeline {
         // Emit album matching started event
         self.emit_event(WorkflowEvent::AlbumMatchingStarted {
             file_path: file_path.to_string_lossy().to_string(),
+            timestamp: chrono::Utc::now().timestamp(),
         })
         .await;
 
-        // Step 2: Create AlbumMatcher and run matching
-        let album_matcher = match AlbumMatcher::new() {
-            Ok(matcher) => matcher,
-            Err(e) => {
-                error!("Failed to create AlbumMatcher: {}", e);
-                return self
-                    .album_match_fallback(file_path, &format!("Failed to create AlbumMatcher: {}", e))
-                    .await;
+        // Step 2: Create AlbumMatcher with caching support
+        let album_matcher = if let Some(ref pool) = self.config.db_pool {
+            // Use cached version with database pool
+            use crate::matching::AlbumMatcherConfig;
+            let mb_client = match MBService::new() {
+                Ok(client) => client,
+                Err(e) => {
+                    error!("Failed to create MusicBrainzClient: {}", e);
+                    return self
+                        .album_match_fallback(file_path, &format!("Failed to create MusicBrainzClient: {}", e), None)
+                        .await;
+                }
+            };
+            AlbumMatcher::with_pool(AlbumMatcherConfig::default(), mb_client, pool.clone())
+        } else {
+            // Fallback to uncached version
+            match AlbumMatcher::new() {
+                Ok(matcher) => matcher,
+                Err(e) => {
+                    error!("Failed to create AlbumMatcher: {}", e);
+                    return self
+                        .album_match_fallback(file_path, &format!("Failed to create AlbumMatcher: {}", e), None)
+                        .await;
+                }
             }
         };
 
@@ -936,6 +978,7 @@ impl Pipeline {
                                     "Match percentage too low: {:.1}%",
                                     result.match_percentage
                                 ),
+                                result.decoded_audio, // **[IMPROVEMENT#1]** Pass preserved samples
                             )
                             .await;
                     }
@@ -947,6 +990,7 @@ impl Pipeline {
                     matched: true,
                     track_count: result.tracks.len(),
                     match_percentage: result.match_percentage,
+                    timestamp: chrono::Utc::now().timestamp(),
                 })
                 .await;
 
@@ -964,11 +1008,12 @@ impl Pipeline {
                 self.emit_event(WorkflowEvent::AlbumMatchingFailed {
                     file_path: file_path.to_string_lossy().to_string(),
                     reason: reason.clone(),
+                    timestamp: chrono::Utc::now().timestamp(),
                 })
                 .await;
 
                 if self.config.album_match_fallback {
-                    self.album_match_fallback(file_path, &reason).await
+                    self.album_match_fallback(file_path, &reason, result.decoded_audio).await
                 } else {
                     Err(anyhow::anyhow!("Album matching failed: {}", reason))
                 }
@@ -989,10 +1034,29 @@ impl Pipeline {
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
                     // Create fresh matcher and retry
-                    if let Ok(retry_matcher) = AlbumMatcher::new() {
-                        match retry_matcher
-                            .match_album(file_path, artist_hint.as_deref(), album_hint.as_deref())
-                            .await
+                    use crate::matching::AlbumMatcherConfig;
+                    let retry_matcher = if let Some(ref pool) = self.config.db_pool {
+                        let retry_client = match MBService::new() {
+                            Ok(client) => client,
+                            Err(_) => {
+                                warn!("Failed to create retry MusicBrainzClient, falling back");
+                                return self.album_match_fallback(file_path, "Retry client creation failed", None).await;
+                            }
+                        };
+                        AlbumMatcher::with_pool(AlbumMatcherConfig::default(), retry_client, pool.clone())
+                    } else {
+                        match AlbumMatcher::new() {
+                            Ok(m) => m,
+                            Err(_) => {
+                                warn!("Failed to create retry matcher, falling back");
+                                return self.album_match_fallback(file_path, "Retry matcher creation failed", None).await;
+                            }
+                        }
+                    };
+
+                    match retry_matcher
+                        .match_album(file_path, artist_hint.as_deref(), album_hint.as_deref())
+                        .await
                         {
                             Ok(retry_result) if retry_result.matched => {
                                 info!("Retry succeeded: album matched");
@@ -1001,6 +1065,7 @@ impl Pipeline {
                                     matched: true,
                                     track_count: retry_result.tracks.len(),
                                     match_percentage: retry_result.match_percentage,
+                                    timestamp: chrono::Utc::now().timestamp(),
                                 })
                                 .await;
                                 return self.convert_album_to_passages(file_path, retry_result).await;
@@ -1012,7 +1077,6 @@ impl Pipeline {
                                 warn!("Retry also failed: {}", retry_err);
                             }
                         }
-                    }
                 }
 
                 error!("Album matching error: {}", e);
@@ -1020,11 +1084,12 @@ impl Pipeline {
                 self.emit_event(WorkflowEvent::AlbumMatchingFailed {
                     file_path: file_path.to_string_lossy().to_string(),
                     reason: e.to_string(),
+                    timestamp: chrono::Utc::now().timestamp(),
                 })
                 .await;
 
                 if self.config.album_match_fallback {
-                    self.album_match_fallback(file_path, &e.to_string()).await
+                    self.album_match_fallback(file_path, &e.to_string(), None).await
                 } else {
                     Err(anyhow::anyhow!("Album matching failed: {}", e))
                 }
@@ -1088,20 +1153,107 @@ impl Pipeline {
     }
 
     /// **[PLAN_am30_integration]** Fallback to single-song processing when album matching fails
+    /// **[IMPROVEMENT#1]** Added decoded_audio parameter to reuse samples and avoid double-decode
     async fn album_match_fallback(
         &self,
         file_path: &Path,
         reason: &str,
+        decoded_audio: Option<(Vec<f32>, u32)>,
     ) -> Result<Vec<ProcessedPassage>> {
-        warn!("Falling back to single-song processing: {}", reason);
+        if decoded_audio.is_some() {
+            warn!("Falling back to single-song processing with preserved samples: {}", reason);
+        } else {
+            warn!("Falling back to single-song processing (will re-decode): {}", reason);
+        }
 
         self.emit_event(WorkflowEvent::AlbumMatchingFallback {
             file_path: file_path.to_string_lossy().to_string(),
             reason: reason.to_string(),
+            timestamp: chrono::Utc::now().timestamp(),
         })
         .await;
 
-        self.process_as_single_song(file_path).await
+        // **[IMPROVEMENT#1]** Reuse decoded samples if available
+        if let Some((samples, sample_rate)) = decoded_audio {
+            self.process_with_cached_audio(file_path, samples, sample_rate).await
+        } else {
+            self.process_as_single_song(file_path).await
+        }
+    }
+
+    /// **[IMPROVEMENT#1]** Process file with pre-decoded audio samples
+    ///
+    /// Reuses samples from album matcher to avoid double-decode penalty.
+    /// Detects boundaries from samples, then processes each passage.
+    async fn process_with_cached_audio(
+        &self,
+        file_path: &Path,
+        samples: Vec<f32>,
+        sample_rate: u32,
+    ) -> Result<Vec<ProcessedPassage>> {
+        info!(
+            "Processing file with {} pre-decoded samples at {}Hz: {:?}",
+            samples.len(),
+            sample_rate,
+            file_path
+        );
+
+        // Detect boundaries from pre-decoded samples
+        let file_audio = super::boundary_detector::detect_boundaries_from_samples(samples, sample_rate)
+            .context("Failed to detect boundaries from cached audio")?;
+
+        info!("Detected {} passages from cached audio", file_audio.boundaries.len());
+
+        // Emit boundary events
+        for (i, boundary) in file_audio.boundaries.iter().enumerate() {
+            self.emit_event(WorkflowEvent::BoundaryDetected {
+                passage_index: i,
+                start_time: boundary.start_time,
+                end_time: boundary.end_time,
+                confidence: boundary.confidence,
+                timestamp: chrono::Utc::now().timestamp(),
+            })
+            .await;
+        }
+
+        // Process each passage sequentially with cached audio
+        let mut processed_passages = Vec::new();
+        let total_passages = file_audio.boundaries.len();
+
+        for (i, boundary) in file_audio.boundaries.iter().enumerate() {
+            self.emit_event(WorkflowEvent::PassageStarted {
+                passage_index: i,
+                total_passages,
+                timestamp: chrono::Utc::now().timestamp(),
+            })
+            .await;
+
+            match self
+                .process_passage_with_audio(file_path, boundary, i, &file_audio)
+                .await
+            {
+                Ok(passage) => {
+                    self.emit_event(WorkflowEvent::PassageCompleted {
+                        passage_index: i,
+                        quality_score: passage.validation.score as f64,
+                        validation_status: format!("{:?}", passage.validation.status),
+                        timestamp: chrono::Utc::now().timestamp(),
+                    })
+                    .await;
+                    processed_passages.push(passage);
+                }
+                Err(e) => {
+                    error!("Failed to process passage {} from cached audio: {}", i, e);
+                    self.emit_event(WorkflowEvent::Error {
+                        passage_index: Some(i),
+                        message: format!("{}", e),
+                    })
+                    .await;
+                }
+            }
+        }
+
+        Ok(processed_passages)
     }
 
     /// **[PLAN_am30_integration]** Convert AlbumMatchResult to passages
@@ -1151,6 +1303,7 @@ impl Pipeline {
                 start_time: start_ticks,
                 end_time: end_ticks,
                 confidence: boundary.confidence,
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
 
@@ -1261,6 +1414,7 @@ impl Pipeline {
             self.emit_event(WorkflowEvent::PassageStarted {
                 passage_index: i,
                 total_passages: result.tracks.len(),
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
 
@@ -1276,6 +1430,7 @@ impl Pipeline {
                 passage_index: i,
                 quality_score: validation.score as f64,
                 validation_status: format!("{:?}", validation.status),
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
 
@@ -1327,6 +1482,7 @@ impl Pipeline {
                 start_time: boundary.start_time,
                 end_time: boundary.end_time,
                 confidence: boundary.confidence,
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
         }
@@ -1339,6 +1495,7 @@ impl Pipeline {
             self.emit_event(WorkflowEvent::PassageStarted {
                 passage_index: i,
                 total_passages,
+                timestamp: chrono::Utc::now().timestamp(),
             })
             .await;
 
@@ -1351,6 +1508,7 @@ impl Pipeline {
                         passage_index: i,
                         quality_score: passage.validation.score as f64,
                         validation_status: format!("{:?}", passage.validation.status),
+                        timestamp: chrono::Utc::now().timestamp(),
                     })
                     .await;
                     processed_passages.push(passage);

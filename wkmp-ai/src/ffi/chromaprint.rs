@@ -77,6 +77,10 @@ pub enum ChromaprintError {
     #[error("Invalid channel count: {0} (must be 1 or 2)")]
     InvalidChannelCount(u8),
 
+    /// Audio buffer length not divisible by channel count
+    #[error("Buffer misalignment: {buffer_len} samples not divisible by {channels} channels (file may have decode errors)")]
+    BufferMisalignment { buffer_len: usize, channels: u8 },
+
     /// Failed to start fingerprinting session
     #[error("Failed to start fingerprinting")]
     StartFailed,
@@ -169,8 +173,9 @@ impl ChromaprintContext {
         sample_rate: u32,
         num_channels: u8,
     ) -> Result<String> {
-        // 1. Validate parameters
+        // 1. Validate parameters and buffer alignment
         self.validate_parameters(sample_rate, num_channels)?;
+        self.validate_buffer_alignment(samples.len(), num_channels)?;
 
         // 2. Start fingerprinting
         self.start(sample_rate, num_channels)?;
@@ -201,6 +206,19 @@ impl ChromaprintContext {
         // Only mono or stereo
         if !(1..=2).contains(&num_channels) {
             return Err(ChromaprintError::InvalidChannelCount(num_channels));
+        }
+
+        Ok(())
+    }
+
+    fn validate_buffer_alignment(&self, buffer_len: usize, num_channels: u8) -> Result<()> {
+        // Buffer length must be divisible by channel count
+        // Chromaprint C library asserts this: length % m_num_channels == 0
+        if buffer_len % num_channels as usize != 0 {
+            return Err(ChromaprintError::BufferMisalignment {
+                buffer_len,
+                channels: num_channels,
+            });
         }
 
         Ok(())

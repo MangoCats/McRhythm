@@ -205,6 +205,7 @@ async fn test_event_bridge_integration() {
         .send(WorkflowEvent::PassageStarted {
             passage_index: 0,
             total_passages: 1,
+            timestamp: 0,
         })
         .await
         .unwrap();
@@ -214,6 +215,7 @@ async fn test_event_bridge_integration() {
             passage_index: 0,
             quality_score: 85.0,
             validation_status: "Pass".to_string(),
+            timestamp: 0,
         })
         .await
         .unwrap();

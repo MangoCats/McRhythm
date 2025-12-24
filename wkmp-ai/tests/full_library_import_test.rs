@@ -10,14 +10,129 @@
 //! - Memory and resource usage patterns
 
 use anyhow::Result;
+use sqlx::SqlitePool;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 use tokio::sync::mpsc;
 use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter};
+use wkmp_ai::db::recording_cache;
 use wkmp_ai::workflow::{Pipeline, PipelineConfig, WorkflowEvent};
+
+/// File logger for crash-safe event logging
+/// Writes to file with explicit buffer flushing after each event
+struct FileLogger {
+    writer: BufWriter<File>,
+    start_time: Instant,
+}
+
+impl FileLogger {
+    fn new(log_path: &Path) -> Result<Self> {
+        let file = File::create(log_path)?;
+        let writer = BufWriter::new(file);
+        Ok(Self {
+            writer,
+            start_time: Instant::now(),
+        })
+    }
+
+    fn log(&mut self, message: String) -> Result<()> {
+        let elapsed = self.start_time.elapsed();
+        writeln!(
+            self.writer,
+            "[{:>10.3}s] {}",
+            elapsed.as_secs_f64(),
+            message
+        )?;
+        self.writer.flush()?; // CRITICAL: Flush after every write
+        Ok(())
+    }
+
+    fn log_file_start(&mut self, index: usize, total: usize, filename: &str) -> Result<()> {
+        self.log(format!("FILE_START [{}/{}] {}", index, total, filename))
+    }
+
+    fn log_file_complete(
+        &mut self,
+        index: usize,
+        total: usize,
+        filename: &str,
+        passages: usize,
+        duration_secs: f64,
+        elapsed_secs: f64,
+    ) -> Result<()> {
+        self.log(format!(
+            "FILE_COMPLETE [{}/{}] {} - {} passages in {:.2}s (total_elapsed: {:.1}s)",
+            index, total, filename, passages, duration_secs, elapsed_secs
+        ))
+    }
+
+    fn log_file_error(
+        &mut self,
+        index: usize,
+        total: usize,
+        filename: &str,
+        error: &str,
+        elapsed_secs: f64,
+    ) -> Result<()> {
+        self.log(format!(
+            "FILE_ERROR [{}/{}] {} - {} (total_elapsed: {:.1}s)",
+            index, total, filename, error, elapsed_secs
+        ))
+    }
+
+    fn log_progress(
+        &mut self,
+        completed: usize,
+        total: usize,
+        rate: f64,
+        eta_mins: f64,
+    ) -> Result<()> {
+        self.log(format!(
+            "PROGRESS {}/{} ({:.1}%) - {:.2} files/sec - ETA: {:.1}min",
+            completed,
+            total,
+            100.0 * completed as f64 / total as f64,
+            rate,
+            eta_mins
+        ))
+    }
+
+    fn log_event(&mut self, event: &WorkflowEvent) -> Result<()> {
+        let event_str = match event {
+            WorkflowEvent::FileStarted { file_path, .. } => {
+                format!("EVENT FileStarted: {:?}", file_path)
+            }
+            WorkflowEvent::FileCompleted { file_path, .. } => {
+                format!("EVENT FileCompleted: {:?}", file_path)
+            }
+            WorkflowEvent::PassageStarted { passage_index, .. } => {
+                format!("EVENT PassageStarted: passage #{}", passage_index)
+            }
+            WorkflowEvent::PassageCompleted { passage_index, .. } => {
+                format!("EVENT PassageCompleted: passage #{}", passage_index)
+            }
+            WorkflowEvent::AlbumMatchingStarted { file_path, .. } => {
+                format!("EVENT AlbumMatchingStarted: {:?}", file_path)
+            }
+            WorkflowEvent::AlbumMatchingCompleted { file_path, .. } => {
+                format!("EVENT AlbumMatchingCompleted: {:?}", file_path)
+            }
+            WorkflowEvent::AlbumMatchingFailed { file_path, reason, .. } => {
+                format!("EVENT AlbumMatchingFailed: {:?} - {}", file_path, reason)
+            }
+            WorkflowEvent::Error { message, passage_index, .. } => {
+                format!("EVENT Error: {} (passage: {:?})", message, passage_index)
+            }
+            _ => format!("EVENT {:?}", event),
+        };
+        self.log(event_str)
+    }
+}
 
 /// Initialize tracing subscriber for test output (only once)
 fn init_tracing() {
@@ -163,13 +278,20 @@ impl ImportMetrics {
     }
 }
 
-/// Event collector task - runs in background counting events
+/// Event collector task - runs in background counting events and logging to file
 async fn collect_events(
     mut rx: mpsc::Receiver<WorkflowEvent>,
     counts: Arc<std::sync::Mutex<EventCounts>>,
     errors: Arc<std::sync::Mutex<Vec<String>>>,
+    file_logger: Arc<Mutex<FileLogger>>,
 ) {
     while let Some(event) = rx.recv().await {
+        // Log event to file (crash-safe with buffer flush)
+        if let Ok(mut logger) = file_logger.lock() {
+            let _ = logger.log_event(&event);
+        }
+
+        // Update counts
         let mut c = counts.lock().unwrap();
         match &event {
             WorkflowEvent::FileStarted { .. } => c.file_started += 1,
@@ -386,9 +508,14 @@ async fn test_sequential_file_processing() -> Result<()> {
     let event_counts = Arc::new(std::sync::Mutex::new(EventCounts::default()));
     let errors = Arc::new(std::sync::Mutex::new(Vec::new()));
 
+    // Create a temporary file logger for this test
+    let temp_log = PathBuf::from(format!("test_sequential_{}.log", std::process::id()));
+    let file_logger = Arc::new(Mutex::new(FileLogger::new(&temp_log)?));
+
     let collector_counts = event_counts.clone();
     let collector_errors = errors.clone();
-    let collector = tokio::spawn(collect_events(rx, collector_counts, collector_errors));
+    let collector_logger = file_logger.clone();
+    let collector = tokio::spawn(collect_events(rx, collector_counts, collector_errors, collector_logger));
 
     let config = PipelineConfig {
         enable_album_matching: false,
@@ -439,6 +566,39 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
     // Initialize tracing for per-file progress logging
     init_tracing();
 
+    // Create crash-safe file logger
+    let log_filename = format!(
+        "full_library_import_{}.log",
+        chrono::Local::now().format("%Y%m%d_%H%M%S")
+    );
+    let log_path = PathBuf::from(&log_filename);
+    let file_logger = Arc::new(Mutex::new(FileLogger::new(&log_path)?));
+
+    // Create/connect to semi-permanent recording cache database
+    let db_path = std::env::current_dir()?.join("test_recording_cache.db");
+    let db_url = format!("sqlite://{}?mode=rwc", db_path.display());
+    let db_exists = db_path.exists();
+
+    let pool = SqlitePool::connect(&db_url).await?;
+
+    // Initialize cache tables if needed
+    recording_cache::ensure_table(&pool).await?;
+    wkmp_ai::db::mbid_cache::ensure_table(&pool).await?;
+    wkmp_ai::db::release_cache::ensure_tables(&pool).await?;
+
+    // Log cache status
+    let cache_status = if db_exists { "existing" } else { "new" };
+    println!("Using {} recording cache: {}", cache_status, db_path.display());
+    println!("Logging to: {}", log_path.display());
+
+    file_logger.lock().unwrap().log(format!(
+        "=== Full Library Import Test Started ===\nTotal files: {}\nAlbum matching: {}\nCache database: {} ({})",
+        files.len(),
+        enable_album_matching,
+        db_path.display(),
+        cache_status
+    ))?;
+
     let (tx, rx) = mpsc::channel(1000);
     let event_counts = Arc::new(std::sync::Mutex::new(EventCounts::default()));
     let errors = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -446,14 +606,16 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
     // Start event collector
     let collector_counts = event_counts.clone();
     let collector_errors = errors.clone();
-    let collector = tokio::spawn(collect_events(rx, collector_counts, collector_errors));
+    let collector_logger = file_logger.clone();
+    let collector = tokio::spawn(collect_events(rx, collector_counts, collector_errors, collector_logger));
 
-    // Create pipeline with events
+    // Create pipeline with events and database pool for caching
     let config = PipelineConfig {
         enable_album_matching,
         single_track_threshold: 0.6,
         album_match_min_percentage: 60.0,
         album_match_fallback: true,
+        db_pool: Some(pool.clone()),
         ..Default::default()
     };
     let pipeline = Pipeline::with_events(config, tx);
@@ -469,12 +631,16 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
             .to_string_lossy()
             .to_string();
 
+        // Log file start to both console and file
         info!(
             "File [{}/{}] STARTING: {}",
             file_index + 1,
             total_files,
             file_name
         );
+        if let Ok(mut logger) = file_logger.lock() {
+            let _ = logger.log_file_start(file_index + 1, total_files, &file_name);
+        }
 
         let file_start = Instant::now();
         let result = pipeline.process_file(file).await;
@@ -486,6 +652,8 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
             Ok(passages) => {
                 metrics.files_processed += 1;
                 metrics.passages_created += passages.len();
+                let elapsed_secs = overall_start.elapsed().as_secs_f64();
+
                 info!(
                     "File [{}/{}] COMPLETED: {} - {} passages in {:.2}s (elapsed: {:.1}s)",
                     file_index + 1,
@@ -493,19 +661,45 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
                     file_name,
                     passages.len(),
                     file_duration.as_secs_f64(),
-                    overall_start.elapsed().as_secs_f64()
+                    elapsed_secs
                 );
+
+                // Log to file with buffer flush
+                if let Ok(mut logger) = file_logger.lock() {
+                    let _ = logger.log_file_complete(
+                        file_index + 1,
+                        total_files,
+                        &file_name,
+                        passages.len(),
+                        file_duration.as_secs_f64(),
+                        elapsed_secs,
+                    );
+                }
             }
             Err(e) => {
-                metrics.errors.push(format!("{}: {}", file_name, e));
+                let error_msg = e.to_string();
+                metrics.errors.push(format!("{}: {}", file_name, error_msg));
+                let elapsed_secs = overall_start.elapsed().as_secs_f64();
+
                 info!(
                     "File [{}/{}] FAILED: {} - {} (elapsed: {:.1}s)",
                     file_index + 1,
                     total_files,
                     file_name,
-                    e,
-                    overall_start.elapsed().as_secs_f64()
+                    error_msg,
+                    elapsed_secs
                 );
+
+                // Log error to file with buffer flush
+                if let Ok(mut logger) = file_logger.lock() {
+                    let _ = logger.log_file_error(
+                        file_index + 1,
+                        total_files,
+                        &file_name,
+                        &error_msg,
+                        elapsed_secs,
+                    );
+                }
             }
         }
 
@@ -516,18 +710,59 @@ async fn run_library_import(files: &[PathBuf], enable_album_matching: bool) -> R
             let avg_time = elapsed.as_secs_f64() / files_done as f64;
             let remaining = total_files - files_done;
             let eta_secs = remaining as f64 * avg_time;
+            let rate = files_done as f64 / elapsed.as_secs_f64();
+            let eta_mins = eta_secs / 60.0;
+
             info!(
                 "PROGRESS: {}/{} files ({:.1}%) - {:.2} files/sec - ETA: {:.1}min",
                 files_done,
                 total_files,
                 100.0 * files_done as f64 / total_files as f64,
-                files_done as f64 / elapsed.as_secs_f64(),
-                eta_secs / 60.0
+                rate,
+                eta_mins
             );
+
+            // Log progress to file with buffer flush
+            if let Ok(mut logger) = file_logger.lock() {
+                let _ = logger.log_progress(files_done, total_files, rate, eta_mins);
+            }
         }
     }
 
     metrics.total_duration = overall_start.elapsed();
+
+    // Query cache statistics
+    let recording_cache_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM recording_cache")
+        .fetch_one(&pool)
+        .await
+        .unwrap_or((0,));
+
+    let mbid_cache_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mbid_details_cache")
+        .fetch_one(&pool)
+        .await
+        .unwrap_or((0,));
+
+    let recording_entries = recording_cache_count.0;
+    let mbid_entries = mbid_cache_count.0;
+
+    // Log completion to file with cache statistics
+    if let Ok(mut logger) = file_logger.lock() {
+        let _ = logger.log(format!(
+            "=== Import Test Completed ===\nTotal duration: {:.1}s\nFiles processed: {}/{}\nPassages created: {}\nRecording cache: {} entries\nMBID cache: {} entries",
+            metrics.total_duration.as_secs_f64(),
+            metrics.files_processed,
+            total_files,
+            metrics.passages_created,
+            recording_entries,
+            mbid_entries
+        ));
+    }
+
+    // Print cache statistics to console
+    println!("\n=== Cache Statistics ===");
+    println!("Recording cache: {} entries", recording_entries);
+    println!("MBID cache:      {} entries", mbid_entries);
+    println!("Cache database:  {}", db_path.display());
 
     // Drop pipeline to close channel
     drop(pipeline);
@@ -880,7 +1115,7 @@ mod benchmark_tests {
         let limit = std::env::var("WKMP_TEST_LIMIT")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(20);
+            .unwrap_or(50); // **[IMPROVEMENT]** Increased from 20 to 50 for better validation
 
         println!("\n========================================");
         println!("  Real Library Import (limited to {} files)", limit);

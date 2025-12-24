@@ -4,7 +4,7 @@ LLM based agents for software development are evolving rapidly.  I wouldn't clai
 
 ## Core Principle: Always Review AI Output
 
-<img src="images/review-ai-output.svg" alt="Review AI Output" style="float:right; width:40%; margin-left:1em; margin-bottom:0.5em;"/>
+<img src="images/review-ai-output.png" alt="Review AI Output" style="float:right; width:40%; margin-left:1em; margin-bottom:0.5em;"/>
 
 Mistakes and agent misunderstandings are common. Every piece of AI-generated code, documentation, and analysis requires human review before acceptance.
 
@@ -64,7 +64,7 @@ Never forget: every one of these automated LLM based workflow processes comes wi
 
 ## Test-Driven Development with Agents
 
-![TDD Agentic Flow](images/tdd-agentic-flow.svg)
+![TDD Agentic Flow](images/tdd-agentic-flow.png)
 
 [Anthropic's best practices](https://www.anthropic.com/engineering/claude-code-best-practices) recommend TDD as particularly powerful with agentic coding for verifiable changes.
 
@@ -88,7 +88,7 @@ This separation of concerns catches errors that a single-agent approach misses. 
 
 ## Context Engineering
 
-![Context Rot Curve](images/context-rot-curve.svg)
+![Context Rot Curve](images/context-rot-curve.png)
 
 Context is a finite resource with diminishing returns. As context window fills, the model's ability to accurately recall information decreases ("[context rot](https://blog.jetbrains.com/research/2025/12/efficient-context-management/)").
 
@@ -117,7 +117,7 @@ See: [Anthropic's guide to effective context engineering](https://www.anthropic.
 
 Each agent has its own context, which can be shaped appropriately to its own sub-task with agent specific instructions.
 
-![Multi-Agent Orchestration Pattern](images/multi-agent-orchestration.svg)
+![Multi-Agent Orchestration Pattern](images/multi-agent-orchestration.png)
 
 ---
 
@@ -155,7 +155,7 @@ Patterns trade the one-time cost of learning conventions for repeated recognitio
 
 "Tools" in AI systems can be many things.  In software development they can often take the form of small deterministic programs that provide useful services in the course of development; for example: a python script to interpret a SSOT .json data structure into different tables for use in the program. 
 
-![Workflows vs Tools Spectrum](images/workflows-vs-tools.svg)
+![Workflows vs Tools Spectrum](images/workflows-vs-tools.png)
 
 | Aspect | Workflows (Natural Language) | Tools (Deterministic Code) |
 |--------|------------------------------|---------------------------|
@@ -226,7 +226,7 @@ Agents usually default to additive changes (add new code) rather than replacemen
 
 ## When to Skip AI Assistance
 
-![AI Productivity by Context](images/productivity-quadrant.svg)
+![AI Productivity by Context](images/productivity-quadrant.png)
 
 A [METR study (July 2025)](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) found experienced developers on familiar codebases were **19% slower** with AI tools.
 
@@ -242,7 +242,7 @@ AI can slow down development and/or lower the quality of developement outputs, e
 
 ## Scaffold vs Substitute
 
-![Scaffold vs Substitute Framework](images/scaffold-vs-substitute.svg)
+![Scaffold vs Substitute Framework](images/scaffold-vs-substitute.png)
 
 Research warns about over-reliance on AI coding assistants:
 - [Gerlich Study (2025)](https://phys.org/news/2025-01-ai-linked-eroding-critical-skills.html): Cognitive offloading correlated +0.72 with AI usage, inversely correlated -0.75 with critical thinking
@@ -271,7 +271,7 @@ The critical question: Is AI strengthening your capabilities or replacing them?
 
 Using AI agents is no reason to abandon software development best practices. The firehose of AI output requires a **more** rigorous and formalized process, not less:
 
-![Checkpoints](images/checkpoint-pipeline.svg)
+![Checkpoints](images/checkpoint-pipeline.png)
 
 - Specifications before implementation
 - Robust automated test coverage (reduces regressions)
@@ -282,7 +282,7 @@ Using AI agents is no reason to abandon software development best practices. The
 
 The same domain-specific processes that ensure human developers' product quality also ensure AI-assisted development product quality.  Due to the speed at which agents produce code and documentation, the processes need to be applied more frequently.
 
-![Process Discipline](images/process-discipline.svg)
+![Process Discipline](images/process-discipline.png)
 
 The unavoidable human labor of review needs to happen much more frequently with AI agents generating code and documentation; whereas single human review happens naturally / invisibly as part of the work when a human is doing the development.
 
@@ -292,7 +292,7 @@ Incidentally, at least one [research study shows](https://arxiv.org/html/2509.13
 
 ## Compounding Engineering
 
-![Compounding Engineering Cycle](images/compounding-cycle.svg)
+![Compounding Engineering Cycle](images/compounding-cycle.png)
 
 The goal of [Compounding Engineering](https://github.com/EveryInc/compounding-engineering-plugin) is for each unit of engineering work to make subsequent units easier.
 

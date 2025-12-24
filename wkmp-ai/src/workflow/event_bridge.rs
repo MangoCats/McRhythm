@@ -73,6 +73,7 @@ pub async fn bridge_workflow_events(
                 start_time: start_ticks,
                 end_time: end_ticks,
                 confidence,
+                ..
             } => {
                 // Convert SPEC017 ticks to seconds for user-facing display
                 let start_seconds = start_ticks as f64 / TICK_RATE as f64;
@@ -107,6 +108,7 @@ pub async fn bridge_workflow_events(
             WorkflowEvent::PassageStarted {
                 passage_index,
                 total_passages: total,
+                ..
             } => {
                 total_passages = total;
                 info!("Bridge: Passage {} of {} started", passage_index + 1, total);
@@ -134,6 +136,7 @@ pub async fn bridge_workflow_events(
                 passage_index,
                 extractor,
                 status,
+                ..
             } => {
                 debug!(
                     "Bridge: Extraction progress - passage {}, extractor: {}, status: {}",
@@ -163,7 +166,7 @@ pub async fn bridge_workflow_events(
                 })
             }
 
-            WorkflowEvent::FusionStarted { passage_index } => {
+            WorkflowEvent::FusionStarted { passage_index, .. } => {
                 debug!("Bridge: Fusion started for passage {}", passage_index + 1);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
@@ -185,7 +188,7 @@ pub async fn bridge_workflow_events(
                 })
             }
 
-            WorkflowEvent::ValidationStarted { passage_index } => {
+            WorkflowEvent::ValidationStarted { passage_index, .. } => {
                 debug!(
                     "Bridge: Validation started for passage {}",
                     passage_index + 1
@@ -214,6 +217,7 @@ pub async fn bridge_workflow_events(
                 passage_index,
                 quality_score,
                 validation_status,
+                ..
             } => {
                 processed_passages = passage_index + 1;
                 info!(
@@ -376,7 +380,7 @@ pub async fn bridge_workflow_events(
                 })
             }
 
-            WorkflowEvent::AlbumMatchingStarted { file_path } => {
+            WorkflowEvent::AlbumMatchingStarted { file_path, .. } => {
                 info!("Bridge: Album matching started: {}", file_path);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
@@ -405,6 +409,7 @@ pub async fn bridge_workflow_events(
                 matched,
                 track_count,
                 match_percentage,
+                ..
             } => {
                 let status = if matched { "matched" } else { "not matched" };
                 info!(
@@ -435,7 +440,7 @@ pub async fn bridge_workflow_events(
                 })
             }
 
-            WorkflowEvent::AlbumMatchingFailed { file_path, reason } => {
+            WorkflowEvent::AlbumMatchingFailed { file_path, reason, .. } => {
                 error!("Bridge: Album matching failed: {} - {}", file_path, reason);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,
@@ -453,7 +458,7 @@ pub async fn bridge_workflow_events(
                 })
             }
 
-            WorkflowEvent::AlbumMatchingFallback { file_path, reason } => {
+            WorkflowEvent::AlbumMatchingFallback { file_path, reason, .. } => {
                 warn!("Bridge: Album matching fallback: {} - {}", file_path, reason);
                 Some(WkmpEvent::ImportProgressUpdate {
                     session_id,

@@ -76,3 +76,7 @@ serial_test = "3.0"
 # Windows-specific: Enable static linking for chromaprint to avoid DLL dependencies
 [target.'cfg(windows)'.dependencies]
 chromaprint-sys-next = { version = "1.6", features = ["static"] }
+
+[features]
+# Enable benchmark tests (requires test fixtures)
+benchmark_tests = []

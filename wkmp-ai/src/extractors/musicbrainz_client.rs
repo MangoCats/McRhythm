@@ -350,6 +350,61 @@ impl MusicBrainzClient {
             musical_flavor: None,
         })
     }
+
+    /// Extract metadata using a known Recording MBID with database caching
+    ///
+    /// Same as `extract_with_mbid()` but checks cache first to avoid redundant API calls.
+    /// This is the primary bottleneck elimination for MusicBrainz-Pass2 extractor.
+    ///
+    /// **Cache Strategy:**
+    /// - Check cache first (instant return if hit)
+    /// - On miss: query API + cache result
+    /// - 2-year TTL (MusicBrainz metadata is stable)
+    ///
+    /// # Arguments
+    /// * `mbid` - MusicBrainz Recording ID (from Pass 1 fusion)
+    /// * `ctx` - Passage context (for logging only)
+    /// * `pool` - Database connection pool for cache access
+    ///
+    /// # Returns
+    /// * `ExtractionResult` with rich metadata (from cache or API)
+    pub async fn extract_with_mbid_cached(
+        &self,
+        mbid: &str,
+        ctx: &PassageContext,
+        pool: &sqlx::SqlitePool,
+    ) -> Result<ExtractionResult, ExtractionError> {
+        // Check cache first
+        if let Ok(Some(cached)) = crate::db::mbid_cache::get_cached(pool, mbid).await {
+            debug!(
+                passage_id = %ctx.passage_id,
+                mbid = %mbid,
+                cached_at = %cached.cached_at,
+                "MusicBrainz Pass 2: Cache hit"
+            );
+            return Ok(cached.extraction_result);
+        }
+
+        debug!(
+            passage_id = %ctx.passage_id,
+            mbid = %mbid,
+            "MusicBrainz Pass 2: Cache miss, querying API"
+        );
+
+        // Cache miss - query API
+        let result = self.extract_with_mbid(mbid, ctx).await?;
+
+        // Cache the result (non-fatal if caching fails)
+        if let Err(e) = crate::db::mbid_cache::cache_result(pool, mbid, &result).await {
+            tracing::warn!(
+                mbid = %mbid,
+                error = %e,
+                "Failed to cache MusicBrainz Pass 2 result"
+            );
+        }
+
+        Ok(result)
+    }
 }
 
 impl Default for MusicBrainzClient {

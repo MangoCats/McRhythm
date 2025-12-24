@@ -11,9 +11,11 @@ pub mod artists;
 pub mod duration_cache; // SSI-DUR-010: Accurate duration cache for VBR MP3s
 pub mod files;
 pub mod fingerprint_cache; // SSI-CACHE-010: Chromaprint fingerprint cache
+pub mod mbid_cache; // MusicBrainz MBID details cache (Pass 2 extractor)
 pub mod parameters;
 pub mod passages;
 pub mod recording_cache; // PLAN026 Increment 3: MusicBrainz recording cache
+pub mod release_cache; // MusicBrainz release query cache (album matching)
 pub mod schema; // PLAN024 TASK-003: Schema synchronization
 pub mod sessions;
 pub mod settings;

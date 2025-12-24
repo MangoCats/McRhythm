@@ -504,27 +504,220 @@ impl MusicBrainzClient {
     ) -> Result<Vec<MBReleaseDetails>, MBError> {
         let limit = limit.unwrap_or(10).min(25);
 
-        // Build Lucene query with escaped values
-        let query = format!(
-            "artist:\"{}\" AND release:\"{}\"",
-            escape_lucene(artist),
-            escape_lucene(album)
+        // Generate multi-strategy search queries (am29 approach)
+        let strategies = generate_search_strategies(artist, album);
+        let mut all_releases = Vec::new();
+        let mut seen_mbids = std::collections::HashSet::new();
+
+        tracing::debug!(
+            artist = %artist,
+            album = %album,
+            strategies = strategies.len(),
+            "Starting multi-strategy MusicBrainz search"
         );
 
-        tracing::debug!(artist = %artist, album = %album, query = %query, "Comprehensive MusicBrainz search");
+        // Try each strategy until we have enough results
+        // USER DECISION: Stop after first successful strategy
+        for (i, query) in strategies.iter().enumerate() {
+            tracing::debug!(
+                strategy = i + 1,
+                total = strategies.len(),
+                query = %query,
+                "Trying MusicBrainz search strategy"
+            );
 
-        // Search for releases
-        let search_response = self.search_releases(&query, Some(limit as u32)).await?;
-
-        // Fetch full details for each release
-        let mut details = Vec::with_capacity(search_response.releases.len());
-
-        for release in search_response.releases.iter().take(limit) {
-            match self.lookup_release(&release.id).await {
-                Ok(full_details) => details.push(full_details),
+            // Search for releases using this strategy
+            let search_response = match self.search_releases(query, Some(limit as u32)).await {
+                Ok(response) => response,
                 Err(e) => {
                     tracing::warn!(
-                        release_id = %release.id,
+                        strategy = i + 1,
+                        error = %e,
+                        "Strategy failed, trying next"
+                    );
+                    continue;
+                }
+            };
+
+            // Deduplicate by MBID and fetch full details
+            for release in search_response.releases {
+                if seen_mbids.insert(release.id.clone()) {
+                    match self.lookup_release(&release.id).await {
+                        Ok(details) => all_releases.push(details),
+                        Err(e) => {
+                            tracing::warn!(
+                                release_id = %release.id,
+                                error = %e,
+                                "Failed to fetch release details, skipping"
+                            );
+                        }
+                    }
+
+                    // Stop if we have enough releases
+                    if all_releases.len() >= limit {
+                        break;
+                    }
+                }
+            }
+
+            // Stop if this strategy gave us enough results
+            if all_releases.len() >= limit {
+                tracing::info!(
+                    strategy = i + 1,
+                    found = all_releases.len(),
+                    "Found enough results, stopping search"
+                );
+                break;
+            }
+        }
+
+        tracing::info!(
+            artist = %artist,
+            album = %album,
+            found = all_releases.len(),
+            "Comprehensive search completed"
+        );
+
+        Ok(all_releases)
+    }
+
+    /// Comprehensive album search with full track details (with caching)
+    ///
+    /// Same as `comprehensive_search()` but uses database caching to avoid redundant API calls.
+    /// This dramatically speeds up album matching for:
+    /// - Duplicate albums (same album in multiple formats)
+    /// - Common albums across music libraries
+    /// - Test re-runs and development iterations
+    ///
+    /// **Cache Strategy:**
+    /// - Phase 1: Cache release search (artist/album → release MBIDs)
+    /// - Phase 2: Cache release details (MBID → full track listing)
+    /// - 90-day TTL (shorter than recording cache due to edition churn)
+    ///
+    /// # Arguments
+    /// * `artist` - Artist name (from metadata)
+    /// * `album` - Album/release title (from metadata)
+    /// * `limit` - Maximum releases to return (default 10)
+    /// * `pool` - Database connection pool for cache access
+    ///
+    /// # Returns
+    /// Vector of releases with full track details for album matching
+    pub async fn comprehensive_search_cached(
+        &self,
+        artist: &str,
+        album: &str,
+        limit: Option<usize>,
+        pool: &sqlx::SqlitePool,
+    ) -> Result<Vec<MBReleaseDetails>, MBError> {
+        let limit = limit.unwrap_or(10).min(25);
+
+        // Phase 1: Check search cache for release MBIDs
+        let release_ids = if let Ok(Some(cached)) =
+            crate::db::release_cache::get_search_cached(pool, artist, album).await
+        {
+            tracing::debug!(
+                artist = %artist,
+                album = %album,
+                count = cached.release_ids.len(),
+                cached_at = %cached.cached_at,
+                "Album search cache hit"
+            );
+            cached.release_ids
+        } else {
+            tracing::debug!(
+                artist = %artist,
+                album = %album,
+                "Album search cache miss, running multi-strategy search"
+            );
+
+            // Cache miss - run multi-strategy search
+            // USER DECISION: Cache aggregated result after trying all successful strategies
+            let search_results = self.comprehensive_search(artist, album, Some(limit)).await?;
+
+            let ids: Vec<String> = search_results.iter().map(|r| r.id.clone()).collect();
+
+            // Cache the aggregated search results
+            if let Err(e) = crate::db::release_cache::cache_search(pool, artist, album, &ids).await
+            {
+                tracing::warn!(
+                    artist = %artist,
+                    album = %album,
+                    error = %e,
+                    "Failed to cache release search results"
+                );
+            }
+
+            // Also cache all release details we just fetched
+            for result in search_results {
+                if let Ok(details_json) = serde_json::to_string(&result) {
+                    if let Err(e) =
+                        crate::db::release_cache::cache_details(pool, &result.id, &details_json).await
+                    {
+                        tracing::warn!(
+                            mbid = %result.id,
+                            error = %e,
+                            "Failed to cache release details"
+                        );
+                    }
+                }
+            }
+
+            ids
+        };
+
+        // Phase 2: Fetch details for each release (with caching)
+        let mut details = Vec::with_capacity(release_ids.len());
+
+        for mbid in release_ids.iter().take(limit) {
+            // Check details cache first
+            if let Ok(Some(cached)) =
+                crate::db::release_cache::get_details_cached(pool, mbid).await
+            {
+                tracing::debug!(
+                    mbid = %mbid,
+                    cached_at = %cached.cached_at,
+                    "Release details cache hit"
+                );
+
+                // Deserialize from cached JSON
+                match serde_json::from_str::<MBReleaseDetails>(&cached.details_json) {
+                    Ok(release_details) => {
+                        details.push(release_details);
+                        continue;
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            mbid = %mbid,
+                            error = %e,
+                            "Failed to deserialize cached release details, will query API"
+                        );
+                    }
+                }
+            }
+
+            // Cache miss or deserialization failed - query API
+            tracing::debug!(mbid = %mbid, "Release details cache miss, querying API");
+
+            match self.lookup_release(mbid).await {
+                Ok(full_details) => {
+                    // Cache the result
+                    if let Ok(details_json) = serde_json::to_string(&full_details) {
+                        if let Err(e) =
+                            crate::db::release_cache::cache_details(pool, mbid, &details_json).await
+                        {
+                            tracing::warn!(
+                                mbid = %mbid,
+                                error = %e,
+                                "Failed to cache release details"
+                            );
+                        }
+                    }
+
+                    details.push(full_details);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        release_id = %mbid,
                         error = %e,
                         "Failed to fetch release details, skipping"
                     );
@@ -536,7 +729,7 @@ impl MusicBrainzClient {
             artist = %artist,
             album = %album,
             found = details.len(),
-            "Comprehensive search completed"
+            "Comprehensive search completed (with caching)"
         );
 
         Ok(details)
@@ -604,6 +797,161 @@ pub fn escape_lucene(s: &str) -> String {
         result.push(c);
     }
     result
+}
+
+/// Split CamelCase strings into space-separated words
+///
+/// Handles common ID3 tag issues where album names are concatenated without spaces.
+///
+/// # Examples
+/// ```
+/// # use wkmp_ai::services::musicbrainz_client::split_camel_case;
+/// assert_eq!(split_camel_case("HappyNation"), "Happy Nation");
+/// assert_eq!(split_camel_case("TheWall"), "The Wall");
+/// assert_eq!(split_camel_case("ABC"), "ABC"); // Preserves all-caps
+/// ```
+fn split_camel_case(s: &str) -> String {
+    let mut result = String::with_capacity(s.len() + 10);
+    let chars: Vec<char> = s.chars().collect();
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Add space before uppercase letter if:
+        // 1. Not first character
+        // 2. Previous char was lowercase OR next char is lowercase (handles "XMLParser" → "XML Parser")
+        if i > 0 && c.is_uppercase() {
+            let prev_lower = chars[i - 1].is_lowercase();
+            let next_lower = i + 1 < chars.len() && chars[i + 1].is_lowercase();
+            if prev_lower || next_lower {
+                result.push(' ');
+            }
+        }
+        result.push(c);
+    }
+
+    result
+}
+
+/// Apply wildcard fixes for common misspellings
+///
+/// Returns Some(fixed_string) if a fix was applied, None otherwise.
+/// Used in Strategy 4 of multi-strategy search.
+///
+/// # Examples
+/// - "Lizzie" → "Lizz*" (catches "Lizzy")
+/// - "Theatre" → "Theat*" (catches "Theater")
+fn apply_wildcard_fixes(s: &str) -> Option<String> {
+    // Common misspelling patterns
+    let fixes = [
+        ("Lizzie", "Lizz*"),
+        ("Theatre", "Theat*"),
+        ("Theater", "Theat*"),
+        ("Colour", "Colo*"),
+        ("Color", "Colo*"),
+    ];
+
+    for (pattern, replacement) in &fixes {
+        if s.contains(pattern) {
+            return Some(s.replace(pattern, replacement));
+        }
+    }
+
+    None
+}
+
+/// Generate progressive search strategies for MusicBrainz album search
+///
+/// Returns 7 search strategies in order from most precise to most fuzzy.
+/// Implements am29's multi-strategy approach for robust album matching.
+///
+/// # Strategies
+/// 1. Basic unquoted search with type filter
+/// 2. CamelCase split (handles concatenated titles)
+/// 3. Fuzzy matching ~1 edit
+/// 4. Wildcard fixes for common misspellings
+/// 5. Aggressive fuzzy ~2 edits
+/// 6. Per-token fuzzy (multi-word names)
+/// 7. Album-only fallback (last resort)
+///
+/// # Arguments
+/// * `artist` - Artist name from metadata
+/// * `album` - Album name from metadata
+///
+/// # Returns
+/// Vec of Lucene query strings, ordered by precision (most specific first)
+fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
+    let mut strategies = Vec::with_capacity(7);
+
+    // Strategy 1: Basic unquoted search with type:album filter
+    // Avoids quoted exact-match which is too restrictive
+    strategies.push(format!(
+        "type:album AND artist:{} AND release:{}",
+        artist, album
+    ));
+
+    // Strategy 2: CamelCase split
+    // Handles "HappyNation" → "Happy Nation"
+    let album_spaced = split_camel_case(album);
+    if album_spaced != album {
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:\"{}\"",
+            artist, album_spaced
+        ));
+    }
+
+    // Strategy 3: Fuzzy matching ~1 edit
+    // Catches minor typos and punctuation differences
+    strategies.push(format!(
+        "type:album AND artist:{}~ AND release:{}~",
+        artist, album
+    ));
+
+    // Strategy 4: Wildcard fixes for common misspellings
+    if let Some(artist_fixed) = apply_wildcard_fixes(artist) {
+        let album_fixed = apply_wildcard_fixes(album).unwrap_or_else(|| album.to_string());
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_fixed, album_fixed
+        ));
+    } else if let Some(album_fixed) = apply_wildcard_fixes(album) {
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist, album_fixed
+        ));
+    }
+
+    // Strategy 5: Aggressive fuzzy ~2 edits
+    // More tolerant, catches more misspellings
+    strategies.push(format!(
+        "type:album AND artist:{}~2 AND release:{}~2",
+        artist, album
+    ));
+
+    // Strategy 6: Per-token fuzzy matching
+    // Handles multi-word names better
+    let artist_tokens: Vec<&str> = artist.split_whitespace().collect();
+    let album_tokens: Vec<&str> = album.split_whitespace().collect();
+    if artist_tokens.len() > 1 || album_tokens.len() > 1 {
+        let artist_fuzzy = artist_tokens
+            .iter()
+            .map(|t| format!("{}~", t))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let album_fuzzy = album_tokens
+            .iter()
+            .map(|t| format!("{}~", t))
+            .collect::<Vec<_>>()
+            .join(" ");
+        strategies.push(format!(
+            "type:album AND artist:({}) AND release:({})",
+            artist_fuzzy, album_fuzzy
+        ));
+    }
+
+    // Strategy 7: Album-only fallback
+    // Last resort when artist name is problematic
+    strategies.push(format!("type:album AND release:{}", album));
+
+    strategies
 }
 
 #[cfg(test)]

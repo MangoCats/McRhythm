@@ -68,6 +68,10 @@ pub struct OrchestratorConfig {
     pub quiet_spot_window_secs: f64,
     /// Maximum tracks to merge in Stage 5
     pub max_merge_tracks: usize,
+    /// Weight for name similarity in final score (0.0-1.0)
+    /// Higher values prioritize album hint over match percentage
+    /// Default 0.4 balances hint adherence (40%) with match accuracy (60%)
+    pub name_similarity_weight: f64,
 }
 
 impl Default for OrchestratorConfig {
@@ -79,8 +83,130 @@ impl Default for OrchestratorConfig {
             early_exit_grace: 2,
             quiet_spot_window_secs: 5.0,
             max_merge_tracks: 3,
+            name_similarity_weight: 0.4, // 40% name, 60% match percentage
         }
     }
+}
+
+/// Calculate weighted final score combining name similarity and match percentage
+///
+/// When album hints are provided, this ensures the edition with the best name match
+/// is prioritized even if another edition has slightly better track count alignment.
+///
+/// # Formula
+/// `weighted_score = (name_similarity * name_weight) + (match_pct/100 * (1 - name_weight))`
+///
+/// # Arguments
+/// * `match_percentage` - Match percentage (0-100)
+/// * `name_distance_score` - Jaro-Winkler name similarity (0.0-1.0), None if not calculated
+/// * `name_weight` - Weight for name similarity (0.0-1.0)
+///
+/// # Returns
+/// Weighted score (0.0-1.0), or just normalized match_percentage if name_distance_score is None
+fn calculate_weighted_score(
+    match_percentage: f64,
+    name_distance_score: Option<f64>,
+    name_weight: f64,
+) -> f64 {
+    let match_score = match_percentage / 100.0; // Normalize to 0.0-1.0
+
+    if let Some(name_score) = name_distance_score {
+        (name_score * name_weight) + (match_score * (1.0 - name_weight))
+    } else {
+        match_score // Fall back to match percentage only if no name similarity available
+    }
+}
+
+/// Select best Stage 2 result using weighted scoring
+fn select_best_stage2_result(results: &[Stage2Result], name_weight: f64) -> Option<&Stage2Result> {
+    if results.is_empty() {
+        return None;
+    }
+
+    results
+        .iter()
+        .max_by(|a, b| {
+            let score_a = calculate_weighted_score(
+                a.best_percentage,
+                a.edition.name_distance_score,
+                name_weight,
+            );
+            let score_b = calculate_weighted_score(
+                b.best_percentage,
+                b.edition.name_distance_score,
+                name_weight,
+            );
+            score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+/// Select best Stage 3 result using weighted scoring
+fn select_best_stage3_result(results: &[Stage3Result], name_weight: f64) -> Option<&Stage3Result> {
+    if results.is_empty() {
+        return None;
+    }
+
+    results
+        .iter()
+        .max_by(|a, b| {
+            let score_a = calculate_weighted_score(
+                a.best_percentage,
+                a.edition.name_distance_score,
+                name_weight,
+            );
+            let score_b = calculate_weighted_score(
+                b.best_percentage,
+                b.edition.name_distance_score,
+                name_weight,
+            );
+            score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+/// Select best Stage 4 result using weighted scoring
+fn select_best_stage4_result(results: &[Stage4Result], name_weight: f64) -> Option<&Stage4Result> {
+    if results.is_empty() {
+        return None;
+    }
+
+    results
+        .iter()
+        .max_by(|a, b| {
+            let score_a = calculate_weighted_score(
+                a.penalized_percentage,
+                a.edition.name_distance_score,
+                name_weight,
+            );
+            let score_b = calculate_weighted_score(
+                b.penalized_percentage,
+                b.edition.name_distance_score,
+                name_weight,
+            );
+            score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+/// Select best Stage 5 result using weighted scoring
+fn select_best_stage5_result(results: &[Stage5Result], name_weight: f64) -> Option<&Stage5Result> {
+    if results.is_empty() {
+        return None;
+    }
+
+    results
+        .iter()
+        .max_by(|a, b| {
+            let score_a = calculate_weighted_score(
+                a.percentage,  // Stage5Result uses 'percentage' not 'best_percentage'
+                a.edition.name_distance_score,
+                name_weight,
+            );
+            let score_b = calculate_weighted_score(
+                b.percentage,  // Stage5Result uses 'percentage' not 'best_percentage'
+                b.edition.name_distance_score,
+                name_weight,
+            );
+            score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+        })
 }
 
 /// Run full multi-stage matching orchestration
@@ -121,7 +247,9 @@ pub fn run_orchestration(
     );
 
     if stage2_success(&stage_results.stage2, config.min_match_percentage) {
-        let best = &stage_results.stage2[0];
+        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
+        let best = select_best_stage2_result(&stage_results.stage2, config.name_similarity_weight)
+            .expect("stage2_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage2,
             matched_edition: Some(best.edition.clone()),
@@ -144,7 +272,9 @@ pub fn run_orchestration(
     stage_results.stage3 = run_stage3(&best_stage2_durations, editions, config.tolerance_secs);
 
     if stage3_success(&stage_results.stage3, config.min_match_percentage) {
-        let best = &stage_results.stage3[0];
+        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
+        let best = select_best_stage3_result(&stage_results.stage3, config.name_similarity_weight)
+            .expect("stage3_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage3,
             matched_edition: Some(best.edition.clone()),
@@ -166,7 +296,9 @@ pub fn run_orchestration(
     );
 
     if stage4_success(&stage_results.stage4, config.min_match_percentage) {
-        let best = &stage_results.stage4[0];
+        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
+        let best = select_best_stage4_result(&stage_results.stage4, config.name_similarity_weight)
+            .expect("stage4_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage4,
             matched_edition: Some(best.edition.clone()),
@@ -187,7 +319,9 @@ pub fn run_orchestration(
     );
 
     if stage5_success(&stage_results.stage5, config.min_match_percentage) {
-        let best = &stage_results.stage5[0];
+        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
+        let best = select_best_stage5_result(&stage_results.stage5, config.name_similarity_weight)
+            .expect("stage5_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage5,
             matched_edition: Some(best.edition.clone()),
