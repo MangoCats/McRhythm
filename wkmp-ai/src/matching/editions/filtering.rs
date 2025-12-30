@@ -103,6 +103,7 @@ mod tests {
             name_distance_rank: None,
             name_distance_score: None,
             durations: vec![180000; track_count],
+            track_titles: (1..=track_count).map(|i| format!("Track {}", i)).collect(),
         }
     }
 

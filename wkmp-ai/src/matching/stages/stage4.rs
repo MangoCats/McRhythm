@@ -269,6 +269,7 @@ mod tests {
             name_distance_rank: None,
             name_distance_score: None,
             durations: durations_ms.to_vec(),
+            track_titles: (1..=track_count).map(|i| format!("Track {}", i)).collect(),
         }
     }
 

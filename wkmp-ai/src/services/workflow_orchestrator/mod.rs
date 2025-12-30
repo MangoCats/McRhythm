@@ -2328,6 +2328,14 @@ impl WorkflowOrchestrator {
                 passages = finalization_result.passages_validated,
                 "Phase 10 completed - File ingested successfully"
             );
+
+            // Enhanced import logging (album file)
+            let _ = crate::services::import_logger::log_file_import_details(
+                &self.db,
+                &file_id,
+                file_path,
+            )
+            .await;
         } else {
             tracing::error!(
                 phase = "Finalization",
@@ -2650,6 +2658,14 @@ impl WorkflowOrchestrator {
                 passages = finalization_result.passages_validated,
                 "Phase 10 completed - Single-song ingested successfully"
             );
+
+            // Enhanced import logging (single-track file)
+            let _ = crate::services::import_logger::log_file_import_details(
+                &self.db,
+                &file_id,
+                file_path,
+            )
+            .await;
         } else {
             tracing::error!(
                 phase = "Finalization",

@@ -113,11 +113,21 @@
 | REQ-AM-086 | P1 | Track per-stage metrics (attempts, success, rejection, time, early exit rate) | Lines 643-655 |
 | REQ-AM-087 | P2 | Generate performance dashboard with weighted average timing | Lines 657-668 |
 
+### Edition Selection and Ranking (5 requirements - NEW in SPEC Part 2.2)
+
+| Req ID | Priority | Description | Spec Ref |
+|--------|----------|-------------|----------|
+| REQ-AM-092 | P0 | Multi-factor weighted scoring: duration (30%), quality (45%), name (25%), track count penalty | Lines 395-406 |
+| REQ-AM-093 | P0 | Total duration alignment with graduated penalties (<5%=0.95, >25%=0.05) | Lines 418-449 |
+| REQ-AM-094 | P0 | Track quality graduated scoring: quality = 1.0 - (error / tolerance) | Lines 455-501 |
+| REQ-AM-095 | P0 | Graduated track count tolerance (exact=1.00, ±1=0.95, ±2=0.85, ±6+=0.20) | Lines 507-550 |
+| REQ-AM-096 | P1 | Multi-strategy MusicBrainz search (7 strategies, already implemented) | Lines 556-576 |
+
 ---
 
 ## Requirements by Priority
 
-### P0 (Critical - Must Implement): 51 requirements (78%)
+### P0 (Critical - Must Implement): 55 requirements (79%)
 
 **Stage 0:** REQ-AM-001 through REQ-AM-006
 **Stage 1:** REQ-AM-011 through REQ-AM-018
@@ -127,8 +137,9 @@
 **Stage 5:** REQ-AM-061 through REQ-AM-065
 **Stage 6:** REQ-AM-071 through REQ-AM-075
 **Infrastructure:** REQ-AM-081 through REQ-AM-085
+**Edition Selection:** REQ-AM-092 through REQ-AM-095
 
-### P1 (Important - Should Implement): 13 requirements (20%)
+### P1 (Important - Should Implement): 14 requirements (20%)
 
 **Stage 0:** REQ-AM-007, REQ-AM-008
 **Stage 1:** REQ-AM-019
@@ -138,8 +149,9 @@
 **Stage 5:** REQ-AM-066, REQ-AM-067
 **Stage 6:** REQ-AM-076
 **Infrastructure:** REQ-AM-086
+**Edition Selection:** REQ-AM-096
 
-### P2 (Nice-to-have - Could Implement): 1 requirement (2%)
+### P2 (Nice-to-have - Could Implement): 1 requirement (1%)
 
 **Infrastructure:** REQ-AM-087 (Performance dashboard)
 
@@ -158,6 +170,9 @@ REQ-AM-041 through REQ-AM-048 (Stage 3), REQ-AM-061 through REQ-AM-067 (Stage 5)
 
 ### Alternative Detection (8 requirements)
 REQ-AM-051 through REQ-AM-058 (Stage 4)
+
+### Edition Selection and Ranking (5 requirements - NEW)
+REQ-AM-092 through REQ-AM-096 (Multi-factor scoring, duration alignment, track quality, track count tolerance, multi-strategy search)
 
 ### Control Flow and Infrastructure (11 requirements)
 REQ-AM-072, REQ-AM-073, REQ-AM-075 (Stage 6 reporting), REQ-AM-081 through REQ-AM-087 (Infrastructure)
@@ -215,6 +230,29 @@ Cover end-to-end album matching, performance validation, success rate verificati
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-11-25
-**Total Requirements:** 65 (51 P0, 13 P1, 1 P2)
+## Success Metrics (Edition Selection)
+
+**Primary Metric:** Passage-level MBID accuracy (ground truth validation)
+- **Baseline:** 85.3% album-level success (145/170 albums, full library test)
+- **Target:** ≥98% album-level success
+- **Secondary:** ≥99.5% passage-level accuracy (all passages have correct MBIDs)
+
+**NOT Success Metrics (Intermediate):**
+- Number of editions found (more editions could degrade performance if wrong ones rank higher)
+- Match percentage (high match % with WRONG edition = failure, all MBIDs wrong)
+
+**Validation Approach:**
+- Ground truth dataset with known-correct MBIDs
+- 80% standard albums, 10% deluxe/special editions, 10% edge cases
+- Monitor edition type distribution (verify standard preferred when available)
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-12-28
+**Total Requirements:** 70 (55 P0, 14 P1, 1 P2)
+
+**Changes from v1.0:**
+- Added 5 edition selection requirements (REQ-AM-092 through REQ-AM-096)
+- Added success metrics section with outcome-focused validation
+- Updated priority distribution and total counts

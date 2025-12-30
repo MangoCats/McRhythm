@@ -472,7 +472,53 @@ fn main() {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-11-25
-**Total Tests:** 78 (61 P0, 17 P1, 0 P2)
-**Test Coverage:** 100% requirement traceability
+### Edition Selection and Ranking (24 tests - NEW)
+
+| Test ID | Type | Requirement(s) | Description | Priority |
+|---------|------|----------------|-------------|----------|
+| **REQ-AM-092: Multi-Factor Weighted Scoring** |
+| TC-U-092-01 | Unit | REQ-AM-092 | Verify correct weight application (30/45/25) | P0 |
+| TC-U-092-02 | Unit | REQ-AM-092 | Verify multiplicative track count penalty | P0 |
+| TC-U-092-03 | Unit | REQ-AM-092 | Edge case: empty editions list returns None | P0 |
+| TC-U-092-04 | Unit | REQ-AM-092 | Edge case: all scores ≤ 0.0 returns None | P0 |
+| TC-U-092-05 | Unit | REQ-AM-092 | Edge case: identical scores (tie-breaking) | P0 |
+| TC-I-092-01 | Integration | REQ-AM-092 | Edition ranking with multiple candidates | P0 |
+| **REQ-AM-093: Total Duration Alignment Scoring** |
+| TC-U-093-01 | Unit | REQ-AM-093 | Duration score: <5% difference (0.95) | P0 |
+| TC-U-093-02 | Unit | REQ-AM-093 | Duration score: 5-10% difference (0.80) | P0 |
+| TC-U-093-03 | Unit | REQ-AM-093 | Duration score: 10-15% difference (0.60) | P0 |
+| TC-U-093-04 | Unit | REQ-AM-093 | Duration score: 15-25% difference (0.30) | P0 |
+| TC-U-093-05 | Unit | REQ-AM-093 | Duration score: >25% difference (0.05) | P0 |
+| TC-U-093-06 | Unit | REQ-AM-093 | Edge case: zero detected duration (0.05) | P0 |
+| TC-U-093-07 | Unit | REQ-AM-093 | Edge case: zero edition duration (0.05) | P0 |
+| **REQ-AM-094: Track Quality Graduated Scoring** |
+| TC-U-094-01 | Unit | REQ-AM-094 | Perfect match (quality = 1.0) | P0 |
+| TC-U-094-02 | Unit | REQ-AM-094 | Linear decay within tolerance | P0 |
+| TC-U-094-03 | Unit | REQ-AM-094 | Zero quality beyond tolerance | P0 |
+| TC-U-094-04 | Unit | REQ-AM-094 | Track count mismatch (uses min length) | P0 |
+| TC-U-094-05 | Unit | REQ-AM-094 | Edge case: both arrays empty (0.0) | P0 |
+| TC-U-094-06 | Unit | REQ-AM-094 | Edge case: zero tolerance (0.0 or assert) | P0 |
+| **REQ-AM-095: Graduated Track Count Tolerance** |
+| TC-U-095-01 | Unit | REQ-AM-095 | Exact match (penalty = 1.00) | P0 |
+| TC-U-095-02 | Unit | REQ-AM-095 | ±1 track (penalty = 0.95) | P0 |
+| TC-U-095-03 | Unit | REQ-AM-095 | ±2 tracks (penalty = 0.85) | P0 |
+| TC-U-095-04 | Unit | REQ-AM-095 | ±3 tracks (penalty = 0.70) | P0 |
+| TC-U-095-05 | Unit | REQ-AM-095 | ±4-5 tracks (penalty = 0.50) | P0 |
+| TC-U-095-06 | Unit | REQ-AM-095 | ±6+ tracks (penalty = 0.20) | P0 |
+| **REQ-AM-096: Multi-Strategy MusicBrainz Search** |
+| TC-I-096-01 | Integration | REQ-AM-096 | MBID deduplication across strategies | P1 |
+| TC-I-096-02 | Integration | REQ-AM-096 | Edge case: all strategies return 0 results | P1 |
+| **System Tests (End-to-End Edition Selection)** |
+| TC-S-ES-01 | System | REQ-AM-092, 093, 094, 095 | Aqualung: Prefer 11-track standard over 147-track box | P0 |
+| TC-S-ES-02 | System | REQ-AM-092, 093, 094, 095 | GYBR: Prefer ~17-track standard over 71-track deluxe | P0 |
+| TC-S-ES-03 | System | REQ-AM-092, 093, 095 | Japanese edition with ±1 bonus track | P0 |
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-12-28
+**Total Tests:** 102 (78 original + 24 edition selection)
+  - **P0:** 82 tests (80%)
+  - **P1:** 20 tests (20%)
+  - **P2:** 0 tests
+**Test Coverage:** 100% requirement traceability (70 requirements total)

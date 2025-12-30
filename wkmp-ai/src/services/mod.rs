@@ -18,6 +18,7 @@ pub mod filename_matcher; // PLAN024 Increment 6-7: Filename matching (Phase 1)
 pub mod fingerprinter;
 pub mod folder_selector; // PLAN024 Increment 5: Folder selection (Step 2)
 pub mod hash_deduplicator; // PLAN024 Increment 6-7: Hash deduplication (Phase 2)
+pub mod import_logger; // Enhanced import logging for single-track and album files
 pub mod metadata_extractor;
 pub mod metadata_merger; // PLAN024 Increment 8-9: Metadata extraction & merging (Phase 3)
 pub mod musicbrainz_client;

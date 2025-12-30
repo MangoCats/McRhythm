@@ -109,6 +109,8 @@ pub struct Edition {
     pub track_durations: Vec<f64>,
     /// Recording MBIDs for each track
     pub recording_mbids: Vec<String>,
+    /// Track titles from MusicBrainz
+    pub track_titles: Vec<String>,
     // --- Fields added from am28 (PLAN030) ---
     /// Track durations in milliseconds (from MusicBrainz)
     pub durations: Vec<u32>,
@@ -116,6 +118,48 @@ pub struct Edition {
     pub name_distance_rank: Option<usize>,
     /// Overall name distance score (lower = better match)
     pub name_distance_score: Option<f64>,
+}
+
+/// Passage-to-track comparison for a single candidate edition
+#[derive(Debug, Clone, Serialize)]
+pub struct PassageComparison {
+    /// Track/passage number (1-based)
+    pub track_number: usize,
+    /// Track title from MusicBrainz edition
+    pub track_title: String,
+    /// Detected passage duration from audio analysis (seconds)
+    pub detected_duration: f64,
+    /// Expected track duration from MusicBrainz (seconds)
+    pub expected_duration: f64,
+    /// Absolute timing error (seconds)
+    pub error: f64,
+    /// Whether error is within tolerance
+    pub within_tolerance: bool,
+}
+
+/// Ranked candidate edition with passage comparison table
+#[derive(Debug, Clone, Serialize)]
+pub struct RankedCandidate {
+    /// Rank (1 = best match, 2 = runner-up, etc.)
+    pub rank: usize,
+    /// MusicBrainz Release MBID
+    pub release_mbid: String,
+    /// Album title from MusicBrainz
+    pub title: String,
+    /// Artist name from MusicBrainz
+    pub artist: String,
+    /// Number of tracks in this edition
+    pub track_count: usize,
+    /// Match percentage (0-100)
+    pub match_percentage: f64,
+    /// Multi-factor final score (after track count penalty)
+    pub final_score: f64,
+    /// Which stage produced this match
+    pub stage: MatchingStage,
+    /// Passage-by-passage comparison table
+    pub passage_comparison: Vec<PassageComparison>,
+    /// Mean timing error (seconds)
+    pub mean_error: f64,
 }
 
 /// Result of album matching
@@ -159,6 +203,9 @@ pub struct AlbumMatchResult {
     /// When album matching fails, these samples can be reused by boundary detector
     /// to avoid double-decode penalty. None if samples were not preserved.
     pub decoded_audio: Option<(Vec<f32>, u32)>, // (samples, sample_rate)
+    /// **[Top-5 Ranking]** Ranked candidate editions with passage comparison tables
+    /// Allows evaluation of chosen match vs other likely candidates
+    pub ranked_candidates: Vec<RankedCandidate>,
 }
 
 impl AlbumMatchResult {
@@ -183,6 +230,7 @@ impl AlbumMatchResult {
             best_min_duration_secs: None,
             status,
             decoded_audio: None, // **[IMPROVEMENT#1]** No samples on no-match by default
+            ranked_candidates: Vec::new(), // **[Top-5 Ranking]** No candidates on no-match
         }
     }
 
@@ -207,6 +255,7 @@ impl AlbumMatchResult {
             best_min_duration_secs: None,
             status,
             decoded_audio: Some((samples, sample_rate)),
+            ranked_candidates: Vec::new(), // **[Top-5 Ranking]** No candidates on no-match
         }
     }
 
@@ -271,6 +320,7 @@ mod tests {
             durations: vec![180000, 200000, 220000],
             name_distance_rank: Some(1),
             name_distance_score: Some(0.95),
+            track_titles: vec!["Track 1".to_string(), "Track 2".to_string(), "Track 3".to_string()],
         };
         assert_eq!(edition.track_count, 10);
         assert_eq!(edition.durations.len(), 3);
@@ -485,6 +535,9 @@ pub struct MBReleaseDetails {
     pub id: String,
     /// Release title
     pub title: String,
+    /// Artist credits for this release
+    #[serde(rename = "artist-credit", skip_serializing_if = "Option::is_none")]
+    pub artist_credit: Option<Vec<MBArtistCredit>>,
     /// Media (discs) in this release
     pub media: Vec<MBMedia>,
     /// Release status (e.g., "Official", "Bootleg")

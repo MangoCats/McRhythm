@@ -108,9 +108,258 @@ pub fn analyze_track_matching(
     }
 }
 
+//
+// ============================================================================
+// EDITION SELECTION SCORING (PLAN027)
+// ============================================================================
+//
+// Multi-factor weighted scoring for selecting the best MusicBrainz edition
+// from multiple candidates. Addresses box set/deluxe edition selection issues.
+//
+// Requirements:
+// - REQ-AM-092: Multi-factor weighted scoring
+// - REQ-AM-093: Total duration alignment with graduated penalties
+// - REQ-AM-094: Track quality graduated scoring
+// - REQ-AM-095: Graduated track count tolerance
+//
+
+use std::cmp::Ordering;
+
+/// Candidate edition with calculated scores
+///
+/// **[PLAN027]** Used for edition selection with multi-factor scoring
+#[derive(Debug, Clone)]
+pub struct EditionCandidate {
+    pub mbid: String,
+    pub title: String,
+    pub track_count: usize,
+    pub total_duration_ms: u64,
+    pub track_durations_secs: Vec<f64>,
+    pub name_similarity: f64,
+    pub score: f64,
+}
+
+/// Calculate multi-factor weighted score for an edition
+///
+/// **[PLAN027] REQ-AM-092:** Multi-Factor Weighted Scoring
+///
+/// Formula:
+/// ```text
+/// base_score = (duration_score × 0.30) + (quality_score × 0.45) + (name_score × 0.25)
+/// final_score = base_score × track_count_penalty
+/// ```
+///
+/// # Arguments
+/// * `duration_score` - Total duration alignment score (0.0-1.0)
+/// * `quality_score` - Track quality score (0.0-1.0)
+/// * `name_score` - Name similarity score (0.0-1.0)
+/// * `track_count_penalty` - Multiplicative penalty for track count difference (0.20-1.00)
+///
+/// # Returns
+/// Final edition score (0.0-1.0)
+pub fn calculate_edition_score(
+    duration_score: f64,
+    quality_score: f64,
+    name_score: f64,
+    track_count_penalty: f64,
+) -> f64 {
+    let base = (duration_score * 0.30) + (quality_score * 0.45) + (name_score * 0.25);
+    base * track_count_penalty
+}
+
+/// Calculate total duration alignment score with graduated penalties
+///
+/// **[PLAN027] REQ-AM-093:** Total Duration Alignment
+///
+/// Penalty bands:
+/// - <5% difference: 0.95 (excellent)
+/// - 5-10%: 0.80 (good)
+/// - 10-15%: 0.60 (acceptable)
+/// - 15-25%: 0.30 (poor)
+/// - >25%: 0.05 (very poor)
+///
+/// # Arguments
+/// * `detected_total_ms` - Total detected duration in milliseconds
+/// * `edition_total_ms` - Edition total duration in milliseconds
+///
+/// # Returns
+/// Duration alignment score (0.05, 0.30, 0.60, 0.80, or 0.95)
+pub fn calculate_total_duration_score(
+    detected_total_ms: u64,
+    edition_total_ms: u64,
+) -> f64 {
+    // Edge case: zero duration
+    if detected_total_ms == 0 || edition_total_ms == 0 {
+        return 0.05;
+    }
+
+    let diff_ms = detected_total_ms.abs_diff(edition_total_ms);
+    let diff_pct = (diff_ms as f64 / detected_total_ms as f64) * 100.0;
+
+    if diff_pct < 5.0 {
+        0.95
+    } else if diff_pct < 10.0 {
+        0.80
+    } else if diff_pct < 15.0 {
+        0.60
+    } else if diff_pct < 25.0 {
+        0.30
+    } else {
+        0.05
+    }
+}
+
+/// Calculate track quality score with graduated linear decay
+///
+/// **[PLAN027] REQ-AM-094:** Track Quality Graduated Scoring
+///
+/// Quality formula for each track:
+/// ```text
+/// if error <= tolerance:
+///     quality = 1.0 - (error / tolerance)
+/// else:
+///     quality = 0.0
+/// ```
+///
+/// Final score is average quality across all matched tracks.
+///
+/// # Arguments
+/// * `detected_durations` - Detected track durations in seconds
+/// * `edition_durations` - Edition track durations in seconds
+/// * `tolerance_secs` - Tolerance threshold in seconds (typically 1.5s)
+///
+/// # Returns
+/// Average quality score (0.0-1.0)
+///
+/// # Track Count Mismatch Handling
+/// Quality calculated only on first `min(detected_count, edition_count)` tracks.
+/// Extra tracks beyond minimum are ignored for quality calculation.
+/// Track count difference penalty applied separately via REQ-AM-095.
+pub fn calculate_track_quality_score(
+    detected_durations: &[f64],
+    edition_durations: &[f64],
+    tolerance_secs: f64,
+) -> f64 {
+    // Edge case: empty arrays
+    if detected_durations.is_empty() || edition_durations.is_empty() {
+        return 0.0;
+    }
+
+    // Edge case: zero tolerance
+    if tolerance_secs <= 0.0 {
+        return 0.0;
+    }
+
+    let track_count = detected_durations.len().min(edition_durations.len());
+    let mut total_quality = 0.0;
+
+    for i in 0..track_count {
+        let error = (detected_durations[i] - edition_durations[i]).abs();
+        let track_quality = if error <= tolerance_secs {
+            1.0 - (error / tolerance_secs)
+        } else {
+            0.0
+        };
+        total_quality += track_quality;
+    }
+
+    total_quality / track_count as f64
+}
+
+/// Calculate graduated track count tolerance penalty
+///
+/// **[PLAN027] REQ-AM-095:** Graduated Track Count Tolerance
+///
+/// Penalty levels:
+/// - Exact match (diff = 0): 1.00 (no penalty)
+/// - ±1 track: 0.95 (minimal penalty)
+/// - ±2 tracks: 0.85
+/// - ±3 tracks: 0.70
+/// - ±4-5 tracks: 0.50
+/// - ±6+ tracks: 0.20 (severe penalty, floor)
+///
+/// # Arguments
+/// * `detected_count` - Number of detected tracks
+/// * `edition_count` - Number of tracks in edition
+///
+/// # Returns
+/// Multiplicative penalty (0.20-1.00)
+pub fn calculate_track_count_penalty(
+    detected_count: usize,
+    edition_count: usize,
+) -> f64 {
+    let diff = detected_count.abs_diff(edition_count);
+
+    match diff {
+        0 => 1.00,       // Exact match
+        1 => 0.95,       // ±1 track
+        2 => 0.85,       // ±2 tracks
+        3 => 0.70,       // ±3 tracks
+        4..=5 => 0.50,   // ±4-5 tracks
+        _ => 0.20,       // ±6+ tracks
+    }
+}
+
+/// Select best edition from multiple candidates using multi-factor scoring
+///
+/// **[PLAN027] REQ-AM-092:** Multi-Factor Weighted Scoring
+///
+/// # Arguments
+/// * `candidates` - List of edition candidates with pre-calculated scores
+///
+/// # Returns
+/// * `Some(EditionCandidate)` - Best edition if valid candidates exist
+/// * `None` - If no valid candidates (empty list, all scores ≤ 0.0)
+///
+/// # Tie-Breaking
+/// If multiple editions have identical scores:
+/// 1. Prefer higher name_similarity
+/// 2. Prefer lexicographic MBID (deterministic)
+pub fn select_best_edition(
+    candidates: &[EditionCandidate],
+) -> Option<EditionCandidate> {
+    if candidates.is_empty() {
+        return None;
+    }
+
+    // Filter to valid candidates (score > 0.0)
+    let valid_candidates: Vec<_> = candidates.iter()
+        .filter(|c| c.score > 0.0)
+        .collect();
+
+    if valid_candidates.is_empty() {
+        return None;
+    }
+
+    // Find best candidate with tie-breaking
+    let best = valid_candidates.iter()
+        .max_by(|a, b| {
+            // Primary: highest score wins (descending)
+            match a.score.partial_cmp(&b.score) {
+                Some(Ordering::Equal) => {
+                    // Tie-break 1: highest name_similarity wins (descending)
+                    match a.name_similarity.partial_cmp(&b.name_similarity) {
+                        Some(Ordering::Equal) => {
+                            // Tie-break 2: smallest MBID wins (ascending, deterministic)
+                            b.mbid.cmp(&a.mbid)
+                        }
+                        other => other.unwrap_or(Ordering::Equal),
+                    }
+                }
+                other => other.unwrap_or(Ordering::Equal),
+            }
+        })?;
+
+    Some((*best).clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ========================================================================
+    // PLAN030 Tests (Existing)
+    // ========================================================================
 
     #[test]
     fn test_score_perfect_match() {
@@ -195,5 +444,282 @@ mod tests {
         assert_eq!(result.matched_count, 0);
         assert_eq!(result.expected_count, 3);
         assert!(result.errors.is_empty());
+    }
+
+    // ========================================================================
+    // PLAN027 Tests (Edition Selection)
+    // ========================================================================
+
+    // REQ-AM-092: Multi-Factor Weighted Scoring
+
+    #[test]
+    fn test_multi_factor_scoring_weights() {
+        // TC-U-092-01: Verify correct weight application
+        let duration_score = 0.80;
+        let quality_score = 0.90;
+        let name_score = 0.70;
+        let track_count_penalty = 1.00;
+
+        let expected = (0.80 * 0.30) + (0.90 * 0.45) + (0.70 * 0.25);
+        let actual = calculate_edition_score(
+            duration_score,
+            quality_score,
+            name_score,
+            track_count_penalty,
+        );
+
+        assert!((actual - expected).abs() < 0.001, "Expected {}, got {}", expected, actual);
+    }
+
+    #[test]
+    fn test_multi_factor_scoring_penalty() {
+        // TC-U-092-02: Verify multiplicative track count penalty
+        let duration_score = 0.95;
+        let quality_score = 0.85;
+        let name_score = 0.70;
+        let track_count_penalty = 0.85;
+
+        let base = (0.95 * 0.30) + (0.85 * 0.45) + (0.70 * 0.25);
+        let expected = base * 0.85;
+        let actual = calculate_edition_score(
+            duration_score,
+            quality_score,
+            name_score,
+            track_count_penalty,
+        );
+
+        assert!((actual - expected).abs() < 0.001, "Expected {}, got {}", expected, actual);
+        assert!(actual < base, "Penalty should reduce score");
+    }
+
+    #[test]
+    fn test_select_best_edition_empty() {
+        // TC-U-092-03: Empty editions list returns None
+        let result = select_best_edition(&[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_select_best_edition_all_zero_scores() {
+        // TC-U-092-04: All scores ≤ 0.0 returns None
+        let candidates = vec![
+            EditionCandidate {
+                mbid: "a".to_string(),
+                title: "Edition A".to_string(),
+                track_count: 11,
+                total_duration_ms: 2_400_000,
+                track_durations_secs: vec![],
+                name_similarity: 0.85,
+                score: 0.0,
+            },
+            EditionCandidate {
+                mbid: "b".to_string(),
+                title: "Edition B".to_string(),
+                track_count: 11,
+                total_duration_ms: 2_400_000,
+                track_durations_secs: vec![],
+                name_similarity: 0.80,
+                score: -0.05,
+            },
+        ];
+
+        let result = select_best_edition(&candidates);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_select_best_edition_tie_breaking() {
+        // TC-U-092-05: Identical scores use tie-breaking
+        let candidates = vec![
+            EditionCandidate {
+                mbid: "zzz-123".to_string(),
+                title: "Edition A".to_string(),
+                track_count: 11,
+                total_duration_ms: 2_400_000,
+                track_durations_secs: vec![],
+                name_similarity: 0.70,
+                score: 0.850,
+            },
+            EditionCandidate {
+                mbid: "aaa-456".to_string(),
+                title: "Edition B".to_string(),
+                track_count: 11,
+                total_duration_ms: 2_400_000,
+                track_durations_secs: vec![],
+                name_similarity: 0.80,
+                score: 0.850,
+            },
+            EditionCandidate {
+                mbid: "mmm-789".to_string(),
+                title: "Edition C".to_string(),
+                track_count: 11,
+                total_duration_ms: 2_400_000,
+                track_durations_secs: vec![],
+                name_similarity: 0.80,
+                score: 0.850,
+            },
+        ];
+
+        let result = select_best_edition(&candidates).unwrap();
+        // B and C have higher name_similarity (0.80 > 0.70), so A loses
+        // B has lexicographically smaller MBID ("aaa" < "mmm"), so B wins
+        assert_eq!(result.mbid, "aaa-456");
+    }
+
+    // REQ-AM-093: Total Duration Alignment
+
+    #[test]
+    fn test_duration_score_excellent() {
+        // TC-U-093-01: <5% difference (0.95)
+        let score = calculate_total_duration_score(2_400_000, 2_450_000);
+        assert_eq!(score, 0.95);
+    }
+
+    #[test]
+    fn test_duration_score_good() {
+        // TC-U-093-02: 5-10% difference (0.80)
+        let score = calculate_total_duration_score(2_400_000, 2_580_000);
+        assert_eq!(score, 0.80);
+    }
+
+    #[test]
+    fn test_duration_score_acceptable() {
+        // TC-U-093-03: 10-15% difference (0.60)
+        let score = calculate_total_duration_score(2_400_000, 2_700_000);
+        assert_eq!(score, 0.60);
+    }
+
+    #[test]
+    fn test_duration_score_poor() {
+        // TC-U-093-04: 15-25% difference (0.30)
+        let score = calculate_total_duration_score(2_400_000, 2_880_000);
+        assert_eq!(score, 0.30);
+    }
+
+    #[test]
+    fn test_duration_score_very_poor() {
+        // TC-U-093-05: >25% difference (0.05)
+        let score = calculate_total_duration_score(2_400_000, 8_500_000);
+        assert_eq!(score, 0.05);
+    }
+
+    #[test]
+    fn test_duration_score_zero_detected() {
+        // TC-U-093-06: Zero detected duration (0.05)
+        let score = calculate_total_duration_score(0, 2_400_000);
+        assert_eq!(score, 0.05);
+    }
+
+    #[test]
+    fn test_duration_score_zero_edition() {
+        // TC-U-093-07: Zero edition duration (0.05)
+        let score = calculate_total_duration_score(2_400_000, 0);
+        assert_eq!(score, 0.05);
+    }
+
+    // REQ-AM-094: Track Quality Graduated Scoring
+
+    #[test]
+    fn test_track_quality_perfect() {
+        // TC-U-094-01: Perfect match (quality = 1.0)
+        let detected = vec![180.0, 210.0, 195.0];
+        let edition = vec![180.0, 210.0, 195.0];
+        let score = calculate_track_quality_score(&detected, &edition, 1.5);
+        assert_eq!(score, 1.0);
+    }
+
+    #[test]
+    fn test_track_quality_linear_decay() {
+        // TC-U-094-02: Linear decay within tolerance
+        let detected = vec![180.0, 210.0, 195.0];
+        let edition = vec![180.5, 211.2, 194.3];
+        let score = calculate_track_quality_score(&detected, &edition, 1.5);
+        // Expected: (0.6667 + 0.2000 + 0.5333) / 3 = 0.4667
+        assert!((score - 0.467).abs() < 0.01, "Expected ~0.467, got {}", score);
+    }
+
+    #[test]
+    fn test_track_quality_zero_beyond_tolerance() {
+        // TC-U-094-03: Zero quality beyond tolerance
+        let detected = vec![180.0, 210.0, 195.0];
+        let edition = vec![182.0, 215.0, 190.0];
+        let score = calculate_track_quality_score(&detected, &edition, 1.5);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_track_quality_mismatch_uses_min() {
+        // TC-U-094-04: Track count mismatch (uses min length)
+        let detected = vec![180.0, 210.0, 195.0];
+        let edition = vec![180.0, 210.5, 195.2, 220.0, 240.0];
+        let score = calculate_track_quality_score(&detected, &edition, 1.5);
+        // Expected: (1.0 + 0.6667 + 0.8667) / 3 = 0.8444
+        assert!((score - 0.844).abs() < 0.01, "Expected ~0.844, got {}", score);
+    }
+
+    #[test]
+    fn test_track_quality_empty_arrays() {
+        // TC-U-094-05: Both arrays empty (0.0)
+        let score = calculate_track_quality_score(&[], &[], 1.5);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_track_quality_zero_tolerance() {
+        // TC-U-094-06: Zero tolerance (0.0)
+        let detected = vec![180.0, 210.0];
+        let edition = vec![180.0, 210.0];
+        let score = calculate_track_quality_score(&detected, &edition, 0.0);
+        assert_eq!(score, 0.0);
+    }
+
+    // REQ-AM-095: Graduated Track Count Tolerance
+
+    #[test]
+    fn test_track_count_exact_match() {
+        // TC-U-095-01: Exact match (penalty = 1.00)
+        let penalty = calculate_track_count_penalty(11, 11);
+        assert_eq!(penalty, 1.00);
+    }
+
+    #[test]
+    fn test_track_count_plus_minus_one() {
+        // TC-U-095-02: ±1 track (penalty = 0.95)
+        let penalty_a = calculate_track_count_penalty(11, 12);
+        let penalty_b = calculate_track_count_penalty(12, 11);
+        assert_eq!(penalty_a, 0.95);
+        assert_eq!(penalty_b, 0.95);
+    }
+
+    #[test]
+    fn test_track_count_plus_minus_two() {
+        // TC-U-095-03: ±2 tracks (penalty = 0.85)
+        let penalty = calculate_track_count_penalty(11, 13);
+        assert_eq!(penalty, 0.85);
+    }
+
+    #[test]
+    fn test_track_count_plus_minus_three() {
+        // TC-U-095-04: ±3 tracks (penalty = 0.70)
+        let penalty = calculate_track_count_penalty(11, 14);
+        assert_eq!(penalty, 0.70);
+    }
+
+    #[test]
+    fn test_track_count_plus_minus_four_five() {
+        // TC-U-095-05: ±4-5 tracks (penalty = 0.50)
+        let penalty_4 = calculate_track_count_penalty(11, 15);
+        let penalty_5 = calculate_track_count_penalty(11, 16);
+        assert_eq!(penalty_4, 0.50);
+        assert_eq!(penalty_5, 0.50);
+    }
+
+    #[test]
+    fn test_track_count_six_plus() {
+        // TC-U-095-06: ±6+ tracks (penalty = 0.20)
+        let penalty_6 = calculate_track_count_penalty(11, 17);
+        let penalty_136 = calculate_track_count_penalty(11, 147);
+        assert_eq!(penalty_6, 0.20);
+        assert_eq!(penalty_136, 0.20);
     }
 }

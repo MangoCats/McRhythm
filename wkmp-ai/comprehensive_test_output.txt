@@ -1,0 +1,2386 @@
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `assign_tier`
+  --> wkmp-ai\src\fusion\identity_resolver.rs:20:23
+   |
+20 | use crate::matching::{assign_tier, ConfidenceTier};
+   |                       ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `MatchingStage`
+  --> wkmp-ai\src\matching\album_matcher.rs:34:52
+   |
+34 | use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
+   |                                                    ^^^^^^^^^^^^^
+
+warning: unused import: `CachedDuration`
+  --> wkmp-ai\src\services\accurate_duration.rs:18:39
+   |
+18 | use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+   |                                       ^^^^^^^^^^^^^^
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:5
+   |
+15 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:35
+   |
+16 | use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+   |                                   ^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `FuturesUnordered`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:23
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                       ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+  --> wkmp-ai\src\testing\import_harness.rs:33:17
+   |
+33 | use std::time::{Duration, Instant};
+   |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `tokio::sync::Semaphore`
+  --> wkmp-ai\src\testing\import_harness.rs:39:5
+   |
+39 | use tokio::sync::Semaphore;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, and `warn`
+  --> wkmp-ai\src\testing\import_harness.rs:40:15
+   |
+40 | use tracing::{debug, error, info, warn};
+   |               ^^^^^  ^^^^^        ^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `services::workflow_orchestrator::WorkflowOrchestrator::phase_processing_plan025`: Use phase_processing_per_file() with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:447:14
+    |
+447 |             .phase_processing_plan025(session, start_time, &cancel_token)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:429:43
+    |
+429 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: unused import: `StreamExt`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:41
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                                         ^^^^^^^^^
+
+warning: value assigned to `silence_start` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:420:13
+    |
+420 |             silence_start = Some(window_count);
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `window_count` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:431:9
+    |
+431 |         window_count += 1;
+    |         ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: type `ClassifiedResult` is more private than the item `EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: field `passage_id` is never read
+  --> wkmp-ai\src\services\import_logger.rs:15:5
+   |
+13 | struct PassageInfo {
+   |        ----------- field in this struct
+14 |     #[sqlx(rename = "guid")]
+15 |     passage_id: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `PassageInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:44:6
+   |
+44 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+
+warning: multiple fields are never read
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:71:5
+   |
+68 | pub struct WorkflowOrchestrator {
+   |            -------------------- fields in this struct
+...
+71 |     file_scanner: FileScanner,
+   |     ^^^^^^^^^^^^
+72 |     metadata_extractor: MetadataExtractor,
+   |     ^^^^^^^^^^^^^^^^^^
+73 |     fingerprinter: Fingerprinter,
+   |     ^^^^^^^^^^^^^
+74 |     amplitude_analyzer: AmplitudeAnalyzer,
+   |     ^^^^^^^^^^^^^^^^^^
+75 |     mb_client: Option<MusicBrainzClient>,
+   |     ^^^^^^^^^
+...
+78 |     essentia_client: Option<EssentiaClient>,
+   |     ^^^^^^^^^^^^^^^
+...
+97 |     processing_thread_count: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `set_worker_phase_with_passage` is never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1659:14
+     |
+ 100 | impl WorkflowOrchestrator {
+     | ------------------------- method in this implementation
+...
+1659 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:88:12
+   |
+87 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+88 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:108:12
+    |
+107 | impl HashingStats {
+    | ----------------- method in this implementation
+108 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:128:12
+    |
+127 | impl ExtractingStats {
+    | -------------------- method in this implementation
+128 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:152:12
+    |
+151 | impl SegmentingStats {
+    | -------------------- method in this implementation
+152 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:175:12
+    |
+174 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+175 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:199:12
+    |
+198 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+199 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:218:12
+    |
+217 | impl RecordingStats {
+    | ------------------- method in this implementation
+218 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:243:12
+    |
+242 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+243 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:274:12
+    |
+273 | impl FlavoringStats {
+    | ------------------- method in this implementation
+274 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:292:12
+    |
+291 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+292 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:307:12
+    |
+306 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+307 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:452:12
+    |
+332 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+452 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+460 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:409:14
+    |
+105 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+409 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+560 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:45
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                                             ^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:142:1
+    |
+142 | pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:143:1
+    |
+143 | pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:144:1
+    |
+144 | pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:145:1
+    |
+145 | pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:146:1
+    |
+146 | pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:147:1
+    |
+147 | pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:148:1
+    |
+148 | pub const SCORE_DURATION_SHORT: f64 = 0.7;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:149:1
+    |
+149 | pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:150:1
+    |
+150 | pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:151:1
+    |
+151 | pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:152:1
+    |
+152 | pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:133:5
+    |
+133 |     pub mbid: String,
+    |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:134:5
+    |
+134 |     pub title: String,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:135:5
+    |
+135 |     pub track_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:136:5
+    |
+136 |     pub total_duration_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:137:5
+    |
+137 |     pub track_durations_secs: Vec<f64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:138:5
+    |
+138 |     pub name_similarity: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:139:5
+    |
+139 |     pub score: f64,
+    |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:47:20
+   |
+47 |     NoCandidates { query: String },
+   |                    ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:49:16
+   |
+49 |     ApiError { error: String },
+   |                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:52:9
+   |
+52 |         expected: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:53:9
+   |
+53 |         found: String,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:54:9
+   |
+54 |         similarity: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:57:26
+   |
+57 |     AllStagesExhausted { stages_tried: usize },
+   |                          ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:59:20
+   |
+59 |     FileTooShort { duration_secs: f64 },
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:61:32
+   |
+61 |     MetadataExtractionFailed { error: String },
+   |                                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:65:22
+   |
+65 |     DecodingFailed { error: String },
+   |                      ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:42:9
+   |
+42 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:43:9
+   |
+43 |         assigned_mbid: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:44:9
+   |
+44 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:45:9
+   |
+45 |         sources_consulted: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:46:9
+   |
+46 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:50:9
+   |
+50 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:51:9
+   |
+51 |         content_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:52:9
+   |
+52 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:53:9
+   |
+53 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:57:9
+   |
+57 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:58:9
+   |
+58 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:59:9
+   |
+59 |         error_message: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:60:9
+   |
+60 |         duration_ms: u64,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:61:9
+   |
+61 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:65:9
+   |
+65 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:66:9
+   |
+66 |         api_name: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:67:9
+   |
+67 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:68:9
+   |
+68 |         latency_ms: u64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:69:9
+   |
+69 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 103 warnings (run `cargo fix --lib -p wkmp-ai` to apply 12 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 06s
+     Running tests\plan027_validation_test.rs (C:\Users\Mango Cat\Dev\McRhythm\target\debug\deps\plan027_validation_test-4ac0cfcfaf632e3a.exe)
+
+running 1 test
+
+=== PLAN027 Comprehensive Validation ===
+
+Music Library: "C:\\Users\\Mango Cat\\Music"
+
+--- Testing: Ace of Base - Happy Nation ---
+[2m2025-12-30T04:36:42.078762Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Ace of Base/HappyNation.mp3
+[2m2025-12-30T04:36:42.079790Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Metadata: artist=Ace of Base, album=Happy Nation
+[2m2025-12-30T04:36:42.081851Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Ace of Base, album=Happy Nation
+[2m2025-12-30T04:36:42.082053Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Starting multi-strategy MusicBrainz search [3martist[0m[2m=[0mAce of Base [3malbum[0m[2m=[0mHappy Nation [3mstrategies[0m[2m=[0m6
+[2m2025-12-30T04:36:42.082083Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m1 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base AND release:Happy Nation
+[2m2025-12-30T04:36:42.082131Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base AND release:Happy Nation [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3AAce%20of%20Base%20AND%20release%3AHappy%20Nation&limit=25&fmt=json
+[2m2025-12-30T04:36:42.952218Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base AND release:Happy Nation [3mcount[0m[2m=[0m22 [3mresults[0m[2m=[0m22
+[2m2025-12-30T04:36:42.952267Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 129.8422ms
+[2m2025-12-30T04:36:43.094293Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m60b53369-d195-4067-b72c-1a1bdac17b60 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/60b53369-d195-4067-b72c-1a1bdac17b60?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:43.308434Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m60b53369-d195-4067-b72c-1a1bdac17b60 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:36:43.308501Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 785.7643ms
+[2m2025-12-30T04:36:44.107216Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9dd06ad4-e37a-413d-bbdd-e5f200791de2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9dd06ad4-e37a-413d-bbdd-e5f200791de2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:44.307817Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9dd06ad4-e37a-413d-bbdd-e5f200791de2 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:44.307862Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 799.3263ms
+[2m2025-12-30T04:36:45.120479Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0me1da15e1-fc4e-4273-9e61-46b47d2822f2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/e1da15e1-fc4e-4273-9e61-46b47d2822f2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:45.327965Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0me1da15e1-fc4e-4273-9e61-46b47d2822f2 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:45.328015Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 792.4424ms
+[2m2025-12-30T04:36:46.133444Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma5763b41-0838-4e4f-922d-7610fdd84b74 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a5763b41-0838-4e4f-922d-7610fdd84b74?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:46.343235Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma5763b41-0838-4e4f-922d-7610fdd84b74 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:46.343294Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 790.1272ms
+[2m2025-12-30T04:36:47.144053Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m4c2299db-b339-38d8-b57f-bff923e37741 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/4c2299db-b339-38d8-b57f-bff923e37741?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:47.346610Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m4c2299db-b339-38d8-b57f-bff923e37741 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:47.346662Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 797.3699ms
+[2m2025-12-30T04:36:48.160290Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mbce4b089-939b-4971-adc0-30c2314bf53c [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/bce4b089-939b-4971-adc0-30c2314bf53c?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:48.383264Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mbce4b089-939b-4971-adc0-30c2314bf53c [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:48.383310Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 776.9532ms
+[2m2025-12-30T04:36:49.172813Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mbd788e2d-e816-4e3c-899f-24437245bdd1 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/bd788e2d-e816-4e3c-899f-24437245bdd1?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:49.768168Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mbd788e2d-e816-4e3c-899f-24437245bdd1 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m23
+[2m2025-12-30T04:36:49.768229Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 404.526ms
+[2m2025-12-30T04:36:50.185693Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0meaefdd3b-9b90-4c60-a115-b77a9cbe9284 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/eaefdd3b-9b90-4c60-a115-b77a9cbe9284?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:50.410588Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0meaefdd3b-9b90-4c60-a115-b77a9cbe9284 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:36:50.410635Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 775.0337ms
+[2m2025-12-30T04:36:51.200091Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mef8b401b-89be-4eb6-963a-810c8131911a [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/ef8b401b-89be-4eb6-963a-810c8131911a?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:51.481528Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mef8b401b-89be-4eb6-963a-810c8131911a [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:51.481593Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 718.4652ms
+[2m2025-12-30T04:36:52.214211Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mffac435d-7bdb-48f0-9096-3de5b3e82582 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/ffac435d-7bdb-48f0-9096-3de5b3e82582?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:52.417272Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mffac435d-7bdb-48f0-9096-3de5b3e82582 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:36:52.417322Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 796.863ms
+[2m2025-12-30T04:36:53.228289Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mcf619396-c1a8-4826-a6a8-21980490aaf5 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/cf619396-c1a8-4826-a6a8-21980490aaf5?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:53.435728Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mcf619396-c1a8-4826-a6a8-21980490aaf5 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:53.435781Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 792.4867ms
+[2m2025-12-30T04:36:54.243519Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma69f8eae-4e34-45fe-85fb-12b049dbdf38 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a69f8eae-4e34-45fe-85fb-12b049dbdf38?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:54.504469Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma69f8eae-4e34-45fe-85fb-12b049dbdf38 [3mtitle[0m[2m=[0mHappy Nation [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:54.504538Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 738.9599ms
+[2m2025-12-30T04:36:55.246176Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m60f6e7fd-b2dc-4b52-acdc-42993794c436 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/60f6e7fd-b2dc-4b52-acdc-42993794c436?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:55.489157Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m60f6e7fd-b2dc-4b52-acdc-42993794c436 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:55.489214Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 756.9425ms
+[2m2025-12-30T04:36:56.247759Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5d8600ce-9908-4014-9442-b1678baac664 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5d8600ce-9908-4014-9442-b1678baac664?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:56.476462Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5d8600ce-9908-4014-9442-b1678baac664 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:56.476516Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 771.2123ms
+[2m2025-12-30T04:36:57.262957Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m1b353212-01c4-3942-886c-2bc05553bccf [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/1b353212-01c4-3942-886c-2bc05553bccf?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:57.495353Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m1b353212-01c4-3942-886c-2bc05553bccf [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:57.495403Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 767.5366ms
+[2m2025-12-30T04:36:58.273110Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m66b6ba53-2cc5-39e9-b60f-1c56328ff6d5 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/66b6ba53-2cc5-39e9-b60f-1c56328ff6d5?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:58.507520Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m66b6ba53-2cc5-39e9-b60f-1c56328ff6d5 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:58.507567Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 765.5224ms
+[2m2025-12-30T04:36:59.289475Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma5095ac7-0a3c-43e7-a884-fa2cf34ee7b0 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a5095ac7-0a3c-43e7-a884-fa2cf34ee7b0?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:36:59.606685Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma5095ac7-0a3c-43e7-a884-fa2cf34ee7b0 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:36:59.606744Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 682.712ms
+[2m2025-12-30T04:37:00.304782Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0med9ac402-c3bf-4425-9f5e-68bc349aa897 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/ed9ac402-c3bf-4425-9f5e-68bc349aa897?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:00.531921Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0med9ac402-c3bf-4425-9f5e-68bc349aa897 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:37:00.531968Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 772.7944ms
+[2m2025-12-30T04:37:01.312772Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m91030119-843e-4d42-8c84-caa5dfcff0bf [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/91030119-843e-4d42-8c84-caa5dfcff0bf?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:01.545478Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m91030119-843e-4d42-8c84-caa5dfcff0bf [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:37:01.545529Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 767.2233ms
+[2m2025-12-30T04:37:02.327701Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m166a6475-4fb3-45d4-adc1-a6dd4290bef4 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/166a6475-4fb3-45d4-adc1-a6dd4290bef4?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:02.519053Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m166a6475-4fb3-45d4-adc1-a6dd4290bef4 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:37:02.519104Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 808.5766ms
+[2m2025-12-30T04:37:03.341259Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mb7f9103d-137a-4c12-996a-a93bcbb64ad6 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/b7f9103d-137a-4c12-996a-a93bcbb64ad6?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:03.534029Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mb7f9103d-137a-4c12-996a-a93bcbb64ad6 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:37:03.534087Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 807.1485ms
+[2m2025-12-30T04:37:04.351728Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m142b09aa-a4ed-49dd-9c66-adf5e2f865c1 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/142b09aa-a4ed-49dd-9c66-adf5e2f865c1?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:04.701178Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m142b09aa-a4ed-49dd-9c66-adf5e2f865c1 [3mtitle[0m[2m=[0mHappy Nation (U.S. version) [3mtracks[0m[2m=[0m16
+[2m2025-12-30T04:37:04.701217Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m2 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base AND release:"Happy  Nation"
+[2m2025-12-30T04:37:04.701231Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 650.4691ms
+[2m2025-12-30T04:37:05.352829Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base AND release:"Happy  Nation" [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3AAce%20of%20Base%20AND%20release%3A%22Happy%20%20Nation%22&limit=25&fmt=json
+[2m2025-12-30T04:37:05.702731Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base AND release:"Happy  Nation" [3mcount[0m[2m=[0m22 [3mresults[0m[2m=[0m22
+[2m2025-12-30T04:37:05.702793Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m3 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base~ AND release:Happy Nation~
+[2m2025-12-30T04:37:05.702808Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 649.99ms
+[2m2025-12-30T04:37:06.367622Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base~ AND release:Happy Nation~ [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3AAce%20of%20Base~%20AND%20release%3AHappy%20Nation~&limit=25&fmt=json
+[2m2025-12-30T04:37:06.862022Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base~ AND release:Happy Nation~ [3mcount[0m[2m=[0m22 [3mresults[0m[2m=[0m22
+[2m2025-12-30T04:37:06.862078Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m4 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base~2 AND release:Happy Nation~2
+[2m2025-12-30T04:37:06.862093Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 505.4933ms
+[2m2025-12-30T04:37:07.384083Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base~2 AND release:Happy Nation~2 [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3AAce%20of%20Base~2%20AND%20release%3AHappy%20Nation~2&limit=25&fmt=json
+[2m2025-12-30T04:37:07.982054Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Ace of Base~2 AND release:Happy Nation~2 [3mcount[0m[2m=[0m22 [3mresults[0m[2m=[0m22
+[2m2025-12-30T04:37:07.982113Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m5 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:(Ace~ of~ Base~) AND release:(Happy~ Nation~)
+[2m2025-12-30T04:37:07.982127Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 401.9233ms
+[2m2025-12-30T04:37:08.400631Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:(Ace~ of~ Base~) AND release:(Happy~ Nation~) [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3A%28Ace~%20of~%20Base~%29%20AND%20release%3A%28Happy~%20Nation~%29&limit=25&fmt=json
+[2m2025-12-30T04:37:08.801241Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:(Ace~ of~ Base~) AND release:(Happy~ Nation~) [3mcount[0m[2m=[0m126 [3mresults[0m[2m=[0m25
+[2m2025-12-30T04:37:08.801302Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 599.2899ms
+[2m2025-12-30T04:37:09.415078Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mbef54d77-ec6d-4c18-8fa6-1d90cc3e8a31 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/bef54d77-ec6d-4c18-8fa6-1d90cc3e8a31?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:09.623699Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mbef54d77-ec6d-4c18-8fa6-1d90cc3e8a31 [3mtitle[0m[2m=[0mIn Action [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:37:09.623745Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 791.3127ms
+[2m2025-12-30T04:37:10.428203Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mdbef1444-e090-497c-91f6-32c0ef8a72a7 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/dbef1444-e090-497c-91f6-32c0ef8a72a7?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:10.612365Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mdbef1444-e090-497c-91f6-32c0ef8a72a7 [3mtitle[0m[2m=[0mIn Action [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:37:10.612410Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 815.7709ms
+[2m2025-12-30T04:37:11.442324Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m1065f17a-1daa-429c-a5a3-1a2eff5c14fc [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/1065f17a-1daa-429c-a5a3-1a2eff5c14fc?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:37:11.692545Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m1065f17a-1daa-429c-a5a3-1a2eff5c14fc [3mtitle[0m[2m=[0mPsychedelic Nation [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:37:11.692590Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Found enough results, stopping search [3mstrategy[0m[2m=[0m5 [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:37:11.692598Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed [3martist[0m[2m=[0mAce of Base [3malbum[0m[2m=[0mHappy Nation [3mfound[0m[2m=[0m25
+test test_plan027_comprehensive_validation has been running for over 60 seconds
+[2m2025-12-30T04:39:06.632131Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +646.9 MB [album_matcher decode] → Total: 646.9 MB (0.65 GB) | 161713152 samples
+[2m2025-12-30T04:39:06.632170Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Decoded 161713152 samples at 44100Hz (3667.0s)
+[2m2025-12-30T04:39:06.632184Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2025-12-30T04:39:06.632562Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 18 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Happy Nation (U.S. version))
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (93.3%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Ace of Base - Happy Nation
+Tracks: 15, Detected: 15
+
+Trk   Expected   Detected      Error     Status
+--------------------------------------------------
+  1    210.00s    209.99s      0.01s          ✓
+  2    228.00s    225.57s      2.43s          ✓
+  3    236.00s    232.82s      3.18s          ✓
+  4    188.00s    186.80s      1.20s          ✓
+  5    221.00s    218.79s      2.21s          ✓
+  6    197.00s    195.86s      1.14s          ✓
+  7    253.00s    252.01s      0.99s          ✓
+  8    228.00s    226.23s      1.77s          ✓
+  9    230.00s    227.25s      2.75s          ✓
+ 10    250.00s    249.35s      0.65s          ✓
+ 11    232.00s    229.12s      2.88s          ✓
+ 12    217.00s    216.53s      0.47s          ✓
+ 13    248.00s    244.04s      3.96s          ✓
+ 14    254.00s    253.62s      0.38s          ✓
+ 15    225.00s    433.71s    208.71s          ✗
+==========================================
+
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: Ace of Base - Happy Nation ---
+  Release MBID: cf619396-c1a8-4826-a6a8-21980490aaf5
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.8380
+  Stage: Stage2
+  Mean Error: 15.51s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 All That She Wants                210.00s    209.99s      0.01s          ✓
+    2 Don’t Turn Around                 228.00s    225.57s      2.43s          ✓
+    3 Young and Proud                   236.00s    232.82s      3.18s          ✓
+    4 The Sign                          188.00s    186.80s      1.20s          ✓
+    5 Living in Danger                  221.00s    218.79s      2.21s          ✓
+    6 Voulez‐Vous Danser                197.00s    195.86s      1.14s          ✓
+    7 Happy Nation                      253.00s    252.01s      0.99s          ✓
+    8 Hear Me Calling                   228.00s    226.23s      1.77s          ✓
+    9 Waiting for Magic (Total re...    230.00s    227.25s      2.75s          ✓
+   10 Fashion Party                     250.00s    249.35s      0.65s          ✓
+   11 Wheel of Fortune                  232.00s    229.12s      2.88s          ✓
+   12 Dancer in a Daydream              217.00s    216.53s      0.47s          ✓
+   13 My Mind (Mindless mix)            248.00s    244.04s      3.96s          ✓
+   14 All That She Wants (Banghra...    254.00s    253.62s      0.38s          ✓
+   15 Happy Nation (remix)              225.00s    433.71s    208.71s          ✗
+
+--- Rank #2: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: 142b09aa-a4ed-49dd-9c66-adf5e2f865c1
+  Track Count: 16
+  Match %: 100.0%
+  Final Score: 0.7916
+  Stage: Stage2
+  Mean Error: 4.05s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 All That She Wants                211.00s    209.99s      1.01s          ✓
+    2 Don’t Turn Around                 230.00s    225.57s      4.43s          ✓
+    3 Young and Proud                   237.00s    232.82s      4.18s          ✓
+    4 The Sign                          191.00s    186.80s      4.20s          ✓
+    5 Living in Danger                  223.00s    218.79s      4.21s          ✓
+    6 Voulez‐vous danser                200.00s    195.86s      4.14s          ✓
+    7 Happy Nation                      255.00s    252.01s      2.99s          ✓
+    8 Hear Me Calling                   232.00s    226.23s      5.77s          ✓
+    9 Waiting for Magic (Total re...    232.00s    227.25s      4.75s          ✓
+   10 Fashion Party                     253.00s    249.35s      3.65s          ✓
+   11 Wheel of Fortune                  234.00s    229.12s      4.88s          ✓
+   12 Dancer in a Daydream              221.00s    216.53s      4.47s          ✓
+   13 My Mind (Mindless mix)            251.00s    244.04s      6.96s          ✓
+   14 All That She Wants (Banghra...    257.00s    253.62s      3.38s          ✓
+   15 Happy Nation (remix)              226.00s    223.29s      2.71s          ✓
+   16 Giving It Up (Ace version)        210.00s    206.92s      3.08s          ✓
+
+--- Rank #3: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: 5d8600ce-9908-4014-9442-b1678baac664
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.7451
+  Stage: Stage2
+  Mean Error: 18.33s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 All That She Wants                211.00s    209.99s      1.01s          ✓
+    2 Don’t Turn Around                 228.00s    225.57s      2.43s          ✓
+    3 Young and Proud                   238.00s    232.82s      5.18s          ✓
+    4 The Sign                          189.00s    186.80s      2.20s          ✓
+    5 Living in Danger                  224.00s    218.79s      5.21s          ✓
+    6 Voulez‐vous danser                200.00s    195.86s      4.14s          ✓
+    7 Happy Nation                      257.00s    252.01s      4.99s          ✓
+    8 Hear Me Calling                   231.00s    226.23s      4.77s          ✓
+    9 Waiting for Magic (Total re...    234.00s    227.25s      6.75s          ✓
+   10 Fashion Party                     253.00s    249.35s      3.65s          ✓
+   11 Wheel of Fortune                  220.00s    229.12s      9.12s          ✓
+   12 Dancer in a Daydream              221.00s    216.53s      4.47s          ✓
+   13 My Mind (Mindless mix)            252.00s    244.04s      7.96s          ✓
+   14 All That She Wants (Banghra...    258.00s    253.62s      4.38s          ✓
+   15 Happy Nation (remix)              225.00s    433.71s    208.71s          ✗
+
+--- Rank #4: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: 60f6e7fd-b2dc-4b52-acdc-42993794c436
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.7221
+  Stage: Stage2
+  Mean Error: 18.76s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 All That She Wants                214.13s    209.99s      4.14s          ✓
+    2 Don’t Turn Around                 231.63s    225.57s      6.05s          ✓
+    3 Young and Proud                   238.57s    232.82s      5.75s          ✓
+    4 The Sign                          192.43s    186.80s      5.62s          ✓
+    5 Living in Danger                  224.91s    218.79s      6.12s          ✓
+    6 Voulez‐vous danser                200.76s    195.86s      4.90s          ✓
+    7 Happy Nation                      257.04s    252.01s      5.03s          ✓
+    8 Hear Me Calling                   232.47s    226.23s      6.23s          ✓
+    9 Waiting for Magic (Total re...    231.03s    227.25s      3.78s          ✓
+   10 Fashion Party                     253.51s    249.35s      4.16s          ✓
+   11 Wheel of Fortune                  234.40s    229.12s      5.28s          ✓
+   12 Dancer in a Daydream              220.27s    216.53s      3.74s          ✓
+   13 My Mind (Mindless mix)            252.49s    244.04s      8.45s          ✓
+   14 All That She Wants (Banghra...    258.31s    253.62s      4.68s          ✓
+   15 Happy Nation (remix)              226.29s    433.71s    207.41s          ✗
+
+--- Rank #5: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: b7f9103d-137a-4c12-996a-a93bcbb64ad6
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.7069
+  Stage: Stage2
+  Mean Error: 19.13s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 All That She Wants                213.67s    209.99s      3.67s          ✓
+    2 Don’t Turn Around                 231.83s    225.57s      6.25s          ✓
+    3 Young and Proud                   238.67s    232.82s      5.85s          ✓
+    4 The Sign                          192.33s    186.80s      5.53s          ✓
+    5 Living in Danger                  225.00s    218.79s      6.21s          ✓
+    6 Voulez‐vous danser                200.67s    195.86s      4.80s          ✓
+    7 Happy Nation                      257.00s    252.01s      4.99s          ✓
+    8 Hear Me Calling                   232.51s    226.23s      6.27s          ✓
+    9 Waiting for Magic (Total re...    234.16s    227.25s      6.91s          ✓
+   10 Fashion Party                     253.84s    249.35s      4.49s          ✓
+   11 Wheel of Fortune                  235.67s    229.12s      6.54s          ✓
+   12 Dancer in a Daydream              221.33s    216.53s      4.81s          ✓
+   13 My Mind (Mindless mix)            252.33s    244.04s      8.29s          ✓
+   14 All That She Wants (Banghra...    258.00s    253.62s      4.38s          ✓
+   15 Happy Nation (remix)              225.83s    433.71s    207.88s          ✗
+
+=========================================
+
+[2m2025-12-30T04:39:06.640546Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=93.3%
+  Matched: true
+  Expected Tracks: 15
+  Match %: 93.3%
+  ✓ PASS
+
+--- Testing: Aerosmith - Pump ---
+[2m2025-12-30T04:39:06.660674Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Aerosmith/Pump.mp3
+[2m2025-12-30T04:39:06.661128Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Metadata: artist=Aerosmith, album=Pump
+[2m2025-12-30T04:39:06.661357Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Aerosmith, album=Pump
+[2m2025-12-30T04:39:06.661416Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Starting multi-strategy MusicBrainz search [3martist[0m[2m=[0mAerosmith [3malbum[0m[2m=[0mPump [3mstrategies[0m[2m=[0m4
+[2m2025-12-30T04:39:06.661429Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m1 [3mtotal[0m[2m=[0m4 [3mquery[0m[2m=[0mtype:album AND artist:Aerosmith AND release:Pump
+[2m2025-12-30T04:39:06.661451Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Aerosmith AND release:Pump [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3AAerosmith%20AND%20release%3APump&limit=25&fmt=json
+[2m2025-12-30T04:39:07.526463Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Aerosmith AND release:Pump [3mcount[0m[2m=[0m45 [3mresults[0m[2m=[0m25
+[2m2025-12-30T04:39:07.526506Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 134.937ms
+[2m2025-12-30T04:39:07.672137Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mc9eafc4e-894b-35d9-8807-0815793803ce [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/c9eafc4e-894b-35d9-8807-0815793803ce?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:07.915483Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mc9eafc4e-894b-35d9-8807-0815793803ce [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m11
+[2m2025-12-30T04:39:07.915531Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 756.5864ms
+[2m2025-12-30T04:39:08.685373Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mde830453-932f-3ac7-8f02-748e17947b04 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/de830453-932f-3ac7-8f02-748e17947b04?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:09.273330Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mde830453-932f-3ac7-8f02-748e17947b04 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:09.273380Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 411.9701ms
+[2m2025-12-30T04:39:09.698890Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma0453705-0318-495c-8627-b63da94c85ae [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a0453705-0318-495c-8627-b63da94c85ae?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:09.915370Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma0453705-0318-495c-8627-b63da94c85ae [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:09.915422Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 783.4407ms
+[2m2025-12-30T04:39:10.712996Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m20309da0-031b-34f7-a58b-b13ab2c67e0d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/20309da0-031b-34f7-a58b-b13ab2c67e0d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:12.036880Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m20309da0-031b-34f7-a58b-b13ab2c67e0d [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:12.036945Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m401fc8d9-b2c9-481d-98e1-b65287d3ef42 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/401fc8d9-b2c9-481d-98e1-b65287d3ef42?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:12.238161Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m401fc8d9-b2c9-481d-98e1-b65287d3ef42 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m11
+[2m2025-12-30T04:39:12.238217Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 798.7259ms
+[2m2025-12-30T04:39:13.046937Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m7c25cb7e-2bd7-4bf2-bbd5-2cbce261f9c2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/7c25cb7e-2bd7-4bf2-bbd5-2cbce261f9c2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:13.267080Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m7c25cb7e-2bd7-4bf2-bbd5-2cbce261f9c2 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m11
+[2m2025-12-30T04:39:13.267123Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 779.794ms
+[2m2025-12-30T04:39:14.050399Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m20d745cb-5334-327f-9cfe-e08e108cdba2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/20d745cb-5334-327f-9cfe-e08e108cdba2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:14.250959Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m20d745cb-5334-327f-9cfe-e08e108cdba2 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:14.251018Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 799.3548ms
+[2m2025-12-30T04:39:15.052638Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5a9be9a5-9efe-43c4-9687-02f80f6461ba [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5a9be9a5-9efe-43c4-9687-02f80f6461ba?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:15.245673Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5a9be9a5-9efe-43c4-9687-02f80f6461ba [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:15.245722Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 806.8937ms
+[2m2025-12-30T04:39:16.068449Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m80f18b81-8e9f-4a25-9cd7-11ef296cf266 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/80f18b81-8e9f-4a25-9cd7-11ef296cf266?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:16.339724Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m80f18b81-8e9f-4a25-9cd7-11ef296cf266 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:16.339775Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 728.6503ms
+[2m2025-12-30T04:39:17.079462Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m6a2f7271-e848-47f5-a640-8e2979239bb2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/6a2f7271-e848-47f5-a640-8e2979239bb2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:17.275403Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m6a2f7271-e848-47f5-a640-8e2979239bb2 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:17.275453Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 803.991ms
+[2m2025-12-30T04:39:18.094797Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0md1e9f574-c569-49cd-8ead-63713ded17dc [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/d1e9f574-c569-49cd-8ead-63713ded17dc?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:18.311667Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0md1e9f574-c569-49cd-8ead-63713ded17dc [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:18.311727Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 783.0505ms
+[2m2025-12-30T04:39:19.107434Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m94924f7e-1c01-4e53-8413-bab5b9367821 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/94924f7e-1c01-4e53-8413-bab5b9367821?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:19.415097Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m94924f7e-1c01-4e53-8413-bab5b9367821 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:19.415148Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 692.2676ms
+[2m2025-12-30T04:39:20.117374Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9aa86f04-d359-48ff-b710-7039c6b1b0a9 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9aa86f04-d359-48ff-b710-7039c6b1b0a9?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:20.336496Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9aa86f04-d359-48ff-b710-7039c6b1b0a9 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:20.336549Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 780.7877ms
+[2m2025-12-30T04:39:21.118734Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m039d22cf-dd16-46ad-9753-6aa7adc8dd22 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/039d22cf-dd16-46ad-9753-6aa7adc8dd22?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:21.395935Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m039d22cf-dd16-46ad-9753-6aa7adc8dd22 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:21.395990Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 722.7213ms
+[2m2025-12-30T04:39:22.129845Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma4718d04-50fb-48a4-b2c1-2871380d5987 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a4718d04-50fb-48a4-b2c1-2871380d5987?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:22.333601Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma4718d04-50fb-48a4-b2c1-2871380d5987 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:22.333650Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 796.1779ms
+[2m2025-12-30T04:39:23.144242Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m8095ddfd-8b99-4ccc-8da3-f2e42db32fdc [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/8095ddfd-8b99-4ccc-8da3-f2e42db32fdc?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:23.365058Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m8095ddfd-8b99-4ccc-8da3-f2e42db32fdc [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:39:23.365106Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 779.1132ms
+[2m2025-12-30T04:39:24.146835Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m799f8dd4-756d-4f46-8462-11fd2f2ef0c5 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/799f8dd4-756d-4f46-8462-11fd2f2ef0c5?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:24.363243Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m799f8dd4-756d-4f46-8462-11fd2f2ef0c5 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:24.363296Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 783.5209ms
+[2m2025-12-30T04:39:25.159851Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m01025488-32f9-4ece-85cd-a6ed64950553 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/01025488-32f9-4ece-85cd-a6ed64950553?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:25.368722Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m01025488-32f9-4ece-85cd-a6ed64950553 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:39:25.368775Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 791.0578ms
+[2m2025-12-30T04:39:26.175182Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mf086ba8e-09cf-4619-b706-bcfcfb676644 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/f086ba8e-09cf-4619-b706-bcfcfb676644?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:26.520702Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mf086ba8e-09cf-4619-b706-bcfcfb676644 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:26.520778Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 654.386ms
+[2m2025-12-30T04:39:27.187371Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m2a2f5d3a-42a7-4f9e-8388-8b21403bd60d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/2a2f5d3a-42a7-4f9e-8388-8b21403bd60d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:27.423030Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m2a2f5d3a-42a7-4f9e-8388-8b21403bd60d [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:27.423076Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 764.2568ms
+[2m2025-12-30T04:39:28.201720Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m615ade1d-1632-4ddf-8ae4-260159ba75b7 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/615ade1d-1632-4ddf-8ae4-260159ba75b7?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:28.513374Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m615ade1d-1632-4ddf-8ae4-260159ba75b7 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:28.513422Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 688.2725ms
+[2m2025-12-30T04:39:29.217565Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m3253a674-064e-40b7-94cb-626f610f6983 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/3253a674-064e-40b7-94cb-626f610f6983?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:29.428482Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m3253a674-064e-40b7-94cb-626f610f6983 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:29.428528Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 789.0125ms
+[2m2025-12-30T04:39:30.230717Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0me7d96645-1325-4f1f-91f5-3dffa9458ecf [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/e7d96645-1325-4f1f-91f5-3dffa9458ecf?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:30.428783Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0me7d96645-1325-4f1f-91f5-3dffa9458ecf [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:30.428848Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 801.8506ms
+[2m2025-12-30T04:39:31.232507Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m1d288a41-0b02-4d59-943e-1870c6308ea1 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/1d288a41-0b02-4d59-943e-1870c6308ea1?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:31.614562Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m1d288a41-0b02-4d59-943e-1870c6308ea1 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:39:31.614608Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 617.8759ms
+[2m2025-12-30T04:39:32.247689Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mdac4786a-ee92-4254-8c56-dbf5511db664 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/dac4786a-ee92-4254-8c56-dbf5511db664?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:39:32.477687Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mdac4786a-ee92-4254-8c56-dbf5511db664 [3mtitle[0m[2m=[0mPump [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:39:32.477742Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Found enough results, stopping search [3mstrategy[0m[2m=[0m1 [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:39:32.477751Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed [3martist[0m[2m=[0mAerosmith [3malbum[0m[2m=[0mPump [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:40:59.031625Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +504.1 MB [album_matcher decode] → Total: 1151.0 MB (1.15 GB) | 126036864 samples
+[2m2025-12-30T04:40:59.031671Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Decoded 126036864 samples at 44100Hz (2858.0s)
+[2m2025-12-30T04:40:59.031686Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2025-12-30T04:40:59.031962Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 10 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 63.6% (edition: Pump)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): 75.0% penalized, 100.0% raw (edition: Pump)
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage4 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Aerosmith - Pump
+Tracks: 10, Detected: 10
+
+Trk   Expected   Detected      Error     Status
+--------------------------------------------------
+  1    258.00s    257.85s      0.15s          ✓
+  2    250.00s    250.05s      0.05s          ✓
+  3    339.00s    339.10s      0.10s          ✓
+  4    237.00s    239.60s      2.60s          ✓
+  5    339.00s    339.80s      0.80s          ✓
+  6    297.00s    295.45s      1.55s          ✓
+  7    190.00s    189.85s      0.15s          ✓
+  8    289.00s    288.25s      0.75s          ✓
+  9    279.00s    278.85s      0.15s          ✓
+ 10    388.00s    379.18s      8.82s          ✓
+==========================================
+
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: Aerosmith - Pump ---
+  Release MBID: a4718d04-50fb-48a4-b2c1-2871380d5987
+  Track Count: 10
+  Match %: 75.0%
+  Final Score: 0.9170
+  Stage: Stage4
+  Mean Error: 1.51s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Young Lust                        258.00s    257.85s      0.15s          ✓
+    2 F.I.N.E.                          250.00s    250.05s      0.05s          ✓
+    3 Going Down / Love in an Ele...    339.00s    339.10s      0.10s          ✓
+    4 Monkey on My Back                 237.00s    239.60s      2.60s          ✓
+    5 Water Song / Janie’s Got ...      339.00s    339.80s      0.80s          ✓
+    6 Dulcimer Stomp / The Other ...    297.00s    295.45s      1.55s          ✓
+    7 My Girl                           190.00s    189.85s      0.15s          ✓
+    8 Don’t Get Mad, Get Even           289.00s    288.25s      0.75s          ✓
+    9 Hoodoo / Voodoo Medicine Man      279.00s    278.85s      0.15s          ✓
+   10 What It Takes                     388.00s    379.18s      8.82s          ✓
+
+--- Rank #2: Aerosmith - Pump ---
+  Release MBID: 799f8dd4-756d-4f46-8462-11fd2f2ef0c5
+  Track Count: 10
+  Match %: 75.0%
+  Final Score: 0.9107
+  Stage: Stage4
+  Mean Error: 1.65s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Young Lust                        259.00s    257.85s      1.15s          ✓
+    2 F.I.N.E.                          250.00s    250.05s      0.05s          ✓
+    3 Love in an Elevator               339.00s    339.10s      0.10s          ✓
+    4 Monkey on My Back                 237.00s    239.60s      2.60s          ✓
+    5 Janie’s Got a Gun                 333.00s    336.05s      3.05s          ✓
+    6 The Other Side                    297.00s    297.30s      0.30s          ✓
+    7 My Girl                           190.00s    188.85s      1.15s          ✓
+    8 Don’t Get Mad, Get Even           290.00s    291.15s      1.15s          ✓
+    9 Voodoo Medicine Man               279.00s    278.85s      0.15s          ✓
+   10 What It Takes                     386.00s    379.18s      6.82s          ✓
+
+--- Rank #3: Aerosmith - Pump ---
+  Release MBID: 5a9be9a5-9efe-43c4-9687-02f80f6461ba
+  Track Count: 10
+  Match %: 75.0%
+  Final Score: 0.8978
+  Stage: Stage4
+  Mean Error: 1.94s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Young Lust                        259.00s    257.85s      1.15s          ✓
+    2 F.I.N.E.                          248.00s    250.05s      2.05s          ✓
+    3 Going Down / Love in an Ele...    338.00s    339.10s      1.10s          ✓
+    4 Monkey on My Back                 236.00s    238.60s      2.60s          ✓
+    5 Water Song / Janie’s Got ...      340.00s    340.20s      0.20s          ✓
+    6 Dulcimer Stomp / The Other ...    296.00s    296.05s      0.05s          ✓
+    7 My Girl                           189.00s    189.10s      0.10s          ✓
+    8 Don’t Get Mad, Get Even           289.00s    289.00s      0.00s          ✓
+    9 Hoodoo / Voodoo Medicine Man      276.00s    267.45s      8.55s          ✓
+   10 What It Takes                     387.00s    390.58s      3.58s          ✓
+
+--- Rank #4: Aerosmith - Pump ---
+  Release MBID: 3253a674-064e-40b7-94cb-626f610f6983
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.8962
+  Stage: Stage4
+  Mean Error: 2.03s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Young Lust                        259.93s    257.85s      2.08s          ✓
+    2 F.I.N.E.                          249.67s    250.05s      0.38s          ✓
+    3 Going Down / Love in an Ele...    338.96s    339.10s      0.14s          ✓
+    4 Monkey on My Back                 237.31s    239.60s      2.29s          ✓
+    5 Water Song / Janie's Got a Gun    333.33s    337.50s      4.17s          ✓
+    6 Dulcimer Stomp / The Other ...    296.87s    296.90s      0.03s          ✓
+    7 My Girl                           190.20s    190.20s      0.00s          ✓
+    8 Don't Get Mad, Get Even           289.23s    288.75s      0.48s          ✓
+    9 Hoodoo / Voodoo Medicine Man      279.00s    278.85s      0.15s          ✓
+   10 What It Takes                     389.77s    379.18s     10.59s          ✗
+
+--- Rank #5: Aerosmith - Pump ---
+  Release MBID: 039d22cf-dd16-46ad-9753-6aa7adc8dd22
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.8722
+  Stage: Stage4
+  Mean Error: 2.64s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Young Lust                        260.00s    257.85s      2.15s          ✓
+    2 F.I.N.E.                          246.00s    250.05s      4.05s          ✓
+    3 Going Down / Love in an Ele...    341.96s    339.10s      2.86s          ✓
+    4 Monkey on My Back                 237.00s    239.60s      2.60s          ✓
+    5 Water Song / Janie’s Got ...      334.00s    337.30s      3.30s          ✓
+    6 Dulcimer Stomp / The Other ...    296.87s    296.80s      0.07s          ✓
+    7 My Girl                           190.07s    190.10s      0.03s          ✓
+    8 Don’t Get Mad, Get Even           288.00s    288.00s      0.00s          ✓
+    9 Hoodoo / Voodoo Medicine Man      279.53s    279.55s      0.02s          ✓
+   10 What It Takes                     391.00s    379.63s     11.37s          ✗
+
+=========================================
+
+[2m2025-12-30T04:40:59.036980Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage4), percentage=100.0%
+  Matched: true
+  Expected Tracks: 10
+  Match %: 100.0%
+  ✓ PASS
+
+--- Testing: 38 Special - Anthology ---
+[2m2025-12-30T04:40:59.051960Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\38 Special/Anthology.mp3
+[2m2025-12-30T04:40:59.052509Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Metadata: artist=38 Special, album=Anthology
+[2m2025-12-30T04:40:59.052715Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=38 Special, album=Anthology
+[2m2025-12-30T04:40:59.052785Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Starting multi-strategy MusicBrainz search [3martist[0m[2m=[0m38 Special [3malbum[0m[2m=[0mAnthology [3mstrategies[0m[2m=[0m5
+[2m2025-12-30T04:40:59.052798Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m1 [3mtotal[0m[2m=[0m5 [3mquery[0m[2m=[0mtype:album AND artist:38 Special AND release:Anthology
+[2m2025-12-30T04:40:59.052824Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:38 Special AND release:Anthology [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3A38%20Special%20AND%20release%3AAnthology&limit=25&fmt=json
+[2m2025-12-30T04:40:59.786050Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:38 Special AND release:Anthology [3mcount[0m[2m=[0m2 [3mresults[0m[2m=[0m2
+[2m2025-12-30T04:40:59.786102Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 266.7106ms
+[2m2025-12-30T04:41:00.068434Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/94c5881c-e47a-42ba-bea0-d9ff8cb79dd1?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:00.424598Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m94c5881c-e47a-42ba-bea0-d9ff8cb79dd1 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m34
+[2m2025-12-30T04:41:00.424647Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 643.7512ms
+[2m2025-12-30T04:41:01.079572Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m4a81fc08-f915-49fc-9aa2-5b708c18f07a [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/4a81fc08-f915-49fc-9aa2-5b708c18f07a?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:01.444111Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m4a81fc08-f915-49fc-9aa2-5b708c18f07a [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m34
+[2m2025-12-30T04:41:01.444150Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m2 [3mtotal[0m[2m=[0m5 [3mquery[0m[2m=[0mtype:album AND artist:38 Special~ AND release:Anthology~
+[2m2025-12-30T04:41:01.444165Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 635.3684ms
+[2m2025-12-30T04:41:02.092617Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:38 Special~ AND release:Anthology~ [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3A38%20Special~%20AND%20release%3AAnthology~&limit=25&fmt=json
+[2m2025-12-30T04:41:02.566377Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:38 Special~ AND release:Anthology~ [3mcount[0m[2m=[0m2 [3mresults[0m[2m=[0m2
+[2m2025-12-30T04:41:02.566422Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m3 [3mtotal[0m[2m=[0m5 [3mquery[0m[2m=[0mtype:album AND artist:38 Special~2 AND release:Anthology~2
+[2m2025-12-30T04:41:02.566436Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 526.1464ms
+[2m2025-12-30T04:41:03.107621Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:38 Special~2 AND release:Anthology~2 [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3A38%20Special~2%20AND%20release%3AAnthology~2&limit=25&fmt=json
+[2m2025-12-30T04:41:03.460400Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:38 Special~2 AND release:Anthology~2 [3mcount[0m[2m=[0m2 [3mresults[0m[2m=[0m2
+[2m2025-12-30T04:41:03.460441Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m4 [3mtotal[0m[2m=[0m5 [3mquery[0m[2m=[0mtype:album AND artist:(38~ Special~) AND release:(Anthology~)
+[2m2025-12-30T04:41:03.460456Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 647.1262ms
+[2m2025-12-30T04:41:04.108797Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:(38~ Special~) AND release:(Anthology~) [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3A%2838~%20Special~%29%20AND%20release%3A%28Anthology~%29&limit=25&fmt=json
+[2m2025-12-30T04:41:04.434359Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:(38~ Special~) AND release:(Anthology~) [3mcount[0m[2m=[0m4 [3mresults[0m[2m=[0m4
+[2m2025-12-30T04:41:04.434408Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 674.3564ms
+[2m2025-12-30T04:41:05.124445Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m3b03bfe4-87f8-443e-989c-40d38b2cadc3 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/3b03bfe4-87f8-443e-989c-40d38b2cadc3?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:05.398388Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m3b03bfe4-87f8-443e-989c-40d38b2cadc3 [3mtitle[0m[2m=[0mWanderers: Astrology of the Nine [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:41:05.398442Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 725.9647ms
+[2m2025-12-30T04:41:06.140479Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m67832e22-bcd2-40e6-a1c3-7865a4af62f1 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/67832e22-bcd2-40e6-a1c3-7865a4af62f1?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:06.448030Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m67832e22-bcd2-40e6-a1c3-7865a4af62f1 [3mtitle[0m[2m=[0mWanderers: Astrology of the Nine [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:41:06.448068Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m5 [3mtotal[0m[2m=[0m5 [3mquery[0m[2m=[0mtype:album AND release:Anthology
+[2m2025-12-30T04:41:06.448082Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 692.3747ms
+[2m2025-12-30T04:41:07.155779Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND release:Anthology [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20release%3AAnthology&limit=25&fmt=json
+[2m2025-12-30T04:41:07.556635Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND release:Anthology [3mcount[0m[2m=[0m3727 [3mresults[0m[2m=[0m25
+[2m2025-12-30T04:41:07.556694Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 599.045ms
+[2m2025-12-30T04:41:08.170616Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m8da40fa0-70b5-4730-85cc-20ebce1912d2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/8da40fa0-70b5-4730-85cc-20ebce1912d2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:08.524856Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m8da40fa0-70b5-4730-85cc-20ebce1912d2 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m19
+[2m2025-12-30T04:41:08.524908Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 645.682ms
+[2m2025-12-30T04:41:09.186125Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mf6193694-b4f4-4e2e-948c-3493b0bcef8b [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/f6193694-b4f4-4e2e-948c-3493b0bcef8b?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:09.549619Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mf6193694-b4f4-4e2e-948c-3493b0bcef8b [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:41:09.549667Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 636.4329ms
+[2m2025-12-30T04:41:10.188826Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0me62d8846-b1a0-449e-8242-d0a782eb87d4 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/e62d8846-b1a0-449e-8242-d0a782eb87d4?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:10.436726Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0me62d8846-b1a0-449e-8242-d0a782eb87d4 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:41:10.436807Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 751.9315ms
+[2m2025-12-30T04:41:11.204366Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0md30a13a4-df96-4b42-91ee-fdf7676136b9 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/d30a13a4-df96-4b42-91ee-fdf7676136b9?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:11.440008Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0md30a13a4-df96-4b42-91ee-fdf7676136b9 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m2
+[2m2025-12-30T04:41:11.440061Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 764.2678ms
+[2m2025-12-30T04:41:12.205647Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m7a726db3-acfd-4020-9295-cbd81804ef39 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/7a726db3-acfd-4020-9295-cbd81804ef39?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:12.635283Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m7a726db3-acfd-4020-9295-cbd81804ef39 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m12
+[2m2025-12-30T04:41:12.635332Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 570.2887ms
+[2m2025-12-30T04:41:13.219849Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m18141d7c-2a02-46f9-b98b-302546b4da67 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/18141d7c-2a02-46f9-b98b-302546b4da67?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:13.457396Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m18141d7c-2a02-46f9-b98b-302546b4da67 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m8
+[2m2025-12-30T04:41:13.457446Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 762.3817ms
+[2m2025-12-30T04:41:14.233587Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mae435b3f-8984-4fd2-aaa9-4b7b5538b1c7 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/ae435b3f-8984-4fd2-aaa9-4b7b5538b1c7?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:14.531789Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mae435b3f-8984-4fd2-aaa9-4b7b5538b1c7 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:41:14.531839Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 701.7115ms
+[2m2025-12-30T04:41:15.246410Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9d54e652-8dcb-41b5-a812-304d050c917d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9d54e652-8dcb-41b5-a812-304d050c917d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:15.739411Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9d54e652-8dcb-41b5-a812-304d050c917d [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m35
+[2m2025-12-30T04:41:15.739465Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 506.9103ms
+[2m2025-12-30T04:41:16.260555Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m95a27f35-126f-416f-acd4-48ed5bea6a0e [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/95a27f35-126f-416f-acd4-48ed5bea6a0e?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:16.694057Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m95a27f35-126f-416f-acd4-48ed5bea6a0e [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m20
+[2m2025-12-30T04:41:16.694102Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 566.4287ms
+[2m2025-12-30T04:41:17.262502Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mae7b7427-9680-49ac-bcee-24cd952fa6fb [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/ae7b7427-9680-49ac-bcee-24cd952fa6fb?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:17.812905Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mae7b7427-9680-49ac-bcee-24cd952fa6fb [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m8
+[2m2025-12-30T04:41:17.812970Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 449.5063ms
+[2m2025-12-30T04:41:18.264485Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5bd74dc5-cb19-4d29-96ce-f7a7f754d13a [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5bd74dc5-cb19-4d29-96ce-f7a7f754d13a?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:18.467728Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5bd74dc5-cb19-4d29-96ce-f7a7f754d13a [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m8
+[2m2025-12-30T04:41:18.467777Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 796.6859ms
+[2m2025-12-30T04:41:19.278651Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0me6322cdc-ff5e-4381-a1e0-d1513c1b5733 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/e6322cdc-ff5e-4381-a1e0-d1513c1b5733?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:19.549786Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0me6322cdc-ff5e-4381-a1e0-d1513c1b5733 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m11
+[2m2025-12-30T04:41:19.549837Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 728.7834ms
+[2m2025-12-30T04:41:20.292611Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma3f25b8c-1243-406b-bcfb-d7a92dcfb0cd [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a3f25b8c-1243-406b-bcfb-d7a92dcfb0cd?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:20.491231Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma3f25b8c-1243-406b-bcfb-d7a92dcfb0cd [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m12
+[2m2025-12-30T04:41:20.491279Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 801.3105ms
+[2m2025-12-30T04:41:21.304312Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5520ef8a-4cf4-459a-81e4-b72863406b5e [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5520ef8a-4cf4-459a-81e4-b72863406b5e?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:21.704197Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5520ef8a-4cf4-459a-81e4-b72863406b5e [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:41:21.704270Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 600.0056ms
+[2m2025-12-30T04:41:22.306545Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m709cd3f0-2746-4c76-bbf0-0a6759e9e107 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/709cd3f0-2746-4c76-bbf0-0a6759e9e107?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:22.742824Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m709cd3f0-2746-4c76-bbf0-0a6759e9e107 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m16
+[2m2025-12-30T04:41:22.742875Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 563.6477ms
+[2m2025-12-30T04:41:23.320801Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9d286a68-b7e3-486e-bdc0-083efd875de1 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9d286a68-b7e3-486e-bdc0-083efd875de1?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:23.767890Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9d286a68-b7e3-486e-bdc0-083efd875de1 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m19
+[2m2025-12-30T04:41:23.767935Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 552.8339ms
+[2m2025-12-30T04:41:24.335126Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m20f4f11b-51de-4672-867d-295525993ab2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/20f4f11b-51de-4672-867d-295525993ab2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:24.796156Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m20f4f11b-51de-4672-867d-295525993ab2 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m16
+[2m2025-12-30T04:41:24.796207Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 538.8923ms
+[2m2025-12-30T04:41:25.350740Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5dc8468a-fc86-4270-8c89-6b1359e875cd [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5dc8468a-fc86-4270-8c89-6b1359e875cd?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:25.556934Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5dc8468a-fc86-4270-8c89-6b1359e875cd [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m12
+[2m2025-12-30T04:41:25.556986Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 793.7256ms
+[2m2025-12-30T04:41:26.364797Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0meadab0eb-ec28-4977-8ee0-8100cd4c9f2e [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/eadab0eb-ec28-4977-8ee0-8100cd4c9f2e?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:26.581167Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0meadab0eb-ec28-4977-8ee0-8100cd4c9f2e [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m12
+[2m2025-12-30T04:41:26.581218Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 783.5502ms
+[2m2025-12-30T04:41:27.381138Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0md8016dc1-5e99-440b-9eb3-a583a006305f [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/d8016dc1-5e99-440b-9eb3-a583a006305f?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:27.663206Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0md8016dc1-5e99-440b-9eb3-a583a006305f [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m15
+[2m2025-12-30T04:41:27.663256Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 717.8486ms
+[2m2025-12-30T04:41:28.396147Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mbd9b1327-7d70-4803-bea4-4dc3bdfd7104 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/bd9b1327-7d70-4803-bea4-4dc3bdfd7104?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:41:28.887664Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mbd9b1327-7d70-4803-bea4-4dc3bdfd7104 [3mtitle[0m[2m=[0mAnthology [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:41:28.887724Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Found enough results, stopping search [3mstrategy[0m[2m=[0m5 [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:41:28.887734Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed [3martist[0m[2m=[0m38 Special [3malbum[0m[2m=[0mAnthology [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:47:00.806900Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +1599.7 MB [album_matcher decode] → Total: 2750.7 MB (2.75 GB) | 399922560 samples
+[2m2025-12-30T04:47:00.806941Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Decoded 399922560 samples at 44100Hz (9068.5s)
+[2m2025-12-30T04:47:00.806955Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2025-12-30T04:47:00.807423Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 20 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Anthology)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: 38 Special - Anthology
+Tracks: 34, Detected: 34
+
+Trk   Expected   Detected      Error     Status
+--------------------------------------------------
+  1    240.00s    235.13s      4.87s          ✓
+  2    253.46s    249.86s      3.60s          ✓
+  3    188.82s    185.73s      3.09s          ✓
+  4    279.24s    274.86s      4.38s          ✓
+  5    242.72s    240.39s      2.33s          ✓
+  6    317.18s    314.23s      2.94s          ✓
+  7    257.08s    253.60s      3.48s          ✓
+  8    244.93s    240.78s      4.15s          ✓
+  9    294.89s    290.96s      3.94s          ✓
+ 10    277.82s    274.58s      3.25s          ✓
+ 11    303.62s    299.00s      4.61s          ✓
+ 12    247.54s    245.50s      2.04s          ✓
+ 13    236.96s    234.12s      2.84s          ✓
+ 14    234.43s    230.81s      3.62s          ✓
+ 15    224.86s    221.16s      3.70s          ✓
+ 16    237.57s    233.33s      4.24s          ✓
+ 17    272.97s    267.90s      5.07s          ✓
+ 18    256.00s    253.40s      2.60s          ✓
+ 19    235.09s    230.38s      4.71s          ✓
+ 20    243.00s    239.94s      3.06s          ✓
+ 21    194.32s    190.90s      3.42s          ✓
+ 22    249.15s    244.79s      4.36s          ✓
+ 23    236.85s    232.46s      4.39s          ✓
+ 24    220.81s    216.84s      3.97s          ✓
+ 25    273.93s    269.59s      4.33s          ✓
+ 26    302.58s    298.98s      3.61s          ✓
+ 27    297.00s    290.79s      6.21s          ✓
+ 28    321.00s    316.08s      4.92s          ✓
+ 29    333.00s    326.53s      6.47s          ✓
+ 30    273.00s    269.85s      3.15s          ✓
+ 31    357.00s    353.88s      3.12s          ✓
+ 32    315.00s    310.46s      4.54s          ✓
+ 33    250.00s    247.41s      2.59s          ✓
+ 34    274.00s    273.25s      0.75s          ✓
+==========================================
+
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: 38 Special - Anthology ---
+  Release MBID: 4a81fc08-f915-49fc-9aa2-5b708c18f07a
+  Track Count: 34
+  Match %: 100.0%
+  Final Score: 0.8151
+  Stage: Stage2
+  Mean Error: 3.78s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Rockin’ Into the Night            240.00s    235.13s      4.87s          ✓
+    2 Stone Cold Believer               253.46s    249.86s      3.60s          ✓
+    3 Money Honey                       188.82s    185.73s      3.09s          ✓
+    4 Hold On Loosely                   279.24s    274.86s      4.38s          ✓
+    5 Long Time Gone                    242.72s    240.39s      2.33s          ✓
+    6 Take Me Back                      317.18s    314.23s      2.94s          ✓
+    7 Wild‐Eyed Southern Boys           257.08s    253.60s      3.48s          ✓
+    8 Fantasy Girl                      244.93s    240.78s      4.15s          ✓
+    9 Hittin’ and Runnin’               294.89s    290.96s      3.94s          ✓
+   10 Caught Up in You                  277.82s    274.58s      3.25s          ✓
+   11 Chain Lightnin’                   303.62s    299.00s      4.61s          ✓
+   12 Rough Housin’                     247.54s    245.50s      2.04s          ✓
+   13 You Keep Runnin’ Away             236.96s    234.12s      2.84s          ✓
+   14 Prisoners of Rock ’n’ Roll        234.43s    230.81s      3.62s          ✓
+   15 Twentieth Century Fox             224.86s    221.16s      3.70s          ✓
+   16 Long Distance Affair              237.57s    233.33s      4.24s          ✓
+   17 One Time for Old Times            272.97s    267.90s      5.07s          ✓
+   18 Take ’em Out (1999 / live...      256.00s    253.40s      2.60s          ✓
+   19 If I’d Been the One               235.09s    230.38s      4.71s          ✓
+   20 Back Where You Belong             243.00s    239.94s      3.06s          ✓
+   21 Teacher, Teacher (from “T...      194.32s    190.90s      3.42s          ✓
+   22 Somebody Like You                 249.15s    244.79s      4.36s          ✓
+   23 Like No Other Night               236.85s    232.46s      4.39s          ✓
+   24 Back to Paradise (from “R...      220.81s    216.84s      3.97s          ✓
+   25 Rock ’n’ Roll Strategy            273.93s    269.59s      4.33s          ✓
+   26 Second Chance                     302.58s    298.98s      3.61s          ✓
+   27 The Sound of Your Voice           297.00s    290.79s      6.21s          ✓
+   28 Last Thing I Ever Do              321.00s    316.08s      4.92s          ✓
+   29 Rebel to Rebel                    333.00s    326.53s      6.47s          ✓
+   30 Fade to Blue                      273.00s    269.85s      3.15s          ✓
+   31 Déjà Voodoo                       357.00s    353.88s      3.12s          ✓
+   32 Homeless Guitar                   315.00s    310.46s      4.54s          ✓
+   33 Saving Grace                      250.00s    247.41s      2.59s          ✓
+   34 Just One Girl (live from Bu...    274.00s    273.25s      0.75s          ✓
+
+--- Rank #2: 38 Special - Anthology ---
+  Release MBID: 94c5881c-e47a-42ba-bea0-d9ff8cb79dd1
+  Track Count: 34
+  Match %: 100.0%
+  Final Score: 0.8146
+  Stage: Stage2
+  Mean Error: 3.79s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Rockin’ Into the Night            240.00s    235.13s      4.87s          ✓
+    2 Stone Cold Believer               253.47s    249.86s      3.60s          ✓
+    3 Money Honey                       188.87s    185.73s      3.14s          ✓
+    4 Hold On Loosely                   279.27s    274.86s      4.40s          ✓
+    5 Long Time Gone                    242.80s    240.39s      2.41s          ✓
+    6 Take Me Back                      317.23s    314.23s      2.99s          ✓
+    7 Wild‐Eyed Southern Boys           257.13s    253.60s      3.54s          ✓
+    8 Fantasy Girl                      244.97s    240.78s      4.19s          ✓
+    9 Hittin’ and Runnin’               294.89s    290.96s      3.94s          ✓
+   10 Caught Up in You                  277.91s    274.58s      3.33s          ✓
+   11 Chain Lightnin’                   303.67s    299.00s      4.66s          ✓
+   12 Rough‐Housin’                     247.63s    245.50s      2.12s          ✓
+   13 You Keep Runnin’ Away             237.04s    234.12s      2.92s          ✓
+   14 Prisoners of Rock & Roll          234.43s    230.81s      3.62s          ✓
+   15 Twentieth Century Fox             224.91s    221.16s      3.74s          ✓
+   16 Long Distance Affair              237.63s    233.33s      4.29s          ✓
+   17 One Time for Old Times            272.97s    267.90s      5.07s          ✓
+   18 Take ’Em Out (live)               256.20s    253.40s      2.80s          ✓
+   19 If I’d Been the One               235.13s    230.38s      4.75s          ✓
+   20 Back Where You Belong             242.53s    239.94s      2.59s          ✓
+   21 Teacher, Teacher                  194.36s    190.90s      3.46s          ✓
+   22 Somebody Like You                 249.17s    244.79s      4.38s          ✓
+   23 Like No Other Night               236.89s    232.46s      4.44s          ✓
+   24 Back to Paradise                  220.84s    216.84s      4.00s          ✓
+   25 Rock & Roll Strategy              273.96s    269.59s      4.37s          ✓
+   26 Second Chance                     302.64s    298.98s      3.66s          ✓
+   27 The Sound of Your Voice           296.89s    290.79s      6.10s          ✓
+   28 Last Thing I Ever Do              321.24s    316.08s      5.16s          ✓
+   29 Rebel to Rebel                    333.13s    326.53s      6.61s          ✓
+   30 Fade to Blue                      272.76s    269.85s      2.91s          ✓
+   31 Déjà Voodoo                       357.31s    353.88s      3.43s          ✓
+   32 Homeless Guitar                   314.09s    310.46s      3.63s          ✓
+   33 Saving Grace                      250.47s    247.41s      3.05s          ✓
+   34 Just One Girl                     273.77s    273.25s      0.52s          ✓
+
+--- Rank #3: The Cathedrals - Anthology ---
+  Release MBID: 9d54e652-8dcb-41b5-a812-304d050c917d
+  Track Count: 35
+  Match %: 8.6%
+  Final Score: 0.2883
+  Stage: Stage2
+  Mean Error: 76.31s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Step Into The Water               201.87s    235.13s     33.26s          ✗
+    2 Who Can Do Anything               184.93s    249.86s     64.93s          ✗
+    3 Shout Over Heaven                 152.67s      1.77s    150.89s          ✗
+    4 Sunshine And Roses                312.76s    182.90s    129.86s          ✗
+    5 Even The Winds                    260.49s    274.86s     14.37s          ✗
+    6 Can He, Could He, Would He        158.95s    240.39s     81.44s          ✗
+    7 Sinner Saved By Grace             302.09s    314.23s     12.14s          ✗
+    8 Give The World A Smile            113.17s    253.60s    140.42s          ✗
+    9 I'm Telling The World About...    232.96s    240.78s      7.82s          ✓
+   10 Somebody Touched Me               226.00s    290.96s     64.96s          ✗
+   11 An Old Convention Song            145.67s    274.58s    128.91s          ✗
+   12 Climbing Higher and Higher        187.89s    299.00s    111.11s          ✗
+   13 O What A Savior                   265.64s    245.50s     20.14s          ✗
+   14 Hide Thou Me                      235.04s    234.12s      0.92s          ✓
+   15 Jesus Saves                       202.32s    230.81s     28.49s          ✗
+   16 I Feel Like Shoutin'              120.28s    221.16s    100.88s          ✗
+   17 When We All Get Together Wi...    132.13s    233.33s    101.20s          ✗
+   18 I've Just Started Living          194.83s    267.90s     73.08s          ✗
+   19 Standing On Holy Ground           142.00s    253.40s    111.40s          ✗
+   20 Goin' In Style                    126.67s    230.38s    103.72s          ✗
+   21 Daystar                           318.97s    239.94s     79.03s          ✗
+   22 Child Of The King                 141.47s    190.90s     49.43s          ✗
+   23 Turn Your Back                    187.69s    244.79s     57.10s          ✗
+   24 Then Came The Morning             264.64s    232.46s     32.18s          ✗
+   25 I've Read The Back Of The Book    187.07s    216.84s     29.77s          ✗
+   26 Wedding Music                     245.76s    269.59s     23.83s          ✗
+   27 Champion Of Love                  273.33s    298.98s     25.64s          ✗
+   28 Ride That Glory Train             248.73s    290.79s     42.06s          ✗
+   29 Oh, Come Along                    165.57s    316.08s    150.51s          ✗
+   30 Still Drinking Water From T...    137.83s    326.53s    188.70s          ✗
+   31 There Is A Fountain               175.93s    269.85s     93.92s          ✗
+   32 Moving Up To Gloryland            179.13s    353.88s    174.74s          ✗
+   33 We Shall See Jesus                301.20s    310.46s      9.26s          ✓
+   34 Wonderful Grace of Jesus          149.84s    247.41s     97.57s          ✗
+   35 Turn Your Radio On                134.20s    271.25s    137.05s          ✗
+
+--- Rank #4: DJ King Assassin - Anthology ---
+  Release MBID: 8da40fa0-70b5-4730-85cc-20ebce1912d2
+  Track Count: 19
+  Match %: 5.3%
+  Final Score: 0.1928
+  Stage: Stage2
+  Mean Error: 247.25s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Thugg Livin’                      283.93s    241.27s     42.67s          ✗
+    2 San Quinn and Assassin            115.84s   1546.56s   1430.72s          ✗
+    3 Supahbad                          153.33s    242.20s     88.87s          ✗
+    4 Livin in da Hood (remix)          319.09s    572.05s    252.96s          ✗
+    5 Ghetto Child                      170.44s   1252.53s   1082.09s          ✗
+    6 Much More                         244.92s    234.62s     10.30s          ✗
+    7 Game Tight                        262.67s    269.39s      6.72s          ✓
+    8 So Much Pain                      245.87s    488.94s    243.07s          ✗
+    9 Real Locs                         210.76s    435.73s    224.97s          ✗
+   10 Faces of Death                    191.87s    245.39s     53.52s          ✗
+   11 When the Chipz Are Down           264.43s    457.73s    193.30s          ✗
+   12 Deep in the Game                  198.55s    271.08s     72.53s          ✗
+   13 Rydaz for Life                    243.49s    299.99s     56.50s          ✗
+   14 Closer                            220.71s    292.35s     71.65s          ✗
+   15 You Gotta Believe                 267.53s    317.42s     49.89s          ✗
+   16 Most Bistches                     300.43s    328.91s     28.49s          ✗
+   17 Neva Do You Wrong Trick           292.19s    945.40s    653.21s          ✗
+   18 Movin Thangs                      203.85s    248.00s     44.15s          ✗
+   19 [unknown]                         181.11s    273.27s     92.16s          ✗
+
+--- Rank #5: Walter Maioli - Anthology ---
+  Release MBID: d30a13a4-df96-4b42-91ee-fdf7676136b9
+  Track Count: 2
+  Match %: 0.0%
+  Final Score: 0.1608
+  Stage: Stage2
+  Mean Error: 0.00s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+
+=========================================
+
+[2m2025-12-30T04:47:00.818592Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+  Matched: true
+  Expected Tracks: 34
+  Match %: 100.0%
+  ✓ PASS
+
+--- Testing: Allman Brothers - At Fillmore East ---
+[2m2025-12-30T04:47:00.867029Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Allman Brothers/AtFillmoreEast.mp3
+[2m2025-12-30T04:47:00.867558Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Metadata: artist=Allman Brothers, album=At Fillmore East
+[2m2025-12-30T04:47:00.867775Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Allman Brothers, album=At Fillmore East
+[2m2025-12-30T04:47:00.867848Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Starting multi-strategy MusicBrainz search [3martist[0m[2m=[0mAllman Brothers [3malbum[0m[2m=[0mAt Fillmore East [3mstrategies[0m[2m=[0m6
+[2m2025-12-30T04:47:00.867863Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m1 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:Allman Brothers AND release:At Fillmore East
+[2m2025-12-30T04:47:00.867888Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Allman Brothers AND release:At Fillmore East [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3AAllman%20Brothers%20AND%20release%3AAt%20Fillmore%20East&limit=25&fmt=json
+[2m2025-12-30T04:47:01.653956Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Allman Brothers AND release:At Fillmore East [3mcount[0m[2m=[0m65 [3mresults[0m[2m=[0m25
+[2m2025-12-30T04:47:01.654006Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 213.8712ms
+[2m2025-12-30T04:47:01.876838Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0me134362b-3eab-3ab3-8b1a-6ca552887056 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/e134362b-3eab-3ab3-8b1a-6ca552887056?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:02.071414Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0me134362b-3eab-3ab3-8b1a-6ca552887056 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:02.071464Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 805.3568ms
+[2m2025-12-30T04:47:02.889777Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m29e18ce2-3777-432b-bff6-c446e71b21e7 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/29e18ce2-3777-432b-bff6-c446e71b21e7?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:03.108255Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m29e18ce2-3777-432b-bff6-c446e71b21e7 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:47:03.108317Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 781.4218ms
+[2m2025-12-30T04:47:03.904059Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m07414908-a9b1-48fe-9d38-1a20f21fc843 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/07414908-a9b1-48fe-9d38-1a20f21fc843?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:04.113938Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m07414908-a9b1-48fe-9d38-1a20f21fc843 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m5
+[2m2025-12-30T04:47:04.113985Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 790.0451ms
+[2m2025-12-30T04:47:04.916561Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mbf784256-5ba1-44f1-a362-4c719953e549 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/bf784256-5ba1-44f1-a362-4c719953e549?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:05.143964Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mbf784256-5ba1-44f1-a362-4c719953e549 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:47:05.144014Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 772.528ms
+[2m2025-12-30T04:47:05.930706Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m342f87ff-f267-4762-a078-50e7c8400e19 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/342f87ff-f267-4762-a078-50e7c8400e19?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:06.139155Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m342f87ff-f267-4762-a078-50e7c8400e19 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:47:06.139205Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 791.4802ms
+[2m2025-12-30T04:47:06.946255Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0me452e265-aecb-4f5e-b6ff-70fe8f31140b [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/e452e265-aecb-4f5e-b6ff-70fe8f31140b?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:07.132659Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0me452e265-aecb-4f5e-b6ff-70fe8f31140b [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:07.132716Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 813.5154ms
+[2m2025-12-30T04:47:07.948029Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m4025b60d-fb16-4c18-b588-3ee54ad4f2b5 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/4025b60d-fb16-4c18-b588-3ee54ad4f2b5?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:08.150433Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m4025b60d-fb16-4c18-b588-3ee54ad4f2b5 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:08.150482Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 797.524ms
+[2m2025-12-30T04:47:08.949281Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5a1d4b69-a48b-3fc6-9f46-762894b3df62 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5a1d4b69-a48b-3fc6-9f46-762894b3df62?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:09.133030Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5a1d4b69-a48b-3fc6-9f46-762894b3df62 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:09.133073Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 816.1881ms
+[2m2025-12-30T04:47:09.952155Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m00b29434-fcd2-4586-b764-cef6b9b084cc [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/00b29434-fcd2-4586-b764-cef6b9b084cc?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:10.153656Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m00b29434-fcd2-4586-b764-cef6b9b084cc [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:10.153701Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 798.4368ms
+[2m2025-12-30T04:47:10.953796Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mf54d5d53-e85a-3b4e-b35c-3c86400f18aa [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/f54d5d53-e85a-3b4e-b35c-3c86400f18aa?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:11.217393Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mf54d5d53-e85a-3b4e-b35c-3c86400f18aa [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:11.217439Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 736.339ms
+[2m2025-12-30T04:47:11.970595Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mc0d515ad-0688-46a5-9ab0-3857fa32453d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/c0d515ad-0688-46a5-9ab0-3857fa32453d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:12.172207Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mc0d515ad-0688-46a5-9ab0-3857fa32453d [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:12.172252Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 798.3204ms
+[2m2025-12-30T04:47:12.973036Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mf4595e6d-8996-494e-b346-82a1b0512d45 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/f4595e6d-8996-494e-b346-82a1b0512d45?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:13.173630Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mf4595e6d-8996-494e-b346-82a1b0512d45 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:13.173680Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 799.3383ms
+[2m2025-12-30T04:47:13.990200Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m98ba2133-4e07-4633-8804-0546fed6c215 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/98ba2133-4e07-4633-8804-0546fed6c215?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:14.204248Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m98ba2133-4e07-4633-8804-0546fed6c215 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m13
+[2m2025-12-30T04:47:14.204291Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 785.834ms
+[2m2025-12-30T04:47:15.003997Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m27d542cb-2b7d-4449-8307-65a2f0f9b30b [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/27d542cb-2b7d-4449-8307-65a2f0f9b30b?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:15.196187Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m27d542cb-2b7d-4449-8307-65a2f0f9b30b [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:15.196249Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 807.7268ms
+[2m2025-12-30T04:47:16.019451Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m01136b7c-b0d2-4569-94a9-74c5ac49a55c [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/01136b7c-b0d2-4569-94a9-74c5ac49a55c?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:16.306924Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m01136b7c-b0d2-4569-94a9-74c5ac49a55c [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:16.306970Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 712.4361ms
+[2m2025-12-30T04:47:17.035261Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m7e9eaba3-0835-417a-97f8-d38978387370 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/7e9eaba3-0835-417a-97f8-d38978387370?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:17.224869Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m7e9eaba3-0835-417a-97f8-d38978387370 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:17.224924Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 810.3153ms
+[2m2025-12-30T04:47:18.049644Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m1100bd1d-9940-427e-a79b-95050fd76641 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/1100bd1d-9940-427e-a79b-95050fd76641?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:18.257479Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m1100bd1d-9940-427e-a79b-95050fd76641 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:18.257527Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 792.0948ms
+[2m2025-12-30T04:47:19.052385Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m286e27d9-c56f-3849-8819-9a70a553afc0 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/286e27d9-c56f-3849-8819-9a70a553afc0?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:19.253256Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m286e27d9-c56f-3849-8819-9a70a553afc0 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:19.253302Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 799.0552ms
+[2m2025-12-30T04:47:20.053991Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m3f1f7bd6-47eb-4828-abaa-df3c8c4751d0 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/3f1f7bd6-47eb-4828-abaa-df3c8c4751d0?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:20.311704Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m3f1f7bd6-47eb-4828-abaa-df3c8c4751d0 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:20.311749Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 742.2219ms
+[2m2025-12-30T04:47:21.057018Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m8d33fe0e-539e-48e8-8925-94ab88222f54 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/8d33fe0e-539e-48e8-8925-94ab88222f54?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:21.400659Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m8d33fe0e-539e-48e8-8925-94ab88222f54 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m14
+[2m2025-12-30T04:47:21.400712Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 656.285ms
+[2m2025-12-30T04:47:22.069288Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mc0df8e86-86b2-43a9-be8a-d990a6d110c4 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/c0df8e86-86b2-43a9-be8a-d990a6d110c4?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:22.268195Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mc0df8e86-86b2-43a9-be8a-d990a6d110c4 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:22.268249Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 801.0134ms
+[2m2025-12-30T04:47:23.071749Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m6bd67003-f248-4795-83e0-853accfd1fe6 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/6bd67003-f248-4795-83e0-853accfd1fe6?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:23.268512Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m6bd67003-f248-4795-83e0-853accfd1fe6 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:23.268560Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 803.1567ms
+[2m2025-12-30T04:47:24.075691Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0ma35df3d8-6c04-4bff-8a0a-d080304c614d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/a35df3d8-6c04-4bff-8a0a-d080304c614d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:24.299107Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0ma35df3d8-6c04-4bff-8a0a-d080304c614d [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:24.299158Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 776.5127ms
+[2m2025-12-30T04:47:25.080601Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0md57209ed-772d-451b-bfca-40c684b47caa [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/d57209ed-772d-451b-bfca-40c684b47caa?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:25.290156Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0md57209ed-772d-451b-bfca-40c684b47caa [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:25.290210Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 790.3685ms
+[2m2025-12-30T04:47:26.096183Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m4d3d7b1e-20e7-4b42-a99e-221759a21804 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/4d3d7b1e-20e7-4b42-a99e-221759a21804?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:47:26.408780Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m4d3d7b1e-20e7-4b42-a99e-221759a21804 [3mtitle[0m[2m=[0mAt Fillmore East [3mtracks[0m[2m=[0m7
+[2m2025-12-30T04:47:26.408819Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Found enough results, stopping search [3mstrategy[0m[2m=[0m1 [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:47:26.408828Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed [3martist[0m[2m=[0mAllman Brothers [3malbum[0m[2m=[0mAt Fillmore East [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:54:36.675616Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +1415.5 MB [album_matcher decode] → Total: 4166.1 MB (4.17 GB) | 353863296 samples
+[2m2025-12-30T04:54:36.675662Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Decoded 353863296 samples at 44100Hz (8024.1s)
+[2m2025-12-30T04:54:36.675675Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2025-12-30T04:54:36.675960Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 11 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: At Fillmore East)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: The Allman Brothers Band - At Fillmore East
+Tracks: 13, Detected: 13
+
+Trk   Expected   Detected      Error     Status
+--------------------------------------------------
+  1    258.20s    257.23s      0.97s          ✓
+  2    224.57s    222.52s      2.05s          ✓
+  3    207.40s    205.44s      1.96s          ✓
+  4    273.25s    271.81s      1.44s          ✓
+  5    529.19s    527.21s      1.98s          ✓
+  6    298.01s    295.25s      2.76s          ✓
+  7    787.37s    783.38s      3.99s          ✓
+  8   1158.84s   1155.21s      3.63s          ✓
+  9    175.44s    174.03s      1.41s          ✓
+ 10    322.12s    319.69s      2.43s          ✓
+ 11   1373.43s   1372.40s      1.02s          ✓
+ 12   2021.28s   2016.56s      4.72s          ✓
+ 13    414.69s    412.61s      2.08s          ✓
+==========================================
+
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: 29e18ce2-3777-432b-bff6-c446e71b21e7
+  Track Count: 13
+  Match %: 100.0%
+  Final Score: 0.8409
+  Stage: Stage2
+  Mean Error: 2.34s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Statesboro Blues                  258.20s    257.23s      0.97s          ✓
+    2 Trouble No More                   224.57s    222.52s      2.05s          ✓
+    3 Don’t Keep Me Wonderin’           207.40s    205.44s      1.96s          ✓
+    4 Done Somebody Wrong               273.25s    271.81s      1.44s          ✓
+    5 Stormy Monday                     529.19s    527.21s      1.98s          ✓
+    6 One Way Out                       298.01s    295.25s      2.76s          ✓
+    7 In Memory of Elizabeth Reed       787.37s    783.38s      3.99s          ✓
+    8 You Don’t Love Me                1158.84s   1155.21s      3.63s          ✓
+    9 Midnight Rider                    175.44s    174.03s      1.41s          ✓
+   10 Hot ’Lanta                        322.12s    319.69s      2.43s          ✓
+   11 Whipping Post                    1373.43s   1372.40s      1.02s          ✓
+   12 Mountain Jam                     2021.28s   2016.56s      4.72s          ✓
+   13 Drunken Hearted Boy               414.69s    412.61s      2.08s          ✓
+
+--- Rank #2: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: 8d33fe0e-539e-48e8-8925-94ab88222f54
+  Track Count: 14
+  Match %: 7.1%
+  Final Score: 0.3205
+  Stage: Stage2
+  Mean Error: 532.78s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Statesboro Blues                  261.25s    257.23s      4.02s          ✓
+    2 Done Somebody Wrong               276.15s    222.69s     53.46s          ✗
+    3 Stormy Monday                     530.87s    205.66s    325.21s          ✗
+    4 You Don’t Love Me                1163.04s    272.14s    890.90s          ✗
+    5 Hot ’Lanta                        323.05s    527.49s    204.43s          ✗
+    6 In Memory of Elizabeth Reed       787.79s    295.30s    492.48s          ✗
+    7 Whipping Post                    1393.33s    783.56s    609.78s          ✗
+    8 Statesboro Blues                  261.25s   1155.61s    894.36s          ✗
+    9 Done Somebody Wrong               276.15s    174.15s    102.00s          ✗
+   10 Stormy Monday                     530.87s    319.69s    211.17s          ✗
+   11 You Don’t Love Me                1163.04s   1372.41s    209.37s          ✗
+   12 Hot ’Lanta                        323.05s   2016.56s   1693.51s          ✗
+   13 In Memory of Elizabeth Reed       787.79s      0.32s    787.46s          ✗
+   14 Whipping Post                    1393.33s    412.63s    980.71s          ✗
+
+--- Rank #3: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: 1100bd1d-9940-427e-a79b-95050fd76641
+  Track Count: 7
+  Match %: 14.3%
+  Final Score: 0.2890
+  Stage: Stage2
+  Mean Error: 856.25s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Statesboro Blues                  257.00s    257.23s      0.23s          ✓
+    2 Done Somebody Wrong               273.00s    222.80s     50.20s          ✗
+    3 Stormy Monday                     524.00s    205.71s    318.29s          ✗
+    4 Hot ’Lanta                        318.00s   1880.00s   1562.00s          ✗
+    5 In Memory of Elizabeth Reed       784.00s   3023.19s   2239.19s          ✗
+    6 You Don’t Love Me                1156.00s   2017.26s    861.26s          ✗
+    7 Whipping Post                    1376.00s    413.44s    962.56s          ✗
+
+--- Rank #4: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: e452e265-aecb-4f5e-b6ff-70fe8f31140b
+  Track Count: 7
+  Match %: 14.3%
+  Final Score: 0.2727
+  Stage: Stage2
+  Mean Error: 858.82s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Statesboro Blues                  260.00s    257.23s      2.77s          ✓
+    2 Done Somebody Wrong               275.93s    222.80s     53.13s          ✗
+    3 Stormy Monday                     530.00s    205.71s    324.29s          ✗
+    4 You Don’t Love Me                1159.53s   1880.00s    720.46s          ✗
+    5 Hot ’Lanta                        321.93s   3023.19s   2701.26s          ✗
+    6 In Memory of Elizabeth Reed       787.00s   2017.26s   1230.26s          ✗
+    7 Whipping Post                    1393.00s    413.44s    979.56s          ✗
+
+--- Rank #5: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: 3f1f7bd6-47eb-4828-abaa-df3c8c4751d0
+  Track Count: 7
+  Match %: 14.3%
+  Final Score: 0.2727
+  Stage: Stage2
+  Mean Error: 857.62s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Statesboro Blues                  260.00s    257.23s      2.77s          ✓
+    2 Done Somebody Wrong               275.93s    222.80s     53.13s          ✗
+    3 Stormy Monday                     528.87s    205.71s    323.16s          ✗
+    4 You Don’t Love Me                1159.53s   1880.00s    720.46s          ✗
+    5 Hot ’Lanta                        321.93s   3023.19s   2701.26s          ✗
+    6 In Memory of Elizabeth Reed       786.27s   2017.26s   1230.99s          ✗
+    7 Whipping Post                    1385.00s    413.44s    971.56s          ✗
+
+=========================================
+
+[2m2025-12-30T04:54:36.680059Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+  Matched: true
+  Expected Tracks: 13
+  Match %: 100.0%
+  ✓ PASS
+
+--- Testing: Cars - Heartbeat City ---
+[2m2025-12-30T04:54:36.729998Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Cars/HeartbeatCity.mp3
+[2m2025-12-30T04:54:36.730501Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Metadata: artist=Cars, album=Heartbeat City
+[2m2025-12-30T04:54:36.730728Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Cars, album=Heartbeat City
+[2m2025-12-30T04:54:36.730802Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Starting multi-strategy MusicBrainz search [3martist[0m[2m=[0mCars [3malbum[0m[2m=[0mHeartbeat City [3mstrategies[0m[2m=[0m6
+[2m2025-12-30T04:54:36.730815Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Trying MusicBrainz search strategy [3mstrategy[0m[2m=[0m1 [3mtotal[0m[2m=[0m6 [3mquery[0m[2m=[0mtype:album AND artist:Cars AND release:Heartbeat City
+[2m2025-12-30T04:54:36.730842Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Searching MusicBrainz releases [3mquery[0m[2m=[0mtype:album AND artist:Cars AND release:Heartbeat City [3mlimit[0m[2m=[0m25 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/?query=type%3Aalbum%20AND%20artist%3ACars%20AND%20release%3AHeartbeat%20City&limit=25&fmt=json
+[2m2025-12-30T04:54:37.656399Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Release search completed [3mquery[0m[2m=[0mtype:album AND artist:Cars AND release:Heartbeat City [3mcount[0m[2m=[0m32 [3mresults[0m[2m=[0m25
+[2m2025-12-30T04:54:37.656447Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 74.3852ms
+[2m2025-12-30T04:54:37.740990Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m8c3970ab-fd00-4098-8605-4c8cdb98bdf8 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/8c3970ab-fd00-4098-8605-4c8cdb98bdf8?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:38.118808Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m8c3970ab-fd00-4098-8605-4c8cdb98bdf8 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:38.118857Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 622.1111ms
+[2m2025-12-30T04:54:38.753338Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mc826c51f-658a-4574-b694-35c7c3676456 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/c826c51f-658a-4574-b694-35c7c3676456?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:38.947041Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mc826c51f-658a-4574-b694-35c7c3676456 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:38.947094Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 806.2222ms
+[2m2025-12-30T04:54:39.767208Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m1ba7a7e6-052d-42e4-bd78-56f33c2c958a [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/1ba7a7e6-052d-42e4-bd78-56f33c2c958a?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:39.957688Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m1ba7a7e6-052d-42e4-bd78-56f33c2c958a [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:39.957754Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 809.4324ms
+[2m2025-12-30T04:54:40.778059Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mf43996d5-b160-41a9-810d-1205e6c3aaf3 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/f43996d5-b160-41a9-810d-1205e6c3aaf3?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:40.980972Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mf43996d5-b160-41a9-810d-1205e6c3aaf3 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:40.981026Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 797.0077ms
+[2m2025-12-30T04:54:41.790483Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mfa80db52-ea2b-3b9d-9c3b-fe62f515eb1d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/fa80db52-ea2b-3b9d-9c3b-fe62f515eb1d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:42.115159Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mfa80db52-ea2b-3b9d-9c3b-fe62f515eb1d [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:42.115210Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 675.2466ms
+[2m2025-12-30T04:54:42.805274Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mdf07423a-2566-315f-bc4f-640c754bdd09 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/df07423a-2566-315f-bc4f-640c754bdd09?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:43.057655Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mdf07423a-2566-315f-bc4f-640c754bdd09 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:43.057706Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 747.5477ms
+[2m2025-12-30T04:54:43.816737Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m1db10f80-d959-45fe-ae6c-e44916e0c9f9 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/1db10f80-d959-45fe-ae6c-e44916e0c9f9?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:44.034788Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m1db10f80-d959-45fe-ae6c-e44916e0c9f9 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:44.034846Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 781.8671ms
+[2m2025-12-30T04:54:44.832704Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0md28cb978-e649-4aa3-9af5-8210cb4adbb8 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/d28cb978-e649-4aa3-9af5-8210cb4adbb8?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:45.030110Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0md28cb978-e649-4aa3-9af5-8210cb4adbb8 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:45.030158Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 802.5087ms
+[2m2025-12-30T04:54:45.835327Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m589545a8-8b6a-4d24-ba51-b46b4ba11cf6 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/589545a8-8b6a-4d24-ba51-b46b4ba11cf6?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:46.043425Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m589545a8-8b6a-4d24-ba51-b46b4ba11cf6 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:46.043477Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 791.8306ms
+[2m2025-12-30T04:54:46.849349Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mdfffe292-3976-4bf1-8159-d7d3c7ee8fd3 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/dfffe292-3976-4bf1-8159-d7d3c7ee8fd3?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:47.079204Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mdfffe292-3976-4bf1-8159-d7d3c7ee8fd3 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:47.079253Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 770.0748ms
+[2m2025-12-30T04:54:47.864150Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0md94edb6f-bfd0-4203-8789-60c462a90f84 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/d94edb6f-bfd0-4203-8789-60c462a90f84?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:48.190808Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0md94edb6f-bfd0-4203-8789-60c462a90f84 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m20
+[2m2025-12-30T04:54:48.190855Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 673.2635ms
+[2m2025-12-30T04:54:48.877711Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m82db403e-e66c-4110-829c-db317bfd669f [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/82db403e-e66c-4110-829c-db317bfd669f?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:49.065868Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m82db403e-e66c-4110-829c-db317bfd669f [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:49.065918Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 811.7747ms
+[2m2025-12-30T04:54:49.888483Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9acbb8ab-1c21-4cb4-8e89-30b88b4d749d [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9acbb8ab-1c21-4cb4-8e89-30b88b4d749d?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:50.277694Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9acbb8ab-1c21-4cb4-8e89-30b88b4d749d [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m17
+[2m2025-12-30T04:54:50.277749Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 610.7161ms
+[2m2025-12-30T04:54:50.902492Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9d5db8fc-c986-4b5a-8461-1fbb611ac5c2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9d5db8fc-c986-4b5a-8461-1fbb611ac5c2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:51.299491Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9d5db8fc-c986-4b5a-8461-1fbb611ac5c2 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:51.299672Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 602.7995ms
+[2m2025-12-30T04:54:51.916352Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m304bbdae-91e4-4553-8ba4-6a599be551d5 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/304bbdae-91e4-4553-8ba4-6a599be551d5?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:52.277993Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m304bbdae-91e4-4553-8ba4-6a599be551d5 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m17
+[2m2025-12-30T04:54:52.278042Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 638.291ms
+[2m2025-12-30T04:54:52.929985Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m7fe92905-60e8-43c0-8385-6fdfa96a5eb2 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/7fe92905-60e8-43c0-8385-6fdfa96a5eb2?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:53.112977Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m7fe92905-60e8-43c0-8385-6fdfa96a5eb2 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:53.113024Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 816.9386ms
+[2m2025-12-30T04:54:53.943520Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m3de73383-e3f9-4f67-ba5d-01cd0d5f796b [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/3de73383-e3f9-4f67-ba5d-01cd0d5f796b?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:54.392787Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m3de73383-e3f9-4f67-ba5d-01cd0d5f796b [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m17
+[2m2025-12-30T04:54:54.392839Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 550.6643ms
+[2m2025-12-30T04:54:54.956457Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9a122f16-8618-4304-8bb8-d3f310a79883 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9a122f16-8618-4304-8bb8-d3f310a79883?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:55.160171Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9a122f16-8618-4304-8bb8-d3f310a79883 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:55.160221Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 796.2131ms
+[2m2025-12-30T04:54:55.968135Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m968325ab-1874-4760-b2da-eaf026c071b4 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/968325ab-1874-4760-b2da-eaf026c071b4?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:56.270793Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m968325ab-1874-4760-b2da-eaf026c071b4 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:56.270837Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 697.2602ms
+[2m2025-12-30T04:54:56.980283Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m99d6eaee-7703-4729-98b4-6a14cb34e731 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/99d6eaee-7703-4729-98b4-6a14cb34e731?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:57.167650Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m99d6eaee-7703-4729-98b4-6a14cb34e731 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:57.167716Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 812.5499ms
+[2m2025-12-30T04:54:57.993543Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0mc57121d1-6a29-4188-99e0-8fc887f6cfc6 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/c57121d1-6a29-4188-99e0-8fc887f6cfc6?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:58.192374Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0mc57121d1-6a29-4188-99e0-8fc887f6cfc6 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:54:58.192422Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 801.0953ms
+[2m2025-12-30T04:54:59.007291Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m0862adf2-8bca-41f0-b735-afea5d2ad75f [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/0862adf2-8bca-41f0-b735-afea5d2ad75f?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:54:59.331933Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m0862adf2-8bca-41f0-b735-afea5d2ad75f [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m17
+[2m2025-12-30T04:54:59.331983Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 675.2826ms
+[2m2025-12-30T04:55:00.018887Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m9a8d3c38-97e4-41f3-8e8d-821660342505 [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/9a8d3c38-97e4-41f3-8e8d-821660342505?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:55:00.224715Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m9a8d3c38-97e4-41f3-8e8d-821660342505 [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:55:00.224775Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 794.0843ms
+[2m2025-12-30T04:55:01.031471Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m5b234289-5678-4b35-b4f6-03ca8dec844c [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/5b234289-5678-4b35-b4f6-03ca8dec844c?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:55:01.223100Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m5b234289-5678-4b35-b4f6-03ca8dec844c [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m12
+[2m2025-12-30T04:55:01.223145Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Rate limiting: waiting 808.3037ms
+[2m2025-12-30T04:55:02.044118Z[0m [34mDEBUG[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Fetching release details from MusicBrainz [3mmbid[0m[2m=[0m277fd638-e56a-4a8f-9e5c-6934835e385a [3murl[0m[2m=[0mhttps://musicbrainz.org/ws/2/release/277fd638-e56a-4a8f-9e5c-6934835e385a?inc=recordings+media+artist-credits&fmt=json
+[2m2025-12-30T04:55:02.235721Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Retrieved release details from MusicBrainz [3mmbid[0m[2m=[0m277fd638-e56a-4a8f-9e5c-6934835e385a [3mtitle[0m[2m=[0mHeartbeat City [3mtracks[0m[2m=[0m10
+[2m2025-12-30T04:55:02.235773Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Found enough results, stopping search [3mstrategy[0m[2m=[0m1 [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:55:02.235786Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed [3martist[0m[2m=[0mCars [3malbum[0m[2m=[0mHeartbeat City [3mfound[0m[2m=[0m25
+[2m2025-12-30T04:56:07.172399Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +405.9 MB [album_matcher decode] → Total: 4572.1 MB (4.57 GB) | 101486592 samples
+[2m2025-12-30T04:56:07.172472Z[0m [34mDEBUG[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Decoded 101486592 samples at 44100Hz (2301.3s)
+[2m2025-12-30T04:56:07.172498Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2025-12-30T04:56:07.172902Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 9 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 50.0% (edition: Heartbeat City)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): 71.2% penalized, 95.0% raw (edition: Heartbeat City)
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage4 (90.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: The Cars - Heartbeat City
+Tracks: 10, Detected: 10
+
+Trk   Expected   Detected      Error     Status
+--------------------------------------------------
+  1    226.00s    225.70s      0.30s          ✓
+  2    231.00s    230.95s      0.05s          ✓
+  3    237.00s    236.70s      0.30s          ✓
+  4    235.00s    232.75s      2.25s          ✓
+  5    265.00s    263.85s      1.15s          ✓
+  6    186.00s    185.85s      0.15s          ✓
+  7    229.00s    228.30s      0.70s          ✓
+  8    244.00s    251.15s      7.15s          ✓
+  9    196.00s    196.60s      0.60s          ✓
+ 10    269.00s    249.43s     19.57s          ✗
+==========================================
+
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: The Cars - Heartbeat City ---
+  Release MBID: 99d6eaee-7703-4729-98b4-6a14cb34e731
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.7331
+  Stage: Stage4
+  Mean Error: 3.22s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Hello Again                       226.00s    225.70s      0.30s          ✓
+    2 Looking For Love                  231.00s    230.95s      0.05s          ✓
+    3 Magic                             237.00s    236.70s      0.30s          ✓
+    4 Drive                             235.00s    232.75s      2.25s          ✓
+    5 Stranger Eyes                     265.00s    263.85s      1.15s          ✓
+    6 You Might Think                   186.00s    185.85s      0.15s          ✓
+    7 It's Not The Night                229.00s    228.30s      0.70s          ✓
+    8 Why Can't I Have You              244.00s    251.15s      7.15s          ✓
+    9 I Refuse                          196.00s    196.60s      0.60s          ✓
+   10 Heartbeat City                    269.00s    249.43s     19.57s          ✗
+
+--- Rank #2: The Cars - Heartbeat City ---
+  Release MBID: 5b234289-5678-4b35-b4f6-03ca8dec844c
+  Track Count: 12
+  Match %: 68.8%
+  Final Score: 0.7296
+  Stage: Stage4
+  Mean Error: 7.84s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 [opening credits]                  80.00s     80.50s      0.50s          ✓
+    2 Hello Again                       297.00s    292.90s      4.10s          ✓
+    3 Magic                             270.00s    269.30s      0.70s          ✓
+    4 Drive                             234.00s    234.05s      0.05s          ✓
+    5 Panorama                          361.00s    360.65s      0.35s          ✓
+    6 Heartbeat City                    265.00s    265.10s      0.10s          ✓
+    7 Shake It Up                       225.00s    224.55s      0.45s          ✓
+    8 Why Can’t I Have You              228.00s    229.45s      1.45s          ✓
+    9 You Might Think                   183.00s    185.10s      2.10s          ✓
+   10 [untitled]                         83.00s     79.55s      3.45s          ✓
+   11 Making of "Hello Again"           539.00s    543.85s      4.85s          ✓
+   12 [end credits]                      76.00s      0.00s     76.00s          ✗
+
+--- Rank #3: The Cars - Heartbeat City ---
+  Release MBID: c826c51f-658a-4574-b694-35c7c3676456
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.7272
+  Stage: Stage4
+  Mean Error: 3.23s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Hello Again                       225.93s    225.70s      0.23s          ✓
+    2 Looking for Love                  231.40s    230.95s      0.45s          ✓
+    3 Magic                             237.00s    236.70s      0.30s          ✓
+    4 Drive                             234.13s    232.75s      1.38s          ✓
+    5 Stranger Eyes                     264.60s    263.85s      0.75s          ✓
+    6 You Might Think                   184.47s    183.05s      1.42s          ✓
+    7 It's Not the Night                228.57s    229.35s      0.78s          ✓
+    8 Why Can't I Have You              243.67s    247.40s      3.73s          ✓
+    9 I Refuse                          195.73s    200.65s      4.92s          ✓
+   10 Heartbeat City                    269.20s    250.88s     18.32s          ✗
+
+--- Rank #4: The Cars - Heartbeat City ---
+  Release MBID: d94edb6f-bfd0-4203-8789-60c462a90f84
+  Track Count: 20
+  Match %: 71.2%
+  Final Score: 0.7270
+  Stage: Stage4
+  Mean Error: 14.70s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Hello Again                       228.00s    225.70s      2.30s          ✓
+    2 Looking for Love                  233.00s    230.95s      2.05s          ✓
+    3 Magic                             239.00s    239.25s      0.25s          ✓
+    4 Drive                             236.00s    239.15s      3.15s          ✓
+    5 Stranger Eyes                     268.00s    267.85s      0.15s          ✓
+    6 You Might Think                   185.00s    190.00s      5.00s          ✓
+    7 It’s Not the Night                230.00s    229.50s      0.50s          ✓
+    8 Why Can’t I Have You              245.00s    243.35s      1.65s          ✓
+    9 I Refuse                          197.00s    194.65s      2.35s          ✓
+   10 Heartbeat City                    276.00s    276.60s      0.60s          ✓
+   11 Hello Again                       228.00s    228.00s      0.00s          ✓
+   12 Looking for Love                  233.00s    233.00s      0.00s          ✓
+   13 Magic                             239.00s    239.00s      0.00s          ✓
+   14 Drive                             236.00s    236.00s      0.00s          ✓
+   15 Stranger Eyes                     268.00s    268.00s      0.00s          ✓
+   16 You Might Think                   185.00s    185.00s      0.00s          ✓
+   17 It’s Not the Night                230.00s    230.00s      0.00s          ✓
+   18 Why Can’t I Have You              245.00s    245.00s      0.00s          ✓
+   19 I Refuse                          197.00s    197.00s      0.00s          ✓
+   20 Heartbeat City                    276.00s      0.00s    276.00s          ✗
+
+--- Rank #5: The Cars - Heartbeat City ---
+  Release MBID: 9d5db8fc-c986-4b5a-8461-1fbb611ac5c2
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.7266
+  Stage: Stage4
+  Mean Error: 3.54s
+
+  Trk Track Title                      Expected   Detected      Error     Status
+  --------------------------------------------------------------------------------------
+    1 Hello Again                       226.42s    225.70s      0.72s          ✓
+    2 Looking for Love                  231.56s    230.95s      0.62s          ✓
+    3 Magic                             237.24s    236.70s      0.54s          ✓
+    4 Drive                             234.34s    232.75s      1.59s          ✓
+    5 Stranger Eyes                     264.85s    263.85s      1.00s          ✓
+    6 You Might Think                   184.73s    185.85s      1.12s          ✓
+    7 It’s Not the Night                228.78s    228.30s      0.48s          ✓
+    8 Why Can’t I Have You              243.84s    251.15s      7.31s          ✓
+    9 I Refuse                          195.89s    196.60s      0.71s          ✓
+   10 Heartbeat City                    270.77s    249.43s     21.34s          ✗
+
+=========================================
+
+[2m2025-12-30T04:56:07.179690Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage4), percentage=90.0%
+  Matched: true
+  Expected Tracks: 10
+  Match %: 90.0%
+  ✓ PASS
+
+
+=== Validation Summary ===
+Total albums: 5
+Tested: 5
+Passed: 5
+Skipped: 0
+Success Rate: 100.0%
+
+✓ PLAN027 comprehensive validation PASSED
+test test_plan027_comprehensive_validation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 1165.11s
+

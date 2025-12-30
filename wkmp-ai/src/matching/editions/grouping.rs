@@ -59,11 +59,13 @@ pub fn group_into_editions(releases: &[MBReleaseDetails]) -> Vec<Edition> {
         let mut track_count = 0;
         let mut durations_ms: Vec<u32> = Vec::new();
         let mut recording_mbids: Vec<String> = Vec::new();
+        let mut track_titles: Vec<String> = Vec::new();
 
         for media in &release.media {
             for track in &media.tracks {
                 track_count += 1;
                 durations_ms.push(track.length.unwrap_or(0));
+                track_titles.push(track.title.clone());
                 if let Some(ref recording) = track.recording {
                     recording_mbids.push(recording.id.clone());
                 }
@@ -82,6 +84,7 @@ pub fn group_into_editions(releases: &[MBReleaseDetails]) -> Vec<Edition> {
             track_count,
             track_durations: durations_ms.iter().map(|ms| *ms as f64 / 1000.0).collect(),
             recording_mbids,
+            track_titles,
             name_distance_rank: None,
             name_distance_score: None,
             durations: durations_ms,
@@ -93,10 +96,18 @@ pub fn group_into_editions(releases: &[MBReleaseDetails]) -> Vec<Edition> {
 
 /// Extract artist name from release details
 ///
-/// Attempts to get artist from first recording's artist credit.
+/// Attempts to get artist from release-level artist credit first,
+/// then falls back to first recording's artist credit.
 /// Returns "Unknown Artist" if not available.
 fn extract_artist_from_release(release: &MBReleaseDetails) -> String {
-    // Try to get artist from first recording
+    // Try release-level artist credit first
+    if let Some(ref artist_credit) = release.artist_credit {
+        if let Some(first_credit) = artist_credit.first() {
+            return first_credit.name.clone();
+        }
+    }
+
+    // Fall back to first recording's artist credit
     for media in &release.media {
         for track in &media.tracks {
             if let Some(ref recording) = track.recording {
@@ -144,6 +155,12 @@ mod tests {
         MBReleaseDetails {
             id: id.to_string(),
             title: title.to_string(),
+            artist_credit: Some(vec![MBArtistCredit {
+                name: "Test Artist".to_string(),
+                artist: MBArtist {
+                    name: "Test Artist".to_string(),
+                },
+            }]),
             status: Some("Official".to_string()),
             country: Some("US".to_string()),
             date: None,
@@ -224,6 +241,12 @@ mod tests {
         let multi_disc = MBReleaseDetails {
             id: "multi-disc".to_string(),
             title: "Double Album".to_string(),
+            artist_credit: Some(vec![MBArtistCredit {
+                name: "Test Artist".to_string(),
+                artist: MBArtist {
+                    name: "Test Artist".to_string(),
+                },
+            }]),
             status: Some("Official".to_string()),
             country: None,
             date: None,

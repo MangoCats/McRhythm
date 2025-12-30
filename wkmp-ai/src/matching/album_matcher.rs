@@ -420,6 +420,7 @@ impl AlbumMatcher {
             early_exit_grace: self.config.early_exit_grace_secs as usize,
             quiet_spot_window_secs: 5.0,
             max_merge_tracks: 3,
+            name_similarity_weight: 0.4, // Default: 40% name similarity, 60% match percentage
         };
 
         let result = run_orchestration(
@@ -429,6 +430,71 @@ impl AlbumMatcher {
             &editions,
             &orchestrator_config,
         );
+
+        // Log stage-by-stage performance for diagnostics
+        eprintln!("\n=== Stage-by-Stage Match Percentages ===");
+        if let Some(best_s2) = result.stage_results.stage2.first() {
+            eprintln!("  Stage 2 (Parameter Grid): {:.1}% (edition: {})",
+                best_s2.best_percentage, best_s2.edition.title);
+        } else {
+            eprintln!("  Stage 2 (Parameter Grid): No results");
+        }
+        if let Some(best_s3) = result.stage_results.stage3.first() {
+            eprintln!("  Stage 3 (DP Assembly): {:.1}% (edition: {})",
+                best_s3.best_percentage, best_s3.edition.title);
+        } else {
+            eprintln!("  Stage 3 (DP Assembly): No results");
+        }
+        if let Some(best_s4) = result.stage_results.stage4.first() {
+            eprintln!("  Stage 4 (RMS Quiet Spot): {:.1}% penalized, {:.1}% raw (edition: {})",
+                best_s4.penalized_percentage, best_s4.raw_percentage, best_s4.edition.title);
+        } else {
+            eprintln!("  Stage 4 (RMS Quiet Spot): No results");
+        }
+        if let Some(best_s5) = result.stage_results.stage5.first() {
+            eprintln!("  Stage 5 (Extra Merging): {:.1}% (edition: {})",
+                best_s5.percentage, best_s5.edition.title);
+        } else {
+            eprintln!("  Stage 5 (Extra Merging): No results");
+        }
+        eprintln!("  Winning Stage: {:?} ({:.1}%)", result.winning_stage, result.match_percentage);
+        eprintln!("========================================\n");
+
+        // Log track-by-track duration comparison
+        if let Some(edition) = result.matched_edition.as_ref() {
+            eprintln!("\n=== Track-by-Track Duration Comparison ===");
+            eprintln!("Album: {} - {}", edition.artist, edition.title);
+            eprintln!("Tracks: {}, Detected: {}", edition.track_count, result.detected_durations.len());
+            eprintln!("\n{:>3} {:>10} {:>10} {:>10} {:>10}",
+                "Trk", "Expected", "Detected", "Error", "Status");
+            eprintln!("{}", "-".repeat(50));
+
+            for (i, (&expected, &detected)) in edition.track_durations.iter()
+                .zip(result.detected_durations.iter())
+                .enumerate() {
+                let error = (detected - expected).abs();
+                let status = if error <= self.config.match_tolerance_secs {
+                    "✓"
+                } else {
+                    "✗"
+                };
+                eprintln!("{:>3} {:>9.2}s {:>9.2}s {:>9.2}s {:>10}",
+                    i + 1, expected, detected, error, status);
+            }
+
+            // Show any extra detected tracks
+            if result.detected_durations.len() > edition.track_count {
+                eprintln!("\nExtra detected tracks:");
+                for (i, &detected) in result.detected_durations.iter()
+                    .skip(edition.track_count)
+                    .enumerate() {
+                    eprintln!("{:>3} {:>9}  {:>9.2}s {:>9}  {:>10}",
+                        edition.track_count + i + 1, "-", detected, "-", "EXTRA");
+                }
+            }
+
+            eprintln!("==========================================\n");
+        }
 
         // Step 8: Verify artist match and build result
         let artist_similarity = result
@@ -471,6 +537,13 @@ impl AlbumMatcher {
             .filter(|&e| *e <= self.config.match_tolerance_secs)
             .count();
 
+        // **[Top-5 Ranking]** Generate ranked candidates with passage comparison tables
+        let ranked_candidates = super::orchestrator::rank_top_candidates(
+            &result.stage_results,
+            self.config.match_tolerance_secs,
+            5, // Top 5 candidates
+        );
+
         let album_result = AlbumMatchResult {
             matched: result.success,
             release_mbid: result
@@ -502,7 +575,40 @@ impl AlbumMatcher {
             },
             // **[IMPROVEMENT#1]** Preserve samples for successful matches too (may be useful for future features)
             decoded_audio: Some((samples, sample_rate)),
+            // **[Top-5 Ranking]** Include ranked candidates with passage comparison tables
+            ranked_candidates,
         };
+
+        // **[Top-5 Ranking]** Display ranked candidates with passage comparison tables
+        if !album_result.ranked_candidates.is_empty() {
+            eprintln!("\n=== Top {} Candidate Rankings ===", album_result.ranked_candidates.len());
+            for candidate in &album_result.ranked_candidates {
+                eprintln!("\n--- Rank #{}: {} - {} ---", candidate.rank, candidate.artist, candidate.title);
+                eprintln!("  Release MBID: {}", candidate.release_mbid);
+                eprintln!("  Track Count: {}", candidate.track_count);
+                eprintln!("  Match %: {:.1}%", candidate.match_percentage);
+                eprintln!("  Final Score: {:.4}", candidate.final_score);
+                eprintln!("  Stage: {:?}", candidate.stage);
+                eprintln!("  Mean Error: {:.2}s", candidate.mean_error);
+
+                eprintln!("\n  {:>3} {:<30} {:>10} {:>10} {:>10} {:>10}",
+                    "Trk", "Track Title", "Expected", "Detected", "Error", "Status");
+                eprintln!("  {}", "-".repeat(86));
+
+                for passage in &candidate.passage_comparison {
+                    let status = if passage.within_tolerance { "✓" } else { "✗" };
+                    eprintln!("  {:>3} {:<30} {:>9.2}s {:>9.2}s {:>9.2}s {:>10}",
+                        passage.track_number,
+                        passage.track_title,
+                        passage.expected_duration,
+                        passage.detected_duration,
+                        passage.error,
+                        status
+                    );
+                }
+            }
+            eprintln!("\n=========================================\n");
+        }
 
         info!(
             "Album match complete: matched={}, stage={:?}, percentage={:.1}%",

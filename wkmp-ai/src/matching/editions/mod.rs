@@ -15,4 +15,12 @@ pub mod scoring;
 
 pub use filtering::{calculate_name_distance, filter_and_sort_editions};
 pub use grouping::group_into_editions;
+
+// PLAN030 functions
 pub use scoring::{analyze_track_matching, score_edition_match};
+
+// PLAN027 Edition Selection functions
+pub use scoring::{
+    calculate_edition_score, calculate_total_duration_score, calculate_track_count_penalty,
+    calculate_track_quality_score, select_best_edition, EditionCandidate,
+};

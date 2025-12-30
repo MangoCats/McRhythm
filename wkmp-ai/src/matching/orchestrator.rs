@@ -12,13 +12,17 @@
 //! Orchestration stops at first stage that achieves acceptable match percentage.
 
 use crate::matching::{
+    editions::{
+        calculate_edition_score, calculate_total_duration_score, calculate_track_count_penalty,
+        calculate_track_quality_score,
+    },
     stages::{
         stage2::{run_stage2, stage2_success, EarlyExitConfig, Stage2Result},
         stage3::{run_stage3, stage3_success, Stage3Result},
         stage4::{run_stage4, stage4_success, RmsProfile, Stage4Result},
         stage5::{run_stage5, stage5_success, Stage5Result},
     },
-    types::{Edition, MatchingStage, SilenceCache},
+    types::{Edition, MatchingStage, PassageComparison, RankedCandidate, SilenceCache},
 };
 
 /// Complete matching result from orchestrator
@@ -88,10 +92,65 @@ impl Default for OrchestratorConfig {
     }
 }
 
-/// Calculate weighted final score combining name similarity and match percentage
+/// **[PLAN027]** Calculate multi-factor edition score
 ///
-/// When album hints are provided, this ensures the edition with the best name match
-/// is prioritized even if another edition has slightly better track count alignment.
+/// Uses REQ-AM-092 through REQ-AM-095 multi-factor weighted scoring to select
+/// the best edition from stage results. This replaces the old weighted scoring
+/// with graduated penalties for track count differences and improved quality metrics.
+///
+/// # Formula
+/// ```text
+/// base_score = (duration_score × 0.30) + (quality_score × 0.45) + (name_score × 0.25)
+/// final_score = base_score × track_count_penalty
+/// ```
+///
+/// # Arguments
+/// * `detected_durations` - Detected track durations in seconds
+/// * `edition` - Edition being scored
+/// * `name_distance_score` - Jaro-Winkler name similarity (0.0-1.0), None if not calculated
+/// * `tolerance_secs` - Track duration tolerance in seconds (typically 1.5-3.0)
+///
+/// # Returns
+/// Multi-factor score (0.0-1.0)
+fn calculate_multi_factor_score(
+    detected_durations: &[f64],
+    edition: &Edition,
+    name_distance_score: Option<f64>,
+    tolerance_secs: f64,
+) -> f64 {
+    // Calculate total duration score (REQ-AM-093)
+    let detected_total_ms = (detected_durations.iter().sum::<f64>() * 1000.0) as u64;
+    let edition_total_ms: u64 = edition.durations.iter().map(|&x| x as u64).sum();
+    let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+
+    // Calculate track quality score (REQ-AM-094)
+    // Convert edition durations from milliseconds to seconds
+    let edition_durations_secs: Vec<f64> = edition
+        .durations
+        .iter()
+        .map(|&ms| ms as f64 / 1000.0)
+        .collect();
+    let quality_score =
+        calculate_track_quality_score(detected_durations, &edition_durations_secs, tolerance_secs);
+
+    // Use name distance score (REQ-AM-092: 25% weight)
+    // Fall back to 0.5 if not calculated
+    let name_score = name_distance_score.unwrap_or(0.5);
+
+    // Calculate track count penalty (REQ-AM-095)
+    let detected_count = detected_durations.len();
+    let edition_count = edition.track_count;
+    let track_count_penalty = calculate_track_count_penalty(detected_count, edition_count);
+
+    // Calculate final score (REQ-AM-092)
+    calculate_edition_score(duration_score, quality_score, name_score, track_count_penalty)
+}
+
+/// **[DEPRECATED - PLAN030]** Calculate weighted final score combining name similarity and match percentage
+///
+/// **NOTE:** This function is preserved for backward compatibility but is being replaced
+/// by `calculate_multi_factor_score()` from PLAN027 which provides better edition selection
+/// with graduated penalties and improved quality metrics.
 ///
 /// # Formula
 /// `weighted_score = (name_similarity * name_weight) + (match_pct/100 * (1 - name_weight))`
@@ -103,6 +162,7 @@ impl Default for OrchestratorConfig {
 ///
 /// # Returns
 /// Weighted score (0.0-1.0), or just normalized match_percentage if name_distance_score is None
+#[allow(dead_code)]
 fn calculate_weighted_score(
     match_percentage: f64,
     name_distance_score: Option<f64>,
@@ -117,8 +177,11 @@ fn calculate_weighted_score(
     }
 }
 
-/// Select best Stage 2 result using weighted scoring
-fn select_best_stage2_result(results: &[Stage2Result], name_weight: f64) -> Option<&Stage2Result> {
+/// **[PLAN027]** Select best Stage 2 result using multi-factor scoring
+///
+/// Replaces old weighted scoring (name+match%) with multi-factor scoring that
+/// includes total duration alignment, track quality, and graduated track count penalties.
+fn select_best_stage2_result(results: &[Stage2Result], tolerance_secs: f64) -> Option<&Stage2Result> {
     if results.is_empty() {
         return None;
     }
@@ -126,22 +189,26 @@ fn select_best_stage2_result(results: &[Stage2Result], name_weight: f64) -> Opti
     results
         .iter()
         .max_by(|a, b| {
-            let score_a = calculate_weighted_score(
-                a.best_percentage,
+            let score_a = calculate_multi_factor_score(
+                &a.detected_durations,
+                &a.edition,
                 a.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
-            let score_b = calculate_weighted_score(
-                b.best_percentage,
+            let score_b = calculate_multi_factor_score(
+                &b.detected_durations,
+                &b.edition,
                 b.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
             score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
         })
 }
 
-/// Select best Stage 3 result using weighted scoring
-fn select_best_stage3_result(results: &[Stage3Result], name_weight: f64) -> Option<&Stage3Result> {
+/// **[PLAN027]** Select best Stage 3 result using multi-factor scoring
+///
+/// Uses assembled durations from dynamic programming assembly stage
+fn select_best_stage3_result(results: &[Stage3Result], tolerance_secs: f64) -> Option<&Stage3Result> {
     if results.is_empty() {
         return None;
     }
@@ -149,22 +216,26 @@ fn select_best_stage3_result(results: &[Stage3Result], name_weight: f64) -> Opti
     results
         .iter()
         .max_by(|a, b| {
-            let score_a = calculate_weighted_score(
-                a.best_percentage,
+            let score_a = calculate_multi_factor_score(
+                &a.assembled_durations,
+                &a.edition,
                 a.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
-            let score_b = calculate_weighted_score(
-                b.best_percentage,
+            let score_b = calculate_multi_factor_score(
+                &b.assembled_durations,
+                &b.edition,
                 b.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
             score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
         })
 }
 
-/// Select best Stage 4 result using weighted scoring
-fn select_best_stage4_result(results: &[Stage4Result], name_weight: f64) -> Option<&Stage4Result> {
+/// **[PLAN027]** Select best Stage 4 result using multi-factor scoring
+///
+/// Uses detected durations from quiet spot detection
+fn select_best_stage4_result(results: &[Stage4Result], tolerance_secs: f64) -> Option<&Stage4Result> {
     if results.is_empty() {
         return None;
     }
@@ -172,22 +243,26 @@ fn select_best_stage4_result(results: &[Stage4Result], name_weight: f64) -> Opti
     results
         .iter()
         .max_by(|a, b| {
-            let score_a = calculate_weighted_score(
-                a.penalized_percentage,
+            let score_a = calculate_multi_factor_score(
+                &a.detected_durations,
+                &a.edition,
                 a.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
-            let score_b = calculate_weighted_score(
-                b.penalized_percentage,
+            let score_b = calculate_multi_factor_score(
+                &b.detected_durations,
+                &b.edition,
                 b.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
             score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
         })
 }
 
-/// Select best Stage 5 result using weighted scoring
-fn select_best_stage5_result(results: &[Stage5Result], name_weight: f64) -> Option<&Stage5Result> {
+/// **[PLAN027]** Select best Stage 5 result using multi-factor scoring
+///
+/// Uses merged durations from extra track merging
+fn select_best_stage5_result(results: &[Stage5Result], tolerance_secs: f64) -> Option<&Stage5Result> {
     if results.is_empty() {
         return None;
     }
@@ -195,15 +270,17 @@ fn select_best_stage5_result(results: &[Stage5Result], name_weight: f64) -> Opti
     results
         .iter()
         .max_by(|a, b| {
-            let score_a = calculate_weighted_score(
-                a.percentage,  // Stage5Result uses 'percentage' not 'best_percentage'
+            let score_a = calculate_multi_factor_score(
+                &a.merged_durations,
+                &a.edition,
                 a.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
-            let score_b = calculate_weighted_score(
-                b.percentage,  // Stage5Result uses 'percentage' not 'best_percentage'
+            let score_b = calculate_multi_factor_score(
+                &b.merged_durations,
+                &b.edition,
                 b.edition.name_distance_score,
-                name_weight,
+                tolerance_secs,
             );
             score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
         })
@@ -247,8 +324,8 @@ pub fn run_orchestration(
     );
 
     if stage2_success(&stage_results.stage2, config.min_match_percentage) {
-        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
-        let best = select_best_stage2_result(&stage_results.stage2, config.name_similarity_weight)
+        // **[PLAN027]** Use multi-factor scoring (duration+quality+name+track_count)
+        let best = select_best_stage2_result(&stage_results.stage2, config.tolerance_secs)
             .expect("stage2_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage2,
@@ -272,8 +349,8 @@ pub fn run_orchestration(
     stage_results.stage3 = run_stage3(&best_stage2_durations, editions, config.tolerance_secs);
 
     if stage3_success(&stage_results.stage3, config.min_match_percentage) {
-        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
-        let best = select_best_stage3_result(&stage_results.stage3, config.name_similarity_weight)
+        // **[PLAN027]** Use multi-factor scoring (duration+quality+name+track_count)
+        let best = select_best_stage3_result(&stage_results.stage3, config.tolerance_secs)
             .expect("stage3_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage3,
@@ -296,13 +373,14 @@ pub fn run_orchestration(
     );
 
     if stage4_success(&stage_results.stage4, config.min_match_percentage) {
-        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
-        let best = select_best_stage4_result(&stage_results.stage4, config.name_similarity_weight)
+        // **[PLAN027]** Use multi-factor scoring (duration+quality+name+track_count)
+        let best = select_best_stage4_result(&stage_results.stage4, config.tolerance_secs)
             .expect("stage4_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage4,
             matched_edition: Some(best.edition.clone()),
-            match_percentage: best.penalized_percentage,
+            // Use raw percentage - penalty was only for edition selection
+            match_percentage: best.raw_percentage,
             detected_durations: best.detected_durations.clone(),
             track_errors: best.track_errors.clone(),
             success: true,
@@ -319,8 +397,8 @@ pub fn run_orchestration(
     );
 
     if stage5_success(&stage_results.stage5, config.min_match_percentage) {
-        // Use weighted scoring to select best edition (prioritizes name similarity + match %)
-        let best = select_best_stage5_result(&stage_results.stage5, config.name_similarity_weight)
+        // **[PLAN027]** Use multi-factor scoring (duration+quality+name+track_count)
+        let best = select_best_stage5_result(&stage_results.stage5, config.tolerance_secs)
             .expect("stage5_success implies non-empty results");
         return OrchestrationResult {
             winning_stage: MatchingStage::Stage5,
@@ -360,6 +438,203 @@ pub fn run_orchestration(
     }
 }
 
+// =============================================================================
+// Top-N Candidate Ranking
+// =============================================================================
+
+/// **[Top-5 Ranking]** Candidate entry for ranking across all stages
+#[derive(Debug, Clone)]
+struct CandidateEntry {
+    edition: Edition,
+    stage: MatchingStage,
+    match_percentage: f64,
+    detected_durations: Vec<f64>,
+    track_errors: Vec<f64>,
+}
+
+/// **[Top-5 Ranking]** Extract and rank top N candidates from all stage results
+///
+/// After selecting the winning edition, this function:
+/// 1. Collects all edition results from all stages
+/// 2. Calculates multi-factor final score for each
+/// 3. Sorts by final score (descending)
+/// 4. Returns top N (or all if fewer than N available)
+///
+/// Each ranked candidate includes a passage comparison table showing
+/// detected durations vs expected durations for evaluation.
+pub fn rank_top_candidates(
+    stage_results: &StageResults,
+    tolerance_secs: f64,
+    top_n: usize,
+) -> Vec<RankedCandidate> {
+    let mut candidates: Vec<CandidateEntry> = Vec::new();
+
+    // Collect Stage 2 results
+    for result in &stage_results.stage2 {
+        candidates.push(CandidateEntry {
+            edition: result.edition.clone(),
+            stage: MatchingStage::Stage2,
+            match_percentage: result.best_percentage,
+            detected_durations: result.detected_durations.clone(),
+            track_errors: result.track_errors.clone(),
+        });
+    }
+
+    // Collect Stage 3 results
+    for result in &stage_results.stage3 {
+        candidates.push(CandidateEntry {
+            edition: result.edition.clone(),
+            stage: MatchingStage::Stage3,
+            match_percentage: result.best_percentage,
+            detected_durations: result.assembled_durations.clone(),
+            track_errors: result.track_errors.clone(),
+        });
+    }
+
+    // Collect Stage 4 results (use penalized percentage)
+    for result in &stage_results.stage4 {
+        candidates.push(CandidateEntry {
+            edition: result.edition.clone(),
+            stage: MatchingStage::Stage4,
+            match_percentage: result.penalized_percentage,
+            detected_durations: result.detected_durations.clone(),
+            track_errors: result.track_errors.clone(),
+        });
+    }
+
+    // Collect Stage 5 results
+    for result in &stage_results.stage5 {
+        candidates.push(CandidateEntry {
+            edition: result.edition.clone(),
+            stage: MatchingStage::Stage5,
+            match_percentage: result.percentage,
+            detected_durations: result.merged_durations.clone(),
+            track_errors: result.track_errors.clone(),
+        });
+    }
+
+    // Calculate final score for each candidate using PLAN027 multi-factor scoring
+    let mut scored_candidates: Vec<(CandidateEntry, f64)> = candidates
+        .into_iter()
+        .map(|candidate| {
+            // Convert detected durations to milliseconds for total duration score
+            let detected_total_ms: u64 = candidate
+                .detected_durations
+                .iter()
+                .map(|&d| (d * 1000.0) as u64)
+                .sum();
+
+            // Calculate edition total duration in milliseconds
+            let edition_total_ms: u64 = candidate.edition.durations.iter().map(|&d| d as u64).sum();
+
+            // Calculate duration score
+            let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+
+            // Convert edition durations from milliseconds to seconds for quality score
+            let edition_durations_secs: Vec<f64> = candidate
+                .edition
+                .durations
+                .iter()
+                .map(|&d| d as f64 / 1000.0)
+                .collect();
+
+            // Calculate quality score
+            let quality_score = calculate_track_quality_score(
+                &candidate.detected_durations,
+                &edition_durations_secs,
+                tolerance_secs,
+            );
+
+            // Get name distance score (already stored in edition)
+            let name_score = candidate
+                .edition
+                .name_distance_score
+                .unwrap_or(0.0);
+
+            // Calculate track count penalty
+            let track_count_penalty = calculate_track_count_penalty(
+                candidate.detected_durations.len(),
+                candidate.edition.track_count,
+            );
+
+            // Calculate final score
+            let final_score =
+                calculate_edition_score(duration_score, quality_score, name_score, track_count_penalty);
+
+            (candidate, final_score)
+        })
+        .collect();
+
+    // Sort by final score descending (highest score first)
+    scored_candidates.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Take top N and build RankedCandidate structs
+    scored_candidates
+        .into_iter()
+        .take(top_n)
+        .enumerate()
+        .map(|(rank_idx, (candidate, final_score))| {
+            // Build passage comparison table
+            // Convert edition durations from milliseconds to seconds for comparison
+            let edition_durations_secs: Vec<f64> = candidate
+                .edition
+                .durations
+                .iter()
+                .map(|&d| d as f64 / 1000.0)
+                .collect();
+
+            let passage_comparison: Vec<PassageComparison> = candidate
+                .detected_durations
+                .iter()
+                .zip(edition_durations_secs.iter())
+                .zip(candidate.edition.track_titles.iter())
+                .enumerate()
+                .map(|(idx, ((&detected, &expected), title))| {
+                    let error = (detected - expected).abs();
+                    // Truncate title to 30 characters with ellipsis if needed
+                    let track_title = if title.len() > 30 {
+                        format!("{}...", &title[..27])
+                    } else {
+                        title.clone()
+                    };
+                    PassageComparison {
+                        track_number: idx + 1,
+                        track_title,
+                        detected_duration: detected,
+                        expected_duration: expected,
+                        error,
+                        within_tolerance: error <= tolerance_secs,
+                    }
+                })
+                .collect();
+
+            // Calculate mean error
+            let mean_error = if !candidate.track_errors.is_empty() {
+                candidate.track_errors.iter().sum::<f64>()
+                    / candidate.track_errors.len() as f64
+            } else {
+                0.0
+            };
+
+            RankedCandidate {
+                rank: rank_idx + 1,
+                release_mbid: candidate.edition.release_mbid.clone(),
+                title: candidate.edition.title.clone(),
+                artist: candidate.edition.artist.clone(),
+                track_count: candidate.edition.track_count,
+                match_percentage: candidate.match_percentage,
+                final_score,
+                stage: candidate.stage,
+                passage_comparison,
+                mean_error,
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -379,6 +654,7 @@ mod tests {
             name_distance_rank: None,
             name_distance_score: None,
             durations: durations_ms.to_vec(),
+            track_titles: (1..=track_count).map(|i| format!("Track {}", i)).collect(),
         }
     }
 
