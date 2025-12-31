@@ -13,7 +13,8 @@
 
 use crate::matching::{
     editions::{
-        calculate_edition_score, calculate_total_duration_score, calculate_track_count_penalty,
+        calculate_edition_score, calculate_total_duration_score,
+        calculate_total_duration_score_validated, calculate_track_count_penalty,
         calculate_track_quality_score,
     },
     stages::{
@@ -76,6 +77,9 @@ pub struct OrchestratorConfig {
     /// Higher values prioritize album hint over match percentage
     /// Default 0.4 balances hint adherence (40%) with match accuracy (60%)
     pub name_similarity_weight: f64,
+    /// **[BUG FIX]** Actual audio file duration in milliseconds
+    /// Used for validating edition totals against physical file length
+    pub file_duration_ms: u64,
 }
 
 impl Default for OrchestratorConfig {
@@ -88,6 +92,7 @@ impl Default for OrchestratorConfig {
             quiet_spot_window_secs: 5.0,
             max_merge_tracks: 3,
             name_similarity_weight: 0.4, // 40% name, 60% match percentage
+            file_duration_ms: 0, // Must be set by caller
         }
     }
 }
@@ -466,6 +471,7 @@ pub fn rank_top_candidates(
     stage_results: &StageResults,
     tolerance_secs: f64,
     top_n: usize,
+    file_duration_ms: u64,  // **[BUG FIX]** Add file duration for validated scoring
 ) -> Vec<RankedCandidate> {
     let mut candidates: Vec<CandidateEntry> = Vec::new();
 
@@ -514,7 +520,8 @@ pub fn rank_top_candidates(
     }
 
     // Calculate final score for each candidate using PLAN027 multi-factor scoring
-    let mut scored_candidates: Vec<(CandidateEntry, f64)> = candidates
+    // Tuple: (CandidateEntry, final_score, duration_score, quality_score, name_score, track_count_penalty)
+    let mut scored_candidates: Vec<(CandidateEntry, f64, f64, f64, f64, f64)> = candidates
         .into_iter()
         .map(|candidate| {
             // Convert detected durations to milliseconds for total duration score
@@ -527,8 +534,12 @@ pub fn rank_top_candidates(
             // Calculate edition total duration in milliseconds
             let edition_total_ms: u64 = candidate.edition.durations.iter().map(|&d| d as u64).sum();
 
-            // Calculate duration score
-            let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+            // **[BUG FIX]** Calculate duration score with file duration validation
+            let duration_score = calculate_total_duration_score_validated(
+                detected_total_ms,
+                edition_total_ms,
+                file_duration_ms,
+            );
 
             // Convert edition durations from milliseconds to seconds for quality score
             let edition_durations_secs: Vec<f64> = candidate
@@ -561,7 +572,7 @@ pub fn rank_top_candidates(
             let final_score =
                 calculate_edition_score(duration_score, quality_score, name_score, track_count_penalty);
 
-            (candidate, final_score)
+            (candidate, final_score, duration_score, quality_score, name_score, track_count_penalty)
         })
         .collect();
 
@@ -576,7 +587,7 @@ pub fn rank_top_candidates(
         .into_iter()
         .take(top_n)
         .enumerate()
-        .map(|(rank_idx, (candidate, final_score))| {
+        .map(|(rank_idx, (candidate, final_score, duration_score, quality_score, name_score, track_count_penalty))| {
             // Build passage comparison table
             // Convert edition durations from milliseconds to seconds for comparison
             let edition_durations_secs: Vec<f64> = candidate
@@ -586,13 +597,26 @@ pub fn rank_top_candidates(
                 .map(|&d| d as f64 / 1000.0)
                 .collect();
 
+            // Calculate cumulative offsets for detected passages
+            let mut cumulative_offset = 0.0;
+            let detected_offsets: Vec<f64> = candidate
+                .detected_durations
+                .iter()
+                .map(|&duration| {
+                    let offset = cumulative_offset;
+                    cumulative_offset += duration;
+                    offset
+                })
+                .collect();
+
             let passage_comparison: Vec<PassageComparison> = candidate
                 .detected_durations
                 .iter()
                 .zip(edition_durations_secs.iter())
                 .zip(candidate.edition.track_titles.iter())
+                .zip(detected_offsets.iter())
                 .enumerate()
-                .map(|(idx, ((&detected, &expected), title))| {
+                .map(|(idx, (((&detected, &expected), title), &offset))| {
                     let error = (detected - expected).abs();
                     // Truncate title to 30 characters with ellipsis if needed
                     // **[FIX]** Use char-based truncation to avoid UTF-8 panic
@@ -605,6 +629,7 @@ pub fn rank_top_candidates(
                     PassageComparison {
                         track_number: idx + 1,
                         track_title,
+                        detected_start_offset: offset,
                         detected_duration: detected,
                         expected_duration: expected,
                         error,
@@ -629,6 +654,10 @@ pub fn rank_top_candidates(
                 track_count: candidate.edition.track_count,
                 match_percentage: candidate.match_percentage,
                 final_score,
+                duration_score,
+                quality_score,
+                name_score,
+                track_count_penalty,
                 stage: candidate.stage,
                 passage_comparison,
                 mean_error,

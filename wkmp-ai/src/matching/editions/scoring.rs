@@ -169,6 +169,11 @@ pub fn calculate_edition_score(
 
 /// Calculate total duration alignment score with graduated penalties
 ///
+/// **[DEPRECATED]** Use `calculate_total_duration_score_validated()` instead.
+/// This version does not validate against actual file duration and can produce
+/// incorrect scores for impossible edition/file combinations (e.g., 59-minute
+/// file matched to 7-hour box set).
+///
 /// **[PLAN027] REQ-AM-093:** Total Duration Alignment
 ///
 /// Penalty bands:
@@ -184,6 +189,7 @@ pub fn calculate_edition_score(
 ///
 /// # Returns
 /// Duration alignment score (0.05, 0.30, 0.60, 0.80, or 0.95)
+#[deprecated(since = "0.1.0", note = "Use calculate_total_duration_score_validated")]
 pub fn calculate_total_duration_score(
     detected_total_ms: u64,
     edition_total_ms: u64,
@@ -193,6 +199,75 @@ pub fn calculate_total_duration_score(
         return 0.05;
     }
 
+    let diff_ms = detected_total_ms.abs_diff(edition_total_ms);
+    let diff_pct = (diff_ms as f64 / detected_total_ms as f64) * 100.0;
+
+    if diff_pct < 5.0 {
+        0.95
+    } else if diff_pct < 10.0 {
+        0.80
+    } else if diff_pct < 15.0 {
+        0.60
+    } else if diff_pct < 25.0 {
+        0.30
+    } else {
+        0.05
+    }
+}
+
+/// Calculate total duration score with file duration validation
+///
+/// **[BUG FIX]** Enhanced version of `calculate_total_duration_score()` that validates
+/// detected and edition totals against actual file duration. Prevents accepting editions
+/// whose expected duration exceeds the physical audio file (e.g., 59-minute file matched
+/// to 7-hour box set).
+///
+/// **[PLAN027] REQ-AM-093:** Total Duration Alignment with Validation
+///
+/// # Validation Logic
+/// 1. If detected_total > file_total * 1.05: REJECT (0.05) - algorithm error
+/// 2. If edition_total > file_total * 1.25: REJECT (0.05) - wrong edition (box set)
+/// 3. Otherwise: Apply graduated penalties based on detected vs edition difference
+///
+/// # Penalty Bands
+/// - <5% difference: 0.95 (excellent)
+/// - 5-10%: 0.80 (good)
+/// - 10-15%: 0.60 (acceptable)
+/// - 15-25%: 0.30 (poor)
+/// - >25%: 0.05 (very poor)
+///
+/// # Arguments
+/// * `detected_total_ms` - Total detected duration in milliseconds
+/// * `edition_total_ms` - Edition total duration in milliseconds
+/// * `file_total_ms` - Actual audio file duration in milliseconds (from decoder)
+///
+/// # Returns
+/// Duration alignment score (0.05, 0.30, 0.60, 0.80, or 0.95)
+pub fn calculate_total_duration_score_validated(
+    detected_total_ms: u64,
+    edition_total_ms: u64,
+    file_total_ms: u64,
+) -> f64 {
+    // Edge case: zero duration
+    if detected_total_ms == 0 || edition_total_ms == 0 || file_total_ms == 0 {
+        return 0.05;
+    }
+
+    // **[BUG FIX]** Validate detected total against actual file duration
+    // If detected total exceeds file by >5%, something is very wrong (algorithm error)
+    const MAX_DETECTED_OVERAGE: f64 = 1.05;
+    if detected_total_ms as f64 > file_total_ms as f64 * MAX_DETECTED_OVERAGE {
+        return 0.05; // Impossible - detected more audio than exists
+    }
+
+    // **[BUG FIX]** Validate edition total against actual file duration
+    // If edition total exceeds file by >25%, this is wrong edition (box set, deluxe edition, etc.)
+    const MAX_EDITION_OVERAGE: f64 = 1.25;
+    if edition_total_ms as f64 > file_total_ms as f64 * MAX_EDITION_OVERAGE {
+        return 0.05; // Impossible - edition far too long for this file
+    }
+
+    // Compare detected vs edition (original graduated penalty logic)
     let diff_ms = detected_total_ms.abs_diff(edition_total_ms);
     let diff_pct = (diff_ms as f64 / detected_total_ms as f64) * 100.0;
 

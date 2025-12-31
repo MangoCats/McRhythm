@@ -25,7 +25,10 @@ use super::constants::{
     MATCH_TOLERANCE_SECS, MIN_ARTIST_SIMILARITY, MIN_DURATION_VALUES, STAGE4_PENALTY_PERCENT,
     THRESHOLD_VALUES,
 };
-use super::editions::{calculate_name_distance, filter_and_sort_editions, group_into_editions};
+use super::editions::{
+    calculate_name_distance, filter_and_sort_editions, filter_editions_by_file_duration,
+    group_into_editions,
+};
 use super::metadata::extract_and_reconcile_metadata;
 use super::orchestrator::{run_orchestration, OrchestratorConfig};
 use super::silence_detection::precompute_silence_cache;
@@ -274,10 +277,30 @@ impl AlbumMatcher {
                 "Pre-decode single-track detection: score={:.2}, likely single track",
                 pre_analysis.final_score
             );
-            return Ok(AlbumMatchResult::no_match(format!(
-                "Single track detected (pre-decode, confidence={:.2})",
+
+            // Build detailed component breakdown
+            let mut details = format!(
+                "Single track detected (pre-decode: score={:.2}, threshold=2.0)\n  Components:",
                 pre_analysis.final_score
-            )));
+            );
+            details.push_str(&format!("\n    - Filename: {:.2}", pre_analysis.filename_score));
+            if let Some(ref pattern) = pre_analysis.filename_match {
+                details.push_str(&format!(" (matched: {})", pattern));
+            }
+            details.push_str(&format!(
+                "\n    - Directory files: {:.2} ({} audio files)",
+                pre_analysis.dir_count_score, pre_analysis.dir_audio_files
+            ));
+            details.push_str(&format!("\n    - ID3 track tag: {:.2}", pre_analysis.id3_track_score));
+            if let Some(ref track_info) = pre_analysis.id3_track_info {
+                details.push_str(&format!(" ({})", track_info));
+            }
+            details.push_str(&format!("\n    - Duration: {:.2}", pre_analysis.duration_score));
+            if let Some(duration_mins) = pre_analysis.duration_mins {
+                details.push_str(&format!(" ({:.2} mins)", duration_mins));
+            }
+
+            return Ok(AlbumMatchResult::no_match(details));
         }
 
         // Step 3: PARALLEL decode + MusicBrainz lookup
@@ -325,10 +348,12 @@ impl AlbumMatcher {
 
         let total_samples = samples.len();
         let duration_secs = total_samples as f64 / sample_rate as f64;
+        // **[BUG FIX]** Calculate file duration in milliseconds for pre-filtering
+        let file_duration_ms = (duration_secs * 1000.0) as u64;
 
         debug!(
-            "Decoded {} samples at {}Hz ({:.1}s)",
-            total_samples, sample_rate, duration_secs
+            "Decoded {} samples at {}Hz ({:.1}s, {}ms)",
+            total_samples, sample_rate, duration_secs, file_duration_ms
         );
 
         // Step 4: Post-decode single-track check using silence gap count
@@ -353,12 +378,38 @@ impl AlbumMatcher {
                 "Post-decode single-track detection: score={:.2}, likely single track",
                 post_analysis.final_score
             );
+
+            // Build detailed component breakdown
+            let mut details = format!(
+                "Single track detected (post-decode: score={:.2}, threshold=2.5)\n  Components:",
+                post_analysis.final_score
+            );
+            details.push_str(&format!("\n    - Filename: {:.2}", post_analysis.filename_score));
+            if let Some(ref pattern) = post_analysis.filename_match {
+                details.push_str(&format!(" (matched: {})", pattern));
+            }
+            details.push_str(&format!(
+                "\n    - Directory files: {:.2} ({} audio files)",
+                post_analysis.dir_count_score, post_analysis.dir_audio_files
+            ));
+            details.push_str(&format!("\n    - ID3 track tag: {:.2}", post_analysis.id3_track_score));
+            if let Some(ref track_info) = post_analysis.id3_track_info {
+                details.push_str(&format!(" ({})", track_info));
+            }
+            details.push_str(&format!("\n    - Duration: {:.2}", post_analysis.duration_score));
+            if let Some(duration_mins) = post_analysis.duration_mins {
+                details.push_str(&format!(" ({:.2} mins)", duration_mins));
+            }
+            if let Some(silence_score) = post_analysis.silence_gap_score {
+                details.push_str(&format!("\n    - Silence gaps: {:.2}", silence_score));
+                if let Some(gap_count) = post_analysis.silence_gap_count {
+                    details.push_str(&format!(" ({} gaps)", gap_count));
+                }
+            }
+
             // **[IMPROVEMENT#1]** Preserve samples for fallback reuse
             return Ok(AlbumMatchResult::no_match_with_audio(
-                format!(
-                    "Single track detected (post-decode, confidence={:.2})",
-                    post_analysis.final_score
-                ),
+                details,
                 samples,
                 sample_rate,
             ));
@@ -388,6 +439,9 @@ impl AlbumMatcher {
         // Step 6: Group into editions and filter by name similarity
         let editions = group_into_editions(&releases);
         let editions = filter_and_sort_editions(editions, &artist, &album, 20);
+
+        // **[BUG FIX]** Pre-filter editions by file duration to eliminate impossible matches
+        let editions = filter_editions_by_file_duration(editions, file_duration_ms);
 
         if editions.is_empty() {
             // **[IMPROVEMENT#2]** Enhanced logging for diagnosis
@@ -421,6 +475,7 @@ impl AlbumMatcher {
             quiet_spot_window_secs: 5.0,
             max_merge_tracks: 3,
             name_similarity_weight: 0.4, // Default: 40% name similarity, 60% match percentage
+            file_duration_ms, // **[BUG FIX]** Pass actual file duration for validation
         };
 
         let result = run_orchestration(
@@ -465,22 +520,42 @@ impl AlbumMatcher {
             eprintln!("\n=== Track-by-Track Duration Comparison ===");
             eprintln!("Album: {} - {}", edition.artist, edition.title);
             eprintln!("Tracks: {}, Detected: {}", edition.track_count, result.detected_durations.len());
-            eprintln!("\n{:>3} {:>10} {:>10} {:>10} {:>10}",
-                "Trk", "Expected", "Detected", "Error", "Status");
-            eprintln!("{}", "-".repeat(50));
+            eprintln!("\n{:>3} {:>10} {:>10} {:>10} {:>10} {:>10}",
+                "Trk", "Expected", "@ Offset", "Detected", "Error", "Status");
+            eprintln!("{}", "-".repeat(66));
+
+            // Calculate cumulative offsets for detected passages
+            let mut cumulative_offset = 0.0;
+            let mut total_expected = 0.0;
+            let mut total_detected = 0.0;
 
             for (i, (&expected, &detected)) in edition.track_durations.iter()
                 .zip(result.detected_durations.iter())
                 .enumerate() {
+                let offset = cumulative_offset;
+                cumulative_offset += detected;
+
                 let error = (detected - expected).abs();
+                let error_sign = if detected > expected { "+" } else { "-" };
                 let status = if error <= self.config.match_tolerance_secs {
                     "✓"
                 } else {
                     "✗"
                 };
-                eprintln!("{:>3} {:>9.2}s {:>9.2}s {:>9.2}s {:>10}",
-                    i + 1, expected, detected, error, status);
+                eprintln!("{:>3} {:>9.2}s {:>9.2}s {:>9.2}s {:>9}s {:>10}",
+                    i + 1, expected, offset, detected, format!("{}{:.2}", error_sign, error), status);
+
+                total_expected += expected;
+                total_detected += detected;
             }
+
+            // Show totals row
+            eprintln!("{}", "-".repeat(66));
+            eprintln!("{:>3} {:>10} {:>10} {:>10} {:>10} {:>10}",
+                "", "TOTALS", "",
+                format!("{:.2}s", total_expected),
+                format!("{:.2}s", total_detected),
+                "");
 
             // Show any extra detected tracks
             if result.detected_durations.len() > edition.track_count {
@@ -488,8 +563,10 @@ impl AlbumMatcher {
                 for (i, &detected) in result.detected_durations.iter()
                     .skip(edition.track_count)
                     .enumerate() {
-                    eprintln!("{:>3} {:>9}  {:>9.2}s {:>9}  {:>10}",
-                        edition.track_count + i + 1, "-", detected, "-", "EXTRA");
+                    let offset = cumulative_offset;
+                    cumulative_offset += detected;
+                    eprintln!("{:>3} {:>9}  {:>9.2}s {:>9.2}s {:>9}  {:>10}",
+                        edition.track_count + i + 1, "-", offset, detected, "-", "EXTRA");
                 }
             }
 
@@ -542,6 +619,7 @@ impl AlbumMatcher {
             &result.stage_results,
             self.config.match_tolerance_secs,
             5, // Top 5 candidates
+            file_duration_ms, // **[BUG FIX]** Pass file duration for validated scoring
         );
 
         let album_result = AlbumMatchResult {
@@ -581,31 +659,76 @@ impl AlbumMatcher {
 
         // **[Top-5 Ranking]** Display ranked candidates with passage comparison tables
         if !album_result.ranked_candidates.is_empty() {
+            // Format duration as HH:MM:SS.SS
+            let hours = (duration_secs / 3600.0).floor() as u32;
+            let minutes = ((duration_secs % 3600.0) / 60.0).floor() as u32;
+            let seconds = duration_secs % 60.0;
+            let duration_formatted = format!("{}:{:02}:{:05.2}", hours, minutes, seconds);
+
+            eprintln!("\nFile: {}", audio_path.display());
+            eprintln!("Total Duration: {} ({:.2}s)", duration_formatted, duration_secs);
             eprintln!("\n=== Top {} Candidate Rankings ===", album_result.ranked_candidates.len());
+
             for candidate in &album_result.ranked_candidates {
                 eprintln!("\n--- Rank #{}: {} - {} ---", candidate.rank, candidate.artist, candidate.title);
                 eprintln!("  Release MBID: {}", candidate.release_mbid);
                 eprintln!("  Track Count: {}", candidate.track_count);
                 eprintln!("  Match %: {:.1}%", candidate.match_percentage);
                 eprintln!("  Final Score: {:.4}", candidate.final_score);
+
+                // Score breakdown with weighting
+                eprintln!("    ├─ Duration Score: {:.4} × 0.30 = {:.4}",
+                    candidate.duration_score, candidate.duration_score * 0.30);
+                eprintln!("    ├─ Quality Score:  {:.4} × 0.45 = {:.4}",
+                    candidate.quality_score, candidate.quality_score * 0.45);
+                eprintln!("    ├─ Name Score:     {:.4} × 0.25 = {:.4}",
+                    candidate.name_score, candidate.name_score * 0.25);
+                eprintln!("    └─ Base Score:     {:.4} × {:.4} (penalty) = {:.4}",
+                    (candidate.duration_score * 0.30) + (candidate.quality_score * 0.45) + (candidate.name_score * 0.25),
+                    candidate.track_count_penalty,
+                    candidate.final_score);
+
                 eprintln!("  Stage: {:?}", candidate.stage);
                 eprintln!("  Mean Error: {:.2}s", candidate.mean_error);
 
-                eprintln!("\n  {:>3} {:<30} {:>10} {:>10} {:>10} {:>10}",
-                    "Trk", "Track Title", "Expected", "Detected", "Error", "Status");
-                eprintln!("  {}", "-".repeat(86));
+                eprintln!("\n  {:>3} {:<30} {:>10} {:>10} {:>10} {:>10} {:>10}",
+                    "Trk", "Track Title", "Expected", "@ Offset", "Detected", "Error", "Status");
+                eprintln!("  {}", "-".repeat(106));
+
+                let mut total_expected = 0.0;
+                let mut total_detected = 0.0;
 
                 for passage in &candidate.passage_comparison {
                     let status = if passage.within_tolerance { "✓" } else { "✗" };
-                    eprintln!("  {:>3} {:<30} {:>9.2}s {:>9.2}s {:>9.2}s {:>10}",
+                    let error_sign = if passage.detected_duration > passage.expected_duration { "+" } else { "-" };
+                    eprintln!("  {:>3} {:<30} {:>9.2}s {:>9.2}s {:>9.2}s {:>9}s {:>10}",
                         passage.track_number,
                         passage.track_title,
                         passage.expected_duration,
+                        passage.detected_start_offset,
                         passage.detected_duration,
-                        passage.error,
+                        format!("{}{:.2}", error_sign, passage.error),
                         status
                     );
+                    total_expected += passage.expected_duration;
+                    total_detected += passage.detected_duration;
                 }
+
+                // Format totals as HH:MM:SS.SS
+                let format_time = |secs: f64| {
+                    let h = (secs / 3600.0).floor() as u32;
+                    let m = ((secs % 3600.0) / 60.0).floor() as u32;
+                    let s = secs % 60.0;
+                    format!("{}:{:02}:{:05.2}", h, m, s)
+                };
+
+                eprintln!("  {}", "-".repeat(106));
+                eprintln!("  {:>3} {:<30} {:>10} {:>10} {:>10}",
+                    "", "TOTALS",
+                    format_time(total_expected),
+                    "",
+                    format_time(total_detected)
+                );
             }
             eprintln!("\n=========================================\n");
         }
@@ -741,12 +864,13 @@ fn build_matched_tracks(
         let error = (detected - expected_secs).abs();
 
         let recording_mbid = edition.recording_mbids.get(i).cloned().unwrap_or_default();
+        let track_title = edition.track_titles.get(i).cloned().unwrap_or_else(|| format!("Track {}", i + 1));
 
         tracks.push(MatchedTrack {
             track_number: i + 1,
             disc_number: 1, // Simplified - could be enhanced for multi-disc
             recording_mbid,
-            title: format!("Track {}", i + 1), // Could be enhanced with actual titles
+            title: track_title,
             detected_duration: *detected,
             expected_duration: expected_secs,
             timing_error: error,

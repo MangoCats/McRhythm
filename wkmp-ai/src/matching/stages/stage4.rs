@@ -175,12 +175,45 @@ fn detect_quiet_spots(
         .map(|ms| *ms as f64 / 1000.0)
         .collect();
 
+    // **[BUG FIX]** Validate edition total duration against actual file duration
+    let expected_total_secs: f64 = expected_secs.iter().sum();
+    let actual_total_secs = total_samples as f64 / sample_rate as f64;
+
+    const MAX_OVERAGE_RATIO: f64 = 1.10; // 10% allowance for rounding
+    if expected_total_secs > actual_total_secs * MAX_OVERAGE_RATIO {
+        // Edition total exceeds file duration - impossible match
+        return Stage4Result {
+            edition: edition.clone(),
+            penalized_percentage: 0.0,
+            raw_percentage: 0.0,
+            boundary_positions: Vec::new(),
+            detected_durations: Vec::new(),
+            track_errors: Vec::new(),
+            matched_count: 0,
+        };
+    }
+
     let mut expected_boundaries = Vec::new();
     let mut cumulative = 0.0;
     // Boundaries are between tracks, so N tracks have N-1 boundaries
     for dur in &expected_secs[..expected_secs.len().saturating_sub(1)] {
         cumulative += dur;
         let sample_pos = (cumulative * sample_rate as f64) as usize;
+
+        // **[BUG FIX]** Validate boundary position before using it
+        if sample_pos >= total_samples {
+            // Expected boundary beyond file end - impossible match
+            return Stage4Result {
+                edition: edition.clone(),
+                penalized_percentage: 0.0,
+                raw_percentage: 0.0,
+                boundary_positions: Vec::new(),
+                detected_durations: Vec::new(),
+                track_errors: Vec::new(),
+                matched_count: 0,
+            };
+        }
+
         expected_boundaries.push(sample_pos);
     }
 
@@ -203,8 +236,23 @@ fn detect_quiet_spots(
         detected_durations.push(duration_secs);
         prev_pos = boundary;
     }
+
+    // **[BUG FIX]** Final track: validate prev_pos before calculating
+    if prev_pos >= total_samples {
+        // Last boundary at or beyond file end - impossible match
+        return Stage4Result {
+            edition: edition.clone(),
+            penalized_percentage: 0.0,
+            raw_percentage: 0.0,
+            boundary_positions: Vec::new(),
+            detected_durations: Vec::new(),
+            track_errors: Vec::new(),
+            matched_count: 0,
+        };
+    }
+
     // Final track: from last boundary to end
-    let final_duration = (total_samples.saturating_sub(prev_pos)) as f64 / sample_rate as f64;
+    let final_duration = (total_samples - prev_pos) as f64 / sample_rate as f64;
     detected_durations.push(final_duration);
 
     // Calculate errors and match percentage

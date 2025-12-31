@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use wkmp_ai::matching::album_matcher::AlbumMatcher;
 use wkmp_ai::services::MusicBrainzClient;
+use wkmp_ai::matching::types::AlbumMatchResult;
 
 /// Get path to Music library
 fn get_music_library_path() -> PathBuf {
@@ -77,6 +78,188 @@ struct ComparisonResult {
     mbid_match: bool,
     skipped: bool,
     error: Option<String>,
+}
+
+/// Format release metadata (format, status, packaging, etc.)
+fn format_release_metadata(release: &wkmp_ai::matching::types::MBReleaseDetails) -> Vec<String> {
+    let mut metadata = Vec::new();
+
+    // Format(s) from media
+    let formats: Vec<String> = release.media.iter()
+        .filter_map(|m| m.format.clone())
+        .collect();
+    if !formats.is_empty() {
+        metadata.push(format!("Format: {}", formats.join(", ")));
+    }
+
+    // Status
+    if let Some(status) = &release.status {
+        metadata.push(format!("Status: {}", status));
+    }
+
+    // Packaging
+    if let Some(packaging) = &release.packaging {
+        metadata.push(format!("Packaging: {}", packaging));
+    }
+
+    // Language
+    if let Some(text_rep) = &release.text_representation {
+        if let Some(language) = &text_rep.language {
+            metadata.push(format!("Language: {}", language));
+        }
+    }
+
+    // Labels
+    if let Some(label_info) = &release.label_info {
+        let labels: Vec<String> = label_info.iter()
+            .filter_map(|li| {
+                li.label.as_ref().map(|l| {
+                    if let Some(cat) = &li.catalog_number {
+                        format!("{} ({})", l.name, cat)
+                    } else {
+                        l.name.clone()
+                    }
+                })
+            })
+            .collect();
+        if !labels.is_empty() {
+            metadata.push(format!("Label(s): {}", labels.join("; ")));
+        }
+    }
+
+    // Release Events
+    if let Some(events) = &release.release_events {
+        let events_str: Vec<String> = events.iter()
+            .map(|e| {
+                let country = e.area.as_ref().map(|a| a.name.as_str()).unwrap_or("Unknown");
+                let date = e.date.as_deref().unwrap_or("Unknown date");
+                format!("{} ({})", country, date)
+            })
+            .collect();
+        if !events_str.is_empty() {
+            metadata.push(format!("Release Events: {}", events_str.join("; ")));
+        }
+    }
+
+    metadata
+}
+
+/// Display detailed track listing for album match comparison
+async fn display_album_details(
+    mb_client: &MusicBrainzClient,
+    baseline_artist: &str,
+    baseline_album: &str,
+    baseline_mbid: &str,
+    new_result: &AlbumMatchResult,
+    mbid_changed: bool,
+) {
+    println!("\n  ═══════════════════════════════════════════════════════════════════════════");
+    if mbid_changed {
+        println!("  ⚠ MBID CHANGED - Track Listing Comparison");
+    } else {
+        println!("  ✓ EXACT MATCH - Album Details");
+    }
+    println!("  ═══════════════════════════════════════════════════════════════════════════");
+
+    // Fetch baseline release details from MusicBrainz
+    match mb_client.lookup_release(baseline_mbid).await {
+        Ok(baseline_release) => {
+            // Display baseline (old) track listing
+            println!("\n  📀 BASELINE (run29f): {} - {}", baseline_artist, baseline_album);
+            println!("     Release MBID: {}", baseline_mbid);
+            println!("     Artist: {}", baseline_release.artist_credit
+                .as_ref()
+                .and_then(|credits| credits.first())
+                .map(|c| c.name.as_str())
+                .unwrap_or(baseline_artist));
+            println!("     Album: {}", baseline_release.title);
+
+            // Display metadata
+            let metadata = format_release_metadata(&baseline_release);
+            for item in &metadata {
+                println!("     {}", item);
+            }
+
+            let mut baseline_total_ms: u64 = 0;
+            let mut track_num = 1;
+
+            println!("\n     Tracks:");
+            for medium in &baseline_release.media {
+                for track in &medium.tracks {
+                    let duration_ms = track.length.unwrap_or(0);
+                    baseline_total_ms += duration_ms as u64;
+                    let duration_secs = duration_ms as f64 / 1000.0;
+                    println!("       {:2}. {:50} {:>7.2}s",
+                        track_num,
+                        track.title,
+                        duration_secs);
+                    track_num += 1;
+                }
+            }
+            println!("     ───────────────────────────────────────────────────────────────────");
+            println!("     Total: {} tracks, {:>7.2}s ({:02}:{:02}:{:02})",
+                track_num - 1,
+                baseline_total_ms as f64 / 1000.0,
+                (baseline_total_ms / 1000) / 3600,
+                ((baseline_total_ms / 1000) % 3600) / 60,
+                (baseline_total_ms / 1000) % 60);
+
+            // Fetch new match release details for metadata
+            let new_match_mbid = new_result.release_mbid.as_deref().unwrap_or("");
+            match mb_client.lookup_release(new_match_mbid).await {
+                Ok(new_release) => {
+                    // Display new match track listing
+                    println!("\n  🆕 NEW MATCH: {} - {}",
+                        new_result.matched_artist.as_deref().unwrap_or("Unknown"),
+                        new_result.matched_album.as_deref().unwrap_or("Unknown"));
+                    println!("     Release MBID: {}", new_match_mbid);
+
+                    // Display metadata
+                    let metadata = format_release_metadata(&new_release);
+                    for item in &metadata {
+                        println!("     {}", item);
+                    }
+
+                    let mut new_total_ms: u64 = 0;
+
+                    println!("\n     Tracks:");
+                    for (idx, track) in new_result.tracks.iter().enumerate() {
+                        let duration_ms = (track.expected_duration * 1000.0) as u64;
+                        new_total_ms += duration_ms;
+                        println!("       {:2}. {:50} {:>7.2}s (detected: {:>7.2}s)",
+                            idx + 1,
+                            track.title,
+                            track.expected_duration,
+                            track.detected_duration);
+                    }
+                    println!("     ───────────────────────────────────────────────────────────────────");
+                    println!("     Total: {} tracks, {:>7.2}s ({:02}:{:02}:{:02})",
+                        new_result.expected_track_count,
+                        new_total_ms as f64 / 1000.0,
+                        (new_total_ms / 1000) / 3600,
+                        ((new_total_ms / 1000) % 3600) / 60,
+                        (new_total_ms / 1000) % 60);
+
+                    // Show duration difference
+                    let duration_diff = new_total_ms as i64 - baseline_total_ms as i64;
+                    println!("\n  📊 Duration Difference: {:+.2}s ({:+02}:{:02}:{:02})",
+                        duration_diff as f64 / 1000.0,
+                        duration_diff.abs() / 3600000,
+                        (duration_diff.abs() / 60000) % 60,
+                        (duration_diff.abs() / 1000) % 60);
+                    println!("  ═══════════════════════════════════════════════════════════════════════════\n");
+                }
+                Err(e) => {
+                    println!("  ⚠ Could not fetch new match release details: {:?}", e);
+                    println!("  New Match MBID: {}\n", new_match_mbid);
+                }
+            }
+        }
+        Err(e) => {
+            println!("  ⚠ Could not fetch baseline release details: {:?}", e);
+            println!("  MBID: {} -> {}\n", baseline_mbid, new_result.release_mbid.as_deref().unwrap_or(""));
+        }
+    }
 }
 
 /// Run29f full baseline comparison (200 albums)
@@ -306,6 +489,9 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
     let config = wkmp_ai::matching::album_matcher::AlbumMatcherConfig::default();
     let matcher = AlbumMatcher::with_pool(config, mb_client, db_pool);
 
+    // Create second client for displaying baseline release details
+    let display_client = MusicBrainzClient::new()?;
+
     let mut results = Vec::new();
     let mut tested = 0;
     let mut skipped = 0;
@@ -317,7 +503,9 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
     for (idx, (path, artist, album, baseline_tracks, baseline_mbid)) in baseline.iter().enumerate() {
         // Skip single songs (expected_tracks = 0)
         if *baseline_tracks == 0 {
-            println!("⊘ SKIP {}/{}: {} (single song)", idx + 1, baseline.len(), album);
+            let file_path = music_lib.join(path);
+            println!("⊘ SKIP {}/{}: {} (single song - baseline track count = 0)", idx + 1, baseline.len(), album);
+            println!("   File: {}", file_path.display());
             skipped += 1;
             results.push(ComparisonResult {
                 path: path.to_string(),
@@ -341,6 +529,7 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
 
         if !file_path.exists() {
             println!("⊘ SKIP {}/{}: {} (file not found)", idx + 1, baseline.len(), album);
+            println!("   File: {}", file_path.display());
             skipped += 1;
             results.push(ComparisonResult {
                 path: path.to_string(),
@@ -360,7 +549,8 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
             continue;
         }
 
-        print!("Testing {}/{}: {} - {} ... ", idx + 1, baseline.len(), artist, album);
+        println!("Testing {}/{}: {} - {}", idx + 1, baseline.len(), artist, album);
+        println!("   File: {}", file_path.display());
 
         match matcher.match_album(&file_path, Some(artist), Some(album)).await {
             Ok(result) => {
@@ -373,6 +563,15 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                 if tracks_match && mbid_match {
                     exact_matches += 1;
                     println!("✓ EXACT MATCH");
+                    // Display album details even for exact match
+                    display_album_details(
+                        &display_client,
+                        artist,
+                        album,
+                        baseline_mbid,
+                        &result,
+                        false,  // mbid_changed = false
+                    ).await;
                 } else if result.matched {
                     if !tracks_match {
                         track_count_changes += 1;
@@ -381,6 +580,15 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                     if !mbid_match {
                         mbid_changes += 1;
                         println!("⚠ MBID CHANGED");
+                        // Display detailed track listing comparison
+                        display_album_details(
+                            &display_client,
+                            artist,
+                            album,
+                            baseline_mbid,
+                            &result,
+                            true,  // mbid_changed = true
+                        ).await;
                     }
                 } else {
                     failures += 1;

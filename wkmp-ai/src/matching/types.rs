@@ -127,6 +127,8 @@ pub struct PassageComparison {
     pub track_number: usize,
     /// Track title from MusicBrainz edition
     pub track_title: String,
+    /// Offset in seconds from start of audio file where detected passage starts
+    pub detected_start_offset: f64,
     /// Detected passage duration from audio analysis (seconds)
     pub detected_duration: f64,
     /// Expected track duration from MusicBrainz (seconds)
@@ -154,6 +156,14 @@ pub struct RankedCandidate {
     pub match_percentage: f64,
     /// Multi-factor final score (after track count penalty)
     pub final_score: f64,
+    /// Duration score component (0.0-1.0, weighted 30%)
+    pub duration_score: f64,
+    /// Quality score component (0.0-1.0, weighted 45%)
+    pub quality_score: f64,
+    /// Name score component (0.0-1.0, weighted 25%)
+    pub name_score: f64,
+    /// Track count penalty multiplier (0.0-1.0)
+    pub track_count_penalty: f64,
     /// Which stage produced this match
     pub stage: MatchingStage,
     /// Passage-by-passage comparison table
@@ -552,6 +562,72 @@ pub struct MBReleaseDetails {
     /// Barcode
     #[serde(skip_serializing_if = "Option::is_none")]
     pub barcode: Option<String>,
+    /// Physical packaging type (e.g., "Jewel Case", "Digipak")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub packaging: Option<String>,
+    /// Text representation (language/script)
+    #[serde(rename = "text-representation", skip_serializing_if = "Option::is_none")]
+    pub text_representation: Option<MBTextRepresentation>,
+    /// Label information
+    #[serde(rename = "label-info", skip_serializing_if = "Option::is_none")]
+    pub label_info: Option<Vec<MBLabelInfo>>,
+    /// Release events (country and date per release event)
+    #[serde(rename = "release-events", skip_serializing_if = "Option::is_none")]
+    pub release_events: Option<Vec<MBReleaseEvent>>,
+}
+
+/// Text representation (language and script)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MBTextRepresentation {
+    /// Language code (e.g., "eng" for English)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    /// Script (e.g., "Latn" for Latin script)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub script: Option<String>,
+}
+
+/// Label information for a release
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MBLabelInfo {
+    /// Catalog number
+    #[serde(rename = "catalog-number", skip_serializing_if = "Option::is_none")]
+    pub catalog_number: Option<String>,
+    /// Label details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<MBLabel>,
+}
+
+/// Record label information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MBLabel {
+    /// Label MBID
+    pub id: String,
+    /// Label name
+    pub name: String,
+}
+
+/// Release event (country and date)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MBReleaseEvent {
+    /// Release date for this event
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
+    /// Area (country/region) information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub area: Option<MBArea>,
+}
+
+/// Geographic area (country/region)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MBArea {
+    /// Area MBID
+    pub id: String,
+    /// Area name (e.g., "United States")
+    pub name: String,
+    /// ISO 3166 codes
+    #[serde(rename = "iso-3166-1-codes", skip_serializing_if = "Option::is_none")]
+    pub iso_3166_1_codes: Option<Vec<String>>,
 }
 
 /// A single medium (disc) within a release

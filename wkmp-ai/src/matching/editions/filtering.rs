@@ -59,6 +59,52 @@ pub fn filter_and_sort_editions(
         .collect()
 }
 
+/// Filter out editions with impossible total durations
+///
+/// **[BUG FIX]** Rejects editions whose total duration significantly exceeds
+/// actual file duration. Prevents matching 59-minute files to 7-hour box sets.
+///
+/// Uses generous threshold (125%) to allow for:
+/// - Hidden tracks, bonus content, silence padding
+/// - Rounding errors in MusicBrainz durations
+/// - Audio file metadata inaccuracies
+///
+/// # Threshold Rationale
+/// - <85%: Edition too short (reject - missing tracks or wrong file)
+/// - 85-125%: Acceptable range (hidden tracks, padding, metadata errors)
+/// - >125%: Impossible (reject - wrong edition, e.g., box set vs standard album)
+///
+/// # Arguments
+/// * `editions` - Candidate editions to filter
+/// * `file_duration_ms` - Actual audio file duration in milliseconds
+///
+/// # Returns
+/// Filtered editions within feasible duration range
+pub fn filter_editions_by_file_duration(
+    editions: Vec<Edition>,
+    file_duration_ms: u64,
+) -> Vec<Edition> {
+    const MIN_DURATION_RATIO: f64 = 0.85; // 85% - allow for truncated files
+    const MAX_DURATION_RATIO: f64 = 1.25; // 125% - allow for bonus content
+
+    editions
+        .into_iter()
+        .filter(|edition| {
+            let edition_total_ms: u64 = edition.durations.iter().map(|&x| x as u64).sum();
+
+            // Skip editions with zero or missing durations
+            if edition_total_ms == 0 {
+                return false;
+            }
+
+            let ratio = edition_total_ms as f64 / file_duration_ms as f64;
+
+            // Accept if within feasible range
+            ratio >= MIN_DURATION_RATIO && ratio <= MAX_DURATION_RATIO
+        })
+        .collect()
+}
+
 /// Calculate combined name distance score
 ///
 /// Uses Jaro-Winkler similarity for both artist and album names,
