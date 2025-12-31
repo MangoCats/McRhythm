@@ -88,7 +88,7 @@ test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 | `test_foreign_keys_enabled` | Test FK constraints | ✅ PASS |
 | `test_busy_timeout_set` | Test timeout setting | ✅ PASS |
 | `test_specific_default_values` | Test correct defaults | ✅ PASS |
-| `test_all_modules_in_config` | Test 5 modules initialized | ✅ PASS |
+| `test_all_modules_in_config` | Test 6 modules initialized | ✅ PASS |
 | `test_concurrent_initialization` | Test concurrent startup | ✅ PASS |
 
 **Test Output:**

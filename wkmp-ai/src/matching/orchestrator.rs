@@ -595,8 +595,10 @@ pub fn rank_top_candidates(
                 .map(|(idx, ((&detected, &expected), title))| {
                     let error = (detected - expected).abs();
                     // Truncate title to 30 characters with ellipsis if needed
-                    let track_title = if title.len() > 30 {
-                        format!("{}...", &title[..27])
+                    // **[FIX]** Use char-based truncation to avoid UTF-8 panic
+                    let track_title = if title.chars().count() > 30 {
+                        let truncated: String = title.chars().take(27).collect();
+                        format!("{}...", truncated)
                     } else {
                         title.clone()
                     };

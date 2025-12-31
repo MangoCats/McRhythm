@@ -63,9 +63,8 @@ async fn create_persistent_db_pool() -> Result<sqlx::SqlitePool> {
     // Create connection pool
     let pool = sqlx::SqlitePool::connect(&db_url).await?;
 
-    // Run migrations to ensure schema is up to date
-    // Path is relative to crate root (wkmp-ai/), so ../migrations points to workspace root
-    sqlx::migrate!("../migrations").run(&pool).await?;
+    // Create just the cache tables (no full migration stack needed)
+    wkmp_ai::db::release_cache::ensure_tables(&pool).await?;
 
     Ok(pool)
 }

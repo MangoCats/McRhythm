@@ -441,7 +441,7 @@ Compare against previous validation run:
 ## Success Criteria
 
 ✅ SPEC007 API specifications extracted
-✅ All 5 microservices scanned for routes
+✅ All 6 microservices scanned for routes
 ✅ Handler signatures analyzed
 ✅ Request/response schemas compared
 ✅ Contract violations identified with severity

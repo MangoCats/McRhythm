@@ -1,0 +1,2092 @@
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:53
+   |
+15 | use super::passage_song_matcher::{PassageSongMatch, ConfidenceLevel};
+   |                                                     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:5
+   |
+16 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:269:26
+    |
+269 |             ImportState::Extracting => "Calculating hashes and extracting basic metadata",
+    |                          ^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:270:26
+    |
+270 |             ImportState::Segmenting => "Detecting silence and passage boundaries",
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:271:26
+    |
+271 |             ImportState::Fingerprinting => "Generating audio fingerprints via Chromaprint",
+    |                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:272:26
+    |
+272 |             ImportState::Identifying => "Resolving music identity via MusicBrainz",
+    |                          ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:273:26
+    |
+273 |             ImportState::Analyzing => "Analyzing amplitude for crossfade timing",
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:274:26
+    |
+274 |             ImportState::Flavoring => "Extracting musical characteristics via Essentia",
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:432:26
+    |
+432 |             ImportState::Extracting => format!("{}/{} extracted", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:433:26
+    |
+433 |             ImportState::Segmenting => format!("{} passages detected", self.progress_total),
+    |                          ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:434:26
+    |
+434 |             ImportState::Fingerprinting => format!("{}/{} fingerprinted", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:435:26
+    |
+435 |             ImportState::Identifying => format!("{}/{} identified", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:436:26
+    |
+436 |             ImportState::Analyzing => format!("{}/{} analyzed", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\models\import_session.rs:437:26
+    |
+437 |             ImportState::Flavoring => format!("{}/{} characterized", self.progress_current, self.progress_total),
+    |                          ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:569:99
+    |
+569 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Segmenting)).await {
+    |                                                                                             ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:580:99
+    |
+580 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Fingerprinting)).await {
+    |                                                                                             ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:587:99
+    |
+587 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Identifying)).await {
+    |                                                                                             ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:594:99
+    |
+594 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Analyzing)).await {
+    |                                                                                             ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:601:99
+    |
+601 | ...                   if let Err(e) = state_tx.send(StateCommand::TransitionTo(ImportState::Flavoring)).await {
+    |                                                                                             ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:772:54
+    |
+772 |                         if new_state == ImportState::Segmenting && segmenting_start_time.is_none() {
+    |                                                      ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:800:101
+    |
+800 |                         if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+    |                                                                                                     ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:807:105
+    |
+807 |                         if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+    |                                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:814:102
+    |
+814 |                         if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+    |                                                                                                      ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:847:100
+    |
+847 |                         if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+    |                                                                                                    ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:854:100
+    |
+854 |                         if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+    |                                                                                                    ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1283:109
+     |
+1283 | ...                   if let Some(segmenting_phase) = session.progress.get_phase_mut(ImportState::Segmenting) {
+     |                                                                                                   ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1289:113
+     |
+1289 | ...                   if let Some(fingerprinting_phase) = session.progress.get_phase_mut(ImportState::Fingerprinting) {
+     |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Identifying`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1295:110
+     |
+1295 | ...                   if let Some(identifying_phase) = session.progress.get_phase_mut(ImportState::Identifying) {
+     |                                                                                                    ^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1307:108
+     |
+1307 | ...                   if let Some(analyzing_phase) = session.progress.get_phase_mut(ImportState::Analyzing) {
+     |                                                                                                  ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1313:108
+     |
+1313 | ...                   if let Some(flavoring_phase) = session.progress.get_phase_mut(ImportState::Flavoring) {
+     |                                                                                                  ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Extracting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_extraction.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Extracting);
+   |                                            ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:31:44
+   |
+31 |         session.transition_to(ImportState::Fingerprinting);
+   |                                            ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:35:89
+   |
+35 |         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+   |                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:227:89
+    |
+227 |         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:274:117
+    |
+274 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:285:125
+    |
+285 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:506:117
+    |
+506 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:514:113
+    |
+514 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:522:109
+    |
+522 | ...                   if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                       ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Fingerprinting`: Use Processing state with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:532:105
+    |
+532 |                         if let Some(phase) = session.progress.get_phase_mut(crate::models::ImportState::Fingerprinting) {
+    |                                                                                                         ^^^^^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Segmenting`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_segmenting.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Segmenting);
+   |                                            ^^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Analyzing`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_analyzing.rs:27:44
+   |
+27 |         session.transition_to(ImportState::Analyzing);
+   |                                            ^^^^^^^^^
+
+warning: use of deprecated unit variant `models::import_session::ImportState::Flavoring`: Use Processing state with per-file pipeline
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_flavoring.rs:29:44
+   |
+29 |         session.transition_to(ImportState::Flavoring);
+   |                                            ^^^^^^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:342:43
+    |
+342 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:49:6
+   |
+49 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: multiple fields are never read
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:76:5
+    |
+ 73 | pub struct WorkflowOrchestrator {
+    |            -------------------- fields in this struct
+...
+ 76 |     file_scanner: FileScanner,
+    |     ^^^^^^^^^^^^
+ 77 |     metadata_extractor: MetadataExtractor,
+    |     ^^^^^^^^^^^^^^^^^^
+ 78 |     fingerprinter: Fingerprinter,
+    |     ^^^^^^^^^^^^^
+ 79 |     amplitude_analyzer: AmplitudeAnalyzer,
+    |     ^^^^^^^^^^^^^^^^^^
+ 80 |     mb_client: Option<MusicBrainzClient>,
+    |     ^^^^^^^^^
+...
+ 83 |     essentia_client: Option<EssentiaClient>,
+    |     ^^^^^^^^^^^^^^^
+...
+102 |     processing_thread_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `phase_processing_plan024` and `set_worker_phase_with_passage` are never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:492:14
+     |
+ 105 | impl WorkflowOrchestrator {
+     | ------------------------- methods in this implementation
+...
+ 492 |     async fn phase_processing_plan024(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+2471 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `phase_extracting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_extraction.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_extracting(
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: method `phase_fingerprinting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_fingerprinting.rs:25:25
+   |
+18 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+25 |     pub(super) async fn phase_fingerprinting(
+   |                         ^^^^^^^^^^^^^^^^^^^^
+
+warning: method `phase_segmenting` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_segmenting.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_segmenting(
+   |                         ^^^^^^^^^^^^^^^^
+
+warning: method `phase_analyzing` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_analyzing.rs:21:25
+   |
+14 | impl WorkflowOrchestrator {
+   | ------------------------- method in this implementation
+...
+21 |     pub(super) async fn phase_analyzing(
+   |                         ^^^^^^^^^^^^^^^
+
+warning: methods `phase_flavoring` and `get_passage_recording_mbid` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\phase_flavoring.rs:23:25
+    |
+ 16 | impl WorkflowOrchestrator {
+    | ------------------------- methods in this implementation
+...
+ 23 |     pub(super) async fn phase_flavoring(
+    |                         ^^^^^^^^^^^^^^^
+...
+236 |     async fn get_passage_recording_mbid(&self, passage_id: &Uuid) -> Result<Option<String>> {
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:85:12
+   |
+84 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+85 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:102:12
+    |
+101 | impl HashingStats {
+    | ----------------- method in this implementation
+102 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:119:12
+    |
+118 | impl ExtractingStats {
+    | -------------------- method in this implementation
+119 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:143:12
+    |
+142 | impl SegmentingStats {
+    | -------------------- method in this implementation
+143 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:163:12
+    |
+162 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+163 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:187:12
+    |
+186 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+187 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:207:12
+    |
+206 | impl RecordingStats {
+    | ------------------- method in this implementation
+207 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:233:12
+    |
+232 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+233 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:264:12
+    |
+263 | impl FlavoringStats {
+    | ------------------- method in this implementation
+264 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:282:12
+    |
+281 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+282 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:297:12
+    |
+296 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+297 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:439:12
+    |
+322 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+439 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+447 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:322:14
+    |
+ 78 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+322 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+455 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 88 warnings (run `cargo fix --lib -p wkmp-ai` to apply 5 suggestions)
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: unused import: `std::cmp::Ordering as CmpOrdering`
+  --> wkmp-ai\examples\album_matcher_24.rs:10:5
+   |
+10 | use std::cmp::Ordering as CmpOrdering;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+  --> wkmp-ai\examples\album_matcher_24.rs:81:7
+   |
+81 | const QUIET_SPOT_TOP_EDITIONS: usize = 5;        // Try top N editions for guided search
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_24.rs:219:7
+    |
+219 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: field `title` is never read
+   --> wkmp-ai\examples\album_matcher_24.rs:912:5
+    |
+908 | struct MBRecording {
+    |        ----------- field in this struct
+...
+912 |     title: Option<String>,
+    |     ^^^^^
+    |
+    = note: `MBRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1224:5
+     |
+1223 | struct AcoustIDLookupResponse {
+     |        ---------------------- field in this struct
+1224 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDLookupResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `score` are never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1231:5
+     |
+1230 | struct AcoustIDLookupResult {
+     |        -------------------- fields in this struct
+1231 |     id: String,
+     |     ^^
+1232 |     score: f64,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `title` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1241:5
+     |
+1238 | struct AcoustIDLookupRecording {
+     |        ----------------------- field in this struct
+...
+1241 |     title: Option<String>,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1248:5
+     |
+1247 | struct AcoustIDTrackByMbidResponse {
+     |        --------------------------- field in this struct
+1248 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDTrackByMbidResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1257:5
+     |
+1255 | struct AcoustIDTrackInfo {
+     |        ----------------- field in this struct
+1256 |     /// AcoustID track ID (fingerprint ID)
+1257 |     id: String,
+     |     ^^
+     |
+     = note: `AcoustIDTrackInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_24.rs:3425:5
+     |
+3417 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+3425 |     mbid: String,
+     |     ^^^^
+3426 |     /// Expected track durations from MusicBrainz (seconds).
+3427 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: `wkmp-ai` (example "album_matcher_24") generated 10 warnings (run `cargo fix --example "album_matcher_24"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 11.07s
+     Running `target\release\examples\album_matcher_24.exe`
+[2m2025-11-24T10:43:53.576550-05:00[0m [32m INFO[0m ThreadId(01) [2m4951:[0m === Comprehensive Album Matcher (Run 22 - Load Balanced) ===
+[2m2025-11-24T10:43:53.578751-05:00[0m [32m INFO[0m ThreadId(01) [2m5006:[0m === Pre-scanning file sizes for load balancing ===
+[2m2025-11-24T10:43:53.595818-05:00[0m [32m INFO[0m ThreadId(01) [2m5067:[0m   Pre-scan completed in 16.9483ms
+[2m2025-11-24T10:43:53.595881-05:00[0m [32m INFO[0m ThreadId(01) [2m5068:[0m   File sizes: min=9.5MB, max=340.5MB, avg=89.0MB, total=17.8GB
+[2m2025-11-24T10:43:53.595909-05:00[0m [32m INFO[0m ThreadId(01) [2m5073:[0m   Processing order: shortest/middle/longest/middle interleave for load balancing
+[2m2025-11-24T10:43:53.595918-05:00[0m [32m INFO[0m ThreadId(01) [2m5076:[0m   First 8 files (interleaved):
+[2m2025-11-24T10:43:53.596027-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [1] 9.5MB - 04 - Fillmore East.mp3
+[2m2025-11-24T10:43:53.596110-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [2] 75.3MB - BecomingX.mp3
+[2m2025-11-24T10:43:53.596172-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [3] 340.5MB - GoodbyeYellowBrickRoad.mp3
+[2m2025-11-24T10:43:53.596230-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [4] 74.8MB - CityToCity.mp3
+[2m2025-11-24T10:43:53.596290-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [5] 10.5MB - 08 - The Call of Ktulu.mp3
+[2m2025-11-24T10:43:53.596349-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [6] 75.8MB - DaylightAgain.mp3
+[2m2025-11-24T10:43:53.596407-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [7] 243.8MB - WhatsTheStoryMorningGlory.mp3
+[2m2025-11-24T10:43:53.596459-05:00[0m [32m INFO[0m ThreadId(01) [2m5079:[0m     [8] 73.4MB - AstroLounge.mp3
+[2m2025-11-24T10:43:53.596468-05:00[0m [32m INFO[0m ThreadId(01) [2m5083:[0m === Parameter Validation ===
+[2m2025-11-24T10:43:53.596477-05:00[0m [32m INFO[0m ThreadId(01) [2m5084:[0m Testing optimal parameters on 200 albums from combined set
+[2m2025-11-24T10:43:53.596496-05:00[0m [32m INFO[0m ThreadId(01) [2m5085:[0m   (21 training set + 179 from long files list)
+
+[2m2025-11-24T10:43:53.596510-05:00[0m [32m INFO[0m ThreadId(01) [2m5104:[0m === Run 22: Multi-Album Parallel + Load Balanced File Order ===
+[2m2025-11-24T10:43:53.596518-05:00[0m [32m INFO[0m ThreadId(01) [2m5105:[0m   Max concurrent albums: 8
+[2m2025-11-24T10:43:53.596525-05:00[0m [32m INFO[0m ThreadId(01) [2m5106:[0m   Album-prefixed logging: [A{num}] for parallel debugging
+[2m2025-11-24T10:43:53.596531-05:00[0m [32m INFO[0m ThreadId(01) [2m5107:[0m   Shared rate limiter ensures MB API compliance
+
+[2m2025-11-24T10:43:53.596643-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A1] === Album 1/200 ===
+[2m2025-11-24T10:43:53.596663-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A1] File: C:\Users\Mango Cat\Music\Santana\Santana IV\04 - Fillmore East.mp3
+[2m2025-11-24T10:43:53.597325-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:43:53.597686-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A1]   Phase 0 Reconciliation:
+[2m2025-11-24T10:43:53.597711-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A1]     Strategy: Conflict
+[2m2025-11-24T10:43:53.597727-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A1]     Confidence: Low
+[2m2025-11-24T10:43:53.597741-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A1]     Artist: Santana (source: ID3)
+[2m2025-11-24T10:43:53.597748-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A1]       Alternate: Santana IV
+[2m2025-11-24T10:43:53.597755-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A1]     Album: Santana IV (source: ID3)
+[2m2025-11-24T10:43:53.597761-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A1]       Alternate: 04 - Fillmore East
+[2m2025-11-24T10:43:53.597767-05:00[0m [32m INFO[0m ThreadId(01) [2m3163:[0m [A1]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T10:43:53.599572-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:43:53.599701-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A1] 🔍 Single-track analysis (pre-decode) for "04 - Fillmore East.mp3":
+[2m2025-11-24T10:43:53.599729-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A1]     Filename pattern: +1.00 (matched "04 - ")
+[2m2025-11-24T10:43:53.599749-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A1]     Directory files:  +0.80 (16 audio files in dir, threshold=4)
+[2m2025-11-24T10:43:53.599756-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A1]     ID3 track tag:    +1.00 (track 4/16)
+[2m2025-11-24T10:43:53.599764-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A1]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:43:53.599771-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A1]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T10:43:53.599786-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A1]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:43:53.599964-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A1]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:43:53.600185-05:00[0m [32m INFO[0m ThreadId(22) [2m4405:[0m [A1]   Decoding...
+[2m2025-11-24T10:43:53.600699-05:00[0m [32m INFO[0m ThreadId(22) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T10:43:53.600748-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A2] Staggered start: waiting 46s (1 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:43:53.600954-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A3] Staggered start: waiting 93s (2 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:43:53.600972-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A4] Staggered start: waiting 139s (3 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:43:53.600981-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A5] Staggered start: waiting 186s (4 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:43:53.600989-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A6] Staggered start: waiting 232s (5 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:43:53.600997-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A7] Staggered start: waiting 279s (6 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:43:53.601005-05:00[0m [32m INFO[0m ThreadId(01) [2m4342:[0m [A8] Staggered start: waiting 325s (7 position × 30 multiplier × 1550ms rate limit)...
+[2m2025-11-24T10:44:07.654405-05:00[0m [32m INFO[0m ThreadId(01) [2m2447:[0m [A1]   Reached 150 release limit
+[2m2025-11-24T10:44:07.654489-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A1]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:44:07.655196-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A1]   Run 24 ratio filter: skipping 60 releases (artist<50% OR album<50%), 90 remain
+[2m2025-11-24T10:44:07.655441-05:00[0m [32m INFO[0m ThreadId(01) [2m2588:[0m [A1]   Early NDR filter: skipping 40 releases (NDR > 50), fetching details for 50
+[2m2025-11-24T10:44:40.111885-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A2] === Album 2/200 ===
+[2m2025-11-24T10:44:40.111937-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A2] File: C:\Users\Mango Cat\Music\Sneaker Pimps\BecomingX.mp3
+[2m2025-11-24T10:44:40.112377-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:44:40.112643-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A2]   Phase 0 Reconciliation:
+[2m2025-11-24T10:44:40.112655-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A2]     Strategy: PartialMatch
+[2m2025-11-24T10:44:40.112665-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A2]     Confidence: Medium
+[2m2025-11-24T10:44:40.112674-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A2]     Artist: Sneaker Pimps (source: Both)
+[2m2025-11-24T10:44:40.112684-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A2]     Album: Becoming X (source: ID3)
+[2m2025-11-24T10:44:40.112693-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A2]       Alternate: BecomingX
+[2m2025-11-24T10:44:40.112705-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A2]     Estimated track count from ID3: 12
+[2m2025-11-24T10:44:40.113070-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:44:40.113186-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A2] 🔍 Single-track analysis (pre-decode) for "BecomingX.mp3":
+[2m2025-11-24T10:44:40.113198-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A2]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:44:40.113209-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A2]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T10:44:40.113222-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A2]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:44:40.113231-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A2]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:44:40.113239-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A2]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T10:44:40.113253-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A2]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:44:40.113434-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A2]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:44:40.114005-05:00[0m [32m INFO[0m ThreadId(24) [2m4405:[0m [A2]   Decoding...
+[2m2025-11-24T10:44:55.146097-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A2]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:44:55.146250-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A2]   Run 24 ratio filter: skipping 132 releases (artist<50% OR album<50%), 18 remain
+[2m2025-11-24T10:45:26.609965-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A3] === Album 3/200 ===
+[2m2025-11-24T10:45:26.610014-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A3] File: C:\Users\Mango Cat\Music\John, Elton\GoodbyeYellowBrickRoad.mp3
+[2m2025-11-24T10:45:26.610366-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:45:26.610583-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A3]   Phase 0 Reconciliation:
+[2m2025-11-24T10:45:26.610594-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A3]     Strategy: Conflict
+[2m2025-11-24T10:45:26.610603-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A3]     Confidence: Low
+[2m2025-11-24T10:45:26.610610-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A3]     Artist: Elton John (source: ID3)
+[2m2025-11-24T10:45:26.610618-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A3]       Alternate: John Elton
+[2m2025-11-24T10:45:26.610626-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A3]     Album: Goodbye Yellow Brick Road (source: ID3)
+[2m2025-11-24T10:45:26.610634-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A3]       Alternate: GoodbyeYellowBrickRoad
+[2m2025-11-24T10:45:26.610641-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A3]     Estimated track count from ID3: 52
+[2m2025-11-24T10:45:26.610895-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:45:26.610985-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A3] 🔍 Single-track analysis (pre-decode) for "GoodbyeYellowBrickRoad.mp3":
+[2m2025-11-24T10:45:26.610997-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A3]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:45:26.611007-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A3]     Directory files:  +0.30 (3 audio files in dir, threshold=4)
+[2m2025-11-24T10:45:26.611017-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A3]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:45:26.611025-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A3]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:45:26.611033-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A3]     PRE-DECODE TOTAL: 0.30 (Unlikely confidence)
+[2m2025-11-24T10:45:26.611046-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A3]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:45:26.611233-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A3]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:45:26.611580-05:00[0m [32m INFO[0m ThreadId(26) [2m4405:[0m [A3]   Decoding...
+[2m2025-11-24T10:45:53.604349-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A1] [HEARTBEAT] 120s elapsed | Queries: 51 (51 ok, 0 failed) | Retries: 0 | Rate waits: 49 | fetching details: Santana (rank 43)
+[2m2025-11-24T10:46:01.737947-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A2]   Decoded: 141568128 samples at 44100 Hz (53.50 mins)
+[2m2025-11-24T10:46:02.332531-05:00[0m [32m INFO[0m ThreadId(26) [2m4461:[0m [A2]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:46:02.762176-05:00[0m [32m INFO[0m ThreadId(26) [2m4471:[0m [A2]   Silence cache ready (180 entries)
+[2m2025-11-24T10:46:02.814511-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A2] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:46:02.814561-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A2]     Decoded duration: -0.30 (53.50 min)
+[2m2025-11-24T10:46:02.814576-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A2]     Silence gaps:     -0.50 (10 gaps detected, threshold=3)
+[2m2025-11-24T10:46:02.814590-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A2]     FINAL TOTAL:      -1.30 (Unlikely confidence)
+[2m2025-11-24T10:46:02.814717-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A2]   Grouped into 8 unique editions
+[2m2025-11-24T10:46:02.814776-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A2]   Sorted editions by likelihood (file: 3210s)
+[2m2025-11-24T10:46:02.814803-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A2]   Filtered out 1 editions (runtime >25% different from file)
+[2m2025-11-24T10:46:02.814814-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A2]   Acceptable range: 2408s - 4013s
+[2m2025-11-24T10:46:02.814826-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A2] Found 7 unique editions to test
+[2m2025-11-24T10:46:02.814836-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A2]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:46:02.814854-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [0] Sneaker Pimps - Becoming X (12 tracks, 3177s, 2 MBIDs, score: 33s, NDR:14,0.3)
+[2m2025-11-24T10:46:02.814875-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [1] Sneaker Pimps - Becoming X (12 tracks, 3075s, 2 MBIDs, score: 135s, NDR:2,0.3)
+[2m2025-11-24T10:46:02.814887-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [2] Sneaker Pimps - Becoming X (12 tracks, 3015s, 1 MBIDs, score: 195s, NDR:3,0.3)
+[2m2025-11-24T10:46:02.814898-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [3] Sneaker Pimps - Becoming X (11 tracks, 2788s, 5 MBIDs, score: 482s, NDR:1,0.3)
+[2m2025-11-24T10:46:02.814908-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [4] Sneaker Pimps - Becoming X (11 tracks, 2778s, 4 MBIDs, score: 492s, NDR:4,0.3)
+[2m2025-11-24T10:46:02.814919-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [5] Sneaker Pimps - Becoming X (11 tracks, 2762s, 1 MBIDs, score: 508s, NDR:15,0.3)
+[2m2025-11-24T10:46:02.814929-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A2]     [6] Sneaker Pimps - Becoming RemiXed (10 tracks, 3562s, 2 MBIDs, score: 472s, NDR:17,3.8)
+[2m2025-11-24T10:46:03.228010-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A2]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:46:03.228056-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A2]   Testing 7 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:46:03.228198-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A2]   Starting Edition 1/7: Sneaker Pimps - Becoming X
+[2m2025-11-24T10:46:07.228442-05:00[0m [32m INFO[0m ThreadId(28) [2m4588:[0m [A2]   Stopping feed: 100% match found, 6 editions not started
+[2m2025-11-24T10:46:40.125332-05:00[0m [32m INFO[0m ThreadId(01) [2m4680:[0m [A2]   Completed: 1 editions started, 6 skipped
+[2m2025-11-24T10:46:40.125496-05:00[0m [32m INFO[0m ThreadId(01) [2m4198:[0m [A2]   ✅ Name match OK:
+[2m2025-11-24T10:46:40.125508-05:00[0m [32m INFO[0m ThreadId(01) [2m4199:[0m [A2]       Artist: 'Sneaker Pimps'→'Sneaker Pimps' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:46:40.125531-05:00[0m [32m INFO[0m ThreadId(01) [2m4201:[0m [A2]       Album: 'Becoming X'→'Becoming X' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:46:40.125569-05:00[0m [32m INFO[0m ThreadId(01) [2m4724:[0m [A2]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 2.88s)
+[2m2025-11-24T10:46:40.125606-05:00[0m [32m INFO[0m ThreadId(01) [2m4783:[0m [A2]   FINAL RESULT:
+[2m2025-11-24T10:46:40.125621-05:00[0m [32m INFO[0m ThreadId(01) [2m4784:[0m [A2]     Artist: Sneaker Pimps
+[2m2025-11-24T10:46:40.125629-05:00[0m [32m INFO[0m ThreadId(01) [2m4785:[0m [A2]     Album: Becoming X
+[2m2025-11-24T10:46:40.125637-05:00[0m [32m INFO[0m ThreadId(01) [2m4786:[0m [A2]     Matching stage: album_extractor_2_optimization
+[2m2025-11-24T10:46:40.125667-05:00[0m [32m INFO[0m ThreadId(01) [2m4787:[0m [A2]     MusicBrainz: https://musicbrainz.org/release/0e60ad28-3654-464b-befc-96eb7ee0ff88
+[2m2025-11-24T10:46:40.125675-05:00[0m [32m INFO[0m ThreadId(01) [2m4788:[0m [A2]     Track count: 12/12 ✓
+[2m2025-11-24T10:46:40.125690-05:00[0m [32m INFO[0m ThreadId(01) [2m4790:[0m [A2]     Matched tracks: 12/12 (100.0%)
+[2m2025-11-24T10:46:40.125705-05:00[0m [32m INFO[0m ThreadId(01) [2m4791:[0m [A2]     Mean error: 2.88s
+[2m2025-11-24T10:46:40.125714-05:00[0m [32m INFO[0m ThreadId(01) [2m4792:[0m [A2]     Confidence: Excellent
+[2m2025-11-24T10:46:40.125722-05:00[0m [32m INFO[0m ThreadId(01) [2m4795:[0m [A2]     Best parameters: -50dB, 2s
+[2m2025-11-24T10:46:40.125741-05:00[0m [32m INFO[0m ThreadId(01) [2m4800:[0m [A2]   All tracks:
+[2m2025-11-24T10:46:40.125748-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     1.  275.5s vs    278s  error=  2.5s  ✓
+[2m2025-11-24T10:46:40.125758-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     2.  224.8s vs    228s  error=  3.2s  ✓
+[2m2025-11-24T10:46:40.125766-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     3.  245.6s vs    246s  error=  0.4s  ✓
+[2m2025-11-24T10:46:40.125774-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     4.  252.6s vs    255s  error=  2.4s  ✓
+[2m2025-11-24T10:46:40.125782-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     5.  260.3s vs    261s  error=  0.7s  ✓
+[2m2025-11-24T10:46:40.125790-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     6.  306.4s vs    312s  error=  5.6s  ✓
+[2m2025-11-24T10:46:40.125798-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     7.  249.7s vs    252s  error=  2.3s  ✓
+[2m2025-11-24T10:46:40.125805-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     8.  263.7s vs    268s  error=  4.3s  ✓
+[2m2025-11-24T10:46:40.125813-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     9.  264.4s vs    269s  error=  4.6s  ✓
+[2m2025-11-24T10:46:40.125821-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     10.  271.0s vs    271s  error=  0.0s  ✓
+[2m2025-11-24T10:46:40.125829-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     11.  299.5s vs    303s  error=  3.5s  ✓
+[2m2025-11-24T10:46:40.125837-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A2]     12.  229.0s vs    234s  error=  5.0s  ✓
+[2m2025-11-24T10:46:40.125849-05:00[0m [32m INFO[0m ThreadId(01) [2m4835:[0m [A2] 
+[2m2025-11-24T10:46:40.125865-05:00[0m [32m INFO[0m ThreadId(01) [2m2252:[0m [A2]   🔬 Running AcoustID verification...
+[2m2025-11-24T10:46:41.472556-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:41.473141-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A4] === Album 4/200 ===
+[2m2025-11-24T10:46:41.473157-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A4] File: C:\Users\Mango Cat\Music\Rafferty, Gerry\CityToCity.mp3
+[2m2025-11-24T10:46:41.473581-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:46:41.473766-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A4]   Phase 0 Reconciliation:
+[2m2025-11-24T10:46:41.473781-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A4]     Strategy: Conflict
+[2m2025-11-24T10:46:41.473789-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A4]     Confidence: Low
+[2m2025-11-24T10:46:41.473796-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A4]     Artist: Gerry Rafferty (source: ID3)
+[2m2025-11-24T10:46:41.473802-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A4]       Alternate: Rafferty Gerry
+[2m2025-11-24T10:46:41.473809-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A4]     Album: City To City (source: ID3)
+[2m2025-11-24T10:46:41.473816-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A4]       Alternate: CityToCity
+[2m2025-11-24T10:46:41.473822-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A4]     Estimated track count from ID3: 10
+[2m2025-11-24T10:46:41.474089-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:46:41.474178-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A4] 🔍 Single-track analysis (pre-decode) for "CityToCity.mp3":
+[2m2025-11-24T10:46:41.474188-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A4]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:46:41.474196-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A4]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T10:46:41.474205-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A4]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:46:41.474212-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A4]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:46:41.474218-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A4]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T10:46:41.474229-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A4]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:46:41.474274-05:00[0m [32m INFO[0m ThreadId(49) [2m4405:[0m [A4]   Decoding...
+[2m2025-11-24T10:46:41.474316-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A4]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:46:41.902539-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A2]     Track 1: ✓ MBID verified (4f63ca52)
+[2m2025-11-24T10:46:42.869608-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:43.183524-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A2]     Track 2: ✓ MBID verified (5f34e24c)
+[2m2025-11-24T10:46:44.156077-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:44.950388-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A2]     Track 3: ✓ MBID verified (21e9ced5)
+[2m2025-11-24T10:46:46.075839-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:46.470259-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A2]     Track 4: ✓ MBID verified (eb875a20)
+[2m2025-11-24T10:46:47.591025-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:47.982326-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:48.336818-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 5: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:46:49.681240-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:50.032886-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:50.416463-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 6: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:46:51.574233-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:51.840594-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:52.325657-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 7: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:46:53.621911-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:53.868327-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:54.400153-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 8: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:46:55.714794-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:55.955469-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:56.465663-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 9: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:46:57.803483-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:58.200082-05:00[0m [33m WARN[0m ThreadId(01) [2m2388:[0m [A2]     Track 10: ✗ MBID mismatch - expected 33fde601 got ["5e273a2e", "a716c2c5"]
+[2m2025-11-24T10:46:59.633069-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:46:59.633285-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A5] === Album 5/200 ===
+[2m2025-11-24T10:46:59.633302-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A5] File: C:\Users\Mango Cat\Music\Metallica\Ride the Lightning\08 - The Call of Ktulu.mp3
+[2m2025-11-24T10:46:59.633668-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:46:59.633897-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A5]   Phase 0 Reconciliation:
+[2m2025-11-24T10:46:59.633912-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A5]     Strategy: Conflict
+[2m2025-11-24T10:46:59.633920-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A5]     Confidence: Low
+[2m2025-11-24T10:46:59.633926-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A5]     Artist: Metallica (source: ID3)
+[2m2025-11-24T10:46:59.633933-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A5]       Alternate: Ride the Lightning
+[2m2025-11-24T10:46:59.633939-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A5]     Album: Ride the Lightning (source: ID3)
+[2m2025-11-24T10:46:59.633946-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A5]       Alternate: 08 - The Call of Ktulu
+[2m2025-11-24T10:46:59.633952-05:00[0m [32m INFO[0m ThreadId(01) [2m3163:[0m [A5]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T10:46:59.634364-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:46:59.634464-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A5] 🔍 Single-track analysis (pre-decode) for "08 - The Call of Ktulu.mp3":
+[2m2025-11-24T10:46:59.634477-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A5]     Filename pattern: +1.00 (matched "08 - ")
+[2m2025-11-24T10:46:59.634487-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A5]     Directory files:  +0.80 (8 audio files in dir, threshold=4)
+[2m2025-11-24T10:46:59.634496-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A5]     ID3 track tag:    +1.00 (track 8/8)
+[2m2025-11-24T10:46:59.634503-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A5]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:46:59.634510-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A5]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T10:46:59.634520-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A5]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:46:59.634617-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A5]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:46:59.634804-05:00[0m [32m INFO[0m ThreadId(50) [2m4405:[0m [A5]   Decoding...
+[2m2025-11-24T10:46:59.634998-05:00[0m [32m INFO[0m ThreadId(50) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T10:46:59.965121-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:47:00.382252-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 11: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:47:01.432290-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:47:01.661764-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:47:02.166779-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A2]     Track 12: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:47:02.166811-05:00[0m [32m INFO[0m ThreadId(01) [2m2409:[0m [A2]   🔬 AcoustID verification complete: 4/12 matched, 1 mismatched, 7 no-match, 0 failed
+[2m2025-11-24T10:47:02.199972-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A9] === Album 9/200 ===
+[2m2025-11-24T10:47:02.200006-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A9] File: C:\Users\Mango Cat\Music\Brubeck, Dave\We're All Together Again For The First Time\01 - Truth.mp3
+[2m2025-11-24T10:47:02.200406-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:47:02.200601-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A9]   Phase 0 Reconciliation:
+[2m2025-11-24T10:47:02.200613-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A9]     Strategy: Conflict
+[2m2025-11-24T10:47:02.200621-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A9]     Confidence: Low
+[2m2025-11-24T10:47:02.200627-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A9]     Artist: Dave Brubeck (source: ID3)
+[2m2025-11-24T10:47:02.200633-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A9]       Alternate: We're All Together Again For The First Time
+[2m2025-11-24T10:47:02.200639-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A9]     Album: We're All Together Again for the First Time (source: ID3)
+[2m2025-11-24T10:47:02.200645-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A9]       Alternate: 01 - Truth
+[2m2025-11-24T10:47:02.200651-05:00[0m [32m INFO[0m ThreadId(01) [2m3163:[0m [A9]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T10:47:02.201091-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:47:02.201174-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A9] 🔍 Single-track analysis (pre-decode) for "01 - Truth.mp3":
+[2m2025-11-24T10:47:02.201185-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A9]     Filename pattern: +1.00 (matched "01 - ")
+[2m2025-11-24T10:47:02.201195-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A9]     Directory files:  +0.80 (6 audio files in dir, threshold=4)
+[2m2025-11-24T10:47:02.201203-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A9]     ID3 track tag:    +1.00 (track 1/6)
+[2m2025-11-24T10:47:02.201210-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A9]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:47:02.201216-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A9]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T10:47:02.201225-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A9]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:47:02.201282-05:00[0m [32m INFO[0m ThreadId(50) [2m4405:[0m [A9]   Decoding...
+[2m2025-11-24T10:47:02.201390-05:00[0m [32m INFO[0m ThreadId(50) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T10:47:02.202422-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A9]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:47:13.088524-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A4]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:47:13.088714-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A4]   Run 24 ratio filter: skipping 132 releases (artist<50% OR album<50%), 18 remain
+[2m2025-11-24T10:47:14.094318-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A1]   Decoded: 20476800 samples at 44100 Hz (7.74 mins)
+[2m2025-11-24T10:47:14.194228-05:00[0m [32m INFO[0m ThreadId(51) [2m4461:[0m [A1]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:47:14.246933-05:00[0m [32m INFO[0m ThreadId(51) [2m4471:[0m [A1]   Silence cache ready (180 entries)
+[2m2025-11-24T10:47:14.252290-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A1] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:47:14.252313-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A1]     Decoded duration: +0.70 (7.74 min)
+[2m2025-11-24T10:47:14.252322-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A1]     Silence gaps:     +1.00 (0 gaps detected, threshold=3)
+[2m2025-11-24T10:47:14.252331-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A1]     FINAL TOTAL:      4.50 (High confidence)
+[2m2025-11-24T10:47:14.252339-05:00[0m [33m WARN[0m ThreadId(01) [2m752:[0m [A1]     ⚠️ SINGLE TRACK DETECTED - Results may be invalid (score=4.50 >= threshold=1.5)
+[2m2025-11-24T10:47:14.252495-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A1]   Grouped into 29 unique editions
+[2m2025-11-24T10:47:14.252545-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A1]   Sorted editions by likelihood (file: 464s)
+[2m2025-11-24T10:47:14.252592-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A1]   Filtered out 29 editions (runtime >25% different from file)
+[2m2025-11-24T10:47:14.252599-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A1]   Acceptable range: 348s - 580s
+[2m2025-11-24T10:47:14.252610-05:00[0m [31mERROR[0m ThreadId(01) [2m314:[0m [A1] FAILED: FAILED: All editions filtered out (29 by runtime)
+[2m2025-11-24T10:47:14.252618-05:00[0m [32m INFO[0m ThreadId(01) [2m315:[0m [A1] 
+[2m2025-11-24T10:47:14.257477-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A10] === Album 10/200 ===
+[2m2025-11-24T10:47:14.257497-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A10] File: C:\Users\Mango Cat\Music\Nova, Heather\South.mp3
+[2m2025-11-24T10:47:14.257743-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:47:14.257888-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A10]   Phase 0 Reconciliation:
+[2m2025-11-24T10:47:14.257899-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A10]     Strategy: PartialMatch
+[2m2025-11-24T10:47:14.257905-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A10]     Confidence: Medium
+[2m2025-11-24T10:47:14.257911-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A10]     Artist: Heather Nova (source: ID3)
+[2m2025-11-24T10:47:14.257918-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A10]       Alternate: Nova Heather
+[2m2025-11-24T10:47:14.257924-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A10]     Album: South (source: Both)
+[2m2025-11-24T10:47:14.257930-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A10]     Estimated track count from ID3: 13
+[2m2025-11-24T10:47:14.258127-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:47:14.258203-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A10] 🔍 Single-track analysis (pre-decode) for "South.mp3":
+[2m2025-11-24T10:47:14.258213-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A10]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:47:14.258220-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A10]     Directory files:  +0.80 (4 audio files in dir, threshold=4)
+[2m2025-11-24T10:47:14.258227-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A10]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:47:14.258234-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A10]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:47:14.258240-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A10]     PRE-DECODE TOTAL: 0.80 (Low confidence)
+[2m2025-11-24T10:47:14.258249-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A10]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:47:14.258281-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A10]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:47:14.258371-05:00[0m [32m INFO[0m ThreadId(51) [2m4405:[0m [A10]   Decoding...
+[2m2025-11-24T10:47:26.617716-05:00[0m [32m INFO[0m ThreadId(19) [2m1066:[0m [A3] [HEARTBEAT] 120s elapsed | Queries: 15 (15 ok, 0 failed) | Retries: 0 | Rate waits: 15 | searching: John Elton / Goodbye Yellow Brick Road (strategy 5/5)
+[2m2025-11-24T10:47:41.181661-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A9]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:47:41.183337-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A9]   Run 24 ratio filter: skipping 146 releases (artist<50% OR album<50%), 4 remain
+[2m2025-11-24T10:47:46.105342-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A6] === Album 6/200 ===
+[2m2025-11-24T10:47:46.105381-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A6] File: C:\Users\Mango Cat\Music\Crosby, Stills and Nash\DaylightAgain.mp3
+[2m2025-11-24T10:47:46.105736-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:47:46.105948-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A6]   Phase 0 Reconciliation:
+[2m2025-11-24T10:47:46.105965-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A6]     Strategy: Conflict
+[2m2025-11-24T10:47:46.105975-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A6]     Confidence: Low
+[2m2025-11-24T10:47:46.105984-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A6]     Artist: Crosby, Stills & Nash (source: ID3)
+[2m2025-11-24T10:47:46.105994-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A6]       Alternate: Crosby Stills and Nash
+[2m2025-11-24T10:47:46.106003-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A6]     Album: Daylight Again (Deluxe Version 2012) (source: ID3)
+[2m2025-11-24T10:47:46.106012-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A6]       Alternate: DaylightAgain
+[2m2025-11-24T10:47:46.106020-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A6]     Estimated track count from ID3: 15
+[2m2025-11-24T10:47:46.106330-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:47:46.106443-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A6] 🔍 Single-track analysis (pre-decode) for "DaylightAgain.mp3":
+[2m2025-11-24T10:47:46.106458-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A6]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:47:46.106468-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A6]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T10:47:46.106481-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A6]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:47:46.106490-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A6]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:47:46.106499-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A6]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T10:47:46.106512-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A6]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:47:46.106696-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A6]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:47:46.106925-05:00[0m [32m INFO[0m ThreadId(52) [2m4405:[0m [A6]   Decoding...
+[2m2025-11-24T10:48:10.553303-05:00[0m [32m INFO[0m ThreadId(01) [2m2447:[0m [A5]   Reached 150 release limit
+[2m2025-11-24T10:48:10.553387-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A5]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:48:10.554107-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A5]   Run 24 ratio filter: skipping 91 releases (artist<50% OR album<50%), 59 remain
+[2m2025-11-24T10:48:10.554375-05:00[0m [32m INFO[0m ThreadId(01) [2m2588:[0m [A5]   Early NDR filter: skipping 9 releases (NDR > 50), fetching details for 50
+[2m2025-11-24T10:48:16.386853-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A9]   Decoded: 27787392 samples at 44100 Hz (10.50 mins)
+[2m2025-11-24T10:48:16.503734-05:00[0m [32m INFO[0m ThreadId(53) [2m4461:[0m [A9]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:48:16.584308-05:00[0m [32m INFO[0m ThreadId(53) [2m4471:[0m [A9]   Silence cache ready (180 entries)
+[2m2025-11-24T10:48:16.591963-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A9] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:48:16.592007-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A9]     Decoded duration: +0.40 (10.50 min)
+[2m2025-11-24T10:48:16.592022-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A9]     Silence gaps:     +1.00 (0 gaps detected, threshold=3)
+[2m2025-11-24T10:48:16.592035-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A9]     FINAL TOTAL:      4.20 (High confidence)
+[2m2025-11-24T10:48:16.592045-05:00[0m [33m WARN[0m ThreadId(01) [2m752:[0m [A9]     ⚠️ SINGLE TRACK DETECTED - Results may be invalid (score=4.20 >= threshold=1.5)
+[2m2025-11-24T10:48:16.592085-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A9]   Grouped into 3 unique editions
+[2m2025-11-24T10:48:16.592097-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A9]   Sorted editions by likelihood (file: 630s)
+[2m2025-11-24T10:48:16.592114-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A9]   Filtered out 3 editions (runtime >25% different from file)
+[2m2025-11-24T10:48:16.592122-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A9]   Acceptable range: 473s - 788s
+[2m2025-11-24T10:48:16.592135-05:00[0m [31mERROR[0m ThreadId(01) [2m314:[0m [A9] FAILED: FAILED: All editions filtered out (3 by runtime)
+[2m2025-11-24T10:48:16.592144-05:00[0m [32m INFO[0m ThreadId(01) [2m315:[0m [A9] 
+[2m2025-11-24T10:48:16.600412-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A11] === Album 11/200 ===
+[2m2025-11-24T10:48:16.600447-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A11] File: C:\Users\Mango Cat\Music\Chemical Brothers\Surrender.mp3
+[2m2025-11-24T10:48:16.600711-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:48:16.600894-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A11]   Phase 0 Reconciliation:
+[2m2025-11-24T10:48:16.600908-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A11]     Strategy: PartialMatch
+[2m2025-11-24T10:48:16.600916-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A11]     Confidence: Medium
+[2m2025-11-24T10:48:16.600922-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A11]     Artist: The Chemical Brothers (source: ID3)
+[2m2025-11-24T10:48:16.600928-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A11]       Alternate: Chemical Brothers
+[2m2025-11-24T10:48:16.600934-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A11]     Album: Surrender (source: Both)
+[2m2025-11-24T10:48:16.600941-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A11]     Estimated track count from ID3: 28
+[2m2025-11-24T10:48:16.601145-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:48:16.601225-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A11] 🔍 Single-track analysis (pre-decode) for "Surrender.mp3":
+[2m2025-11-24T10:48:16.601235-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A11]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:48:16.601242-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A11]     Directory files:  +0.30 (3 audio files in dir, threshold=4)
+[2m2025-11-24T10:48:16.601251-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A11]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:48:16.601257-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A11]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:48:16.601263-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A11]     PRE-DECODE TOTAL: 0.30 (Unlikely confidence)
+[2m2025-11-24T10:48:16.601272-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A11]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:48:16.601306-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A11]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:48:16.601339-05:00[0m [32m INFO[0m ThreadId(53) [2m4405:[0m [A11]   Decoding...
+[2m2025-11-24T10:48:22.563824-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A3]   Found 140 unique releases across all search strategies
+[2m2025-11-24T10:48:22.564459-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A3]   Run 24 ratio filter: skipping 83 releases (artist<50% OR album<50%), 57 remain
+[2m2025-11-24T10:48:22.564731-05:00[0m [32m INFO[0m ThreadId(01) [2m2588:[0m [A3]   Early NDR filter: skipping 7 releases (NDR > 50), fetching details for 50
+[2m2025-11-24T10:48:32.616664-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A7] === Album 7/200 ===
+[2m2025-11-24T10:48:32.616711-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A7] File: C:\Users\Mango Cat\Music\Oasis\WhatsTheStoryMorningGlory.mp3
+[2m2025-11-24T10:48:32.617217-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:48:32.617479-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A7]   Phase 0 Reconciliation:
+[2m2025-11-24T10:48:32.617511-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A7]     Strategy: PartialMatch
+[2m2025-11-24T10:48:32.617522-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A7]     Confidence: Medium
+[2m2025-11-24T10:48:32.617532-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A7]     Artist: Oasis (source: Both)
+[2m2025-11-24T10:48:32.617543-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A7]     Album: (What's The Story) Morning Glory? (source: ID3)
+[2m2025-11-24T10:48:32.617554-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A7]       Alternate: WhatsTheStoryMorningGlory
+[2m2025-11-24T10:48:32.617564-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A7]     Estimated track count from ID3: 40
+[2m2025-11-24T10:48:32.618065-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:48:32.618277-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A7] 🔍 Single-track analysis (pre-decode) for "WhatsTheStoryMorningGlory.mp3":
+[2m2025-11-24T10:48:32.618301-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A7]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:48:32.618314-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A7]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T10:48:32.618329-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A7]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:48:32.618340-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A7]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:48:32.618351-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A7]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T10:48:32.618369-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A7]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:48:32.618419-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A7]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:48:32.618456-05:00[0m [32m INFO[0m ThreadId(54) [2m4405:[0m [A7]   Decoding...
+[2m2025-11-24T10:48:34.061496-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A6]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:48:34.062362-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A6]   Run 24 ratio filter: skipping 138 releases (artist<50% OR album<50%), 12 remain
+[2m2025-11-24T10:48:40.106437-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A10]   Found 105 unique releases across all search strategies
+[2m2025-11-24T10:48:40.106711-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A10]   Run 24 ratio filter: skipping 94 releases (artist<50% OR album<50%), 11 remain
+[2m2025-11-24T10:48:41.481130-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A4] [HEARTBEAT] 120s elapsed | Queries: 15 (15 ok, 0 failed) | Retries: 0 | Rate waits: 15 | fetching details: City to City (rank 11)
+[2m2025-11-24T10:48:59.647331-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A5] [HEARTBEAT] 120s elapsed | Queries: 13 (13 ok, 0 failed) | Retries: 0 | Rate waits: 14 | fetching details: Ride the Lightning (rank 5)
+[2m2025-11-24T10:49:14.267733-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A10] [HEARTBEAT] 120s elapsed | Queries: 13 (13 ok, 0 failed) | Retries: 0 | Rate waits: 13 | fetching details: South (rank 4)
+[2m2025-11-24T10:49:17.219572-05:00[0m [32m INFO[0m ThreadId(01) [2m2447:[0m [A7]   Reached 150 release limit
+[2m2025-11-24T10:49:17.219653-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A7]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:49:17.220821-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A7]   Run 24 ratio filter: skipping 109 releases (artist<50% OR album<50%), 41 remain
+[2m2025-11-24T10:49:19.107978-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A8] === Album 8/200 ===
+[2m2025-11-24T10:49:19.108018-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A8] File: C:\Users\Mango Cat\Music\Smash Mouth\AstroLounge.mp3
+[2m2025-11-24T10:49:19.108333-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:49:19.108427-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A8]   Phase 0 Reconciliation:
+[2m2025-11-24T10:49:19.108430-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A8]     Strategy: PartialMatch
+[2m2025-11-24T10:49:19.108433-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A8]     Confidence: Medium
+[2m2025-11-24T10:49:19.108435-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A8]     Artist: Smash Mouth (source: Both)
+[2m2025-11-24T10:49:19.108437-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A8]     Album: Astro Lounge (source: ID3)
+[2m2025-11-24T10:49:19.108440-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A8]       Alternate: AstroLounge
+[2m2025-11-24T10:49:19.108442-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A8]     Estimated track count from ID3: 15
+[2m2025-11-24T10:49:19.108524-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:49:19.108553-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A8] 🔍 Single-track analysis (pre-decode) for "AstroLounge.mp3":
+[2m2025-11-24T10:49:19.108556-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A8]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:49:19.108559-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A8]     Directory files:  +0.30 (2 audio files in dir, threshold=4)
+[2m2025-11-24T10:49:19.108562-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A8]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:49:19.108564-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A8]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:49:19.108566-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A8]     PRE-DECODE TOTAL: 0.30 (Unlikely confidence)
+[2m2025-11-24T10:49:19.108570-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A8]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:49:19.108626-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A8]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:49:19.108788-05:00[0m [32m INFO[0m ThreadId(55) [2m4405:[0m [A8]   Decoding...
+[2m2025-11-24T10:49:26.628635-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A3] [HEARTBEAT] 240s elapsed | Queries: 28 (28 ok, 0 failed) | Retries: 0 | Rate waits: 28 | fetching details: Goodbye Yellow Brick Road (rank 7)
+[2m2025-11-24T10:49:46.113801-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A6] [HEARTBEAT] 120s elapsed | Queries: 11 (11 ok, 0 failed) | Retries: 0 | Rate waits: 11 | fetching details: Daylight Again (rank 7)
+[2m2025-11-24T10:50:07.588108-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A11]   Found 133 unique releases across all search strategies
+[2m2025-11-24T10:50:07.588350-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A11]   Run 24 ratio filter: skipping 113 releases (artist<50% OR album<50%), 20 remain
+[2m2025-11-24T10:50:10.188114-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A4]   Decoded: 141176448 samples at 44100 Hz (53.35 mins)
+[2m2025-11-24T10:50:10.783241-05:00[0m [32m INFO[0m ThreadId(56) [2m4461:[0m [A4]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:50:11.168170-05:00[0m [32m INFO[0m ThreadId(56) [2m4471:[0m [A4]   Silence cache ready (180 entries)
+[2m2025-11-24T10:50:11.206655-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A4] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:50:11.206708-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A4]     Decoded duration: -0.30 (53.35 min)
+[2m2025-11-24T10:50:11.206719-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A4]     Silence gaps:     -0.50 (9 gaps detected, threshold=3)
+[2m2025-11-24T10:50:11.206729-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A4]     FINAL TOTAL:      -1.30 (Unlikely confidence)
+[2m2025-11-24T10:50:11.206824-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A4]   Grouped into 12 unique editions
+[2m2025-11-24T10:50:11.206839-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A4]   Sorted editions by likelihood (file: 3201s)
+[2m2025-11-24T10:50:11.206858-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A4]   Filtered out 4 editions (runtime >25% different from file)
+[2m2025-11-24T10:50:11.206865-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A4]   Acceptable range: 2401s - 4002s
+[2m2025-11-24T10:50:11.206873-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A4] Found 8 unique editions to test
+[2m2025-11-24T10:50:11.206880-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A4]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:50:11.206887-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [0] Gerry Rafferty - City to City (10 tracks, 3195s, 1 MBIDs, score: 6s, NDR:5,3.2)
+[2m2025-11-24T10:50:11.206896-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [1] Gerry Rafferty - City to City (10 tracks, 3216s, 5 MBIDs, score: 15s, NDR:1,3.2)
+[2m2025-11-24T10:50:11.206904-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [2] Gerry Rafferty - City to City (10 tracks, 3226s, 3 MBIDs, score: 25s, NDR:4,3.2)
+[2m2025-11-24T10:50:11.206912-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [3] Gerry Rafferty - City to City (10 tracks, 3280s, 1 MBIDs, score: 79s, NDR:12,3.2)
+[2m2025-11-24T10:50:11.206919-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [4] Gerry Rafferty - City to City (10 tracks, 3109s, 1 MBIDs, score: 92s, NDR:11,3.2)
+[2m2025-11-24T10:50:11.206927-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [5] Gerry Rafferty - City to City (10 tracks, 3089s, 1 MBIDs, score: 112s, NDR:2,3.2)
+[2m2025-11-24T10:50:11.206934-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [6] Gerry Rafferty - City to City (10 tracks, 3071s, 1 MBIDs, score: 130s, NDR:9,3.2)
+[2m2025-11-24T10:50:11.206942-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A4]     [7] Gerry O’Connor - Time to Time (13 tracks, 2650s, 1 MBIDs, score: 731s, NDR:16,9.0)
+[2m2025-11-24T10:50:11.595201-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A4]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:50:11.595250-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A4]   Testing 8 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:50:11.595337-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A4]   Starting Edition 1/8: Gerry Rafferty - City to City
+[2m2025-11-24T10:50:15.597570-05:00[0m [32m INFO[0m ThreadId(28) [2m4588:[0m [A4]   Stopping feed: 100% match found, 7 editions not started
+[2m2025-11-24T10:50:16.614888-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A11] [HEARTBEAT] 120s elapsed | Queries: 10 (10 ok, 0 failed) | Retries: 0 | Rate waits: 10 | fetching details: Surrender (rank 1)
+[2m2025-11-24T10:50:32.625739-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A7] [HEARTBEAT] 120s elapsed | Queries: 8 (8 ok, 0 failed) | Retries: 0 | Rate waits: 8 | fetching details: (What’s the Story) Morning Glory? (rank 5)
+[2m2025-11-24T10:50:41.491847-05:00[0m [32m INFO[0m ThreadId(01) [2m4680:[0m [A4]   Completed: 1 editions started, 7 skipped
+[2m2025-11-24T10:50:41.491959-05:00[0m [32m INFO[0m ThreadId(01) [2m4198:[0m [A4]   ✅ Name match OK:
+[2m2025-11-24T10:50:41.491979-05:00[0m [32m INFO[0m ThreadId(01) [2m4199:[0m [A4]       Artist: 'Gerry Rafferty'→'Gerry Rafferty' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:50:41.492000-05:00[0m [32m INFO[0m ThreadId(01) [2m4201:[0m [A4]       Album: 'City To City'→'City to City' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:50:41.492024-05:00[0m [32m INFO[0m ThreadId(01) [2m4724:[0m [A4]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 4.62s)
+[2m2025-11-24T10:50:41.492063-05:00[0m [32m INFO[0m ThreadId(01) [2m4783:[0m [A4]   FINAL RESULT:
+[2m2025-11-24T10:50:41.492077-05:00[0m [32m INFO[0m ThreadId(01) [2m4784:[0m [A4]     Artist: Gerry Rafferty
+[2m2025-11-24T10:50:41.492089-05:00[0m [32m INFO[0m ThreadId(01) [2m4785:[0m [A4]     Album: City to City
+[2m2025-11-24T10:50:41.492101-05:00[0m [32m INFO[0m ThreadId(01) [2m4786:[0m [A4]     Matching stage: album_extractor_2_optimization
+[2m2025-11-24T10:50:41.492114-05:00[0m [32m INFO[0m ThreadId(01) [2m4787:[0m [A4]     MusicBrainz: https://musicbrainz.org/release/0ce2cdf9-763f-47ed-8157-24f717bfb2fc
+[2m2025-11-24T10:50:41.492125-05:00[0m [32m INFO[0m ThreadId(01) [2m4788:[0m [A4]     Track count: 10/10 ✓
+[2m2025-11-24T10:50:41.492137-05:00[0m [32m INFO[0m ThreadId(01) [2m4790:[0m [A4]     Matched tracks: 10/10 (100.0%)
+[2m2025-11-24T10:50:41.492152-05:00[0m [32m INFO[0m ThreadId(01) [2m4791:[0m [A4]     Mean error: 4.62s
+[2m2025-11-24T10:50:41.492166-05:00[0m [32m INFO[0m ThreadId(01) [2m4792:[0m [A4]     Confidence: Excellent
+[2m2025-11-24T10:50:41.492178-05:00[0m [32m INFO[0m ThreadId(01) [2m4795:[0m [A4]     Best parameters: -50dB, 3s
+[2m2025-11-24T10:50:41.492191-05:00[0m [32m INFO[0m ThreadId(01) [2m4800:[0m [A4]   All tracks:
+[2m2025-11-24T10:50:41.492203-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     1.  336.5s vs    339s  error=  2.5s  ✓
+[2m2025-11-24T10:50:41.492217-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     2.  361.3s vs    368s  error=  6.7s  ✓
+[2m2025-11-24T10:50:41.492233-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     3.  263.4s vs    268s  error=  4.6s  ✓
+[2m2025-11-24T10:50:41.492246-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     4.  297.9s vs    304s  error=  6.1s  ✓
+[2m2025-11-24T10:50:41.492257-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     5.  354.5s vs    358s  error=  3.5s  ✓
+[2m2025-11-24T10:50:41.492269-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     6.  198.8s vs    205s  error=  6.2s  ✓
+[2m2025-11-24T10:50:41.492281-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     7.  391.9s vs    397s  error=  5.1s  ✓
+[2m2025-11-24T10:50:41.492292-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     8.  292.2s vs    297s  error=  4.8s  ✓
+[2m2025-11-24T10:50:41.492304-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     9.  311.3s vs    316s  error=  4.7s  ✓
+[2m2025-11-24T10:50:41.492316-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A4]     10.  340.9s vs    343s  error=  2.1s  ✓
+[2m2025-11-24T10:50:41.492328-05:00[0m [32m INFO[0m ThreadId(01) [2m4835:[0m [A4] 
+[2m2025-11-24T10:50:41.492345-05:00[0m [32m INFO[0m ThreadId(01) [2m2252:[0m [A4]   🔬 Running AcoustID verification...
+[2m2025-11-24T10:50:43.122870-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:43.605573-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A4]     Track 1: ✓ MBID verified (7cf03df5)
+[2m2025-11-24T10:50:45.282637-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:45.609053-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A4]     Track 2: ✓ MBID verified (9235e22e)
+[2m2025-11-24T10:50:46.624417-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:46.870020-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A4]     Track 3: ✓ MBID verified (bd129c44)
+[2m2025-11-24T10:50:48.329670-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:48.833333-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:49.058822-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 4: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:50:50.675301-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:50.932140-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:51.407371-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 5: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:50:52.231028-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:52.672490-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:52.954057-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 6: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:50:54.630135-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:54.915660-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:55.355828-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 7: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:50:56.536006-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:56.793052-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:57.265674-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 8: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:50:58.605399-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:58.828297-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:50:59.346267-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 9: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:50:59.658877-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A5] [HEARTBEAT] 240s elapsed | Queries: 21 (21 ok, 0 failed) | Retries: 0 | Rate waits: 21 | fetching details: Ride the Lightning (rank 13)
+[2m2025-11-24T10:51:00.880966-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:51:01.172811-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:51:01.677989-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A4]     Track 10: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:51:01.678037-05:00[0m [32m INFO[0m ThreadId(01) [2m2409:[0m [A4]   🔬 AcoustID verification complete: 3/10 matched, 0 mismatched, 7 no-match, 0 failed
+[2m2025-11-24T10:51:01.723088-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A12] === Album 12/200 ===
+[2m2025-11-24T10:51:01.723130-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A12] File: C:\Users\Mango Cat\Music\Nova, Heather\300DaysAtSea.mp3
+[2m2025-11-24T10:51:01.723382-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:51:01.723551-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A12]   Phase 0 Reconciliation:
+[2m2025-11-24T10:51:01.723564-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A12]     Strategy: Conflict
+[2m2025-11-24T10:51:01.723572-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A12]     Confidence: Low
+[2m2025-11-24T10:51:01.723579-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A12]     Artist: Heather Nova (source: ID3)
+[2m2025-11-24T10:51:01.723586-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A12]       Alternate: Nova Heather
+[2m2025-11-24T10:51:01.723593-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A12]     Album: 300 Days At Sea (source: ID3)
+[2m2025-11-24T10:51:01.723600-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A12]       Alternate: 300DaysAtSea
+[2m2025-11-24T10:51:01.723607-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A12]     Estimated track count from ID3: 12
+[2m2025-11-24T10:51:01.723853-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:51:01.723946-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A12] 🔍 Single-track analysis (pre-decode) for "300DaysAtSea.mp3":
+[2m2025-11-24T10:51:01.723957-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A12]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:51:01.723966-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A12]     Directory files:  +0.80 (4 audio files in dir, threshold=4)
+[2m2025-11-24T10:51:01.723975-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A12]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:51:01.723982-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A12]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:51:01.723989-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A12]     PRE-DECODE TOTAL: 0.80 (Low confidence)
+[2m2025-11-24T10:51:01.723999-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A12]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:51:01.724070-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A12]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:51:01.724122-05:00[0m [32m INFO[0m ThreadId(58) [2m4405:[0m [A12]   Decoding...
+[2m2025-11-24T10:51:14.270129-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A10] [HEARTBEAT] 240s elapsed | Queries: 20 (20 ok, 0 failed) | Retries: 0 | Rate waits: 20 | fetching details: South (rank 11)
+[2m2025-11-24T10:51:19.119272-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A8] [HEARTBEAT] 120s elapsed | Queries: 6 (6 ok, 0 failed) | Retries: 0 | Rate waits: 7 | searching: Smash Mouth / AstroLounge (strategy 2/6)
+[2m2025-11-24T10:51:22.922448-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A10]   Decoded: 138306816 samples at 44100 Hz (52.27 mins)
+[2m2025-11-24T10:51:23.424569-05:00[0m [32m INFO[0m ThreadId(59) [2m4461:[0m [A10]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:51:23.814826-05:00[0m [32m INFO[0m ThreadId(59) [2m4471:[0m [A10]   Silence cache ready (180 entries)
+[2m2025-11-24T10:51:23.848233-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A10] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:51:23.848292-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A10]     Decoded duration: -0.30 (52.27 min)
+[2m2025-11-24T10:51:23.848306-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A10]     Silence gaps:     -0.50 (3 gaps detected, threshold=3)
+[2m2025-11-24T10:51:23.848318-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A10]     FINAL TOTAL:      0.00 (Unlikely confidence)
+[2m2025-11-24T10:51:23.848389-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A10]   Grouped into 7 unique editions
+[2m2025-11-24T10:51:23.848401-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A10]   Sorted editions by likelihood (file: 3136s)
+[2m2025-11-24T10:51:23.848415-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A10] Found 7 unique editions to test
+[2m2025-11-24T10:51:23.848423-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A10]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:51:23.848433-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [0] Heather Nova - South (13 tracks, 3150s, 1 MBIDs, score: 14s, NDR:10,2.1)
+[2m2025-11-24T10:51:23.848444-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [1] Heather Nova - South (13 tracks, 3158s, 1 MBIDs, score: 22s, NDR:1,2.1)
+[2m2025-11-24T10:51:23.848454-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [2] Heather Nova - South (13 tracks, 3159s, 5 MBIDs, score: 23s, NDR:2,2.1)
+[2m2025-11-24T10:51:23.848464-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [3] Heather Nova - South (14 tracks, 3394s, 1 MBIDs, score: 318s, NDR:7,2.1)
+[2m2025-11-24T10:51:23.848474-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [4] Heather Nova - South (14 tracks, 3397s, 1 MBIDs, score: 321s, NDR:8,2.1)
+[2m2025-11-24T10:51:23.848483-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [5] Heather Nova - South (14 tracks, 3468s, 1 MBIDs, score: 392s, NDR:6,2.1)
+[2m2025-11-24T10:51:23.848493-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A10]     [6] Hot Water - South (10 tracks, 2460s, 1 MBIDs, score: 856s, NDR:11,3.3)
+[2m2025-11-24T10:51:24.296688-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A10]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:51:24.296725-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A10]   Testing 7 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:51:24.296803-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A10]   Starting Edition 1/7: Heather Nova - South
+[2m2025-11-24T10:51:26.641759-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A3] [HEARTBEAT] 360s elapsed | Queries: 34 (34 ok, 0 failed) | Retries: 0 | Rate waits: 35 | fetching details: Goodbye Yellow Brick Road (rank 13)
+[2m2025-11-24T10:51:28.297290-05:00[0m [32m INFO[0m ThreadId(28) [2m4588:[0m [A10]   Stopping feed: 100% match found, 6 editions not started
+[2m2025-11-24T10:51:46.124264-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A6] [HEARTBEAT] 240s elapsed | Queries: 16 (16 ok, 0 failed) | Retries: 0 | Rate waits: 16 | fetching details: Daylight Again (rank 12)
+[2m2025-11-24T10:52:16.630085-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A11] [HEARTBEAT] 240s elapsed | Queries: 13 (13 ok, 0 failed) | Retries: 0 | Rate waits: 13 | fetching details: Surrender (rank 4)
+[2m2025-11-24T10:52:32.628240-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A7] [HEARTBEAT] 240s elapsed | Queries: 11 (11 ok, 0 failed) | Retries: 0 | Rate waits: 11 | fetching details: (What’s the Story) Morning Glory? (rank 8)
+[2m2025-11-24T10:52:59.685619-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A5] [HEARTBEAT] 360s elapsed | Queries: 23 (23 ok, 0 failed) | Retries: 0 | Rate waits: 23 | fetching details: Ride the Lightning (rank 15)
+[2m2025-11-24T10:53:01.727734-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A12] [HEARTBEAT] 120s elapsed | Queries: 1 (1 ok, 0 failed) | Retries: 0 | Rate waits: 1 | searching: Heather Nova / 300 Days At Sea (strategy 2/5)
+[2m2025-11-24T10:53:14.285996-05:00[0m [32m INFO[0m ThreadId(01) [2m4680:[0m [A10]   Completed: 1 editions started, 6 skipped
+[2m2025-11-24T10:53:14.286070-05:00[0m [32m INFO[0m ThreadId(01) [2m4198:[0m [A10]   ✅ Name match OK:
+[2m2025-11-24T10:53:14.286077-05:00[0m [32m INFO[0m ThreadId(01) [2m4199:[0m [A10]       Artist: 'Heather Nova'→'Heather Nova' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:53:14.286091-05:00[0m [32m INFO[0m ThreadId(01) [2m4201:[0m [A10]       Album: 'South'→'South' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:53:14.286105-05:00[0m [32m INFO[0m ThreadId(01) [2m4724:[0m [A10]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 1.83s)
+[2m2025-11-24T10:53:14.286125-05:00[0m [32m INFO[0m ThreadId(01) [2m4783:[0m [A10]   FINAL RESULT:
+[2m2025-11-24T10:53:14.286130-05:00[0m [32m INFO[0m ThreadId(01) [2m4784:[0m [A10]     Artist: Heather Nova
+[2m2025-11-24T10:53:14.286135-05:00[0m [32m INFO[0m ThreadId(01) [2m4785:[0m [A10]     Album: South
+[2m2025-11-24T10:53:14.286140-05:00[0m [32m INFO[0m ThreadId(01) [2m4786:[0m [A10]     Matching stage: album_extractor_2_optimization
+[2m2025-11-24T10:53:14.286145-05:00[0m [32m INFO[0m ThreadId(01) [2m4787:[0m [A10]     MusicBrainz: https://musicbrainz.org/release/16155ae3-82d6-4a57-99b1-7f106959e27d
+[2m2025-11-24T10:53:14.286150-05:00[0m [32m INFO[0m ThreadId(01) [2m4788:[0m [A10]     Track count: 14/13 ✗
+[2m2025-11-24T10:53:14.286156-05:00[0m [32m INFO[0m ThreadId(01) [2m4790:[0m [A10]     Matched tracks: 13/13 (100.0%)
+[2m2025-11-24T10:53:14.286161-05:00[0m [32m INFO[0m ThreadId(01) [2m4791:[0m [A10]     Mean error: 1.83s
+[2m2025-11-24T10:53:14.286167-05:00[0m [32m INFO[0m ThreadId(01) [2m4792:[0m [A10]     Confidence: Excellent
+[2m2025-11-24T10:53:14.286172-05:00[0m [32m INFO[0m ThreadId(01) [2m4795:[0m [A10]     Best parameters: -60dB, 0.4s
+[2m2025-11-24T10:53:14.286179-05:00[0m [32m INFO[0m ThreadId(01) [2m4800:[0m [A10]   All tracks:
+[2m2025-11-24T10:53:14.286183-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     1.  242.9s vs    246s  error=  3.1s  ✓
+[2m2025-11-24T10:53:14.286189-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     2.  243.0s vs    245s  error=  2.0s  ✓
+[2m2025-11-24T10:53:14.286195-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     3.  250.6s vs    252s  error=  1.4s  ✓
+[2m2025-11-24T10:53:14.286200-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     4.  247.2s vs    249s  error=  1.8s  ✓
+[2m2025-11-24T10:53:14.286204-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     5.  211.2s vs    212s  error=  0.8s  ✓
+[2m2025-11-24T10:53:14.286210-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     6.  251.5s vs    254s  error=  2.5s  ✓
+[2m2025-11-24T10:53:14.286214-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     7.  273.4s vs    274s  error=  0.6s  ✓
+[2m2025-11-24T10:53:14.286219-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     8.  236.2s vs    237s  error=  0.8s  ✓
+[2m2025-11-24T10:53:14.286224-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     9.  230.2s vs    232s  error=  1.8s  ✓
+[2m2025-11-24T10:53:14.286229-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     10.  221.9s vs    224s  error=  2.1s  ✓
+[2m2025-11-24T10:53:14.286234-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     11.  246.6s vs    249s  error=  2.4s  ✓
+[2m2025-11-24T10:53:14.286238-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     12.  204.6s vs    206s  error=  1.4s  ✓
+[2m2025-11-24T10:53:14.286243-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A10]     13.  267.1s vs    270s  error=  2.9s  ✓
+[2m2025-11-24T10:53:14.286253-05:00[0m [32m INFO[0m ThreadId(01) [2m4822:[0m [A10]   Extra tracks detected (1 beyond expected count):
+[2m2025-11-24T10:53:14.286258-05:00[0m [32m INFO[0m ThreadId(01) [2m4824:[0m [A10]     Track 14: 0.1s (no MusicBrainz match)
+[2m2025-11-24T10:53:14.286263-05:00[0m [32m INFO[0m ThreadId(01) [2m4835:[0m [A10] 
+[2m2025-11-24T10:53:14.286270-05:00[0m [32m INFO[0m ThreadId(01) [2m2252:[0m [A10]   🔬 Running AcoustID verification...
+[2m2025-11-24T10:53:15.476246-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:15.965341-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 1: ✓ MBID verified (f738847a)
+[2m2025-11-24T10:53:17.072025-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:17.380726-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 2: ✓ MBID verified (c144e09a)
+[2m2025-11-24T10:53:18.534756-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:18.808627-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 3: ✓ MBID verified (9f44133e)
+[2m2025-11-24T10:53:19.135388-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A8] [HEARTBEAT] 240s elapsed | Queries: 7 (7 ok, 0 failed) | Retries: 0 | Rate waits: 7 | searching: Smash Mouth / AstroLounge (strategy 3/6)
+[2m2025-11-24T10:53:19.854357-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:20.217996-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 4: ✓ MBID verified (3457a726)
+[2m2025-11-24T10:53:21.163419-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:21.164342-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A6]   Decoded: 145237248 samples at 44100 Hz (54.89 mins)
+[2m2025-11-24T10:53:21.757356-05:00[0m [32m INFO[0m ThreadId(60) [2m4461:[0m [A6]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:53:21.760875-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 5: ✓ MBID verified (a221e49f)
+[2m2025-11-24T10:53:22.160084-05:00[0m [32m INFO[0m ThreadId(60) [2m4471:[0m [A6]   Silence cache ready (180 entries)
+[2m2025-11-24T10:53:22.945107-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:22.949166-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A6] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:53:22.949209-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A6]     Decoded duration: -0.30 (54.89 min)
+[2m2025-11-24T10:53:22.949223-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A6]     Silence gaps:     -0.50 (5 gaps detected, threshold=3)
+[2m2025-11-24T10:53:22.949234-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A6]     FINAL TOTAL:      -1.30 (Unlikely confidence)
+[2m2025-11-24T10:53:22.949292-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A6]   Grouped into 7 unique editions
+[2m2025-11-24T10:53:22.949304-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A6]   Sorted editions by likelihood (file: 3293s)
+[2m2025-11-24T10:53:22.949327-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A6]   Filtered out 5 editions (runtime >25% different from file)
+[2m2025-11-24T10:53:22.949335-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A6]   Acceptable range: 2470s - 4117s
+[2m2025-11-24T10:53:22.949342-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A6] Found 2 unique editions to test
+[2m2025-11-24T10:53:22.949351-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A6]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:53:22.949358-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A6]     [0] Crosby, Stills & Nash - Daylight Again (15 tracks, 3320s, 1 MBIDs, score: 27s, NDR:1,7.6)
+[2m2025-11-24T10:53:22.949368-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A6]     [1] Crosby, Stills & Nash - Daylight Again (15 tracks, 3350s, 1 MBIDs, score: 57s, NDR:5,7.6)
+[2m2025-11-24T10:53:23.391631-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A6]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:53:23.391680-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A6]   Testing 2 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:53:23.391784-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A6]   Starting Edition 1/2: Crosby, Stills & Nash - Daylight Again
+[2m2025-11-24T10:53:23.402512-05:00[0m [32m INFO[0m ThreadId(30) [2m3901:[0m [A6]       [Edition 1/2] New best: 100.0% via assembly (-58dB, 0.3s) (21 -> 15 tracks)
+[2m2025-11-24T10:53:26.651217-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A3] [HEARTBEAT] 480s elapsed | Queries: 35 (35 ok, 0 failed) | Retries: 0 | Rate waits: 35 | fetching details: Goodbye Yellow Brick Road (rank 14)
+[2m2025-11-24T10:53:27.392271-05:00[0m [32m INFO[0m ThreadId(28) [2m4588:[0m [A6]   Stopping feed: 100% match found, 1 editions not started
+[2m2025-11-24T10:53:46.127207-05:00[0m [32m INFO[0m ThreadId(01) [2m4680:[0m [A6]   Completed: 1 editions started, 1 skipped
+[2m2025-11-24T10:53:46.127297-05:00[0m [32m INFO[0m ThreadId(01) [2m4198:[0m [A6]   ✅ Name match OK:
+[2m2025-11-24T10:53:46.127311-05:00[0m [32m INFO[0m ThreadId(01) [2m4199:[0m [A6]       Artist: 'Crosby, Stills & Nash'→'Crosby, Stills & Nash' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:53:46.127326-05:00[0m [32m INFO[0m ThreadId(01) [2m4201:[0m [A6]       Album: 'Daylight Again (Deluxe Version 2012)'→'Daylight Again' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:53:46.127342-05:00[0m [32m INFO[0m ThreadId(01) [2m4724:[0m [A6]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 3.19s)
+[2m2025-11-24T10:53:46.127368-05:00[0m [32m INFO[0m ThreadId(01) [2m4783:[0m [A6]   FINAL RESULT:
+[2m2025-11-24T10:53:46.127378-05:00[0m [32m INFO[0m ThreadId(01) [2m4784:[0m [A6]     Artist: Crosby, Stills & Nash
+[2m2025-11-24T10:53:46.127387-05:00[0m [32m INFO[0m ThreadId(01) [2m4785:[0m [A6]     Album: Daylight Again
+[2m2025-11-24T10:53:46.127395-05:00[0m [32m INFO[0m ThreadId(01) [2m4786:[0m [A6]     Matching stage: album_extractor_3_assembly
+[2m2025-11-24T10:53:46.127403-05:00[0m [32m INFO[0m ThreadId(01) [2m4787:[0m [A6]     MusicBrainz: https://musicbrainz.org/release/4cfb8db4-c10d-4f18-bfb8-80ac3fc234bc
+[2m2025-11-24T10:53:46.127412-05:00[0m [32m INFO[0m ThreadId(01) [2m4788:[0m [A6]     Track count: 15/15 ✓
+[2m2025-11-24T10:53:46.127421-05:00[0m [32m INFO[0m ThreadId(01) [2m4790:[0m [A6]     Matched tracks: 15/15 (100.0%)
+[2m2025-11-24T10:53:46.127431-05:00[0m [32m INFO[0m ThreadId(01) [2m4791:[0m [A6]     Mean error: 3.19s
+[2m2025-11-24T10:53:46.127440-05:00[0m [32m INFO[0m ThreadId(01) [2m4792:[0m [A6]     Confidence: Excellent
+[2m2025-11-24T10:53:46.127449-05:00[0m [32m INFO[0m ThreadId(01) [2m4795:[0m [A6]     Best parameters: -60dB, 0.3s
+[2m2025-11-24T10:53:46.127458-05:00[0m [32m INFO[0m ThreadId(01) [2m4800:[0m [A6]   All tracks:
+[2m2025-11-24T10:53:46.127466-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     1.  284.9s vs    289s  error=  4.1s  ✓
+[2m2025-11-24T10:53:46.127476-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     2.  169.3s vs    171s  error=  1.7s  ✓
+[2m2025-11-24T10:53:46.127485-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     3.  278.3s vs    281s  error=  2.7s  ✓
+[2m2025-11-24T10:53:46.127494-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     4.  198.3s vs    201s  error=  2.7s  ✓
+[2m2025-11-24T10:53:46.127503-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     5.  247.6s vs    248s  error=  0.4s  ✓
+[2m2025-11-24T10:53:46.127512-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     6.  188.4s vs    191s  error=  2.6s  ✓
+[2m2025-11-24T10:53:46.127520-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     7.  234.2s vs    237s  error=  2.8s  ✓
+[2m2025-11-24T10:53:46.127529-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     8.  182.6s vs    186s  error=  3.4s  ✓
+[2m2025-11-24T10:53:46.127537-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     9.  179.6s vs    182s  error=  2.4s  ✓
+[2m2025-11-24T10:53:46.127545-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     10.  258.5s vs    265s  error=  6.5s  ✓
+[2m2025-11-24T10:53:46.127554-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     11.  146.8s vs    149s  error=  2.2s  ✓
+[2m2025-11-24T10:53:46.127563-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     12.  149.4s vs    152s  error=  2.6s  ✓
+[2m2025-11-24T10:53:46.127572-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     13.  263.5s vs    268s  error=  4.5s  ✓
+[2m2025-11-24T10:53:46.127580-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     14.  239.3s vs    245s  error=  5.7s  ✓
+[2m2025-11-24T10:53:46.127589-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A6]     15.  251.4s vs    255s  error=  3.6s  ✓
+[2m2025-11-24T10:53:46.127598-05:00[0m [32m INFO[0m ThreadId(01) [2m4835:[0m [A6] 
+[2m2025-11-24T10:53:46.127608-05:00[0m [32m INFO[0m ThreadId(01) [2m2252:[0m [A6]   🔬 Running AcoustID verification...
+[2m2025-11-24T10:53:47.469470-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:47.474700-05:00[0m [33m WARN[0m ThreadId(01) [2m2328:[0m [A10]     Track 6: AcoustID lookup failed: AcoustID request failed: error sending request for url (https://api.acoustid.org/v2/lookup): operation timed out
+[2m2025-11-24T10:53:48.893787-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:49.341660-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 7: ✓ MBID verified (4b6540e5)
+[2m2025-11-24T10:53:50.113941-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:50.135457-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 1: ✓ MBID verified (a75cdabe)
+[2m2025-11-24T10:53:50.440322-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:50.462808-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 8: ✓ MBID verified (d4d58408)
+[2m2025-11-24T10:53:50.870436-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:50.871236-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 2: ✓ MBID verified (f2fe52ac)
+[2m2025-11-24T10:53:51.360738-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:51.362189-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 9: ✓ MBID verified (664df123)
+[2m2025-11-24T10:53:51.757416-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:51.759131-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 3: ✓ MBID verified (fe5a7172)
+[2m2025-11-24T10:53:52.108930-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:52.109336-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 10: ✓ MBID verified (d305da17)
+[2m2025-11-24T10:53:52.541728-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:52.542205-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 4: ✓ MBID verified (d58c4cf4)
+[2m2025-11-24T10:53:52.979206-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:52.979770-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 11: ✓ MBID verified (307c241a)
+[2m2025-11-24T10:53:53.345305-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:53.346730-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 5: ✓ MBID verified (9851a1ba)
+[2m2025-11-24T10:53:53.679198-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:53.680709-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A10]     Track 12: ✓ MBID verified (9da6922a)
+[2m2025-11-24T10:53:54.152340-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:54.152934-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 6: ✓ MBID verified (c5259494)
+[2m2025-11-24T10:53:54.563355-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:54.563988-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:54.863547-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 7: ✓ MBID verified (a1b2a29c)
+[2m2025-11-24T10:53:55.175479-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:55.175583-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A10]     Track 13: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:53:55.175590-05:00[0m [32m INFO[0m ThreadId(01) [2m2409:[0m [A10]   🔬 AcoustID verification complete: 11/14 matched, 0 mismatched, 2 no-match, 0 failed
+[2m2025-11-24T10:53:55.191059-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A13] === Album 13/200 ===
+[2m2025-11-24T10:53:55.191075-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A13] File: C:\Users\Mango Cat\Music\Santana\Santana\11 - Soul Sacrifice (live from Woodstock).mp3
+[2m2025-11-24T10:53:55.191269-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:53:55.191357-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A13]   Phase 0 Reconciliation:
+[2m2025-11-24T10:53:55.191360-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A13]     Strategy: PartialMatch
+[2m2025-11-24T10:53:55.191363-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A13]     Confidence: Medium
+[2m2025-11-24T10:53:55.191365-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A13]     Artist: Santana (source: Both)
+[2m2025-11-24T10:53:55.191367-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A13]     Album: Santana (source: ID3)
+[2m2025-11-24T10:53:55.191369-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A13]       Alternate: 11 - Soul Sacrifice (live from Woodstock)
+[2m2025-11-24T10:53:55.191372-05:00[0m [32m INFO[0m ThreadId(01) [2m3163:[0m [A13]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T10:53:55.191521-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:53:55.191559-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A13] 🔍 Single-track analysis (pre-decode) for "11 - Soul Sacrifice (live from Woodstock).mp3":
+[2m2025-11-24T10:53:55.191563-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A13]     Filename pattern: +1.00 (matched "11 - ")
+[2m2025-11-24T10:53:55.191567-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A13]     Directory files:  +0.80 (11 audio files in dir, threshold=4)
+[2m2025-11-24T10:53:55.191569-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A13]     ID3 track tag:    +1.00 (track 11/12)
+[2m2025-11-24T10:53:55.191571-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A13]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:53:55.191574-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A13]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T10:53:55.191577-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A13]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:53:55.191593-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A13]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:53:55.191639-05:00[0m [32m INFO[0m ThreadId(63) [2m4405:[0m [A13]   Decoding...
+[2m2025-11-24T10:53:55.191745-05:00[0m [32m INFO[0m ThreadId(63) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T10:53:55.497457-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:56.359401-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A6]     Track 8: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:53:56.675078-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:58.653442-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 9: ✓ MBID verified (0212b26c)
+[2m2025-11-24T10:53:59.093140-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:53:59.373845-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A6]     Track 10: ✓ MBID verified (39575d06)
+[2m2025-11-24T10:53:59.633914-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:00.489763-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:00.688637-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A6]     Track 11: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:54:00.944369-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:01.297442-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:01.782040-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A6]     Track 12: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:54:02.230134-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:02.522245-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:03.040043-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A6]     Track 13: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:54:03.455585-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:05.525351-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:05.714750-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A6]     Track 14: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:54:06.149816-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:06.618373-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:54:06.892521-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A6]     Track 15: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:54:06.892599-05:00[0m [32m INFO[0m ThreadId(01) [2m2409:[0m [A6]   🔬 AcoustID verification complete: 9/15 matched, 0 mismatched, 6 no-match, 0 failed
+[2m2025-11-24T10:54:06.915739-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A14] === Album 14/200 ===
+[2m2025-11-24T10:54:06.915755-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A14] File: C:\Users\Mango Cat\Music\Blackmore's Night\BeyondTheSunset.mp3
+[2m2025-11-24T10:54:06.915856-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:54:06.915924-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A14]   Phase 0 Reconciliation:
+[2m2025-11-24T10:54:06.915928-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A14]     Strategy: PartialMatch
+[2m2025-11-24T10:54:06.915931-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A14]     Confidence: Medium
+[2m2025-11-24T10:54:06.915933-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A14]     Artist: Blackmore's Night (source: Both)
+[2m2025-11-24T10:54:06.915936-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A14]     Album: Beyond the Sunset (source: ID3)
+[2m2025-11-24T10:54:06.915938-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A14]       Alternate: BeyondTheSunset
+[2m2025-11-24T10:54:06.915940-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A14]     Estimated track count from ID3: 14
+[2m2025-11-24T10:54:06.916028-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:54:06.916054-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A14] 🔍 Single-track analysis (pre-decode) for "BeyondTheSunset.mp3":
+[2m2025-11-24T10:54:06.916058-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A14]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:54:06.916061-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A14]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T10:54:06.916065-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A14]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:54:06.916067-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A14]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:54:06.916069-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A14]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T10:54:06.916073-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A14]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:54:06.916090-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A14]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:54:06.916141-05:00[0m [32m INFO[0m ThreadId(62) [2m4405:[0m [A14]   Decoding...
+[2m2025-11-24T10:54:16.269192-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A12]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:54:16.270278-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A12]   Run 24 ratio filter: skipping 142 releases (artist<50% OR album<50%), 8 remain
+[2m2025-11-24T10:54:16.643898-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A11] [HEARTBEAT] 360s elapsed | Queries: 16 (16 ok, 0 failed) | Retries: 0 | Rate waits: 16 | fetching details: Surrender (rank 7)
+[2m2025-11-24T10:54:21.902602-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A8]   Found 104 unique releases across all search strategies
+[2m2025-11-24T10:54:21.903394-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A8]   Run 24 ratio filter: skipping 96 releases (artist<50% OR album<50%), 8 remain
+[2m2025-11-24T10:54:32.639651-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A7] [HEARTBEAT] 360s elapsed | Queries: 16 (16 ok, 0 failed) | Retries: 0 | Rate waits: 16 | fetching details: (What’s the Story) Morning Glory? (rank 13)
+[2m2025-11-24T10:54:59.699805-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A5] [HEARTBEAT] 480s elapsed | Queries: 29 (29 ok, 0 failed) | Retries: 0 | Rate waits: 30 | fetching details: Ride the Lightning (rank 21)
+[2m2025-11-24T10:55:01.744844-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A12] [HEARTBEAT] 240s elapsed | Queries: 8 (8 ok, 0 failed) | Retries: 0 | Rate waits: 8 | fetching details: 300 Days at Sea (rank 4)
+[2m2025-11-24T10:55:05.327967-05:00[0m [32m INFO[0m ThreadId(01) [2m2447:[0m [A13]   Reached 150 release limit
+[2m2025-11-24T10:55:05.327989-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A13]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:55:05.328136-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A13]   Run 24 ratio filter: skipping 58 releases (artist<50% OR album<50%), 92 remain
+[2m2025-11-24T10:55:05.328196-05:00[0m [32m INFO[0m ThreadId(01) [2m2588:[0m [A13]   Early NDR filter: skipping 42 releases (NDR > 50), fetching details for 50
+[2m2025-11-24T10:55:09.249000-05:00[0m [32m INFO[0m ThreadId(01) [2m2715:[0m [A14]   Found 150 unique releases across all search strategies
+[2m2025-11-24T10:55:09.249196-05:00[0m [32m INFO[0m ThreadId(01) [2m2553:[0m [A14]   Run 24 ratio filter: skipping 149 releases (artist<50% OR album<50%), 1 remain
+[2m2025-11-24T10:55:19.138610-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A8] [HEARTBEAT] 360s elapsed | Queries: 15 (15 ok, 0 failed) | Retries: 0 | Rate waits: 15 | fetching details: Astro Lounge (rank 5)
+[2m2025-11-24T10:55:21.312130-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A14]   Decoded: 147768192 samples at 44100 Hz (55.85 mins)
+[2m2025-11-24T10:55:21.544473-05:00[0m [32m INFO[0m ThreadId(64) [2m4461:[0m [A14]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:55:21.690259-05:00[0m [32m INFO[0m ThreadId(64) [2m4471:[0m [A14]   Silence cache ready (180 entries)
+[2m2025-11-24T10:55:21.708213-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A14] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:55:21.708241-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A14]     Decoded duration: -0.30 (55.85 min)
+[2m2025-11-24T10:55:21.708247-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A14]     Silence gaps:     -0.50 (13 gaps detected, threshold=3)
+[2m2025-11-24T10:55:21.708252-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A14]     FINAL TOTAL:      -1.30 (Unlikely confidence)
+[2m2025-11-24T10:55:21.708262-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A14]   Grouped into 1 unique editions
+[2m2025-11-24T10:55:21.708265-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A14]   Sorted editions by likelihood (file: 3351s)
+[2m2025-11-24T10:55:21.708269-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A14]   Filtered out 1 editions (runtime >25% different from file)
+[2m2025-11-24T10:55:21.708271-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A14]   Acceptable range: 2513s - 4188s
+[2m2025-11-24T10:55:21.708275-05:00[0m [31mERROR[0m ThreadId(01) [2m314:[0m [A14] FAILED: FAILED: All editions filtered out (1 by runtime)
+[2m2025-11-24T10:55:21.708278-05:00[0m [32m INFO[0m ThreadId(01) [2m315:[0m [A14] 
+[2m2025-11-24T10:55:21.727255-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A15] === Album 15/200 ===
+[2m2025-11-24T10:55:21.727284-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A15] File: C:\Users\Mango Cat\Music\Asia\GoldAsia.mp3
+[2m2025-11-24T10:55:21.727429-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:55:21.727510-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A15]   Phase 0 Reconciliation:
+[2m2025-11-24T10:55:21.727513-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A15]     Strategy: PartialMatch
+[2m2025-11-24T10:55:21.727516-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A15]     Confidence: Medium
+[2m2025-11-24T10:55:21.727518-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A15]     Artist: Asia (source: Both)
+[2m2025-11-24T10:55:21.727521-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A15]     Album: Gold (source: ID3)
+[2m2025-11-24T10:55:21.727523-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A15]       Alternate: GoldAsia
+[2m2025-11-24T10:55:21.727525-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A15]     Estimated track count from ID3: 36
+[2m2025-11-24T10:55:21.727622-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:55:21.727650-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A15] 🔍 Single-track analysis (pre-decode) for "GoldAsia.mp3":
+[2m2025-11-24T10:55:21.727653-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A15]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:55:21.727656-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A15]     Directory files:  -0.50 (1 audio files in dir, threshold=4)
+[2m2025-11-24T10:55:21.727661-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A15]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:55:21.727663-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A15]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:55:21.727665-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A15]     PRE-DECODE TOTAL: -0.50 (Unlikely confidence)
+[2m2025-11-24T10:55:21.727669-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A15]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:55:21.727695-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A15]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:55:21.727707-05:00[0m [32m INFO[0m ThreadId(64) [2m4405:[0m [A15]   Decoding...
+[2m2025-11-24T10:55:26.656670-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A3] [HEARTBEAT] 600s elapsed | Queries: 43 (43 ok, 0 failed) | Retries: 0 | Rate waits: 44 | fetching details: Goodbye Yellow Brick Road (rank 22)
+[2m2025-11-24T10:55:55.198988-05:00[0m [32m INFO[0m ThreadId(03) [2m1066:[0m [A13] [HEARTBEAT] 120s elapsed | Queries: 10 (10 ok, 0 failed) | Retries: 0 | Rate waits: 10 | fetching details: Santana (rank 5)
+[2m2025-11-24T10:55:55.434457-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A12]   Decoded: 133589376 samples at 44100 Hz (50.49 mins)
+[2m2025-11-24T10:55:55.680279-05:00[0m [32m INFO[0m ThreadId(65) [2m4461:[0m [A12]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:55:55.815011-05:00[0m [32m INFO[0m ThreadId(65) [2m4471:[0m [A12]   Silence cache ready (180 entries)
+[2m2025-11-24T10:55:55.832398-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A12] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:55:55.832421-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A12]     Decoded duration: -0.30 (50.49 min)
+[2m2025-11-24T10:55:55.832425-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A12]     Silence gaps:     +1.00 (0 gaps detected, threshold=3)
+[2m2025-11-24T10:55:55.832430-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A12]     FINAL TOTAL:      1.50 (Medium confidence)
+[2m2025-11-24T10:55:55.832433-05:00[0m [33m WARN[0m ThreadId(01) [2m752:[0m [A12]     ⚠️ SINGLE TRACK DETECTED - Results may be invalid (score=1.50 >= threshold=1.5)
+[2m2025-11-24T10:55:55.832466-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A12]   Grouped into 7 unique editions
+[2m2025-11-24T10:55:55.832473-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A12]   Sorted editions by likelihood (file: 3029s)
+[2m2025-11-24T10:55:55.832482-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A12]   Filtered out 3 editions (runtime >25% different from file)
+[2m2025-11-24T10:55:55.832485-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A12]   Acceptable range: 2272s - 3787s
+[2m2025-11-24T10:55:55.832488-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A12] Found 4 unique editions to test
+[2m2025-11-24T10:55:55.832492-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A12]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:55:55.832494-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A12]     [0] Heather Nova - 300 Days at Sea (12 tracks, 3030s, 1 MBIDs, score: 1s, NDR:6,3.5)
+[2m2025-11-24T10:55:55.832498-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A12]     [1] Heather Nova - 300 Days at Sea (12 tracks, 3033s, 1 MBIDs, score: 4s, NDR:1,3.5)
+[2m2025-11-24T10:55:55.832501-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A12]     [2] Heather Nova - 300 Days at Sea (12 tracks, 3037s, 2 MBIDs, score: 8s, NDR:2,3.5)
+[2m2025-11-24T10:55:55.832503-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A12]     [3] Heather Nova - 300 Days at Sea (13 tracks, 3236s, 1 MBIDs, score: 267s, NDR:7,3.5)
+[2m2025-11-24T10:55:55.960855-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A12]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:55:55.960881-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A12]   Testing 4 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:55:55.960965-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A12]   Starting Edition 1/4: Heather Nova - 300 Days at Sea
+[2m2025-11-24T10:55:59.961497-05:00[0m [32m INFO[0m ThreadId(28) [2m4588:[0m [A12]   Stopping feed: 100% match found, 3 editions not started
+[2m2025-11-24T10:56:16.647443-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A11] [HEARTBEAT] 480s elapsed | Queries: 24 (24 ok, 0 failed) | Retries: 0 | Rate waits: 24 | fetching details: Surrender (rank 15)
+[2m2025-11-24T10:56:32.645239-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A7] [HEARTBEAT] 480s elapsed | Queries: 22 (22 ok, 0 failed) | Retries: 0 | Rate waits: 23 | fetching details: (What’s the Story) Morning Glory? (rank 19)
+[2m2025-11-24T10:56:59.711397-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A5] [HEARTBEAT] 600s elapsed | Queries: 34 (34 ok, 0 failed) | Retries: 0 | Rate waits: 34 | fetching details: Ride the Lightning (rank 26)
+[2m2025-11-24T10:57:01.760095-05:00[0m [32m INFO[0m ThreadId(01) [2m4680:[0m [A12]   Completed: 1 editions started, 3 skipped
+[2m2025-11-24T10:57:01.760159-05:00[0m [32m INFO[0m ThreadId(01) [2m4198:[0m [A12]   ✅ Name match OK:
+[2m2025-11-24T10:57:01.760165-05:00[0m [32m INFO[0m ThreadId(01) [2m4199:[0m [A12]       Artist: 'Heather Nova'→'Heather Nova' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:57:01.760174-05:00[0m [32m INFO[0m ThreadId(01) [2m4201:[0m [A12]       Album: '300 Days At Sea'→'300 Days at Sea' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:57:01.760196-05:00[0m [32m INFO[0m ThreadId(01) [2m4724:[0m [A12]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 0.90s)
+[2m2025-11-24T10:57:01.760209-05:00[0m [32m INFO[0m ThreadId(01) [2m4783:[0m [A12]   FINAL RESULT:
+[2m2025-11-24T10:57:01.760214-05:00[0m [32m INFO[0m ThreadId(01) [2m4784:[0m [A12]     Artist: Heather Nova
+[2m2025-11-24T10:57:01.760218-05:00[0m [32m INFO[0m ThreadId(01) [2m4785:[0m [A12]     Album: 300 Days at Sea
+[2m2025-11-24T10:57:01.760223-05:00[0m [32m INFO[0m ThreadId(01) [2m4786:[0m [A12]     Matching stage: album_extractor_2_optimization
+[2m2025-11-24T10:57:01.760227-05:00[0m [32m INFO[0m ThreadId(01) [2m4787:[0m [A12]     MusicBrainz: https://musicbrainz.org/release/bbdf91a8-deec-4c61-8ff1-0b0386f619cb
+[2m2025-11-24T10:57:01.760232-05:00[0m [32m INFO[0m ThreadId(01) [2m4788:[0m [A12]     Track count: 12/12 ✓
+[2m2025-11-24T10:57:01.760237-05:00[0m [32m INFO[0m ThreadId(01) [2m4790:[0m [A12]     Matched tracks: 12/12 (100.0%)
+[2m2025-11-24T10:57:01.760242-05:00[0m [32m INFO[0m ThreadId(01) [2m4791:[0m [A12]     Mean error: 0.90s
+[2m2025-11-24T10:57:01.760246-05:00[0m [32m INFO[0m ThreadId(01) [2m4792:[0m [A12]     Confidence: Excellent
+[2m2025-11-24T10:57:01.760251-05:00[0m [32m INFO[0m ThreadId(01) [2m4795:[0m [A12]     Best parameters: -50dB, 0.3s
+[2m2025-11-24T10:57:01.760256-05:00[0m [32m INFO[0m ThreadId(01) [2m4800:[0m [A12]   All tracks:
+[2m2025-11-24T10:57:01.760261-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     1.  264.4s vs    266s  error=  1.6s  ✓
+[2m2025-11-24T10:57:01.760267-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     2.  255.7s vs    256s  error=  0.3s  ✓
+[2m2025-11-24T10:57:01.760271-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     3.  231.2s vs    232s  error=  0.8s  ✓
+[2m2025-11-24T10:57:01.760276-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     4.  295.4s vs    296s  error=  0.6s  ✓
+[2m2025-11-24T10:57:01.760281-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     5.  217.3s vs    218s  error=  0.7s  ✓
+[2m2025-11-24T10:57:01.760285-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     6.  270.9s vs    272s  error=  1.1s  ✓
+[2m2025-11-24T10:57:01.760290-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     7.  223.0s vs    224s  error=  1.0s  ✓
+[2m2025-11-24T10:57:01.760294-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     8.  227.2s vs    228s  error=  0.8s  ✓
+[2m2025-11-24T10:57:01.760299-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     9.  259.9s vs    260s  error=  0.1s  ✓
+[2m2025-11-24T10:57:01.760304-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     10.  237.3s vs    237s  error=  0.3s  ✓
+[2m2025-11-24T10:57:01.760308-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     11.  265.7s vs    266s  error=  0.3s  ✓
+[2m2025-11-24T10:57:01.760313-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A12]     12.  271.7s vs    275s  error=  3.3s  ✓
+[2m2025-11-24T10:57:01.760317-05:00[0m [32m INFO[0m ThreadId(01) [2m4835:[0m [A12] 
+[2m2025-11-24T10:57:01.760323-05:00[0m [32m INFO[0m ThreadId(01) [2m2252:[0m [A12]   🔬 Running AcoustID verification...
+[2m2025-11-24T10:57:02.220967-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:02.877488-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 1: ✓ MBID verified (dae37a61)
+[2m2025-11-24T10:57:03.321993-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:03.626032-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 2: ✓ MBID verified (0e739f5b)
+[2m2025-11-24T10:57:04.035647-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:04.264649-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 3: ✓ MBID verified (d027df25)
+[2m2025-11-24T10:57:04.811256-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:05.086496-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 4: ✓ MBID verified (7c94b381)
+[2m2025-11-24T10:57:05.478506-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:05.740994-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 5: ✓ MBID verified (edc48a09)
+[2m2025-11-24T10:57:06.209092-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:06.493168-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 6: ✓ MBID verified (dca37e76)
+[2m2025-11-24T10:57:06.906326-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:07.191535-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 7: ✓ MBID verified (e5a91e9b)
+[2m2025-11-24T10:57:07.601895-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:07.907301-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 8: ✓ MBID verified (16bf5da1)
+[2m2025-11-24T10:57:08.348785-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:08.348972-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A8]   Decoded: 135240192 samples at 44100 Hz (51.11 mins)
+[2m2025-11-24T10:57:08.599665-05:00[0m [32m INFO[0m ThreadId(67) [2m4461:[0m [A8]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:57:08.649190-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 9: ✓ MBID verified (aec7b632)
+[2m2025-11-24T10:57:08.743409-05:00[0m [32m INFO[0m ThreadId(67) [2m4471:[0m [A8]   Silence cache ready (180 entries)
+[2m2025-11-24T10:57:09.095243-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:09.095382-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A8] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:57:09.095388-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A8]     Decoded duration: -0.30 (51.11 min)
+[2m2025-11-24T10:57:09.095393-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A8]     Silence gaps:     -0.50 (14 gaps detected, threshold=3)
+[2m2025-11-24T10:57:09.095397-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A8]     FINAL TOTAL:      -0.50 (Unlikely confidence)
+[2m2025-11-24T10:57:09.095431-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A8]   Grouped into 2 unique editions
+[2m2025-11-24T10:57:09.095435-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A8]   Sorted editions by likelihood (file: 3067s)
+[2m2025-11-24T10:57:09.095438-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A8] Found 2 unique editions to test
+[2m2025-11-24T10:57:09.095441-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A8]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:57:09.095444-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A8]     [0] Smash Mouth - Astro Lounge (15 tracks, 3016s, 7 MBIDs, score: 51s, NDR:1,0.3)
+[2m2025-11-24T10:57:09.095448-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A8]     [1] Smash Mouth - Astro Lounge (16 tracks, 3235s, 1 MBIDs, score: 228s, NDR:2,0.3)
+[2m2025-11-24T10:57:09.228044-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A8]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:57:09.228066-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A8]   Testing 2 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:57:09.228108-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A8]   Starting Edition 1/2: Smash Mouth - Astro Lounge
+[2m2025-11-24T10:57:13.228684-05:00[0m [32m INFO[0m ThreadId(28) [2m4588:[0m [A8]   Stopping feed: 100% match found, 1 editions not started
+[2m2025-11-24T10:57:19.154284-05:00[0m [32m INFO[0m ThreadId(01) [2m4680:[0m [A8]   Completed: 1 editions started, 1 skipped
+[2m2025-11-24T10:57:19.154349-05:00[0m [32m INFO[0m ThreadId(01) [2m4198:[0m [A8]   ✅ Name match OK:
+[2m2025-11-24T10:57:19.154354-05:00[0m [32m INFO[0m ThreadId(01) [2m4199:[0m [A8]       Artist: 'Smash Mouth'→'Smash Mouth' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:57:19.154364-05:00[0m [32m INFO[0m ThreadId(01) [2m4201:[0m [A8]       Album: 'Astro Lounge'→'Astro Lounge' (JW=100.0%, Lev=100.0%)
+[2m2025-11-24T10:57:19.154373-05:00[0m [32m INFO[0m ThreadId(01) [2m4724:[0m [A8]   Parallel processing complete. Best: 100.0% from edition 1 (mean error: 4.32s)
+[2m2025-11-24T10:57:19.154385-05:00[0m [32m INFO[0m ThreadId(01) [2m4783:[0m [A8]   FINAL RESULT:
+[2m2025-11-24T10:57:19.154388-05:00[0m [32m INFO[0m ThreadId(01) [2m4784:[0m [A8]     Artist: Smash Mouth
+[2m2025-11-24T10:57:19.154393-05:00[0m [32m INFO[0m ThreadId(01) [2m4785:[0m [A8]     Album: Astro Lounge
+[2m2025-11-24T10:57:19.154395-05:00[0m [32m INFO[0m ThreadId(01) [2m4786:[0m [A8]     Matching stage: album_extractor_2_optimization
+[2m2025-11-24T10:57:19.154398-05:00[0m [32m INFO[0m ThreadId(01) [2m4787:[0m [A8]     MusicBrainz: https://musicbrainz.org/release/9e5a7703-cf3f-43d1-99b8-736abe2cb0ae
+[2m2025-11-24T10:57:19.154401-05:00[0m [32m INFO[0m ThreadId(01) [2m4788:[0m [A8]     Track count: 15/15 ✓
+[2m2025-11-24T10:57:19.154404-05:00[0m [32m INFO[0m ThreadId(01) [2m4790:[0m [A8]     Matched tracks: 15/15 (100.0%)
+[2m2025-11-24T10:57:19.154407-05:00[0m [32m INFO[0m ThreadId(01) [2m4791:[0m [A8]     Mean error: 4.32s
+[2m2025-11-24T10:57:19.154410-05:00[0m [32m INFO[0m ThreadId(01) [2m4792:[0m [A8]     Confidence: Excellent
+[2m2025-11-24T10:57:19.154412-05:00[0m [32m INFO[0m ThreadId(01) [2m4795:[0m [A8]     Best parameters: -50dB, 3s
+[2m2025-11-24T10:57:19.154417-05:00[0m [32m INFO[0m ThreadId(01) [2m4800:[0m [A8]   All tracks:
+[2m2025-11-24T10:57:19.154419-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     1.  209.5s vs    213s  error=  3.5s  ✓
+[2m2025-11-24T10:57:19.154423-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     2.  188.0s vs    190s  error=  2.0s  ✓
+[2m2025-11-24T10:57:19.154425-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     3.  217.5s vs    225s  error=  7.5s  ✓
+[2m2025-11-24T10:57:19.154427-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     4.  199.5s vs    207s  error=  7.5s  ✓
+[2m2025-11-24T10:57:19.154430-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     5.  198.4s vs    201s  error=  2.6s  ✓
+[2m2025-11-24T10:57:19.154432-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     6.  213.6s vs    219s  error=  5.4s  ✓
+[2m2025-11-24T10:57:19.154434-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     7.  194.4s vs    201s  error=  6.6s  ✓
+[2m2025-11-24T10:57:19.154437-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     8.  245.9s vs    250s  error=  4.1s  ✓
+[2m2025-11-24T10:57:19.154439-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     9.  180.7s vs    184s  error=  3.3s  ✓
+[2m2025-11-24T10:57:19.154441-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     10.  145.4s vs    151s  error=  5.6s  ✓
+[2m2025-11-24T10:57:19.154443-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     11.  239.0s vs    246s  error=  7.0s  ✓
+[2m2025-11-24T10:57:19.154445-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     12.  231.6s vs    234s  error=  2.4s  ✓
+[2m2025-11-24T10:57:19.154448-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     13.  150.7s vs    153s  error=  2.3s  ✓
+[2m2025-11-24T10:57:19.154450-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     14.  187.9s vs    192s  error=  4.1s  ✓
+[2m2025-11-24T10:57:19.154453-05:00[0m [32m INFO[0m ThreadId(01) [2m4803:[0m [A8]     15.  151.0s vs    150s  error=  1.0s  ✓
+[2m2025-11-24T10:57:19.154456-05:00[0m [32m INFO[0m ThreadId(01) [2m4835:[0m [A8] 
+[2m2025-11-24T10:57:19.154461-05:00[0m [32m INFO[0m ThreadId(01) [2m2252:[0m [A8]   🔬 Running AcoustID verification...
+[2m2025-11-24T10:57:19.525258-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:19.525700-05:00[0m [33m WARN[0m ThreadId(01) [2m2328:[0m [A12]     Track 10: AcoustID lookup failed: AcoustID request failed: error sending request for url (https://api.acoustid.org/v2/lookup): operation timed out
+[2m2025-11-24T10:57:20.002786-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:20.365885-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:20.529553-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 11: ✓ MBID verified (572b92e3)
+[2m2025-11-24T10:57:21.008042-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:21.008383-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 1: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:21.343872-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:21.384615-05:00[0m [32m INFO[0m ThreadId(01) [2m2385:[0m [A12]     Track 12: ✓ MBID verified (b8e4e056)
+[2m2025-11-24T10:57:21.384635-05:00[0m [32m INFO[0m ThreadId(01) [2m2409:[0m [A12]   🔬 AcoustID verification complete: 11/12 matched, 0 mismatched, 1 no-match, 0 failed
+[2m2025-11-24T10:57:21.399667-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A16] === Album 16/200 ===
+[2m2025-11-24T10:57:21.399682-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A16] File: C:\Users\Mango Cat\Music\Dolby, Thomas\AMapOfTheFloatingCity.mp3
+[2m2025-11-24T10:57:21.399814-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:57:21.399922-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A16]   Phase 0 Reconciliation:
+[2m2025-11-24T10:57:21.399925-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A16]     Strategy: Conflict
+[2m2025-11-24T10:57:21.399928-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A16]     Confidence: Low
+[2m2025-11-24T10:57:21.399931-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A16]     Artist: Thomas Dolby (source: ID3)
+[2m2025-11-24T10:57:21.399933-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A16]       Alternate: Dolby Thomas
+[2m2025-11-24T10:57:21.399935-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A16]     Album: A Map Of The Floating City (source: ID3)
+[2m2025-11-24T10:57:21.399937-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A16]       Alternate: AMapOfTheFloatingCity
+[2m2025-11-24T10:57:21.399939-05:00[0m [32m INFO[0m ThreadId(01) [2m3166:[0m [A16]     Estimated track count from ID3: 11
+[2m2025-11-24T10:57:21.400045-05:00[0m [33m WARN[0m ThreadId(01) [2m86:[0m Replaced frame with ID "COMM" by a frame with the same ID
+[2m2025-11-24T10:57:21.400075-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A16] 🔍 Single-track analysis (pre-decode) for "AMapOfTheFloatingCity.mp3":
+[2m2025-11-24T10:57:21.400078-05:00[0m [32m INFO[0m ThreadId(01) [2m696:[0m [A16]     Filename pattern: +0.00 (no track number prefix)
+[2m2025-11-24T10:57:21.400081-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A16]     Directory files:  +0.30 (2 audio files in dir, threshold=4)
+[2m2025-11-24T10:57:21.400084-05:00[0m [32m INFO[0m ThreadId(01) [2m709:[0m [A16]     ID3 track tag:    +0.00 (no track tag)
+[2m2025-11-24T10:57:21.400089-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A16]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:57:21.400091-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A16]     PRE-DECODE TOTAL: 0.30 (Unlikely confidence)
+[2m2025-11-24T10:57:21.400095-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A16]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:57:21.400112-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A16]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:57:21.400167-05:00[0m [32m INFO[0m ThreadId(68) [2m4405:[0m [A16]   Decoding...
+[2m2025-11-24T10:57:21.625132-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:21.743561-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A15] [HEARTBEAT] 120s elapsed | Queries: 3 (3 ok, 0 failed) | Retries: 0 | Rate waits: 3 | searching: Asia / Gold (strategy 4/4)
+[2m2025-11-24T10:57:22.082181-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 2: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:22.486542-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:23.175684-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:23.366110-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 3: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:23.726884-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:24.133694-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:24.461382-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 4: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:24.817090-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:25.417570-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:25.612933-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 5: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:26.012251-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:26.669141-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A3] [HEARTBEAT] 720s elapsed | Queries: 47 (47 ok, 0 failed) | Retries: 0 | Rate waits: 47 | fetching details: Goodbye Yellow Brick Road (rank 26)
+[2m2025-11-24T10:57:26.698921-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:26.901790-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 6: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:27.238929-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:27.495891-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:28.031719-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 7: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:28.468491-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:28.731529-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:29.215289-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 8: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:29.528052-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:29.806068-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:30.317464-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 9: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:30.572240-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:30.976678-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:31.446005-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 10: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:31.859721-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:32.195619-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:32.605920-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 11: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:33.009657-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:33.294800-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:33.765668-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 12: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:34.026649-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:34.376233-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:34.898462-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 13: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:35.252502-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:35.504883-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:36.007517-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 14: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:36.270917-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:36.661742-05:00[0m [32m INFO[0m ThreadId(01) [2m2110:[0m AcoustID API key loaded from TOML config: C:\Users\Mango Cat\.config/wkmp/wkmp-ai.toml
+[2m2025-11-24T10:57:37.132773-05:00[0m [32m INFO[0m ThreadId(01) [2m2355:[0m [A8]     Track 15: No match - MBID not in AcoustID database (needs submission)
+[2m2025-11-24T10:57:37.132797-05:00[0m [32m INFO[0m ThreadId(01) [2m2409:[0m [A8]   🔬 AcoustID verification complete: 0/15 matched, 0 mismatched, 15 no-match, 0 failed
+[2m2025-11-24T10:57:37.150365-05:00[0m [32m INFO[0m ThreadId(01) [2m4350:[0m [A17] === Album 17/200 ===
+[2m2025-11-24T10:57:37.150389-05:00[0m [32m INFO[0m ThreadId(01) [2m4351:[0m [A17] File: C:\Users\Mango Cat\Music\Buffett, Jimmy\Banana Wind\12 - False Echoes.mp3
+[2m2025-11-24T10:57:37.150598-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:57:37.150687-05:00[0m [32m INFO[0m ThreadId(01) [2m3151:[0m [A17]   Phase 0 Reconciliation:
+[2m2025-11-24T10:57:37.150691-05:00[0m [32m INFO[0m ThreadId(01) [2m3152:[0m [A17]     Strategy: Conflict
+[2m2025-11-24T10:57:37.150693-05:00[0m [32m INFO[0m ThreadId(01) [2m3153:[0m [A17]     Confidence: Low
+[2m2025-11-24T10:57:37.150696-05:00[0m [32m INFO[0m ThreadId(01) [2m3154:[0m [A17]     Artist: Jimmy Buffett (source: ID3)
+[2m2025-11-24T10:57:37.150698-05:00[0m [32m INFO[0m ThreadId(01) [2m3156:[0m [A17]       Alternate: Banana Wind
+[2m2025-11-24T10:57:37.150700-05:00[0m [32m INFO[0m ThreadId(01) [2m3158:[0m [A17]     Album: Banana Wind (source: ID3)
+[2m2025-11-24T10:57:37.150703-05:00[0m [32m INFO[0m ThreadId(01) [2m3160:[0m [A17]       Alternate: 12 - False Echoes
+[2m2025-11-24T10:57:37.150705-05:00[0m [32m INFO[0m ThreadId(01) [2m3163:[0m [A17]     Has MusicBrainz IDs in tags: Yes
+[2m2025-11-24T10:57:37.150896-05:00[0m [33m WARN[0m ThreadId(01) [2m172:[0m MPEG: Using bitrate to estimate duration
+[2m2025-11-24T10:57:37.150929-05:00[0m [32m INFO[0m ThreadId(01) [2m689:[0m [A17] 🔍 Single-track analysis (pre-decode) for "12 - False Echoes.mp3":
+[2m2025-11-24T10:57:37.150933-05:00[0m [32m INFO[0m ThreadId(01) [2m693:[0m [A17]     Filename pattern: +1.00 (matched "12 - ")
+[2m2025-11-24T10:57:37.150937-05:00[0m [32m INFO[0m ThreadId(01) [2m701:[0m [A17]     Directory files:  +0.80 (12 audio files in dir, threshold=4)
+[2m2025-11-24T10:57:37.150940-05:00[0m [32m INFO[0m ThreadId(01) [2m706:[0m [A17]     ID3 track tag:    +1.00 (track 12/12)
+[2m2025-11-24T10:57:37.150943-05:00[0m [32m INFO[0m ThreadId(01) [2m718:[0m [A17]     Duration hint:    N/A (will check after decode)
+[2m2025-11-24T10:57:37.150945-05:00[0m [32m INFO[0m ThreadId(01) [2m723:[0m [A17]     PRE-DECODE TOTAL: 2.80 (High confidence - LIKELY SINGLE TRACK)
+[2m2025-11-24T10:57:37.150949-05:00[0m [32m INFO[0m ThreadId(01) [2m4396:[0m [A17]   Starting parallel: decode + MusicBrainz lookup...
+[2m2025-11-24T10:57:37.150974-05:00[0m [32m INFO[0m ThreadId(01) [2m2706:[0m [A17]   Fetching MusicBrainz data (comprehensive search)...
+[2m2025-11-24T10:57:37.150977-05:00[0m [32m INFO[0m ThreadId(69) [2m4405:[0m [A17]   Decoding...
+[2m2025-11-24T10:57:37.151114-05:00[0m [32m INFO[0m ThreadId(69) [2m324:[0m unsupported frame UFID
+[2m2025-11-24T10:57:55.202157-05:00[0m [32m INFO[0m ThreadId(21) [2m1066:[0m [A13] [HEARTBEAT] 240s elapsed | Queries: 13 (13 ok, 0 failed) | Retries: 0 | Rate waits: 14 | fetching details: Santana (rank 8)
+[2m2025-11-24T10:58:14.761373-05:00[0m [32m INFO[0m ThreadId(01) [2m4429:[0m [A11]   Decoded: 467443584 samples at 44100 Hz (176.66 mins)
+[2m2025-11-24T10:58:15.708358-05:00[0m [32m INFO[0m ThreadId(71) [2m4461:[0m [A11]   Single-pass silence detection (1 scan → 180 param combinations, 20 threads)...
+[2m2025-11-24T10:58:16.174333-05:00[0m [32m INFO[0m ThreadId(71) [2m4471:[0m [A11]   Silence cache ready (180 entries)
+[2m2025-11-24T10:58:16.280893-05:00[0m [32m INFO[0m ThreadId(01) [2m732:[0m [A11] 🔍 Single-track analysis (post-decode update):
+[2m2025-11-24T10:58:16.280924-05:00[0m [32m INFO[0m ThreadId(01) [2m736:[0m [A11]     Decoded duration: -0.30 (176.66 min)
+[2m2025-11-24T10:58:16.280929-05:00[0m [32m INFO[0m ThreadId(01) [2m743:[0m [A11]     Silence gaps:     +1.00 (2 gaps detected, threshold=3)
+[2m2025-11-24T10:58:16.280935-05:00[0m [32m INFO[0m ThreadId(01) [2m748:[0m [A11]     FINAL TOTAL:      1.00 (Medium confidence)
+[2m2025-11-24T10:58:16.280988-05:00[0m [32m INFO[0m ThreadId(01) [2m2777:[0m [A11]   Grouped into 9 unique editions
+[2m2025-11-24T10:58:16.280993-05:00[0m [32m INFO[0m ThreadId(01) [2m4087:[0m [A11]   Sorted editions by likelihood (file: 10600s)
+[2m2025-11-24T10:58:16.281008-05:00[0m [32m INFO[0m ThreadId(01) [2m4103:[0m [A11]   Filtered out 7 editions (runtime >25% different from file)
+[2m2025-11-24T10:58:16.281011-05:00[0m [32m INFO[0m ThreadId(01) [2m4104:[0m [A11]   Acceptable range: 7950s - 13250s
+[2m2025-11-24T10:58:16.281014-05:00[0m [32m INFO[0m ThreadId(01) [2m4507:[0m [A11] Found 2 unique editions to test
+[2m2025-11-24T10:58:16.281016-05:00[0m [32m INFO[0m ThreadId(01) [2m4527:[0m [A11]   Edition Details (sorted by match likelihood):
+[2m2025-11-24T10:58:16.281019-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A11]     [0] The Chemical Brothers - Surrender (28 tracks, 10670s, 1 MBIDs, score: 70s, NDR:19,0.8)
+[2m2025-11-24T10:58:16.281023-05:00[0m [32m INFO[0m ThreadId(01) [2m4531:[0m [A11]     [1] The Chemical Brothers - Surrender (23 tracks, 8161s, 1 MBIDs, score: 2739s, NDR:18,0.8)
+[2m2025-11-24T10:58:16.657974-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A11] [HEARTBEAT] 600s elapsed | Queries: 30 (30 ok, 0 failed) | Retries: 0 | Rate waits: 30 | MusicBrainz search complete
+[2m2025-11-24T10:58:16.721932-05:00[0m [32m INFO[0m ThreadId(01) [2m4571:[0m [A11]   === EDITION-BY-EDITION PROCESSING (Run 19 - PARALLEL MB+SILENCE) ===
+[2m2025-11-24T10:58:16.721955-05:00[0m [32m INFO[0m ThreadId(01) [2m4572:[0m [A11]   Testing 2 editions through Stages 2-5 (4s between feeds, 20s grace period)...
+
+[2m2025-11-24T10:58:16.722038-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A11]   Starting Edition 1/2: The Chemical Brothers - Surrender
+[2m2025-11-24T10:58:16.722856-05:00[0m [32m INFO[0m ThreadId(30) [2m3901:[0m [A11]       [Edition 1/2] New best: 92.9% via assembly (-50dB, 0.3s) (36 -> 28 tracks)
+[2m2025-11-24T10:58:16.725861-05:00[0m [32m INFO[0m ThreadId(30) [2m3901:[0m [A11]       [Edition 1/2] New best: 96.4% via assembly (-58dB, 0.3s) (33 -> 28 tracks)
+[2m2025-11-24T10:58:17.006951-05:00[0m [32m INFO[0m ThreadId(30) [2m3918:[0m [A11]       [Edition 1/2] Tested 62 assemblies
+[2m2025-11-24T10:58:20.722310-05:00[0m [32m INFO[0m ThreadId(28) [2m4598:[0m [A11]   Starting Edition 2/2: The Chemical Brothers - Surrender
+[2m2025-11-24T10:58:20.723624-05:00[0m [32m INFO[0m ThreadId(28) [2m3901:[0m [A11]       [Edition 2/2] New best: 60.9% via assembly (-50dB, 0.5s) (30 -> 23 tracks)
+[2m2025-11-24T10:58:20.732980-05:00[0m [32m INFO[0m ThreadId(28) [2m3901:[0m [A11]       [Edition 2/2] New best: 73.9% via assembly (-58dB, 0.4s) (28 -> 23 tracks)
+[2m2025-11-24T10:58:20.949961-05:00[0m [32m INFO[0m ThreadId(28) [2m3918:[0m [A11]       [Edition 2/2] Tested 78 assemblies
+[2m2025-11-24T10:58:32.660054-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A7] [HEARTBEAT] 600s elapsed | Queries: 28 (28 ok, 0 failed) | Retries: 0 | Rate waits: 28 | fetching details: (What’s the Story) Morning Glory? (rank 25)
+[2m2025-11-24T10:58:59.715314-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A5] [HEARTBEAT] 720s elapsed | Queries: 39 (39 ok, 0 failed) | Retries: 0 | Rate waits: 40 | fetching details: Ride the Lightning (rank 31)
+[2m2025-11-24T10:59:21.414121-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A16] [HEARTBEAT] 120s elapsed | Queries: 4 (4 ok, 0 failed) | Retries: 0 | Rate waits: 4 | searching: Thomas Dolby / A Map Of The Floating City (strategy 5/5)
+[2m2025-11-24T10:59:21.746198-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A15] [HEARTBEAT] 240s elapsed | Queries: 8 (8 ok, 0 failed) | Retries: 0 | Rate waits: 8 | searching: Asia / GoldAsia (strategy 5/5)
+[2m2025-11-24T10:59:26.685282-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A3] [HEARTBEAT] 840s elapsed | Queries: 52 (51 ok, 0 failed) | Retries: 0 | Rate waits: 51 | fetching details: Goodbye Yellow Brick Road (rank 30)
+[2m2025-11-24T10:59:37.162961-05:00[0m [32m INFO[0m ThreadId(02) [2m1066:[0m [A17] [HEARTBEAT] 120s elapsed | Queries: 3 (3 ok, 0 failed) | Retries: 0 | Rate waits: 3 | searching: Jimmy Buffett / Banana Wind (strategy 4/5)

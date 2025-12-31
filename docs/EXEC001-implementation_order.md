@@ -6,7 +6,7 @@ This document aggregates all specifications to define the order in which feature
 
 **Update Policy:** ✅ Always update when upstream docs change | ❌ NEVER update upstream docs from this
 
-> **Architecture Note:** WKMP uses a microservices architecture with 5 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest). The Lyric Editor is launched on-demand but is still an independent process. This implementation plan reflects the module-based design. See [Architecture](SPEC001-architecture.md) for complete details.
+> **Architecture Note:** WKMP uses a microservices architecture with 6 independent HTTP servers (Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest, Database Review). Lyric Editor and Database Review are launched on-demand but are still independent processes. This implementation plan reflects the module-based design. See [Architecture](SPEC001-architecture.md) for complete details.
 
 > **Related Documentation:** [Database Schema](IMPL001-database_schema.md) | [API Design](SPEC007-api_design.md) | [Event System](SPEC011-event_system.md) | [Coding Conventions](IMPL002-coding_conventions.md)
 

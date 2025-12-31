@@ -10,12 +10,12 @@ Defines deployment, process management, and operational configuration for WKMP's
 
 ## Overview
 
-**[DEP-OVR-010]** WKMP consists of **5 independent microservices** that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
+**[DEP-OVR-010]** WKMP consists of **6 independent microservices** that communicate via HTTP/REST APIs. This document specifies how to deploy, start, stop, configure, and monitor these processes across different operating systems and deployment scenarios.
 
-**[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which of the **5 microservices** run:
-- **Full Version** (all 5): Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest
-- **Lite Version** (3 of 5): Audio Player, User Interface, Program Director
-- **Minimal Version** (2 of 5): Audio Player, User Interface
+**[DEP-OVR-020]** The version (Full, Lite, Minimal) determines which of the **6 microservices** run:
+- **Full Version** (all 6): Audio Player, User Interface, Lyric Editor, Program Director, Audio Ingest, Database Review
+- **Lite Version** (3 of 6): Audio Player, User Interface, Program Director
+- **Minimal Version** (2 of 6): Audio Player, User Interface
 
 ## 1. Module Binaries
 
@@ -25,6 +25,7 @@ Defines deployment, process management, and operational configuration for WKMP's
 - `wkmp-le` - Lyric Editor
 - `wkmp-pd` - Program Director
 - `wkmp-ai` - Audio Ingest
+- `wkmp-dr` - Database Review
 
 **[DEP-BIN-020]** Binaries shall be installed in a standard location:
 - **Linux**: `/usr/local/bin/` or `/opt/wkmp/bin/`
@@ -828,12 +829,13 @@ cp /path/to/wkmp.db /path/to/wkmp-backup.db
 
 ### 13.1. Full Version
 
-**[DEP-VER-FULL-010]** Deploy and enable all 5 modules:
+**[DEP-VER-FULL-010]** Deploy and enable all 6 modules:
 - Audio Player (required)
 - User Interface (required)
 - Lyric Editor (on-demand)
 - Program Director (required)
 - Audio Ingest (required)
+- Database Review (on-demand)
 
 **Note:** Lyric Editor (wkmp-le) is launched on-demand by User Interface when user requests lyric editing, not automatically at startup.
 

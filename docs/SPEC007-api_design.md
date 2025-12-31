@@ -10,7 +10,7 @@ Defines REST API structure and Server-Sent Events interface. Derived from [requi
 
 ## Overview
 
-**[API-OV-010]** WKMP implements a **microservices architecture** with 5 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
+**[API-OV-010]** WKMP implements a **microservices architecture** with 6 independent HTTP servers, each exposing its own REST API and SSE endpoints. Modules communicate via HTTP APIs and share a common SQLite database.
 
 ### Module API Endpoints
 

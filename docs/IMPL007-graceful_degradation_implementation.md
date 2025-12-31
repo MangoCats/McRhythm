@@ -27,12 +27,13 @@ Implement graceful degradation throughout WKMP's microservices architecture to e
 - Log informational messages for automatic initialization
 - Include file paths in all log messages
 
-**[IMPL-GD-030]** Maintain consistent behavior across all 5 modules (MANDATORY):
+**[IMPL-GD-030]** Maintain consistent behavior across all 6 modules (MANDATORY):
 - wkmp-ui (User Interface) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-ap (Audio Player) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-pd (Program Director) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-ai (Audio Ingest) - MUST use RootFolderResolver/RootFolderInitializer
 - wkmp-le (Lyric Editor) - MUST use RootFolderResolver/RootFolderInitializer
+- wkmp-dr (Database Review) - MUST use RootFolderResolver/RootFolderInitializer
 
 > **ENFORCEMENT:** Per [REQ-NF-037], ALL modules must use the wkmp_common::config utilities. NO module may implement custom root folder resolution or hardcode database paths.
 
@@ -501,7 +502,7 @@ pub fn write_toml_config(config: &TomlConfig, target_path: &Path) -> Result<()> 
 - Sets directory permissions to 0700 (user-only) on Unix systems
 - Sets file permissions to 0600 (user-only read/write) on Unix systems
 - Returns error if directory creation fails (caller decides how to handle)
-- All 5 modules benefit automatically (DRY principle)
+- All 6 modules benefit automatically (DRY principle)
 
 **Testing:**
 - Test directory creation when `~/.config/wkmp/` missing
@@ -723,7 +724,7 @@ pub fn open_or_create_database(db_path: &Path) -> SqliteResult<Connection> {
 
 **Duration:** 2 weeks (all modules in parallel)
 **Dependencies:** Phase 1, Phase 2
-**Deliverables:** All 5 modules implement graceful degradation
+**Deliverables:** All 6 modules implement graceful degradation
 
 #### 3.1. Audio Player (wkmp-ap)
 
@@ -1034,7 +1035,7 @@ fn test_multiple_module_concurrent_init() {
 
 6. **Concurrent Module Startup**
    - [ ] Clean environment
-   - [ ] Start all 5 modules simultaneously
+   - [ ] Start all 6 modules simultaneously
    - [ ] Verify: All modules start successfully
    - [ ] Verify: Single database created
    - [ ] Verify: No database corruption
@@ -1135,7 +1136,7 @@ fn test_multiple_module_concurrent_init() {
 
 ### Functional Requirements
 
-- [ ] All 5 modules start successfully with no config files present
+- [ ] All 6 modules start successfully with no config files present
 - [ ] Root folder created automatically at default location
 - [ ] Database created automatically with default schema
 - [ ] Warning logged (not error) for missing config files
