@@ -436,9 +436,10 @@ impl MusicBrainzClient {
         // Rate limit
         self.rate_limiter.wait().await;
 
-        // Query API with recordings, artist credits, labels, and release events
+        // Query API with recordings, artist credits, and labels
+        // Note: country/date come in base response, no special inc needed
         let url = format!(
-            "{}/release/{}?inc=recordings+media+artist-credits+labels+release-events&fmt=json",
+            "{}/release/{}?inc=recordings+media+artist-credits+labels&fmt=json",
             MUSICBRAINZ_BASE_URL, release_mbid
         );
 

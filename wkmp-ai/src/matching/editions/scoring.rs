@@ -290,21 +290,31 @@ pub fn calculate_total_duration_score_validated(
 ///
 /// Quality formula for each track:
 /// ```text
-/// if error <= tolerance:
-///     quality = 1.0 - (error / tolerance)
-/// else:
-///     quality = 0.0
+/// error_capped = min(error, tolerance × 2.0)
+/// quality = max(-1.0, 1.0 - (error_capped / tolerance))
 /// ```
+///
+/// Examples with 10s tolerance:
+/// - 0s error → quality = 1.0 (perfect)
+/// - 5s error → quality = 0.5 (good)
+/// - 10s error → quality = 0.0 (at tolerance threshold)
+/// - 15s error → quality = -0.5 (poor)
+/// - 20s+ error → quality = -1.0 (catastrophic, floored)
+///
+/// Creates a symmetric range: +1.0 (perfect) to -1.0 (catastrophic).
+/// Massive failures (>2× tolerance) actively penalize the average score
+/// instead of just contributing zero. This distinguishes catastrophic mismatches
+/// from borderline failures.
 ///
 /// Final score is average quality across all matched tracks.
 ///
 /// # Arguments
 /// * `detected_durations` - Detected track durations in seconds
 /// * `edition_durations` - Edition track durations in seconds
-/// * `tolerance_secs` - Tolerance threshold in seconds (typically 1.5s)
+/// * `tolerance_secs` - Tolerance threshold in seconds (typically 10.0s)
 ///
 /// # Returns
-/// Average quality score (0.0-1.0)
+/// Average quality score (-1.0 to 1.0)
 ///
 /// # Track Count Mismatch Handling
 /// Quality calculated only on first `min(detected_count, edition_count)` tracks.
@@ -325,16 +335,21 @@ pub fn calculate_track_quality_score(
         return 0.0;
     }
 
+    const MAX_ERROR_MULTIPLIER: f64 = 2.0;  // Cap errors at 2.0× tolerance
+    const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures
+
     let track_count = detected_durations.len().min(edition_durations.len());
     let mut total_quality = 0.0;
 
     for i in 0..track_count {
         let error = (detected_durations[i] - edition_durations[i]).abs();
-        let track_quality = if error <= tolerance_secs {
-            1.0 - (error / tolerance_secs)
-        } else {
-            0.0
-        };
+
+        // Cap error at maximum threshold (e.g., 15s when tolerance is 10s)
+        let error_capped = error.min(tolerance_secs * MAX_ERROR_MULTIPLIER);
+
+        // Apply linear penalty, floored at negative minimum
+        let track_quality = (1.0 - (error_capped / tolerance_secs)).max(MIN_QUALITY_FLOOR);
+
         total_quality += track_quality;
     }
 

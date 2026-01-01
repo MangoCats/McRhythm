@@ -84,6 +84,8 @@ impl Default for EarlyExitConfig {
 ///
 /// # Arguments
 /// * `silence_cache` - Pre-computed silence detections (180 combinations)
+/// * `audio_samples` - Raw audio sample data (for boundary refinement)
+/// * `sample_rate` - Sample rate in Hz
 /// * `editions` - Candidate editions to test (should be sorted by name distance)
 /// * `tolerance_secs` - Track match tolerance (seconds)
 /// * `early_exit` - Early exit configuration
@@ -92,6 +94,8 @@ impl Default for EarlyExitConfig {
 /// Vector of results for each edition tested, sorted by best_percentage descending
 pub fn run_stage2(
     silence_cache: &SilenceCache,
+    audio_samples: &[f32],
+    sample_rate: u32,
     editions: &[Edition],
     tolerance_secs: f64,
     early_exit: &EarlyExitConfig,
@@ -114,6 +118,8 @@ pub fn run_stage2(
 
         let result = test_edition_stage2(
             silence_cache,
+            audio_samples,
+            sample_rate,
             edition,
             tolerance_secs,
             num_thresholds,
@@ -141,6 +147,8 @@ pub fn run_stage2(
 /// Test single edition across all parameter combinations
 fn test_edition_stage2(
     silence_cache: &SilenceCache,
+    audio_samples: &[f32],
+    sample_rate: u32,
     edition: &Edition,
     tolerance_secs: f64,
     num_thresholds: usize,
@@ -182,10 +190,28 @@ fn test_edition_stage2(
         }
     }
 
-    let (detected_durations, track_errors, matched_count) = match best_result {
+    let (mut detected_durations, track_errors, matched_count) = match best_result {
         Some(r) => (r.detected_durations, r.errors, r.matched_count),
         None => (Vec::new(), Vec::new(), 0),
     };
+
+    // **[BOUNDARY REFINEMENT]** Apply to Stage 2 results
+    if !detected_durations.is_empty() {
+        let edition_durations_secs: Vec<f64> = edition
+            .durations
+            .iter()
+            .map(|&ms| ms as f64 / 1000.0)
+            .collect();
+
+        use super::apply_refinement_to_durations;
+        detected_durations = apply_refinement_to_durations(
+            &detected_durations,
+            &edition_durations_secs,
+            audio_samples,
+            sample_rate as f64,
+            tolerance_secs,
+        );
+    }
 
     Stage2Result {
         edition: edition.clone(),

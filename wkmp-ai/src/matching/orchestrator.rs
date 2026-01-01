@@ -18,6 +18,7 @@ use crate::matching::{
         calculate_track_quality_score,
     },
     stages::{
+        apply_refinement_to_durations,
         stage2::{run_stage2, stage2_success, EarlyExitConfig, Stage2Result},
         stage3::{run_stage3, stage3_success, Stage3Result},
         stage4::{run_stage4, stage4_success, RmsProfile, Stage4Result},
@@ -298,6 +299,7 @@ fn select_best_stage5_result(results: &[Stage5Result], tolerance_secs: f64) -> O
 /// # Arguments
 /// * `silence_cache` - Pre-computed silence detection results (180 combinations)
 /// * `rms_profile` - RMS profile for Stage 4 quiet spot detection
+/// * `audio_samples` - Raw audio sample data (for boundary refinement)
 /// * `total_samples` - Total audio sample count
 /// * `editions` - Candidate editions to test (should be sorted by name distance)
 /// * `config` - Orchestrator configuration
@@ -307,6 +309,7 @@ fn select_best_stage5_result(results: &[Stage5Result], tolerance_secs: f64) -> O
 pub fn run_orchestration(
     silence_cache: &SilenceCache,
     rms_profile: &RmsProfile,
+    audio_samples: &[f32],
     total_samples: usize,
     editions: &[Edition],
     config: &OrchestratorConfig,
@@ -320,9 +323,12 @@ pub fn run_orchestration(
         min_acceptable_percentage: config.min_match_percentage,
     };
 
-    // Stage 2: Parameter grid search
+    // Stage 2: Parameter grid search with boundary refinement
+    let sample_rate = rms_profile.sample_rate;
     stage_results.stage2 = run_stage2(
         silence_cache,
+        audio_samples,
+        sample_rate,
         editions,
         config.tolerance_secs,
         &early_exit_config,
@@ -371,6 +377,7 @@ pub fn run_orchestration(
     // Stage 4: Quiet spot detection
     stage_results.stage4 = run_stage4(
         rms_profile,
+        audio_samples,
         total_samples,
         editions,
         config.tolerance_secs,
@@ -719,7 +726,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = run_orchestration(&cache, &rms_profile, total_samples, &[edition], &config);
+        // Create dummy audio samples for boundary refinement
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let result = run_orchestration(&cache, &rms_profile, &audio_samples, total_samples, &[edition], &config);
 
         assert!(result.success);
         assert!(matches!(result.winning_stage, MatchingStage::Stage2));
@@ -744,7 +754,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = run_orchestration(&cache, &rms_profile, total_samples, &[edition], &config);
+        // Create dummy audio samples for boundary refinement
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let result = run_orchestration(&cache, &rms_profile, &audio_samples, total_samples, &[edition], &config);
 
         // Verify orchestration ran to completion
         // Stage 2 will fail due to count mismatch
@@ -786,7 +799,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = run_orchestration(&cache, &rms_profile, total_samples, &[edition], &config);
+        // Create dummy audio samples for boundary refinement
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let result = run_orchestration(&cache, &rms_profile, &audio_samples, total_samples, &[edition], &config);
 
         // Stage 4 should succeed with penalty (100% * 0.75 = 75%)
         assert!(result.success);
@@ -813,7 +829,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = run_orchestration(&cache, &rms_profile, total_samples, &[edition], &config);
+        // Create dummy audio samples for boundary refinement
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let result = run_orchestration(&cache, &rms_profile, &audio_samples, total_samples, &[edition], &config);
 
         // Stage 3 or Stage 5 should handle this (both deal with extra tracks)
         // If success, verify correct stage won
@@ -844,7 +863,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = run_orchestration(&cache, &rms_profile, total_samples, &[edition], &config);
+        // Create dummy audio samples for boundary refinement
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let result = run_orchestration(&cache, &rms_profile, &audio_samples, total_samples, &[edition], &config);
 
         // Verify orchestration completes and returns some result
         // Stage 2: count mismatch (2 vs 5) = 0%
@@ -873,7 +895,10 @@ mod tests {
             ..Default::default()
         };
 
-        let result = run_orchestration(&cache, &rms_profile, total_samples, &[edition], &config);
+        // Create dummy audio samples for boundary refinement
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let result = run_orchestration(&cache, &rms_profile, &audio_samples, total_samples, &[edition], &config);
 
         // Should return partial result
         assert!(!result.success);

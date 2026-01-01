@@ -481,6 +481,7 @@ impl AlbumMatcher {
         let result = run_orchestration(
             &silence_cache,
             &rms_profile,
+            &samples,
             total_samples,
             &editions,
             &orchestrator_config,

@@ -119,6 +119,7 @@ impl RmsProfile {
 ///
 /// # Arguments
 /// * `rms_profile` - Pre-computed RMS profile
+/// * `audio_samples` - Raw audio sample data (for boundary refinement)
 /// * `total_samples` - Total audio sample count
 /// * `editions` - Candidate editions to test
 /// * `tolerance_secs` - Track match tolerance (seconds)
@@ -128,6 +129,7 @@ impl RmsProfile {
 /// Vector of results for each edition, sorted by penalized_percentage descending
 pub fn run_stage4(
     rms_profile: &RmsProfile,
+    audio_samples: &[f32],
     total_samples: usize,
     editions: &[Edition],
     tolerance_secs: f64,
@@ -140,6 +142,7 @@ pub fn run_stage4(
     for edition in editions {
         let result = detect_quiet_spots(
             rms_profile,
+            audio_samples,
             total_samples,
             edition,
             tolerance_secs,
@@ -161,6 +164,7 @@ pub fn run_stage4(
 /// Detect quiet spots for a single edition
 fn detect_quiet_spots(
     rms_profile: &RmsProfile,
+    audio_samples: &[f32],
     total_samples: usize,
     edition: &Edition,
     tolerance_secs: f64,
@@ -227,6 +231,25 @@ fn detect_quiet_spots(
             detected_boundaries.push(expected_pos);
         }
     }
+
+    // **[BOUNDARY REFINEMENT]** Post-process boundaries to fix split failures
+    // Add start (0) and end (total_samples) to create complete boundary list
+    let mut complete_boundaries = vec![0];
+    complete_boundaries.extend(&detected_boundaries);
+    complete_boundaries.push(total_samples);
+
+    // Apply refinement
+    use super::refine_missed_boundaries;
+    let refined_boundaries = refine_missed_boundaries(
+        &complete_boundaries,
+        &expected_secs,
+        audio_samples,
+        sample_rate as f64,
+        tolerance_secs,
+    );
+
+    // Extract interior boundaries (remove start and end)
+    detected_boundaries = refined_boundaries[1..refined_boundaries.len() - 1].to_vec();
 
     // Convert boundaries to durations
     let mut detected_durations = Vec::new();
@@ -404,7 +427,10 @@ mod tests {
 
         let edition = create_test_edition(2, &[180000, 180000]);
 
-        let results = run_stage4(&profile, total_samples, &[edition], 10.0, 5.0);
+        // Create dummy audio samples for refinement (not used in this test)
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let results = run_stage4(&profile, &audio_samples, total_samples, &[edition], 10.0, 5.0);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].detected_durations.len(), 2);
@@ -429,7 +455,10 @@ mod tests {
 
         let edition = create_test_edition(1, &[180000]);
 
-        let results = run_stage4(&profile, total_samples, &[edition], 10.0, 5.0);
+        // Create dummy audio samples for refinement (not used in this test)
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let results = run_stage4(&profile, &audio_samples, total_samples, &[edition], 10.0, 5.0);
 
         // Should have perfect raw match
         assert_eq!(results[0].raw_percentage, 100.0);
@@ -451,7 +480,10 @@ mod tests {
 
         let edition = create_test_edition(1, &[180000]);
 
-        let results = run_stage4(&profile, total_samples, &[edition], 10.0, 5.0);
+        // Create dummy audio samples for refinement (not used in this test)
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let results = run_stage4(&profile, &audio_samples, total_samples, &[edition], 10.0, 5.0);
 
         // Penalized percentage is 75%
         assert!(stage4_success(&results, 70.0));
@@ -474,8 +506,12 @@ mod tests {
         let edition2 = create_test_edition(2, &[90000, 90000]); // Different structure
         let edition3 = create_test_edition(1, &[200000]); // Wrong duration
 
+        // Create dummy audio samples for refinement (not used in this test)
+        let audio_samples = vec![0.0f32; total_samples];
+
         let results = run_stage4(
             &profile,
+            &audio_samples,
             total_samples,
             &[edition1, edition2, edition3],
             10.0,
@@ -499,7 +535,10 @@ mod tests {
 
         let edition = create_test_edition(0, &[]);
 
-        let results = run_stage4(&profile, total_samples, &[edition], 10.0, 5.0);
+        // Create dummy audio samples for refinement (not used in this test)
+        let audio_samples = vec![0.0f32; total_samples];
+
+        let results = run_stage4(&profile, &audio_samples, total_samples, &[edition], 10.0, 5.0);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].raw_percentage, 0.0);

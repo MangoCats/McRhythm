@@ -165,6 +165,10 @@ mod tests {
             country: Some("US".to_string()),
             date: None,
             barcode: None,
+            packaging: None,
+            text_representation: None,
+            label_info: None,
+            release_events: None,
             media: vec![MBMedia {
                 format: Some("CD".to_string()),
                 track_count: tracks.len(),
@@ -251,6 +255,10 @@ mod tests {
             country: None,
             date: None,
             barcode: None,
+            packaging: None,
+            text_representation: None,
+            label_info: None,
+            release_events: None,
             media: vec![
                 MBMedia {
                     format: Some("CD".to_string()),
