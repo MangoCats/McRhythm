@@ -11,7 +11,7 @@ use std::path::Path;
 use uuid::Uuid;
 use wkmp_common::{Error, Result};
 
-use super::acousticbrainz_client::AcousticBrainzClient;
+use super::acousticbrainz_cache::AcousticBrainzCache;
 use super::essentia_client::EssentiaClient;
 use super::passage_recorder::PassageRecord;
 use crate::utils::retry_on_lock;
@@ -80,7 +80,7 @@ pub struct FlavorStats {
 /// **Traceability:** [REQ-SPEC032-016] (Phase 9: FLAVORING)
 pub struct PassageFlavorFetcher {
     db: Pool<Sqlite>,
-    acousticbrainz_client: AcousticBrainzClient,
+    acousticbrainz_cache: AcousticBrainzCache,
     essentia_client: Option<EssentiaClient>,
 }
 
@@ -102,11 +102,14 @@ impl PassageFlavorFetcher {
             }
         };
 
+        // Create AcousticBrainz cache (with database backing)
+        let acousticbrainz_cache = AcousticBrainzCache::new(db.clone()).map_err(|e| {
+            Error::Internal(format!("AcousticBrainz cache creation failed: {}", e))
+        })?;
+
         Ok(Self {
             db,
-            acousticbrainz_client: AcousticBrainzClient::new().map_err(|e| {
-                Error::Internal(format!("AcousticBrainz client creation failed: {}", e))
-            })?,
+            acousticbrainz_cache,
             essentia_client,
         })
     }
@@ -175,9 +178,9 @@ impl PassageFlavorFetcher {
                 "Fetching flavor for song"
             );
 
-            // Try AcousticBrainz first
+            // Try AcousticBrainz first (with caching)
             let (flavor_source, success) = match self
-                .acousticbrainz_client
+                .acousticbrainz_cache
                 .get_flavor_vector(&mbid)
                 .await
             {

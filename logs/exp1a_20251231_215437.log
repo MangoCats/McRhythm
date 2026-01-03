@@ -1,0 +1,11 @@
+[2025-12-31 21:54:37] [INFO] === Starting Experiment: exp1a ===
+[2025-12-31 21:54:37] [INFO] Branch: exp1a-floor-0.0
+[2025-12-31 21:54:37] [INFO] Current branch: ai-trial3
+[2025-12-31 21:54:37] [INFO] Creating branch: exp1a-floor-0.0
+[2025-12-31 21:54:44] [ERROR] ERROR: Failed to create branch exp1a-floor-0.0 - Switched to a new branch 'exp1a-floor-0.0'
+[2025-12-31 21:54:44] [ERROR] FATAL ERROR: Switched to a new branch 'exp1a-floor-0.0'
+[2025-12-31 21:54:44] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 69
+at Invoke-SafeCommand, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 46
+at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 68
+at <ScriptBlock>, <No file>: line 5
+[2025-12-31 21:54:51] [ERROR] Failed to return to original branch

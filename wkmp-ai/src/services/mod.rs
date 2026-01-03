@@ -3,6 +3,7 @@
 //! **[AIA-COMP-010]** Component implementations
 
 pub mod accurate_duration; // SSI-DUR-020: Accurate duration via full decode with caching
+pub mod acousticbrainz_cache; // AcousticBrainz data caching layer
 pub mod acousticbrainz_client;
 pub mod acoustid_client;
 pub mod amplitude_analyzer;
@@ -38,6 +39,7 @@ pub mod silence_detector;
 pub mod workflow_orchestrator;
 pub mod write_queue; // PLAN028 Increment 4: Database write queue
 
+pub use acousticbrainz_cache::{AcousticBrainzCache, CacheError};
 pub use acousticbrainz_client::{ABError, ABLowLevel, AcousticBrainzClient, MusicalFlavorVector};
 pub use acoustid_client::{AcoustIDClient, AcoustIDError, AcoustIDResponse};
 pub use amplitude_analyzer::{AmplitudeAnalysisResult, AmplitudeAnalyzer, AnalysisError};

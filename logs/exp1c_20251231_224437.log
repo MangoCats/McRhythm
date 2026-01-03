@@ -1,0 +1,16 @@
+[2025-12-31 22:44:37] [INFO] === Starting Experiment: exp1c ===
+[2025-12-31 22:44:37] [INFO] Branch: exp1c-floor-neg0.5
+[2025-12-31 22:44:37] [INFO] Working directory: C:\Users\Mango Cat\Dev\McRhythm
+[2025-12-31 22:44:37] [INFO] Current branch: ai-trial3
+[2025-12-31 22:44:37] [INFO] Creating branch: exp1c-floor-neg0.5
+[2025-12-31 22:44:37] [INFO] Applying code changes...
+[2025-12-31 22:44:37] [INFO]   Modifying: wkmp-ai\src\matching\editions\scoring.rs
+[2025-12-31 22:44:37] [INFO]     Changed: 'const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures' -> 'const MIN_QUALITY_FLOOR: f64 = -0.5;    // Middle ground negative floor'
+[2025-12-31 22:44:37] [INFO] Building release binary...
+[2025-12-31 22:45:33] [INFO] Build completed in 0.94 minutes
+[2025-12-31 22:45:33] [INFO] Running 200-file comparison test...
+[2025-12-31 22:47:41] [ERROR] ERROR: Test failed with exit code 101
+[2025-12-31 22:47:41] [ERROR] FATAL ERROR: Test execution failed
+[2025-12-31 22:47:41] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 142
+at <ScriptBlock>, <No file>: line 5
+[2025-12-31 22:47:50] [ERROR] Failed to return to original branch

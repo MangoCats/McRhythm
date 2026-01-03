@@ -13,7 +13,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use wkmp_ai::matching::album_matcher::AlbumMatcher;
-use wkmp_ai::services::MusicBrainzClient;
+use wkmp_ai::services::{MusicBrainzClient, AcousticBrainzClient};
 use wkmp_ai::matching::types::AlbumMatchResult;
 
 /// Get path to Music library
@@ -78,6 +78,10 @@ struct ComparisonResult {
     mbid_match: bool,
     skipped: bool,
     error: Option<String>,
+    // AcousticBrainz data availability
+    acousticbrainz_total_tracks: usize,
+    acousticbrainz_available: usize,
+    acousticbrainz_missing: usize,
 }
 
 /// Format release metadata (format, status, packaging, etc.)
@@ -142,6 +146,46 @@ fn format_release_metadata(release: &wkmp_ai::matching::types::MBReleaseDetails)
     }
 
     metadata
+}
+
+/// Query AcousticBrainz for all recordings in a release
+///
+/// Returns (total_tracks, available_count, missing_count, recording_mbids_with_ab_data)
+async fn query_acousticbrainz_for_release(
+    ab_client: &AcousticBrainzClient,
+    mb_client: &MusicBrainzClient,
+    release_mbid: &str,
+) -> Result<(usize, usize, usize, Vec<String>)> {
+    // Fetch release details to get recording MBIDs
+    let release = mb_client.lookup_release(release_mbid).await?;
+
+    let mut total_recordings = 0;
+    let mut available = 0;
+    let mut missing = 0;
+    let mut available_mbids = Vec::new();
+
+    // Iterate through all media and tracks
+    for medium in &release.media {
+        for track in &medium.tracks {
+            // Skip tracks without recording information
+            if let Some(recording) = &track.recording {
+                total_recordings += 1;
+
+                // Query AcousticBrainz for this recording
+                match ab_client.lookup_lowlevel(&recording.id).await {
+                    Ok(_) => {
+                        available += 1;
+                        available_mbids.push(recording.id.clone());
+                    }
+                    Err(_) => {
+                        missing += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok((total_recordings, available, missing, available_mbids))
 }
 
 /// Display detailed track listing for album match comparison
@@ -492,6 +536,10 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
     // Create second client for displaying baseline release details
     let display_client = MusicBrainzClient::new()?;
 
+    // Create AcousticBrainz client for querying musical flavor data
+    let ab_client = AcousticBrainzClient::new()?;
+    println!("✓ AcousticBrainz client initialized\n");
+
     let mut results = Vec::new();
     let mut tested = 0;
     let mut skipped = 0;
@@ -499,6 +547,12 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
     let mut track_count_changes = 0;
     let mut mbid_changes = 0;
     let mut failures = 0;
+
+    // AcousticBrainz statistics
+    let mut ab_total_recordings = 0;
+    let mut ab_available_recordings = 0;
+    let mut ab_missing_recordings = 0;
+    let mut ab_albums_queried = 0;
 
     for (idx, (path, artist, album, baseline_tracks, baseline_mbid)) in baseline.iter().enumerate() {
         // Skip single songs (expected_tracks = 0)
@@ -521,6 +575,9 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                 mbid_match: false,
                 skipped: true,
                 error: Some("Single song, skipped".to_string()),
+                acousticbrainz_total_tracks: 0,
+                acousticbrainz_available: 0,
+                acousticbrainz_missing: 0,
             });
             continue;
         }
@@ -545,6 +602,9 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                 mbid_match: false,
                 skipped: true,
                 error: Some("File not found".to_string()),
+                acousticbrainz_total_tracks: 0,
+                acousticbrainz_available: 0,
+                acousticbrainz_missing: 0,
             });
             continue;
         }
@@ -595,6 +655,33 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                     println!("✗ FAILED");
                 }
 
+                // Query AcousticBrainz for matched albums
+                let (ab_total, ab_available, ab_missing) = if result.matched {
+                    if let Some(release_mbid) = &result.release_mbid {
+                        match query_acousticbrainz_for_release(&ab_client, &display_client, release_mbid).await {
+                            Ok((total, available, missing, available_mbids)) => {
+                                ab_albums_queried += 1;
+                                ab_total_recordings += total;
+                                ab_available_recordings += available;
+                                ab_missing_recordings += missing;
+                                println!("  🎵 AcousticBrainz: {}/{} recordings have musical flavor data", available, total);
+                                if !available_mbids.is_empty() {
+                                    println!("     Available recordings: {}", available_mbids.join(", "));
+                                }
+                                (total, available, missing)
+                            }
+                            Err(e) => {
+                                println!("  ⚠ AcousticBrainz query failed: {:?}", e);
+                                (0, 0, 0)
+                            }
+                        }
+                    } else {
+                        (0, 0, 0)
+                    }
+                } else {
+                    (0, 0, 0)
+                };
+
                 results.push(ComparisonResult {
                     path: path.to_string(),
                     artist: artist.to_string(),
@@ -609,6 +696,9 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                     mbid_match,
                     skipped: false,
                     error: None,
+                    acousticbrainz_total_tracks: ab_total,
+                    acousticbrainz_available: ab_available,
+                    acousticbrainz_missing: ab_missing,
                 });
             }
             Err(e) => {
@@ -629,6 +719,9 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
                     mbid_match: false,
                     skipped: false,
                     error: Some(format!("{:?}", e)),
+                    acousticbrainz_total_tracks: 0,
+                    acousticbrainz_available: 0,
+                    acousticbrainz_missing: 0,
                 });
             }
         }
@@ -652,6 +745,19 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
         (mbid_changes as f64 / tested as f64) * 100.0);
     println!("Failures: {} ({:.1}%)", failures,
         (failures as f64 / tested as f64) * 100.0);
+
+    // AcousticBrainz summary statistics
+    println!("\n=== AcousticBrainz Coverage Summary ===");
+    println!("Albums queried: {}", ab_albums_queried);
+    println!("Total recordings examined: {}", ab_total_recordings);
+    println!("Recordings with AcousticBrainz data: {}", ab_available_recordings);
+    println!("Recordings missing AcousticBrainz data: {}", ab_missing_recordings);
+    if ab_total_recordings > 0 {
+        let availability_pct = (ab_available_recordings as f64 / ab_total_recordings as f64) * 100.0;
+        println!("AcousticBrainz availability: {:.1}%", availability_pct);
+    } else {
+        println!("AcousticBrainz availability: N/A (no recordings queried)");
+    }
 
     println!("\n✓ Run29f full comparison test COMPLETE");
     println!("  See {} for detailed results", output_path);

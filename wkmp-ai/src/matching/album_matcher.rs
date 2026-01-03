@@ -26,8 +26,8 @@ use super::constants::{
     THRESHOLD_VALUES,
 };
 use super::editions::{
-    calculate_name_distance, filter_and_sort_editions, filter_editions_by_file_duration,
-    group_into_editions,
+    calculate_name_distance, filter_and_sort_editions, filter_editions_by_artist,
+    filter_editions_by_file_duration, group_into_editions,
 };
 use super::metadata::extract_and_reconcile_metadata;
 use super::orchestrator::{run_orchestration, OrchestratorConfig};
@@ -436,8 +436,25 @@ impl AlbumMatcher {
 
         info!("Found {} MusicBrainz releases", releases.len());
 
-        // Step 6: Group into editions and filter by name similarity
+        // Step 6: Group into editions and filter
         let editions = group_into_editions(&releases);
+        info!("Grouped into {} unique editions", editions.len());
+
+        // **[ARTIST FILTERING]** Filter out editions with clearly incorrect artists
+        // This prevents wrong artists from being matched even if duration/quality scores are good
+        let editions_before_artist_filter = editions.len();
+        let editions = filter_editions_by_artist(editions, &artist, self.config.min_artist_similarity);
+        let editions_after_artist_filter = editions.len();
+        if editions_before_artist_filter > editions_after_artist_filter {
+            info!(
+                "Artist filter: {} editions removed ({} remaining, threshold={:.2})",
+                editions_before_artist_filter - editions_after_artist_filter,
+                editions_after_artist_filter,
+                self.config.min_artist_similarity
+            );
+        }
+
+        // Sort remaining editions by combined name similarity (artist+album)
         let editions = filter_and_sort_editions(editions, &artist, &album, 20);
 
         // **[BUG FIX]** Pre-filter editions by file duration to eliminate impossible matches
@@ -678,14 +695,14 @@ impl AlbumMatcher {
                 eprintln!("  Final Score: {:.4}", candidate.final_score);
 
                 // Score breakdown with weighting
-                eprintln!("    ├─ Duration Score: {:.4} × 0.30 = {:.4}",
-                    candidate.duration_score, candidate.duration_score * 0.30);
-                eprintln!("    ├─ Quality Score:  {:.4} × 0.45 = {:.4}",
-                    candidate.quality_score, candidate.quality_score * 0.45);
+                eprintln!("    ├─ Duration Score: {:.4} × 0.35 = {:.4}",
+                    candidate.duration_score, candidate.duration_score * 0.35);
+                eprintln!("    ├─ Quality Score:  {:.4} × 0.40 = {:.4}",
+                    candidate.quality_score, candidate.quality_score * 0.40);
                 eprintln!("    ├─ Name Score:     {:.4} × 0.25 = {:.4}",
                     candidate.name_score, candidate.name_score * 0.25);
                 eprintln!("    └─ Base Score:     {:.4} × {:.4} (penalty) = {:.4}",
-                    (candidate.duration_score * 0.30) + (candidate.quality_score * 0.45) + (candidate.name_score * 0.25),
+                    (candidate.duration_score * 0.35) + (candidate.quality_score * 0.40) + (candidate.name_score * 0.25),
                     candidate.track_count_penalty,
                     candidate.final_score);
 

@@ -106,7 +106,7 @@ impl Default for OrchestratorConfig {
 ///
 /// # Formula
 /// ```text
-/// base_score = (duration_score × 0.30) + (quality_score × 0.45) + (name_score × 0.25)
+/// base_score = (duration_score × 0.35) + (quality_score × 0.40) + (name_score × 0.25)
 /// final_score = base_score × track_count_penalty
 /// ```
 ///

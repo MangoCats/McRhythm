@@ -3,8 +3,10 @@
 //! **[PLAN030]** Provides filtering and sorting of editions by name distance
 //! to prioritize editions most likely to be the correct match.
 
-use strsim::jaro_winkler;
+use std::collections::HashSet;
+use strsim::{jaro_winkler, normalized_levenshtein};
 
+use crate::matching::constants::VARIOUS_ARTISTS;
 use crate::matching::types::Edition;
 
 /// Filter and sort editions by relevance to source metadata
@@ -101,6 +103,120 @@ pub fn filter_editions_by_file_duration(
 
             // Accept if within feasible range
             ratio >= MIN_DURATION_RATIO && ratio <= MAX_DURATION_RATIO
+        })
+        .collect()
+}
+
+/// Calculate artist similarity using hybrid token-based and character-based matching
+///
+/// **[ARTIST FILTERING]** Uses Jaccard similarity (token-based) combined with
+/// normalized Levenshtein distance (character-based) to determine if two artist
+/// names refer to the same artist. This approach is superior to pure Jaro-Winkler
+/// for artist matching because:
+///
+/// - Token-based matching handles "The Beatles" vs "Beatles" correctly
+/// - Levenshtein handles typos and minor variations
+/// - Completely different artists get low scores (e.g., "The Cars" vs "Stephan Mathieu")
+///
+/// # Algorithm
+/// 1. Tokenize both artist names (split on whitespace, lowercase)
+/// 2. Calculate Jaccard similarity: |intersection| / |union|
+/// 3. Calculate normalized Levenshtein distance
+/// 4. Return maximum of the two (if EITHER metric is high, artists likely match)
+///
+/// # Arguments
+/// * `mb_artist` - Artist name from MusicBrainz
+/// * `source_artist` - Artist name from source file metadata
+///
+/// # Returns
+/// Similarity score (0.0-1.0) where 1.0 = identical, 0.0 = completely different
+///
+/// # Examples
+/// ```ignore
+/// calculate_artist_similarity("The Cars", "Cars") → 0.67 (Jaccard: 0.50, Levenshtein: 0.67)
+/// calculate_artist_similarity("The Cars", "Stephan Mathieu") → 0.16 (both metrics low)
+/// calculate_artist_similarity("The Beatles", "Beatles") → 0.64 (Jaccard: 0.50, Levenshtein: 0.64)
+/// calculate_artist_similarity("Led Zeppelin", "Led Zepelin") → 0.95 (typo handled)
+/// ```
+fn calculate_artist_similarity(mb_artist: &str, source_artist: &str) -> f64 {
+    let mb_lower = mb_artist.to_lowercase();
+    let src_lower = source_artist.to_lowercase();
+
+    // Token-based similarity (Jaccard)
+    let mb_tokens: HashSet<&str> = mb_lower.split_whitespace().collect();
+    let src_tokens: HashSet<&str> = src_lower.split_whitespace().collect();
+
+    let intersection = mb_tokens.intersection(&src_tokens).count();
+    let union = mb_tokens.union(&src_tokens).count();
+
+    let jaccard_sim = if union > 0 {
+        intersection as f64 / union as f64
+    } else {
+        0.0
+    };
+
+    // Character-based similarity (normalized Levenshtein)
+    let levenshtein_sim = normalized_levenshtein(&mb_lower, &src_lower);
+
+    // Return maximum: if EITHER metric shows high similarity, artists likely match
+    // This handles both "The X" vs "X" (Jaccard) and typos (Levenshtein)
+    jaccard_sim.max(levenshtein_sim)
+}
+
+/// Filter out editions with clearly incorrect artists
+///
+/// **[ARTIST FILTERING]** Rejects editions whose artist name differs significantly
+/// from source metadata based on hybrid token + character similarity. This prevents
+/// wrong artists from being matched even if duration/quality scores are good.
+///
+/// Uses Jaccard + Levenshtein similarity (not Jaro-Winkler) for better semantic
+/// matching at the artist name level.
+///
+/// # Special Cases
+/// - **Various Artists:** Always passes filter for any source artist (compilations
+///   can contain any artist's work)
+/// - **Empty/Unknown:** Passes filter to allow manual review
+///
+/// # Arguments
+/// * `editions` - Candidate editions to filter
+/// * `source_artist` - Artist name from source file metadata
+/// * `min_similarity` - Minimum similarity threshold (0.0-1.0), typically 0.60
+///
+/// # Returns
+/// Filtered editions with artist similarity >= min_similarity OR special cases
+///
+/// # Example
+/// ```ignore
+/// // Reject editions where artist similarity < 0.60
+/// let filtered = filter_editions_by_artist(editions, "The Cars", 0.60);
+/// // "Stephan Mathieu" filtered out (similarity ~0.16 < 0.60)
+/// // "The Cars" passes (similarity 1.00)
+/// // "Cars" passes (similarity ~0.67 > 0.60)
+/// // "Various Artists" passes (special case)
+/// ```
+pub fn filter_editions_by_artist(
+    editions: Vec<Edition>,
+    source_artist: &str,
+    min_similarity: f64,
+) -> Vec<Edition> {
+    editions
+        .into_iter()
+        .filter(|edition| {
+            let mb_artist = &edition.artist;
+
+            // Special case: "Various Artists" always passes (compilations can contain any artist)
+            if mb_artist.eq_ignore_ascii_case(VARIOUS_ARTISTS) {
+                return true;
+            }
+
+            // Special case: Empty or unknown source artist passes (allow manual review)
+            if source_artist.trim().is_empty() || source_artist.eq_ignore_ascii_case("unknown") {
+                return true;
+            }
+
+            // Calculate hybrid similarity and check threshold
+            let similarity = calculate_artist_similarity(mb_artist, source_artist);
+            similarity >= min_similarity
         })
         .collect()
 }
@@ -243,5 +359,185 @@ mod tests {
         assert_eq!(filtered[0].country, Some("UK".to_string()));
         assert_eq!(filtered[0].status, Some("Official".to_string()));
         assert_eq!(filtered[0].track_count, 17);
+    }
+
+    // =============================================================================
+    // Artist Similarity Tests (Jaccard + Levenshtein)
+    // =============================================================================
+
+    #[test]
+    fn test_artist_similarity_exact_match() {
+        let sim = calculate_artist_similarity("The Cars", "The Cars");
+        assert!((sim - 1.0).abs() < 0.01, "Exact match should be 1.0, got {}", sim);
+    }
+
+    #[test]
+    fn test_artist_similarity_with_the() {
+        // "The Beatles" vs "Beatles" should have high similarity
+        let sim = calculate_artist_similarity("The Beatles", "Beatles");
+        // Jaccard: {the, beatles} ∩ {beatles} / {the, beatles} = 1/2 = 0.50
+        // Levenshtein: normalized distance ~0.64
+        // Max(0.50, 0.64) = 0.64
+        assert!(sim >= 0.60, "Should handle 'The X' vs 'X', got {}", sim);
+    }
+
+    #[test]
+    fn test_artist_similarity_completely_different() {
+        // "The Cars" vs "Stephan Mathieu" should have LOW similarity
+        let sim = calculate_artist_similarity("The Cars", "Stephan Mathieu");
+        // Jaccard: no common tokens = 0.0
+        // Levenshtein: very different strings ~0.16
+        // Max(0.0, 0.16) = 0.16
+        assert!(sim < 0.30, "Completely different artists should score low, got {}", sim);
+    }
+
+    #[test]
+    fn test_artist_similarity_typo() {
+        // "Led Zeppelin" vs "Led Zepelin" (missing 'p')
+        let sim = calculate_artist_similarity("Led Zeppelin", "Led Zepelin");
+        // Jaccard: {led, zeppelin} ∩ {led, zepelin} = {led}/union = ~0.33
+        // Levenshtein: very similar (1 char difference) ~0.95
+        // Max(0.33, 0.95) = 0.95
+        assert!(sim >= 0.90, "Should handle typos, got {}", sim);
+    }
+
+    #[test]
+    fn test_artist_similarity_case_insensitive() {
+        let sim1 = calculate_artist_similarity("THE BEATLES", "the beatles");
+        assert!((sim1 - 1.0).abs() < 0.01, "Case insensitive, got {}", sim1);
+
+        let sim2 = calculate_artist_similarity("The Cars", "THE CARS");
+        assert!((sim2 - 1.0).abs() < 0.01, "Case insensitive, got {}", sim2);
+    }
+
+    // =============================================================================
+    // Artist Filtering Tests
+    // =============================================================================
+
+    #[test]
+    fn test_filter_by_artist_exact_match() {
+        let editions = vec![
+            create_test_edition("The Cars", "Panorama", 10),
+            create_test_edition("Stephan Mathieu", "Radioland", 1),
+        ];
+        let filtered = filter_editions_by_artist(editions, "The Cars", 0.60);
+
+        assert_eq!(filtered.len(), 1, "Should filter out Stephan Mathieu");
+        assert_eq!(filtered[0].artist, "The Cars");
+    }
+
+    #[test]
+    fn test_filter_by_artist_with_the_prefix() {
+        let editions = vec![
+            create_test_edition("The Beatles", "Abbey Road", 17),
+            create_test_edition("Beatles", "Abbey Road", 17),
+            create_test_edition("Led Zeppelin", "Physical Graffiti", 15),
+        ];
+        let filtered = filter_editions_by_artist(editions, "The Beatles", 0.60);
+
+        // Both "The Beatles" and "Beatles" should pass (similarity ~0.64 > 0.60)
+        // "Led Zeppelin" should be filtered out
+        assert_eq!(filtered.len(), 2, "Should keep both Beatles variants");
+        assert!(filtered.iter().any(|e| e.artist == "The Beatles"));
+        assert!(filtered.iter().any(|e| e.artist == "Beatles"));
+    }
+
+    #[test]
+    fn test_filter_by_artist_completely_different() {
+        let editions = vec![
+            create_test_edition("The Cars", "Panorama", 10),
+            create_test_edition("Pink Floyd", "The Wall", 26),
+        ];
+        let filtered = filter_editions_by_artist(editions, "The Cars", 0.60);
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].artist, "The Cars");
+    }
+
+    #[test]
+    fn test_filter_by_artist_various_artists() {
+        let editions = vec![
+            create_test_edition("Various Artists", "Greatest Hits of 1980", 20),
+            create_test_edition("The Cars", "Panorama", 10),
+        ];
+        let filtered = filter_editions_by_artist(editions, "The Cars", 0.60);
+
+        // "Various Artists" should ALWAYS pass (special case)
+        assert_eq!(filtered.len(), 2, "Various Artists should always pass");
+        assert!(filtered.iter().any(|e| e.artist == "Various Artists"));
+        assert!(filtered.iter().any(|e| e.artist == "The Cars"));
+    }
+
+    #[test]
+    fn test_filter_by_artist_empty_source() {
+        let editions = vec![
+            create_test_edition("The Cars", "Panorama", 10),
+            create_test_edition("Pink Floyd", "The Wall", 26),
+        ];
+        let filtered = filter_editions_by_artist(editions, "", 0.60);
+
+        // Empty source artist should pass all editions (allow manual review)
+        assert_eq!(filtered.len(), 2, "Empty source should pass all");
+    }
+
+    #[test]
+    fn test_filter_by_artist_unknown_source() {
+        let editions = vec![
+            create_test_edition("The Cars", "Panorama", 10),
+            create_test_edition("Pink Floyd", "The Wall", 26),
+        ];
+        let filtered = filter_editions_by_artist(editions, "Unknown", 0.60);
+
+        // "Unknown" source artist should pass all editions
+        assert_eq!(filtered.len(), 2, "Unknown source should pass all");
+    }
+
+    #[test]
+    fn test_filter_by_artist_case_insensitive() {
+        let editions = vec![
+            create_test_edition("THE CARS", "Panorama", 10),
+            create_test_edition("the cars", "Panorama", 10),
+            create_test_edition("The Cars", "Panorama", 10),
+        ];
+        let filtered = filter_editions_by_artist(editions, "The Cars", 0.60);
+
+        // All three should pass (case-insensitive matching)
+        assert_eq!(filtered.len(), 3, "Case insensitive matching");
+    }
+
+    #[test]
+    fn test_filter_by_artist_threshold_sensitivity() {
+        let editions = vec![
+            create_test_edition("The Cars", "Panorama", 10),
+            create_test_edition("Cars", "Candy-O", 11),
+        ];
+
+        // With threshold 0.50: both should pass
+        let filtered_low = filter_editions_by_artist(editions.clone(), "The Cars", 0.50);
+        assert_eq!(filtered_low.len(), 2, "Low threshold: both pass");
+
+        // With threshold 1.0: only exact match passes
+        let filtered_high = filter_editions_by_artist(editions, "The Cars", 1.0);
+        assert_eq!(filtered_high.len(), 1, "High threshold: only exact");
+        assert_eq!(filtered_high[0].artist, "The Cars");
+    }
+
+    #[test]
+    fn test_filter_by_artist_regression_stephan_mathieu() {
+        // Regression test: ensure "Stephan Mathieu" is filtered for "The Cars"
+        let editions = vec![
+            create_test_edition("The Cars", "Panorama", 10),
+            create_test_edition("Stephan Mathieu", "Radioland", 1),
+        ];
+
+        // With recommended threshold 0.60
+        let filtered = filter_editions_by_artist(editions, "The Cars", 0.60);
+
+        assert_eq!(filtered.len(), 1, "Stephan Mathieu should be filtered out");
+        assert_eq!(filtered[0].artist, "The Cars");
+        assert!(
+            filtered.iter().all(|e| e.artist != "Stephan Mathieu"),
+            "Stephan Mathieu must not pass filter"
+        );
     }
 }

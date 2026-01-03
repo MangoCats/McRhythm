@@ -197,8 +197,21 @@ pub const EARLY_EXIT_GRACE_PERIOD_SECS: u64 = 20;
 // Artist Matching Constants
 // =============================================================================
 
-/// Minimum Jaro-Winkler similarity for artist name match (0.5 = 50%)
-pub const MIN_ARTIST_SIMILARITY: f64 = 0.50;
+/// Minimum artist similarity for pre-filtering (0.60 = 60%)
+///
+/// Uses hybrid Jaccard + Levenshtein similarity (not Jaro-Winkler).
+/// This threshold filters out clearly incorrect artists before expensive
+/// multi-stage matching begins.
+///
+/// **Rationale for 0.60:**
+/// - "The Beatles" vs "Beatles": ~0.636 (passes)
+/// - "The Cars" vs "Cars": ~0.667 (passes)
+/// - "The Cars" vs "Stephan Mathieu": ~0.160 (filtered)
+/// - Typos like "Led Zepelin" vs "Led Zeppelin": ~0.950 (passes)
+///
+/// Lower threshold (0.50) would allow too many false positives.
+/// Higher threshold (0.65+) would filter "Beatles" variation (~0.636).
+pub const MIN_ARTIST_SIMILARITY: f64 = 0.60;
 
 /// Minimum Jaro-Winkler similarity for album name match
 pub const ALBUM_MISMATCH_THRESHOLD: f64 = 0.5;

@@ -1,0 +1,23 @@
+[2025-12-31 21:54:36] [INFO] === Phase 1: Quality Floor Parallel Experiments ===
+[2025-12-31 21:54:36] [INFO] Project root: C:\Users\Mango Cat\Dev\McRhythm
+[2025-12-31 21:54:36] [INFO] Starting parallel experiment execution...
+[2025-12-31 21:54:36] [INFO] Experiments to run: 3
+[2025-12-31 21:54:36] [INFO] Launching experiment: exp1a - No Negative Floor (0.0)
+[2025-12-31 21:54:37] [INFO] Launching experiment: exp1b - Reduced Negative Floor (-0.3)
+[2025-12-31 21:54:37] [INFO] Launching experiment: exp1c - Middle Ground Floor (-0.5)
+[2025-12-31 21:54:37] [INFO] All experiments launched. Waiting for completion...
+[2025-12-31 21:54:47] [INFO] Progress: 0/3 completed, 3 running
+[2025-12-31 21:54:57] [INFO] Progress: 3/3 completed, 0 running
+[2025-12-31 21:54:57] [INFO] All experiments completed. Collecting results...
+[2025-12-31 21:54:57] [INFO] [OK] exp1a (No Negative Floor (0.0)): FAILED
+[2025-12-31 21:54:57] [INFO] [OK] exp1b (Reduced Negative Floor (-0.3)): FAILED
+[2025-12-31 21:54:57] [INFO] [OK] exp1c (Middle Ground Floor (-0.5)): FAILED
+[2025-12-31 21:54:57] [INFO] Experiment summary saved to am\phase1_experiment_summary.json
+[2025-12-31 21:54:57] [INFO] === Analyzing Results ===
+[2025-12-31 21:54:57] [INFO] Loading baseline from: am\run29f_comparison_results_with_stage4_only_refinement.json
+[2025-12-31 21:54:57] [INFO] Comparing experiments to baseline...
+[2025-12-31 21:54:57] [WARN] WARNING: Results file not found for exp1a: am\exp1a_results.json
+[2025-12-31 21:54:57] [WARN] WARNING: Results file not found for exp1b: am\exp1b_results.json
+[2025-12-31 21:54:57] [WARN] WARNING: Results file not found for exp1c: am\exp1c_results.json
+[2025-12-31 21:54:57] [INFO] === Phase 1 Decision ===
+[2025-12-31 21:54:57] [ERROR] ERROR: No valid experiment results to compare

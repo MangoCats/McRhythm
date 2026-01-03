@@ -270,12 +270,20 @@ mod tests {
         vec![detected_durations; num_combinations]
     }
 
+    fn create_test_audio_samples(duration_secs: f64, sample_rate: u32) -> Vec<f32> {
+        // Create dummy audio samples for testing
+        let total_samples = (duration_secs * sample_rate as f64) as usize;
+        vec![0.0f32; total_samples]
+    }
+
     #[test]
     fn test_perfect_match() {
         let edition = create_test_edition(3, &[180000, 240000, 200000]);
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate); // 180+240+200 = 620s
 
-        let results = run_stage2(&cache, &[edition], 10.0, &EarlyExitConfig::default());
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].best_percentage, 100.0);
@@ -287,8 +295,10 @@ mod tests {
         let edition = create_test_edition(3, &[180000, 240000, 200000]);
         // Third track is 25s off (outside 10s tolerance)
         let cache = create_test_silence_cache(vec![180.0, 240.0, 225.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(625.0, sample_rate); // 180+240+225 = 645s
 
-        let results = run_stage2(&cache, &[edition], 10.0, &EarlyExitConfig::default());
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 
         assert_eq!(results.len(), 1);
         // 2 out of 3 tracks match
@@ -301,8 +311,10 @@ mod tests {
         let edition = create_test_edition(3, &[180000, 240000, 200000]);
         // Only 2 tracks detected
         let cache = create_test_silence_cache(vec![180.0, 240.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(420.0, sample_rate); // 180+240 = 420s
 
-        let results = run_stage2(&cache, &[edition], 10.0, &EarlyExitConfig::default());
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].best_percentage, 0.0);
@@ -319,8 +331,10 @@ mod tests {
         // Set combination at threshold_idx=5, duration_idx=7 to have good match
         let good_idx = 5 * MIN_DURATION_VALUES.len() + 7;
         cache[good_idx] = vec![180.0, 240.0, 200.0];
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
 
-        let results = run_stage2(&cache, &[edition], 10.0, &EarlyExitConfig::default());
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 
         assert_eq!(results[0].best_percentage, 100.0);
         assert_eq!(results[0].best_threshold_idx, 5);
@@ -334,9 +348,13 @@ mod tests {
 
         // Cache matches edition1 perfectly, edition2 partially
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
 
         let results = run_stage2(
             &cache,
+            &audio_samples,
+            sample_rate,
             &[edition2.clone(), edition1.clone()],
             10.0,
             &EarlyExitConfig::default(),
@@ -354,6 +372,8 @@ mod tests {
         let edition3 = create_test_edition(3, &[100000, 200000, 300000]); // No match
 
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
 
         let early_exit = EarlyExitConfig {
             enabled: true,
@@ -361,7 +381,7 @@ mod tests {
             min_acceptable_percentage: 80.0,
         };
 
-        let results = run_stage2(&cache, &[edition1, edition2, edition3], 10.0, &early_exit);
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition1, edition2, edition3], 10.0, &early_exit);
 
         // Should only have tested 1 edition (early exit after perfect match)
         assert_eq!(results.len(), 1);
@@ -375,6 +395,8 @@ mod tests {
         let edition3 = create_test_edition(3, &[100000, 200000, 300000]); // No match
 
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
 
         let early_exit = EarlyExitConfig {
             enabled: true,
@@ -382,7 +404,7 @@ mod tests {
             min_acceptable_percentage: 80.0,
         };
 
-        let results = run_stage2(&cache, &[edition1, edition2, edition3], 10.0, &early_exit);
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition1, edition2, edition3], 10.0, &early_exit);
 
         // Should have tested 2 editions (1 perfect + 1 grace)
         assert_eq!(results.len(), 2);
@@ -392,8 +414,10 @@ mod tests {
     fn test_stage2_success() {
         let edition = create_test_edition(3, &[180000, 240000, 200000]);
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
 
-        let results = run_stage2(&cache, &[edition], 10.0, &EarlyExitConfig::default());
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 
         assert!(stage2_success(&results, 80.0));
         assert!(stage2_success(&results, 100.0));
@@ -404,8 +428,10 @@ mod tests {
     fn test_best_threshold_values() {
         let edition = create_test_edition(3, &[180000, 240000, 200000]);
         let cache = create_test_silence_cache(vec![180.0, 240.0, 200.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(620.0, sample_rate);
 
-        let results = run_stage2(&cache, &[edition], 10.0, &EarlyExitConfig::default());
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 
         // Best parameters should return valid dB and seconds values
         // THRESHOLD_VALUES range: -42 to -66 dB

@@ -13,7 +13,10 @@ pub mod filtering;
 pub mod grouping;
 pub mod scoring;
 
-pub use filtering::{calculate_name_distance, filter_and_sort_editions, filter_editions_by_file_duration};
+pub use filtering::{
+    calculate_name_distance, filter_and_sort_editions, filter_editions_by_artist,
+    filter_editions_by_file_duration,
+};
 pub use grouping::group_into_editions;
 
 // PLAN030 functions

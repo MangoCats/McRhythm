@@ -145,7 +145,7 @@ pub struct EditionCandidate {
 ///
 /// Formula:
 /// ```text
-/// base_score = (duration_score × 0.30) + (quality_score × 0.45) + (name_score × 0.25)
+/// base_score = (duration_score × 0.35) + (quality_score × 0.40) + (name_score × 0.25)
 /// final_score = base_score × track_count_penalty
 /// ```
 ///
@@ -163,7 +163,7 @@ pub fn calculate_edition_score(
     name_score: f64,
     track_count_penalty: f64,
 ) -> f64 {
-    let base = (duration_score * 0.30) + (quality_score * 0.45) + (name_score * 0.25);
+    let base = (duration_score * 0.35) + (quality_score * 0.40) + (name_score * 0.25);
     base * track_count_penalty
 }
 
@@ -336,7 +336,7 @@ pub fn calculate_track_quality_score(
     }
 
     const MAX_ERROR_MULTIPLIER: f64 = 2.0;  // Cap errors at 2.0× tolerance
-    const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures
+    const MIN_QUALITY_FLOOR: f64 = -0.5;    // Middle ground negative floor
 
     let track_count = detected_durations.len().min(edition_durations.len());
     let mut total_quality = 0.0;
@@ -550,7 +550,7 @@ mod tests {
         let name_score = 0.70;
         let track_count_penalty = 1.00;
 
-        let expected = (0.80 * 0.30) + (0.90 * 0.45) + (0.70 * 0.25);
+        let expected = (0.80 * 0.35) + (0.90 * 0.40) + (0.70 * 0.25);
         let actual = calculate_edition_score(
             duration_score,
             quality_score,
@@ -569,7 +569,7 @@ mod tests {
         let name_score = 0.70;
         let track_count_penalty = 0.85;
 
-        let base = (0.95 * 0.30) + (0.85 * 0.45) + (0.70 * 0.25);
+        let base = (0.95 * 0.35) + (0.85 * 0.40) + (0.70 * 0.25);
         let expected = base * 0.85;
         let actual = calculate_edition_score(
             duration_score,

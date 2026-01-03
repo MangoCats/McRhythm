@@ -1249,16 +1249,51 @@ Cached metadata from MusicBrainz API.
 
 ### `acousticbrainz_cache`
 
-Cached musical characterization data from AcousticBrainz.
+Cached musical characterization data from AcousticBrainz API.
+
+**Purpose:** Cache AcousticBrainz responses to avoid re-querying rate-limited API (1 req/sec). AcousticBrainz ceased accepting new submissions in 2022, so cached data is static and never expires.
+
+**Performance Impact:**
+- Cache hit: <1ms database query
+- Cache miss: ~1000ms API query + rate limiting
+- Expected hit rate: 91.1% for popular music (per coverage analysis)
+
+**Migration:** `008_acousticbrainz_cache.sql`
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
-| recording_mbid | TEXT | PRIMARY KEY | MusicBrainz Recording ID (UUID) |
-| high_level_data | TEXT | NOT NULL | JSON blob of high-level characterization |
-| cached_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When response was cached |
+| recording_mbid | TEXT | PRIMARY KEY NOT NULL | MusicBrainz recording MBID (UUID format) |
+| lowlevel_json | TEXT | NOT NULL | Full JSON response from AcousticBrainz "low-level" endpoint (contains: metadata, tonal, rhythm, lowlevel features) |
+| has_tonal | BOOLEAN | NOT NULL DEFAULT 0 | Quick flag: recording has tonal features available |
+| has_rhythm | BOOLEAN | NOT NULL DEFAULT 0 | Quick flag: recording has rhythm features available |
+| fetched_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | When data was fetched from API |
+| essentia_version | TEXT | | Essentia library version (extracted from response metadata) |
+
+**Constraints:**
+- CHECK: `length(recording_mbid) = 36` (UUID format validation)
+- CHECK: `json_valid(lowlevel_json)` (ensure valid JSON storage)
 
 **Indexes:**
-- `idx_acousticbrainz_mbid` on `recording_mbid`
+- `idx_acousticbrainz_cache_fetched_at` on `fetched_at` (for analytics)
+- `idx_acousticbrainz_cache_availability` on `(has_tonal, has_rhythm)` WHERE `has_tonal = 1 AND has_rhythm = 1` (find complete data)
+
+**Usage Pattern:**
+```rust
+// Create cached client
+let cache = AcousticBrainzCache::new(db_pool)?;
+
+// Query (checks cache first, falls back to API on miss)
+let flavor = cache.get_flavor_vector(recording_mbid).await?;
+
+// Cache statistics
+let (total, both, tonal_only, rhythm_only, neither) = cache.cache_stats().await?;
+```
+
+**Cache Strategy:**
+- Indefinite caching (AcousticBrainz data is static since 2022 shutdown)
+- No expiration or invalidation needed
+- Upsert on duplicate (ON CONFLICT DO UPDATE) for re-imports
+- Automatic population during Phase 9 (Flavoring) of import workflow
 
 ## Triggers
 

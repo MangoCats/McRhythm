@@ -1,0 +1,11 @@
+[2025-12-31 22:46:09] [INFO] === Starting Experiment: exp1b ===
+[2025-12-31 22:46:09] [INFO] Branch: exp1b-floor-neg0.3
+[2025-12-31 22:46:09] [INFO] Working directory: C:\Users\Mango Cat\Dev\McRhythm
+[2025-12-31 22:46:09] [INFO] Current branch: exp1a-floor-0.0
+[2025-12-31 22:46:09] [INFO] Creating branch: exp1b-floor-neg0.3
+[2025-12-31 22:46:09] [INFO] Applying code changes...
+[2025-12-31 22:46:09] [INFO]   Modifying: wkmp-ai\src\matching\editions\scoring.rs
+[2025-12-31 22:46:09] [WARN] WARNING: Old text not found in wkmp-ai\src\matching\editions\scoring.rs
+[2025-12-31 22:46:09] [WARN]   Looking for: const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures
+[2025-12-31 22:46:09] [INFO]     Changed: 'const MIN_QUALITY_FLOOR: f64 = -1.0;    // Negative penalty for catastrophic failures' -> 'const MIN_QUALITY_FLOOR: f64 = -0.3;    // Reduced negative floor - softer penalty'
+[2025-12-31 22:46:09] [INFO] Building release binary...
