@@ -213,6 +213,11 @@ pub struct AlbumMatchResult {
     /// When album matching fails, these samples can be reused by boundary detector
     /// to avoid double-decode penalty. None if samples were not preserved.
     pub decoded_audio: Option<(Vec<f32>, u32)>, // (samples, sample_rate)
+    /// **[BOUNDARY_REFINEMENT]** Audio energy envelope (RMS per 100ms window)
+    /// Available for Stage 6 boundary refinement without re-decoding.
+    /// Enables fine-tuning boundary positions to find better low-energy spots
+    /// near expected boundary locations (±60s search window).
+    pub audio_energy: Option<Vec<f32>>,
     /// **[Top-5 Ranking]** Ranked candidate editions with passage comparison tables
     /// Allows evaluation of chosen match vs other likely candidates
     pub ranked_candidates: Vec<RankedCandidate>,
@@ -240,6 +245,7 @@ impl AlbumMatchResult {
             best_min_duration_secs: None,
             status,
             decoded_audio: None, // **[IMPROVEMENT#1]** No samples on no-match by default
+            audio_energy: None, // **[BOUNDARY_REFINEMENT]** No energy data on no-match
             ranked_candidates: Vec::new(), // **[Top-5 Ranking]** No candidates on no-match
         }
     }
@@ -265,6 +271,7 @@ impl AlbumMatchResult {
             best_min_duration_secs: None,
             status,
             decoded_audio: Some((samples, sample_rate)),
+            audio_energy: None, // **[BOUNDARY_REFINEMENT]** Energy not computed on no-match
             ranked_candidates: Vec::new(), // **[Top-5 Ranking]** No candidates on no-match
         }
     }

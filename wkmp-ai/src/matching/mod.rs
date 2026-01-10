@@ -93,6 +93,7 @@ pub mod metadata;
 pub mod orchestrator;
 pub mod silence_detection;
 pub mod single_track;
+pub mod stage6_helpers;
 pub mod stages;
 pub mod types;
 

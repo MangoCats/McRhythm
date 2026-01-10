@@ -1,0 +1,27 @@
+=====================================================================================
+Eagles - The Long Run (AFTER Stage 6 Refinement)
+=====================================================================================
+Edition MBID: bb2fd7d1-d207-4fa6-a4e4-07f0f0774380
+Overall Match: 70.0%
+Tracks within tolerance: 10/10
+
+#   Track Name                       Expected   Detected      Error OK 
+-------------------------------------------------------------------------------------
+1   The Long Run                       221.23s     218.00s      -3.23s Y  
+2   I Can’t Tell You Why               295.05s     285.97s      -9.08s Y  
+3   In the City                        224.55s     218.28s      -6.27s Y  
+4   The Disco Strangler                164.56s     158.68s      -5.88s Y  
+5   King of Hollywood                  387.73s     371.89s     -15.84s N  
+6   Heartache Tonight                  265.68s     261.73s      -3.95s Y  
+7   Those Shoes                        294.83s     292.18s      -2.65s Y  
+8   Teenage Jail                       223.99s     273.97s     +49.98s N  
+9   The Greeks Don’t Want No Freak     138.40s     138.50s      +0.10s Y  
+10  The Sad Café                       332.95s     271.22s     -61.73s N  
+
+Analysis:
+  - Stage 6 detected cascade at tracks 8-9
+  - Stage 6 detected complementary pair at tracks 8-9
+  - Overlap resolution tried both approaches
+  - Both achieved 70.0% match (tie)
+  - Cascade selected (tie-breaker)
+  - Final result: 70.0% → 70.0% (+0.0%)

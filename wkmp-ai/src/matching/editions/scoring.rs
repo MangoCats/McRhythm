@@ -730,11 +730,16 @@ mod tests {
 
     #[test]
     fn test_track_quality_zero_beyond_tolerance() {
-        // TC-U-094-03: Zero quality beyond tolerance
+        // TC-U-094-03: Negative quality beyond tolerance (MIN_QUALITY_FLOOR = -0.5)
+        // Errors: [2.0s, 5.0s, 5.0s] with tolerance 1.5s
+        // Track 1: max(1.0 - 2.0/1.5, -0.5) = -0.333
+        // Track 2: max(1.0 - 3.0/1.5, -0.5) = -0.5 (error capped at 2.0×tolerance)
+        // Track 3: max(1.0 - 3.0/1.5, -0.5) = -0.5
+        // Average: (-0.333 + -0.5 + -0.5) / 3 = -0.444
         let detected = vec![180.0, 210.0, 195.0];
         let edition = vec![182.0, 215.0, 190.0];
         let score = calculate_track_quality_score(&detected, &edition, 1.5);
-        assert_eq!(score, 0.0);
+        assert!((score + 0.444).abs() < 0.01, "Expected -0.444, got {}", score);
     }
 
     #[test]

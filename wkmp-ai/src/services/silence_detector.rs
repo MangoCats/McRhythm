@@ -275,7 +275,9 @@ mod tests {
     #[test]
     fn test_detect_silence_simple() {
         let sample_rate = 44100;
-        let detector = SilenceDetector::new();
+        // Use detector with min_duration of 1.5s to ensure 2s silence is detected
+        // (windowing effects can reduce detected duration slightly)
+        let detector = SilenceDetector::new().with_min_duration(1.5).unwrap();
 
         // Create audio: 10s sound, 2s silence, 10s sound
         let mut samples = Vec::new();
@@ -285,7 +287,7 @@ mod tests {
             samples.push(0.5);
         }
 
-        // Silence (10-12s)
+        // Silence (10-12s) - use 0.0001 which is below -60dB threshold
         for _ in 0..(2 * sample_rate) {
             samples.push(0.0001);
         }

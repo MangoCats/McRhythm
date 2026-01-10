@@ -1,0 +1,10 @@
+[2026-01-03 15:05:01] [INFO] === Starting Experiment: exp1c ===
+[2026-01-03 15:05:01] [INFO] Branch: exp1c-floor-neg0.5
+[2026-01-03 15:05:02] [INFO] Working directory: C:\Users\Mango Cat\Dev\McRhythm
+[2026-01-03 15:05:02] [INFO] Current branch: ai-trial3
+[2026-01-03 15:05:02] [INFO] Creating branch: exp1c-floor-neg0.5
+[2026-01-03 15:05:02] [ERROR] ERROR: Failed to create branch exp1c-floor-neg0.5
+[2026-01-03 15:05:02] [ERROR] FATAL ERROR: Failed to create branch exp1c-floor-neg0.5
+[2026-01-03 15:05:02] [ERROR] Stack trace: at <ScriptBlock>, C:\Users\Mango Cat\Dev\McRhythm\scripts\run_experiment.ps1: line 80
+at <ScriptBlock>, <No file>: line 5
+[2026-01-03 15:05:05] [ERROR] Failed to return to original branch

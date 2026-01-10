@@ -14,7 +14,7 @@ async fn test_get_acoustid_api_key_returns_value() {
     let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
 
     // Run migrations
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+    sqlx::migrate!("../migrations").run(&pool).await.unwrap();
 
     // Set key
     set_acoustid_api_key(&pool, "test-key-123".to_string())
@@ -31,7 +31,7 @@ async fn test_set_acoustid_api_key_writes_value() {
     // tc_u_db_002
     let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
 
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+    sqlx::migrate!("../migrations").run(&pool).await.unwrap();
 
     // Set key
     set_acoustid_api_key(&pool, "new-key-456".to_string())
@@ -53,7 +53,7 @@ async fn test_get_acoustid_api_key_returns_none_when_missing() {
     // tc_u_db_001 (edge case)
     let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
 
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+    sqlx::migrate!("../migrations").run(&pool).await.unwrap();
 
     // Get key (not set)
     let key = get_acoustid_api_key(&pool).await.unwrap();
@@ -65,7 +65,7 @@ async fn test_set_acoustid_api_key_updates_existing() {
     // tc_u_db_002 (update case)
     let pool = SqlitePoolOptions::new().connect(":memory:").await.unwrap();
 
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+    sqlx::migrate!("../migrations").run(&pool).await.unwrap();
 
     // Set initial key
     set_acoustid_api_key(&pool, "old-key".to_string())

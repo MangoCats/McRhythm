@@ -1,0 +1,41 @@
+Loading baseline: wkmp-ai/run29f_baseline_before_bidirectional.json
+Loading current: wkmp-ai/run29f_comparison_results.json
+
+================================================================================
+BIDIRECTIONAL BOUNDARY REFINEMENT - RESULTS COMPARISON
+================================================================================
+
+Total albums compared: 200
+  Improvements (≥+5%): 0
+  Regressions (≤-5%):  1
+  MBID changes (equivalent quality): 0
+  No significant change: 183
+
+
+================================================================================
+REGRESSIONS (1 albums)
+================================================================================
+
+Kraftwerk - Trans Europe Express
+  Match: 100.0% → 71.4% (-28.6%)
+  MBID: 8cc90cc5-3c36-4f09-9ee1-05f0b7ff1c46
+     → 8327a929-e283-4307-8219-50a9166ef335
+
+================================================================================
+SUMMARY
+================================================================================
+
+Match Quality Changes:
+  Improvements: 0 (0.0% of tested albums)
+  Regressions:  1 (0.5% of tested albums)
+  Unchanged:    183
+Average regression: -28.6 percentage points
+
+================================================================================
+ASSESSMENT
+================================================================================
+
+✗ CONCERNING: Regressions present
+  1 albums degraded, review needed
+
+Detailed results saved to: bidirectional_refinement_comparison.json

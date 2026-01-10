@@ -1,0 +1,25 @@
+=====================================================================================
+Failed Albums Analysis (7 albums)
+=====================================================================================
+
+1. Dave Brubeck Quartet - The Best Of The Dave Brubeck Quartet (1979-2004)
+   Path: Brubeck, Dave/TheBestOfTheDaveBrubeckQuartet.mp3
+
+2. The Go-Go's - Beauty And The Beat
+   Path: Go Gos, The/BeautyAndTheBeat.mp3
+
+3. Hooverphonic - Live at the Ancienne Belgique
+   Path: Hooverphonic/LiveAtTheAncienneBelgique.mp3
+
+4. Delerium - Ritual
+   Path: Phildel/Ritual.mp3
+
+5. The Police - Reggatta De Blanc
+   Path: Police/RegattaDeBlanc.mp3
+
+6. The Score - Atlas
+   Path: Score, The/Atlas.mp3
+
+7. Various - The Greatest Showman (Soundtrack)
+   Path: Various/TheGreatestShowman.mp3
+

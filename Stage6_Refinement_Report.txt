@@ -1,0 +1,95 @@
+================================================================================
+STAGE 6 BOUNDARY REFINEMENT - SUCCESSFUL APPLICATIONS
+================================================================================
+
+Total albums with Stage 6 applied: 11
+
+1. Journey - Trial By Fire
+   File: Journey/TrialByFire.mp3
+   Tracks: 16
+   Refinement: 75.0% -> 93.8% (+18.8%)
+   Strategies: cascade:13
+   Final Match: 93.8%
+
+2. Bic Runga - Birds
+   File: Runga, Bic/Birds.mp3
+   Tracks: 16
+   Refinement: 81.2% -> 93.8% (+12.5%)
+   Strategies: cascade:14
+   Final Match: 93.8%
+
+3. Elton John - Captain Fantastic And The Brown Dirt Cowboy
+   File: John, Elton/CaptainFantasticAndTheBrownDirtCowboy.mp3
+   Tracks: 26
+   Refinement: 76.9% -> 88.5% (+11.5%)
+   Strategies: cascade:4, cascade:7
+   Final Match: 88.5%
+
+4. The Rolling Stones - Let It Bleed
+   File: Rolling Stones/LetItBleed.mp3
+   Tracks: 9
+   Refinement: 66.7% -> 77.8% (+11.1%)
+   Strategies: cascade:1
+   Final Match: 77.8%
+
+5. Chicago - The Very Best of Chicago: Only the Beginning
+   File: Chicago/OnlyTheBeginning.mp3
+   Tracks: 39
+   Refinement: 82.1% -> 89.7% (+7.7%)
+   Strategies: cascade:6, cascade:11
+   Final Match: 89.7%
+
+6. Tears for Fears - Songs from the Big Chair
+   File: Tears For Fears/SongsFromTheBigChair.mp3
+   Tracks: 33
+   Refinement: 90.9% -> 93.9% (+3.0%)
+   Strategies: cascade:7
+   Final Match: 93.9%
+
+7. "Weird Al" Yankovic - The Essential "Weird Al" Yankovic
+   File: Yankovic, Weird Al/TheEssentialWeirdAlYankovic.mp3
+   Tracks: 38
+   Refinement: 86.8% -> 89.5% (+2.6%)
+   Strategies: cascade:32
+   Final Match: 89.5%
+
+8. Eagles - The Long Run
+   File: Eagles/TheLongRun.mp3
+   Tracks: 10
+   Refinement: 70.0% -> 70.0% (+0.0%)
+   Strategies: cascade:8
+   Final Match: 70.0%
+
+9. Imagine Dragons - Night Visions
+   File: Imagine Dragons/NightVisions.mp3
+   Tracks: 16
+   Refinement: 68.8% -> 68.8% (+0.0%)
+   Strategies: cascade:10
+   Final Match: 68.8%
+
+10. The Knack - Get The Knack
+   File: Knack, The/GetTheKnack.mp3
+   Tracks: 12
+   Refinement: 75.0% -> 75.0% (+0.0%)
+   Strategies: cascade:3
+   Final Match: 75.0%
+
+11. Paul McCartney and Wings - Band On The Run
+   File: Wings/BandOnTheRun.mp3
+   Tracks: 9
+   Refinement: 77.8% -> 77.8% (+0.0%)
+   Strategies: cascade:6
+   Final Match: 77.8%
+
+================================================================================
+SUMMARY
+================================================================================
+
+Significant improvements (>5%): 5
+Moderate improvements (1-5%): 2
+Minimal/no improvement (<=1%): 4
+
+Average improvement: 6.1%
+
+Total cascade patterns corrected: 13
+Albums with multiple patterns: 2

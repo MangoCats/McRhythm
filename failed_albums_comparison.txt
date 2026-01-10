@@ -1,0 +1,38 @@
+Failed to match (9 albums) - Baseline Comparison:
+
+================================================================================
+1. Dave Brubeck Quartet - The Best Of The Dave Brubeck Quartet (1979-2004)
+   File: Brubeck, Dave/TheBestOfTheDaveBrubeckQuartet.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+2. The Go-Go's - Beauty And The Beat
+   File: Go Gos, The/BeautyAndTheBeat.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+3. Hooverphonic - Live at the Ancienne Belgique
+   File: Hooverphonic/LiveAtTheAncienneBelgique.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+4. John Mayall - A Hard Road
+   File: Mayall, John/AHardRoad.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+5. Delerium - Ritual
+   File: Phildel/Ritual.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+6. The Police - Reggatta De Blanc
+   File: Police/RegattaDeBlanc.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+7. Carlos Santana - Invitation to Illumination
+   File: Santana/InvitationToIllumination.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+8. The Score - Atlas
+   File: Score, The/Atlas.mp3
+   Baseline: FAILED -> Current: FAILED (no change)
+
+9. Various - The Greatest Showman (Soundtrack)
+   File: Various/TheGreatestShowman.mp3
+   Baseline: FAILED -> Current: FAILED (no change)

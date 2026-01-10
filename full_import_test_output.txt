@@ -1,0 +1,72 @@
+
+running 1 test
+Using existing recording cache: C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+Logging to: full_library_import_20251224_195603.log
+[2m2025-12-25T00:56:03.479997Z[0m [32m INFO[0m File [1/10] STARTING: test_track_001.wav
+[2m2025-12-25T00:56:03.798545Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:03.799756Z[0m [32m INFO[0m File [1/10] COMPLETED: test_track_001.wav - 1 passages in 0.32s (elapsed: 0.3s)
+[2m2025-12-25T00:56:03.799815Z[0m [32m INFO[0m File [2/10] STARTING: test_track_002.wav
+[2m2025-12-25T00:56:04.116393Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:04.117200Z[0m [32m INFO[0m File [2/10] COMPLETED: test_track_002.wav - 1 passages in 0.32s (elapsed: 0.6s)
+[2m2025-12-25T00:56:04.117245Z[0m [32m INFO[0m File [3/10] STARTING: test_track_003.wav
+[2m2025-12-25T00:56:04.433922Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:04.434793Z[0m [32m INFO[0m File [3/10] COMPLETED: test_track_003.wav - 1 passages in 0.32s (elapsed: 1.0s)
+[2m2025-12-25T00:56:04.434843Z[0m [32m INFO[0m File [4/10] STARTING: test_track_004.wav
+[2m2025-12-25T00:56:04.752031Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:04.753104Z[0m [32m INFO[0m File [4/10] COMPLETED: test_track_004.wav - 1 passages in 0.32s (elapsed: 1.3s)
+[2m2025-12-25T00:56:04.753148Z[0m [32m INFO[0m File [5/10] STARTING: test_track_005.wav
+[2m2025-12-25T00:56:05.068493Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:05.069574Z[0m [32m INFO[0m File [5/10] COMPLETED: test_track_005.wav - 1 passages in 0.32s (elapsed: 1.6s)
+[2m2025-12-25T00:56:05.069670Z[0m [32m INFO[0m File [6/10] STARTING: test_track_006.wav
+[2m2025-12-25T00:56:05.381964Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:05.382773Z[0m [32m INFO[0m File [6/10] COMPLETED: test_track_006.wav - 1 passages in 0.31s (elapsed: 1.9s)
+[2m2025-12-25T00:56:05.382816Z[0m [32m INFO[0m File [7/10] STARTING: test_track_007.wav
+[2m2025-12-25T00:56:05.697465Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:05.698245Z[0m [32m INFO[0m File [7/10] COMPLETED: test_track_007.wav - 1 passages in 0.32s (elapsed: 2.2s)
+[2m2025-12-25T00:56:05.698286Z[0m [32m INFO[0m File [8/10] STARTING: test_track_008.wav
+[2m2025-12-25T00:56:06.015641Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:06.016371Z[0m [32m INFO[0m File [8/10] COMPLETED: test_track_008.wav - 1 passages in 0.32s (elapsed: 2.5s)
+[2m2025-12-25T00:56:06.016408Z[0m [32m INFO[0m File [9/10] STARTING: test_track_009.wav
+[2m2025-12-25T00:56:06.335403Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:06.336371Z[0m [32m INFO[0m File [9/10] COMPLETED: test_track_009.wav - 1 passages in 0.32s (elapsed: 2.9s)
+[2m2025-12-25T00:56:06.336610Z[0m [32m INFO[0m File [10/10] STARTING: test_track_010.wav
+[2m2025-12-25T00:56:06.652557Z[0m [33m WARN[0m ID3 genre mapping failed: Extractor not available: No tags found in audio file
+[2m2025-12-25T00:56:06.653629Z[0m [32m INFO[0m File [10/10] COMPLETED: test_track_010.wav - 1 passages in 0.32s (elapsed: 3.2s)
+[2m2025-12-25T00:56:06.653696Z[0m [32m INFO[0m PROGRESS: 10/10 files (100.0%) - 3.15 files/sec - ETA: 0.0min
+
+=== Cache Statistics ===
+Recording cache: 0 entries
+MBID cache:      5171 entries
+Cache database:  C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\test_recording_cache.db
+
+=== Full Library Import Performance Summary ===
+Files processed:     10
+Passages created:    10
+Total duration:      3.1738109s
+Avg per file:        317.38109ms
+Min file time:       313.086ms
+Max file time:       319.9297ms
+Throughput:          3.15 files/sec
+
+--- Routing ---
+Single-track files:  10
+Album files:         0
+
+--- Events ---
+FileStarted:         10
+FileCompleted:       10
+BoundaryDetected:    10
+PassageStarted:      10
+PassageCompleted:    10
+SingleTrackCheck:    0
+AlbumMatchStarted:   0
+AlbumMatchCompleted: 0
+AlbumMatchFailed:    0
+AlbumMatchFallback:  0
+Errors:              0
+================================================
+
+test test_full_library_import_10_files ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 4.50s
+

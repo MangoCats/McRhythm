@@ -29,7 +29,7 @@ mod ffi {
 
     pub const CHROMAPRINT_ALGORITHM_TEST2: c_int = 2;
 
-    #[link(name = "chromaprint")]
+    #[link(name = "chromaprint", kind = "static")]
     extern "C" {
         pub fn chromaprint_new(algorithm: c_int) -> ChromaprintContextPtr;
         pub fn chromaprint_free(ctx: ChromaprintContextPtr);

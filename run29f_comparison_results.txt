@@ -1,0 +1,2480 @@
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `assign_tier`
+  --> wkmp-ai\src\fusion\identity_resolver.rs:20:23
+   |
+20 | use crate::matching::{assign_tier, ConfidenceTier};
+   |                       ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `MatchingStage`
+  --> wkmp-ai\src\matching\album_matcher.rs:37:52
+   |
+37 | use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
+   |                                                    ^^^^^^^^^^^^^
+
+warning: unused import: `apply_refinement_to_durations`
+  --> wkmp-ai\src\matching\orchestrator.rs:21:9
+   |
+21 |         apply_refinement_to_durations,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CachedDuration`
+  --> wkmp-ai\src\services\accurate_duration.rs:18:39
+   |
+18 | use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+   |                                       ^^^^^^^^^^^^^^
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:5
+   |
+15 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:35
+   |
+16 | use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+   |                                   ^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `FuturesUnordered`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:23
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                       ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+  --> wkmp-ai\src\testing\import_harness.rs:33:17
+   |
+33 | use std::time::{Duration, Instant};
+   |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `tokio::sync::Semaphore`
+  --> wkmp-ai\src\testing\import_harness.rs:39:5
+   |
+39 | use tokio::sync::Semaphore;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, and `warn`
+  --> wkmp-ai\src\testing\import_harness.rs:40:15
+   |
+40 | use tracing::{debug, error, info, warn};
+   |               ^^^^^  ^^^^^        ^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\src\matching\editions\mod.rs:27:30
+   |
+27 |     calculate_edition_score, calculate_total_duration_score, calculate_total_duration_score_validated,
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\src\matching\orchestrator.rs:16:34
+   |
+16 |         calculate_edition_score, calculate_total_duration_score,
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\orchestrator.rs:130:26
+    |
+130 |     let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `services::workflow_orchestrator::WorkflowOrchestrator::phase_processing_plan025`: Use phase_processing_per_file() with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:447:14
+    |
+447 |             .phase_processing_plan025(session, start_time, &cancel_token)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:429:43
+    |
+429 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: unused import: `StreamExt`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:41
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                                         ^^^^^^^^^
+
+warning: unused variable: `iteration`
+   --> wkmp-ai\src\matching\stages\boundary_refinement.rs:104:9
+    |
+104 |     for iteration in 0..max_iterations {
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_iteration`
+
+warning: value assigned to `silence_start` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:420:13
+    |
+420 |             silence_start = Some(window_count);
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `window_count` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:431:9
+    |
+431 |         window_count += 1;
+    |         ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: type `ClassifiedResult` is more private than the item `EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: field `passage_id` is never read
+  --> wkmp-ai\src\services\import_logger.rs:15:5
+   |
+13 | struct PassageInfo {
+   |        ----------- field in this struct
+14 |     #[sqlx(rename = "guid")]
+15 |     passage_id: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `PassageInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:44:6
+   |
+44 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+
+warning: multiple fields are never read
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:71:5
+   |
+68 | pub struct WorkflowOrchestrator {
+   |            -------------------- fields in this struct
+...
+71 |     file_scanner: FileScanner,
+   |     ^^^^^^^^^^^^
+72 |     metadata_extractor: MetadataExtractor,
+   |     ^^^^^^^^^^^^^^^^^^
+73 |     fingerprinter: Fingerprinter,
+   |     ^^^^^^^^^^^^^
+74 |     amplitude_analyzer: AmplitudeAnalyzer,
+   |     ^^^^^^^^^^^^^^^^^^
+75 |     mb_client: Option<MusicBrainzClient>,
+   |     ^^^^^^^^^
+...
+78 |     essentia_client: Option<EssentiaClient>,
+   |     ^^^^^^^^^^^^^^^
+...
+97 |     processing_thread_count: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `set_worker_phase_with_passage` is never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1659:14
+     |
+ 100 | impl WorkflowOrchestrator {
+     | ------------------------- method in this implementation
+...
+1659 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:88:12
+   |
+87 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+88 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:108:12
+    |
+107 | impl HashingStats {
+    | ----------------- method in this implementation
+108 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:128:12
+    |
+127 | impl ExtractingStats {
+    | -------------------- method in this implementation
+128 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:152:12
+    |
+151 | impl SegmentingStats {
+    | -------------------- method in this implementation
+152 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:175:12
+    |
+174 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+175 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:199:12
+    |
+198 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+199 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:218:12
+    |
+217 | impl RecordingStats {
+    | ------------------- method in this implementation
+218 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:243:12
+    |
+242 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+243 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:274:12
+    |
+273 | impl FlavoringStats {
+    | ------------------- method in this implementation
+274 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:292:12
+    |
+291 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+292 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:307:12
+    |
+306 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+307 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:452:12
+    |
+332 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+452 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+460 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:409:14
+    |
+105 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+409 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+560 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:45
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                                             ^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:142:1
+    |
+142 | pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:143:1
+    |
+143 | pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:144:1
+    |
+144 | pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:145:1
+    |
+145 | pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:146:1
+    |
+146 | pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:147:1
+    |
+147 | pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:148:1
+    |
+148 | pub const SCORE_DURATION_SHORT: f64 = 0.7;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:149:1
+    |
+149 | pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:150:1
+    |
+150 | pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:151:1
+    |
+151 | pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:152:1
+    |
+152 | pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:133:5
+    |
+133 |     pub mbid: String,
+    |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:134:5
+    |
+134 |     pub title: String,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:135:5
+    |
+135 |     pub track_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:136:5
+    |
+136 |     pub total_duration_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:137:5
+    |
+137 |     pub track_durations_secs: Vec<f64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:138:5
+    |
+138 |     pub name_similarity: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:139:5
+    |
+139 |     pub score: f64,
+    |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:47:20
+   |
+47 |     NoCandidates { query: String },
+   |                    ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:49:16
+   |
+49 |     ApiError { error: String },
+   |                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:52:9
+   |
+52 |         expected: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:53:9
+   |
+53 |         found: String,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:54:9
+   |
+54 |         similarity: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:57:26
+   |
+57 |     AllStagesExhausted { stages_tried: usize },
+   |                          ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:59:20
+   |
+59 |     FileTooShort { duration_secs: f64 },
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:61:32
+   |
+61 |     MetadataExtractionFailed { error: String },
+   |                                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:65:22
+   |
+65 |     DecodingFailed { error: String },
+   |                      ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:42:9
+   |
+42 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:43:9
+   |
+43 |         assigned_mbid: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:44:9
+   |
+44 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:45:9
+   |
+45 |         sources_consulted: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:46:9
+   |
+46 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:50:9
+   |
+50 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:51:9
+   |
+51 |         content_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:52:9
+   |
+52 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:53:9
+   |
+53 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:57:9
+   |
+57 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:58:9
+   |
+58 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:59:9
+   |
+59 |         error_message: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:60:9
+   |
+60 |         duration_ms: u64,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:61:9
+   |
+61 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:65:9
+   |
+65 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:66:9
+   |
+66 |         api_name: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:67:9
+   |
+67 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:68:9
+   |
+68 |         latency_ms: u64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:69:9
+   |
+69 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib) generated 108 warnings (run `cargo fix --lib -p wkmp-ai` to apply 13 suggestions)
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: struct `BaselineResult` is never constructed
+  --> wkmp-ai\tests\run29f_comparison_test.rs:63:8
+   |
+63 | struct BaselineResult {
+   |        ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `wkmp-ai` (test "run29f_comparison_test") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 5.82s
+     Running tests\run29f_comparison_test.rs (target\release\deps\run29f_comparison_test-fcf66717148a07cd.exe)
+
+running 1 test
+test test_run29f_baseline_comparison ... 
+=== Run29f Baseline Comparison Test ===
+
+✓ Database pool initialized (.cache/run29f_test.db)
+
+Music Library: "C:\\Users\\Mango Cat\\Music"
+
+Testing 10 albums from run29f baseline
+
+Testing 1/10: 38 Special - Anthology ... [2m2026-01-01T17:35:48.949073Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\38 Special/Anthology.mp3
+[2m2026-01-01T17:35:48.950324Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=38 Special, album=Anthology
+[2m2026-01-01T17:35:48.956374Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0m38 Special [3malbum[0m[2m=[0mAnthology [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:35:58.654587Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +1599.7 MB [album_matcher decode] → Total: 1599.7 MB (1.60 GB) | 399922560 samples
+[2m2026-01-01T17:35:58.654622Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:35:58.654747Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 23 unique editions
+[2m2026-01-01T17:35:58.654783Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Artist filter: 21 editions removed (2 remaining, threshold=0.60)
+[2m2026-01-01T17:35:58.654790Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 2 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Anthology)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: 38 Special - Anthology
+Tracks: 34, Detected: 34
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    240.00s      0.00s    235.13s     -4.87s          ✓
+  2    253.46s    235.13s    249.86s     -3.60s          ✓
+  3    188.82s    484.99s    185.73s     -3.09s          ✓
+  4    279.24s    670.72s    274.86s     -4.38s          ✓
+  5    242.72s    945.58s    240.39s     -2.33s          ✓
+  6    317.18s   1185.97s    314.23s     -2.94s          ✓
+  7    257.08s   1500.21s    253.60s     -3.48s          ✓
+  8    244.93s   1753.80s    240.78s     -4.15s          ✓
+  9    294.89s   1994.58s    290.96s     -3.94s          ✓
+ 10    277.82s   2285.54s    274.58s     -3.25s          ✓
+ 11    303.62s   2560.11s    299.00s     -4.61s          ✓
+ 12    247.54s   2859.12s    245.50s     -2.04s          ✓
+ 13    236.96s   3104.62s    234.12s     -2.84s          ✓
+ 14    234.43s   3338.74s    230.81s     -3.62s          ✓
+ 15    224.86s   3569.54s    221.16s     -3.70s          ✓
+ 16    237.57s   3790.71s    233.33s     -4.24s          ✓
+ 17    272.97s   4024.04s    267.90s     -5.07s          ✓
+ 18    256.00s   4291.94s    253.40s     -2.60s          ✓
+ 19    235.09s   4545.34s    230.38s     -4.71s          ✓
+ 20    243.00s   4775.72s    239.94s     -3.06s          ✓
+ 21    194.32s   5015.66s    190.90s     -3.42s          ✓
+ 22    249.15s   5206.56s    244.79s     -4.36s          ✓
+ 23    236.85s   5451.35s    232.46s     -4.39s          ✓
+ 24    220.81s   5683.81s    216.84s     -3.97s          ✓
+ 25    273.93s   5900.65s    269.59s     -4.33s          ✓
+ 26    302.58s   6170.24s    298.98s     -3.61s          ✓
+ 27    297.00s   6469.21s    290.79s     -6.21s          ✓
+ 28    321.00s   6760.01s    316.08s     -4.92s          ✓
+ 29    333.00s   7076.09s    326.53s     -6.47s          ✓
+ 30    273.00s   7402.62s    269.85s     -3.15s          ✓
+ 31    357.00s   7672.47s    353.88s     -3.12s          ✓
+ 32    315.00s   8026.35s    310.46s     -4.54s          ✓
+ 33    250.00s   8336.80s    247.41s     -2.59s          ✓
+ 34    274.00s   8584.22s    273.25s     -0.75s          ✓
+------------------------------------------------------------------
+        TOTALS              8985.83s   8857.47s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\38 Special/Anthology.mp3
+Total Duration: 2:31:08.54 (9068.54s)
+
+=== Top 2 Candidate Rankings ===
+
+--- Rank #1: 38 Special - Anthology ---
+  Release MBID: 4a81fc08-f915-49fc-9aa2-5b708c18f07a
+  Track Count: 34
+  Match %: 100.0%
+  Final Score: 0.8151
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.6225 × 0.45 = 0.2801
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8151 × 1.0000 (penalty) = 0.8151
+  Stage: Stage2
+  Mean Error: 3.78s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Rockin’ Into the Night            240.00s      0.00s    235.13s     -4.87s          ✓
+    2 Stone Cold Believer               253.46s    235.13s    249.86s     -3.60s          ✓
+    3 Money Honey                       188.82s    484.99s    185.73s     -3.09s          ✓
+    4 Hold On Loosely                   279.24s    670.72s    274.86s     -4.38s          ✓
+    5 Long Time Gone                    242.72s    945.58s    240.39s     -2.33s          ✓
+    6 Take Me Back                      317.18s   1185.97s    314.23s     -2.94s          ✓
+    7 Wild‐Eyed Southern Boys           257.08s   1500.21s    253.60s     -3.48s          ✓
+    8 Fantasy Girl                      244.93s   1753.80s    240.78s     -4.15s          ✓
+    9 Hittin’ and Runnin’               294.89s   1994.58s    290.96s     -3.94s          ✓
+   10 Caught Up in You                  277.82s   2285.54s    274.58s     -3.25s          ✓
+   11 Chain Lightnin’                   303.62s   2560.11s    299.00s     -4.61s          ✓
+   12 Rough Housin’                     247.54s   2859.12s    245.50s     -2.04s          ✓
+   13 You Keep Runnin’ Away             236.96s   3104.62s    234.12s     -2.84s          ✓
+   14 Prisoners of Rock ’n’ Roll        234.43s   3338.74s    230.81s     -3.62s          ✓
+   15 Twentieth Century Fox             224.86s   3569.54s    221.16s     -3.70s          ✓
+   16 Long Distance Affair              237.57s   3790.71s    233.33s     -4.24s          ✓
+   17 One Time for Old Times            272.97s   4024.04s    267.90s     -5.07s          ✓
+   18 Take ’em Out (1999 / live a...    256.00s   4291.94s    253.40s     -2.60s          ✓
+   19 If I’d Been the One               235.09s   4545.34s    230.38s     -4.71s          ✓
+   20 Back Where You Belong             243.00s   4775.72s    239.94s     -3.06s          ✓
+   21 Teacher, Teacher (from “Tea...    194.32s   5015.66s    190.90s     -3.42s          ✓
+   22 Somebody Like You                 249.15s   5206.56s    244.79s     -4.36s          ✓
+   23 Like No Other Night               236.85s   5451.35s    232.46s     -4.39s          ✓
+   24 Back to Paradise (from “Rev...    220.81s   5683.81s    216.84s     -3.97s          ✓
+   25 Rock ’n’ Roll Strategy            273.93s   5900.65s    269.59s     -4.33s          ✓
+   26 Second Chance                     302.58s   6170.24s    298.98s     -3.61s          ✓
+   27 The Sound of Your Voice           297.00s   6469.21s    290.79s     -6.21s          ✓
+   28 Last Thing I Ever Do              321.00s   6760.01s    316.08s     -4.92s          ✓
+   29 Rebel to Rebel                    333.00s   7076.09s    326.53s     -6.47s          ✓
+   30 Fade to Blue                      273.00s   7402.62s    269.85s     -3.15s          ✓
+   31 Déjà Voodoo                       357.00s   7672.47s    353.88s     -3.12s          ✓
+   32 Homeless Guitar                   315.00s   8026.35s    310.46s     -4.54s          ✓
+   33 Saving Grace                      250.00s   8336.80s    247.41s     -2.59s          ✓
+   34 Just One Girl (live from Bu...    274.00s   8584.22s    273.25s     -0.75s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:29:45.83            2:27:37.47
+
+--- Rank #2: 38 Special - Anthology ---
+  Release MBID: 94c5881c-e47a-42ba-bea0-d9ff8cb79dd1
+  Track Count: 34
+  Match %: 100.0%
+  Final Score: 0.8146
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.6214 × 0.45 = 0.2796
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8146 × 1.0000 (penalty) = 0.8146
+  Stage: Stage2
+  Mean Error: 3.79s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Rockin’ Into the Night            240.00s      0.00s    235.13s     -4.87s          ✓
+    2 Stone Cold Believer               253.47s    235.13s    249.86s     -3.60s          ✓
+    3 Money Honey                       188.87s    484.99s    185.73s     -3.14s          ✓
+    4 Hold On Loosely                   279.27s    670.72s    274.86s     -4.40s          ✓
+    5 Long Time Gone                    242.80s    945.58s    240.39s     -2.41s          ✓
+    6 Take Me Back                      317.23s   1185.97s    314.23s     -2.99s          ✓
+    7 Wild‐Eyed Southern Boys           257.13s   1500.21s    253.60s     -3.54s          ✓
+    8 Fantasy Girl                      244.97s   1753.80s    240.78s     -4.19s          ✓
+    9 Hittin’ and Runnin’               294.89s   1994.58s    290.96s     -3.94s          ✓
+   10 Caught Up in You                  277.91s   2285.54s    274.58s     -3.33s          ✓
+   11 Chain Lightnin’                   303.67s   2560.11s    299.00s     -4.66s          ✓
+   12 Rough‐Housin’                     247.63s   2859.12s    245.50s     -2.12s          ✓
+   13 You Keep Runnin’ Away             237.04s   3104.62s    234.12s     -2.92s          ✓
+   14 Prisoners of Rock & Roll          234.43s   3338.74s    230.81s     -3.62s          ✓
+   15 Twentieth Century Fox             224.91s   3569.54s    221.16s     -3.74s          ✓
+   16 Long Distance Affair              237.63s   3790.71s    233.33s     -4.29s          ✓
+   17 One Time for Old Times            272.97s   4024.04s    267.90s     -5.07s          ✓
+   18 Take ’Em Out (live)               256.20s   4291.94s    253.40s     -2.80s          ✓
+   19 If I’d Been the One               235.13s   4545.34s    230.38s     -4.75s          ✓
+   20 Back Where You Belong             242.53s   4775.72s    239.94s     -2.59s          ✓
+   21 Teacher, Teacher                  194.36s   5015.66s    190.90s     -3.46s          ✓
+   22 Somebody Like You                 249.17s   5206.56s    244.79s     -4.38s          ✓
+   23 Like No Other Night               236.89s   5451.35s    232.46s     -4.44s          ✓
+   24 Back to Paradise                  220.84s   5683.81s    216.84s     -4.00s          ✓
+   25 Rock & Roll Strategy              273.96s   5900.65s    269.59s     -4.37s          ✓
+   26 Second Chance                     302.64s   6170.24s    298.98s     -3.66s          ✓
+   27 The Sound of Your Voice           296.89s   6469.21s    290.79s     -6.10s          ✓
+   28 Last Thing I Ever Do              321.24s   6760.01s    316.08s     -5.16s          ✓
+   29 Rebel to Rebel                    333.13s   7076.09s    326.53s     -6.61s          ✓
+   30 Fade to Blue                      272.76s   7402.62s    269.85s     -2.91s          ✓
+   31 Déjà Voodoo                       357.31s   7672.47s    353.88s     -3.43s          ✓
+   32 Homeless Guitar                   314.09s   8026.35s    310.46s     -3.63s          ✓
+   33 Saving Grace                      250.47s   8336.80s    247.41s     -3.05s          ✓
+   34 Just One Girl                     273.77s   8584.22s    273.25s     -0.52s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:29:46.19            2:27:37.47
+
+=========================================
+
+[2m2026-01-01T17:35:58.660933Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+✓ EXACT MATCH
+Testing 2/10: Ace of Base - Happy Nation (U.S. Version) (Remastered) ... [2m2026-01-01T17:35:58.706812Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Ace of Base/HappyNation.mp3
+[2m2026-01-01T17:35:58.708186Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Ace of Base, album=Happy Nation (U.S. Version) (Remastered)
+[2m2026-01-01T17:35:58.713929Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mAce of Base [3malbum[0m[2m=[0mHappy Nation (U.S. Version) (Remastered) [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:02.503113Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +646.9 MB [album_matcher decode] → Total: 2246.5 MB (2.25 GB) | 161713152 samples
+[2m2026-01-01T17:36:02.503140Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:02.503268Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 17 unique editions
+[2m2026-01-01T17:36:02.503314Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 10 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Happy Nation (U.S. version))
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (93.3%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Ace Of Base - Happy Nation
+Tracks: 15, Detected: 15
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    210.00s      0.00s    209.99s     -0.01s          ✓
+  2    228.00s    209.99s    225.57s     -2.43s          ✓
+  3    236.00s    435.56s    232.82s     -3.18s          ✓
+  4    188.00s    668.38s    186.80s     -1.20s          ✓
+  5    221.00s    855.19s    218.79s     -2.21s          ✓
+  6    197.00s   1073.98s    195.86s     -1.14s          ✓
+  7    253.00s   1269.84s    252.01s     -0.99s          ✓
+  8    228.00s   1521.85s    226.23s     -1.77s          ✓
+  9    230.00s   1748.08s    227.25s     -2.75s          ✓
+ 10    250.00s   1975.33s    249.35s     -0.65s          ✓
+ 11    232.00s   2224.68s    229.12s     -2.88s          ✓
+ 12    217.00s   2453.80s    216.53s     -0.47s          ✓
+ 13    248.00s   2670.33s    244.04s     -3.96s          ✓
+ 14    254.00s   2914.37s    253.62s     -0.38s          ✓
+ 15    225.00s   3167.99s    433.71s   +208.71s          ✗
+------------------------------------------------------------------
+        TOTALS              3417.00s   3601.69s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Ace of Base/HappyNation.mp3
+Total Duration: 1:01:06.96 (3666.96s)
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: Ace Of Base - Happy Nation ---
+  Release MBID: a69f8eae-4e34-45fe-85fb-12b049dbdf38
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.8090
+    ├─ Duration Score: 0.8000 × 0.30 = 0.2400
+    ├─ Quality Score:  0.7399 × 0.45 = 0.3330
+    ├─ Name Score:     0.9440 × 0.25 = 0.2360
+    └─ Base Score:     0.8090 × 1.0000 (penalty) = 0.8090
+  Stage: Stage2
+  Mean Error: 15.51s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 All That She Wants                210.00s      0.00s    209.99s     -0.01s          ✓
+    2 Don't Turn Around                 228.00s    209.99s    225.57s     -2.43s          ✓
+    3 Young And Proud                   236.00s    435.56s    232.82s     -3.18s          ✓
+    4 The Sign                          188.00s    668.38s    186.80s     -1.20s          ✓
+    5 Living In Danger                  221.00s    855.19s    218.79s     -2.21s          ✓
+    6 Voulez-Vous Danser                197.00s   1073.98s    195.86s     -1.14s          ✓
+    7 Happy Nation                      253.00s   1269.84s    252.01s     -0.99s          ✓
+    8 Hear Me Calling                   228.00s   1521.85s    226.23s     -1.77s          ✓
+    9 Waiting For Magic (Total Re...    230.00s   1748.08s    227.25s     -2.75s          ✓
+   10 Fashion Party                     250.00s   1975.33s    249.35s     -0.65s          ✓
+   11 Wheel Of Fortune                  232.00s   2224.68s    229.12s     -2.88s          ✓
+   12 Dancer In A Daydream              217.00s   2453.80s    216.53s     -0.47s          ✓
+   13 My Mind (Mindless Mix)            248.00s   2670.33s    244.04s     -3.96s          ✓
+   14 All That She Wants (Banghra...    254.00s   2914.37s    253.62s     -0.38s          ✓
+   15 Happy Nation (Remix)              225.00s   3167.99s    433.71s   +208.71s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:56:57.00            1:00:01.69
+
+--- Rank #2: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: 142b09aa-a4ed-49dd-9c66-adf5e2f865c1
+  Track Count: 16
+  Match %: 100.0%
+  Final Score: 0.7962
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.5950 × 0.45 = 0.2677
+    ├─ Name Score:     0.9740 × 0.25 = 0.2435
+    └─ Base Score:     0.7962 × 1.0000 (penalty) = 0.7962
+  Stage: Stage2
+  Mean Error: 4.05s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 All That She Wants                211.00s      0.00s    209.99s     -1.01s          ✓
+    2 Don’t Turn Around                 230.00s    209.99s    225.57s     -4.43s          ✓
+    3 Young and Proud                   237.00s    435.56s    232.82s     -4.18s          ✓
+    4 The Sign                          191.00s    668.38s    186.80s     -4.20s          ✓
+    5 Living in Danger                  223.00s    855.19s    218.79s     -4.21s          ✓
+    6 Voulez‐vous danser                200.00s   1073.98s    195.86s     -4.14s          ✓
+    7 Happy Nation                      255.00s   1269.84s    252.01s     -2.99s          ✓
+    8 Hear Me Calling                   232.00s   1521.85s    226.23s     -5.77s          ✓
+    9 Waiting for Magic (Total re...    232.00s   1748.08s    227.25s     -4.75s          ✓
+   10 Fashion Party                     253.00s   1975.33s    249.35s     -3.65s          ✓
+   11 Wheel of Fortune                  234.00s   2224.68s    229.12s     -4.88s          ✓
+   12 Dancer in a Daydream              221.00s   2453.80s    216.53s     -4.47s          ✓
+   13 My Mind (Mindless mix)            251.00s   2670.33s    244.04s     -6.96s          ✓
+   14 All That She Wants (Banghra...    257.00s   2914.37s    253.62s     -3.38s          ✓
+   15 Happy Nation (remix)              226.00s   3167.99s    223.29s     -2.71s          ✓
+   16 Giving It Up (Ace version)        210.00s   3391.27s    206.92s     -3.08s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         1:01:03.00            0:59:58.20
+
+--- Rank #3: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: 5d8600ce-9908-4014-9442-b1678baac664
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.7347
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.4583 × 0.45 = 0.2062
+    ├─ Name Score:     0.9740 × 0.25 = 0.2435
+    └─ Base Score:     0.7347 × 1.0000 (penalty) = 0.7347
+  Stage: Stage2
+  Mean Error: 18.33s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 All That She Wants                211.00s      0.00s    209.99s     -1.01s          ✓
+    2 Don’t Turn Around                 228.00s    209.99s    225.57s     -2.43s          ✓
+    3 Young and Proud                   238.00s    435.56s    232.82s     -5.18s          ✓
+    4 The Sign                          189.00s    668.38s    186.80s     -2.20s          ✓
+    5 Living in Danger                  224.00s    855.19s    218.79s     -5.21s          ✓
+    6 Voulez‐vous danser                200.00s   1073.98s    195.86s     -4.14s          ✓
+    7 Happy Nation                      257.00s   1269.84s    252.01s     -4.99s          ✓
+    8 Hear Me Calling                   231.00s   1521.85s    226.23s     -4.77s          ✓
+    9 Waiting for Magic (Total re...    234.00s   1748.08s    227.25s     -6.75s          ✓
+   10 Fashion Party                     253.00s   1975.33s    249.35s     -3.65s          ✓
+   11 Wheel of Fortune                  220.00s   2224.68s    229.12s     +9.12s          ✓
+   12 Dancer in a Daydream              221.00s   2453.80s    216.53s     -4.47s          ✓
+   13 My Mind (Mindless mix)            252.00s   2670.33s    244.04s     -7.96s          ✓
+   14 All That She Wants (Banghra...    258.00s   2914.37s    253.62s     -4.38s          ✓
+   15 Happy Nation (remix)              225.00s   3167.99s    433.71s   +208.71s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:57:21.00            1:00:01.69
+
+--- Rank #4: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: 60f6e7fd-b2dc-4b52-acdc-42993794c436
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.7117
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.4071 × 0.45 = 0.1832
+    ├─ Name Score:     0.9740 × 0.25 = 0.2435
+    └─ Base Score:     0.7117 × 1.0000 (penalty) = 0.7117
+  Stage: Stage2
+  Mean Error: 18.76s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 All That She Wants                214.13s      0.00s    209.99s     -4.14s          ✓
+    2 Don’t Turn Around                 231.63s    209.99s    225.57s     -6.05s          ✓
+    3 Young and Proud                   238.57s    435.56s    232.82s     -5.75s          ✓
+    4 The Sign                          192.43s    668.38s    186.80s     -5.62s          ✓
+    5 Living in Danger                  224.91s    855.19s    218.79s     -6.12s          ✓
+    6 Voulez‐vous danser                200.76s   1073.98s    195.86s     -4.90s          ✓
+    7 Happy Nation                      257.04s   1269.84s    252.01s     -5.03s          ✓
+    8 Hear Me Calling                   232.47s   1521.85s    226.23s     -6.23s          ✓
+    9 Waiting for Magic (Total re...    231.03s   1748.08s    227.25s     -3.78s          ✓
+   10 Fashion Party                     253.51s   1975.33s    249.35s     -4.16s          ✓
+   11 Wheel of Fortune                  234.40s   2224.68s    229.12s     -5.28s          ✓
+   12 Dancer in a Daydream              220.27s   2453.80s    216.53s     -3.74s          ✓
+   13 My Mind (Mindless mix)            252.49s   2670.33s    244.04s     -8.45s          ✓
+   14 All That She Wants (Banghra...    258.31s   2914.37s    253.62s     -4.68s          ✓
+   15 Happy Nation (remix)              226.29s   3167.99s    433.71s   +207.41s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:57:48.22            1:00:01.69
+
+--- Rank #5: Ace of Base - Happy Nation (U.S. version) ---
+  Release MBID: b7f9103d-137a-4c12-996a-a93bcbb64ad6
+  Track Count: 15
+  Match %: 93.3%
+  Final Score: 0.6965
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.3733 × 0.45 = 0.1680
+    ├─ Name Score:     0.9740 × 0.25 = 0.2435
+    └─ Base Score:     0.6965 × 1.0000 (penalty) = 0.6965
+  Stage: Stage2
+  Mean Error: 19.13s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 All That She Wants                213.67s      0.00s    209.99s     -3.67s          ✓
+    2 Don’t Turn Around                 231.83s    209.99s    225.57s     -6.25s          ✓
+    3 Young and Proud                   238.67s    435.56s    232.82s     -5.85s          ✓
+    4 The Sign                          192.33s    668.38s    186.80s     -5.53s          ✓
+    5 Living in Danger                  225.00s    855.19s    218.79s     -6.21s          ✓
+    6 Voulez‐vous danser                200.67s   1073.98s    195.86s     -4.80s          ✓
+    7 Happy Nation                      257.00s   1269.84s    252.01s     -4.99s          ✓
+    8 Hear Me Calling                   232.51s   1521.85s    226.23s     -6.27s          ✓
+    9 Waiting for Magic (Total re...    234.16s   1748.08s    227.25s     -6.91s          ✓
+   10 Fashion Party                     253.84s   1975.33s    249.35s     -4.49s          ✓
+   11 Wheel of Fortune                  235.67s   2224.68s    229.12s     -6.54s          ✓
+   12 Dancer in a Daydream              221.33s   2453.80s    216.53s     -4.81s          ✓
+   13 My Mind (Mindless mix)            252.33s   2670.33s    244.04s     -8.29s          ✓
+   14 All That She Wants (Banghra...    258.00s   2914.37s    253.62s     -4.38s          ✓
+   15 Happy Nation (remix)              225.83s   3167.99s    433.71s   +207.88s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:57:52.82            1:00:01.69
+
+=========================================
+
+[2m2026-01-01T17:36:02.510808Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=93.3%
+⚠ TRACK COUNT CHANGED: 16 -> 15
+⚠ MBID CHANGED: 142b09aa-a4ed-49dd-9c66-adf5e2f865c1 -> a69f8eae-4e34-45fe-85fb-12b049dbdf38
+Testing 3/10: Aerosmith - Pump ... [2m2026-01-01T17:36:02.532637Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Aerosmith/Pump.mp3
+[2m2026-01-01T17:36:02.534217Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Aerosmith, album=Pump
+[2m2026-01-01T17:36:02.540455Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mAerosmith [3malbum[0m[2m=[0mPump [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:05.496223Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +504.1 MB [album_matcher decode] → Total: 2750.7 MB (2.75 GB) | 126036864 samples
+[2m2026-01-01T17:36:05.496244Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:05.496327Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 7 unique editions
+[2m2026-01-01T17:36:05.496342Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 6 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 63.6% (edition: Pump)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): 75.0% penalized, 100.0% raw (edition: Pump)
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage4 (90.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Aerosmith - Pump
+Tracks: 10, Detected: 10
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    259.44s      0.00s    257.85s     -1.59s          ✓
+  2    249.67s    257.85s    250.05s     +0.38s          ✓
+  3    338.96s    507.90s    339.10s     +0.14s          ✓
+  4    237.31s    847.00s    239.60s     +2.29s          ✓
+  5    333.33s   1086.60s    336.05s     +2.72s          ✓
+  6    296.87s   1422.65s    297.85s     +0.98s          ✓
+  7    190.20s   1720.50s    190.20s     -0.00s          ✓
+  8    289.23s   1910.70s    289.05s     -0.18s          ✓
+  9    279.00s   2199.75s    279.05s     +0.05s          ✓
+ 10    389.77s   2478.80s    379.18s    -10.59s          ✗
+------------------------------------------------------------------
+        TOTALS              2863.77s   2857.98s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Aerosmith/Pump.mp3
+Total Duration: 0:47:37.98 (2857.98s)
+
+=== Top 5 Candidate Rankings ===
+
+--- Rank #1: Aerosmith - Pump ---
+  Release MBID: e7d96645-1325-4f1f-91f5-3dffa9458ecf
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.8998
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.8107 × 0.45 = 0.3648
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8998 × 1.0000 (penalty) = 0.8998
+  Stage: Stage4
+  Mean Error: 1.89s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Young Lust                        259.44s      0.00s    257.85s     -1.59s          ✓
+    2 F.I.N.E.                          249.67s    257.85s    250.05s     +0.38s          ✓
+    3 Going Down / Love in an Ele...    338.96s    507.90s    339.10s     +0.14s          ✓
+    4 Monkey on My Back                 237.31s    847.00s    239.60s     +2.29s          ✓
+    5 Water Song / Janie’s Got a Gun    333.33s   1086.60s    336.05s     +2.72s          ✓
+    6 Dulcimer Stomp / The Other ...    296.87s   1422.65s    297.85s     +0.98s          ✓
+    7 My Girl                           190.20s   1720.50s    190.20s     -0.00s          ✓
+    8 Don’t Get Mad, Get Even           289.23s   1910.70s    289.05s     -0.18s          ✓
+    9 Hoodoo / Voodoo Medicine Man      279.00s   2199.75s    279.05s     +0.05s          ✓
+   10 What It Takes                     389.77s   2478.80s    379.18s    -10.59s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:47:43.77            0:47:37.98
+
+--- Rank #2: Aerosmith - Pump ---
+  Release MBID: 5a9be9a5-9efe-43c4-9687-02f80f6461ba
+  Track Count: 10
+  Match %: 75.0%
+  Final Score: 0.8978
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.8062 × 0.45 = 0.3628
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8978 × 1.0000 (penalty) = 0.8978
+  Stage: Stage4
+  Mean Error: 1.94s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Young Lust                        259.00s      0.00s    257.85s     -1.15s          ✓
+    2 F.I.N.E.                          248.00s    257.85s    250.05s     +2.05s          ✓
+    3 Going Down / Love in an Ele...    338.00s    507.90s    339.10s     +1.10s          ✓
+    4 Monkey on My Back                 236.00s    847.00s    238.60s     +2.60s          ✓
+    5 Water Song / Janie’s Got a Gun    340.00s   1085.60s    340.20s     +0.20s          ✓
+    6 Dulcimer Stomp / The Other ...    296.00s   1425.80s    296.05s     +0.05s          ✓
+    7 My Girl                           189.00s   1721.85s    189.10s     +0.10s          ✓
+    8 Don’t Get Mad, Get Even           289.00s   1910.95s    289.00s     -0.00s          ✓
+    9 Hoodoo / Voodoo Medicine Man      276.00s   2199.95s    267.45s     -8.55s          ✓
+   10 What It Takes                     387.00s   2467.40s    390.58s     +3.58s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:47:38.00            0:47:37.98
+
+--- Rank #3: Aerosmith - Pump ---
+  Release MBID: 1d288a41-0b02-4d59-943e-1870c6308ea1
+  Track Count: 14
+  Match %: 75.0%
+  Final Score: 0.8740
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7534 × 0.45 = 0.3390
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8740 × 1.0000 (penalty) = 0.8740
+  Stage: Stage4
+  Mean Error: 2.47s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Young Lust                        259.00s      0.00s    257.85s     -1.15s          ✓
+    2 F.I.N.E.                          248.00s    257.85s    250.05s     +2.05s          ✓
+    3 Going Down                         17.00s    507.90s     14.00s     -3.00s          ✓
+    4 Love in an Elevator               321.00s    521.90s    325.10s     +4.10s          ✓
+    5 Monkey on My Back                 236.00s    847.00s    238.60s     +2.60s          ✓
+    6 Water Song                         11.00s   1085.60s     11.25s     +0.25s          ✓
+    7 Janie’s Got a Gun                 329.00s   1096.85s    328.95s     -0.05s          ✓
+    8 Dulcimer Stomp                     50.00s   1425.80s     50.00s     -0.00s          ✓
+    9 The Other Side                    246.00s   1475.80s    246.05s     +0.05s          ✓
+   10 My Girl                           190.00s   1721.85s    189.85s     -0.15s          ✓
+   11 Don’t Get Mad, Get Even           288.00s   1911.70s    288.25s     +0.25s          ✓
+   12 Hoodoo                             55.00s   2199.95s     47.90s     -7.10s          ✓
+   13 Voodoo Medicine Man               226.00s   2247.85s    230.95s     +4.95s          ✓
+   14 What It Takes                     388.00s   2478.80s    379.18s     -8.82s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:47:44.00            0:47:37.98
+
+--- Rank #4: Aerosmith - Pump ---
+  Release MBID: a0453705-0318-495c-8627-b63da94c85ae
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.8563
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7140 × 0.45 = 0.3213
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8563 × 1.0000 (penalty) = 0.8563
+  Stage: Stage4
+  Mean Error: 2.86s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Young Lust                        260.87s      0.00s    257.85s     -3.02s          ✓
+    2 F.I.N.E.                          246.00s    257.85s    250.05s     +4.05s          ✓
+    3 Going Down / Love in an Ele...    341.96s    507.90s    339.10s     -2.86s          ✓
+    4 Monkey on My Back                 237.51s    847.00s    239.60s     +2.09s          ✓
+    5 Water Song / Janie’s Got a Gun    333.13s   1086.60s    337.80s     +4.67s          ✓
+    6 Dulcimer Stomp / The Other ...    296.87s   1424.40s    296.60s     -0.27s          ✓
+    7 My Girl                           190.07s   1721.00s    190.30s     +0.23s          ✓
+    8 Don’t Get Mad, Get Even           288.83s   1911.30s    288.65s     -0.18s          ✓
+    9 Hoodoo / Voodoo Medicine Man      279.53s   2199.95s    278.85s     -0.68s          ✓
+   10 What It Takes                     389.73s   2478.80s    379.18s    -10.55s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:47:44.49            0:47:37.98
+
+--- Rank #5: Aerosmith - Pump ---
+  Release MBID: 6372e080-454a-4484-a2e4-2f400f04db08
+  Track Count: 10
+  Match %: 67.5%
+  Final Score: 0.7497
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.4771 × 0.45 = 0.2147
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.7497 × 1.0000 (penalty) = 0.7497
+  Stage: Stage4
+  Mean Error: 6.07s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Young Lust                        260.48s      0.00s    257.85s     -2.63s          ✓
+    2 F.I.N.E.                          255.36s    257.85s    262.65s     +7.29s          ✓
+    3 Going Down / Love in an Ele...    336.76s    520.50s    327.20s     -9.56s          ✓
+    4 Monkey on My Back                 238.56s    847.70s    238.90s     +0.34s          ✓
+    5 Water Song / Janie’s Got a Gun    340.03s   1086.60s    339.80s     -0.23s          ✓
+    6 Dulcimer Stomp / The Other ...    298.11s   1426.40s    303.95s     +5.84s          ✓
+    7 My Girl                           195.03s   1730.35s    192.95s     -2.08s          ✓
+    8 Don’t Get Mad, Get Even           290.40s   1923.30s    293.75s     +3.35s          ✓
+    9 Hoodoo / Voodoo Medicine Man      281.23s   2217.05s    275.25s     -5.98s          ✓
+   10 What It Takes                     389.08s   2492.30s    365.68s    -23.40s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:48:05.02            0:47:37.98
+
+=========================================
+
+[2m2026-01-01T17:36:05.501302Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage4), percentage=90.0%
+⚠ MBID CHANGED: 5a9be9a5-9efe-43c4-9687-02f80f6461ba -> e7d96645-1325-4f1f-91f5-3dffa9458ecf
+Testing 4/10: Alice In Chains - Greatest Hits ... [2m2026-01-01T17:36:05.515337Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Alice In Chains/AliceInChainsGreatestHits.mp3
+[2m2026-01-01T17:36:05.520091Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Alice In Chains, album=Greatest Hits
+[2m2026-01-01T17:36:05.530955Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mAlice In Chains [3malbum[0m[2m=[0mGreatest Hits [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:08.245290Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +473.7 MB [album_matcher decode] → Total: 3224.3 MB (3.22 GB) | 118412928 samples
+[2m2026-01-01T17:36:08.245314Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:08.245419Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 13 unique editions
+[2m2026-01-01T17:36:08.245443Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Artist filter: 9 editions removed (4 remaining, threshold=0.60)
+[2m2026-01-01T17:36:08.245457Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 1 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Greatest Hits)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Alice in Chains - Greatest Hits
+Tracks: 10, Detected: 10
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    287.76s      0.00s    286.38s     -1.38s          ✓
+  2    150.53s    286.38s    148.60s     -1.94s          ✓
+  3    375.71s    434.98s    372.42s     -3.29s          ✓
+  4    288.80s    807.40s    287.31s     -1.49s          ✓
+  5    208.13s   1094.70s    205.99s     -2.14s          ✓
+  6    255.87s   1300.70s    253.61s     -2.26s          ✓
+  7    254.49s   1554.31s    252.37s     -2.12s          ✓
+  8    286.71s   1806.68s    283.70s     -3.01s          ✓
+  9    329.83s   2090.38s    325.40s     -4.42s          ✓
+ 10    245.27s   2415.78s    244.40s     -0.87s          ✓
+------------------------------------------------------------------
+        TOTALS              2683.09s   2660.17s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Alice In Chains/AliceInChainsGreatestHits.mp3
+Total Duration: 0:44:45.10 (2685.10s)
+
+=== Top 1 Candidate Rankings ===
+
+--- Rank #1: Alice in Chains - Greatest Hits ---
+  Release MBID: 37cc6812-0779-496a-b9d8-19fd69e4b2c5
+  Track Count: 10
+  Match %: 100.0%
+  Final Score: 0.8819
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7709 × 0.45 = 0.3469
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8819 × 1.0000 (penalty) = 0.8819
+  Stage: Stage2
+  Mean Error: 2.29s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Man in the Box                    287.76s      0.00s    286.38s     -1.38s          ✓
+    2 Them Bones                        150.53s    286.38s    148.60s     -1.94s          ✓
+    3 Rooster                           375.71s    434.98s    372.42s     -3.29s          ✓
+    4 Angry Chair                       288.80s    807.40s    287.31s     -1.49s          ✓
+    5 Would?                            208.13s   1094.70s    205.99s     -2.14s          ✓
+    6 No Excuses                        255.87s   1300.70s    253.61s     -2.26s          ✓
+    7 I Stay Away                       254.49s   1554.31s    252.37s     -2.12s          ✓
+    8 Grind                             286.71s   1806.68s    283.70s     -3.01s          ✓
+    9 Heaven Beside You                 329.83s   2090.38s    325.40s     -4.42s          ✓
+   10 Again                             245.27s   2415.78s    244.40s     -0.87s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:44:43.09            0:44:20.17
+
+=========================================
+
+[2m2026-01-01T17:36:08.246939Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+✓ EXACT MATCH
+Testing 5/10: The Allman Brothers - At Fillmore East ... [2m2026-01-01T17:36:08.259999Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Allman Brothers/AtFillmoreEast.mp3
+[2m2026-01-01T17:36:08.261656Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=The Allman Brothers, album=At Fillmore East
+[2m2026-01-01T17:36:08.266538Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mThe Allman Brothers [3malbum[0m[2m=[0mAt Fillmore East [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:16.448578Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +1415.5 MB [album_matcher decode] → Total: 4639.8 MB (4.64 GB) | 353863296 samples
+[2m2026-01-01T17:36:16.448603Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:16.448671Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 11 unique editions
+[2m2026-01-01T17:36:16.448703Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 2 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: At Fillmore East)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: The Allman Brothers Band - At Fillmore East
+Tracks: 13, Detected: 13
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    258.20s      0.00s    257.23s     -0.97s          ✓
+  2    224.57s    257.23s    222.52s     -2.05s          ✓
+  3    207.40s    479.76s    205.44s     -1.96s          ✓
+  4    273.25s    685.20s    271.81s     -1.44s          ✓
+  5    529.19s    957.02s    527.21s     -1.98s          ✓
+  6    298.01s   1484.23s    295.25s     -2.76s          ✓
+  7    787.37s   1779.48s    783.38s     -3.99s          ✓
+  8   1158.84s   2562.86s   1155.21s     -3.63s          ✓
+  9    175.44s   3718.08s    174.03s     -1.41s          ✓
+ 10    322.12s   3892.11s    319.69s     -2.43s          ✓
+ 11   1373.43s   4211.80s   1372.40s     -1.02s          ✓
+ 12   2021.28s   5584.20s   2016.56s     -4.72s          ✓
+ 13    414.69s   7600.76s    412.61s     -2.08s          ✓
+------------------------------------------------------------------
+        TOTALS              8043.80s   8013.38s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Allman Brothers/AtFillmoreEast.mp3
+Total Duration: 2:13:44.11 (8024.11s)
+
+=== Top 2 Candidate Rankings ===
+
+--- Rank #1: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: 29e18ce2-3777-432b-bff6-c446e71b21e7
+  Track Count: 13
+  Match %: 100.0%
+  Final Score: 0.8734
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7660 × 0.45 = 0.3447
+    ├─ Name Score:     0.9750 × 0.25 = 0.2437
+    └─ Base Score:     0.8734 × 1.0000 (penalty) = 0.8734
+  Stage: Stage2
+  Mean Error: 2.34s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Statesboro Blues                  258.20s      0.00s    257.23s     -0.97s          ✓
+    2 Trouble No More                   224.57s    257.23s    222.52s     -2.05s          ✓
+    3 Don’t Keep Me Wonderin’           207.40s    479.76s    205.44s     -1.96s          ✓
+    4 Done Somebody Wrong               273.25s    685.20s    271.81s     -1.44s          ✓
+    5 Stormy Monday                     529.19s    957.02s    527.21s     -1.98s          ✓
+    6 One Way Out                       298.01s   1484.23s    295.25s     -2.76s          ✓
+    7 In Memory of Elizabeth Reed       787.37s   1779.48s    783.38s     -3.99s          ✓
+    8 You Don’t Love Me                1158.84s   2562.86s   1155.21s     -3.63s          ✓
+    9 Midnight Rider                    175.44s   3718.08s    174.03s     -1.41s          ✓
+   10 Hot ’Lanta                        322.12s   3892.11s    319.69s     -2.43s          ✓
+   11 Whipping Post                    1373.43s   4211.80s   1372.40s     -1.02s          ✓
+   12 Mountain Jam                     2021.28s   5584.20s   2016.56s     -4.72s          ✓
+   13 Drunken Hearted Boy               414.69s   7600.76s    412.61s     -2.08s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:14:03.80            2:13:33.38
+
+--- Rank #2: The Allman Brothers Band - At Fillmore East ---
+  Release MBID: 8d33fe0e-539e-48e8-8925-94ab88222f54
+  Track Count: 14
+  Match %: 7.1%
+  Final Score: 0.1440
+    ├─ Duration Score: 0.3000 × 0.30 = 0.0900
+    ├─ Quality Score:  -0.4216 × 0.45 = -0.1897
+    ├─ Name Score:     0.9750 × 0.25 = 0.2437
+    └─ Base Score:     0.1440 × 1.0000 (penalty) = 0.1440
+  Stage: Stage2
+  Mean Error: 532.78s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Statesboro Blues                  261.25s      0.00s    257.23s     -4.02s          ✓
+    2 Done Somebody Wrong               276.15s    257.23s    222.69s    -53.46s          ✗
+    3 Stormy Monday                     530.87s    479.92s    205.66s   -325.21s          ✗
+    4 You Don’t Love Me                1163.04s    685.58s    272.14s   -890.90s          ✗
+    5 Hot ’Lanta                        323.05s    957.72s    527.49s   +204.43s          ✗
+    6 In Memory of Elizabeth Reed       787.79s   1485.20s    295.30s   -492.48s          ✗
+    7 Whipping Post                    1393.33s   1780.50s    783.56s   -609.78s          ✗
+    8 Statesboro Blues                  261.25s   2564.06s   1155.61s   +894.36s          ✗
+    9 Done Somebody Wrong               276.15s   3719.67s    174.15s   -102.00s          ✗
+   10 Stormy Monday                     530.87s   3893.82s    319.69s   -211.17s          ✗
+   11 You Don’t Love Me                1163.04s   4213.51s   1372.41s   +209.37s          ✗
+   12 Hot ’Lanta                        323.05s   5585.93s   2016.56s  +1693.51s          ✗
+   13 In Memory of Elizabeth Reed       787.79s   7602.49s      0.32s   -787.46s          ✗
+   14 Whipping Post                    1393.33s   7602.81s    412.63s   -980.71s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:37:50.95            2:13:35.44
+
+=========================================
+
+[2m2026-01-01T17:36:16.451354Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+✓ EXACT MATCH
+Testing 6/10: Allman Brothers - Eat a Peach ... [2m2026-01-01T17:36:16.494123Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Allman Brothers/EatAPeach.mp3
+[2m2026-01-01T17:36:16.495309Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Allman Brothers, album=Eat a Peach
+[2m2026-01-01T17:36:16.502345Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mAllman Brothers [3malbum[0m[2m=[0mEat a Peach [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:25.419175Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +1544.3 MB [album_matcher decode] → Total: 6184.1 MB (6.18 GB) | 386087040 samples
+[2m2026-01-01T17:36:25.419205Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:25.419298Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 15 unique editions
+[2m2026-01-01T17:36:25.419341Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 2 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 22.2% (edition: Eat a Peach)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): 70.8% penalized, 94.4% raw (edition: Eat a Peach)
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage4 (94.4%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: The Allman Brothers Band - Eat a Peach
+Tracks: 18, Detected: 18
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    221.80s      0.00s    217.95s     -3.85s          ✓
+  2    546.56s    217.95s    550.25s     +3.69s          ✓
+  3    237.51s    768.20s    234.70s     -2.81s          ✓
+  4   2020.60s   1002.90s   2019.10s     -1.50s          ✓
+  5    297.69s   3022.00s    302.40s     +4.71s          ✓
+  6    225.84s   3324.40s    223.95s     -1.89s          ✓
+  7    207.73s   3548.35s    205.00s     -2.73s          ✓
+  8    311.83s   3753.35s    319.95s     +8.12s          ✓
+  9    127.47s   4073.30s    120.60s     -6.87s          ✓
+ 10    268.95s   4193.90s    268.75s     -0.20s          ✓
+ 11    226.00s   4462.65s    228.80s     +2.80s          ✓
+ 12    218.81s   4691.45s    216.85s     -1.96s          ✓
+ 13    308.04s   4908.30s    314.95s     +6.91s          ✓
+ 14    770.87s   5223.25s    766.80s     -4.07s          ✓
+ 15    191.73s   5990.05s    190.70s     -1.03s          ✓
+ 16    351.63s   6180.75s    347.60s     -4.03s          ✓
+ 17   1206.69s   6528.35s   1209.05s     +2.36s          ✓
+ 18   1044.73s   7737.40s   1017.41s    -27.32s          ✗
+------------------------------------------------------------------
+        TOTALS              8784.47s   8754.81s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Allman Brothers/EatAPeach.mp3
+Total Duration: 2:25:54.81 (8754.81s)
+
+=== Top 4 Candidate Rankings ===
+
+--- Rank #1: The Allman Brothers Band - Eat a Peach ---
+  Release MBID: bf8885b2-39f8-344e-b860-4be1623de283
+  Track Count: 18
+  Match %: 70.8%
+  Final Score: 0.7600
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.5860 × 0.45 = 0.2637
+    ├─ Name Score:     0.8450 × 0.25 = 0.2112
+    └─ Base Score:     0.7600 × 1.0000 (penalty) = 0.7600
+  Stage: Stage4
+  Mean Error: 4.82s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Ain’t Wastin’ Time No More        221.80s      0.00s    217.95s     -3.85s          ✓
+    2 Les Brers in A Minor              546.56s    217.95s    550.25s     +3.69s          ✓
+    3 Melissa                           237.51s    768.20s    234.70s     -2.81s          ✓
+    4 Mountain Jam                     2020.60s   1002.90s   2019.10s     -1.50s          ✓
+    5 One Way Out                       297.69s   3022.00s    302.40s     +4.71s          ✓
+    6 Trouble No More                   225.84s   3324.40s    223.95s     -1.89s          ✓
+    7 Stand Back                        207.73s   3548.35s    205.00s     -2.73s          ✓
+    8 Blue Sky                          311.83s   3753.35s    319.95s     +8.12s          ✓
+    9 Little Martha                     127.47s   4073.30s    120.60s     -6.87s          ✓
+   10 Statesboro Blues                  268.95s   4193.90s    268.75s     -0.20s          ✓
+   11 Don’t Keep Me Wonderin’           226.00s   4462.65s    228.80s     +2.80s          ✓
+   12 Done Somebody Wrong               218.81s   4691.45s    216.85s     -1.96s          ✓
+   13 One Way Out                       308.04s   4908.30s    314.95s     +6.91s          ✓
+   14 In Memory of Elizabeth Reed       770.87s   5223.25s    766.80s     -4.07s          ✓
+   15 Midnight Rider                    191.73s   5990.05s    190.70s     -1.03s          ✓
+   16 Hot ’Lanta                        351.63s   6180.75s    347.60s     -4.03s          ✓
+   17 Whipping Post                    1206.69s   6528.35s   1209.05s     +2.36s          ✓
+   18 You Don’t Love Me                1044.73s   7737.40s   1017.41s    -27.32s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:26:24.47            2:25:54.81
+
+--- Rank #2: The Allman Brothers Band - Eat a Peach ---
+  Release MBID: 678635d5-7635-48f8-9cde-f3d4a78f02d1
+  Track Count: 18
+  Match %: 70.8%
+  Final Score: 0.7553
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.5756 × 0.45 = 0.2590
+    ├─ Name Score:     0.8450 × 0.25 = 0.2112
+    └─ Base Score:     0.7553 × 1.0000 (penalty) = 0.7553
+  Stage: Stage4
+  Mean Error: 21.24s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Ain’t Wastin’ Time No More        223.03s      0.00s    218.90s     -4.13s          ✓
+    2 Les Brers in A Minor              548.89s    218.90s    549.30s     +0.41s          ✓
+    3 Melissa                           240.59s    768.20s    244.45s     +3.86s          ✓
+    4 Mountain Jam                     2029.53s   1012.65s   2024.70s     -4.83s          ✓
+    5 One Way Out                       297.84s   3037.35s    303.25s     +5.41s          ✓
+    6 Trouble No More                   226.79s   3340.60s    228.40s     +1.61s          ✓
+    7 Stand Back                        207.80s   3569.00s    205.45s     -2.35s          ✓
+    8 Blue Sky                          312.24s   3774.45s    316.90s     +4.66s          ✓
+    9 Little Martha                     129.79s   4091.35s    126.90s     -2.89s          ✓
+   10 Ain’t Wastin’ Time No More        223.00s   4218.25s    218.15s     -4.85s          ✓
+   11 Les Brers in A Minor              549.00s   4436.40s    550.60s     +1.60s          ✓
+   12 Melissa                           241.00s   4987.00s    244.70s     +3.70s          ✓
+   13 Mountain Jam                     2030.00s   5231.70s   2025.80s     -4.20s          ✓
+   14 One Way Out                       298.00s   7257.50s    303.25s     +5.25s          ✓
+   15 Trouble No More                   227.00s   7560.75s    223.50s     -3.50s          ✓
+   16 Stand Back                        208.00s   7784.25s    211.90s     +3.90s          ✓
+   17 Blue Sky                          312.00s   7996.15s    307.75s     -4.25s          ✓
+   18 Little Martha                     130.00s   8303.90s    450.91s   +320.91s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:20:34.49            2:25:54.81
+
+--- Rank #3: The Allman Brothers Band - Eat a Peach ---
+  Release MBID: bf8885b2-39f8-344e-b860-4be1623de283
+  Track Count: 18
+  Match %: 22.2%
+  Final Score: 0.4090
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  -0.1938 × 0.45 = -0.0872
+    ├─ Name Score:     0.8450 × 0.25 = 0.2112
+    └─ Base Score:     0.4090 × 1.0000 (penalty) = 0.4090
+  Stage: Stage2
+  Mean Error: 401.38s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Ain’t Wastin’ Time No More        221.80s      0.00s    217.19s     -4.61s          ✓
+    2 Les Brers in A Minor              546.56s    217.19s      2.69s   -543.87s          ✗
+    3 Melissa                           237.51s    219.88s      0.54s   -236.97s          ✗
+    4 Mountain Jam                     2020.60s    220.41s    538.02s  -1482.58s          ✗
+    5 One Way Out                       297.69s    758.43s    231.11s    -66.59s          ✗
+    6 Trouble No More                   225.84s    989.54s   2015.50s  +1789.66s          ✗
+    7 Stand Back                        207.73s   3005.04s    295.55s    +87.82s          ✗
+    8 Blue Sky                          311.83s   3300.59s    221.66s    -90.16s          ✗
+    9 Little Martha                     127.47s   3522.25s    202.62s    +75.15s          ✗
+   10 Statesboro Blues                  268.95s   3724.87s    434.40s   +165.46s          ✗
+   11 Don’t Keep Me Wonderin’           226.00s   4159.28s    268.28s    +42.28s          ✗
+   12 Done Somebody Wrong               218.81s   4427.55s    444.80s   +225.99s          ✗
+   13 One Way Out                       308.04s   4872.35s    307.85s     -0.19s          ✓
+   14 In Memory of Elizabeth Reed       770.87s   5180.20s    770.80s     -0.07s          ✓
+   15 Midnight Rider                    191.73s   5951.00s    191.71s     -0.02s          ✓
+   16 Hot ’Lanta                        351.63s   6142.71s   1556.94s  +1205.32s          ✗
+   17 Whipping Post                    1206.69s   7699.66s   1041.51s   -165.18s          ✗
+   18 You Don’t Love Me                1044.73s   8741.17s      1.78s  -1042.95s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:26:24.47            2:25:42.95
+
+--- Rank #4: The Allman Brothers Band - Eat a Peach ---
+  Release MBID: 678635d5-7635-48f8-9cde-f3d4a78f02d1
+  Track Count: 18
+  Match %: 16.7%
+  Final Score: 0.3541
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  -0.3160 × 0.45 = -0.1422
+    ├─ Name Score:     0.8450 × 0.25 = 0.2112
+    └─ Base Score:     0.3541 × 1.0000 (penalty) = 0.3541
+  Stage: Stage2
+  Mean Error: 586.14s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Ain’t Wastin’ Time No More        223.03s      0.00s    216.24s     -6.79s          ✓
+    2 Les Brers in A Minor              548.89s    216.24s      0.50s   -548.39s          ✗
+    3 Melissa                           240.59s    216.74s      0.19s   -240.40s          ✗
+    4 Mountain Jam                     2029.53s    216.93s      0.39s  -2029.15s          ✗
+    5 One Way Out                       297.84s    217.31s    537.29s   +239.45s          ✗
+    6 Trouble No More                   226.79s    754.61s    230.33s     +3.55s          ✓
+    7 Stand Back                        207.80s    984.94s      0.06s   -207.74s          ✗
+    8 Blue Sky                          312.24s    985.00s   2014.96s  +1702.72s          ✗
+    9 Little Martha                     129.79s   2999.96s    294.47s   +164.68s          ✗
+   10 Ain’t Wastin’ Time No More        223.00s   3294.43s    221.46s     -1.54s          ✓
+   11 Les Brers in A Minor              549.00s   3515.89s    201.82s   -347.18s          ✗
+   12 Melissa                           241.00s   3717.71s    434.23s   +193.23s          ✗
+   13 Mountain Jam                     2030.00s   4151.94s    492.70s  -1537.30s          ✗
+   14 One Way Out                       298.00s   4644.64s    220.33s    -77.67s          ✗
+   15 Trouble No More                   227.00s   4864.97s    307.85s    +80.85s          ✗
+   16 Stand Back                        208.00s   5172.82s    779.51s   +571.51s          ✗
+   17 Blue Sky                          312.00s   5952.32s   2781.94s  +2469.94s          ✗
+   18 Little Martha                     130.00s   8734.26s      1.58s   -128.42s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:20:34.49            2:25:35.84
+
+=========================================
+
+[2m2026-01-01T17:36:25.425714Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage4), percentage=94.4%
+✓ EXACT MATCH
+Testing 7/10: Ambrosia - The Essentials: Ambrosia ... [2m2026-01-01T17:36:25.466341Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Ambrosia/TheEssentialsAmbrosia.mp3
+[2m2026-01-01T17:36:25.471359Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Ambrosia, album=The Essentials: Ambrosia
+[2m2026-01-01T17:36:25.477848Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mAmbrosia [3malbum[0m[2m=[0mThe Essentials: Ambrosia [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:29.185005Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +630.5 MB [album_matcher decode] → Total: 6814.6 MB (6.81 GB) | 157622400 samples
+[2m2026-01-01T17:36:29.185025Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:29.185120Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 24 unique editions
+[2m2026-01-01T17:36:29.185150Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Artist filter: 18 editions removed (6 remaining, threshold=0.60)
+[2m2026-01-01T17:36:29.185164Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 4 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: The Essentials: Ambrosia)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Ambrosia - The Essentials: Ambrosia
+Tracks: 12, Detected: 12
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    351.09s      0.00s    348.80s     -2.29s          ✓
+  2    256.24s    348.80s    254.15s     -2.09s          ✓
+  3    299.29s    602.95s    296.19s     -3.10s          ✓
+  4    282.37s    899.14s    279.85s     -2.52s          ✓
+  5    326.80s   1178.99s    322.12s     -4.68s          ✓
+  6    261.93s   1501.11s    255.42s     -6.51s          ✓
+  7    244.73s   1756.53s    240.65s     -4.08s          ✓
+  8    287.00s   1997.18s    283.67s     -3.33s          ✓
+  9    335.33s   2280.85s    329.89s     -5.45s          ✓
+ 10    280.24s   2610.74s    270.60s     -9.64s          ✓
+ 11    291.49s   2881.34s    289.01s     -2.49s          ✓
+ 12    331.67s   3170.35s    327.93s     -3.74s          ✓
+------------------------------------------------------------------
+        TOTALS              3548.20s   3498.28s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Ambrosia/TheEssentialsAmbrosia.mp3
+Total Duration: 0:59:34.20 (3574.20s)
+
+=== Top 4 Candidate Rankings ===
+
+--- Rank #1: Ambrosia - The Essentials: Ambrosia ---
+  Release MBID: 8db525cb-cda0-4c72-b0af-91a50fd09a37
+  Track Count: 12
+  Match %: 100.0%
+  Final Score: 0.7978
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.5840 × 0.45 = 0.2628
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.7978 × 1.0000 (penalty) = 0.7978
+  Stage: Stage2
+  Mean Error: 4.16s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Nice, Nice, Very Nice (sing...    351.09s      0.00s    348.80s     -2.29s          ✓
+    2 Holdin’ On to Yesterday (si...    256.24s    348.80s    254.15s     -2.09s          ✓
+    3 And… Somewhere I’ve Never T...    299.29s    602.95s    296.19s     -3.10s          ✓
+    4 How Much I Feel                   282.37s    899.14s    279.85s     -2.52s          ✓
+    5 Biggest Part of Me                326.80s   1178.99s    322.12s     -4.68s          ✓
+    6 You’re the Only Woman (You ...    261.93s   1501.11s    255.42s     -6.51s          ✓
+    7 How Can You Love Me               244.73s   1756.53s    240.65s     -4.08s          ✓
+    8 Life Beyond L.A.                  287.00s   1997.18s    283.67s     -3.33s          ✓
+    9 For Openers (Welcome Home)        335.33s   2280.85s    329.89s     -5.45s          ✓
+   10 Cryin’ in the Rain                280.24s   2610.74s    270.60s     -9.64s          ✓
+   11 Time Waits for No One (LP v...    291.49s   2881.34s    289.01s     -2.49s          ✓
+   12 We Need You Too (LP version)      331.67s   3170.35s    327.93s     -3.74s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:59:08.20            0:58:18.28
+
+--- Rank #2: Ambrosia - The Essentials ---
+  Release MBID: c364a9e6-9c51-43ff-b000-f56272cb369e
+  Track Count: 12
+  Match %: 100.0%
+  Final Score: 0.7864
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.5773 × 0.45 = 0.2598
+    ├─ Name Score:     0.9667 × 0.25 = 0.2417
+    └─ Base Score:     0.7864 × 1.0000 (penalty) = 0.7864
+  Stage: Stage2
+  Mean Error: 4.23s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Nice, Nice, Very Nice             351.00s      0.00s    348.80s     -2.20s          ✓
+    2 Holdin’ on to Yesterday           257.00s    348.80s    254.15s     -2.85s          ✓
+    3 And… Somewhere I’ve Never T...    300.00s    602.95s    296.19s     -3.81s          ✓
+    4 How Much I Feel                   284.00s    899.14s    279.85s     -4.15s          ✓
+    5 Biggest Part of Me                326.00s   1178.99s    322.12s     -3.88s          ✓
+    6 You’re the Only Woman (You ...    261.00s   1501.11s    255.42s     -5.58s          ✓
+    7 How Can You Love Me               244.00s   1756.53s    240.65s     -3.35s          ✓
+    8 Life Beyond L.A.                  287.00s   1997.18s    283.67s     -3.33s          ✓
+    9 For Openers (Welcome Home)        335.00s   2280.85s    329.89s     -5.11s          ✓
+   10 Cryin’ in the Rain                280.00s   2610.74s    270.60s     -9.40s          ✓
+   11 Time Waits for No One             291.00s   2881.34s    289.01s     -1.99s          ✓
+   12 We Need You Too                   333.00s   3170.35s    327.93s     -5.07s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:59:09.00            0:58:18.28
+
+--- Rank #3: Ambrose - The Grace of Breaking Moments ---
+  Release MBID: 50f7cc89-1b0c-43ab-9017-cd545c13b4e5
+  Track Count: 13
+  Match %: 23.1%
+  Final Score: 0.3393
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  -0.3278 × 0.45 = -0.1475
+    ├─ Name Score:     0.8070 × 0.25 = 0.2017
+    └─ Base Score:     0.3393 × 1.0000 (penalty) = 0.3393
+  Stage: Stage2
+  Mean Error: 99.13s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Been There Done That              230.24s      0.00s    348.18s   +117.94s          ✗
+    2 Analysis of Beauty                245.43s    348.18s    253.83s     +8.41s          ✓
+    3 Full Moon Minute                  235.49s    602.01s    294.48s    +58.99s          ✗
+    4 Sleeper                           211.72s    896.49s    278.76s    +67.04s          ✗
+    5 Tiny Universe                     199.29s   1175.25s    321.32s   +122.02s          ✗
+    6 Thin                              223.00s   1496.57s    254.73s    +31.73s          ✗
+    7 Silent Spring                     257.39s   1751.31s    238.84s    -18.54s          ✗
+    8 Mediated                          173.77s   1990.15s    282.81s   +109.04s          ✗
+    9 Eclipse                           237.45s   2272.96s    328.29s    +90.84s          ✗
+   10 But Worth Denying                 259.68s   2601.24s    268.99s     +9.31s          ✓
+   11 Nowhere No. 35                    246.07s   2870.24s    288.42s    +42.35s          ✗
+   12 Everyday Wish                     315.85s   3158.65s    320.74s     +4.89s          ✓
+   13 Untold / Reminder                 608.61s   3479.40s      0.99s   -607.63s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:57:24.00            0:58:00.38
+
+--- Rank #4: Ambrosia - Live at the Galaxy ---
+  Release MBID: 006b07ca-23e7-47fb-a782-7e19ccbaa69d
+  Track Count: 12
+  Match %: 8.3%
+  Final Score: 0.1121
+    ├─ Duration Score: 0.3000 × 0.30 = 0.0900
+    ├─ Quality Score:  -0.4138 × 0.45 = -0.1862
+    ├─ Name Score:     0.8333 × 0.25 = 0.2083
+    └─ Base Score:     0.1121 × 1.0000 (penalty) = 0.1121
+  Stage: Stage2
+  Mean Error: 73.02s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Nice, Nice, Very Nice             385.00s      0.00s    348.80s    -36.20s          ✗
+    2 Livin' on My Own                  293.00s    348.80s    254.15s    -38.85s          ✗
+    3 You're the Only Woman             311.00s    602.95s    296.19s    -14.81s          ✗
+    4 Mama Don't Understand             275.00s    899.14s    279.85s     +4.85s          ✓
+    5 And… Somewhere I’ve Never T...    349.00s   1178.99s    322.12s    -26.88s          ✗
+    6 In My Life                        361.00s   1501.11s    255.42s   -105.58s          ✗
+    7 Time Waits for No One             394.00s   1756.53s    240.65s   -153.35s          ✗
+    8 How Much I Feel                   404.00s   1997.18s    283.67s   -120.33s          ✗
+    9 Magical Mystery Tour              232.00s   2280.85s    329.89s    +97.89s          ✗
+   10 Drink of Water                    378.00s   2610.74s    270.60s   -107.40s          ✗
+   11 Holdin’ On to Yesterday           418.00s   2881.34s    289.01s   -128.99s          ✗
+   12 Biggest Part of Me                369.00s   3170.35s    327.93s    -41.07s          ✗
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         1:09:29.00            0:58:18.28
+
+=========================================
+
+[2m2026-01-01T17:36:29.189880Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+✓ EXACT MATCH
+Testing 8/10: Asia - Gold ... [2m2026-01-01T17:36:29.207316Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Asia/GoldAsia.mp3
+[2m2026-01-01T17:36:29.212809Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Asia, album=Gold
+[2m2026-01-01T17:36:29.218057Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mAsia [3malbum[0m[2m=[0mGold [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:39.139530Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +1704.9 MB [album_matcher decode] → Total: 8519.5 MB (8.52 GB) | 426214656 samples
+[2m2026-01-01T17:36:39.139562Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:39.139705Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 22 unique editions
+[2m2026-01-01T17:36:39.139737Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Artist filter: 19 editions removed (3 remaining, threshold=0.60)
+[2m2026-01-01T17:36:39.139747Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 1 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Gold)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: Asia - Gold
+Tracks: 36, Detected: 36
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    229.13s      0.00s    226.90s     -2.24s          ✓
+  2    284.03s    226.90s    282.62s     -1.40s          ✓
+  3    286.47s    509.52s    283.96s     -2.51s          ✓
+  4    255.73s    793.48s    255.11s     -0.62s          ✓
+  5    283.21s   1048.59s    282.52s     -0.69s          ✓
+  6    310.05s   1331.11s    305.30s     -4.75s          ✓
+  7    302.51s   1636.41s    299.73s     -2.78s          ✓
+  8    335.76s   1936.13s    333.85s     -1.91s          ✓
+  9    339.64s   2269.98s    338.68s     -0.96s          ✓
+ 10    266.27s   2608.67s    264.32s     -1.95s          ✓
+ 11    216.09s   2872.98s    212.50s     -3.59s          ✓
+ 12    192.71s   3085.49s    190.84s     -1.87s          ✓
+ 13    222.20s   3276.33s    220.24s     -1.96s          ✓
+ 14    284.43s   3496.56s    282.40s     -2.03s          ✓
+ 15    294.88s   3778.96s    294.12s     -0.76s          ✓
+ 16    187.05s   4073.08s    185.03s     -2.02s          ✓
+ 17    278.64s   4258.11s    277.57s     -1.07s          ✓
+ 18    228.16s   4535.68s    226.75s     -1.41s          ✓
+ 19    226.33s   4762.43s    224.91s     -1.42s          ✓
+ 20    383.97s   4987.34s    382.18s     -1.80s          ✓
+ 21    212.63s   5369.51s    210.12s     -2.51s          ✓
+ 22    251.80s   5579.63s    249.09s     -2.71s          ✓
+ 23    245.84s   5828.72s    243.35s     -2.49s          ✓
+ 24    265.01s   6072.07s    262.11s     -2.91s          ✓
+ 25    210.32s   6334.18s    208.43s     -1.89s          ✓
+ 26    251.13s   6542.61s    249.97s     -1.16s          ✓
+ 27    407.69s   6792.58s    404.09s     -3.60s          ✓
+ 28    254.51s   7196.67s    252.12s     -2.38s          ✓
+ 29    250.61s   7448.80s    248.27s     -2.34s          ✓
+ 30    251.48s   7697.07s    248.41s     -3.07s          ✓
+ 31    224.67s   7945.48s    221.19s     -3.48s          ✓
+ 32    308.00s   8166.67s    306.21s     -1.79s          ✓
+ 33    263.71s   8472.88s    260.66s     -3.05s          ✓
+ 34    255.53s   8733.54s    252.41s     -3.12s          ✓
+ 35    258.80s   8985.95s    254.80s     -4.00s          ✓
+ 36    244.49s   9240.74s    242.91s     -1.59s          ✓
+------------------------------------------------------------------
+        TOTALS              9563.48s   9483.65s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\Asia/GoldAsia.mp3
+Total Duration: 2:41:04.73 (9664.73s)
+
+=== Top 1 Candidate Rankings ===
+
+--- Rank #1: Asia - Gold ---
+  Release MBID: dc4936ac-cc1f-497d-aa52-a31ce270a08d
+  Track Count: 36
+  Match %: 100.0%
+  Final Score: 0.8852
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7782 × 0.45 = 0.3502
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8852 × 1.0000 (penalty) = 0.8852
+  Stage: Stage2
+  Mean Error: 2.22s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Heat of the Moment                229.13s      0.00s    226.90s     -2.24s          ✓
+    2 Only Time Will Tell               284.03s    226.90s    282.62s     -1.40s          ✓
+    3 Sole Survivor                     286.47s    509.52s    283.96s     -2.51s          ✓
+    4 One Step Closer                   255.73s    793.48s    255.11s     -0.62s          ✓
+    5 Time Again                        283.21s   1048.59s    282.52s     -0.69s          ✓
+    6 Wildest Dreams                    310.05s   1331.11s    305.30s     -4.75s          ✓
+    7 Without You                       302.51s   1636.41s    299.73s     -2.78s          ✓
+    8 Cutting It Fine                   335.76s   1936.13s    333.85s     -1.91s          ✓
+    9 Here Comes the Feeling            339.64s   2269.98s    338.68s     -0.96s          ✓
+   10 Ride Easy                         266.27s   2608.67s    264.32s     -1.95s          ✓
+   11 Don't Cry                         216.09s   2872.98s    212.50s     -3.59s          ✓
+   12 The Smile Has Left Your Eyes      192.71s   3085.49s    190.84s     -1.87s          ✓
+   13 Never in a Million Years          222.20s   3276.33s    220.24s     -1.96s          ✓
+   14 My Own Time (I'll Do What I...    284.43s   3496.56s    282.40s     -2.03s          ✓
+   15 The Heat Goes On                  294.88s   3778.96s    294.12s     -0.76s          ✓
+   16 Eye to Eye                        187.05s   4073.08s    185.03s     -2.02s          ✓
+   17 The Last to Know                  278.64s   4258.11s    277.57s     -1.07s          ✓
+   18 True Colors                       228.16s   4535.68s    226.75s     -1.41s          ✓
+   19 Midnight Sun                      226.33s   4762.43s    224.91s     -1.42s          ✓
+   20 Open Your Eyes                    383.97s   4987.34s    382.18s     -1.80s          ✓
+   21 Daylight                          212.63s   5369.51s    210.12s     -2.51s          ✓
+   22 Lyin' to Yourself                 251.80s   5579.63s    249.09s     -2.71s          ✓
+   23 Go                                245.84s   5828.72s    243.35s     -2.49s          ✓
+   24 Voice of America                  265.01s   6072.07s    262.11s     -2.91s          ✓
+   25 Hard on Me                        210.32s   6334.18s    208.43s     -1.89s          ✓
+   26 Wishing                           251.13s   6542.61s    249.97s     -1.16s          ✓
+   27 Rock and Roll Dream               407.69s   6792.58s    404.09s     -3.60s          ✓
+   28 Countdown to Zero                 254.51s   7196.67s    252.12s     -2.38s          ✓
+   29 Love Now Til Eternity             250.61s   7448.80s    248.27s     -2.34s          ✓
+   30 Too Late                          251.48s   7697.07s    248.41s     -3.07s          ✓
+   31 Suspicion                         224.67s   7945.48s    221.19s     -3.48s          ✓
+   32 After the War                     308.00s   8166.67s    306.21s     -1.79s          ✓
+   33 Am I in Love?                     263.71s   8472.88s    260.66s     -3.05s          ✓
+   34 Summer (Can't Last Too long)      255.53s   8733.54s    252.41s     -3.12s          ✓
+   35 Prayin' 4 a Miracle               258.80s   8985.95s    254.80s     -4.00s          ✓
+   36 Days Like These                   244.49s   9240.74s    242.91s     -1.59s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         2:39:23.48            2:38:03.65
+
+=========================================
+
+[2m2026-01-01T17:36:39.146629Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+⚠ MBID CHANGED: 155033f7-f321-4ee8-8a24-513b44fd7509 -> dc4936ac-cc1f-497d-aa52-a31ce270a08d
+Testing 9/10: BTS - Wings ... [2m2026-01-01T17:36:39.192981Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\BTS/Wings.mp3
+[2m2026-01-01T17:36:39.197718Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=BTS, album=Wings
+[2m2026-01-01T17:36:39.203167Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mBTS [3malbum[0m[2m=[0mWings [3mfound[0m[2m=[0m25
+[2m2026-01-01T17:36:42.537432Z[0m [32m INFO[0m [2mwkmp_ai::workflow::memory_tracker[0m[2m:[0m MEMORY: +568.9 MB [album_matcher decode] → Total: 9088.4 MB (9.09 GB) | 142231680 samples
+[2m2026-01-01T17:36:42.537454Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Found 25 MusicBrainz releases
+[2m2026-01-01T17:36:42.537554Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Grouped into 19 unique editions
+[2m2026-01-01T17:36:42.537578Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Artist filter: 16 editions removed (3 remaining, threshold=0.60)
+[2m2026-01-01T17:36:42.537585Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Testing 3 editions (top by name similarity)
+
+=== Stage-by-Stage Match Percentages ===
+  Stage 2 (Parameter Grid): 100.0% (edition: Wings)
+  Stage 3 (DP Assembly): No results
+  Stage 4 (RMS Quiet Spot): No results
+  Stage 5 (Extra Merging): No results
+  Winning Stage: Stage2 (100.0%)
+========================================
+
+
+=== Track-by-Track Duration Comparison ===
+Album: BTS - Wings
+Tracks: 15, Detected: 15
+
+Trk   Expected   @ Offset   Detected      Error     Status
+------------------------------------------------------------------
+  1    121.00s      0.00s    120.06s     -0.94s          ✓
+  2    217.00s    120.06s    212.67s     -4.33s          ✓
+  3    229.00s    332.72s    226.88s     -2.12s          ✓
+  4    215.00s    559.61s    214.70s     -0.30s          ✓
+  5    216.00s    774.31s    212.72s     -3.28s          ✓
+  6    189.00s    987.03s    184.89s     -4.11s          ✓
+  7    233.00s   1171.92s    231.51s     -1.49s          ✓
+  8    212.00s   1403.43s    210.15s     -1.85s          ✓
+  9    226.00s   1613.58s    222.79s     -3.21s          ✓
+ 10    241.00s   1836.37s    239.29s     -1.71s          ✓
+ 11    294.00s   2075.66s    291.71s     -2.29s          ✓
+ 12    213.00s   2367.36s    210.47s     -2.53s          ✓
+ 13    192.00s   2577.83s    192.54s     +0.54s          ✓
+ 14    272.00s   2770.37s    267.83s     -4.17s          ✓
+ 15    144.00s   3038.20s    141.06s     -2.94s          ✓
+------------------------------------------------------------------
+        TOTALS              3214.00s   3179.26s           
+==========================================
+
+
+File: C:\Users\Mango Cat\Music\BTS/Wings.mp3
+Total Duration: 0:53:45.21 (3225.21s)
+
+=== Top 3 Candidate Rankings ===
+
+--- Rank #1: BTS - Wings ---
+  Release MBID: b36fb763-3d2c-4015-8c37-25968728e4cb
+  Track Count: 15
+  Match %: 100.0%
+  Final Score: 0.8775
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7612 × 0.45 = 0.3425
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8775 × 1.0000 (penalty) = 0.8775
+  Stage: Stage2
+  Mean Error: 2.39s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Intro: Boy Meets Evil             121.00s      0.00s    120.06s     -0.94s          ✓
+    2 Blood Sweat & Tears               217.00s    120.06s    212.67s     -4.33s          ✓
+    3 Begin                             229.00s    332.72s    226.88s     -2.12s          ✓
+    4 Lie                               215.00s    559.61s    214.70s     -0.30s          ✓
+    5 Stigma                            216.00s    774.31s    212.72s     -3.28s          ✓
+    6 First Love                        189.00s    987.03s    184.89s     -4.11s          ✓
+    7 Reflection                        233.00s   1171.92s    231.51s     -1.49s          ✓
+    8 MAMA                              212.00s   1403.43s    210.15s     -1.85s          ✓
+    9 Awake                             226.00s   1613.58s    222.79s     -3.21s          ✓
+   10 Lost                              241.00s   1836.37s    239.29s     -1.71s          ✓
+   11 BTS Cypher 4                      294.00s   2075.66s    291.71s     -2.29s          ✓
+   12 Am I Wrong                        213.00s   2367.36s    210.47s     -2.53s          ✓
+   13 21st Century Girl                 192.00s   2577.83s    192.54s     +0.54s          ✓
+   14 2! 3!                             272.00s   2770.37s    267.83s     -4.17s          ✓
+   15 Interlude: Wings                  144.00s   3038.20s    141.06s     -2.94s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:53:34.00            0:52:59.26
+
+--- Rank #2: BTS - WINGS ---
+  Release MBID: cc613cb1-be50-4627-9ca5-68b09f58a8e4
+  Track Count: 15
+  Match %: 100.0%
+  Final Score: 0.8538
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.7084 × 0.45 = 0.3188
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8538 × 1.0000 (penalty) = 0.8538
+  Stage: Stage2
+  Mean Error: 2.92s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Intro : Boy Meets Evil            122.00s      0.00s    120.06s     -1.94s          ✓
+    2 Blood Sweat & Tears               217.00s    120.06s    212.67s     -4.33s          ✓
+    3 Begin                             230.00s    332.72s    226.88s     -3.12s          ✓
+    4 Lie                               216.00s    559.61s    214.70s     -1.30s          ✓
+    5 Stigma                            216.00s    774.31s    212.72s     -3.28s          ✓
+    6 First Love                        190.00s    987.03s    184.89s     -5.11s          ✓
+    7 Reflection                        234.00s   1171.92s    231.51s     -2.49s          ✓
+    8 MAMA                              212.00s   1403.43s    210.15s     -1.85s          ✓
+    9 Awake                             226.00s   1613.58s    222.79s     -3.21s          ✓
+   10 Lost                              242.00s   1836.37s    239.29s     -2.71s          ✓
+   11 BTS Cypher 4                      294.00s   2075.66s    291.71s     -2.29s          ✓
+   12 Am I Wrong                        213.00s   2367.36s    210.47s     -2.53s          ✓
+   13 21st Century Girl                 193.00s   2577.83s    192.54s     -0.46s          ✓
+   14 2! 3!                             273.00s   2770.37s    267.83s     -5.17s          ✓
+   15 Interlude : Wings                 145.00s   3038.20s    141.06s     -3.94s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:53:43.00            0:52:59.26
+
+--- Rank #3: BTS - WINGS ---
+  Release MBID: 394640fb-6f96-4f07-82d2-3639ddb84104
+  Track Count: 15
+  Match %: 100.0%
+  Final Score: 0.8341
+    ├─ Duration Score: 0.9500 × 0.30 = 0.2850
+    ├─ Quality Score:  0.6647 × 0.45 = 0.2991
+    ├─ Name Score:     1.0000 × 0.25 = 0.2500
+    └─ Base Score:     0.8341 × 1.0000 (penalty) = 0.8341
+  Stage: Stage2
+  Mean Error: 3.35s
+
+  Trk Track Title                      Expected   @ Offset   Detected      Error     Status
+  ----------------------------------------------------------------------------------------------------------
+    1 Intro : Boy Meets Evil            122.00s      0.00s    120.18s     -1.82s          ✓
+    2 피 땀 눈물                            213.00s    120.18s    212.73s     -0.27s          ✓
+    3 Begin                             231.00s    332.91s    227.10s     -3.90s          ✓
+    4 Lie                               217.00s    560.01s    214.98s     -2.02s          ✓
+    5 Stigma                            219.00s    774.99s    212.90s     -6.10s          ✓
+    6 First Love                        184.00s    987.89s    184.97s     +0.97s          ✓
+    7 Reflection                        236.00s   1172.86s    231.68s     -4.32s          ✓
+    8 MAMA                              215.00s   1404.54s    210.33s     -4.67s          ✓
+    9 Awake                             215.00s   1614.87s    223.17s     +8.17s          ✓
+   10 Lost                              241.00s   1838.04s    239.43s     -1.57s          ✓
+   11 BTS Cypher 4                      292.00s   2077.47s    291.72s     -0.28s          ✓
+   12 Am I Wrong                        213.00s   2369.19s    210.72s     -2.28s          ✓
+   13 21세기 소녀                           195.00s   2579.90s    192.55s     -2.45s          ✓
+   14 둘! 셋! (그래도 좋은 날이 더 많기를)           278.00s   2772.45s    268.29s     -9.71s          ✓
+   15 Interlude : Wings                 143.00s   3040.75s    141.24s     -1.76s          ✓
+  ----------------------------------------------------------------------------------------------------------
+      TOTALS                         0:53:34.00            0:53:01.98
+
+=========================================
+
+[2m2026-01-01T17:36:42.542069Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Album match complete: matched=true, stage=Some(Stage2), percentage=100.0%
+⚠ MBID CHANGED: 5365a8ab-8ec5-4e2d-86ab-e985c27c1947 -> b36fb763-3d2c-4015-8c37-25968728e4cb
+Testing 10/10: Bear's Den - Islands ... [2m2026-01-01T17:36:42.557435Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting album match for: C:\Users\Mango Cat\Music\Bears' Den/Islands.mp3
+[2m2026-01-01T17:36:42.558842Z[0m [32m INFO[0m [2mwkmp_ai::matching::album_matcher[0m[2m:[0m Starting parallel: decode + MusicBrainz lookup for artist=Bear's Den, album=Islands
+[2m2026-01-01T17:36:42.564388Z[0m [32m INFO[0m [2mwkmp_ai::services::musicbrainz_client[0m[2m:[0m Comprehensive search completed (with caching) [3martist[0m[2m=[0mBear's Den [3malbum[0m[2m=[0mIslands [3mfound[0m[2m=[0m25

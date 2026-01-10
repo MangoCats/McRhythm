@@ -33,6 +33,10 @@ use super::metadata::extract_and_reconcile_metadata;
 use super::orchestrator::{run_orchestration, OrchestratorConfig};
 use super::silence_detection::precompute_silence_cache;
 use super::single_track::SingleTrackDiscriminator;
+use super::stage6_helpers::{
+    count_tracks_within_tolerance, detect_cascade_patterns, detect_complementary_pairs,
+    refine_cascade_pattern, refine_complementary_pair, validate_full_album_improvement,
+};
 use super::stages::stage4::RmsProfile;
 use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
 use crate::services::{MBError, MusicBrainzClient};
@@ -123,6 +127,9 @@ pub struct AlbumMatcherConfig {
     pub enable_stage5: bool,
     /// Penalty percentage for Stage 4 results (lower reliability)
     pub stage4_penalty_percent: f64,
+    /// **[BOUNDARY_REFINEMENT]** Enable Stage 6: Boundary refinement
+    /// Fine-tunes boundary positions within matched edition to find better low-energy spots
+    pub enable_boundary_refinement: bool,
 
     // --- Early-Exit Configuration (PLAN030) ---
     /// Enable early exit on 100% match
@@ -150,6 +157,7 @@ impl Default for AlbumMatcherConfig {
             enable_stage4: true,
             enable_stage5: true,
             stage4_penalty_percent: STAGE4_PENALTY_PERCENT,
+            enable_boundary_refinement: true, // **[BOUNDARY_REFINEMENT]** Enabled by default
             enable_early_exit: true,
             early_exit_grace_secs: EARLY_EXIT_GRACE_PERIOD_SECS,
             threshold_values: None,
@@ -341,7 +349,7 @@ impl AlbumMatcher {
         let (decode_result, mb_result) = tokio::join!(decode_handle, mb_handle);
 
         // Process decode result
-        let (samples, sample_rate, silence_cache, rms_profile) =
+        let (samples, sample_rate, silence_cache, rms_profile, audio_energy) =
             decode_result.map_err(|e| AlbumMatchError::TaskJoinError(e.to_string()))??;
 
         let _tracking_id = memory_tracker::track_allocation(samples.len(), "album_matcher decode");
@@ -442,8 +450,9 @@ impl AlbumMatcher {
 
         // **[ARTIST FILTERING]** Filter out editions with clearly incorrect artists
         // This prevents wrong artists from being matched even if duration/quality scores are good
+        // **[PHASE 1 EXTENSION 3]** Now passes album title for live/compilation detection
         let editions_before_artist_filter = editions.len();
-        let editions = filter_editions_by_artist(editions, &artist, self.config.min_artist_similarity);
+        let editions = filter_editions_by_artist(editions, &artist, &album, self.config.min_artist_similarity);
         let editions_after_artist_filter = editions.len();
         if editions_before_artist_filter > editions_after_artist_filter {
             info!(
@@ -671,6 +680,8 @@ impl AlbumMatcher {
             },
             // **[IMPROVEMENT#1]** Preserve samples for successful matches too (may be useful for future features)
             decoded_audio: Some((samples, sample_rate)),
+            // **[BOUNDARY_REFINEMENT]** Energy envelope for Stage 6 boundary refinement
+            audio_energy: Some(audio_energy),
             // **[Top-5 Ranking]** Include ranked candidates with passage comparison tables
             ranked_candidates,
         };
@@ -751,6 +762,17 @@ impl AlbumMatcher {
             eprintln!("\n=========================================\n");
         }
 
+        // **[BOUNDARY_REFINEMENT]** Stage 6: Boundary refinement (optional)
+        let mut album_result = album_result;
+        if self.config.enable_boundary_refinement && album_result.matched {
+            if let Some(audio_energy) = album_result.audio_energy.clone() {
+                debug!("Stage 6: Attempting boundary refinement");
+                album_result = self.refine_boundaries(album_result, &audio_energy)?;
+            } else {
+                debug!("Stage 6: Skipping boundary refinement (no audio energy data)");
+            }
+        }
+
         info!(
             "Album match complete: matched={}, stage={:?}, percentage={:.1}%",
             album_result.matched, album_result.matching_stage, album_result.match_percentage
@@ -762,6 +784,301 @@ impl AlbumMatcher {
     /// Get configuration
     pub fn config(&self) -> &AlbumMatcherConfig {
         &self.config
+    }
+
+    /// **[BOUNDARY_REFINEMENT]** Stage 6: Refine boundary positions
+    ///
+    /// Fine-tunes boundary positions within the matched edition to find better
+    /// low-energy spots near expected boundary locations.
+    ///
+    /// # Semantics
+    /// - Assumes winning edition is correct (does not re-select edition)
+    /// - Assumes track count is correct (does not add/remove boundaries)
+    /// - Goal: Move boundaries to better low-energy positions (±60s search window)
+    /// - Method: Parallel pattern detection + full-album validation
+    ///
+    /// # Arguments
+    /// * `result` - Album match result with original boundaries
+    /// * `audio_energy` - RMS energy envelope (100ms windows)
+    ///
+    /// # Returns
+    /// Updated result with refined boundaries and match percentage
+    fn refine_boundaries(
+        &self,
+        mut result: AlbumMatchResult,
+        audio_energy: &[f32],
+    ) -> Result<AlbumMatchResult, AlbumMatchError> {
+        // Extract sample rate from decoded_audio
+        let sample_rate = match result.decoded_audio {
+            Some((_, sr)) => sr,
+            None => {
+                debug!("No decoded audio available for refinement");
+                return Ok(result);
+            }
+        };
+
+        let original_match_pct = result.match_percentage;
+        let original_tracks = result.tracks.clone();
+
+        debug!(
+            "Boundary refinement: edition={}, track_count={}, original_match={:.1}%",
+            result.release_mbid.as_deref().unwrap_or("unknown"),
+            original_tracks.len(),
+            original_match_pct
+        );
+
+        // Convert tracks to boundaries (in samples)
+        let mut boundaries = vec![0_usize];
+        let mut cumulative_samples = 0_usize;
+        for track in &original_tracks {
+            cumulative_samples += (track.detected_duration * sample_rate as f64) as usize;
+            boundaries.push(cumulative_samples);
+        }
+
+        // Extract expected durations (in seconds)
+        let expected_durations: Vec<f64> = original_tracks
+            .iter()
+            .map(|t| t.expected_duration)
+            .collect();
+
+        // Detect refinement patterns on ORIGINAL boundaries (parallel detection)
+        let cascade_patterns = detect_cascade_patterns(&original_tracks);
+        let complementary_pairs = detect_complementary_pairs(&original_tracks);
+
+        if cascade_patterns.is_empty() && complementary_pairs.is_empty() {
+            debug!("No refinement patterns detected - returning original boundaries");
+            return Ok(result);
+        }
+
+        debug!(
+            "Detected {} cascade patterns, {} complementary pairs",
+            cascade_patterns.len(),
+            complementary_pairs.len()
+        );
+
+        // **[OVERLAP_RESOLUTION]** Identify overlapping patterns (cascade + complementary affecting same tracks)
+        // When patterns overlap, try both approaches and pick the best result
+        let mut overlapping_patterns: Vec<(usize, usize)> = Vec::new(); // (cascade_idx, complementary_idx)
+
+        for (cascade_idx, cascade) in cascade_patterns.iter().enumerate() {
+            // 2-track cascade overlaps with complementary pair if they share the same tracks
+            if cascade.count == 2 {
+                let cascade_start = cascade.start_track;
+                let cascade_end = cascade.start_track + 1;
+
+                for (pair_idx, pair) in complementary_pairs.iter().enumerate() {
+                    // Complementary pair affects tracks pair.track_index and pair.track_index + 1
+                    if pair.track_index == cascade_start ||
+                       pair.track_index == cascade_end ||
+                       pair.track_index + 1 == cascade_start ||
+                       pair.track_index + 1 == cascade_end {
+                        overlapping_patterns.push((cascade_idx, pair_idx));
+                        debug!(
+                            "Overlap detected: cascade at tracks {}-{} and complementary pair at tracks {}-{}",
+                            cascade_start + 1, cascade_end + 1,
+                            pair.track_index + 1, pair.track_index + 2
+                        );
+                    }
+                }
+            }
+        }
+
+        let mut best_boundaries = boundaries.clone();
+        let mut improvements = Vec::new();
+
+        // Process overlapping patterns first - try both approaches and pick the best
+        let mut processed_cascades = std::collections::HashSet::new();
+        let mut processed_pairs = std::collections::HashSet::new();
+
+        for (cascade_idx, pair_idx) in overlapping_patterns {
+            if processed_cascades.contains(&cascade_idx) || processed_pairs.contains(&pair_idx) {
+                continue; // Already processed
+            }
+
+            let cascade = &cascade_patterns[cascade_idx];
+            let pair = &complementary_pairs[pair_idx];
+
+            debug!(
+                "Resolving overlap: trying both cascade (tracks {}) and complementary (tracks {}-{}) approaches",
+                cascade.start_track + 1, pair.track_index + 1, pair.track_index + 2
+            );
+
+            // Try cascade refinement
+            let cascade_result = refine_cascade_pattern(
+                cascade,
+                &best_boundaries,
+                &expected_durations,
+                audio_energy,
+                sample_rate,
+            );
+
+            // Try complementary refinement
+            let complementary_result = refine_complementary_pair(
+                pair,
+                &best_boundaries,
+                &expected_durations,
+                audio_energy,
+                sample_rate,
+            );
+
+            // Calculate match percentages for both approaches
+            let cascade_match = if let Some(ref refined) = cascade_result {
+                let within = count_tracks_within_tolerance(refined, &expected_durations, sample_rate, self.config.match_tolerance_secs);
+                (within as f64 / expected_durations.len() as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            let complementary_match = if let Some(ref refined) = complementary_result {
+                let within = count_tracks_within_tolerance(refined, &expected_durations, sample_rate, self.config.match_tolerance_secs);
+                (within as f64 / expected_durations.len() as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            // Pick the better approach
+            let (best_approach, best_refined, best_match) =
+                if complementary_match > cascade_match {
+                    ("complementary", complementary_result, complementary_match)
+                } else if cascade_match > 0.0 {
+                    ("cascade", cascade_result, cascade_match)
+                } else {
+                    ("none", None, 0.0)
+                };
+
+            if let Some(refined) = best_refined {
+                // Validate full-album improvement
+                if validate_full_album_improvement(
+                    &best_boundaries,
+                    &refined,
+                    &expected_durations,
+                    sample_rate,
+                    self.config.match_tolerance_secs,
+                ) {
+                    debug!(
+                        "Overlap resolution: {} approach selected (match: {:.1}% vs {:.1}%), tracks {}",
+                        best_approach,
+                        best_match,
+                        if best_approach == "complementary" { cascade_match } else { complementary_match },
+                        if best_approach == "complementary" {
+                            format!("{}-{}", pair.track_index + 1, pair.track_index + 2)
+                        } else {
+                            format!("{}", cascade.start_track + 1)
+                        }
+                    );
+                    best_boundaries = refined;
+                    improvements.push(format!("{}:{}",
+                        best_approach,
+                        if best_approach == "complementary" { pair.track_index + 1 } else { cascade.start_track + 1 }
+                    ));
+
+                    processed_cascades.insert(cascade_idx);
+                    processed_pairs.insert(pair_idx);
+                } else {
+                    debug!("Overlap resolution: both approaches failed validation");
+                }
+            }
+        }
+
+        // Apply non-overlapping cascade refinements
+        for (cascade_idx, cascade) in cascade_patterns.iter().enumerate() {
+            if processed_cascades.contains(&cascade_idx) {
+                continue;
+            }
+
+            if let Some(refined) = refine_cascade_pattern(
+                cascade,
+                &best_boundaries,
+                &expected_durations,
+                audio_energy,
+                sample_rate,
+            ) {
+                // Validate full-album improvement
+                if validate_full_album_improvement(
+                    &best_boundaries,
+                    &refined,
+                    &expected_durations,
+                    sample_rate,
+                    self.config.match_tolerance_secs,
+                ) {
+                    debug!("Cascade refinement accepted (tracks {})", cascade.start_track + 1);
+                    best_boundaries = refined;
+                    improvements.push(format!("cascade:{}", cascade.start_track + 1));
+                }
+            }
+        }
+
+        // Apply non-overlapping complementary pair refinements
+        for (pair_idx, pair) in complementary_pairs.iter().enumerate() {
+            if processed_pairs.contains(&pair_idx) {
+                continue;
+            }
+
+            if let Some(refined) = refine_complementary_pair(
+                pair,
+                &best_boundaries,
+                &expected_durations,
+                audio_energy,
+                sample_rate,
+            ) {
+                // Validate full-album improvement
+                if validate_full_album_improvement(
+                    &best_boundaries,
+                    &refined,
+                    &expected_durations,
+                    sample_rate,
+                    self.config.match_tolerance_secs,
+                ) {
+                    debug!("Complementary refinement accepted (tracks {}-{})", pair.track_index + 1, pair.track_index + 2);
+                    best_boundaries = refined;
+                    improvements.push(format!("complementary:{}", pair.track_index + 1));
+                }
+            }
+        }
+
+        // If no improvements were applied, return original
+        if improvements.is_empty() {
+            debug!("No refinements passed validation - returning original boundaries");
+            return Ok(result);
+        }
+
+        // Convert refined boundaries back to tracks
+        let mut refined_tracks = Vec::new();
+        for (i, track) in original_tracks.iter().enumerate() {
+            let refined_duration = (best_boundaries[i + 1] - best_boundaries[i]) as f64 / sample_rate as f64;
+            let timing_error = (refined_duration - track.expected_duration).abs();
+            let within_tolerance = timing_error <= self.config.match_tolerance_secs;
+
+            refined_tracks.push(MatchedTrack {
+                track_number: track.track_number,
+                disc_number: track.disc_number,
+                recording_mbid: track.recording_mbid.clone(),
+                title: track.title.clone(),
+                detected_duration: refined_duration,
+                expected_duration: track.expected_duration,
+                timing_error,
+                within_tolerance,
+            });
+        }
+
+        // Calculate new match percentage
+        let refined_within_tolerance = refined_tracks.iter().filter(|t| t.within_tolerance).count();
+        let refined_match_pct = (refined_within_tolerance as f64 / refined_tracks.len() as f64) * 100.0;
+
+        debug!(
+            "Boundary refinement complete: {:.1}% → {:.1}% ({:+.1}%), strategies: {:?}",
+            original_match_pct,
+            refined_match_pct,
+            refined_match_pct - original_match_pct,
+            improvements
+        );
+
+        // Update result with refined tracks
+        result.tracks = refined_tracks;
+        result.match_percentage = refined_match_pct;
+        result.matched_track_count = refined_within_tolerance;
+
+        Ok(result)
     }
 }
 
@@ -776,7 +1093,7 @@ fn decode_and_analyze(
     path: &Path,
     threshold_values: &[f64],
     min_duration_values: &[f64],
-) -> Result<(Vec<f32>, u32, SilenceCache, RmsProfile), AlbumMatchError> {
+) -> Result<(Vec<f32>, u32, SilenceCache, RmsProfile, Vec<f32>), AlbumMatchError> {
     use symphonia::core::audio::SampleBuffer;
     use symphonia::core::codecs::DecoderOptions;
     use symphonia::core::formats::FormatOptions;
@@ -854,10 +1171,14 @@ fn decode_and_analyze(
     let silence_cache =
         precompute_silence_cache(&samples, sample_rate, threshold_values, min_duration_values);
 
-    // Compute RMS profile for Stage 4
+    // Compute RMS profile for Stage 4 (50ms windows)
     let rms_profile = RmsProfile::from_samples(&samples, sample_rate, 50.0);
 
-    Ok((samples, sample_rate, silence_cache, rms_profile))
+    // **[BOUNDARY_REFINEMENT]** Compute energy envelope for boundary refinement (100ms windows)
+    let energy_profile = RmsProfile::from_samples(&samples, sample_rate, 100.0);
+    let audio_energy = energy_profile.values;
+
+    Ok((samples, sample_rate, silence_cache, rms_profile, audio_energy))
 }
 
 /// Build matched tracks list from orchestration result

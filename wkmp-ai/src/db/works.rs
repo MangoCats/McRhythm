@@ -172,12 +172,8 @@ mod tests {
             .await
             .expect("Failed to create in-memory database");
 
-        // Initialize schema for test database
-        sqlx::query("PRAGMA foreign_keys = ON")
-            .execute(&pool)
-            .await
-            .unwrap();
-        wkmp_common::db::init::create_works_table(&pool)
+        // Initialize schema for test database (including self-healing schema sync)
+        wkmp_common::db::init::init_database_schema(&pool)
             .await
             .unwrap();
 

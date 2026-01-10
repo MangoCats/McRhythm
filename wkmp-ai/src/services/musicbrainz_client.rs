@@ -217,6 +217,75 @@ impl MusicBrainzClient {
         })
     }
 
+    /// Execute HTTP request with retry logic for connection errors
+    ///
+    /// Retries up to 3 times with exponential backoff when connection is closed by server.
+    /// - Attempt 1: base throttling period (1000ms)
+    /// - Attempt 2: 2x throttling period (2000ms)
+    /// - Attempt 3: 4x throttling period (4000ms)
+    ///
+    /// # Arguments
+    /// * `operation` - Description of operation for logging (e.g., "lookup recording abc123")
+    /// * `request_fn` - Closure that executes the HTTP request
+    async fn execute_with_retry<F, Fut>(
+        &self,
+        operation: &str,
+        mut request_fn: F,
+    ) -> Result<reqwest::Response, MBError>
+    where
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = Result<reqwest::Response, reqwest::Error>>,
+    {
+        const MAX_RETRIES: u32 = 3;
+        let base_wait_ms = RATE_LIMIT_MS;
+
+        for attempt in 1..=MAX_RETRIES {
+            match request_fn().await {
+                Ok(response) => return Ok(response),
+                Err(e) => {
+                    let error_msg = e.to_string();
+                    let is_connection_closed = error_msg.contains("connection closed before message completed")
+                        || error_msg.contains("connection closed")
+                        || error_msg.contains("broken pipe")
+                        || error_msg.contains("stream closed");
+
+                    if is_connection_closed && attempt < MAX_RETRIES {
+                        // Calculate exponential backoff: 1s, 2s, 4s
+                        let wait_ms = base_wait_ms * (1 << (attempt - 1)); // 2^(attempt-1)
+                        let wait_duration = Duration::from_millis(wait_ms);
+
+                        tracing::warn!(
+                            operation = %operation,
+                            attempt = attempt,
+                            max_retries = MAX_RETRIES,
+                            "Connection closed by MusicBrainz server - waiting {}ms before retry",
+                            wait_ms
+                        );
+
+                        tokio::time::sleep(wait_duration).await;
+
+                        tracing::info!(
+                            operation = %operation,
+                            attempt = attempt + 1,
+                            max_retries = MAX_RETRIES,
+                            "Retrying connection to MusicBrainz (attempt {}/{})",
+                            attempt + 1,
+                            MAX_RETRIES
+                        );
+                    } else {
+                        // Non-retryable error or max retries exceeded
+                        return Err(MBError::NetworkError(error_msg));
+                    }
+                }
+            }
+        }
+
+        // Should never reach here due to return in loop, but satisfy type checker
+        Err(MBError::NetworkError(
+            "Max retries exceeded".to_string(),
+        ))
+    }
+
     /// Lookup recording by MBID
     ///
     /// **[AIA-INT-010]** Query MusicBrainz for recording metadata
@@ -232,12 +301,12 @@ impl MusicBrainzClient {
 
         tracing::debug!(mbid = %mbid, url = %url, "Querying MusicBrainz API");
 
+        let operation = format!("lookup recording {}", mbid);
         let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+            .execute_with_retry(&operation, || {
+                self.http_client.get(&url).send()
+            })
+            .await?;
 
         let status = response.status();
 
@@ -312,12 +381,12 @@ impl MusicBrainzClient {
 
         tracing::debug!(query = %query, limit, url = %url, "Searching MusicBrainz recordings");
 
+        let operation = format!("search recordings: {}", query);
         let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+            .execute_with_retry(&operation, || {
+                self.http_client.get(&url).send()
+            })
+            .await?;
 
         let status = response.status();
 
@@ -375,12 +444,12 @@ impl MusicBrainzClient {
 
         tracing::debug!(query = %query, limit, url = %url, "Searching MusicBrainz releases");
 
+        let operation = format!("search releases: {}", query);
         let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+            .execute_with_retry(&operation, || {
+                self.http_client.get(&url).send()
+            })
+            .await?;
 
         let status = response.status();
 
@@ -445,12 +514,12 @@ impl MusicBrainzClient {
 
         tracing::debug!(mbid = %release_mbid, url = %url, "Fetching release details from MusicBrainz");
 
+        let operation = format!("lookup release {}", release_mbid);
         let response = self
-            .http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| MBError::NetworkError(e.to_string()))?;
+            .execute_with_retry(&operation, || {
+                self.http_client.get(&url).send()
+            })
+            .await?;
 
         let status = response.status();
 
@@ -877,10 +946,33 @@ fn apply_wildcard_fixes(s: &str) -> Option<String> {
 /// * `artist` - Artist name from metadata
 /// * `album` - Album name from metadata
 ///
+/// Strip punctuation from text for search
+///
+/// **[PHASE 1 EXTENSION 4]** Handles punctuation variations:
+/// - Hyphens and slashes become spaces: "Go-Go" → "Go Go", "AC/DC" → "AC DC"
+/// - Other punctuation removed: "Go's" → "Gos", "R.E.M." → "REM"
+fn strip_punctuation(text: &str) -> String {
+    text.chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c.is_whitespace() {
+                c
+            } else if c == '-' || c == '/' {
+                ' '  // Replace separators with space
+            } else {
+                '\0'  // Mark for removal
+            }
+        })
+        .filter(|&c| c != '\0')  // Remove marked characters
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// # Returns
 /// Vec of Lucene query strings, ordered by precision (most specific first)
 fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
-    let mut strategies = Vec::with_capacity(7);
+    let mut strategies = Vec::with_capacity(10);  // **[PHASE 1]** Increased from 7 to 10
 
     // Strategy 1: Basic unquoted search with type:album filter
     // Avoids quoted exact-match which is too restrictive
@@ -951,6 +1043,46 @@ fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
     // Strategy 7: Album-only fallback
     // Last resort when artist name is problematic
     strategies.push(format!("type:album AND release:{}", album));
+
+    // **[PHASE 1 EXTENSION 4]** New search strategies for artist variations
+
+    // Strategy 8: Artist prefix/suffix search
+    // Handles "Carlos Santana" → "Santana" or "John Mayall" → "Mayall"
+    if artist_tokens.len() >= 2 {
+        // Try last name only (e.g., "Santana" from "Carlos Santana")
+        let last_name = artist_tokens.last().unwrap();
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            last_name, album
+        ));
+
+        // Try first name only (e.g., "Carlos" from "Carlos Santana")
+        let first_name = artist_tokens.first().unwrap();
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            first_name, album
+        ));
+    }
+
+    // Strategy 9: Punctuation-stripped search
+    // Handles "Go-Go's" → "GoGos" variations
+    let artist_stripped = strip_punctuation(artist);
+    let album_stripped = strip_punctuation(album);
+    if artist_stripped != artist || album_stripped != album {
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_stripped, album_stripped
+        ));
+    }
+
+    // Strategy 10: Album-focused with artist wildcard
+    // Last resort - prioritizes album match with loose artist constraint
+    if !artist_tokens.is_empty() {
+        strategies.push(format!(
+            "type:album AND artist:{}* AND release:\"{}\"",
+            artist_tokens.first().unwrap(), album
+        ));
+    }
 
     strategies
 }
@@ -1106,5 +1238,80 @@ mod tests {
             escaped,
             "\\+\\-\\&\\|\\!\\(\\)\\{\\}\\[\\]\\^\\\"\\~\\*\\?\\:\\\\\\/",
         );
+    }
+
+    // =========================================================================
+    // Phase 1 Extension 4: New Search Strategies Tests
+    // =========================================================================
+
+    #[test]
+    fn test_strip_punctuation_basic() {
+        assert_eq!(strip_punctuation("Go-Go's"), "Go Gos");
+        assert_eq!(strip_punctuation("AC/DC"), "AC DC");
+        assert_eq!(strip_punctuation("R.E.M."), "REM");
+    }
+
+    #[test]
+    fn test_strip_punctuation_no_change() {
+        assert_eq!(strip_punctuation("The Beatles"), "The Beatles");
+        assert_eq!(strip_punctuation("Abbey Road"), "Abbey Road");
+    }
+
+    #[test]
+    fn test_generate_search_strategies_count() {
+        let artist = "Carlos Santana";
+        let album = "Abraxas";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should have at least 7 base strategies + up to 3 new ones
+        assert!(strategies.len() >= 7, "Should have at least 7 strategies, got {}", strategies.len());
+    }
+
+    #[test]
+    fn test_generate_search_strategies_artist_prefix() {
+        let artist = "Carlos Santana";
+        let album = "Abraxas";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should include last-name-only search (Strategy 8)
+        let has_last_name = strategies.iter().any(|s| s.contains("artist:Santana AND"));
+        assert!(has_last_name, "Should include last-name search strategy");
+
+        // Should include first-name-only search (Strategy 8)
+        let has_first_name = strategies.iter().any(|s| s.contains("artist:Carlos AND"));
+        assert!(has_first_name, "Should include first-name search strategy");
+    }
+
+    #[test]
+    fn test_generate_search_strategies_punctuation() {
+        let artist = "The Go-Go's";
+        let album = "Beauty and the Beat";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should include punctuation-stripped search (Strategy 9)
+        let has_stripped = strategies.iter().any(|s| s.contains("Go Gos"));
+        assert!(has_stripped, "Should include punctuation-stripped strategy");
+    }
+
+    #[test]
+    fn test_generate_search_strategies_wildcard() {
+        let artist = "John Mayall";
+        let album = "A Hard Road";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should include artist wildcard search (Strategy 10)
+        let has_wildcard = strategies.iter().any(|s| s.contains("artist:John* AND"));
+        assert!(has_wildcard, "Should include artist wildcard strategy");
+    }
+
+    #[test]
+    fn test_generate_search_strategies_single_name() {
+        // Single-word artist should not trigger first/last name strategies
+        let artist = "Madonna";
+        let album = "Like a Prayer";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should still have base strategies
+        assert!(strategies.len() >= 5, "Should have base strategies for single-word artist");
     }
 }

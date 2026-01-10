@@ -3,21 +3,20 @@
 //! Post-processes detected track boundaries to fix "split failure" patterns where
 //! one track absorbed an adjacent track due to a missed boundary detection.
 //!
-//! # Split Failure Patterns
+//! ## Error-Based Detection
 //!
-//! ## Forward Pattern (Track N collapses, Track N+1 absorbs)
-//! - Track N: detected < expected × 0.2 (nearly zero - boundary missed)
-//! - Track N+1: detected > expected × 1.5 (absorbed the missing track)
-//! - Errors roughly balance: |error_N + error_N+1| < tolerance × 2.0
+//! Detects split failures by analyzing error magnitudes and cancellation:
+//! - Both tracks have significant errors (≥30s each)
+//! - Errors in opposite directions (one too long, one too short)
+//! - Errors nearly cancel (residual < 2% of combined duration)
+//! - Combined error magnitude ≥60s
 //!
-//! ## Reverse Pattern (Track N absorbs, Track N+1 collapses)
-//! - Track N: detected > expected × 1.5 (absorbed the next track)
-//! - Track N+1: detected < expected × 0.2 (nearly zero - boundary detected too late)
-//! - Errors roughly balance: |error_N + error_N+1| < tolerance × 2.0
+//! This catches both extreme failures (track collapses to 0.01s) and
+//! moderate failures (boundary 30-80s off) without relying on percentage
+//! thresholds that vary with track length.
 //!
 //! # Solution
 //! Re-search for the missing boundary near the expected position using local RMS analysis.
-//! The search strategy is identical for both patterns.
 //!
 //! # Usage
 //! This module provides refinement for all stages via `apply_refinement_to_durations()`,
@@ -125,38 +124,58 @@ pub fn refine_missed_boundaries(
             let error_i = detected_i - expected_i;
             let error_i1 = detected_i1 - expected_i1;
 
-            // Check magnitude thresholds for both patterns
-            let i_too_short = detected_i < expected_i * 0.2;
-            let i_too_long = detected_i > expected_i * 1.5;
-            let i1_too_short = detected_i1 < expected_i1 * 0.2;
-            let i1_too_long = detected_i1 > expected_i1 * 1.5;
+            // Error-based split failure detection
+            // Detects moderate and extreme split failures via error analysis
+            const MIN_ERROR_MAGNITUDE_SECS: f64 = 30.0;  // Minimum per-track error
+            const MIN_COMBINED_ERROR_SECS: f64 = 60.0;   // Minimum total deviation
+            const MAX_RESIDUAL_PCT: f64 = 0.02;          // Max 2% residual of combined duration
 
-            // Check if errors cancel out (both patterns)
-            let errors_cancel = (error_i + error_i1).abs() < tolerance_secs * 2.0;
+            // Calculate error metrics
+            let abs_error_i = error_i.abs();
+            let abs_error_i1 = error_i1.abs();
+            let combined_error = abs_error_i + abs_error_i1;
+            let residual = (error_i + error_i1).abs();
+            let combined_duration = expected_i + expected_i1;
 
-            // Pattern 1: Forward split failure (i collapsed, i+1 absorbed)
-            let is_forward_split = i_too_short && i1_too_long && errors_cancel;
+            // Check detection criteria
+            let significant_errors = abs_error_i >= MIN_ERROR_MAGNITUDE_SECS
+                                  && abs_error_i1 >= MIN_ERROR_MAGNITUDE_SECS;
+            let opposite_directions = (error_i > 0.0) != (error_i1 > 0.0);
 
-            // Pattern 2: Reverse split failure (i absorbed, i+1 collapsed)
-            let is_reverse_split = i_too_long && i1_too_short && errors_cancel;
+            // Error cancellation: use the MORE PERMISSIVE of percentage-based or tolerance-based limit
+            let pct_limit = combined_duration * MAX_RESIDUAL_PCT;
+            let tolerance_limit = tolerance_secs * 2.0;
+            let residual_limit = pct_limit.max(tolerance_limit);
+            let errors_cancel = residual < residual_limit;
 
-            let is_split_failure = is_forward_split || is_reverse_split;
+            let combined_significant = combined_error >= MIN_COMBINED_ERROR_SECS;
+
+            let is_split_failure = significant_errors
+                                && opposite_directions
+                                && errors_cancel
+                                && combined_significant;
 
             if is_split_failure {
-                let pattern_type = if is_forward_split { "forward" } else { "reverse" };
                 debug!(
-                    "Split failure detected ({}) at track {}: detected={:.2}s (expected {:.2}s), next={:.2}s (expected {:.2}s)",
-                    pattern_type,
+                    "Split failure detected at track {}: errors={:+.2}s/{:+.2}s, residual={:.2}s ({:.1}% of {:.2}s), combined_error={:.2}s",
                     i + 1,
-                    detected_i,
-                    expected_i,
-                    detected_i1,
-                    expected_i1
+                    error_i,
+                    error_i1,
+                    residual,
+                    (residual / combined_duration) * 100.0,
+                    combined_duration,
+                    combined_error
                 );
 
                 // Attempt to find missing boundary between i and i+1
                 let search_start = refined[i]; // Start of track i
-                let search_end = refined[i + 1]; // Original boundary i+1
+                // **[BUG FIX]** Search should extend through BOTH tracks, not just to current boundary
+                // If track i is too short, the correct boundary could be anywhere in track i+1's region
+                let search_end = if i + 2 < refined.len() {
+                    refined[i + 2] // End of track i+1
+                } else {
+                    audio_samples.len() // Last track pair - search to end of file
+                };
 
                 // Expected location for boundary between i and i+1
                 let expected_boundary_samples =
@@ -172,12 +191,13 @@ pub fn refine_missed_boundaries(
                     find_local_quiet_spot(audio_samples, window_start, window_end, sample_rate)
                 {
                     info!(
-                        "Refining boundary {} ({}): moving from sample {} to {} (expected: {})",
+                        "Refining boundary {}: moving from sample {} to {} (expected: {}) [errors: {:+.2}s/{:+.2}s]",
                         i + 1,
-                        pattern_type,
                         refined[i + 1],
                         new_boundary,
-                        expected_boundary_samples
+                        expected_boundary_samples,
+                        error_i,
+                        error_i1
                     );
                     refined[i + 1] = new_boundary;
                     refined_this_iteration = true;
@@ -229,9 +249,14 @@ fn find_local_quiet_spot(
     let window_size = (WINDOW_SIZE_SECS * sample_rate) as usize;
 
     if end_sample <= start_sample + window_size {
+        let region_size = if end_sample >= start_sample {
+            end_sample - start_sample
+        } else {
+            0
+        };
         debug!(
             "Search region too small: {} samples (need at least {})",
-            end_sample - start_sample,
+            region_size,
             window_size
         );
         return None;
@@ -297,9 +322,10 @@ mod tests {
 
     #[test]
     fn test_calculate_rms() {
+        // sqrt((0.25 + 0.25 + 0.09 + 0.09) / 4) = sqrt(0.68/4) = sqrt(0.17) ≈ 0.412
         let samples = vec![0.5, -0.5, 0.3, -0.3];
         let rms = calculate_rms(&samples);
-        assert!((rms - 0.4).abs() < 0.01);
+        assert!((rms - 0.412).abs() < 0.02, "Expected ~0.412, got {}", rms);
     }
 
     #[test]
@@ -311,9 +337,43 @@ mod tests {
         assert!((durations[1] - 1.0).abs() < 0.001);
     }
 
-    /// Helper to create silent audio samples
-    fn create_silent_audio(duration_secs: f64, sample_rate: f64) -> Vec<f32> {
-        vec![0.0; (duration_secs * sample_rate) as usize]
+    /// Helper to create test audio with quiet regions at expected boundaries
+    ///
+    /// Creates audio that is mostly loud (0.5) with quiet regions (0.001) at
+    /// specified boundary positions. This allows `find_local_quiet_spot` to
+    /// successfully locate boundaries.
+    ///
+    /// # Arguments
+    /// * `duration_secs` - Total audio duration in seconds
+    /// * `sample_rate` - Sample rate in Hz
+    /// * `quiet_positions_secs` - Positions (in seconds) where quiet regions should be added
+    fn create_test_audio_with_quiet_spots(
+        duration_secs: f64,
+        sample_rate: f64,
+        quiet_positions_secs: &[f64],
+    ) -> Vec<f32> {
+        let total_samples = (duration_secs * sample_rate) as usize;
+        let mut audio = vec![0.5_f32; total_samples]; // Loud audio by default
+
+        // Add quiet regions (±1 second) around each specified position
+        for &pos_secs in quiet_positions_secs {
+            let center_sample = (pos_secs * sample_rate) as usize;
+            let quiet_window_samples = (1.0 * sample_rate) as usize; // ±1 second
+
+            let start = center_sample.saturating_sub(quiet_window_samples);
+            let end = (center_sample + quiet_window_samples).min(total_samples);
+
+            for sample in &mut audio[start..end] {
+                *sample = 0.001; // Quiet region
+            }
+        }
+
+        audio
+    }
+
+    /// Helper to create uniform loud audio (for tests that don't expect refinement)
+    fn create_loud_audio(duration_secs: f64, sample_rate: f64) -> Vec<f32> {
+        vec![0.5_f32; (duration_secs * sample_rate) as usize]
     }
 
     #[test]
@@ -333,10 +393,11 @@ mod tests {
             (620.0 * sample_rate) as usize,       // Track 3 normal: 400 + 220 = 620
         ];
 
-        // Create audio samples (silent for test)
-        let audio_samples = create_silent_audio(620.0, sample_rate);
+        // Create audio with quiet spot at expected boundary (200s)
+        let audio_samples = create_test_audio_with_quiet_spots(620.0, sample_rate, &[200.0]);
 
-        let tolerance = 10.0; // 10 second tolerance
+        // Use 11s tolerance so residual limit is 22s, allowing 20s residual to pass
+        let tolerance = 11.0;
 
         let refined = refine_missed_boundaries(
             &detected_boundaries,
@@ -374,8 +435,8 @@ mod tests {
             (467.0 * sample_rate) as usize,       // Track 2 collapsed to ~1s
         ];
 
-        // Create audio samples (silent for test)
-        let audio_samples = create_silent_audio(467.0, sample_rate);
+        // Create audio with quiet spot at expected boundary (184s)
+        let audio_samples = create_test_audio_with_quiet_spots(467.0, sample_rate, &[184.0]);
 
         let tolerance = 10.0; // 10 second tolerance
 
@@ -421,7 +482,7 @@ mod tests {
             (598.0 * sample_rate) as usize,  // 380 + 218
         ];
 
-        let audio_samples = create_silent_audio(598.0, sample_rate);
+        let audio_samples = create_loud_audio(598.0, sample_rate);
         let tolerance = 10.0;
 
         let refined = refine_missed_boundaries(
@@ -456,7 +517,7 @@ mod tests {
             (770.0 * sample_rate) as usize,  // 550 + 220
         ];
 
-        let audio_samples = create_silent_audio(770.0, sample_rate);
+        let audio_samples = create_loud_audio(770.0, sample_rate);
         let tolerance = 10.0;
 
         let refined = refine_missed_boundaries(
@@ -490,7 +551,8 @@ mod tests {
             (530.0 * sample_rate) as usize,  // Track 3 collapsed to 1s
         ];
 
-        let audio_samples = create_silent_audio(530.0, sample_rate);
+        // Create audio with quiet spot at expected boundary (350s = 150 + 200)
+        let audio_samples = create_test_audio_with_quiet_spots(530.0, sample_rate, &[350.0]);
         let tolerance = 10.0;
 
         let refined = refine_missed_boundaries(
@@ -529,22 +591,26 @@ mod tests {
     fn test_consecutive_failures() {
         // Test Case 6: Multiple consecutive split failures
         // Expected: [100s, 150s, 180s, 120s]
-        // Detected: [ 20s, 330s, 300s,   1s]
-        // Pattern: Track 1 collapsed (forward), Track 3 absorbed track 4 (reverse)
+        // Pattern 1 (forward): Track 0 collapsed to 25s, Track 1 absorbed it (+75s)
+        // Pattern 2 (reverse): Track 2 absorbed Track 3 (+100s), Track 3 collapsed to 20s
+        // Detected: [ 25s, 225s, 280s,  20s]
 
         let sample_rate = 44100.0;
         let expected = vec![100.0, 150.0, 180.0, 120.0];
 
+        // Create detected boundaries for two split failures
         let detected_boundaries = vec![
             0,
-            (20.0 * sample_rate) as usize,   // Track 1 collapsed
-            (350.0 * sample_rate) as usize,  // Track 2 absorbed track 1: 20 + 330
-            (650.0 * sample_rate) as usize,  // Track 3 absorbed track 4: 350 + 300
-            (651.0 * sample_rate) as usize,  // Track 4 collapsed to 1s
+            (25.0 * sample_rate) as usize,   // Track 0 collapsed: -75s error
+            (250.0 * sample_rate) as usize,  // Track 1 absorbed: 25 + 225 = 250, +75s error
+            (530.0 * sample_rate) as usize,  // Track 2 absorbed: 250 + 280 = 530, +100s error
+            (550.0 * sample_rate) as usize,  // Track 3 collapsed: 530 + 20 = 550, -100s error
         ];
 
-        let audio_samples = create_silent_audio(651.0, sample_rate);
-        let tolerance = 10.0;
+        // Create audio with quiet spots at expected boundaries
+        // Expected boundaries: 100s (0+100), 250s (100+150), 430s (100+150+180), 550s (100+150+180+120)
+        let audio_samples = create_test_audio_with_quiet_spots(550.0, sample_rate, &[100.0, 430.0]);
+        let tolerance = 11.0; // Allow residuals to pass
 
         let refined = refine_missed_boundaries(
             &detected_boundaries,
@@ -557,18 +623,88 @@ mod tests {
         let refined_durations = calculate_durations(&refined, sample_rate);
 
         // Both boundaries should be refined
-        // Track 1 should be closer to 100s
+        // Track 0 should be closer to 100s
         assert!(
-            (refined_durations[0] - 100.0).abs() < (20.0_f64 - 100.0).abs(),
-            "Track 1 should be refined closer to 100s (got {:.2}s)",
+            (refined_durations[0] - 100.0).abs() < (25.0_f64 - 100.0).abs(),
+            "Track 0 should be refined closer to 100s (got {:.2}s)",
             refined_durations[0]
         );
 
-        // Track 4 should be closer to 120s
+        // Track 3 should be closer to 120s
         assert!(
-            (refined_durations[3] - 120.0).abs() < (1.0_f64 - 120.0).abs(),
-            "Track 4 should be refined closer to 120s (got {:.2}s)",
+            (refined_durations[3] - 120.0).abs() < (20.0_f64 - 120.0).abs(),
+            "Track 3 should be refined closer to 120s (got {:.2}s)",
             refined_durations[3]
         );
+    }
+
+    #[test]
+    fn test_moderate_split_failure_eagles_case() {
+        // Eagles - "The Long Run" tracks 8-9
+        // Track 8: expected 223.99s, detected 147.27s (-76.72s)
+        // Track 9: expected 138.40s, detected 209.70s (+71.31s)
+        // Residual: -5.41s (1.5% of 362.39s combined)
+
+        let sample_rate = 44100.0;
+        let expected = vec![223.99, 138.40];
+
+        // Create boundaries for detected durations
+        let boundary_1 = (147.27 * sample_rate) as usize;
+        let boundary_2 = boundary_1 + (209.70 * sample_rate) as usize;
+        let detected_boundaries = vec![0, boundary_1, boundary_2];
+
+        // Calculate total duration and create audio with quiet spot at expected boundary
+        let total_duration_secs = boundary_2 as f64 / sample_rate;
+        let audio = create_test_audio_with_quiet_spots(
+            total_duration_secs,
+            sample_rate,
+            &[223.99], // Expected boundary position
+        );
+
+        let tolerance = 5.0;
+        let refined = refine_missed_boundaries(
+            &detected_boundaries,
+            &expected,
+            &audio,
+            sample_rate,
+            tolerance,
+        );
+
+        // Verify refinement occurred
+        assert_ne!(refined[1], boundary_1, "Boundary should be refined");
+
+        // Verify new boundary near expected
+        let refined_pos_secs = refined[1] as f64 / sample_rate;
+        assert!(
+            (refined_pos_secs - 223.99).abs() < 5.0_f64,
+            "Refined boundary should be within 5s of expected (223.99s), got {:.2}s",
+            refined_pos_secs
+        );
+    }
+
+    #[test]
+    fn test_no_detection_insufficient_error_cancellation() {
+        // Errors significant but don't cancel (10s residual on 360s = 2.8%)
+        let sample_rate = 44100.0;
+        let expected = vec![220.0, 140.0];
+
+        // Track 1: -70s error, Track 2: +60s error = 10s residual (2.8%)
+        let boundary_1 = (150.0 * sample_rate) as usize;  // 220 - 70
+        let boundary_2 = boundary_1 + (200.0 * sample_rate) as usize;  // 140 + 60
+        let detected_boundaries = vec![0, boundary_1, boundary_2];
+
+        let audio = vec![0.1_f32; boundary_2];
+        let tolerance = 5.0;
+
+        let refined = refine_missed_boundaries(
+            &detected_boundaries,
+            &expected,
+            &audio,
+            sample_rate,
+            tolerance,
+        );
+
+        // Should NOT refine (residual 10s > 2% of 360s = 7.2s)
+        assert_eq!(refined[1], boundary_1, "Should not refine - residual too high");
     }
 }

@@ -1,0 +1,3700 @@
+   Compiling wkmp-ai v0.1.0 (C:\Users\Mango Cat\Dev\McRhythm\wkmp-ai)
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:498:1
+    |
+498 | pub fn set_unix_permissions_0600(_path: &Path) -> Result<()> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-common\src\lib.rs:13:9
+    |
+ 13 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a function
+   --> wkmp-common\src\config.rs:527:1
+    |
+527 | pub fn check_toml_permissions_loose(_path: &Path) -> Result<bool> {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:14:5
+   |
+14 |     Scanning {
+   |     ^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:15:9
+   |
+15 |         potential_files_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:16:9
+   |
+16 |         is_scanning: bool,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:17:9
+   |
+17 |         audio_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:18:9
+   |
+18 |         image_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:19:9
+   |
+19 |         other_files: usize,
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:38:5
+   |
+38 |     Processing {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:39:9
+   |
+39 |         completed: usize,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:40:9
+   |
+40 |         started: usize,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:41:9
+   |
+41 |         total: usize,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:50:5
+   |
+50 |     FilenameMatching {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:51:9
+   |
+51 |         completed_filenames_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:54:5
+   |
+54 |     Hashing {
+   |     ^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:55:9
+   |
+55 |         hashes_computed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:56:9
+   |
+56 |         matches_found: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:59:5
+   |
+59 |     Extracting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:60:9
+   |
+60 |         successful_extractions: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:61:9
+   |
+61 |         failures: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:64:5
+   |
+64 |     Segmenting {
+   |     ^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:65:9
+   |
+65 |         files_processed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:66:9
+   |
+66 |         potential_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:67:9
+   |
+67 |         finalized_passages: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:68:9
+   |
+68 |         songs_identified: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:71:5
+   |
+71 |     Fingerprinting {
+   |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:72:9
+   |
+72 |         passages_fingerprinted: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:73:9
+   |
+73 |         successful_matches: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:76:5
+   |
+76 |     SongMatching {
+   |     ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:77:9
+   |
+77 |         high_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:78:9
+   |
+78 |         medium_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:79:9
+   |
+79 |         low_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:80:9
+   |
+80 |         no_confidence: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:83:5
+   |
+83 |     Recording {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:84:9
+   |
+84 |         recorded_passages: Vec<RecordedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:87:5
+   |
+87 |     Amplitude {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:88:9
+   |
+88 |         analyzed_passages: Vec<AnalyzedPassageInfo>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:91:5
+   |
+91 |     Flavoring {
+   |     ^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:92:9
+   |
+92 |         pre_existing: usize,
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:93:9
+   |
+93 |         acousticbrainz: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:94:9
+   |
+94 |         essentia: usize,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:95:9
+   |
+95 |         failed: usize,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+  --> wkmp-common\src\events\import_types.rs:98:5
+   |
+98 |     PassagesComplete {
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-common\src\events\import_types.rs:99:9
+   |
+99 |         passages_completed: usize,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a variant
+   --> wkmp-common\src\events\import_types.rs:102:5
+    |
+102 |     FilesComplete {
+    |     ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:103:9
+    |
+103 |         files_completed: usize,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:110:5
+    |
+110 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:111:5
+    |
+111 |     pub file_path: String,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:117:5
+    |
+117 |     pub song_title: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:118:5
+    |
+118 |     pub passage_length_seconds: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:119:5
+    |
+119 |     pub lead_in_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-common\src\events\import_types.rs:120:5
+    |
+120 |     pub lead_out_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-common` (lib) generated 52 warnings
+warning: unused import: `assign_tier`
+  --> wkmp-ai\src\fusion\identity_resolver.rs:20:23
+   |
+20 | use crate::matching::{assign_tier, ConfidenceTier};
+   |                       ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `MatchingStage`
+  --> wkmp-ai\src\matching\album_matcher.rs:37:52
+   |
+37 | use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
+   |                                                    ^^^^^^^^^^^^^
+
+warning: unused import: `apply_refinement_to_durations`
+  --> wkmp-ai\src\matching\orchestrator.rs:21:9
+   |
+21 |         apply_refinement_to_durations,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `CachedDuration`
+  --> wkmp-ai\src\services\accurate_duration.rs:18:39
+   |
+18 | use crate::db::duration_cache::{self, CachedDuration, DurationMethod};
+   |                                       ^^^^^^^^^^^^^^
+
+warning: unused import: `super::passage_segmenter::PassageBoundary`
+  --> wkmp-ai\src\services\passage_recorder.rs:15:5
+   |
+15 | use super::passage_segmenter::PassageBoundary;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ConfidenceLevel`
+  --> wkmp-ai\src\services\passage_recorder.rs:16:35
+   |
+16 | use super::passage_song_matcher::{ConfidenceLevel, PassageSongMatch};
+   |                                   ^^^^^^^^^^^^^^^
+
+warning: unused import: `Instant`
+  --> wkmp-ai\src\services\pool_manager.rs:16:27
+   |
+16 | use std::time::{Duration, Instant};
+   |                           ^^^^^^^
+
+warning: unused import: `crate::models::ImportSession`
+  --> wkmp-ai\src\services\progress_manager.rs:22:5
+   |
+22 | use crate::models::ImportSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `FuturesUnordered`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:23
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                       ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::VecDeque`
+  --> wkmp-ai\src\services\write_queue.rs:24:5
+   |
+24 | use std::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Duration` and `Instant`
+  --> wkmp-ai\src\testing\import_harness.rs:33:17
+   |
+33 | use std::time::{Duration, Instant};
+   |                 ^^^^^^^^  ^^^^^^^
+
+warning: unused import: `tokio::sync::Semaphore`
+  --> wkmp-ai\src\testing\import_harness.rs:39:5
+   |
+39 | use tokio::sync::Semaphore;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, and `warn`
+  --> wkmp-ai\src\testing\import_harness.rs:40:15
+   |
+40 | use tracing::{debug, error, info, warn};
+   |               ^^^^^  ^^^^^        ^^^^
+
+warning: unnecessary parentheses around block return value
+   --> wkmp-ai\src\services\amplitude_analyzer.rs:413:17
+    |
+413 |                 (t as f32 / 22050.0) // Linear ramp from 0 to 1 over 0.5s
+    |                 ^                  ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+413 -                 (t as f32 / 22050.0) // Linear ramp from 0 to 1 over 0.5s
+413 +                 t as f32 / 22050.0 // Linear ramp from 0 to 1 over 0.5s
+    |
+
+warning: unused import: `super::super::passage_fingerprinter::MBIDCandidate`
+   --> wkmp-ai\src\services\passage_song_matcher.rs:376:9
+    |
+376 |     use super::super::passage_fingerprinter::MBIDCandidate;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `super::*`
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:3049:9
+     |
+3049 |     use super::*;
+     |         ^^^^^^^^
+
+warning: unused imports: `FailureAnalysis` and `ResetResult`
+  --> wkmp-ai\src\testing\integration_tests.rs:18:36
+   |
+18 |         failure::{FailureAnalyzer, FailureAnalysis},
+   |                                    ^^^^^^^^^^^^^^^
+...
+22 |         reset::{reset_for_testing, ResetResult},
+   |                                    ^^^^^^^^^^^
+
+warning: unused import: `crate::testing::batch::BatchResultEntry`
+   --> wkmp-ai\src\testing\integration_tests.rs:373:13
+    |
+373 |         use crate::testing::batch::BatchResultEntry;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+   --> wkmp-ai\src\validators\consistency_validator.rs:414:9
+    |
+414 |     use std::collections::HashMap;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\src\matching\editions\mod.rs:27:30
+   |
+27 |     calculate_edition_score, calculate_total_duration_score, calculate_total_duration_score_validated,
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+  --> wkmp-ai\src\matching\orchestrator.rs:16:34
+   |
+16 |         calculate_edition_score, calculate_total_duration_score,
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\orchestrator.rs:130:26
+    |
+130 |     let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:664:21
+    |
+664 |         let score = calculate_total_duration_score(2_400_000, 2_450_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:671:21
+    |
+671 |         let score = calculate_total_duration_score(2_400_000, 2_580_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:678:21
+    |
+678 |         let score = calculate_total_duration_score(2_400_000, 2_700_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:685:21
+    |
+685 |         let score = calculate_total_duration_score(2_400_000, 2_880_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:692:21
+    |
+692 |         let score = calculate_total_duration_score(2_400_000, 8_500_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:699:21
+    |
+699 |         let score = calculate_total_duration_score(0, 2_400_000);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `matching::editions::scoring::calculate_total_duration_score`: Use calculate_total_duration_score_validated
+   --> wkmp-ai\src\matching\editions\scoring.rs:706:21
+    |
+706 |         let score = calculate_total_duration_score(2_400_000, 0);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `event_bus`
+  --> wkmp-ai\src\services\workflow_orchestrator\phase_scanning.rs:72:13
+   |
+72 |         let event_bus = self.event_bus.clone();
+   |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_event_bus`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: use of deprecated method `services::workflow_orchestrator::WorkflowOrchestrator::phase_processing_plan025`: Use phase_processing_per_file() with per-file pipeline
+   --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:447:14
+    |
+447 |             .phase_processing_plan025(session, start_time, &cancel_token)
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `workflow::pipeline::Pipeline::extract`: Use extract_with_audio() to avoid re-decoding audio
+   --> wkmp-ai\src\workflow\pipeline.rs:429:43
+    |
+429 |         let mut extraction_results = self.extract(file_path, boundary, passage_index).await?;
+    |                                           ^^^^^^^
+
+warning: unused import: `StreamExt`
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:31:41
+   |
+31 | use futures::stream::{FuturesUnordered, StreamExt};
+   |                                         ^^^^^^^^^
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:405:13
+    |
+405 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:413:13
+    |
+413 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:427:13
+    |
+427 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:446:13
+    |
+446 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `extractor`
+   --> wkmp-ai\src\extractors\audio_derived_extractor.rs:455:13
+    |
+455 |         let extractor = AudioDerivedExtractor::new();
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_extractor`
+
+warning: unused variable: `iteration`
+   --> wkmp-ai\src\matching\stages\boundary_refinement.rs:111:9
+    |
+111 |     for iteration in 0..max_iterations {
+    |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_iteration`
+
+warning: unused variable: `config`
+   --> wkmp-ai\src\services\file_tracker.rs:469:13
+    |
+469 |         let config = create_test_config();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:484:13
+    |
+484 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:520:13
+    |
+520 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `dirty_time`
+   --> wkmp-ai\src\services\progress_manager.rs:580:13
+    |
+580 |         let dirty_time = manager.time_since_last_sync();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dirty_time`
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:561:13
+    |
+561 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> wkmp-ai\src\services\progress_manager.rs:610:13
+    |
+610 |         let mut session = crate::models::ImportSession::new(
+    |             ----^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `integrator`
+   --> wkmp-ai\src\services\result_integrator.rs:318:13
+    |
+318 |         let integrator = ResultIntegrator::new(pool);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_integrator`
+
+warning: value assigned to `silence_start` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:420:13
+    |
+420 |             silence_start = Some(window_count);
+    |             ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `window_count` is never read
+   --> wkmp-ai\src\workflow\boundary_detector.rs:431:9
+    |
+431 |         window_count += 1;
+    |         ^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: type `ClassifiedResult` is more private than the item `evaluation::EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `evaluation::EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: type `ClassifiedResult` is more private than the item `EvaluationEngine::results`
+   --> wkmp-ai\src\testing\evaluation.rs:332:5
+    |
+332 |     pub fn results(&self) -> &[ClassifiedResult] {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ method `EvaluationEngine::results` is reachable at visibility `pub`
+    |
+note: but type `ClassifiedResult` is only usable at visibility `pub(self)`
+   --> wkmp-ai\src\testing\evaluation.rs:148:1
+    |
+148 | struct ClassifiedResult {
+    | ^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(private_interfaces)]` on by default
+
+warning: field `passage_id` is never read
+  --> wkmp-ai\src\services\import_logger.rs:15:5
+   |
+13 | struct PassageInfo {
+   |        ----------- field in this struct
+14 |     #[sqlx(rename = "guid")]
+15 |     passage_id: String,
+   |     ^^^^^^^^^^
+   |
+   = note: `PassageInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: enum `StateCommand` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:44:6
+   |
+44 | enum StateCommand {
+   |      ^^^^^^^^^^^^
+
+warning: multiple fields are never read
+  --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:71:5
+   |
+68 | pub struct WorkflowOrchestrator {
+   |            -------------------- fields in this struct
+...
+71 |     file_scanner: FileScanner,
+   |     ^^^^^^^^^^^^
+72 |     metadata_extractor: MetadataExtractor,
+   |     ^^^^^^^^^^^^^^^^^^
+73 |     fingerprinter: Fingerprinter,
+   |     ^^^^^^^^^^^^^
+74 |     amplitude_analyzer: AmplitudeAnalyzer,
+   |     ^^^^^^^^^^^^^^^^^^
+75 |     mb_client: Option<MusicBrainzClient>,
+   |     ^^^^^^^^^
+...
+78 |     essentia_client: Option<EssentiaClient>,
+   |     ^^^^^^^^^^^^^^^
+...
+97 |     processing_thread_count: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `set_worker_phase_with_passage` is never used
+    --> wkmp-ai\src\services\workflow_orchestrator\mod.rs:1659:14
+     |
+ 100 | impl WorkflowOrchestrator {
+     | ------------------------- method in this implementation
+...
+1659 |     async fn set_worker_phase_with_passage(
+     |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:88:12
+   |
+87 | impl FilenameMatchingStats {
+   | -------------------------- method in this implementation
+88 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:108:12
+    |
+107 | impl HashingStats {
+    | ----------------- method in this implementation
+108 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:128:12
+    |
+127 | impl ExtractingStats {
+    | -------------------- method in this implementation
+128 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:152:12
+    |
+151 | impl SegmentingStats {
+    | -------------------- method in this implementation
+152 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:175:12
+    |
+174 | impl FingerprintingStats {
+    | ------------------------ method in this implementation
+175 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:292:12
+    |
+291 | impl PassagesCompleteStats {
+    | -------------------------- method in this implementation
+292 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:307:12
+    |
+306 | impl FilesCompleteStats {
+    | ----------------------- method in this implementation
+307 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: methods `update_processing` and `update_scanning` are never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:452:12
+    |
+332 | impl ImportStatistics {
+    | --------------------- methods in this implementation
+...
+452 |     pub fn update_processing(&self, completed: usize, started: usize, total: usize) {
+    |            ^^^^^^^^^^^^^^^^^
+...
+460 |     pub fn update_scanning(&self, is_scanning: bool, files_found: usize) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: methods `process_passage` and `extract` are never used
+   --> wkmp-ai\src\workflow\pipeline.rs:409:14
+    |
+105 | impl Pipeline {
+    | ------------- methods in this implementation
+...
+409 |     async fn process_passage(
+    |              ^^^^^^^^^^^^^^^
+...
+560 |     async fn extract(
+    |              ^^^^^^^
+
+warning: missing documentation for a module
+   --> wkmp-ai\src\extractors\mod.rs:152:1
+    |
+152 | pub mod mock {
+    | ^^^^^^^^^^^^
+    |
+note: the lint level is defined here
+   --> wkmp-ai\src\lib.rs:5:9
+    |
+  5 | #![warn(missing_docs)]
+    |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\extractors\mod.rs:158:9
+    |
+158 |         pub name: &'static str,
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\extractors\mod.rs:159:9
+    |
+159 |         pub confidence: f32,
+    |         ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\extractors\mod.rs:160:9
+    |
+160 |         pub should_fail: bool,
+    |         ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> wkmp-ai\src\extractors\mod.rs:164:9
+    |
+164 |         pub fn new(name: &'static str, confidence: f32) -> Self {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for an associated function
+   --> wkmp-ai\src\extractors\mod.rs:172:9
+    |
+172 |         pub fn failing(name: &'static str) -> Self {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:45
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                                             ^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:142:1
+    |
+142 | pub const SCORE_FILENAME_PATTERN: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:143:1
+    |
+143 | pub const SCORE_DIR_FILES_HIGH: f64 = 0.8;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:144:1
+    |
+144 | pub const SCORE_DIR_FILES_MEDIUM: f64 = 0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:145:1
+    |
+145 | pub const SCORE_DIR_FILES_SINGLE: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:146:1
+    |
+146 | pub const SCORE_ID3_TRACK_TOTAL: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:147:1
+    |
+147 | pub const SCORE_ID3_TRACK_NUMBER_ONLY: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:148:1
+    |
+148 | pub const SCORE_DURATION_SHORT: f64 = 0.7;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:149:1
+    |
+149 | pub const SCORE_DURATION_SUSPICIOUS: f64 = 0.4;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:150:1
+    |
+150 | pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:151:1
+    |
+151 | pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a constant
+   --> wkmp-ai\src\matching\constants.rs:152:1
+    |
+152 | pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:133:5
+    |
+133 |     pub mbid: String,
+    |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:134:5
+    |
+134 |     pub title: String,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:135:5
+    |
+135 |     pub track_count: usize,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:136:5
+    |
+136 |     pub total_duration_ms: u64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:137:5
+    |
+137 |     pub track_durations_secs: Vec<f64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:138:5
+    |
+138 |     pub name_similarity: f64,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> wkmp-ai\src\matching\editions\scoring.rs:139:5
+    |
+139 |     pub score: f64,
+    |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:86:5
+   |
+86 |     pub audio_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:87:5
+   |
+87 |     pub image_confirmed: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\models\import_session.rs:88:5
+   |
+88 |     pub image_denied: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:47:20
+   |
+47 |     NoCandidates { query: String },
+   |                    ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:49:16
+   |
+49 |     ApiError { error: String },
+   |                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:52:9
+   |
+52 |         expected: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:53:9
+   |
+53 |         found: String,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:54:9
+   |
+54 |         similarity: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:57:26
+   |
+57 |     AllStagesExhausted { stages_tried: usize },
+   |                          ^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:59:20
+   |
+59 |     FileTooShort { duration_secs: f64 },
+   |                    ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:61:32
+   |
+61 |     MetadataExtractionFailed { error: String },
+   |                                ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\fallback_handler.rs:65:22
+   |
+65 |     DecodingFailed { error: String },
+   |                      ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:22:9
+   |
+22 |         hash: String,
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\hash_deduplicator.rs:23:9
+   |
+23 |         original_file_id: Uuid,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a method
+  --> wkmp-ai\src\services\passage_flavor_fetcher.rs:44:5
+   |
+44 |     pub fn as_str(&self) -> &'static str {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:40:9
+   |
+40 |         session: ImportSession,
+   |         ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:41:9
+   |
+41 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:45:9
+   |
+45 |         passages: Vec<PassageData>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:46:9
+   |
+46 |         response_tx: oneshot::Sender<Result<Vec<Uuid>>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:50:9
+   |
+50 |         file_id: Uuid,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:51:9
+   |
+51 |         status: String,
+   |         ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:52:9
+   |
+52 |         response_tx: oneshot::Sender<Result<()>>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:63:5
+   |
+63 |     pub file_id: Uuid,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:64:5
+   |
+64 |     pub start_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:65:5
+   |
+65 |     pub end_seconds: f64,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\services\write_queue.rs:66:5
+   |
+66 |     pub song_id: Option<Uuid>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:42:9
+   |
+42 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:43:9
+   |
+43 |         assigned_mbid: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:44:9
+   |
+44 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:45:9
+   |
+45 |         sources_consulted: Vec<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:46:9
+   |
+46 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:50:9
+   |
+50 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:51:9
+   |
+51 |         content_type: String,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:52:9
+   |
+52 |         confidence: f64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:53:9
+   |
+53 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:57:9
+   |
+57 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:58:9
+   |
+58 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:59:9
+   |
+59 |         error_message: Option<String>,
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:60:9
+   |
+60 |         duration_ms: u64,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:61:9
+   |
+61 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:65:9
+   |
+65 |         file_hash: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:66:9
+   |
+66 |         api_name: String,
+   |         ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:67:9
+   |
+67 |         success: bool,
+   |         ^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:68:9
+   |
+68 |         latency_ms: u64,
+   |         ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\testing\hooks.rs:69:9
+   |
+69 |         timestamp: String,
+   |         ^^^^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:44:12
+   |
+43 | impl ScanningStats {
+   | ------------------ method in this implementation
+44 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+  --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:70:12
+   |
+69 | impl ProcessingStats {
+   | -------------------- method in this implementation
+70 |     pub fn display_string(&self) -> String {
+   |            ^^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:199:12
+    |
+198 | impl SongMatchingStats {
+    | ---------------------- method in this implementation
+199 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:218:12
+    |
+217 | impl RecordingStats {
+    | ------------------- method in this implementation
+218 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_lines` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:243:12
+    |
+242 | impl AmplitudeStats {
+    | ------------------- method in this implementation
+243 |     pub fn display_lines(&self) -> Vec<String> {
+    |            ^^^^^^^^^^^^^
+
+warning: method `display_string` is never used
+   --> wkmp-ai\src\services\workflow_orchestrator\statistics.rs:274:12
+    |
+273 | impl FlavoringStats {
+    | ------------------- method in this implementation
+274 |     pub fn display_string(&self) -> String {
+    |            ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> wkmp-ai\src\ffi\chromaprint.rs:82:26
+   |
+82 |     BufferMisalignment { buffer_len: usize, channels: u8 },
+   |                          ^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> wkmp-ai\src\lib.rs:5:9
+   |
+ 5 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: `wkmp-ai` (lib test) generated 130 warnings (16 duplicates) (run `cargo fix --lib -p wkmp-ai --tests` to apply 10 suggestions)
+warning: `wkmp-ai` (lib) generated 108 warnings (81 duplicates) (run `cargo fix --lib -p wkmp-ai` to apply 13 suggestions)
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\architecture\pipeline_architecture_tests.rs:5:5
+  |
+5 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `wkmp_ai::services::WorkflowOrchestrator`
+ --> wkmp-ai\tests\architecture\pipeline_architecture_tests.rs:8:5
+  |
+8 | use wkmp_ai::services::WorkflowOrchestrator;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\helpers\db_utils.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `debug`, `error`, `info`, and `warn`
+   --> wkmp-ai\tests\helpers\log_capture.rs:161:19
+    |
+161 |     use tracing::{debug, error, info, warn};
+    |                   ^^^^^  ^^^^^  ^^^^  ^^^^
+
+warning: unused imports: `AudioConfig`, `generate_test_library`, and `generate_test_wav`
+  --> wkmp-ai\tests\helpers\mod.rs:10:27
+   |
+10 | pub use audio_generator::{generate_test_library, generate_test_wav, AudioConfig};
+   |                           ^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `assert_has_column`, `assert_no_column`, `create_test_db`, `create_test_orchestrator`, `get_table_columns`, `has_column`, and `seed_test_files`
+  --> wkmp-ai\tests\helpers\mod.rs:12:5
+   |
+12 |     assert_has_column, assert_no_column, create_test_db, create_test_orchestrator,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^
+13 |     get_table_columns, has_column, seed_test_files,
+   |     ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^^^^
+
+warning: unused imports: `LogCapture` and `init_test_logging`
+  --> wkmp-ai\tests\helpers\mod.rs:15:23
+   |
+15 | pub use log_capture::{init_test_logging, LogCapture};
+   |                       ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `std::path::Path`
+ --> wkmp-ai\tests\helpers\db_utils.rs:7:5
+  |
+7 | use std::path::Path;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: function `create_test_mixed_files` is never used
+   --> wkmp-ai\tests\api_integration_tests.rs:335:4
+    |
+335 | fn create_test_mixed_files() -> tempfile::TempDir {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: fields `cid`, `type`, `notnull`, `dflt_value`, and `pk` are never read
+  --> wkmp-ai\tests\helpers\db_utils.rs:13:9
+   |
+12 | pub struct ColumnInfo {
+   |            ---------- fields in this struct
+13 |     pub cid: i32,
+   |         ^^^
+14 |     pub name: String,
+15 |     pub r#type: String,
+   |         ^^^^^^
+16 |     pub notnull: i32,
+   |         ^^^^^^^
+17 |     pub dflt_value: Option<String>,
+   |         ^^^^^^^^^^
+18 |     pub pk: i32,
+   |         ^^
+   |
+   = note: `ColumnInfo` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `assert_no_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:54:14
+   |
+54 | pub async fn assert_no_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^
+
+warning: function `assert_has_column` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:64:14
+   |
+64 | pub async fn assert_has_column(pool: &SqlitePool, table_name: &str, column_name: &str) {
+   |              ^^^^^^^^^^^^^^^^^
+
+warning: function `seed_test_files` is never used
+   --> wkmp-ai\tests\helpers\db_utils.rs:105:14
+    |
+105 | pub async fn seed_test_files(
+    |              ^^^^^^^^^^^^^^^
+
+warning: fields `level` and `target` are never read
+  --> wkmp-ai\tests\helpers\log_capture.rs:13:9
+   |
+12 | pub struct LogRecord {
+   |            --------- fields in this struct
+13 |     pub level: Level,
+   |         ^^^^^
+14 |     pub target: String,
+   |         ^^^^^^
+   |
+   = note: `LogRecord` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\album_matcher_20.rs:140:7
+    |
+140 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+    |       ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_20.rs:204:7
+    |
+204 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_20.rs:2219:5
+     |
+2211 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+2219 |     mbid: String,
+     |     ^^^^
+2220 |     /// Expected track durations from MusicBrainz (seconds).
+2221 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+  --> wkmp-ai\examples\album_matcher_21.rs:70:7
+   |
+70 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+  --> wkmp-ai\examples\album_matcher_23.rs:69:7
+   |
+69 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_21.rs:155:7
+    |
+155 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_21.rs:2462:5
+     |
+2454 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+2462 |     mbid: String,
+     |     ^^^^
+2463 |     /// Expected track durations from MusicBrainz (seconds).
+2464 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_23.rs:185:7
+    |
+185 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_23.rs:2909:5
+     |
+2901 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+2909 |     mbid: String,
+     |     ^^^^
+2910 |     /// Expected track durations from MusicBrainz (seconds).
+2911 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+  --> wkmp-ai\examples\album_matcher_22.rs:70:7
+   |
+70 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_22.rs:186:7
+    |
+186 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_22.rs:2493:5
+     |
+2485 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+2493 |     mbid: String,
+     |     ^^^^
+2494 |     /// Expected track durations from MusicBrainz (seconds).
+2495 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `find_best_edition_result` is never used
+    --> wkmp-ai\examples\album_matcher_22.rs:3265:4
+     |
+3265 | fn find_best_edition_result(edition_results: &[EditionTestResult]) -> Option<&EditionTestResult> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::path::PathBuf`
+ --> wkmp-ai\tests\component_tests.rs:7:5
+  |
+7 | use std::path::PathBuf;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: function `create_test_orchestrator` is never used
+  --> wkmp-ai\tests\helpers\db_utils.rs:84:8
+   |
+84 | pub fn create_test_orchestrator(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around closure body
+   --> wkmp-ai\tests\component_tests.rs:371:18
+    |
+371 |         .map(|i| (i as f32 / 132300.0)) // Linear ramp
+    |                  ^                   ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+371 -         .map(|i| (i as f32 / 132300.0)) // Linear ramp
+371 +         .map(|i| i as f32 / 132300.0) // Linear ramp
+    |
+
+warning: method `clear` is never used
+  --> wkmp-ai\tests\helpers\log_capture.rs:38:12
+   |
+24 | impl LogCapture {
+   | --------------- method in this implementation
+...
+38 |     pub fn clear(&self) {
+   |            ^^^^^
+
+warning: function `init_test_logging` is never used
+   --> wkmp-ai\tests\helpers\log_capture.rs:143:8
+    |
+143 | pub fn init_test_logging() -> LogCapture {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `candidate::*`
+  --> wkmp-ai\examples\am28\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `edition::*`
+  --> wkmp-ai\examples\am28\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `mbid::*`
+  --> wkmp-ai\examples\am28\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `validation::*`
+  --> wkmp-ai\examples\am28\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `api::*`
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `cache::*`
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+
+warning: unused import: `types::*`
+  --> wkmp-ai\examples\am28\musicbrainz\mod.rs:17:9
+   |
+17 | pub use types::*;
+   |         ^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\stages\mod.rs:17:9
+   |
+17 | pub use stage2::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\stages\mod.rs:17:9
+   |
+17 | pub use stage2::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\stages\mod.rs:18:9
+   |
+18 | pub use stage3::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\stages\mod.rs:18:9
+   |
+18 | pub use stage3::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\stages\mod.rs:19:9
+   |
+19 | pub use stage4::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\stages\mod.rs:19:9
+   |
+19 | pub use stage4::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\stages\mod.rs:20:9
+   |
+20 | pub use stage5::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\stages\mod.rs:20:9
+   |
+20 | pub use stage5::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `AtomicBool`
+  --> wkmp-ai\examples\am28\types.rs:10:25
+   |
+10 | use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+   |                         ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> wkmp-ai\examples\am28\types.rs:11:5
+   |
+11 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+  --> wkmp-ai\examples\am28\types.rs:12:5
+   |
+12 | use std::time::Instant;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `audio::*`
+  --> wkmp-ai\examples\am28\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\utils\mod.rs:20:9
+   |
+20 | pub use early_exit::*;
+   |         ^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\utils\mod.rs:20:9
+   |
+20 | pub use early_exit::*;
+   |         ^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `fingerprint::*`
+  --> wkmp-ai\examples\am28\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `query_stats::*`
+  --> wkmp-ai\examples\am28\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am28\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am28\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `timing::*`
+  --> wkmp-ai\examples\am28\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+
+warning: unused import: `Mutex`
+  --> wkmp-ai\examples\am28\main.rs:23:22
+   |
+23 | use std::sync::{Arc, Mutex};
+   |                      ^^^^^
+
+warning: unused import: `matching::candidate::analyze_track_matching`
+  --> wkmp-ai\examples\am28\main.rs:35:5
+   |
+35 | use matching::candidate::analyze_track_matching;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `rayon::prelude`
+  --> wkmp-ai\examples\am28\main.rs:27:5
+   |
+27 | use rayon::prelude::*;
+   |     ^^^^^^^^^^^^^^
+
+warning: constant `GRACE_PERIOD_SECS` is never used
+   --> wkmp-ai\examples\am28\constants.rs:126:18
+    |
+126 | pub(crate) const GRACE_PERIOD_SECS: f64 = 2.0;
+    |                  ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: constant `GRACE_PERIOD_THRESHOLD_SECS` is never used
+   --> wkmp-ai\examples\am28\constants.rs:130:18
+    |
+130 | pub(crate) const GRACE_PERIOD_THRESHOLD_SECS: u32 = 180;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `TRACK_COUNT_PENALTY_PER_EXTRA` is never used
+   --> wkmp-ai\examples\am28\constants.rs:138:18
+    |
+138 | pub(crate) const TRACK_COUNT_PENALTY_PER_EXTRA: f64 = 2.0;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `MAX_EDITIONS_TO_TEST` is never used
+   --> wkmp-ai\examples\am28\constants.rs:142:18
+    |
+142 | pub(crate) const MAX_EDITIONS_TO_TEST: usize = 10;
+    |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\am28\constants.rs:152:18
+    |
+152 | pub(crate) const VARIOUS_ARTISTS: &str = "Various Artists";
+    |                  ^^^^^^^^^^^^^^^
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\am28\constants.rs:258:18
+    |
+258 | pub(crate) const QUIET_SPOT_TOP_EDITIONS: usize = 5;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `ACOUSTID_VERIFICATION_MIN_MATCH_PCT` is never used
+   --> wkmp-ai\examples\am28\constants.rs:400:18
+    |
+400 | pub(crate) const ACOUSTID_VERIFICATION_MIN_MATCH_PCT: f64 = 60.0;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `get_config` is never used
+   --> wkmp-ai\examples\am28\musicbrainz\api.rs:515:19
+    |
+242 | impl MBClient {
+    | ------------- method in this implementation
+...
+515 |     pub(crate) fn get_config(&self) -> &CacheConfig {
+    |                   ^^^^^^^^^^
+
+warning: methods `total_hits`, `total_misses`, and `hit_rate` are never used
+   --> wkmp-ai\examples\am28\types.rs:103:19
+    |
+ 82 | impl CacheStats {
+    | --------------- methods in this implementation
+...
+103 |     pub(crate) fn total_hits(&self) -> u64 {
+    |                   ^^^^^^^^^^
+...
+107 |     pub(crate) fn total_misses(&self) -> u64 {
+    |                   ^^^^^^^^^^^^
+...
+111 |     pub(crate) fn hit_rate(&self) -> f64 {
+    |                   ^^^^^^^^
+
+warning: field `recording_mbids` is never read
+   --> wkmp-ai\examples\am28\types.rs:240:16
+    |
+234 | pub(crate) struct Edition {
+    |                   ------- field in this struct
+...
+240 |     pub(crate) recording_mbids: Vec<String>,
+    |                ^^^^^^^^^^^^^^^
+    |
+    = note: `Edition` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+   --> wkmp-ai\examples\am28\types.rs:319:16
+    |
+311 | pub(crate) struct CandidateTestResult {
+    |                   ------------------- fields in this struct
+...
+319 |     pub(crate) mbid: String,
+    |                ^^^^
+320 |     /// Expected track durations from MusicBrainz (seconds)
+321 |     pub(crate) expected_durations: Vec<u32>,
+    |                ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `AcoustIDLookupResponse` is never constructed
+   --> wkmp-ai\examples\am28\types.rs:364:19
+    |
+364 | pub(crate) struct AcoustIDLookupResponse {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDLookupResult` is never constructed
+   --> wkmp-ai\examples\am28\types.rs:371:19
+    |
+371 | pub(crate) struct AcoustIDLookupResult {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDLookupRecording` is never constructed
+   --> wkmp-ai\examples\am28\types.rs:379:19
+    |
+379 | pub(crate) struct AcoustIDLookupRecording {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDTrackByMbidResponse` is never constructed
+   --> wkmp-ai\examples\am28\types.rs:390:19
+    |
+390 | pub(crate) struct AcoustIDTrackByMbidResponse {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDTrackInfo` is never constructed
+   --> wkmp-ai\examples\am28\types.rs:398:19
+    |
+398 | pub(crate) struct AcoustIDTrackInfo {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: enum `MbidLookupResult` is never used
+   --> wkmp-ai\examples\am28\types.rs:405:17
+    |
+405 | pub(crate) enum MbidLookupResult {
+    |                 ^^^^^^^^^^^^^^^^
+
+warning: fields `date`, `genre`, and `all_tags` are never read
+   --> wkmp-ai\examples\am28\types.rs:571:16
+    |
+565 | pub(crate) struct ID3Metadata {
+    |                   ----------- fields in this struct
+...
+571 |     pub(crate) date: Option<String>,
+    |                ^^^^
+572 |     /// Genre from ID3 tag.
+573 |     pub(crate) genre: Option<String>,
+    |                ^^^^^
+...
+581 |     pub(crate) all_tags: std::collections::HashMap<String, String>,
+    |                ^^^^^^^^
+    |
+    = note: `ID3Metadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `generate_chromaprint_fingerprint` is never used
+  --> wkmp-ai\examples\am28\utils\fingerprint.rs:40:15
+   |
+40 | pub(crate) fn generate_chromaprint_fingerprint(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_acoustid_api_key` is never used
+   --> wkmp-ai\examples\am28\utils\fingerprint.rs:108:15
+    |
+108 | pub(crate) fn resolve_acoustid_api_key() -> Result<String, String> {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_stagger_delay` is never used
+  --> wkmp-ai\examples\am28\utils\timing.rs:44:15
+   |
+44 | pub(crate) fn calculate_stagger_delay(album_idx: usize) -> (bool, u64, usize) {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_stagger_delay` is never used
+  --> wkmp-ai\examples\am28\utils\timing.rs:70:21
+   |
+70 | pub(crate) async fn apply_stagger_delay(album_idx: usize) {
+   |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (example "album_matcher_20") generated 3 warnings
+warning: `wkmp-ai` (example "album_matcher_22") generated 4 warnings
+warning: `wkmp-ai` (example "album_matcher_23") generated 3 warnings
+warning: `wkmp-ai` (example "album_matcher_21") generated 3 warnings
+warning: fields `title` and `artist_credit` are never read
+  --> wkmp-ai\examples\parameter_optimizer.rs:30:5
+   |
+28 | struct MBRelease {
+   |        --------- fields in this struct
+29 |     id: String,
+30 |     title: String,
+   |     ^^^^^
+31 |     #[serde(rename = "artist-credit")]
+32 |     artist_credit: Option<Vec<MBArtistCredit>>,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `MBRelease` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `artist` is never read
+  --> wkmp-ai\examples\parameter_optimizer.rs:37:5
+   |
+36 | struct MBArtistCredit {
+   |        -------------- field in this struct
+37 |     artist: Option<MBArtist>,
+   |     ^^^^^^
+   |
+   = note: `MBArtistCredit` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `name` is never read
+  --> wkmp-ai\examples\parameter_optimizer.rs:42:5
+   |
+41 | struct MBArtist {
+   |        -------- field in this struct
+42 |     name: String,
+   |     ^^^^
+   |
+   = note: `MBArtist` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `id` and `title` are never read
+  --> wkmp-ai\examples\parameter_optimizer.rs:47:5
+   |
+46 | struct MBReleaseDetails {
+   |        ---------------- fields in this struct
+47 |     id: String,
+   |     ^^
+48 |     title: String,
+   |     ^^^^^
+   |
+   = note: `MBReleaseDetails` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: struct `ParameterTest` is never constructed
+   --> wkmp-ai\examples\parameter_optimizer.rs:105:8
+    |
+105 | struct ParameterTest {
+    |        ^^^^^^^^^^^^^
+
+warning: function `count_tracks_detected` is never used
+   --> wkmp-ai\examples\parameter_optimizer.rs:263:4
+    |
+263 | fn count_tracks_detected(
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::cmp::Ordering as CmpOrdering`
+  --> wkmp-ai\examples\album_matcher_28.rs:36:5
+   |
+36 | use std::cmp::Ordering as CmpOrdering;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: `wkmp-ai` (test "component_tests") generated 2 warnings (run `cargo fix --test "component_tests"` to apply 2 suggestions)
+warning: methods `total_hits`, `total_misses`, and `hit_rate` are never used
+   --> wkmp-ai\examples\album_matcher_28.rs:136:8
+    |
+115 | impl CacheStats {
+    | --------------- methods in this implementation
+...
+136 |     fn total_hits(&self) -> u64 {
+    |        ^^^^^^^^^^
+...
+140 |     fn total_misses(&self) -> u64 {
+    |        ^^^^^^^^^^^^
+...
+144 |     fn hit_rate(&self) -> f64 {
+    |        ^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: method `get_config` is never used
+   --> wkmp-ai\examples\album_matcher_28.rs:604:8
+    |
+395 | impl MBClient {
+    | ------------- method in this implementation
+...
+604 |     fn get_config(&self) -> &CacheConfig {
+    |        ^^^^^^^^^^
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\album_matcher_28.rs:652:7
+    |
+652 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+    |       ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `MATCH_QUALITY_THRESHOLD_PCT` is never used
+   --> wkmp-ai\examples\album_matcher_28.rs:755:7
+    |
+755 | const MATCH_QUALITY_THRESHOLD_PCT: f64 = 20.0;
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_28.rs:856:7
+    |
+856 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_28.rs:1936:5
+     |
+1935 | struct AcoustIDLookupResponse {
+     |        ---------------------- field in this struct
+1936 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDLookupResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `score` are never read
+    --> wkmp-ai\examples\album_matcher_28.rs:1943:5
+     |
+1942 | struct AcoustIDLookupResult {
+     |        -------------------- fields in this struct
+1943 |     id: String,
+     |     ^^
+1944 |     score: f64,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `title` is never read
+    --> wkmp-ai\examples\album_matcher_28.rs:1953:5
+     |
+1950 | struct AcoustIDLookupRecording {
+     |        ----------------------- field in this struct
+...
+1953 |     title: Option<String>,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_28.rs:1960:5
+     |
+1959 | struct AcoustIDTrackByMbidResponse {
+     |        --------------------------- field in this struct
+1960 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDTrackByMbidResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+    --> wkmp-ai\examples\album_matcher_28.rs:1969:5
+     |
+1967 | struct AcoustIDTrackInfo {
+     |        ----------------- field in this struct
+1968 |     /// AcoustID track ID (fingerprint ID)
+1969 |     id: String,
+     |     ^^
+     |
+     = note: `AcoustIDTrackInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_28.rs:4340:5
+     |
+4332 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+4340 |     mbid: String,
+     |     ^^^^
+4341 |     /// Expected track durations from MusicBrainz (seconds).
+4342 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: comparison is useless due to type limits
+   --> wkmp-ai\tests\workflow_tests.rs:175:13
+    |
+175 |     assert!(session.progress.elapsed_seconds >= 0);
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_comparisons)]` on by default
+
+warning: `wkmp-ai` (example "am28") generated 54 warnings (run `cargo fix --example "am28"` to apply 16 suggestions)
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `candidate::*`
+  --> wkmp-ai\examples\am30\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `edition::*`
+  --> wkmp-ai\examples\am30\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `mbid::*`
+  --> wkmp-ai\examples\am30\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `validation::*`
+  --> wkmp-ai\examples\am30\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `api::*`
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `cache::*`
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+
+warning: unused import: `types::*`
+  --> wkmp-ai\examples\am30\musicbrainz\mod.rs:17:9
+   |
+17 | pub use types::*;
+   |         ^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\stages\mod.rs:17:9
+   |
+17 | pub use stage2::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\stages\mod.rs:17:9
+   |
+17 | pub use stage2::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\stages\mod.rs:18:9
+   |
+18 | pub use stage3::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\stages\mod.rs:18:9
+   |
+18 | pub use stage3::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\stages\mod.rs:19:9
+   |
+19 | pub use stage4::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\stages\mod.rs:19:9
+   |
+19 | pub use stage4::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\stages\mod.rs:20:9
+   |
+20 | pub use stage5::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\stages\mod.rs:20:9
+   |
+20 | pub use stage5::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `AtomicBool`
+  --> wkmp-ai\examples\am30\types.rs:10:25
+   |
+10 | use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+   |                         ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> wkmp-ai\examples\am30\types.rs:11:5
+   |
+11 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+  --> wkmp-ai\examples\am30\types.rs:12:5
+   |
+12 | use std::time::Instant;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `audio::*`
+  --> wkmp-ai\examples\am30\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\utils\mod.rs:20:9
+   |
+20 | pub use early_exit::*;
+   |         ^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\utils\mod.rs:20:9
+   |
+20 | pub use early_exit::*;
+   |         ^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `fingerprint::*`
+  --> wkmp-ai\examples\am30\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `query_stats::*`
+  --> wkmp-ai\examples\am30\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am30\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am30\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `timing::*`
+  --> wkmp-ai\examples\am30\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+
+warning: unused import: `Mutex`
+  --> wkmp-ai\examples\am30\main.rs:23:22
+   |
+23 | use std::sync::{Arc, Mutex};
+   |                      ^^^^^
+
+warning: unused import: `matching::candidate::analyze_track_matching`
+  --> wkmp-ai\examples\am30\main.rs:35:5
+   |
+35 | use matching::candidate::analyze_track_matching;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `rayon::prelude`
+  --> wkmp-ai\examples\am30\main.rs:27:5
+   |
+27 | use rayon::prelude::*;
+   |     ^^^^^^^^^^^^^^
+
+warning: constant `GRACE_PERIOD_SECS` is never used
+   --> wkmp-ai\examples\am30\constants.rs:126:18
+    |
+126 | pub(crate) const GRACE_PERIOD_SECS: f64 = 2.0;
+    |                  ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: constant `GRACE_PERIOD_THRESHOLD_SECS` is never used
+   --> wkmp-ai\examples\am30\constants.rs:130:18
+    |
+130 | pub(crate) const GRACE_PERIOD_THRESHOLD_SECS: u32 = 180;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `TRACK_COUNT_PENALTY_PER_EXTRA` is never used
+   --> wkmp-ai\examples\am30\constants.rs:138:18
+    |
+138 | pub(crate) const TRACK_COUNT_PENALTY_PER_EXTRA: f64 = 2.0;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `MAX_EDITIONS_TO_TEST` is never used
+   --> wkmp-ai\examples\am30\constants.rs:142:18
+    |
+142 | pub(crate) const MAX_EDITIONS_TO_TEST: usize = 10;
+    |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\am30\constants.rs:152:18
+    |
+152 | pub(crate) const VARIOUS_ARTISTS: &str = "Various Artists";
+    |                  ^^^^^^^^^^^^^^^
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\am30\constants.rs:258:18
+    |
+258 | pub(crate) const QUIET_SPOT_TOP_EDITIONS: usize = 5;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `ACOUSTID_VERIFICATION_MIN_MATCH_PCT` is never used
+   --> wkmp-ai\examples\am30\constants.rs:400:18
+    |
+400 | pub(crate) const ACOUSTID_VERIFICATION_MIN_MATCH_PCT: f64 = 60.0;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `get_config` is never used
+   --> wkmp-ai\examples\am30\musicbrainz\api.rs:515:19
+    |
+242 | impl MBClient {
+    | ------------- method in this implementation
+...
+515 |     pub(crate) fn get_config(&self) -> &CacheConfig {
+    |                   ^^^^^^^^^^
+
+warning: methods `total_hits`, `total_misses`, and `hit_rate` are never used
+   --> wkmp-ai\examples\am30\types.rs:103:19
+    |
+ 82 | impl CacheStats {
+    | --------------- methods in this implementation
+...
+103 |     pub(crate) fn total_hits(&self) -> u64 {
+    |                   ^^^^^^^^^^
+...
+107 |     pub(crate) fn total_misses(&self) -> u64 {
+    |                   ^^^^^^^^^^^^
+...
+111 |     pub(crate) fn hit_rate(&self) -> f64 {
+    |                   ^^^^^^^^
+
+warning: field `recording_mbids` is never read
+   --> wkmp-ai\examples\am30\types.rs:240:16
+    |
+234 | pub(crate) struct Edition {
+    |                   ------- field in this struct
+...
+240 |     pub(crate) recording_mbids: Vec<String>,
+    |                ^^^^^^^^^^^^^^^
+    |
+    = note: `Edition` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+   --> wkmp-ai\examples\am30\types.rs:319:16
+    |
+311 | pub(crate) struct CandidateTestResult {
+    |                   ------------------- fields in this struct
+...
+319 |     pub(crate) mbid: String,
+    |                ^^^^
+320 |     /// Expected track durations from MusicBrainz (seconds)
+321 |     pub(crate) expected_durations: Vec<u32>,
+    |                ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `AcoustIDLookupResponse` is never constructed
+   --> wkmp-ai\examples\am30\types.rs:364:19
+    |
+364 | pub(crate) struct AcoustIDLookupResponse {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDLookupResult` is never constructed
+   --> wkmp-ai\examples\am30\types.rs:371:19
+    |
+371 | pub(crate) struct AcoustIDLookupResult {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDLookupRecording` is never constructed
+   --> wkmp-ai\examples\am30\types.rs:379:19
+    |
+379 | pub(crate) struct AcoustIDLookupRecording {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDTrackByMbidResponse` is never constructed
+   --> wkmp-ai\examples\am30\types.rs:390:19
+    |
+390 | pub(crate) struct AcoustIDTrackByMbidResponse {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDTrackInfo` is never constructed
+   --> wkmp-ai\examples\am30\types.rs:398:19
+    |
+398 | pub(crate) struct AcoustIDTrackInfo {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: enum `MbidLookupResult` is never used
+   --> wkmp-ai\examples\am30\types.rs:405:17
+    |
+405 | pub(crate) enum MbidLookupResult {
+    |                 ^^^^^^^^^^^^^^^^
+
+warning: fields `date`, `genre`, and `all_tags` are never read
+   --> wkmp-ai\examples\am30\types.rs:571:16
+    |
+565 | pub(crate) struct ID3Metadata {
+    |                   ----------- fields in this struct
+...
+571 |     pub(crate) date: Option<String>,
+    |                ^^^^
+572 |     /// Genre from ID3 tag.
+573 |     pub(crate) genre: Option<String>,
+    |                ^^^^^
+...
+581 |     pub(crate) all_tags: std::collections::HashMap<String, String>,
+    |                ^^^^^^^^
+    |
+    = note: `ID3Metadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `generate_chromaprint_fingerprint` is never used
+  --> wkmp-ai\examples\am30\utils\fingerprint.rs:40:15
+   |
+40 | pub(crate) fn generate_chromaprint_fingerprint(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_acoustid_api_key` is never used
+   --> wkmp-ai\examples\am30\utils\fingerprint.rs:108:15
+    |
+108 | pub(crate) fn resolve_acoustid_api_key() -> Result<String, String> {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_stagger_delay` is never used
+  --> wkmp-ai\examples\am30\utils\timing.rs:44:15
+   |
+44 | pub(crate) fn calculate_stagger_delay(album_idx: usize) -> (bool, u64, usize) {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_stagger_delay` is never used
+  --> wkmp-ai\examples\am30\utils\timing.rs:70:21
+   |
+70 | pub(crate) async fn apply_stagger_delay(album_idx: usize) {
+   |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `candidate::*`
+  --> wkmp-ai\examples\am29\matching\mod.rs:17:9
+   |
+17 | pub use candidate::*;
+   |         ^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `edition::*`
+  --> wkmp-ai\examples\am29\matching\mod.rs:18:9
+   |
+18 | pub use edition::*;
+   |         ^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `mbid::*`
+  --> wkmp-ai\examples\am29\matching\mod.rs:19:9
+   |
+19 | pub use mbid::*;
+   |         ^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `validation::*`
+  --> wkmp-ai\examples\am29\matching\mod.rs:20:9
+   |
+20 | pub use validation::*;
+   |         ^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `api::*`
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:15:9
+   |
+15 | pub use api::*;
+   |         ^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `cache::*`
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:16:9
+   |
+16 | pub use cache::*;
+   |         ^^^^^^^^
+
+warning: unused import: `types::*`
+  --> wkmp-ai\examples\am29\musicbrainz\mod.rs:17:9
+   |
+17 | pub use types::*;
+   |         ^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\stages\mod.rs:17:9
+   |
+17 | pub use stage2::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\stages\mod.rs:17:9
+   |
+17 | pub use stage2::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\stages\mod.rs:18:9
+   |
+18 | pub use stage3::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\stages\mod.rs:18:9
+   |
+18 | pub use stage3::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\stages\mod.rs:19:9
+   |
+19 | pub use stage4::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\stages\mod.rs:19:9
+   |
+19 | pub use stage4::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\stages\mod.rs:20:9
+   |
+20 | pub use stage5::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\stages\mod.rs:20:9
+   |
+20 | pub use stage5::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `AtomicBool`
+  --> wkmp-ai\examples\am29\types.rs:10:25
+   |
+10 | use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+   |                         ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+  --> wkmp-ai\examples\am29\types.rs:11:5
+   |
+11 | use std::sync::Arc;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Instant`
+  --> wkmp-ai\examples\am29\types.rs:12:5
+   |
+12 | use std::time::Instant;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `audio::*`
+  --> wkmp-ai\examples\am29\utils\mod.rs:19:9
+   |
+19 | pub use audio::*;
+   |         ^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\utils\mod.rs:20:9
+   |
+20 | pub use early_exit::*;
+   |         ^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\utils\mod.rs:20:9
+   |
+20 | pub use early_exit::*;
+   |         ^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `fingerprint::*`
+  --> wkmp-ai\examples\am29\utils\mod.rs:21:9
+   |
+21 | pub use fingerprint::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `query_stats::*`
+  --> wkmp-ai\examples\am29\utils\mod.rs:22:9
+   |
+22 | pub use query_stats::*;
+   |         ^^^^^^^^^^^^^^
+
+warning: glob import doesn't reexport anything with visibility `pub` because no imported item is public enough
+  --> wkmp-ai\examples\am29\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+   |
+note: the most public imported item is `pub(crate)`
+  --> wkmp-ai\examples\am29\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+   = help: reduce the glob import's visibility or increase visibility of imported items
+
+warning: unused import: `timing::*`
+  --> wkmp-ai\examples\am29\utils\mod.rs:23:9
+   |
+23 | pub use timing::*;
+   |         ^^^^^^^^^
+
+warning: unused import: `Mutex`
+  --> wkmp-ai\examples\am29\main.rs:23:22
+   |
+23 | use std::sync::{Arc, Mutex};
+   |                      ^^^^^
+
+warning: unused import: `matching::candidate::analyze_track_matching`
+  --> wkmp-ai\examples\am29\main.rs:35:5
+   |
+35 | use matching::candidate::analyze_track_matching;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `rayon::prelude`
+  --> wkmp-ai\examples\am29\main.rs:27:5
+   |
+27 | use rayon::prelude::*;
+   |     ^^^^^^^^^^^^^^
+
+warning: constant `GRACE_PERIOD_SECS` is never used
+   --> wkmp-ai\examples\am29\constants.rs:126:18
+    |
+126 | pub(crate) const GRACE_PERIOD_SECS: f64 = 2.0;
+    |                  ^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: constant `GRACE_PERIOD_THRESHOLD_SECS` is never used
+   --> wkmp-ai\examples\am29\constants.rs:130:18
+    |
+130 | pub(crate) const GRACE_PERIOD_THRESHOLD_SECS: u32 = 180;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `TRACK_COUNT_PENALTY_PER_EXTRA` is never used
+   --> wkmp-ai\examples\am29\constants.rs:138:18
+    |
+138 | pub(crate) const TRACK_COUNT_PENALTY_PER_EXTRA: f64 = 2.0;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `MAX_EDITIONS_TO_TEST` is never used
+   --> wkmp-ai\examples\am29\constants.rs:142:18
+    |
+142 | pub(crate) const MAX_EDITIONS_TO_TEST: usize = 10;
+    |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\am29\constants.rs:152:18
+    |
+152 | pub(crate) const VARIOUS_ARTISTS: &str = "Various Artists";
+    |                  ^^^^^^^^^^^^^^^
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\am29\constants.rs:258:18
+    |
+258 | pub(crate) const QUIET_SPOT_TOP_EDITIONS: usize = 5;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `ACOUSTID_VERIFICATION_MIN_MATCH_PCT` is never used
+   --> wkmp-ai\examples\am29\constants.rs:400:18
+    |
+400 | pub(crate) const ACOUSTID_VERIFICATION_MIN_MATCH_PCT: f64 = 60.0;
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `get_config` is never used
+   --> wkmp-ai\examples\am29\musicbrainz\api.rs:515:19
+    |
+242 | impl MBClient {
+    | ------------- method in this implementation
+...
+515 |     pub(crate) fn get_config(&self) -> &CacheConfig {
+    |                   ^^^^^^^^^^
+
+warning: methods `total_hits`, `total_misses`, and `hit_rate` are never used
+   --> wkmp-ai\examples\am29\types.rs:103:19
+    |
+ 82 | impl CacheStats {
+    | --------------- methods in this implementation
+...
+103 |     pub(crate) fn total_hits(&self) -> u64 {
+    |                   ^^^^^^^^^^
+...
+107 |     pub(crate) fn total_misses(&self) -> u64 {
+    |                   ^^^^^^^^^^^^
+...
+111 |     pub(crate) fn hit_rate(&self) -> f64 {
+    |                   ^^^^^^^^
+
+warning: field `recording_mbids` is never read
+   --> wkmp-ai\examples\am29\types.rs:240:16
+    |
+234 | pub(crate) struct Edition {
+    |                   ------- field in this struct
+...
+240 |     pub(crate) recording_mbids: Vec<String>,
+    |                ^^^^^^^^^^^^^^^
+    |
+    = note: `Edition` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+   --> wkmp-ai\examples\am29\types.rs:319:16
+    |
+311 | pub(crate) struct CandidateTestResult {
+    |                   ------------------- fields in this struct
+...
+319 |     pub(crate) mbid: String,
+    |                ^^^^
+320 |     /// Expected track durations from MusicBrainz (seconds)
+321 |     pub(crate) expected_durations: Vec<u32>,
+    |                ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `AcoustIDLookupResponse` is never constructed
+   --> wkmp-ai\examples\am29\types.rs:364:19
+    |
+364 | pub(crate) struct AcoustIDLookupResponse {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDLookupResult` is never constructed
+   --> wkmp-ai\examples\am29\types.rs:371:19
+    |
+371 | pub(crate) struct AcoustIDLookupResult {
+    |                   ^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDLookupRecording` is never constructed
+   --> wkmp-ai\examples\am29\types.rs:379:19
+    |
+379 | pub(crate) struct AcoustIDLookupRecording {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDTrackByMbidResponse` is never constructed
+   --> wkmp-ai\examples\am29\types.rs:390:19
+    |
+390 | pub(crate) struct AcoustIDTrackByMbidResponse {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AcoustIDTrackInfo` is never constructed
+   --> wkmp-ai\examples\am29\types.rs:398:19
+    |
+398 | pub(crate) struct AcoustIDTrackInfo {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: enum `MbidLookupResult` is never used
+   --> wkmp-ai\examples\am29\types.rs:405:17
+    |
+405 | pub(crate) enum MbidLookupResult {
+    |                 ^^^^^^^^^^^^^^^^
+
+warning: fields `date`, `genre`, and `all_tags` are never read
+   --> wkmp-ai\examples\am29\types.rs:571:16
+    |
+565 | pub(crate) struct ID3Metadata {
+    |                   ----------- fields in this struct
+...
+571 |     pub(crate) date: Option<String>,
+    |                ^^^^
+572 |     /// Genre from ID3 tag.
+573 |     pub(crate) genre: Option<String>,
+    |                ^^^^^
+...
+581 |     pub(crate) all_tags: std::collections::HashMap<String, String>,
+    |                ^^^^^^^^
+    |
+    = note: `ID3Metadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `generate_chromaprint_fingerprint` is never used
+  --> wkmp-ai\examples\am29\utils\fingerprint.rs:40:15
+   |
+40 | pub(crate) fn generate_chromaprint_fingerprint(
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_acoustid_api_key` is never used
+   --> wkmp-ai\examples\am29\utils\fingerprint.rs:108:15
+    |
+108 | pub(crate) fn resolve_acoustid_api_key() -> Result<String, String> {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `calculate_stagger_delay` is never used
+  --> wkmp-ai\examples\am29\utils\timing.rs:44:15
+   |
+44 | pub(crate) fn calculate_stagger_delay(album_idx: usize) -> (bool, u64, usize) {
+   |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `apply_stagger_delay` is never used
+  --> wkmp-ai\examples\am29\utils\timing.rs:70:21
+   |
+70 | pub(crate) async fn apply_stagger_delay(album_idx: usize) {
+   |                     ^^^^^^^^^^^^^^^^^^^
+
+warning: `wkmp-ai` (test "api_integration_tests") generated 1 warning
+warning: unused import: `std::cmp::Ordering as CmpOrdering`
+  --> wkmp-ai\examples\album_matcher_26.rs:28:5
+   |
+28 | use std::cmp::Ordering as CmpOrdering;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: fields `title` and `artist_credit` are never read
+  --> wkmp-ai\examples\parameter_validator.rs:27:5
+   |
+25 | struct MBRelease {
+   |        --------- fields in this struct
+26 |     id: String,
+27 |     title: String,
+   |     ^^^^^
+28 |     #[serde(rename = "artist-credit")]
+29 |     artist_credit: Option<Vec<MBArtistCredit>>,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `MBRelease` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `artist` is never read
+  --> wkmp-ai\examples\parameter_validator.rs:37:5
+   |
+36 | struct MBArtistCredit {
+   |        -------------- field in this struct
+37 |     artist: Option<MBArtist>,
+   |     ^^^^^^
+   |
+   = note: `MBArtistCredit` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `name` is never read
+  --> wkmp-ai\examples\parameter_validator.rs:42:5
+   |
+41 | struct MBArtist {
+   |        -------- field in this struct
+42 |     name: String,
+   |     ^^^^
+   |
+   = note: `MBArtist` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `id` and `title` are never read
+  --> wkmp-ai\examples\parameter_validator.rs:47:5
+   |
+46 | struct MBReleaseDetails {
+   |        ---------------- fields in this struct
+47 |     id: String,
+   |     ^^
+48 |     title: String,
+   |     ^^^^^
+   |
+   = note: `MBReleaseDetails` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `track_count`, `total_duration`, and `packaging` are never read
+   --> wkmp-ai\examples\parameter_validator.rs:454:9
+    |
+451 |     struct Candidate {
+    |            --------- fields in this struct
+...
+454 |         track_count: usize,
+    |         ^^^^^^^^^^^
+455 |         total_duration: u32,
+    |         ^^^^^^^^^^^^^^
+...
+461 |         packaging: Option<String>,
+    |         ^^^^^^^^^
+    |
+    = note: `Candidate` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+error: error canonicalizing migration directory c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\../../migrations: The system cannot find the file specified. (os error 2)
+  --> wkmp-ai\tests\unit\db_settings_tests.rs:17:5
+   |
+17 |     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::sqlx_macros::migrate` which comes from the expansion of the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: error canonicalizing migration directory c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\../../migrations: The system cannot find the file specified. (os error 2)
+  --> wkmp-ai\tests\unit\db_settings_tests.rs:34:5
+   |
+34 |     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::sqlx_macros::migrate` which comes from the expansion of the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: error canonicalizing migration directory c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\../../migrations: The system cannot find the file specified. (os error 2)
+  --> wkmp-ai\tests\unit\db_settings_tests.rs:56:5
+   |
+56 |     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::sqlx_macros::migrate` which comes from the expansion of the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: error canonicalizing migration directory c:\Users\Mango Cat\Dev\McRhythm\wkmp-ai\../../migrations: The system cannot find the file specified. (os error 2)
+  --> wkmp-ai\tests\unit\db_settings_tests.rs:68:5
+   |
+68 |     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::sqlx_macros::migrate` which comes from the expansion of the macro `sqlx::migrate` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused import: `tempfile::TempDir`
+ --> wkmp-ai\tests\unit\path_handling_tests.rs:6:5
+  |
+6 | use tempfile::TempDir;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ImportState`
+ --> wkmp-ai\tests\unit\phase_scanning_tests.rs:6:56
+  |
+6 | use wkmp_ai::models::{ImportParameters, ImportSession, ImportState};
+  |                                                        ^^^^^^^^^^^
+
+warning: unused import: `wkmp_ai::services::WorkflowOrchestrator`
+ --> wkmp-ai\tests\unit\phase_scanning_tests.rs:7:5
+  |
+7 | use wkmp_ai::services::WorkflowOrchestrator;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `total_hits`, `total_misses`, and `hit_rate` are never used
+   --> wkmp-ai\examples\album_matcher_26.rs:128:8
+    |
+107 | impl CacheStats {
+    | --------------- methods in this implementation
+...
+128 |     fn total_hits(&self) -> u64 {
+    |        ^^^^^^^^^^
+...
+132 |     fn total_misses(&self) -> u64 {
+    |        ^^^^^^^^^^^^
+...
+136 |     fn hit_rate(&self) -> f64 {
+    |        ^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: method `get_config` is never used
+   --> wkmp-ai\examples\album_matcher_26.rs:587:8
+    |
+387 | impl MBClient {
+    | ------------- method in this implementation
+...
+587 |     fn get_config(&self) -> &CacheConfig {
+    |        ^^^^^^^^^^
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\album_matcher_26.rs:635:7
+    |
+635 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+    |       ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_26.rs:778:7
+    |
+778 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_26.rs:1858:5
+     |
+1857 | struct AcoustIDLookupResponse {
+     |        ---------------------- field in this struct
+1858 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDLookupResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `score` are never read
+    --> wkmp-ai\examples\album_matcher_26.rs:1865:5
+     |
+1864 | struct AcoustIDLookupResult {
+     |        -------------------- fields in this struct
+1865 |     id: String,
+     |     ^^
+1866 |     score: f64,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `title` is never read
+    --> wkmp-ai\examples\album_matcher_26.rs:1875:5
+     |
+1872 | struct AcoustIDLookupRecording {
+     |        ----------------------- field in this struct
+...
+1875 |     title: Option<String>,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_26.rs:1882:5
+     |
+1881 | struct AcoustIDTrackByMbidResponse {
+     |        --------------------------- field in this struct
+1882 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDTrackByMbidResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+    --> wkmp-ai\examples\album_matcher_26.rs:1891:5
+     |
+1889 | struct AcoustIDTrackInfo {
+     |        ----------------- field in this struct
+1890 |     /// AcoustID track ID (fingerprint ID)
+1891 |     id: String,
+     |     ^^
+     |
+     = note: `AcoustIDTrackInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_26.rs:4262:5
+     |
+4254 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+4262 |     mbid: String,
+     |     ^^^^
+4263 |     /// Expected track durations from MusicBrainz (seconds).
+4264 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `BaselineResult` is never constructed
+  --> wkmp-ai\tests\run29f_comparison_test.rs:63:8
+   |
+63 | struct BaselineResult {
+   |        ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `wkmp-ai` (test "architecture_compliance_tests") generated 12 warnings (run `cargo fix --test "architecture_compliance_tests"` to apply 7 suggestions)
+warning: unused import: `std::cmp::Ordering as CmpOrdering`
+  --> wkmp-ai\examples\album_matcher_24.rs:13:5
+   |
+13 | use std::cmp::Ordering as CmpOrdering;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused variable: `audio_files`
+  --> wkmp-ai\tests\unit\phase_scanning_tests.rs:43:9
+   |
+43 |     let audio_files =
+   |         ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_audio_files`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `result`
+  --> wkmp-ai\tests\unit\phase_scanning_tests.rs:63:9
+   |
+63 |     let result = orchestrator
+   |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+
+warning: variable does not need to be mutable
+  --> wkmp-ai\tests\unit\phase_scanning_tests.rs:50:9
+   |
+50 |     let mut session = ImportSession::new(
+   |         ----^^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: `wkmp-ai` (example "parameter_optimizer") generated 6 warnings
+warning: `wkmp-ai` (test "unit_tests") generated 11 warnings (5 duplicates)
+error: could not compile `wkmp-ai` (test "unit_tests") due to 4 previous errors; 11 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+warning: unused imports: `error` and `warn`
+  --> wkmp-ai\examples\algorithm_tester.rs:16:21
+   |
+16 | use tracing::{info, warn, error};
+   |                     ^^^^  ^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+  --> wkmp-ai\examples\album_matcher_24.rs:80:7
+   |
+80 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_24.rs:216:7
+    |
+216 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: field `title` is never read
+   --> wkmp-ai\examples\album_matcher_24.rs:945:5
+    |
+941 | struct MBRecording {
+    |        ----------- field in this struct
+...
+945 |     title: Option<String>,
+    |     ^^^^^
+    |
+    = note: `MBRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1269:5
+     |
+1268 | struct AcoustIDLookupResponse {
+     |        ---------------------- field in this struct
+1269 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDLookupResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `score` are never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1276:5
+     |
+1275 | struct AcoustIDLookupResult {
+     |        -------------------- fields in this struct
+1276 |     id: String,
+     |     ^^
+1277 |     score: f64,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `title` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1286:5
+     |
+1283 | struct AcoustIDLookupRecording {
+     |        ----------------------- field in this struct
+...
+1286 |     title: Option<String>,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1293:5
+     |
+1292 | struct AcoustIDTrackByMbidResponse {
+     |        --------------------------- field in this struct
+1293 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDTrackByMbidResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+    --> wkmp-ai\examples\album_matcher_24.rs:1302:5
+     |
+1300 | struct AcoustIDTrackInfo {
+     |        ----------------- field in this struct
+1301 |     /// AcoustID track ID (fingerprint ID)
+1302 |     id: String,
+     |     ^^
+     |
+     = note: `AcoustIDTrackInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_24.rs:3692:5
+     |
+3684 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+3692 |     mbid: String,
+     |     ^^^^
+3693 |     /// Expected track durations from MusicBrainz (seconds).
+3694 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: struct `TestFixture` is never constructed
+  --> wkmp-ai\tests\album_matcher_integration.rs:52:8
+   |
+52 | struct TestFixture {
+   |        ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: constant `TEST_FIXTURES` is never used
+  --> wkmp-ai\tests\album_matcher_integration.rs:61:7
+   |
+61 | const TEST_FIXTURES: &[TestFixture] = &[
+   |       ^^^^^^^^^^^^^
+
+warning: unused import: `std::cmp::Ordering as CmpOrdering`
+  --> wkmp-ai\examples\album_matcher_27.rs:28:5
+   |
+28 | use std::cmp::Ordering as CmpOrdering;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: methods `total_hits`, `total_misses`, and `hit_rate` are never used
+   --> wkmp-ai\examples\album_matcher_27.rs:128:8
+    |
+107 | impl CacheStats {
+    | --------------- methods in this implementation
+...
+128 |     fn total_hits(&self) -> u64 {
+    |        ^^^^^^^^^^
+...
+132 |     fn total_misses(&self) -> u64 {
+    |        ^^^^^^^^^^^^
+...
+136 |     fn hit_rate(&self) -> f64 {
+    |        ^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: method `get_config` is never used
+   --> wkmp-ai\examples\album_matcher_27.rs:596:8
+    |
+387 | impl MBClient {
+    | ------------- method in this implementation
+...
+596 |     fn get_config(&self) -> &CacheConfig {
+    |        ^^^^^^^^^^
+
+warning: constant `QUIET_SPOT_TOP_EDITIONS` is never used
+   --> wkmp-ai\examples\album_matcher_27.rs:644:7
+    |
+644 | const QUIET_SPOT_TOP_EDITIONS: usize = 5; // Try top N editions for guided search
+    |       ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `MATCH_QUALITY_THRESHOLD_PCT` is never used
+   --> wkmp-ai\examples\album_matcher_27.rs:747:7
+    |
+747 | const MATCH_QUALITY_THRESHOLD_PCT: f64 = 20.0;
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `VARIOUS_ARTISTS` is never used
+   --> wkmp-ai\examples\album_matcher_27.rs:797:7
+    |
+797 | const VARIOUS_ARTISTS: &str = "Various Artists";
+    |       ^^^^^^^^^^^^^^^
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_27.rs:1877:5
+     |
+1876 | struct AcoustIDLookupResponse {
+     |        ---------------------- field in this struct
+1877 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDLookupResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `id` and `score` are never read
+    --> wkmp-ai\examples\album_matcher_27.rs:1884:5
+     |
+1883 | struct AcoustIDLookupResult {
+     |        -------------------- fields in this struct
+1884 |     id: String,
+     |     ^^
+1885 |     score: f64,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `title` is never read
+    --> wkmp-ai\examples\album_matcher_27.rs:1894:5
+     |
+1891 | struct AcoustIDLookupRecording {
+     |        ----------------------- field in this struct
+...
+1894 |     title: Option<String>,
+     |     ^^^^^
+     |
+     = note: `AcoustIDLookupRecording` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `status` is never read
+    --> wkmp-ai\examples\album_matcher_27.rs:1901:5
+     |
+1900 | struct AcoustIDTrackByMbidResponse {
+     |        --------------------------- field in this struct
+1901 |     status: String,
+     |     ^^^^^^
+     |
+     = note: `AcoustIDTrackByMbidResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `id` is never read
+    --> wkmp-ai\examples\album_matcher_27.rs:1910:5
+     |
+1908 | struct AcoustIDTrackInfo {
+     |        ----------------- field in this struct
+1909 |     /// AcoustID track ID (fingerprint ID)
+1910 |     id: String,
+     |     ^^
+     |
+     = note: `AcoustIDTrackInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `mbid` and `expected_durations` are never read
+    --> wkmp-ai\examples\album_matcher_27.rs:4281:5
+     |
+4273 | struct CandidateTestResult {
+     |        ------------------- fields in this struct
+...
+4281 |     mbid: String,
+     |     ^^^^
+4282 |     /// Expected track durations from MusicBrainz (seconds).
+4283 |     expected_durations: Vec<u32>,
+     |     ^^^^^^^^^^^^^^^^^^
+     |
+     = note: `CandidateTestResult` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: unused variable: `config`
+   --> wkmp-ai\examples\import_evaluator.rs:183:5
+    |
+183 |     config: &Config,
+    |     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_config`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: field `with_album_tag` is never read
+   --> wkmp-ai\examples\import_evaluator.rs:298:5
+    |
+289 | struct FileStats {
+    |        --------- field in this struct
+...
+298 |     with_album_tag: usize,
+    |     ^^^^^^^^^^^^^^
+    |
+    = note: `FileStats` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `wkmp-ai` (example "parameter_validator") generated 5 warnings
+warning: `wkmp-ai` (test "workflow_tests") generated 1 warning
+warning: `wkmp-ai` (example "algorithm_tester") generated 1 warning (run `cargo fix --example "algorithm_tester"` to apply 1 suggestion)
+warning: `wkmp-ai` (example "album_matcher_28") generated 12 warnings (run `cargo fix --example "album_matcher_28"` to apply 1 suggestion)
+warning: `wkmp-ai` (example "am30") generated 54 warnings (run `cargo fix --example "am30"` to apply 16 suggestions)
+warning: `wkmp-ai` (example "am29") generated 54 warnings (run `cargo fix --example "am29"` to apply 16 suggestions)
+warning: `wkmp-ai` (example "album_matcher_26") generated 11 warnings (run `cargo fix --example "album_matcher_26"` to apply 1 suggestion)
+warning: `wkmp-ai` (example "album_matcher_24") generated 10 warnings (run `cargo fix --example "album_matcher_24"` to apply 1 suggestion)
+warning: `wkmp-ai` (example "album_matcher_27") generated 12 warnings (run `cargo fix --example "album_matcher_27"` to apply 1 suggestion)
+warning: `wkmp-ai` (example "import_evaluator") generated 2 warnings
+warning: `wkmp-ai` (test "full_library_import_test") generated 13 warnings (9 duplicates) (run `cargo fix --test "full_library_import_test"` to apply 1 suggestion)
+warning: `wkmp-ai` (test "database_schema_validation") generated 11 warnings (11 duplicates)
+warning: `wkmp-ai` (test "album_matcher_integration") generated 2 warnings
+warning: `wkmp-ai` (test "run29f_comparison_test") generated 1 warning
