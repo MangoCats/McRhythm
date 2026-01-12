@@ -18,6 +18,19 @@ WKMP uses SQLite as its database engine. The schema is designed to support:
 - User preferences and time-based flavor targets
 - Queue state persistence
 
+### Conceptual Foundation
+
+This database schema implements the entity model defined in [REQ002:90-189 § Entity Relationships](REQ002-entity_definitions.md#20-entity-relationship-overview).
+
+**Key Relationships:**
+- `audio_files` (1) → (N) `passages` via `file_id` foreign key
+- `passages` (N) ↔ (M) `songs` via `passage_songs` join table
+- `songs` (N) → (1) `recordings` via `recording_mbid` foreign key
+- `recordings` (N) ↔ (M) `artists` via `credits` join table
+- `recordings` (N) ↔ (M) `works` via `work_credits` join table
+
+See [REQ002:90-189 § Entity Relationship Diagram](REQ002-entity_definitions.md#20-entity-relationship-overview) for visual representation.
+
 ## Database Connection Management - CRITICAL ARCHITECTURAL PRINCIPLE
 
 **[ARCH-DB-CONN-001] CPU-Intensive Work MUST NOT Hold Database Connections**
@@ -192,6 +205,18 @@ Stores user account information for both Anonymous and registered users.
 - The Anonymous user record is created during database initialization and cannot be deleted
 
 ## Core Entities
+
+### Common Constraints for Cooldown Entities
+
+The following constraints apply to `songs`, `artists`, and `works` tables (all entities tracked for cooldown purposes):
+
+- **CHECK:** `base_probability >= 0.0 AND base_probability <= 1000.0` - Selection probability multiplier
+- **CHECK:** `min_cooldown >= 0` - Minimum cooldown must be non-negative
+- **CHECK:** `ramping_cooldown >= 0` - Ramping cooldown must be non-negative
+
+These constraints ensure valid probability values and cooldown configurations. See [SPEC005:282-336 § Cooldown System](SPEC005-program_director.md#cooldown-system) for cooldown algorithm details.
+
+---
 
 ### `files`
 
@@ -431,10 +456,7 @@ Songs are unique combinations of a recording and a weighted set of artists. Each
 - `'FLAVOR READY'` - Musical flavor data successfully retrieved from AcousticBrainz or Essentia (Phase 9)
 - `'FLAVORING FAILED'` - Flavor retrieval failed from both AcousticBrainz and Essentia fallback
 
-**Constraints:**
-- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
-- CHECK: `min_cooldown >= 0`
-- CHECK: `ramping_cooldown >= 0`
+**Constraints:** See [IMPL001:209-217 § Common Constraints for Cooldown Entities](#common-constraints-for-cooldown-entities)
 
 **Indexes:**
 - `idx_songs_recording_mbid` on `recording_mbid`
@@ -470,10 +492,7 @@ Performing artists from MusicBrainz.
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
-**Constraints:**
-- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
-- CHECK: `min_cooldown >= 0`
-- CHECK: `ramping_cooldown >= 0`
+**Constraints:** See [IMPL001:209-217 § Common Constraints for Cooldown Entities](#common-constraints-for-cooldown-entities)
 
 **Indexes:**
 - `idx_artists_mbid` on `artist_mbid`
@@ -495,10 +514,7 @@ Musical works from MusicBrainz (compositions that can have multiple recordings).
 | created_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record creation time |
 | updated_at | TIMESTAMP | NOT NULL DEFAULT CURRENT_TIMESTAMP | Record last update time |
 
-**Constraints:**
-- CHECK: `base_probability >= 0.0 AND base_probability <= 1000.0`
-- CHECK: `min_cooldown >= 0`
-- CHECK: `ramping_cooldown >= 0`
+**Constraints:** See [IMPL001:209-217 § Common Constraints for Cooldown Entities](#common-constraints-for-cooldown-entities)
 
 **Indexes:**
 - `idx_works_mbid` on `work_mbid`

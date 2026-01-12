@@ -580,6 +580,115 @@ WKMP uses two distinct event systems with different scopes:
 | **External Events** (`WkmpEvent`) | Cross-module, public API | SSE broadcast to UI clients | `tokio::broadcast` + HTTP SSE | `PassageStarted`, `PlaybackProgress`, `CurrentSongChanged` |
 | **Internal Events** (`PlaybackEvent`) | Within wkmp-ap module | Internal position tracking | `tokio::mpsc` channel | `PositionUpdate`, `StateChanged` |
 
+### Event Flow Architecture (Internal → External)
+
+The following diagram shows how events flow from their source through internal broadcast to external SSE clients:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    wkmp-ap (Audio Player)                       │
+│                                                                 │
+│  Audio thread detects passage end                               │
+│         |                                                        │
+│         v                                                        │
+│  event_tx.send(PassageEnded {                                   │
+│      passage_id: "abc123",                                      │
+│      timestamp: "2026-01-11T..."                                │
+│  })                                                             │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+                      │ tokio::broadcast channel
+                      │ (in-process pub/sub)
+                      │
+                      v
+┌─────────────────────────────────────────────────────────────────┐
+│                    wkmp-ui (User Interface)                     │
+│                                                                 │
+│  SSE Broadcaster subscribes to event_rx                         │
+│         |                                                        │
+│         v                                                        │
+│  let mut rx = event_bus.subscribe();                            │
+│  while let Ok(event) = rx.recv().await {                        │
+│      for client in sse_clients.iter() {                         │
+│          client.send(event.to_json());                          │
+│      }                                                           │
+│  }                                                               │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+                      │ HTTP SSE (Server-Sent Events)
+                      │ (cross-process, browser-compatible)
+                      │
+                      v
+┌─────────────────────────────────────────────────────────────────┐
+│              Web Browser (JavaScript Client)                    │
+│                                                                 │
+│  const eventSource = new EventSource('/api/events');            │
+│  eventSource.addEventListener('PassageEnded', (e) => {          │
+│      const data = JSON.parse(e.data);                           │
+│      updateUI(data);                                            │
+│  });                                                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Event Propagation Example
+
+**Scenario:** User clicks "Enqueue Passage" in wkmp-ui
+
+```
+1. [Browser] User clicks button
+        |
+        v
+2. [wkmp-ui] POST /api/queue
+        |
+        v
+3. [wkmp-ui] HTTP request to wkmp-ap: POST /playback/queue
+        |
+        v
+4. [wkmp-ap] Adds passage to queue
+        |
+        v
+5. [wkmp-ap] Broadcasts PassageEnqueued event (tokio::broadcast)
+        |
+        v
+6. [wkmp-ui] SSE Broadcaster receives event (tokio::broadcast subscriber)
+        |
+        v
+7. [wkmp-ui] Pushes event to all SSE clients (HTTP SSE)
+        |
+        v
+8. [Browser] Receives PassageEnqueued event
+        |
+        v
+9. [Browser] Updates queue display (React state update)
+```
+
+### Event Types by Module
+
+| Module | Emits Events | Consumes Events |
+|--------|--------------|-----------------|
+| wkmp-ap | PassageStarted, PassageEnded, QueueUpdated, PlaybackStateChanged | (none - source) |
+| wkmp-ui | (relays wkmp-ap events via SSE) | All wkmp-ap events (for SSE broadcast) |
+| wkmp-pd | SelectionCompleted | PassageEnded (triggers new selection) |
+| wkmp-ai | ImportProgress, AlbumMatched | (none - background process) |
+
+### Key Design Decisions
+
+**Why tokio::broadcast for internal events?**
+- In-process pub/sub (no network overhead)
+- Multiple subscribers (wkmp-ui SSE broadcaster + internal handlers)
+- Backpressure handling (slow subscribers don't block fast emitters)
+
+**Why HTTP SSE for external events?**
+- Browser-native (no WebSocket complexity)
+- Auto-reconnection built-in
+- Text-based (easy debugging)
+- Firewall-friendly (standard HTTP)
+
+**Why not WebSockets?**
+- SSE is unidirectional (server → client), which matches our event model
+- No need for client → server messages over event channel
+- Simpler implementation and debugging
+
 ### External Events (WkmpEvent)
 
 **Purpose:** Broadcast playback state to all interested components (UI, other modules, external systems)

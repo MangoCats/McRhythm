@@ -34,6 +34,87 @@ Defines deployment, process management, and operational configuration for WKMP's
 
 ## 2. Configuration Files
 
+### 2.0a. Configuration Hierarchy Overview
+
+WKMP has three distinct configuration layers that operate independently:
+
+**Layer 1: Root Folder Resolution (System Bootstrap)**
+
+**Purpose:** Determine where `wkmp.db` database file is stored
+
+**Mechanism:** 4-tier priority (CLI > ENV > TOML > Default)
+
+**Documented In:** [ADR-003-zero_configuration_strategy.md](ADR-003-zero_configuration_strategy.md)
+
+**Applies To:** ALL 6 microservices (identical resolution pattern)
+
+**Example:**
+```
+User runs: wkmp-ui --root-folder /custom/music
+Result: Database at /custom/music/wkmp.db
+```
+
+---
+
+**Layer 2: Module Configuration (Service Discovery)**
+
+**Purpose:** Auto-discover module ports and enable/disable modules
+
+**Mechanism:** Database table `module_config` (auto-populated on first run)
+
+**Documented In:** [IMPL001-database_schema.md](IMPL001-database_schema.md) `module_config` table
+
+**Applies To:** Module startup and inter-module communication
+
+**Example:**
+```sql
+SELECT port FROM module_config WHERE module_id = 'wkmp-ui';
+-- Returns: 5720
+```
+
+**Note:** Users should NOT manually edit this table. Defaults are correct for 99% of deployments.
+
+---
+
+**Layer 3: Application Settings (User Preferences)**
+
+**Purpose:** Playback parameters, timeslots, user preferences, library paths
+
+**Mechanism:** Database table `settings` (user-editable via UI)
+
+**Documented In:** [IMPL016-settings_reference.md](IMPL016-settings_reference.md)
+
+**Applies To:** Application behavior (not infrastructure)
+
+**Example:**
+```sql
+UPDATE settings SET value = '{"volume": 0.8}' WHERE key = 'playback.volume';
+```
+
+---
+
+**Configuration Flow Diagram:**
+
+```
+[System Start]
+     |
+     v
+[Layer 1: Root Folder Resolution] --> /home/user/Music/wkmp.db
+     |
+     v
+[Layer 2: Module Config Discovery] --> wkmp-ui binds to port 5720
+     |
+     v
+[Layer 3: Application Settings Load] --> Playback volume = 0.8
+     |
+     v
+[Application Running]
+```
+
+**Key Principle:** Each layer is independent. Changing root folder doesn't affect module ports. Changing module ports doesn't affect playback settings.
+
+---
+
 ### 2.1. Configuration File Location
 
 **[DEP-CFG-010]** Each module reads its configuration from a TOML file located at:

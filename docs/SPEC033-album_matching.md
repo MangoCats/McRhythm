@@ -256,6 +256,52 @@ for (threshold, min_duration) in parameters {
 
 **Implementation:** `db/release_cache.rs`
 
+### Skip Boundary Refinement for Perfect Matches
+
+**[AM-PERF-040]** Bypass expensive boundary refinement when match is already perfect.
+
+**Rationale:** Boundary refinement is a post-processing step that searches for better boundaries when split failures are detected (one track absorbed another). For 100% matches, all tracks are already within tolerance, so refinement provides zero benefit.
+
+**Performance Impact:**
+- **Target cases:** Albums with obvious matches (30-50% of corpus)
+- **Time saved:** 10-60 minutes per album (depends on audio length, track count)
+- **Mechanism:** Simple percentage check before refinement call
+
+**Implementation:**
+```rust
+// Stage 2 only applies refinement when match is imperfect
+if !detected_durations.is_empty() && best_percentage < 100.0 {
+    detected_durations = apply_refinement_to_durations(/* ... */);
+}
+```
+
+**Location:** `stages/stage2.rs:199-218` [PERF-OPT-001]
+
+### Strict Early Exit for First Edition Perfect Match
+
+**[AM-PERF-050]** Immediately exit Stage 2 when first-ranked edition achieves 100% match.
+
+**Rationale:** Editions are pre-sorted by name similarity (Jaro-Winkler). If the top-ranked edition achieves 100% match, it's almost certainly correct. Testing additional editions wastes 10-20 minutes per edition for long albums.
+
+**Grace Period Preserved:** Existing grace period (20s default) still applies for perfect matches found in later editions, allowing discovery of better alternatives.
+
+**Performance Impact:**
+- **Target cases:** Albums with obvious matches where first edition is correct (30-40% of corpus)
+- **Time saved:** 10-20 minutes per album (skips 2+ additional editions at ~10 min each)
+- **Risk:** Low - editions sorted by name similarity, first is most likely
+
+**Implementation:**
+```rust
+if edition_idx == 0 && early_exit.enabled && best_percentage >= 100.0 {
+    results.push(result);
+    break;  // Skip remaining editions
+}
+```
+
+**Location:** `stages/stage2.rs:110-147` [PERF-OPT-002]
+
+**Expected Combined Impact:** 2.5-6x speedup on comprehensive test suites (67h → 10-25h projected).
+
 ---
 
 ## Configuration
@@ -312,7 +358,7 @@ pub struct AlbumMatcherConfig {
 | [REQ-PI-AM-030] 10-25 editions discovered | [AM-ARCH-020], [AM-MB-010] | `musicbrainz_client.rs:881-955` |
 | [REQ-PI-AM-040] Edition scoring/ranking | [AM-MB-030], [AM-MB-040] | `editions/scoring.rs` |
 | [REQ-PI-AM-050] ≤10s mean boundary error | [AM-STG2-010], [AM-CFG-020] | `constants.rs` |
-| [REQ-PI-AM-060] Performance optimization | [AM-PERF-010] through [AM-PERF-030] | `silence_detection.rs`, `constants.rs` |
+| [REQ-PI-AM-060] Performance optimization | [AM-PERF-010] through [AM-PERF-050] | `silence_detection.rs`, `constants.rs`, `stages/stage2.rs` |
 
 ---
 
@@ -388,5 +434,5 @@ pub struct AlbumMatcherConfig {
 ---
 
 **Status:** ✅ Implemented and Validated
-**Last Updated:** 2025-12-30
+**Last Updated:** 2026-01-11
 **Maintainer:** See CLAUDE.md for development workflows

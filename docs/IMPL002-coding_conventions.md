@@ -43,7 +43,7 @@ WKMP uses a Cargo workspace with multiple binary crates and a shared common libr
   - API request/response types
   - Configuration loading (RootFolderResolver, platform defaults)
   - Flavor calculation algorithms
-  - Cooldown calculation logic
+  - Cooldown calculation logic (see [SPEC005:282-336 § Cooldown System](SPEC005-program_director.md#cooldown-system))
   - UUID and timestamp utilities
   - Fade curve definitions
 

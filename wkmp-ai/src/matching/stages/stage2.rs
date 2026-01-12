@@ -107,7 +107,7 @@ pub fn run_stage2(
     let mut perfect_match_found = false;
     let mut editions_since_perfect = 0;
 
-    for edition in editions {
+    for (edition_idx, edition) in editions.iter().enumerate() {
         // Early exit check
         if perfect_match_found && early_exit.enabled {
             editions_since_perfect += 1;
@@ -129,6 +129,18 @@ pub fn run_stage2(
         if result.best_percentage >= 100.0 {
             perfect_match_found = true;
             editions_since_perfect = 0;
+
+            // **[PERF-OPT-002]** Strict early exit for first-edition perfect match
+            // Rationale: Editions are pre-sorted by name similarity. If the top-ranked
+            // edition (index 0) achieves 100% match, it's almost certainly correct.
+            // Testing additional editions wastes time (10-20 min/edition for long albums).
+            // Grace period still applies for perfect matches found in later editions,
+            // allowing discovery of better alternatives.
+            // Expected impact: 10-20 minutes saved per obvious match.
+            if edition_idx == 0 && early_exit.enabled {
+                results.push(result);
+                break;  // Skip remaining editions
+            }
         }
 
         results.push(result);
@@ -196,7 +208,11 @@ fn test_edition_stage2(
     };
 
     // **[BOUNDARY REFINEMENT]** Apply to Stage 2 results
-    if !detected_durations.is_empty() {
+    // **[PERF-OPT-001]** Skip refinement for perfect matches (100.0%)
+    // Rationale: Refinement is computationally expensive (~10-60 minutes for long albums)
+    // and provides no benefit when all tracks already match perfectly.
+    // Expected impact: 30-50% reduction in processing time for albums with obvious matches.
+    if !detected_durations.is_empty() && best_percentage < 100.0 {
         let edition_durations_secs: Vec<f64> = edition
             .durations
             .iter()
