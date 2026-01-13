@@ -246,7 +246,9 @@ impl MusicBrainzClient {
                     let error_msg = e.to_string();
                     let is_connection_closed = error_msg.contains("connection closed before message completed")
                         || error_msg.contains("connection closed")
-                        || error_msg.contains("broken pipe")
+                        || error_msg.contains("forcibly closed")  // Windows error 10054
+                        || error_msg.contains("connection reset")  // ECONNRESET
+                        || error_msg.contains("broken pipe")       // EPIPE
                         || error_msg.contains("stream closed");
 
                     if is_connection_closed && attempt < MAX_RETRIES {

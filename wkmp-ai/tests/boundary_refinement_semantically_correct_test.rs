@@ -11,6 +11,7 @@
 
 use anyhow::Result;
 use std::path::PathBuf;
+use tracing_subscriber::prelude::*;  // For SubscriberExt trait
 use wkmp_ai::matching::album_matcher::{AlbumMatcher, AlbumMatcherConfig};
 use wkmp_ai::services::MusicBrainzClient;
 
@@ -58,10 +59,7 @@ async fn test_boundary_refinement_semantically_correct() -> Result<()> {
     }
 
     let db_path = cache_dir.join("test_refinement.db");
-    wkmp_common::database::init_test_database(&db_path).await?;
-
-    let db_pool = wkmp_common::database::create_pool(&db_path).await?;
-    let mb_client = MusicBrainzClient::new(db_pool.clone());
+    let db_pool = wkmp_common::db::init_database(&db_path).await?;
 
     // Step 1: Run album_matcher WITHOUT refinement
     tracing::info!("==========================================");
@@ -70,7 +68,8 @@ async fn test_boundary_refinement_semantically_correct() -> Result<()> {
     tracing::info!("");
 
     let config = AlbumMatcherConfig::default();
-    let matcher = AlbumMatcher::with_pool(config, mb_client.clone(), db_pool.clone());
+    let mb_client = MusicBrainzClient::new()?;
+    let matcher = AlbumMatcher::with_pool(config, mb_client, db_pool.clone());
 
     let original_result = matcher
         .match_album(&test_file, Some("Eagles"), Some("TheLongRun"))
@@ -133,7 +132,7 @@ async fn test_boundary_refinement_semantically_correct() -> Result<()> {
     tracing::info!("");
     tracing::info!("Refinement would operate on:");
     tracing::info!("  - Input: original_result.tracks (boundaries from album_matcher)");
-    tracing::info!("  - Edition: {} (SAME edition)", original_result.release_mbid);
+    tracing::info!("  - Edition: {:?} (SAME edition)", original_result.release_mbid);
     tracing::info!("  - Track count: {} (SAME track count)", original_result.tracks.len());
     tracing::info!("  - Expected durations: From winning edition's track metadata");
     tracing::info!("");

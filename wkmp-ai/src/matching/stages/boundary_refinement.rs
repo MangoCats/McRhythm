@@ -94,8 +94,17 @@ pub fn refine_missed_boundaries(
     sample_rate: f64,
     tolerance_secs: f64,
 ) -> Vec<usize> {
+    debug!(
+        "REFINEMENT START: {} boundaries, {} expected tracks, {} samples ({:.1}s)",
+        detected_boundaries.len(),
+        expected_durations.len(),
+        audio_samples.len(),
+        audio_samples.len() as f64 / sample_rate
+    );
+
     if detected_boundaries.len() < 3 {
         // Need at least [start, boundary, end] to have one track
+        debug!("REFINEMENT SKIP: Too few boundaries (< 3)");
         return detected_boundaries.to_vec();
     }
 
@@ -109,6 +118,7 @@ pub fn refine_missed_boundaries(
     // Use loop to handle consecutive failures (like tracks 7-10 in Panorama)
     let max_iterations = 3; // Prevent infinite loops
     for iteration in 0..max_iterations {
+        debug!("REFINEMENT ITERATION {}/{}", iteration + 1, max_iterations);
         let mut refined_this_iteration = false;
 
         for i in 0..detected_durations.len().saturating_sub(1) {
@@ -186,9 +196,18 @@ pub fn refine_missed_boundaries(
                 let window_start = expected_boundary_samples.saturating_sub(window_samples);
                 let window_end = (expected_boundary_samples + window_samples).min(search_end);
 
+                debug!(
+                    "SEARCHING for boundary {}: window=[{}, {}] ({:.1}s range), expected={}",
+                    i + 1,
+                    window_start,
+                    window_end,
+                    (window_end - window_start) as f64 / sample_rate,
+                    expected_boundary_samples
+                );
+
                 // Find local minimum (quiet spot) in the search window
                 if let Some(new_boundary) =
-                    find_local_quiet_spot(audio_samples, window_start, window_end, sample_rate)
+                    find_local_quiet_spot(audio_samples, window_start, window_end, sample_rate, i + 1)
                 {
                     info!(
                         "Refining boundary {}: moving from sample {} to {} (expected: {}) [errors: {:+.2}s/{:+.2}s]",
@@ -216,14 +235,17 @@ pub fn refine_missed_boundaries(
     }
 
     if any_refined {
+        let adjusted_count = refined
+            .iter()
+            .zip(detected_boundaries.iter())
+            .filter(|(r, d)| r != d)
+            .count();
         info!(
-            "Boundary refinement complete: {} boundaries adjusted",
-            refined
-                .iter()
-                .zip(detected_boundaries.iter())
-                .filter(|(r, d)| r != d)
-                .count()
+            "REFINEMENT COMPLETE: {} boundaries adjusted",
+            adjusted_count
         );
+    } else {
+        debug!("REFINEMENT COMPLETE: No boundaries needed adjustment");
     }
 
     refined
@@ -236,6 +258,7 @@ pub fn refine_missed_boundaries(
 /// * `start_sample` - Start of search region
 /// * `end_sample` - End of search region
 /// * `sample_rate` - Audio sample rate
+/// * `track_num` - Track number for logging
 ///
 /// # Returns
 /// Sample position of quietest spot, or None if search failed
@@ -244,6 +267,7 @@ fn find_local_quiet_spot(
     start_sample: usize,
     end_sample: usize,
     sample_rate: f64,
+    track_num: usize,
 ) -> Option<usize> {
     const WINDOW_SIZE_SECS: f64 = 0.5; // 500ms RMS window
     let window_size = (WINDOW_SIZE_SECS * sample_rate) as usize;
@@ -271,11 +295,21 @@ fn find_local_quiet_spot(
         return None;
     }
 
+    let total_iterations = (end_sample - start_sample).saturating_sub(window_size);
+    debug!(
+        "RMS SEARCH START (track {}): {} iterations over {:.1}s",
+        track_num,
+        total_iterations,
+        (end_sample - start_sample) as f64 / sample_rate
+    );
+
     let mut min_rms = f32::MAX;
     let mut min_pos = start_sample;
 
+    let progress_interval = (total_iterations / 10).max(1); // Log every 10%
+
     // Slide window through search region, find minimum RMS
-    for pos in start_sample..=(end_sample - window_size) {
+    for (idx, pos) in (start_sample..=(end_sample - window_size)).enumerate() {
         let window_end = pos + window_size;
         if window_end > audio_samples.len() {
             break;
@@ -288,13 +322,22 @@ fn find_local_quiet_spot(
             min_rms = rms;
             min_pos = pos;
         }
+
+        // Progress logging every 10%
+        if idx > 0 && idx % progress_interval == 0 {
+            let progress_pct = (idx as f64 / total_iterations as f64) * 100.0;
+            debug!(
+                "RMS SEARCH PROGRESS (track {}): {:.0}% ({}/{} iterations)",
+                track_num, progress_pct, idx, total_iterations
+            );
+        }
     }
 
     // Center the boundary in the quiet window (take midpoint)
     let refined_pos = min_pos + window_size / 2;
     debug!(
-        "Found quiet spot at sample {} (RMS: {:.6}) in range [{}, {}]",
-        refined_pos, min_rms, start_sample, end_sample
+        "RMS SEARCH COMPLETE (track {}): Found quiet spot at sample {} (RMS: {:.6}) in range [{}, {}]",
+        track_num, refined_pos, min_rms, start_sample, end_sample
     );
     Some(refined_pos)
 }

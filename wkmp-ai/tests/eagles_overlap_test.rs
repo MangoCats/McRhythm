@@ -5,10 +5,8 @@
 /// when both patterns overlap at tracks 8-9.
 
 use std::path::PathBuf;
-use wkmp_ai::config::AlbumMatcherConfig;
-use wkmp_ai::matching::AlbumMatcher;
+use wkmp_ai::matching::{AlbumMatcher, AlbumMatcherConfig};
 use wkmp_ai::services::MusicBrainzClient;
-use wkmp_common::db::Database;
 
 #[tokio::test]
 async fn test_eagles_long_run_overlap_resolution() {
@@ -21,8 +19,8 @@ async fn test_eagles_long_run_overlap_resolution() {
         .try_init();
 
     // Setup database
-    let db_path = "C:/Users/Mango Cat/Music/wkmp.db";
-    let db = Database::new(db_path).await.unwrap();
+    let db_path = std::path::Path::new("C:/Users/Mango Cat/Music/wkmp.db");
+    let db_pool = wkmp_common::db::init_database(db_path).await.unwrap();
 
     // Setup MusicBrainz client
     let mb_client = MusicBrainzClient::new().unwrap();
@@ -34,7 +32,7 @@ async fn test_eagles_long_run_overlap_resolution() {
         "Boundary refinement should be enabled by default"
     );
 
-    let matcher = AlbumMatcher::new(config, db.clone(), mb_client);
+    let matcher = AlbumMatcher::with_pool(config, mb_client, db_pool);
 
     // Test file: Eagles - The Long Run
     let test_file = PathBuf::from("C:/Users/Mango Cat/Music/Eagles/TheLongRun.mp3");
@@ -44,11 +42,11 @@ async fn test_eagles_long_run_overlap_resolution() {
     );
 
     // Match album with boundary refinement
-    let result = matcher.match_album(&test_file).await.unwrap();
+    let result = matcher.match_album(&test_file, None, None).await.unwrap();
 
     tracing::info!(
         "Match result: MBID={}, match_percentage={:.1}%, tracks={}",
-        result.matched_mbid.as_deref().unwrap_or("NONE"),
+        result.release_mbid.as_deref().unwrap_or("NONE"),
         result.match_percentage,
         result.tracks.len()
     );
@@ -73,7 +71,7 @@ async fn test_eagles_long_run_overlap_resolution() {
     // The debug logs should show "Overlap resolution" messages
 
     // Verify basic results
-    assert!(result.matched_mbid.is_some(), "Should match an album");
+    assert!(result.release_mbid.is_some(), "Should match an album");
     assert_eq!(result.tracks.len(), 10, "Should have 10 tracks");
 
     // With overlap resolution, Eagles should improve significantly
