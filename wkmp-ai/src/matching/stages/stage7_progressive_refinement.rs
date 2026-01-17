@@ -14,6 +14,8 @@
 
 use tracing::{debug, info};
 
+use super::boundary_refinement::progressive_rms_scan;
+
 /// Apply Stage 7 progressive refinement if needed
 ///
 /// # Arguments
@@ -170,10 +172,17 @@ fn refine_problem_boundaries(
             track_idx + 2
         );
 
-        // Progressive RMS scan
+        // Progressive RMS scan with ±30s search window
+        const SEARCH_WINDOW_SECS: f64 = 30.0;
+        let window_samples = (SEARCH_WINDOW_SECS * sample_rate) as usize;
+        let search_start = expected_boundary.saturating_sub(window_samples);
+        let search_end = (expected_boundary + window_samples).min(audio_samples.len());
+
         if let Some(new_boundary) = progressive_rms_scan(
             audio_samples,
             expected_boundary,
+            search_start,
+            search_end,
             sample_rate,
             track_idx + 1,
         ) {
@@ -189,223 +198,6 @@ fn refine_problem_boundaries(
     }
 
     refined
-}
-
-/// Progressive three-stage RMS energy scan
-///
-/// # Arguments
-/// * `audio_samples` - Audio sample data
-/// * `expected_boundary` - Expected boundary position (samples)
-/// * `sample_rate` - Sample rate in Hz
-/// * `track_num` - Track number for logging
-///
-/// # Returns
-/// Optimal boundary position, or None if search failed
-fn progressive_rms_scan(
-    audio_samples: &[f32],
-    expected_boundary: usize,
-    sample_rate: f64,
-    track_num: usize,
-) -> Option<usize> {
-    // Search window: ±30 seconds
-    const SEARCH_WINDOW_SECS: f64 = 30.0;
-    let window_samples = (SEARCH_WINDOW_SECS * sample_rate) as usize;
-
-    let search_start = expected_boundary.saturating_sub(window_samples);
-    let search_end = (expected_boundary + window_samples).min(audio_samples.len());
-    let search_range = search_end - search_start;
-
-    if search_range < (sample_rate * 6.0) as usize {
-        debug!(
-            "Stage 7 (track {}): Search range too small ({:.1}s)",
-            track_num,
-            search_range as f64 / sample_rate
-        );
-        return None;
-    }
-
-    debug!(
-        "Stage 7 (track {}): Search window [{}, {}] ({:.1}s range)",
-        track_num,
-        search_start,
-        search_end,
-        search_range as f64 / sample_rate
-    );
-
-    // Stage 1: Coarse scan (10% blocks in 1% increments)
-    let coarse_block_size = search_range / 10; // 10% of range
-    let coarse_step = search_range / 100; // 1% of range
-
-    let coarse_winner = find_lowest_rms_block(
-        audio_samples,
-        search_start,
-        search_end,
-        coarse_block_size,
-        coarse_step,
-    );
-
-    debug!(
-        "Stage 7 (track {}): Coarse scan winner at sample {} (RMS: {:.6})",
-        track_num,
-        coarse_winner.position,
-        coarse_winner.rms
-    );
-
-    // Stage 2: Medium scan (10% blocks in 1% increments within coarse winner)
-    let medium_search_start = coarse_winner.position;
-    let medium_search_end = (coarse_winner.position + coarse_block_size).min(audio_samples.len());
-    let medium_range = medium_search_end - medium_search_start;
-
-    let medium_block_size = medium_range / 10; // 10% of 6s coarse block = 600ms
-    let medium_step = medium_range / 100; // 1% of 6s coarse block = 60ms
-
-    let medium_winner = find_lowest_rms_block(
-        audio_samples,
-        medium_search_start,
-        medium_search_end,
-        medium_block_size,
-        medium_step,
-    );
-
-    debug!(
-        "Stage 7 (track {}): Medium scan winner at sample {} (RMS: {:.6})",
-        track_num,
-        medium_winner.position,
-        medium_winner.rms
-    );
-
-    // Stage 3: Fine scan (100ms windows in 10ms increments within medium winner)
-    let fine_search_start = medium_winner.position;
-    let fine_search_end = (medium_winner.position + medium_block_size).min(audio_samples.len());
-    let fine_window_size = (0.1 * sample_rate) as usize; // 100ms measurement window
-    let fine_step = (0.01 * sample_rate) as usize; // 10ms step size
-
-    let fine_winner = find_lowest_rms_point(
-        audio_samples,
-        fine_search_start,
-        fine_search_end,
-        fine_window_size,
-        fine_step,
-    );
-
-    // Return the CENTER of the 100ms winner block
-    let boundary_position = fine_winner.position + (fine_window_size / 2);
-
-    info!(
-        "Stage 7 (track {}): Fine scan winner at sample {} (center: {}, RMS: {:.6})",
-        track_num,
-        fine_winner.position,
-        boundary_position,
-        fine_winner.rms
-    );
-
-    Some(boundary_position)
-}
-
-/// Result from RMS scan
-#[derive(Debug, Clone)]
-struct ScanResult {
-    position: usize,
-    rms: f32,
-}
-
-/// Find block with lowest total RMS energy
-fn find_lowest_rms_block(
-    audio_samples: &[f32],
-    search_start: usize,
-    search_end: usize,
-    block_size: usize,
-    step_size: usize,
-) -> ScanResult {
-    let mut min_rms = f32::MAX;
-    let mut min_positions = Vec::new();
-
-    let mut pos = search_start;
-    while pos + block_size <= search_end {
-        let block_end = (pos + block_size).min(audio_samples.len());
-        let rms = calculate_rms(&audio_samples[pos..block_end]);
-
-        if rms < min_rms - 1e-8 {
-            // New minimum found
-            min_rms = rms;
-            min_positions.clear();
-            min_positions.push(pos);
-        } else if (rms - min_rms).abs() < 1e-8 {
-            // Tie - collect this position
-            min_positions.push(pos);
-        }
-
-        pos += step_size.max(1);
-    }
-
-    // If tie, use middle position
-    let winner_pos = if min_positions.len() > 1 {
-        min_positions[min_positions.len() / 2]
-    } else if !min_positions.is_empty() {
-        min_positions[0]
-    } else {
-        search_start
-    };
-
-    ScanResult {
-        position: winner_pos,
-        rms: min_rms,
-    }
-}
-
-/// Find point with lowest RMS energy (fine scan)
-fn find_lowest_rms_point(
-    audio_samples: &[f32],
-    search_start: usize,
-    search_end: usize,
-    window_size: usize,
-    step_size: usize,
-) -> ScanResult {
-    let mut min_rms = f32::MAX;
-    let mut min_positions = Vec::new();
-
-    let mut pos = search_start;
-    while pos + window_size <= search_end {
-        let window_end = pos + window_size;
-        if window_end > audio_samples.len() {
-            break;
-        }
-
-        let rms = calculate_rms(&audio_samples[pos..window_end]);
-
-        if rms < min_rms - 1e-8 {
-            min_rms = rms;
-            min_positions.clear();
-            min_positions.push(pos);
-        } else if (rms - min_rms).abs() < 1e-8 {
-            min_positions.push(pos);
-        }
-
-        pos += step_size.max(1);
-    }
-
-    // If tie, use middle position
-    let winner_pos = if min_positions.len() > 1 {
-        min_positions[min_positions.len() / 2]
-    } else if !min_positions.is_empty() {
-        min_positions[0]
-    } else {
-        search_start
-    };
-
-    ScanResult {
-        position: winner_pos,
-        rms: min_rms,
-    }
-}
-
-/// Calculate RMS (Root Mean Square) of audio samples
-fn calculate_rms(samples: &[f32]) -> f32 {
-    if samples.is_empty() {
-        return 0.0;
-    }
-    let sum_squares: f32 = samples.iter().map(|&s| s * s).sum();
-    (sum_squares / samples.len() as f32).sqrt()
 }
 
 /// Calculate total absolute error across all tracks
