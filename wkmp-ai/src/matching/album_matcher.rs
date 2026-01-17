@@ -504,7 +504,7 @@ impl AlbumMatcher {
             file_duration_ms, // **[BUG FIX]** Pass actual file duration for validation
         };
 
-        let result = run_orchestration(
+        let mut result = run_orchestration(
             &silence_cache,
             &rms_profile,
             &samples,
@@ -512,6 +512,54 @@ impl AlbumMatcher {
             &editions,
             &orchestrator_config,
         );
+
+        // **[STAGE 7]** Apply progressive refinement if needed
+        if result.success && result.matched_edition.is_some() {
+            let edition = result.matched_edition.as_ref().unwrap();
+
+            // Convert durations to boundaries
+            let mut boundaries = vec![0];
+            let mut cumulative_samples = 0;
+            for &duration_secs in &result.detected_durations {
+                cumulative_samples += (duration_secs * sample_rate as f64) as usize;
+                boundaries.push(cumulative_samples);
+            }
+
+            // Apply Stage 7 progressive refinement
+            use crate::matching::stages::apply_stage7_if_needed;
+            let refined_boundaries = apply_stage7_if_needed(
+                &boundaries,
+                &edition.track_durations,
+                &samples,
+                sample_rate as f64,
+            );
+
+            // Convert refined boundaries back to durations
+            if refined_boundaries != boundaries {
+                let mut refined_durations = Vec::new();
+                for i in 1..refined_boundaries.len() {
+                    let duration_secs = (refined_boundaries[i] - refined_boundaries[i - 1]) as f64 / sample_rate as f64;
+                    refined_durations.push(duration_secs);
+                }
+
+                // Update result with refined durations
+                result.detected_durations = refined_durations;
+
+                // Recalculate track errors
+                result.track_errors = edition.track_durations.iter()
+                    .zip(result.detected_durations.iter())
+                    .map(|(expected, detected)| (detected - expected).abs())
+                    .collect();
+
+                // Recalculate match percentage
+                let within_tolerance = result.track_errors.iter()
+                    .filter(|&&e| e <= self.config.match_tolerance_secs)
+                    .count();
+                result.match_percentage = (within_tolerance as f64 / edition.track_count as f64) * 100.0;
+
+                result.winning_stage = MatchingStage::Stage7;
+            }
+        }
 
         // Log stage-by-stage performance for diagnostics
         eprintln!("\n=== Stage-by-Stage Match Percentages ===");

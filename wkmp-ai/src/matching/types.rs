@@ -32,6 +32,8 @@ pub enum MatchingStage {
     Stage4,
     /// Stage 5: Extra track merging
     Stage5,
+    /// Stage 7: Progressive RMS boundary refinement
+    Stage7,
 }
 
 impl MatchingStage {
@@ -42,6 +44,7 @@ impl MatchingStage {
             MatchingStage::Stage3 => "stage3",
             MatchingStage::Stage4 => "stage4",
             MatchingStage::Stage5 => "stage5",
+            MatchingStage::Stage7 => "stage7",
         }
     }
 
@@ -52,6 +55,7 @@ impl MatchingStage {
             "stage3" => Some(MatchingStage::Stage3),
             "stage4" => Some(MatchingStage::Stage4),
             "stage5" => Some(MatchingStage::Stage5),
+            "stage7" => Some(MatchingStage::Stage7),
             _ => None,
         }
     }

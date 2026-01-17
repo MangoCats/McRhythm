@@ -350,10 +350,30 @@ async fn display_album_details(
                     let duration_ms = track.length.unwrap_or(0);
                     baseline_total_ms += duration_ms as u64;
                     let duration_secs = duration_ms as f64 / 1000.0;
-                    println!("       {:2}. {:50} {:>7.2}s",
-                        track_num,
-                        track.title,
-                        duration_secs);
+
+                    // Show detected duration and error if MBIDs match (exact match)
+                    if !mbid_changed {
+                        let track_idx = track_num - 1;
+                        if let Some(detected_track) = new_result.tracks.get(track_idx) {
+                            let error_secs = detected_track.detected_duration - detected_track.expected_duration;
+                            println!("       {:2}. {:50} {:>7.2}s (detected: {:>7.2}s, error: {:+.2}s)",
+                                track_num,
+                                track.title,
+                                duration_secs,
+                                detected_track.detected_duration,
+                                error_secs);
+                        } else {
+                            println!("       {:2}. {:50} {:>7.2}s",
+                                track_num,
+                                track.title,
+                                duration_secs);
+                        }
+                    } else {
+                        println!("       {:2}. {:50} {:>7.2}s",
+                            track_num,
+                            track.title,
+                            duration_secs);
+                    }
                     track_num += 1;
                 }
             }
@@ -387,11 +407,13 @@ async fn display_album_details(
                     for (idx, track) in new_result.tracks.iter().enumerate() {
                         let duration_ms = (track.expected_duration * 1000.0) as u64;
                         new_total_ms += duration_ms;
-                        println!("       {:2}. {:50} {:>7.2}s (detected: {:>7.2}s)",
+                        let error_secs = track.detected_duration - track.expected_duration;
+                        println!("       {:2}. {:50} {:>7.2}s (detected: {:>7.2}s, error: {:+.2}s)",
                             idx + 1,
                             track.title,
                             track.expected_duration,
-                            track.detected_duration);
+                            track.detected_duration,
+                            error_secs);
                     }
                     println!("     ───────────────────────────────────────────────────────────────────");
                     println!("     Total: {} tracks, {:>7.2}s ({:02}:{:02}:{:02})",
