@@ -15,7 +15,7 @@ use crate::matching::{
     editions::{
         calculate_edition_score, calculate_total_duration_score,
         calculate_total_duration_score_validated, calculate_track_count_penalty,
-        calculate_track_quality_score,
+        calculate_track_quality_score, score_edition_match,
     },
     stages::{
         apply_refinement_to_durations,
@@ -106,9 +106,12 @@ impl Default for OrchestratorConfig {
 ///
 /// # Formula
 /// ```text
-/// base_score = (duration_score × 0.35) + (quality_score × 0.40) + (name_score × 0.25)
+/// base_score = (duration_score × 0.25) + (match_score × 0.30) + (quality_score × 0.25) + (name_score × 0.20)
 /// final_score = base_score × track_count_penalty
 /// ```
+///
+/// **[BUG FIX]** Now includes `match_score` (match percentage) to ensure editions
+/// with higher match percentages are preferred over those with better error profiles.
 ///
 /// # Arguments
 /// * `detected_durations` - Detected track durations in seconds
@@ -129,6 +132,10 @@ fn calculate_multi_factor_score(
     let edition_total_ms: u64 = edition.durations.iter().map(|&x| x as u64).sum();
     let duration_score = calculate_total_duration_score(detected_total_ms, edition_total_ms);
 
+    // Calculate match percentage score (BUG FIX: prioritize match percentage)
+    let match_percentage = score_edition_match(detected_durations, &edition.durations, tolerance_secs);
+    let match_score = match_percentage / 100.0; // Normalize to 0.0-1.0
+
     // Calculate track quality score (REQ-AM-094)
     // Convert edition durations from milliseconds to seconds
     let edition_durations_secs: Vec<f64> = edition
@@ -139,7 +146,7 @@ fn calculate_multi_factor_score(
     let quality_score =
         calculate_track_quality_score(detected_durations, &edition_durations_secs, tolerance_secs);
 
-    // Use name distance score (REQ-AM-092: 25% weight)
+    // Use name distance score (REQ-AM-092: 20% weight)
     // Fall back to 0.5 if not calculated
     let name_score = name_distance_score.unwrap_or(0.5);
 
@@ -149,7 +156,7 @@ fn calculate_multi_factor_score(
     let track_count_penalty = calculate_track_count_penalty(detected_count, edition_count);
 
     // Calculate final score (REQ-AM-092)
-    calculate_edition_score(duration_score, quality_score, name_score, track_count_penalty)
+    calculate_edition_score(duration_score, match_score, quality_score, name_score, track_count_penalty)
 }
 
 /// **[DEPRECATED - PLAN030]** Calculate weighted final score combining name similarity and match percentage
@@ -527,8 +534,8 @@ pub fn rank_top_candidates(
     }
 
     // Calculate final score for each candidate using PLAN027 multi-factor scoring
-    // Tuple: (CandidateEntry, final_score, duration_score, quality_score, name_score, track_count_penalty)
-    let mut scored_candidates: Vec<(CandidateEntry, f64, f64, f64, f64, f64)> = candidates
+    // Tuple: (CandidateEntry, final_score, duration_score, match_score, quality_score, name_score, track_count_penalty)
+    let mut scored_candidates: Vec<(CandidateEntry, f64, f64, f64, f64, f64, f64)> = candidates
         .into_iter()
         .map(|candidate| {
             // Convert detected durations to milliseconds for total duration score
@@ -575,11 +582,14 @@ pub fn rank_top_candidates(
                 candidate.edition.track_count,
             );
 
+            // Calculate match score (BUG FIX: prioritize match percentage)
+            let match_score = candidate.match_percentage / 100.0;
+
             // Calculate final score
             let final_score =
-                calculate_edition_score(duration_score, quality_score, name_score, track_count_penalty);
+                calculate_edition_score(duration_score, match_score, quality_score, name_score, track_count_penalty);
 
-            (candidate, final_score, duration_score, quality_score, name_score, track_count_penalty)
+            (candidate, final_score, duration_score, match_score, quality_score, name_score, track_count_penalty)
         })
         .collect();
 
@@ -594,7 +604,7 @@ pub fn rank_top_candidates(
         .into_iter()
         .take(top_n)
         .enumerate()
-        .map(|(rank_idx, (candidate, final_score, duration_score, quality_score, name_score, track_count_penalty))| {
+        .map(|(rank_idx, (candidate, final_score, duration_score, _match_score, quality_score, name_score, track_count_penalty))| {
             // Build passage comparison table
             // Convert edition durations from milliseconds to seconds for comparison
             let edition_durations_secs: Vec<f64> = candidate

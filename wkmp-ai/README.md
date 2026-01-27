@@ -75,7 +75,7 @@ cargo run -p wkmp-ai
 
 **Test:**
 ```bash
-# All tests
+# All tests (unit tests + tests that don't require real files)
 cargo test -p wkmp-ai
 
 # Integration tests only
@@ -84,6 +84,23 @@ cargo test -p wkmp-ai --test api_integration_tests
 # File classification tests
 cargo test -p wkmp-ai test_file_classification
 ```
+
+### Tests Requiring Real Music Files
+
+Some tests require actual music files from `~/Music` and are marked with `#[ignore]` to avoid failing in CI or on machines without the test data. To run these:
+
+```bash
+# Run all ignored tests (requires ~/Music with test albums)
+cargo test -p wkmp-ai -- --ignored
+
+# Run specific ignored test
+cargo test -p wkmp-ai test_debug_gogos_search -- --ignored
+
+# Run full album matching regression test (~40 min)
+cargo test -p wkmp-ai test_run29f_full_baseline_comparison -- --include-ignored --nocapture
+```
+
+**Why `--ignored`?** Tests that depend on external resources (real music files, MusicBrainz API) are excluded from normal test runs to ensure `cargo test` always succeeds. The `--ignored` flag explicitly opts into running these resource-dependent tests.
 
 ## Configuration
 

@@ -85,13 +85,21 @@ fn is_compilation(artist: &str, title: &str) -> bool {
 /// Filter and sort editions by relevance to source metadata
 ///
 /// Calculates name distance score for each edition and returns
-/// top N editions sorted by relevance.
+/// top N editions sorted by relevance. Optionally applies track count
+/// penalty to help rank editions with matching track counts higher.
+///
+/// **[PLAN027]** Track count scoring (not filtering):
+/// Instead of filtering out editions based on track count, applies a
+/// gradual penalty to editions with mismatched track counts. This ensures
+/// correct editions are never removed while still preferring editions
+/// with matching track counts.
 ///
 /// # Arguments
 /// * `editions` - Vector of editions to filter
 /// * `source_artist` - Artist name from source file metadata
 /// * `source_album` - Album name from source file metadata
 /// * `max_editions` - Maximum number of editions to return
+/// * `detected_track_count` - Optional number of tracks detected via silence analysis
 ///
 /// # Returns
 /// Filtered and sorted vector of editions
@@ -100,22 +108,55 @@ pub fn filter_and_sort_editions(
     source_artist: &str,
     source_album: &str,
     max_editions: usize,
+    detected_track_count: Option<usize>,
 ) -> Vec<Edition> {
+    use tracing::debug;
+
+    // **[PLAN027]** Track count penalty constants
+    // Gradual penalty: 5% per track difference, max 50%
+    const TRACK_PENALTY_PER_DIFF: f64 = 0.05;
+    const MAX_TRACK_PENALTY: f64 = 0.50;
+
     let mut scored: Vec<(Edition, f64)> = editions
         .into_iter()
         .map(|mut edition| {
-            let score = calculate_name_distance(
+            // Base score: name similarity (artist + album)
+            let base_score = calculate_name_distance(
                 &edition.artist,
                 &edition.title,
                 source_artist,
                 source_album,
             );
-            edition.name_distance_score = Some(score);
-            (edition, score)
+
+            // **[PLAN027]** Apply track count penalty if we have detected track count
+            let (final_score, track_penalty) = if let Some(detected) = detected_track_count {
+                let track_diff = (edition.track_count as i32 - detected as i32).abs() as f64;
+                let penalty = (track_diff * TRACK_PENALTY_PER_DIFF).min(MAX_TRACK_PENALTY);
+                let adjusted = base_score * (1.0 - penalty);
+                (adjusted, penalty)
+            } else {
+                (base_score, 0.0)
+            };
+
+            if track_penalty > 0.0 {
+                debug!(
+                    artist = %edition.artist,
+                    title = %edition.title,
+                    edition_tracks = edition.track_count,
+                    detected_tracks = ?detected_track_count,
+                    base_score = %format!("{:.3}", base_score),
+                    penalty = %format!("{:.1}%", track_penalty * 100.0),
+                    final_score = %format!("{:.3}", final_score),
+                    "Track count scoring penalty applied"
+                );
+            }
+
+            edition.name_distance_score = Some(final_score);
+            (edition, final_score)
         })
         .collect();
 
-    // Sort by name distance (higher = better match)
+    // Sort by score (higher = better match)
     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     // Assign ranks
@@ -554,7 +595,7 @@ pub fn filter_editions_by_artist(
 /// * `source_album` - Album name from source file
 ///
 /// # Returns
-/// Combined similarity score (0.0 to 1.0)
+/// Combined similarity score (0.0 to 1.0, may exceed 1.0 with exact match bonus)
 pub fn calculate_name_distance(
     mb_artist: &str,
     mb_album: &str,
@@ -564,8 +605,61 @@ pub fn calculate_name_distance(
     let artist_sim = jaro_winkler(&mb_artist.to_lowercase(), &source_artist.to_lowercase());
     let album_sim = jaro_winkler(&mb_album.to_lowercase(), &source_album.to_lowercase());
 
-    // Weight artist slightly higher
-    artist_sim * 0.6 + album_sim * 0.4
+    // Base score: weight artist slightly higher
+    let base_score = artist_sim * 0.6 + album_sim * 0.4;
+
+    // **[IMPROVEMENT]** Exact album title match bonus
+    // Helps distinguish "The Greatest Showman" from "The Greatest Showman: Reimagined"
+    // by giving a bonus to editions with exact (normalized) album title match.
+    let exact_match_bonus = if normalize_album_title(mb_album) == normalize_album_title(source_album) {
+        0.10 // 10% bonus for exact album title match
+    } else {
+        0.0
+    };
+
+    base_score + exact_match_bonus
+}
+
+/// Normalize album title for exact match comparison
+///
+/// Removes common suffixes, parenthetical content, and normalizes case/punctuation.
+/// Used to determine if two album titles are "essentially the same".
+///
+/// # Examples
+/// - "The Greatest Showman (Soundtrack)" -> "the greatest showman"
+/// - "The Greatest Showman: Reimagined" -> "the greatest showman reimagined"
+/// - "Abbey Road [Remastered]" -> "abbey road"
+fn normalize_album_title(title: &str) -> String {
+    let mut normalized = title.to_lowercase();
+
+    // Remove parenthetical content like "(Soundtrack)", "(Deluxe Edition)"
+    while let Some(start) = normalized.find('(') {
+        if let Some(end) = normalized[start..].find(')') {
+            normalized = format!("{}{}", &normalized[..start], &normalized[start + end + 1..]);
+        } else {
+            break;
+        }
+    }
+
+    // Remove bracketed content like "[Remastered]"
+    while let Some(start) = normalized.find('[') {
+        if let Some(end) = normalized[start..].find(']') {
+            normalized = format!("{}{}", &normalized[..start], &normalized[start + end + 1..]);
+        } else {
+            break;
+        }
+    }
+
+    // Normalize punctuation and whitespace
+    normalized
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]
@@ -632,7 +726,7 @@ mod tests {
             create_test_edition("Pink Floyd", "The Wall", 26),
         ];
 
-        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10);
+        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10, None);
 
         // Beatles should be first (best match)
         assert_eq!(filtered[0].artist, "The Beatles");
@@ -655,7 +749,7 @@ mod tests {
             create_test_edition("Artist 5", "Album 5", 10),
         ];
 
-        let filtered = filter_and_sort_editions(editions, "Artist 1", "Album 1", 3);
+        let filtered = filter_and_sort_editions(editions, "Artist 1", "Album 1", 3, None);
 
         assert_eq!(filtered.len(), 3);
         assert_eq!(filtered[0].artist, "Artist 1"); // Best match first
@@ -664,7 +758,7 @@ mod tests {
     #[test]
     fn test_filter_empty() {
         let editions: Vec<Edition> = vec![];
-        let filtered = filter_and_sort_editions(editions, "Artist", "Album", 10);
+        let filtered = filter_and_sort_editions(editions, "Artist", "Album", 10, None);
         assert!(filtered.is_empty());
     }
 
@@ -675,11 +769,158 @@ mod tests {
         edition.status = Some("Official".to_string());
 
         let editions = vec![edition];
-        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10);
+        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10, None);
 
         assert_eq!(filtered[0].country, Some("UK".to_string()));
         assert_eq!(filtered[0].status, Some("Official".to_string()));
         assert_eq!(filtered[0].track_count, 17);
+    }
+
+    // =============================================================================
+    // Track Count Scoring Tests (PLAN027)
+    // =============================================================================
+
+    #[test]
+    fn test_track_count_scoring_penalty() {
+        // **[PLAN027]** Test that track count difference applies scoring penalty
+        let editions = vec![
+            create_test_edition("The Beatles", "Abbey Road", 17),   // Exact track match
+            create_test_edition("The Beatles", "Abbey Road", 20),   // 3 tracks off
+            create_test_edition("The Beatles", "Abbey Road", 27),   // 10 tracks off
+        ];
+
+        // All have same name similarity, so track count penalty determines ranking
+        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10, Some(17));
+
+        // 17-track edition should rank first (no penalty)
+        assert_eq!(filtered[0].track_count, 17, "Exact track match should rank first");
+        // 20-track edition should rank second (15% penalty)
+        assert_eq!(filtered[1].track_count, 20, "3-track diff should rank second");
+        // 27-track edition should rank third (50% penalty - capped)
+        assert_eq!(filtered[2].track_count, 27, "10-track diff should rank third");
+    }
+
+    #[test]
+    fn test_track_count_scoring_no_detection() {
+        // When no track count detected, no penalty applied (preserves original behavior)
+        let editions = vec![
+            create_test_edition("The Beatles", "Abbey Road", 17),
+            create_test_edition("The Beatles", "Abbey Road", 27),
+        ];
+
+        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10, None);
+
+        // Both should have same score (name similarity only)
+        let score1 = filtered[0].name_distance_score.unwrap();
+        let score2 = filtered[1].name_distance_score.unwrap();
+        assert!((score1 - score2).abs() < 0.001, "No penalty without detected_track_count");
+    }
+
+    #[test]
+    fn test_track_count_scoring_penalty_capped() {
+        // **[PLAN027]** Verify penalty caps at 50%
+        let editions = vec![
+            create_test_edition("The Beatles", "Abbey Road", 17),   // 0 diff = 0% penalty
+            create_test_edition("The Beatles", "Abbey Road", 50),   // 33 diff = capped at 50%
+        ];
+
+        let filtered = filter_and_sort_editions(editions, "The Beatles", "Abbey Road", 10, Some(17));
+
+        let score_exact = filtered[0].name_distance_score.unwrap();
+        let score_far = filtered[1].name_distance_score.unwrap();
+
+        // Far edition should have exactly 50% of exact edition's score (not less)
+        let ratio = score_far / score_exact;
+        assert!((ratio - 0.5).abs() < 0.01, "Penalty should cap at 50%, got ratio {:.3}", ratio);
+    }
+
+    // =============================================================================
+    // Album Title Normalization and Exact Match Bonus Tests
+    // =============================================================================
+
+    #[test]
+    fn test_normalize_album_title_parenthetical() {
+        // Remove parenthetical content
+        assert_eq!(
+            normalize_album_title("The Greatest Showman (Soundtrack)"),
+            "the greatest showman"
+        );
+        assert_eq!(
+            normalize_album_title("Abbey Road (Remastered)"),
+            "abbey road"
+        );
+        assert_eq!(
+            normalize_album_title("Album (Deluxe Edition) (Bonus Tracks)"),
+            "album"
+        );
+    }
+
+    #[test]
+    fn test_normalize_album_title_brackets() {
+        // Remove bracketed content
+        assert_eq!(
+            normalize_album_title("Abbey Road [2019 Remaster]"),
+            "abbey road"
+        );
+    }
+
+    #[test]
+    fn test_normalize_album_title_preserves_subtitles() {
+        // Subtitles after colon are preserved (not in parentheses/brackets)
+        assert_eq!(
+            normalize_album_title("The Greatest Showman: Reimagined"),
+            "the greatest showman reimagined"
+        );
+    }
+
+    #[test]
+    fn test_exact_match_bonus_applied() {
+        // Exact match should get bonus
+        let score_exact = calculate_name_distance(
+            "Various Artists",
+            "The Greatest Showman",
+            "Various",
+            "The Greatest Showman (Soundtrack)",
+        );
+
+        let score_different = calculate_name_distance(
+            "Various Artists",
+            "The Greatest Showman: Reimagined",
+            "Various",
+            "The Greatest Showman (Soundtrack)",
+        );
+
+        // Exact match (after normalization) should score higher
+        assert!(
+            score_exact > score_different,
+            "Exact title match should score higher: {} vs {}",
+            score_exact,
+            score_different
+        );
+    }
+
+    #[test]
+    fn test_exact_match_bonus_greatest_showman() {
+        // This tests the specific Greatest Showman case
+        let editions = vec![
+            create_test_edition("Various Artists", "The Greatest Showman", 6),
+            create_test_edition("Various Artists", "The Greatest Showman: Reimagined", 13),
+        ];
+
+        let filtered = filter_and_sort_editions(
+            editions,
+            "Various",
+            "The Greatest Showman (Soundtrack)",
+            10,
+            None,
+        );
+
+        // The original soundtrack should rank higher than Reimagined
+        assert_eq!(
+            filtered[0].title, "The Greatest Showman",
+            "Original soundtrack should rank first, got: {}",
+            filtered[0].title
+        );
     }
 
     // =============================================================================

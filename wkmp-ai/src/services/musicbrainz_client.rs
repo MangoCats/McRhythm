@@ -444,7 +444,8 @@ impl MusicBrainzClient {
             limit
         );
 
-        tracing::debug!(query = %query, limit, url = %url, "Searching MusicBrainz releases");
+        // **[DEBUG]** Log URL at INFO level for debugging search issues
+        tracing::info!(query = %query, limit, url = %url, "Searching MusicBrainz releases");
 
         let operation = format!("search releases: {}", query);
         let response = self
@@ -454,13 +455,17 @@ impl MusicBrainzClient {
             .await?;
 
         let status = response.status();
+        // **[DEBUG]** Log response status
+        tracing::info!(status = %status, query = %query, "MusicBrainz API response");
 
         if status == 503 {
+            tracing::warn!(query = %query, "MusicBrainz rate limit exceeded (503)");
             return Err(MBError::RateLimitExceeded);
         }
 
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
+            tracing::warn!(status = %status, error = %error_text, query = %query, "MusicBrainz API error");
             return Err(MBError::ApiError(status.as_u16(), error_text));
         }
 
@@ -591,20 +596,33 @@ impl MusicBrainzClient {
         // Try each strategy until we have enough results
         // USER DECISION: Stop after first successful strategy
         for (i, query) in strategies.iter().enumerate() {
-            tracing::debug!(
+            // **[DEBUG]** Log each strategy attempt at INFO level for visibility
+            tracing::info!(
                 strategy = i + 1,
                 total = strategies.len(),
                 query = %query,
+                artist = %artist,
+                album = %album,
                 "Trying MusicBrainz search strategy"
             );
 
             // Search for releases using this strategy
             let search_response = match self.search_releases(query, Some(limit as u32)).await {
-                Ok(response) => response,
+                Ok(response) => {
+                    // **[DEBUG]** Log result count for each strategy
+                    tracing::info!(
+                        strategy = i + 1,
+                        results = response.releases.len(),
+                        query = %query,
+                        "Strategy returned results"
+                    );
+                    response
+                }
                 Err(e) => {
                     tracing::warn!(
                         strategy = i + 1,
                         error = %e,
+                        query = %query,
                         "Strategy failed, trying next"
                     );
                     continue;
@@ -643,12 +661,23 @@ impl MusicBrainzClient {
             }
         }
 
-        tracing::info!(
-            artist = %artist,
-            album = %album,
-            found = all_releases.len(),
-            "Comprehensive search completed"
-        );
+        // **[DEBUG]** Enhanced completion logging
+        if all_releases.is_empty() {
+            tracing::warn!(
+                artist = %artist,
+                album = %album,
+                strategies_tried = strategies.len(),
+                "Comprehensive search found NO releases after trying all strategies"
+            );
+        } else {
+            tracing::info!(
+                artist = %artist,
+                album = %album,
+                found = all_releases.len(),
+                strategies_tried = strategies.len(),
+                "Comprehensive search completed"
+            );
+        }
 
         Ok(all_releases)
     }
@@ -971,10 +1000,55 @@ fn strip_punctuation(text: &str) -> String {
         .join(" ")
 }
 
+/// Strip "The " prefix from artist name
+///
+/// MusicBrainz search often fails when artist names start with "The"
+/// due to how the search index handles articles.
+///
+/// # Examples
+/// - "The Go-Go's" → "Go-Go's"
+/// - "The Score" → "Score"
+/// - "Beatles" → "Beatles" (unchanged, no prefix)
+fn strip_the_prefix(artist: &str) -> &str {
+    let prefixes = ["The ", "the "];
+    for prefix in prefixes {
+        if let Some(stripped) = artist.strip_prefix(prefix) {
+            return stripped;
+        }
+    }
+    artist
+}
+
+/// Strip common ensemble suffixes from artist name
+///
+/// Handles cases where the file metadata includes ensemble type
+/// but MusicBrainz has the artist without it.
+///
+/// # Examples
+/// - "Dave Brubeck Quartet" → "Dave Brubeck"
+/// - "Boston Pops Orchestra" → "Boston Pops"
+/// - "Dave Brubeck" → "Dave Brubeck" (unchanged)
+fn strip_ensemble_suffix(artist: &str) -> String {
+    let suffixes = [
+        " Quartet", " Trio", " Quintet", " Sextet",
+        " Band", " Orchestra", " Ensemble", " Group",
+        " Philharmonic", " Symphony",
+    ];
+
+    let mut result = artist.to_string();
+    for suffix in suffixes {
+        if let Some(stripped) = result.strip_suffix(suffix) {
+            result = stripped.to_string();
+            break; // Only strip one suffix
+        }
+    }
+    result
+}
+
 /// # Returns
 /// Vec of Lucene query strings, ordered by precision (most specific first)
 fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
-    let mut strategies = Vec::with_capacity(10);  // **[PHASE 1]** Increased from 7 to 10
+    let mut strategies = Vec::with_capacity(12);  // **[PHASE 1]** Increased from 7 to 12
 
     // Strategy 1: Basic unquoted search with type:album filter
     // Avoids quoted exact-match which is too restrictive
@@ -1014,15 +1088,51 @@ fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
         ));
     }
 
-    // Strategy 5: Aggressive fuzzy ~2 edits
+    // **[PHASE 1 EXTENSION 4 - REORDERED]** Artist name variation strategies
+    // These precise strategies come BEFORE aggressive fuzzy to avoid overly-broad matches
+
+    // Strategy 5: "The" prefix stripping (MOVED UP - was Strategy 11)
+    // Handles "The Go-Go's" → "Go-Go's", "The Score" → "Score"
+    // MusicBrainz search often fails with "The" prefix due to indexing
+    let artist_no_the = strip_the_prefix(artist);
+    if artist_no_the != artist {
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_no_the, album
+        ));
+    }
+
+    // Strategy 6: Ensemble suffix stripping (MOVED UP - was Strategy 12)
+    // Handles "Dave Brubeck Quartet" → "Dave Brubeck"
+    // Common suffixes: Quartet, Trio, Band, Orchestra, Ensemble
+    let artist_no_ensemble = strip_ensemble_suffix(artist);
+    if artist_no_ensemble != artist {
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_no_ensemble, album
+        ));
+    }
+
+    // Strategy 7: Punctuation-stripped search (MOVED UP - was Strategy 9)
+    // Handles "Go-Go's" → "GoGos" variations
+    let artist_stripped = strip_punctuation(artist);
+    let album_stripped = strip_punctuation(album);
+    if artist_stripped != artist || album_stripped != album {
+        strategies.push(format!(
+            "type:album AND artist:{} AND release:{}",
+            artist_stripped, album_stripped
+        ));
+    }
+
+    // Strategy 8: Aggressive fuzzy ~2 edits (was Strategy 5)
     // More tolerant, catches more misspellings
     strategies.push(format!(
         "type:album AND artist:{}~2 AND release:{}~2",
         artist, album
     ));
 
-    // Strategy 6: Per-token fuzzy matching
-    // Handles multi-word names better
+    // Strategy 9: Per-token fuzzy matching (was Strategy 6)
+    // Handles multi-word names better - but is VERY broad, so comes late
     let artist_tokens: Vec<&str> = artist.split_whitespace().collect();
     let album_tokens: Vec<&str> = album.split_whitespace().collect();
     if artist_tokens.len() > 1 || album_tokens.len() > 1 {
@@ -1042,13 +1152,11 @@ fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
         ));
     }
 
-    // Strategy 7: Album-only fallback
+    // Strategy 10: Album-only fallback (was Strategy 7)
     // Last resort when artist name is problematic
     strategies.push(format!("type:album AND release:{}", album));
 
-    // **[PHASE 1 EXTENSION 4]** New search strategies for artist variations
-
-    // Strategy 8: Artist prefix/suffix search
+    // Strategy 11: Artist prefix/suffix search (was Strategy 8)
     // Handles "Carlos Santana" → "Santana" or "John Mayall" → "Mayall"
     if artist_tokens.len() >= 2 {
         // Try last name only (e.g., "Santana" from "Carlos Santana")
@@ -1066,18 +1174,7 @@ fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
         ));
     }
 
-    // Strategy 9: Punctuation-stripped search
-    // Handles "Go-Go's" → "GoGos" variations
-    let artist_stripped = strip_punctuation(artist);
-    let album_stripped = strip_punctuation(album);
-    if artist_stripped != artist || album_stripped != album {
-        strategies.push(format!(
-            "type:album AND artist:{} AND release:{}",
-            artist_stripped, album_stripped
-        ));
-    }
-
-    // Strategy 10: Album-focused with artist wildcard
+    // Strategy 12: Album-focused with artist wildcard (was Strategy 10)
     // Last resort - prioritizes album match with loose artist constraint
     if !artist_tokens.is_empty() {
         strategies.push(format!(
@@ -1085,6 +1182,10 @@ fn generate_search_strategies(artist: &str, album: &str) -> Vec<String> {
             artist_tokens.first().unwrap(), album
         ));
     }
+
+    // Note: Strategies 11 and 12 from original ordering have been moved up
+    // to positions 5 and 6 respectively, ensuring precise artist variations
+    // are tried before overly-broad fuzzy strategies that return wrong artists
 
     strategies
 }
@@ -1315,5 +1416,45 @@ mod tests {
 
         // Should still have base strategies
         assert!(strategies.len() >= 5, "Should have base strategies for single-word artist");
+    }
+
+    #[test]
+    fn test_strip_the_prefix() {
+        assert_eq!(strip_the_prefix("The Go-Go's"), "Go-Go's");
+        assert_eq!(strip_the_prefix("The Score"), "Score");
+        assert_eq!(strip_the_prefix("the beatles"), "beatles");
+        assert_eq!(strip_the_prefix("Beatles"), "Beatles"); // No change
+        assert_eq!(strip_the_prefix("Therapy?"), "Therapy?"); // No change
+    }
+
+    #[test]
+    fn test_strip_ensemble_suffix() {
+        assert_eq!(strip_ensemble_suffix("Dave Brubeck Quartet"), "Dave Brubeck");
+        assert_eq!(strip_ensemble_suffix("Modern Jazz Quartet"), "Modern Jazz");
+        assert_eq!(strip_ensemble_suffix("Boston Pops Orchestra"), "Boston Pops");
+        assert_eq!(strip_ensemble_suffix("Dave Brubeck"), "Dave Brubeck"); // No change
+        assert_eq!(strip_ensemble_suffix("Kraftwerk"), "Kraftwerk"); // No change
+    }
+
+    #[test]
+    fn test_generate_search_strategies_the_prefix() {
+        let artist = "The Go-Go's";
+        let album = "Beauty and the Beat";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should include "The" stripped search (Strategy 11)
+        let has_stripped = strategies.iter().any(|s| s.contains("artist:Go-Go's"));
+        assert!(has_stripped, "Should include 'The' stripped strategy");
+    }
+
+    #[test]
+    fn test_generate_search_strategies_ensemble_suffix() {
+        let artist = "Dave Brubeck Quartet";
+        let album = "Time Out";
+        let strategies = generate_search_strategies(artist, album);
+
+        // Should include ensemble suffix stripped search (Strategy 12)
+        let has_stripped = strategies.iter().any(|s| s.contains("artist:Dave Brubeck AND") && !s.contains("Quartet"));
+        assert!(has_stripped, "Should include ensemble suffix stripped strategy");
     }
 }

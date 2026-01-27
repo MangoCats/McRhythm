@@ -97,6 +97,51 @@ impl From<MBError> for AlbumMatchError {
 
 impl std::error::Error for AlbumMatchError {}
 
+// =============================================================================
+// Silence Detection Helpers
+// =============================================================================
+
+/// Find maximum silence gap count across all parameter combinations
+///
+/// **[PLAN027 FIX]** The single-track discriminator was incorrectly flagging full albums
+/// as single tracks because it used a single parameter combination (4s min silence) that
+/// was too restrictive for many albums.
+///
+/// This function scans all 180 parameter combinations in the silence cache and returns
+/// the maximum gap count found. If ANY parameter finds enough gaps, the file should be
+/// processed as an album.
+///
+/// # Arguments
+/// * `silence_cache` - Pre-computed silence detection results for all parameter combinations
+///
+/// # Returns
+/// Maximum number of tracks detected across all parameters, minus 1 (= gaps)
+fn find_max_silence_gaps(silence_cache: &SilenceCache) -> usize {
+    silence_cache
+        .iter()
+        .map(|durations| durations.len().saturating_sub(1))
+        .max()
+        .unwrap_or(0)
+}
+
+/// Find maximum track count across all parameter combinations
+///
+/// **[PLAN027]** Used for track count scoring penalty calculation.
+/// Returns the maximum number of tracks detected by any parameter combination.
+///
+/// # Arguments
+/// * `silence_cache` - Pre-computed silence detection results for all parameter combinations
+///
+/// # Returns
+/// Maximum number of tracks detected across all parameters
+fn find_max_track_count(silence_cache: &SilenceCache) -> usize {
+    silence_cache
+        .iter()
+        .map(|durations| durations.len())
+        .max()
+        .unwrap_or(1)
+}
+
 /// Configuration for album matching
 ///
 /// **[PLAN030]** Extended configuration with stage controls and parameter grid.
@@ -321,7 +366,6 @@ impl AlbumMatcher {
         let file_path_owned = audio_path.to_path_buf();
         let threshold_values = self.config.threshold_values().to_vec();
         let min_duration_values = self.config.min_duration_values().to_vec();
-        let num_min_durations = min_duration_values.len();
 
         // Spawn decode task (CPU-bound via spawn_blocking)
         let decode_handle = spawn_blocking(move || {
@@ -365,13 +409,11 @@ impl AlbumMatcher {
         );
 
         // Step 4: Post-decode single-track check using silence gap count
-        // Get silence gaps from default parameters
-        let default_idx = 6 * num_min_durations + 7; // Approximate middle of grid
-        let default_durations = silence_cache
-            .get(default_idx.min(silence_cache.len().saturating_sub(1)))
-            .cloned()
-            .unwrap_or_default();
-        let silence_gap_count = default_durations.len().saturating_sub(1);
+        // **[PLAN027 FIX]** Find MAXIMUM gap count across parameter combinations
+        // Previously used a single fixed index which was too restrictive (4s min silence).
+        // Now we scan multiple parameters to find the best one - if ANY parameter finds
+        // enough gaps, the file is processed as an album.
+        let silence_gap_count = find_max_silence_gaps(&silence_cache);
 
         let mut post_analysis = pre_analysis;
         let duration_mins = duration_secs / 60.0;
@@ -463,8 +505,17 @@ impl AlbumMatcher {
             );
         }
 
-        // Sort remaining editions by combined name similarity (artist+album)
-        let editions = filter_and_sort_editions(editions, &artist, &album, 20);
+        // **[PLAN027]** Track count scoring (not filtering)
+        // Silence detection provides detected track count for scoring penalty.
+        // Instead of filtering out editions based on track count (which caused regressions),
+        // we use track count difference as a ranking penalty - editions with mismatched
+        // track counts are deprioritized but not removed, ensuring correct matches aren't
+        // lost when silence detection is inaccurate.
+        // Use maximum track count found across all parameter combinations (same as gap detection)
+        let detected_track_count = find_max_track_count(&silence_cache);
+
+        // Sort remaining editions by combined name similarity (artist+album) with track count penalty
+        let editions = filter_and_sort_editions(editions, &artist, &album, 20, Some(detected_track_count));
 
         // **[BUG FIX]** Pre-filter editions by file duration to eliminate impossible matches
         let editions = filter_editions_by_file_duration(editions, file_duration_ms);
@@ -491,10 +542,12 @@ impl AlbumMatcher {
 
         // Step 7: Run multi-stage matching orchestration
         let orchestrator_config = OrchestratorConfig {
-            // **[PHASE1]** Lowered from 80.0% to 65.0% to capture high-confidence matches
-            // that were incorrectly rejected (22 files with 67-79% confidence).
-            // See IMPROVEMENT_PLAN_audio_decode_album_matching.md Phase 1.1
-            min_match_percentage: 65.0,
+            // **[PHASE1]** Lowered from 80.0% to 65.0%, then to 60.0%
+            // Original: 80.0% - rejected 22 files with 67-79% confidence
+            // Phase 1: 65.0% - captured those files
+            // Current: 60.0% - captures The Police (63.6%) without regressions
+            // Analysis: Only 1 album in 60-65% range, 0 albums in 40-60% range
+            min_match_percentage: 60.0,
             tolerance_secs: self.config.match_tolerance_secs,
             early_exit: self.config.enable_early_exit,
             early_exit_grace: self.config.early_exit_grace_secs as usize,
@@ -534,13 +587,9 @@ impl AlbumMatcher {
                 sample_rate as f64,
             );
 
-            // Convert refined boundaries back to durations
+            // Convert refined boundaries back to durations (overflow-safe)
             if refined_boundaries != boundaries {
-                let mut refined_durations = Vec::new();
-                for i in 1..refined_boundaries.len() {
-                    let duration_secs = (refined_boundaries[i] - refined_boundaries[i - 1]) as f64 / sample_rate as f64;
-                    refined_durations.push(duration_secs);
-                }
+                let refined_durations = super::boundaries_to_durations(&refined_boundaries, sample_rate as f64);
 
                 // Update result with refined durations
                 result.detected_durations = refined_durations;
@@ -1093,7 +1142,11 @@ impl AlbumMatcher {
         // Convert refined boundaries back to tracks
         let mut refined_tracks = Vec::new();
         for (i, track) in original_tracks.iter().enumerate() {
-            let refined_duration = (best_boundaries[i + 1] - best_boundaries[i]) as f64 / sample_rate as f64;
+            let refined_duration = if best_boundaries[i + 1] > best_boundaries[i] {
+                (best_boundaries[i + 1] - best_boundaries[i]) as f64 / sample_rate as f64
+            } else {
+                0.0
+            };
             let timing_error = (refined_duration - track.expected_duration).abs();
             let within_tolerance = timing_error <= self.config.match_tolerance_secs;
 

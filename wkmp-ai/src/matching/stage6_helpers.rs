@@ -251,22 +251,13 @@ pub fn count_tracks_within_tolerance(
     sample_rate: u32,
     tolerance_secs: f64,
 ) -> usize {
-    let mut count = 0;
+    let durations = crate::matching::boundaries_to_durations(boundaries, sample_rate as f64);
 
-    for i in 0..expected_durations.len() {
-        if i + 1 >= boundaries.len() {
-            break;
-        }
-
-        let detected_duration = (boundaries[i + 1] - boundaries[i]) as f64 / sample_rate as f64;
-        let error = (detected_duration - expected_durations[i]).abs();
-
-        if error <= tolerance_secs {
-            count += 1;
-        }
-    }
-
-    count
+    durations
+        .iter()
+        .zip(expected_durations.iter())
+        .filter(|(&detected, &expected)| (detected - expected).abs() <= tolerance_secs)
+        .count()
 }
 
 /// Calculate mean absolute error
@@ -275,24 +266,18 @@ fn calculate_mean_error(
     expected_durations: &[f64],
     sample_rate: u32,
 ) -> f64 {
-    let mut total_error = 0.0;
-    let mut count = 0;
+    let durations = crate::matching::boundaries_to_durations(boundaries, sample_rate as f64);
 
-    for i in 0..expected_durations.len() {
-        if i + 1 >= boundaries.len() {
-            break;
-        }
-
-        let detected_duration = (boundaries[i + 1] - boundaries[i]) as f64 / sample_rate as f64;
-        let error = (detected_duration - expected_durations[i]).abs();
-
-        total_error += error;
-        count += 1;
+    let count = durations.len().min(expected_durations.len());
+    if count == 0 {
+        return 0.0;
     }
 
-    if count > 0 {
-        total_error / count as f64
-    } else {
-        0.0
-    }
+    let total_error: f64 = durations
+        .iter()
+        .zip(expected_durations.iter())
+        .map(|(&detected, &expected)| (detected - expected).abs())
+        .sum();
+
+    total_error / count as f64
 }

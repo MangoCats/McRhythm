@@ -88,6 +88,7 @@
 pub mod album_matcher;
 pub mod confidence_tier;
 pub mod constants;
+pub mod edition_filter;
 pub mod editions;
 pub mod metadata;
 pub mod orchestrator;
@@ -149,6 +150,14 @@ pub use editions::{
     score_edition_match,
 };
 
+// Edition filtering improvements (PLAN027)
+pub use edition_filter::{
+    filter_by_track_count, filter_editions, is_remix_track, score_edition_preference,
+    validate_artist_consistency, COMPILATION_PENALTY_MULTIPLIER, DELUXE_PENALTY_MULTIPLIER,
+    LONG_FILE_DURATION_THRESHOLD_MS, MIN_DETECTED_TRACKS_FOR_FILTER, MIN_EDITIONS_TO_PRESERVE,
+    REMIX_ERROR_TOLERANCE_SECS, TRACK_COUNT_TOLERANCE,
+};
+
 // Stage 2: Parameter Grid Search (PLAN030 Increment 7)
 pub use stages::{run_stage2, EarlyExitConfig, Stage2Result};
 
@@ -163,3 +172,21 @@ pub use stages::{run_stage5, Stage5Result};
 
 // Stage Orchestration (PLAN030 Increment 11)
 pub use orchestrator::{run_orchestration, OrchestrationResult, OrchestratorConfig, StageResults};
+
+/// Convert sample-position boundaries to track durations in seconds.
+///
+/// Handles out-of-order boundaries (which can occur when refinement stages
+/// move a boundary past its neighbor) by treating them as zero-duration.
+/// This prevents usize subtraction overflow panics.
+pub fn boundaries_to_durations(boundaries: &[usize], sample_rate: f64) -> Vec<f64> {
+    boundaries
+        .windows(2)
+        .map(|w| {
+            if w[1] > w[0] {
+                (w[1] - w[0]) as f64 / sample_rate
+            } else {
+                0.0
+            }
+        })
+        .collect()
+}

@@ -101,19 +101,13 @@ fn calculate_track_errors(
     expected_durations: &[f64],
     sample_rate: f64,
 ) -> Vec<f64> {
-    let mut errors = Vec::new();
+    let durations = crate::matching::boundaries_to_durations(boundaries, sample_rate);
 
-    for i in 0..expected_durations.len() {
-        if i + 1 >= boundaries.len() {
-            break;
-        }
-
-        let detected_duration = (boundaries[i + 1] - boundaries[i]) as f64 / sample_rate;
-        let error = detected_duration - expected_durations[i];
-        errors.push(error);
-    }
-
-    errors
+    durations
+        .iter()
+        .zip(expected_durations.iter())
+        .map(|(&detected, &expected)| detected - expected)
+        .collect()
 }
 
 /// Identify first and last problem tracks (error >10s)
@@ -206,19 +200,13 @@ fn calculate_total_absolute_error(
     expected_durations: &[f64],
     sample_rate: f64,
 ) -> f64 {
-    let mut total_error = 0.0;
+    let durations = crate::matching::boundaries_to_durations(boundaries, sample_rate);
 
-    for i in 0..expected_durations.len() {
-        if i + 1 >= boundaries.len() {
-            break;
-        }
-
-        let detected_duration = (boundaries[i + 1] - boundaries[i]) as f64 / sample_rate;
-        let error = (detected_duration - expected_durations[i]).abs();
-        total_error += error;
-    }
-
-    total_error
+    durations
+        .iter()
+        .zip(expected_durations.iter())
+        .map(|(&detected, &expected)| (detected - expected).abs())
+        .sum()
 }
 
 #[cfg(test)]

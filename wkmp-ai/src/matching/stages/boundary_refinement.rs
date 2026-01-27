@@ -66,12 +66,8 @@ pub fn apply_refinement_to_durations(
         tolerance_secs,
     );
 
-    // Convert boundaries back to durations
-    let mut refined_durations = Vec::new();
-    for i in 1..refined_boundaries.len() {
-        let duration_secs = (refined_boundaries[i] - refined_boundaries[i - 1]) as f64 / sample_rate;
-        refined_durations.push(duration_secs);
-    }
+    // Convert boundaries back to durations (overflow-safe)
+    let refined_durations = crate::matching::boundaries_to_durations(&refined_boundaries, sample_rate);
 
     refined_durations
 }
@@ -311,6 +307,15 @@ pub fn progressive_rms_scan(
     sample_rate: f64,
     track_num: usize,
 ) -> Option<usize> {
+    // Guard against invalid search window (start > end)
+    if search_start >= search_end {
+        debug!(
+            "Progressive RMS (track {}): Invalid search window [{}..{}]",
+            track_num, search_start, search_end
+        );
+        return None;
+    }
+
     let search_range = search_end - search_start;
 
     // Validate minimum search range (need at least 6s for coarse stage)

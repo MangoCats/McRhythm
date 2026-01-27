@@ -145,13 +145,18 @@ pub struct EditionCandidate {
 ///
 /// Formula:
 /// ```text
-/// base_score = (duration_score × 0.35) + (quality_score × 0.40) + (name_score × 0.25)
+/// base_score = (duration_score × 0.25) + (match_score × 0.30) + (quality_score × 0.25) + (name_score × 0.20)
 /// final_score = base_score × track_count_penalty
 /// ```
 ///
+/// **[BUG FIX]** Added `match_score` parameter to ensure editions with higher match
+/// percentages are preferred. Previously, a 93.3% match could outscore a 100% match
+/// if the quality scores (error magnitudes) happened to average higher.
+///
 /// # Arguments
 /// * `duration_score` - Total duration alignment score (0.0-1.0)
-/// * `quality_score` - Track quality score (0.0-1.0)
+/// * `match_score` - Match percentage as score (0.0-1.0, where 1.0 = 100% match)
+/// * `quality_score` - Track quality score (-1.0 to 1.0)
 /// * `name_score` - Name similarity score (0.0-1.0)
 /// * `track_count_penalty` - Multiplicative penalty for track count difference (0.20-1.00)
 ///
@@ -159,11 +164,14 @@ pub struct EditionCandidate {
 /// Final edition score (0.0-1.0)
 pub fn calculate_edition_score(
     duration_score: f64,
+    match_score: f64,
     quality_score: f64,
     name_score: f64,
     track_count_penalty: f64,
 ) -> f64 {
-    let base = (duration_score * 0.35) + (quality_score * 0.40) + (name_score * 0.25);
+    // Normalize quality_score from [-1.0, 1.0] to [0.0, 1.0] for weighted sum
+    let quality_normalized = (quality_score + 1.0) / 2.0;
+    let base = (duration_score * 0.25) + (match_score * 0.30) + (quality_normalized * 0.25) + (name_score * 0.20);
     base * track_count_penalty
 }
 
@@ -545,14 +553,19 @@ mod tests {
     #[test]
     fn test_multi_factor_scoring_weights() {
         // TC-U-092-01: Verify correct weight application
+        // New formula: (duration × 0.25) + (match × 0.30) + (quality_normalized × 0.25) + (name × 0.20)
         let duration_score = 0.80;
-        let quality_score = 0.90;
+        let match_score = 1.00; // 100% match
+        let quality_score = 0.80; // Raw quality score in [-1, 1] range
         let name_score = 0.70;
         let track_count_penalty = 1.00;
 
-        let expected = (0.80 * 0.35) + (0.90 * 0.40) + (0.70 * 0.25);
+        // Quality normalized: (0.80 + 1.0) / 2.0 = 0.90
+        let quality_normalized = (quality_score + 1.0) / 2.0;
+        let expected = (0.80 * 0.25) + (1.00 * 0.30) + (quality_normalized * 0.25) + (0.70 * 0.20);
         let actual = calculate_edition_score(
             duration_score,
+            match_score,
             quality_score,
             name_score,
             track_count_penalty,
@@ -565,14 +578,18 @@ mod tests {
     fn test_multi_factor_scoring_penalty() {
         // TC-U-092-02: Verify multiplicative track count penalty
         let duration_score = 0.95;
-        let quality_score = 0.85;
+        let match_score = 1.00;
+        let quality_score = 0.70; // Raw quality in [-1, 1]
         let name_score = 0.70;
         let track_count_penalty = 0.85;
 
-        let base = (0.95 * 0.35) + (0.85 * 0.40) + (0.70 * 0.25);
+        // Quality normalized: (0.70 + 1.0) / 2.0 = 0.85
+        let quality_normalized = (quality_score + 1.0) / 2.0;
+        let base = (0.95 * 0.25) + (1.00 * 0.30) + (quality_normalized * 0.25) + (0.70 * 0.20);
         let expected = base * 0.85;
         let actual = calculate_edition_score(
             duration_score,
+            match_score,
             quality_score,
             name_score,
             track_count_penalty,
@@ -580,6 +597,43 @@ mod tests {
 
         assert!((actual - expected).abs() < 0.001, "Expected {}, got {}", expected, actual);
         assert!(actual < base, "Penalty should reduce score");
+    }
+
+    #[test]
+    fn test_match_percentage_prioritized() {
+        // TC-U-092-BUG: Verify 100% match beats 93.3% match with better quality
+        // This is the Ace of Base bug fix test
+        let duration_score_100 = 0.95;
+        let duration_score_93 = 0.80;
+        let match_score_100 = 1.00;    // 100% match
+        let match_score_93 = 0.933;    // 93.3% match
+        let quality_score_100 = 0.19;  // Lower quality (larger errors but all within tolerance)
+        let quality_score_93 = 0.48;   // Higher quality (smaller errors on matched tracks)
+        let name_score = 0.53;
+        let track_count_penalty = 1.00;
+
+        let score_100 = calculate_edition_score(
+            duration_score_100,
+            match_score_100,
+            quality_score_100,
+            name_score,
+            track_count_penalty,
+        );
+
+        let score_93 = calculate_edition_score(
+            duration_score_93,
+            match_score_93,
+            quality_score_93,
+            name_score,
+            track_count_penalty,
+        );
+
+        assert!(
+            score_100 > score_93,
+            "100% match ({:.4}) should beat 93.3% match ({:.4})",
+            score_100,
+            score_93
+        );
     }
 
     #[test]

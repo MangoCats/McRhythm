@@ -49,8 +49,11 @@ fn test_tc_i_092_01_five_edition_ranking() {
     let name_score_std = 0.85; // High name similarity
     let track_penalty_std = calculate_track_count_penalty(11, 11);
 
+    // Match score: 11/11 tracks match (100%)
+    let match_score_std = 1.0;
     let score_std = calculate_edition_score(
         duration_score_std,
+        match_score_std,
         quality_score_std,
         name_score_std,
         track_penalty_std,
@@ -69,8 +72,11 @@ fn test_tc_i_092_01_five_edition_ranking() {
     let name_score_dlx = 0.80; // Slightly lower name similarity
     let track_penalty_dlx = calculate_track_count_penalty(11, 17);
 
+    // Match score: 0/17 (track count mismatch - detected 11, edition has 17)
+    let match_score_dlx = 0.0;
     let score_dlx = calculate_edition_score(
         duration_score_dlx,
+        match_score_dlx,
         quality_score_dlx,
         name_score_dlx,
         track_penalty_dlx,
@@ -87,8 +93,11 @@ fn test_tc_i_092_01_five_edition_ranking() {
     let name_score_box = 0.85; // Same name similarity as standard
     let track_penalty_box = calculate_track_count_penalty(11, 147);
 
+    // Match score: 0/147 (track count mismatch - detected 11, edition has 147)
+    let match_score_box = 0.0;
     let score_box = calculate_edition_score(
         duration_score_box,
+        match_score_box,
         quality_score_box,
         name_score_box,
         track_penalty_box,
@@ -105,8 +114,11 @@ fn test_tc_i_092_01_five_edition_ranking() {
     let name_score_jpn = 0.82; // Slightly different name
     let track_penalty_jpn = calculate_track_count_penalty(11, 12);
 
+    // Match score: 0/12 (track count mismatch - detected 11, edition has 12)
+    let match_score_jpn = 0.0;
     let score_jpn = calculate_edition_score(
         duration_score_jpn,
+        match_score_jpn,
         quality_score_jpn,
         name_score_jpn,
         track_penalty_jpn,
@@ -124,8 +136,11 @@ fn test_tc_i_092_01_five_edition_ranking() {
     let name_score_rem = 0.78; // Lower name similarity (includes "Remaster")
     let track_penalty_rem = calculate_track_count_penalty(11, 11);
 
+    // Match score: 11/11 tracks match (100% - remaster has same track count)
+    let match_score_rem = 1.0;
     let score_rem = calculate_edition_score(
         duration_score_rem,
+        match_score_rem,
         quality_score_rem,
         name_score_rem,
         track_penalty_rem,
@@ -247,9 +262,11 @@ fn test_tc_i_092_01_deterministic_tie_breaking() {
     let track_penalty = calculate_track_count_penalty(3, 3);
 
     // Three editions with identical track counts and durations
-    let score_a = calculate_edition_score(duration_score, quality_score, 0.85, track_penalty);
-    let score_b = calculate_edition_score(duration_score, quality_score, 0.85, track_penalty);
-    let score_c = calculate_edition_score(duration_score, quality_score, 0.90, track_penalty);
+    // All have 100% match (3/3 tracks)
+    let match_score = 1.0;
+    let score_a = calculate_edition_score(duration_score, match_score, quality_score, 0.85, track_penalty);
+    let score_b = calculate_edition_score(duration_score, match_score, quality_score, 0.85, track_penalty);
+    let score_c = calculate_edition_score(duration_score, match_score, quality_score, 0.90, track_penalty);
 
     let candidates = vec![
         EditionCandidate {
