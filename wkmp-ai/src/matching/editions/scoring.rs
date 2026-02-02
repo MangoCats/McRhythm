@@ -22,24 +22,32 @@ pub fn score_edition_match(
     expected_durations: &[u32],
     tolerance_secs: f64,
 ) -> f64 {
-    if detected_durations.len() != expected_durations.len() {
+    let detected_count = detected_durations.len();
+    let expected_count = expected_durations.len();
+
+    if expected_count == 0 {
         return 0.0;
     }
 
-    if expected_durations.is_empty() {
+    // Allow N-1: file missing its last track
+    let compare_count = if detected_count == expected_count {
+        detected_count
+    } else if detected_count + 1 == expected_count && expected_count >= 2 {
+        detected_count
+    } else {
         return 0.0;
-    }
+    };
 
     let mut matched = 0;
-    for (detected, expected) in detected_durations.iter().zip(expected_durations.iter()) {
-        let expected_secs = *expected as f64 / 1000.0;
-        let error = (detected - expected_secs).abs();
+    for i in 0..compare_count {
+        let expected_secs = expected_durations[i] as f64 / 1000.0;
+        let error = (detected_durations[i] - expected_secs).abs();
         if error <= tolerance_secs {
             matched += 1;
         }
     }
 
-    (matched as f64 / expected_durations.len() as f64) * 100.0
+    (matched as f64 / expected_count as f64) * 100.0
 }
 
 /// Analyze track matching in detail
@@ -62,17 +70,6 @@ pub fn analyze_track_matching(
     let expected_count = expected_durations.len();
     let detected_count = detected_durations.len();
 
-    // Handle count mismatch
-    if detected_count != expected_count {
-        return CandidateTestResult {
-            percentage: 0.0,
-            detected_durations: detected_durations.to_vec(),
-            matched_count: 0,
-            expected_count,
-            errors: Vec::new(),
-        };
-    }
-
     // Handle empty case
     if expected_count == 0 {
         return CandidateTestResult {
@@ -84,12 +81,27 @@ pub fn analyze_track_matching(
         };
     }
 
+    // Allow N-1: file missing its last track
+    let compare_count = if detected_count == expected_count {
+        detected_count
+    } else if detected_count + 1 == expected_count && expected_count >= 2 {
+        detected_count
+    } else {
+        return CandidateTestResult {
+            percentage: 0.0,
+            detected_durations: detected_durations.to_vec(),
+            matched_count: 0,
+            expected_count,
+            errors: Vec::new(),
+        };
+    };
+
     let mut matched_count = 0;
     let mut errors = Vec::new();
 
-    for (detected, expected) in detected_durations.iter().zip(expected_durations.iter()) {
-        let expected_secs = *expected as f64 / 1000.0;
-        let error = (detected - expected_secs).abs();
+    for i in 0..compare_count {
+        let expected_secs = expected_durations[i] as f64 / 1000.0;
+        let error = (detected_durations[i] - expected_secs).abs();
         errors.push(error);
 
         if error <= tolerance_secs {
@@ -491,9 +503,21 @@ mod tests {
     }
 
     #[test]
-    fn test_score_count_mismatch() {
-        let detected = vec![180.0, 240.0]; // Only 2 tracks
+    fn test_score_count_mismatch_n_minus_1() {
+        // N-1 case: 2 detected vs 3 expected → compares first 2, both match → 2/3 = 66.67%
+        let detected = vec![180.0, 240.0];
         let expected = vec![180000, 240000, 200000];
+        let tolerance = 10.0;
+
+        let score = score_edition_match(&detected, &expected, tolerance);
+        assert!((score - 66.67).abs() < 0.1, "N-1: expected ~66.67%, got {:.2}%", score);
+    }
+
+    #[test]
+    fn test_score_count_mismatch_n_minus_3() {
+        // N-3 case: should still return 0%
+        let detected = vec![180.0];
+        let expected = vec![180000, 240000, 200000, 220000];
         let tolerance = 10.0;
 
         let score = score_edition_match(&detected, &expected, tolerance);
@@ -531,17 +555,31 @@ mod tests {
     }
 
     #[test]
-    fn test_analyze_count_mismatch() {
+    fn test_analyze_count_mismatch_n_minus_1() {
+        // N-1 case: compares first 2, both match → 2/3 = 66.67%
         let detected = vec![180.0, 240.0];
         let expected = vec![180000, 240000, 200000];
         let tolerance = 10.0;
 
         let result = analyze_track_matching(&detected, &expected, tolerance);
 
+        assert!((result.percentage - 66.67).abs() < 0.1, "N-1: expected ~66.67%, got {:.2}%", result.percentage);
+        assert_eq!(result.matched_count, 2);
+        assert_eq!(result.expected_count, 3);
+        assert_eq!(result.errors.len(), 2); // only compared tracks have errors
+    }
+
+    #[test]
+    fn test_analyze_count_mismatch_n_minus_3() {
+        // N-3 case: should still return 0%
+        let detected = vec![180.0];
+        let expected = vec![180000, 240000, 200000, 220000];
+        let tolerance = 10.0;
+
+        let result = analyze_track_matching(&detected, &expected, tolerance);
+
         assert_eq!(result.percentage, 0.0);
         assert_eq!(result.matched_count, 0);
-        assert_eq!(result.expected_count, 3);
-        assert!(result.errors.is_empty());
     }
 
     // ========================================================================
@@ -870,5 +908,94 @@ mod tests {
         let penalty_136 = calculate_track_count_penalty(11, 147);
         assert_eq!(penalty_6, 0.20);
         assert_eq!(penalty_136, 0.20);
+    }
+
+    // =========================================================================
+    // N-1 comparison tests (missing last track)
+    // =========================================================================
+
+    #[test]
+    fn test_score_n_minus_1_all_match() {
+        // 8 detected matching first 8 of 9 expected → 8/9 = 88.9%
+        let detected = vec![180.0, 240.0, 200.0, 220.0, 195.0, 210.0, 250.0, 237.0];
+        let expected: Vec<u32> = vec![
+            180000, 240000, 200000, 220000, 195000, 210000, 250000, 237000, 298000,
+        ];
+        let score = score_edition_match(&detected, &expected, 10.0);
+        assert!((score - 88.89).abs() < 0.1, "Expected ~88.89%, got {:.2}%", score);
+    }
+
+    #[test]
+    fn test_score_n_minus_1_partial_match() {
+        // 8 detected but only 6 match within tolerance → 6/9 = 66.7%
+        let detected = vec![180.0, 260.0, 200.0, 220.0, 195.0, 230.0, 250.0, 237.0];
+        let expected: Vec<u32> = vec![
+            180000, 240000, 200000, 220000, 195000, 210000, 250000, 237000, 298000,
+        ];
+        let score = score_edition_match(&detected, &expected, 10.0);
+        assert!((score - 66.67).abs() < 0.1, "Expected ~66.67%, got {:.2}%", score);
+    }
+
+    #[test]
+    fn test_score_n_minus_2_rejected() {
+        // N-2 should return 0% (only N-1 allowed)
+        let detected = vec![180.0, 240.0];
+        let expected: Vec<u32> = vec![180000, 240000, 200000, 220000];
+        let score = score_edition_match(&detected, &expected, 10.0);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_score_exact_match_unchanged() {
+        // Verify exact count match still works
+        let detected = vec![180.0, 240.0, 200.0];
+        let expected: Vec<u32> = vec![180000, 240000, 200000];
+        let score = score_edition_match(&detected, &expected, 10.0);
+        assert_eq!(score, 100.0);
+    }
+
+    #[test]
+    fn test_analyze_n_minus_1() {
+        let detected = vec![180.0, 245.0, 200.0];
+        let expected: Vec<u32> = vec![180000, 240000, 200000, 298000];
+        let result = analyze_track_matching(&detected, &expected, 10.0);
+
+        assert_eq!(result.expected_count, 4);
+        assert_eq!(result.matched_count, 3); // all 3 detected match first 3 expected
+        assert_eq!(result.errors.len(), 3);
+        assert!((result.percentage - 75.0).abs() < 0.1, "Expected 75%, got {:.2}%", result.percentage);
+    }
+
+    #[test]
+    fn test_analyze_n_minus_1_misaligned() {
+        // File starts at track 2 — positional comparison naturally fails
+        let detected = vec![240.0, 200.0];
+        let expected: Vec<u32> = vec![180000, 240000, 200000];
+        let result = analyze_track_matching(&detected, &expected, 10.0);
+
+        // detected[0]=240 vs expected[0]=180: 60s error → fail
+        // detected[1]=200 vs expected[1]=240: 40s error → fail
+        assert_eq!(result.matched_count, 0);
+        assert!((result.percentage - 0.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_analyze_exact_match_unchanged() {
+        let detected = vec![180.0, 240.0, 200.0];
+        let expected: Vec<u32> = vec![180000, 240000, 200000];
+        let result = analyze_track_matching(&detected, &expected, 10.0);
+
+        assert_eq!(result.percentage, 100.0);
+        assert_eq!(result.matched_count, 3);
+        assert_eq!(result.expected_count, 3);
+    }
+
+    #[test]
+    fn test_score_n_minus_1_single_expected_rejected() {
+        // expected=1, detected=0: should NOT match (guard: expected >= 2)
+        let detected: Vec<f64> = vec![];
+        let expected: Vec<u32> = vec![180000];
+        let score = score_edition_match(&detected, &expected, 10.0);
+        assert_eq!(score, 0.0);
     }
 }

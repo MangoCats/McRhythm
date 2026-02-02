@@ -160,11 +160,11 @@ pub struct RankedCandidate {
     pub match_percentage: f64,
     /// Multi-factor final score (after track count penalty)
     pub final_score: f64,
-    /// Duration score component (0.0-1.0, weighted 30%)
+    /// Duration score component (0.0-1.0, weighted 25%)
     pub duration_score: f64,
-    /// Quality score component (0.0-1.0, weighted 45%)
+    /// Quality score component (-1.0 to 1.0, normalized then weighted 25%)
     pub quality_score: f64,
-    /// Name score component (0.0-1.0, weighted 25%)
+    /// Name score component (0.0-1.0, weighted 20%)
     pub name_score: f64,
     /// Track count penalty multiplier (0.0-1.0)
     pub track_count_penalty: f64,
@@ -225,6 +225,13 @@ pub struct AlbumMatchResult {
     /// **[Top-5 Ranking]** Ranked candidate editions with passage comparison tables
     /// Allows evaluation of chosen match vs other likely candidates
     pub ranked_candidates: Vec<RankedCandidate>,
+    /// **[PLAN028]** Whether this is a partial album match
+    /// True when file contains tracks 1-N of an album (50-85% duration ratio)
+    pub partial_match: bool,
+    /// **[PLAN028]** Total tracks in original album for partial matches
+    /// Only set when partial_match=true; stores the full album's track count
+    /// For example, if matching tracks 1-8 of an 11-track album, this is 11
+    pub partial_album_total_tracks: Option<usize>,
 }
 
 impl AlbumMatchResult {
@@ -251,6 +258,8 @@ impl AlbumMatchResult {
             decoded_audio: None, // **[IMPROVEMENT#1]** No samples on no-match by default
             audio_energy: None, // **[BOUNDARY_REFINEMENT]** No energy data on no-match
             ranked_candidates: Vec::new(), // **[Top-5 Ranking]** No candidates on no-match
+            partial_match: false, // **[PLAN028]** Not a partial match
+            partial_album_total_tracks: None, // **[PLAN028]** Not applicable
         }
     }
 
@@ -277,6 +286,8 @@ impl AlbumMatchResult {
             decoded_audio: Some((samples, sample_rate)),
             audio_energy: None, // **[BOUNDARY_REFINEMENT]** Energy not computed on no-match
             ranked_candidates: Vec::new(), // **[Top-5 Ranking]** No candidates on no-match
+            partial_match: false, // **[PLAN028]** Not a partial match
+            partial_album_total_tracks: None, // **[PLAN028]** Not applicable
         }
     }
 

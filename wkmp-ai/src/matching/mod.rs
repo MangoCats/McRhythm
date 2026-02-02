@@ -92,6 +92,7 @@ pub mod edition_filter;
 pub mod editions;
 pub mod metadata;
 pub mod orchestrator;
+pub mod partial_matching;
 pub mod silence_detection;
 pub mod single_track;
 pub mod stage6_helpers;
@@ -172,6 +173,14 @@ pub use stages::{run_stage5, Stage5Result};
 
 // Stage Orchestration (PLAN030 Increment 11)
 pub use orchestrator::{run_orchestration, OrchestrationResult, OrchestratorConfig, StageResults};
+
+// Partial Album Matching (PLAN028)
+pub use partial_matching::{
+    calculate_cumulative_durations, create_partial_edition, find_partial_candidates,
+    find_partial_track_count, is_partial_album_candidate, is_partial_match_acceptable,
+    PartialAlbumAnalysis, DEFAULT_DURATION_TOLERANCE, MAX_PARTIAL_RATIO, MIN_PARTIAL_RATIO,
+    MIN_TRACK_COVERAGE,
+};
 
 /// Convert sample-position boundaries to track durations in seconds.
 ///

@@ -151,6 +151,11 @@ pub const SCORE_DURATION_ALBUM_LENGTH: f64 = -0.3;
 pub const SCORE_SILENCE_GAPS_FEW: f64 = 1.0;
 pub const SCORE_SILENCE_GAPS_MANY: f64 = -0.5;
 
+/// Minimum segment duration threshold for near-zero artifact filtering.
+/// Segments below this threshold are merged into their predecessor (or successor
+/// if first segment) during silence detection. No real music track is < 0.5s.
+pub const MIN_SEGMENT_DURATION_SECS: f64 = 0.5;
+
 /// Audio file extensions for directory scanning
 pub const AUDIO_EXTENSIONS: &[&str] = &["mp3", "flac", "m4a", "ogg", "wav", "aac", "wma", "opus"];
 
@@ -213,8 +218,35 @@ pub const EARLY_EXIT_GRACE_PERIOD_SECS: u64 = 20;
 /// Higher threshold (0.65+) would filter "Beatles" variation (~0.636).
 pub const MIN_ARTIST_SIMILARITY: f64 = 0.60;
 
-/// Minimum Jaro-Winkler similarity for album name match
-pub const ALBUM_MISMATCH_THRESHOLD: f64 = 0.5;
+/// Album title Jaro-Winkler similarity threshold below which a penalty is applied.
+/// An album_sim < 0.35 means the titles are substantially different (e.g.,
+/// "Dancer and the Moon" vs "BeyondTheSunset"), strong evidence of wrong edition.
+pub const ALBUM_MISMATCH_THRESHOLD: f64 = 0.35;
+
+/// Penalty subtracted from name_distance_score when album_sim < ALBUM_MISMATCH_THRESHOLD.
+/// Applied in `calculate_name_distance()` to reduce score for clearly wrong album titles.
+pub const ALBUM_MISMATCH_PENALTY: f64 = 0.15;
+
+// =============================================================================
+// Post-Selection Name Sanity Check
+// =============================================================================
+
+/// Minimum name_score gap between a better-named candidate and the current winner
+/// to consider overriding. 0.15 means the alternative must have ≥15% higher name score.
+pub const NAME_OVERRIDE_GAP: f64 = 0.15;
+
+/// Minimum match percentage for the override candidate. Must have at least some
+/// tracks matching to be considered a valid alternative.
+pub const NAME_OVERRIDE_MIN_MATCH_PCT: f64 = 25.0;
+
+/// Last track timing error threshold (seconds) that flags suspicious Stage4 overflow.
+/// When Stage4 can't find a boundary, it dumps remaining audio into the last track,
+/// causing errors >100s.
+pub const LAST_TRACK_ERROR_THRESHOLD: f64 = 60.0;
+
+/// Name score below which the winner is considered suspiciously low, even without
+/// a large last-track error.
+pub const NAME_OVERRIDE_LOW_THRESHOLD: f64 = 0.60;
 
 /// Maximum number of releases to fetch from MusicBrainz
 pub const MB_MAX_RELEASES: usize = 150;

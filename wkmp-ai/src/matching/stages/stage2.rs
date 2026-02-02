@@ -323,12 +323,27 @@ mod tests {
     }
 
     #[test]
-    fn test_count_mismatch() {
+    fn test_count_mismatch_n_minus_1() {
         let edition = create_test_edition(3, &[180000, 240000, 200000]);
-        // Only 2 tracks detected
+        // Only 2 tracks detected (N-1 case: compares first 2 → 2/3 = 66.67%)
         let cache = create_test_silence_cache(vec![180.0, 240.0]);
         let sample_rate = 44100u32;
         let audio_samples = create_test_audio_samples(420.0, sample_rate); // 180+240 = 420s
+
+        let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
+
+        assert_eq!(results.len(), 1);
+        assert!((results[0].best_percentage - 66.67).abs() < 0.1,
+            "N-1: expected ~66.67%, got {:.2}%", results[0].best_percentage);
+    }
+
+    #[test]
+    fn test_count_mismatch_n_minus_3() {
+        let edition = create_test_edition(4, &[180000, 240000, 200000, 220000]);
+        // Only 1 track detected (N-3: should return 0%)
+        let cache = create_test_silence_cache(vec![180.0]);
+        let sample_rate = 44100u32;
+        let audio_samples = create_test_audio_samples(180.0, sample_rate);
 
         let results = run_stage2(&cache, &audio_samples, sample_rate, &[edition], 10.0, &EarlyExitConfig::default());
 

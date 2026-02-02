@@ -526,7 +526,8 @@ async fn test_run29f_full_baseline_comparison() -> Result<()> {
         ("Fish, Samantha/BlackWindHowlin.mp3", "Samantha Fish", "Black Wind Howlin'", 12, "5d92407c-5235-495e-b4fa-22ef3dc7ef85"),
         ("Fixx/BeautifulFriction.mp3", "The Fixx", "Beautiful Friction", 11, "158283ff-17d3-4416-b05c-df4f2123cc5b"),
         ("Fluke/Oto.mp3", "Fluke", "Oto", 8, "ce2229e5-e521-4f17-a3e4-7634a539b0f3"),
-        ("Fluke/Puppy.mp3", "Fluke", "Puppy", 0, ""),
+        // **[PLAN028]** Puppy.mp3 is a partial album (tracks 1-8 of 11), expect 8 tracks matched
+        ("Fluke/Puppy.mp3", "Fluke", "Puppy", 8, "a80b68e3-227b-4536-9b25-9c0aa51c1359"),
         ("Fluke/Risotto.mp3", "Fluke", "Risotto", 10, "516fe470-06d5-4221-b84f-e563124f0f31"),
         ("Fluke/SixWheelsOnMyWagon.mp3", "Fluke", "Six Wheels On My Wagon", 12, "f2509a40-2602-44cd-9ed8-dc1765b8d02e"),
         ("Foghat/FoolForTheCity.mp3", "Foghat", "Fool For The City", 7, "879e7805-75a8-410a-acf4-d510825bfde1"),

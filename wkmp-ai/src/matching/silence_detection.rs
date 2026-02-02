@@ -256,7 +256,38 @@ pub fn gaps_to_track_durations(
         tracks.push(duration_secs);
     }
 
+    // Filter near-zero detection artifacts
+    merge_near_zero_segments(&mut tracks, super::constants::MIN_SEGMENT_DURATION_SECS);
+
     tracks
+}
+
+/// Merge near-zero segments into their neighbors.
+///
+/// Segments below `min_duration` are detection artifacts (e.g., double-trigger
+/// at a silence boundary). Each is merged into its predecessor, or into the
+/// successor if it is the first segment. Processes end-to-start so indices
+/// remain valid during removal.
+fn merge_near_zero_segments(tracks: &mut Vec<f64>, min_duration: f64) {
+    if tracks.len() <= 1 {
+        return;
+    }
+
+    // Process end-to-start so removals don't invalidate earlier indices
+    let mut i = tracks.len() - 1;
+    while i > 0 {
+        if tracks[i] < min_duration {
+            let tiny = tracks.remove(i);
+            tracks[i - 1] += tiny;
+        }
+        i -= 1;
+    }
+
+    // Handle index 0: merge into successor
+    if tracks.len() > 1 && tracks[0] < min_duration {
+        let tiny = tracks.remove(0);
+        tracks[0] += tiny;
+    }
 }
 
 // =============================================================================
@@ -529,5 +560,73 @@ mod tests {
         // Each track should be roughly 1 second
         assert!(durations[0] > 0.5 && durations[0] < 1.5);
         assert!(durations[1] > 0.5 && durations[1] < 1.5);
+    }
+
+    // =========================================================================
+    // Near-zero segment merging tests
+    // =========================================================================
+
+    #[test]
+    fn test_merge_near_zero_middle() {
+        // Simulates Thriller: phantom 0.01s segment between real tracks
+        let mut tracks = vec![300.0, 250.0, 220.0, 0.01, 237.0];
+        merge_near_zero_segments(&mut tracks, 0.5);
+
+        assert_eq!(tracks.len(), 4);
+        assert!((tracks[2] - 220.01).abs() < 0.001); // merged into predecessor
+        assert!((tracks[3] - 237.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_merge_near_zero_at_start() {
+        let mut tracks = vec![0.02, 180.0, 240.0];
+        merge_near_zero_segments(&mut tracks, 0.5);
+
+        assert_eq!(tracks.len(), 2);
+        assert!((tracks[0] - 180.02).abs() < 0.001); // merged into successor
+    }
+
+    #[test]
+    fn test_merge_near_zero_at_end() {
+        let mut tracks = vec![180.0, 240.0, 0.03];
+        merge_near_zero_segments(&mut tracks, 0.5);
+
+        assert_eq!(tracks.len(), 2);
+        assert!((tracks[1] - 240.03).abs() < 0.001); // merged into predecessor
+    }
+
+    #[test]
+    fn test_merge_no_near_zero() {
+        let mut tracks = vec![180.0, 240.0, 200.0];
+        merge_near_zero_segments(&mut tracks, 0.5);
+
+        assert_eq!(tracks.len(), 3);
+        assert_eq!(tracks[0], 180.0);
+    }
+
+    #[test]
+    fn test_merge_single_segment() {
+        let mut tracks = vec![0.01];
+        merge_near_zero_segments(&mut tracks, 0.5);
+
+        assert_eq!(tracks.len(), 1); // cannot merge, preserved
+    }
+
+    #[test]
+    fn test_merge_multiple_consecutive_near_zero() {
+        let mut tracks = vec![180.0, 0.01, 0.02, 240.0];
+        merge_near_zero_segments(&mut tracks, 0.5);
+
+        // End-to-start: 0.02 merges into 0.01 → 0.03, then 0.03 merges into 180.0
+        assert_eq!(tracks.len(), 2);
+        assert!((tracks[0] - 180.03).abs() < 0.001);
+        assert!((tracks[1] - 240.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_merge_empty() {
+        let mut tracks: Vec<f64> = vec![];
+        merge_near_zero_segments(&mut tracks, 0.5);
+        assert!(tracks.is_empty());
     }
 }

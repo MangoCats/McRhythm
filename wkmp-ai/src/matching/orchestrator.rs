@@ -683,6 +683,130 @@ pub fn rank_top_candidates(
         .collect()
 }
 
+// =============================================================================
+// Post-Selection Name Sanity Check
+// =============================================================================
+
+/// Apply post-selection name sanity check.
+///
+/// If the winning edition has a significantly lower name_score than an alternative
+/// candidate, AND the winner shows suspicious indicators (massive last-track error
+/// from Stage4 overflow, or very low name_score), override to the better-named
+/// candidate.
+///
+/// This catches cases where Stage4 coincidentally matches a wrong album's track
+/// boundaries while a correctly-named album exists in the rankings.
+pub fn apply_name_sanity_check(
+    result: &mut OrchestrationResult,
+    ranked_candidates: &[RankedCandidate],
+) {
+    use crate::matching::constants::{
+        LAST_TRACK_ERROR_THRESHOLD, NAME_OVERRIDE_GAP, NAME_OVERRIDE_LOW_THRESHOLD,
+        NAME_OVERRIDE_MIN_MATCH_PCT,
+    };
+    use tracing::info;
+
+    if !result.success || ranked_candidates.len() < 2 {
+        return;
+    }
+
+    let winner = &ranked_candidates[0];
+
+    // Find best alternative by name_score (must be significantly better)
+    let best_by_name = ranked_candidates[1..]
+        .iter()
+        .filter(|c| c.name_score > winner.name_score + NAME_OVERRIDE_GAP)
+        .filter(|c| c.match_percentage >= NAME_OVERRIDE_MIN_MATCH_PCT)
+        .max_by(|a, b| {
+            a.name_score
+                .partial_cmp(&b.name_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+    let better = match best_by_name {
+        Some(b) => b,
+        None => return,
+    };
+
+    // Check for suspicious indicators on current winner
+    let last_track_error = result.track_errors.last().copied().unwrap_or(0.0);
+    let suspicious = last_track_error > LAST_TRACK_ERROR_THRESHOLD
+        || winner.name_score < NAME_OVERRIDE_LOW_THRESHOLD;
+
+    if !suspicious {
+        return;
+    }
+
+    info!(
+        winner_album = %winner.title,
+        winner_name_score = %format!("{:.4}", winner.name_score),
+        winner_last_error = %format!("{:.1}s", last_track_error),
+        override_album = %better.title,
+        override_name_score = %format!("{:.4}", better.name_score),
+        override_match_pct = %format!("{:.1}%", better.match_percentage),
+        "Name sanity check: overriding winner with better-named candidate"
+    );
+
+    // Extract detected_durations and track_errors from the better candidate's
+    // passage_comparison (which contains per-track detected_duration and error)
+    let detected_durations: Vec<f64> = better
+        .passage_comparison
+        .iter()
+        .map(|p| p.detected_duration)
+        .collect();
+    let track_errors: Vec<f64> = better
+        .passage_comparison
+        .iter()
+        .map(|p| p.error)
+        .collect();
+
+    // Find the edition in stage_results matching the better candidate's MBID
+    let override_edition = find_edition_in_stage_results(
+        &result.stage_results,
+        &better.release_mbid,
+    );
+
+    if let Some(edition) = override_edition {
+        result.matched_edition = Some(edition);
+        result.match_percentage = better.match_percentage;
+        result.winning_stage = better.stage;
+        result.detected_durations = detected_durations;
+        result.track_errors = track_errors;
+    }
+}
+
+/// Find an Edition in stage results by release MBID.
+fn find_edition_in_stage_results(
+    stage_results: &StageResults,
+    release_mbid: &str,
+) -> Option<Edition> {
+    // Check Stage 2
+    for r in &stage_results.stage2 {
+        if r.edition.release_mbid == release_mbid {
+            return Some(r.edition.clone());
+        }
+    }
+    // Check Stage 3
+    for r in &stage_results.stage3 {
+        if r.edition.release_mbid == release_mbid {
+            return Some(r.edition.clone());
+        }
+    }
+    // Check Stage 4
+    for r in &stage_results.stage4 {
+        if r.edition.release_mbid == release_mbid {
+            return Some(r.edition.clone());
+        }
+    }
+    // Check Stage 5
+    for r in &stage_results.stage5 {
+        if r.edition.release_mbid == release_mbid {
+            return Some(r.edition.clone());
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -914,5 +1038,200 @@ mod tests {
         assert!(!result.success);
         // Some percentage returned (best effort)
         assert!(result.match_percentage > 0.0);
+    }
+
+    // =========================================================================
+    // Post-Selection Name Sanity Check Tests
+    // =========================================================================
+
+    fn make_ranked_candidate(
+        mbid: &str,
+        title: &str,
+        name_score: f64,
+        match_pct: f64,
+        final_score: f64,
+        stage: MatchingStage,
+    ) -> RankedCandidate {
+        RankedCandidate {
+            rank: 0,
+            release_mbid: mbid.to_string(),
+            title: title.to_string(),
+            artist: "Test Artist".to_string(),
+            track_count: 10,
+            match_percentage: match_pct,
+            final_score,
+            duration_score: 0.95,
+            quality_score: 0.5,
+            name_score,
+            track_count_penalty: 1.0,
+            stage,
+            passage_comparison: vec![
+                PassageComparison {
+                    track_number: 1,
+                    track_title: "Track 1".to_string(),
+                    detected_start_offset: 0.0,
+                    detected_duration: 180.0,
+                    expected_duration: 180.0,
+                    error: 0.0,
+                    within_tolerance: true,
+                },
+            ],
+            mean_error: 5.0,
+        }
+    }
+
+    fn make_orchestration_result(
+        mbid: &str,
+        title: &str,
+        last_track_error: f64,
+    ) -> OrchestrationResult {
+        let mut edition = create_test_edition(10, &[180000; 10]);
+        edition.release_mbid = mbid.to_string();
+        edition.title = title.to_string();
+
+        OrchestrationResult {
+            winning_stage: MatchingStage::Stage4,
+            matched_edition: Some(edition.clone()),
+            match_percentage: 69.2,
+            detected_durations: vec![180.0; 9],
+            track_errors: {
+                let mut errors = vec![5.0; 9];
+                errors.push(last_track_error);
+                errors
+            },
+            success: true,
+            stage_results: StageResults {
+                stage2: vec![],
+                stage3: vec![],
+                stage4: vec![],
+                stage5: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn test_sanity_check_overrides_when_suspicious() {
+        // Winner has low name score and massive last-track error
+        // Better candidate has much higher name score and reasonable match%
+        let mut result = make_orchestration_result("wrong-mbid", "Wrong Album", 160.0);
+
+        // Add the better edition to stage2 results so find_edition_in_stage_results works
+        let mut better_edition = create_test_edition(10, &[180000; 10]);
+        better_edition.release_mbid = "correct-mbid".to_string();
+        better_edition.title = "Correct Album".to_string();
+        result.stage_results.stage2.push(Stage2Result {
+            edition: better_edition,
+            best_percentage: 35.3,
+            detected_durations: vec![180.0; 10],
+            track_errors: vec![5.0; 10],
+            best_threshold_idx: 0,
+            best_duration_idx: 0,
+            matched_count: 0,
+            all_tracks_matched: false,
+        });
+
+        let candidates = vec![
+            make_ranked_candidate("wrong-mbid", "Wrong Album", 0.72, 69.2, 0.77, MatchingStage::Stage4),
+            make_ranked_candidate("correct-mbid", "Correct Album", 0.92, 35.3, 0.39, MatchingStage::Stage2),
+        ];
+
+        apply_name_sanity_check(&mut result, &candidates);
+
+        // Should have overridden to the correct album
+        assert_eq!(
+            result.matched_edition.as_ref().unwrap().title,
+            "Correct Album"
+        );
+        assert_eq!(result.match_percentage, 35.3);
+    }
+
+    #[test]
+    fn test_sanity_check_no_override_when_not_suspicious() {
+        // Winner has good name score and small last-track error
+        let mut result = make_orchestration_result("good-mbid", "Good Album", 5.0);
+
+        let candidates = vec![
+            make_ranked_candidate("good-mbid", "Good Album", 0.85, 100.0, 0.95, MatchingStage::Stage2),
+            make_ranked_candidate("alt-mbid", "Alternative", 0.92, 50.0, 0.70, MatchingStage::Stage2),
+        ];
+
+        apply_name_sanity_check(&mut result, &candidates);
+
+        // Should NOT override — winner has no suspicious indicators
+        assert_eq!(
+            result.matched_edition.as_ref().unwrap().title,
+            "Good Album"
+        );
+    }
+
+    #[test]
+    fn test_sanity_check_no_override_small_name_gap() {
+        // Even with suspicious last-track error, if name gap < threshold, no override
+        let mut result = make_orchestration_result("winner-mbid", "Winner", 160.0);
+
+        let candidates = vec![
+            make_ranked_candidate("winner-mbid", "Winner", 0.80, 69.0, 0.77, MatchingStage::Stage4),
+            make_ranked_candidate("alt-mbid", "Alternative", 0.90, 35.0, 0.39, MatchingStage::Stage2),
+        ];
+
+        apply_name_sanity_check(&mut result, &candidates);
+
+        // Gap is 0.10, below threshold of 0.15 — should NOT override
+        assert_eq!(
+            result.matched_edition.as_ref().unwrap().title,
+            "Winner"
+        );
+    }
+
+    #[test]
+    fn test_sanity_check_no_override_low_match_pct() {
+        // Better name but match% too low
+        let mut result = make_orchestration_result("winner-mbid", "Winner", 160.0);
+
+        let candidates = vec![
+            make_ranked_candidate("winner-mbid", "Winner", 0.55, 69.0, 0.77, MatchingStage::Stage4),
+            make_ranked_candidate("alt-mbid", "Alternative", 0.92, 10.0, 0.20, MatchingStage::Stage2),
+        ];
+
+        apply_name_sanity_check(&mut result, &candidates);
+
+        // Alternative match% is 10%, below 25% threshold — should NOT override
+        assert_eq!(
+            result.matched_edition.as_ref().unwrap().title,
+            "Winner"
+        );
+    }
+
+    #[test]
+    fn test_sanity_check_overrides_on_low_name_score_alone() {
+        // Winner has name_score < 0.60 (LOW_THRESHOLD), even without large last-track error
+        let mut result = make_orchestration_result("wrong-mbid", "Wrong Album", 5.0);
+
+        let mut better_edition = create_test_edition(10, &[180000; 10]);
+        better_edition.release_mbid = "correct-mbid".to_string();
+        better_edition.title = "Correct Album".to_string();
+        result.stage_results.stage2.push(Stage2Result {
+            edition: better_edition,
+            best_percentage: 30.0,
+            detected_durations: vec![180.0; 10],
+            track_errors: vec![5.0; 10],
+            best_threshold_idx: 0,
+            best_duration_idx: 0,
+            matched_count: 0,
+            all_tracks_matched: false,
+        });
+
+        let candidates = vec![
+            make_ranked_candidate("wrong-mbid", "Wrong Album", 0.50, 69.0, 0.77, MatchingStage::Stage4),
+            make_ranked_candidate("correct-mbid", "Correct Album", 0.92, 30.0, 0.39, MatchingStage::Stage2),
+        ];
+
+        apply_name_sanity_check(&mut result, &candidates);
+
+        // Winner name_score 0.50 < 0.60 threshold → suspicious → override
+        assert_eq!(
+            result.matched_edition.as_ref().unwrap().title,
+            "Correct Album"
+        );
     }
 }

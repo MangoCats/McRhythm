@@ -151,7 +151,7 @@ pub fn filter_and_sort_editions(
                 );
             }
 
-            edition.name_distance_score = Some(final_score);
+            edition.name_distance_score = Some(base_score);
             (edition, final_score)
         })
         .collect();
@@ -602,22 +602,34 @@ pub fn calculate_name_distance(
     source_artist: &str,
     source_album: &str,
 ) -> f64 {
+    use crate::matching::constants::{ALBUM_MISMATCH_PENALTY, ALBUM_MISMATCH_THRESHOLD};
+
     let artist_sim = jaro_winkler(&mb_artist.to_lowercase(), &source_artist.to_lowercase());
     let album_sim = jaro_winkler(&mb_album.to_lowercase(), &source_album.to_lowercase());
 
-    // Base score: weight artist slightly higher
-    let base_score = artist_sim * 0.6 + album_sim * 0.4;
+    // Base score: weight album title higher than artist name.
+    // Album title is more informative for edition selection — when multiple editions
+    // share the same artist, album title is the primary differentiator.
+    let base_score = artist_sim * 0.4 + album_sim * 0.6;
 
-    // **[IMPROVEMENT]** Exact album title match bonus
+    // Exact album title match bonus
     // Helps distinguish "The Greatest Showman" from "The Greatest Showman: Reimagined"
-    // by giving a bonus to editions with exact (normalized) album title match.
     let exact_match_bonus = if normalize_album_title(mb_album) == normalize_album_title(source_album) {
         0.10 // 10% bonus for exact album title match
     } else {
         0.0
     };
 
-    base_score + exact_match_bonus
+    // Album mismatch penalty: when album_sim is very low, the edition title is
+    // clearly different from the source file's album name (e.g., "Dancer and the Moon"
+    // vs "BeyondTheSunset"). Apply penalty to reduce score for wrong albums.
+    let album_mismatch_penalty = if album_sim < ALBUM_MISMATCH_THRESHOLD {
+        ALBUM_MISMATCH_PENALTY
+    } else {
+        0.0
+    };
+
+    base_score + exact_match_bonus - album_mismatch_penalty
 }
 
 /// Normalize album title for exact match comparison
@@ -701,8 +713,9 @@ mod tests {
     #[test]
     fn test_calculate_name_distance_partial() {
         let score = calculate_name_distance("The Beatles", "Abbey Road", "Beatles", "Abbey Road");
-        // Should be high but not perfect
-        assert!(score > 0.8 && score < 1.0);
+        // Should be high (album matches perfectly, artist partially)
+        // With album weight 0.6: 0.91×0.4 + 1.0×0.6 + 0.10 (exact bonus) ≈ 1.06
+        assert!(score > 0.8, "Partial match should score high: {:.4}", score);
     }
 
     #[test]
@@ -829,9 +842,11 @@ mod tests {
         let score_exact = filtered[0].name_distance_score.unwrap();
         let score_far = filtered[1].name_distance_score.unwrap();
 
-        // Far edition should have exactly 50% of exact edition's score (not less)
+        // After fix: name_distance_score stores raw base_score (no track penalty),
+        // so both editions with the same name should have the same name_distance_score.
+        // The track count penalty is applied separately in the orchestrator.
         let ratio = score_far / score_exact;
-        assert!((ratio - 0.5).abs() < 0.01, "Penalty should cap at 50%, got ratio {:.3}", ratio);
+        assert!((ratio - 1.0).abs() < 0.01, "Raw name scores should be equal (no track penalty), got ratio {:.3}", ratio);
     }
 
     // =============================================================================
@@ -921,6 +936,53 @@ mod tests {
             "Original soundtrack should rank first, got: {}",
             filtered[0].title
         );
+    }
+
+    // =============================================================================
+    // Name Distance Weight and Album Mismatch Tests
+    // =============================================================================
+
+    #[test]
+    fn test_album_weight_higher_than_artist() {
+        // Same artist, different albums: album title should dominate
+        let correct = calculate_name_distance("Santana", "Invitation to Illumination", "Santana", "Invitation to Illumination");
+        let wrong = calculate_name_distance("Santana", "On the Road to Woodstock", "Santana", "Invitation to Illumination");
+        let gap = correct - wrong;
+        // With album weight 0.6, gap should be substantial (>0.15)
+        assert!(gap > 0.15, "Album title should create large gap: correct={:.4}, wrong={:.4}, gap={:.4}", correct, wrong, gap);
+    }
+
+    #[test]
+    fn test_album_mismatch_penalty_applied() {
+        // Very different album titles should trigger penalty
+        let score = calculate_name_distance("Santana", "Xyz Abc", "Santana", "Invitation to Illumination");
+        // Without penalty: 1.0×0.4 + low×0.6 = ~0.55
+        // With penalty (-0.15): ~0.40
+        assert!(score < 0.55, "Album mismatch penalty should reduce score: {:.4}", score);
+    }
+
+    #[test]
+    fn test_album_mismatch_penalty_not_applied_for_similar_titles() {
+        // Similar album titles (album_sim > 0.35) should NOT get penalty
+        let score = calculate_name_distance("Eagles", "The Long Run", "Eagles", "The Long Run");
+        // Perfect match: 1.0×0.4 + 1.0×0.6 + 0.10 = 1.10
+        assert!(score > 1.0, "Perfect match should not be penalized: {:.4}", score);
+    }
+
+    #[test]
+    fn test_same_artist_wrong_album_vs_correct_album() {
+        // Simulates Blackmore's Night case: same artist, clearly wrong vs correct album
+        let correct = calculate_name_distance(
+            "Blackmore's Night", "Beyond The Sunset: The Romantic Collection",
+            "Blackmore's Night", "Beyond The Sunset",
+        );
+        let wrong = calculate_name_distance(
+            "Blackmore's Night", "Dancer and the Moon",
+            "Blackmore's Night", "Beyond The Sunset",
+        );
+        assert!(correct > wrong, "Correct album should score higher: correct={:.4}, wrong={:.4}", correct, wrong);
+        // Gap should be meaningful (>0.10)
+        assert!(correct - wrong > 0.10, "Gap should be >0.10: {:.4}", correct - wrong);
     }
 
     // =============================================================================

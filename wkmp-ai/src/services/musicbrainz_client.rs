@@ -579,7 +579,7 @@ impl MusicBrainzClient {
         album: &str,
         limit: Option<usize>,
     ) -> Result<Vec<MBReleaseDetails>, MBError> {
-        let limit = limit.unwrap_or(10).min(25);
+        let limit = limit.unwrap_or(10);
 
         // Generate multi-strategy search queries (am29 approach)
         let strategies = generate_search_strategies(artist, album);
@@ -593,8 +593,8 @@ impl MusicBrainzClient {
             "Starting multi-strategy MusicBrainz search"
         );
 
-        // Try each strategy until we have enough results
-        // USER DECISION: Stop after first successful strategy
+        // Try each strategy, accumulating unique releases across strategies
+        // until we reach the requested limit
         for (i, query) in strategies.iter().enumerate() {
             // **[DEBUG]** Log each strategy attempt at INFO level for visibility
             tracing::info!(
@@ -710,7 +710,7 @@ impl MusicBrainzClient {
         limit: Option<usize>,
         pool: &sqlx::SqlitePool,
     ) -> Result<Vec<MBReleaseDetails>, MBError> {
-        let limit = limit.unwrap_or(10).min(25);
+        let limit = limit.unwrap_or(10);
 
         // Phase 1: Check search cache for release MBIDs
         let release_ids = if let Ok(Some(cached)) =

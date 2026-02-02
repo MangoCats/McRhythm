@@ -22,8 +22,8 @@ use tracing::{debug, info, warn};
 
 use super::constants::{
     DEFAULT_MIN_DURATION_SECS, DEFAULT_THRESHOLD_DB, EARLY_EXIT_GRACE_PERIOD_SECS,
-    MATCH_TOLERANCE_SECS, MIN_ARTIST_SIMILARITY, MIN_DURATION_VALUES, STAGE4_PENALTY_PERCENT,
-    THRESHOLD_VALUES,
+    MATCH_TOLERANCE_SECS, MAX_NAME_DISTANCE_RANK, MIN_ARTIST_SIMILARITY, MIN_DURATION_VALUES,
+    STAGE4_PENALTY_PERCENT, THRESHOLD_VALUES,
 };
 use super::editions::{
     calculate_name_distance, filter_and_sort_editions, filter_editions_by_artist,
@@ -37,6 +37,7 @@ use super::stage6_helpers::{
     count_tracks_within_tolerance, detect_cascade_patterns, detect_complementary_pairs,
     refine_cascade_pattern, refine_complementary_pair, validate_full_album_improvement,
 };
+use super::partial_matching::{find_partial_candidates, DEFAULT_DURATION_TOLERANCE};
 use super::stages::stage4::RmsProfile;
 use super::types::{AlbumMatchResult, MatchedTrack, MatchingStage, SilenceCache};
 use crate::services::{MBError, MusicBrainzClient};
@@ -515,19 +516,75 @@ impl AlbumMatcher {
         let detected_track_count = find_max_track_count(&silence_cache);
 
         // Sort remaining editions by combined name similarity (artist+album) with track count penalty
-        let editions = filter_and_sort_editions(editions, &artist, &album, 20, Some(detected_track_count));
+        let editions = filter_and_sort_editions(editions, &artist, &album, MAX_NAME_DISTANCE_RANK, Some(detected_track_count));
+
+        // **[PLAN028]** Save editions before duration filtering for partial matching fallback
+        let editions_before_duration_filter = editions.clone();
 
         // **[BUG FIX]** Pre-filter editions by file duration to eliminate impossible matches
         let editions = filter_editions_by_file_duration(editions, file_duration_ms);
 
-        if editions.is_empty() {
-            // **[IMPROVEMENT#2]** Enhanced logging for diagnosis
-            warn!(
-                file = %audio_path.display(),
-                candidate_count = releases.len(),
-                "No valid editions after filtering"
+        // **[PLAN028]** Partial Album Matching Fallback
+        // If no editions pass the 85-125% duration filter, check for partial album candidates
+        // (50-85% ratio) that may contain tracks 1-N of the album
+        let (editions, partial_match_info) = if editions.is_empty() {
+            let file_duration_secs = file_duration_ms as f64 / 1000.0;
+            let partial_candidates = find_partial_candidates(
+                &editions_before_duration_filter,
+                file_duration_secs,
+                DEFAULT_DURATION_TOLERANCE,
             );
-            // **[IMPROVEMENT#1]** Preserve samples for fallback reuse
+
+            if partial_candidates.is_empty() {
+                // **[IMPROVEMENT#2]** Enhanced logging for diagnosis
+                warn!(
+                    file = %audio_path.display(),
+                    candidate_count = releases.len(),
+                    "No valid editions after filtering (including partial matching)"
+                );
+                // **[IMPROVEMENT#1]** Preserve samples for fallback reuse
+                return Ok(AlbumMatchResult::no_match_with_audio(
+                    "No valid editions found".to_string(),
+                    samples,
+                    sample_rate,
+                ));
+            }
+
+            info!(
+                file = %audio_path.display(),
+                partial_candidates = partial_candidates.len(),
+                "Found {} partial album candidate(s) (50-85% duration ratio)",
+                partial_candidates.len()
+            );
+
+            // Use partial editions for matching
+            let partial_editions: Vec<_> = partial_candidates
+                .iter()
+                .map(|(edition, analysis, track_count)| {
+                    info!(
+                        "  Partial candidate: {} - {} ({}/{} tracks, {:.1}% ratio)",
+                        edition.artist,
+                        edition.title,
+                        track_count,
+                        analysis.total_tracks,
+                        analysis.duration_ratio * 100.0
+                    );
+                    edition.clone()
+                })
+                .collect();
+
+            // Store info about the best partial match for later
+            let best_partial = partial_candidates.first().map(|(_, analysis, track_count)| {
+                (*track_count, analysis.total_tracks)
+            });
+
+            (partial_editions, best_partial)
+        } else {
+            (editions, None)
+        };
+
+        if editions.is_empty() {
+            // Safety check - should not reach here
             return Ok(AlbumMatchResult::no_match_with_audio(
                 "No valid editions found".to_string(),
                 samples,
@@ -746,6 +803,11 @@ impl AlbumMatcher {
             file_duration_ms, // **[BUG FIX]** Pass file duration for validated scoring
         );
 
+        // Post-selection name sanity check: if a better-named candidate exists
+        // and the winner shows suspicious indicators (Stage4 last-track overflow
+        // or very low name score), override to the better-named candidate.
+        super::orchestrator::apply_name_sanity_check(&mut result, &ranked_candidates);
+
         let album_result = AlbumMatchResult {
             matched: result.success,
             release_mbid: result
@@ -781,6 +843,10 @@ impl AlbumMatcher {
             audio_energy: Some(audio_energy),
             // **[Top-5 Ranking]** Include ranked candidates with passage comparison tables
             ranked_candidates,
+            // **[PLAN028]** Set partial_match based on whether we used partial editions
+            partial_match: partial_match_info.is_some(),
+            // **[PLAN028]** Store original album's total tracks for partial matches
+            partial_album_total_tracks: partial_match_info.map(|(_, total)| total),
         };
 
         // **[Top-5 Ranking]** Display ranked candidates with passage comparison tables
@@ -802,15 +868,19 @@ impl AlbumMatcher {
                 eprintln!("  Match %: {:.1}%", candidate.match_percentage);
                 eprintln!("  Final Score: {:.4}", candidate.final_score);
 
-                // Score breakdown with weighting
-                eprintln!("    ├─ Duration Score: {:.4} × 0.35 = {:.4}",
-                    candidate.duration_score, candidate.duration_score * 0.35);
-                eprintln!("    ├─ Quality Score:  {:.4} × 0.40 = {:.4}",
-                    candidate.quality_score, candidate.quality_score * 0.40);
-                eprintln!("    ├─ Name Score:     {:.4} × 0.25 = {:.4}",
-                    candidate.name_score, candidate.name_score * 0.25);
-                eprintln!("    └─ Base Score:     {:.4} × {:.4} (penalty) = {:.4}",
-                    (candidate.duration_score * 0.35) + (candidate.quality_score * 0.40) + (candidate.name_score * 0.25),
+                // Score breakdown with weighting (matches calculate_edition_score weights)
+                let quality_normalized = (candidate.quality_score + 1.0) / 2.0;
+                eprintln!("    ├─ Duration Score: {:.4} × 0.25 = {:.4}",
+                    candidate.duration_score, candidate.duration_score * 0.25);
+                let match_score = candidate.match_percentage / 100.0;
+                eprintln!("    ├─ Match Score:    {:.4} × 0.30 = {:.4}",
+                    match_score, match_score * 0.30);
+                eprintln!("    ├─ Quality Score:  {:.4} × 0.25 = {:.4} (normalized: {:.4})",
+                    candidate.quality_score, quality_normalized * 0.25, quality_normalized);
+                eprintln!("    ├─ Name Score:     {:.4} × 0.20 = {:.4}",
+                    candidate.name_score, candidate.name_score * 0.20);
+                eprintln!("    └─ Base Score:     {:.4} × {:.4} (track penalty) = {:.4}",
+                    (candidate.duration_score * 0.25) + (match_score * 0.30) + (quality_normalized * 0.25) + (candidate.name_score * 0.20),
                     candidate.track_count_penalty,
                     candidate.final_score);
 
@@ -870,10 +940,23 @@ impl AlbumMatcher {
             }
         }
 
-        info!(
-            "Album match complete: matched={}, stage={:?}, percentage={:.1}%",
-            album_result.matched, album_result.matching_stage, album_result.match_percentage
-        );
+        // **[PLAN028]** Include partial match info in log if applicable
+        if album_result.partial_match {
+            let total_tracks = album_result.partial_album_total_tracks.unwrap_or(album_result.expected_track_count);
+            info!(
+                "Album match complete: matched={}, stage={:?}, percentage={:.1}%, partial_match={}/{}",
+                album_result.matched,
+                album_result.matching_stage,
+                album_result.match_percentage,
+                album_result.expected_track_count, // This is N (partial edition's track count)
+                total_tracks // This is the original album's total tracks
+            );
+        } else {
+            info!(
+                "Album match complete: matched={}, stage={:?}, percentage={:.1}%",
+                album_result.matched, album_result.matching_stage, album_result.match_percentage
+            );
+        }
 
         Ok(album_result)
     }
